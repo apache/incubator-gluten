@@ -327,38 +327,82 @@ During testing, it is possible that HBM is detected but not being used at runtim
 
 Gluten supports using Intel® QuickAssist Technology (QAT) for data compression during Spark Shuffle. It benefits from QAT Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
 
-This feature is built based on QAT driver library and QATzip library. Please manually download and install QAT driver for your system: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist). Gluten will internally build and use a specific version of QATzip library. Please uninstall QATzip library before building Gluten if it's already installed. Additional environment set-up are also required:
+This feature is based on QAT driver library and [QATzip](https://github.com/intel/QATzip) library. Please manually download QAT driver for your system, and follow its README to build and install on all Driver and Worker node: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
 
-1. Setup ICP_ROOT environment variable. This environment variable is required during building Gluten and running Spark applicaitons. It's recommended to put it in .bashrc.
+Gluten will internally build and use a specific version of QATzip library. Please **uninstall QATzip library** before building Gluten if it's already installed. Additional environment set-up are also required:
 
-```
+## 5.1 Build Gluten with QAT
+
+1. Setup ICP_ROOT environment variable. This environment variable is required during building Gluten and running Spark applicaitons. It's recommended to put it in .bashrc on Driver and Worker node.
+
+```shell script
 export ICP_ROOT=/path_to_QAT_driver
 ```
 2. **This step is required if your application is running as Non-root user**. The users must be added to the 'qat' group after QAT drvier is installed:
 
-```
+```shell script
 sudo usermod -g qat username # need to relogin
 ```
 Change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf. To set 500MB add a line like this in /etc/security/limits.conf:
-```
+```shell script
 cat /etc/security/limits.conf |grep qat
 @qat - memlock 500000
 ```
 
 3. Enable huge page as root user. **Note that this step is required to execute each time after system reboot.**
-```
+```shell script
  echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
  rmmod usdm_drv
  insmod $ICP_ROOT/build/usdm_drv.ko max_huge_pages=1024 max_huge_pages_per_process=32
  ```
  
 After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
-```
+```shell script
 cd /path_to_gluten/dev/
 ./builddeps_veloxbe.sh --enable_qat=ON
 ```
 
-**QAT driver references:**
+## 5.2 Enable QAT with Gzip Compression for shuffle compression
+
+1. To enable QAT at run-time, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
+```shell script
+## run as root
+## Overwrite QAT configuration file.
+cd /etc
+for i in {0..7}; do echo "4xxx_dev$i.conf"; done | xargs -i cp -f /path_to_gluten/docs/qat/4x16.conf {}
+## Restart QAT after updating configuration files.
+adf_ctl restart
+```
+2. Check QAT status and make sure the status is up
+```shell script
+adf_ctl status
+```
+The output should be like:
+```
+Checking status of all devices.
+There is 8 QAT acceleration device(s) in the system:
+ qat_dev0 - type: 4xxx,  inst_id: 0,  node_id: 0,  bsf: 0000:6b:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev1 - type: 4xxx,  inst_id: 1,  node_id: 1,  bsf: 0000:70:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev2 - type: 4xxx,  inst_id: 2,  node_id: 2,  bsf: 0000:75:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev3 - type: 4xxx,  inst_id: 3,  node_id: 3,  bsf: 0000:7a:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev4 - type: 4xxx,  inst_id: 4,  node_id: 4,  bsf: 0000:e8:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev5 - type: 4xxx,  inst_id: 5,  node_id: 5,  bsf: 0000:ed:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev6 - type: 4xxx,  inst_id: 6,  node_id: 6,  bsf: 0000:f2:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev7 - type: 4xxx,  inst_id: 7,  node_id: 7,  bsf: 0000:f7:00.0,  #accel: 1 #engines: 9 state: up
+```
+
+2. Extra Gluten configurations are required when starting Spark application
+```
+--conf spark.gluten.sql.columnar.qat=true
+--conf spark.gluten.sql.columnar.shuffle.customizedCompression.codec=gzip
+```
+
+3. You can use below command to check whether QAT is working normally at run-time. The value of fw_counters should continue to increase during shuffle. 
+```
+while :; do cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/fw_counters; sleep 1; done
+```
+
+## 5.3 QAT driver references
 
 **Documentation**
 
