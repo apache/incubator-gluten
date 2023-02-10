@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer, GetStructFieldTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -34,11 +34,9 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
@@ -50,38 +48,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable.ArrayBuffer
 
-class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper {
-
-  /**
-   * Whether support gluten for current SparkPlan
-   *
-   * @return
-   */
-  override def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean = {
-    // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
-    // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
-    // For example:
-    //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
-    //   import spark.implicits._
-    //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-    //   df.summary().show(100, false)
-
-    def includedDeltaOperator(scanExec: FileSourceScanExec): Boolean = {
-      scanExec.relation.location.isInstanceOf[DeltaLogFileIndex]
-    }
-
-    val includedUnsupportedPlans = collect(plan) {
-      // case s: SerializeFromObjectExec => true
-      // case d: DeserializeToObjectExec => true
-      // case o: ObjectHashAggregateExec => true
-      case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
-      case f: FileSourceScanExec if includedDeltaOperator(f) => true
-      case v2CommandExec: V2CommandExec => true
-      case commandResultExec: CommandResultExec => true
-    }
-
-    nativeEngineEnabled && !includedUnsupportedPlans.filter(_ == true).nonEmpty
-  }
+class CHSparkPlanExecApi extends ISparkPlanExecApi {
 
   /**
    * Generate GlutenColumnarToRowExecBase.

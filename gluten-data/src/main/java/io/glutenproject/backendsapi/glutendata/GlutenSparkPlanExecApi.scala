@@ -51,14 +51,6 @@ import scala.collection.mutable.ArrayBuffer
 abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
 
   /**
-   * Whether support gluten for current SparkPlan
-   *
-   * @return
-   */
-  override def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean =
-    nativeEngineEnabled
-
-  /**
    * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
@@ -300,6 +292,6 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = {
-    List(_ => ColumnarToFakeRowStrategy())
+    List(ColumnarToFakeRowStrategy)
   }
 }

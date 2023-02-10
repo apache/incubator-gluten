@@ -40,12 +40,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 trait ISparkPlanExecApi {
 
   /**
-   * Whether support gluten for current SparkPlan
-   * @return
-   */
-  def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean
-
-  /**
    * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
