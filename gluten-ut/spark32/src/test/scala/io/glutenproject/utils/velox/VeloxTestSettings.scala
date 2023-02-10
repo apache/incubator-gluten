@@ -286,12 +286,31 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
-    .include("tmp")
-  // enableSuite[GlutenParquetV2QuerySuite]
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    .exclude("Enabling/disabling ignoreCorruptFiles")
+    .exclude("returning batch for wide table")
+  enableSuite[GlutenParquetV2QuerySuite]
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    .exclude("Enabling/disabling ignoreCorruptFiles")
+    .exclude("returning batch for wide table")
+  // requires resource files from Vanilla spark jar
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
-  // enableSuite[GlutenParquetV1SchemaPruningSuite]
-  // enableSuite[GlutenParquetV2SchemaPruningSuite]
+  enableSuite[GlutenParquetV1SchemaPruningSuite]
+    // FIXME pushed filter validations
+    //  (Subfield filters creation not supported for input type
+    //  'ROW<col_0:ROW<col_0:VARCHAR,col_1:VARCHAR>>')
+    .exclude("Non-vectorized reader - without partition data column - " +
+      "select nullable complex field and having is not null predicate")
+    .exclude("Non-vectorized reader - with partition data column - " +
+      "select nullable complex field and having is not null predicate")
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .excludeByPrefix("Spark vectorized reader - ")
+  enableSuite[GlutenParquetV2SchemaPruningSuite]
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetSchemaInferenceSuite]
   enableSuite[GlutenParquetSchemaSuite]
     .exclude("schema mismatch failure error message for parquet reader")
