@@ -244,21 +244,20 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNestedDataSourceV2Suite]
   enableSuite[GlutenBinaryFileFormatSuite]
     .exclude("column pruning - non-readable file")
-  // enableSuite[GlutenCSVv1Suite]
-  // enableSuite[GlutenCSVv2Suite]
-  // enableSuite[GlutenCSVLegacyTimeParserSuite]
+  enableSuite[GlutenCSVv1Suite]
+  enableSuite[GlutenCSVv2Suite]
+  enableSuite[GlutenCSVLegacyTimeParserSuite]
   enableSuite[GlutenJsonV1Suite]
-    .exclude("SPARK-35047: Write Non-ASCII character as codepoint")
-    .exclude("SPARK-35104: Fix wrong indentation for multiple JSON even if `pretty` option is true")
-  // enableSuite[GlutenJsonV2Suite]
+  enableSuite[GlutenJsonV2Suite]
+    .exclude("SPARK-23772 ignore column of all null values or empty array during schema inference")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
   enableSuite[GlutenTextV1Suite]
-  // enableSuite[GlutenTextV2Suite]
+  enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
-  // enableSuite[GlutenOrcPartitionDiscoverySuite]
-  // enableSuite[GlutenOrcV1PartitionDiscoverySuite]
+  enableSuite[GlutenOrcPartitionDiscoverySuite]
+  enableSuite[GlutenOrcV1PartitionDiscoverySuite]
   // enableSuite[GlutenOrcV1QuerySuite]
   // enableSuite[GlutenOrcV2QuerySuite]
   // enableSuite[GlutenOrcSourceSuite]
@@ -306,7 +305,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
     .exclude("write and read - file source parquet - codec: lz4")
-  // enableSuite[GlutenOrcCodecSuite]
+  enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     .exclude("partitioned table - after scan filters")
     .exclude(
@@ -318,9 +317,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVReadSchemaSuite]
   enableSuite[GlutenHeaderCSVReadSchemaSuite]
   enableSuite[GlutenJsonReadSchemaSuite]
-  // enableSuite[GlutenOrcReadSchemaSuite]
+  enableSuite[GlutenOrcReadSchemaSuite]
   // enableSuite[GlutenVectorizedOrcReadSchemaSuite]
-  // enableSuite[GlutenMergedOrcReadSchemaSuite]
+  enableSuite[GlutenMergedOrcReadSchemaSuite]
   enableSuite[GlutenParquetReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
