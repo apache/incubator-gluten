@@ -355,6 +355,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSaveLoadSuite]
   enableSuite[GlutenTableScanSuite]
   enableSuite[GlutenDataSourceV2Suite]
+    // Gluten does not support the convert from spark columnar data
+    // to velox columnar data.
     .exclude("columnar batch scan implementation")
     // Rewrite the following test in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
