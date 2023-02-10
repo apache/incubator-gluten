@@ -380,4 +380,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
     .exclude("cases when literal is max")
+  enableSuite[GlutenDatasetSerializerRegistratorSuite]
+  enableSuite[GlutenDeprecatedAPISuite]
+  enableSuite[GlutenMetadataCacheSuite]
+  enableSuite[GlutenSimpleShowCreateTableSuite]
+  enableSuite[GlutenStatisticsCollectionSuite]
 }
