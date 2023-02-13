@@ -59,7 +59,7 @@ case class GlutenHashAggregateExecTransformer(
     for (expr <- aggregateExpressions) {
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
-        case Average(_, _) | StddevSamp(_, _) =>
+        case Average(_, _) | StddevSamp(_, _) | StddevPop(_, _) =>
           expr.mode match {
             case Partial =>
               return true
@@ -103,7 +103,7 @@ case class GlutenHashAggregateExecTransformer(
           // Select count from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
           colIdx += 1
-        case _: StddevSamp =>
+        case _: StddevSamp | _: StddevPop =>
           // Select count from Velox struct with count casted from LongType into DoubleType.
           expressionNodes.add(ExpressionBuilder
             .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
@@ -139,7 +139,7 @@ case class GlutenHashAggregateExecTransformer(
         // Use struct type to represent Velox Row(DOUBLE, BIGINT).
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-      case _: StddevSamp =>
+      case _: StddevSamp | _: StddevPop =>
         // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
@@ -158,7 +158,7 @@ case class GlutenHashAggregateExecTransformer(
     aggregateMode: AggregateMode,
     aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
     aggregateFunction match {
-      case Average(_, _) | StddevSamp(_, _) =>
+      case Average(_, _) | StddevSamp(_, _) | StddevPop(_, _) =>
         aggregateMode match {
           case Partial =>
             assert(childrenNodeList.size() == 1, "Partial stage expects one child node.")
@@ -200,7 +200,7 @@ case class GlutenHashAggregateExecTransformer(
     aggregateExpressions.foreach(expression => {
       val aggregateFunction = expression.aggregateFunction
       aggregateFunction match {
-        case Average(_, _) | StddevSamp(_, _) =>
+        case Average(_, _) | StddevSamp(_, _) | StddevPop(_, _) =>
           expression.mode match {
             case Partial =>
               typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
@@ -289,7 +289,7 @@ case class GlutenHashAggregateExecTransformer(
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
-        case StddevSamp(_, _) =>
+        case StddevSamp(_, _) | StddevPop(_, _) =>
           aggregateExpression.mode match {
             case Final =>
               assert(functionInputAttributes.size == 3,
@@ -367,7 +367,7 @@ case class GlutenHashAggregateExecTransformer(
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
-        case Average(_, _) | StddevSamp(_, _) =>
+        case Average(_, _) | StddevSamp(_, _) | StddevPop(_, _) =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
