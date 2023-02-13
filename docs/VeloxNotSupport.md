@@ -34,3 +34,7 @@ Gluten currently doesn't support ANSI mode, if Spark configured ansi, gluten wil
 # Case Sensitive mode
 
 Gluten only supports spark default case-insensitive mode, if case-sensitive, may get incorrect result.
+
+# JSON FUNCTION
+
+Gluten only support double quotes operator not single quotes in json function.
