@@ -35,7 +35,9 @@ jobs:
           EXTRA_DOCKER_OPTIONS="--name arrow-backend-test-$GITHUB_RUN_ID -v /mnt/tpcds:/mnt/tpcds -v /home/sparkuser:/home/sparkuser -v /tmp:/tmp --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
       - name: Install Gluten Arrow-backend
         run: |
-          docker exec arrow-backend-test-$GITHUB_RUN_ID bash -c "cd /opt/gluten/ep/build-arrow/src && \
+          docker exec arrow-backend-test-$GITHUB_RUN_ID bash -c "
+          tar -zxvf /home/sparkuser/repo.tar.gz -C ~/ && \
+          cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh --arrow_branch=arrow-8.0.0-gluten-20220427a && \
           ./build_arrow_for_gazelle.sh && \
           cd /opt/gluten/cpp && mkdir build && cd build && \
@@ -64,6 +66,7 @@ jobs:
       - name: Build Gluten Velox-backend third party
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
+          tar -zxvf /home/sparkuser/repo.tar.gz -C ~/ && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
