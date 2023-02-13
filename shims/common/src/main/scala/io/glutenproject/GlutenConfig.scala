@@ -392,7 +392,8 @@ object GlutenConfig {
           .toString)
     }
 
-    nativeConfMap.put(GlutenConfig.GLUTEN_TIMEZONE,
+    nativeConfMap.put(
+      GlutenConfig.GLUTEN_TIMEZONE,
       conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
 
     nativeConfMap
