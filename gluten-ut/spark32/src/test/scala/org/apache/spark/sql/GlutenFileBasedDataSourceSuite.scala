@@ -17,5 +17,27 @@
 
 package org.apache.spark.sql
 
+import org.apache.hadoop.fs.Path
+
 class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with GlutenSQLTestsTrait {
+  // test data path is jar path, so failed, test code is same with spark
+  test("gluten Option recursiveFileLookup: disable partition inferring") {
+    val dataPath = Thread.currentThread().getContextClassLoader
+      .getResource("test-data/text-partitioned").toString
+
+    val df = spark.read.format("binaryFile")
+      .option("recursiveFileLookup", true)
+      .load(dataPath)
+
+    assert(!df.columns.contains("year"), "Expect partition inferring disabled")
+    val fileList = df.select("path").collect().map(_.getString(0))
+
+    val expectedFileList = Array(
+      dataPath + "/year=2014/data.txt",
+      dataPath + "/year=2015/data.txt"
+    ).map(path => new Path(path).toString)
+
+    assert(fileList.toSet === expectedFileList.toSet)
+  }
+
 }
