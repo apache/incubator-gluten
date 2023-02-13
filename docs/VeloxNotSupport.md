@@ -26,3 +26,8 @@ java.io.IOException: Unexpected Bloom filter version number (512)
 ## Solution
 
 Set the gluten config `spark.gluten.sql.native.bloomFilter=false`, it will fallback to vanilla bloom filter, you can also disable runtime filter by setting spark config `spark.sql.optimizer.runtime.bloomFilter.enabled=false`
+
+# ANSI
+
+Gluten currently doesn't support ANSI mode, if Spark configured ansi, gluten will fallback to vanilla Spark.
+
