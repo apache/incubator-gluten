@@ -38,3 +38,8 @@ Gluten only supports spark default case-insensitive mode, if case-sensitive, may
 # JSON FUNCTION
 
 Gluten only support double quotes operator not single quotes in json function.
+
+# Spark's columnar reading
+
+If the user enables Spark's columnar reading, error can occur due to Spark's columnar vector is not compatible with
+Gluten's.
