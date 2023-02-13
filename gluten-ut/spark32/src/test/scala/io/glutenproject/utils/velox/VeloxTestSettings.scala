@@ -367,7 +367,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioning reporting")
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
-    .include("Gluten: A cached table preserves the partitioning and ordering of its cached SparkPlan")
+//    .include("A cached table preserves the partitioning and ordering of its cached SparkPlan")
   enableSuite[GlutenConfigBehaviorSuite]
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
