@@ -324,7 +324,7 @@ arrow::Status Splitter::Init() {
 
   // Allocate first buffer for split reducer
   ARROW_ASSIGN_OR_RAISE(combine_buffer_, arrow::AllocateResizableBuffer(0, options_.memory_pool.get()));
-  combine_buffer_->Resize(0, /*shrink_to_fit =*/false);
+  RETURN_NOT_OK(combine_buffer_->Resize(0, /*shrink_to_fit =*/false));
 
   return arrow::Status::OK();
 }
@@ -340,24 +340,12 @@ arrow::Status Splitter::AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& b
     // memory pool is not enough
     ARROW_ASSIGN_OR_RAISE(
         combine_buffer_, arrow::AllocateResizableBuffer(SPLIT_BUFFER_SIZE, options_.memory_pool.get()));
-    combine_buffer_->Resize(0, /*shrink_to_fit = */ false);
+    RETURN_NOT_OK(combine_buffer_->Resize(0, /*shrink_to_fit = */ false));
   }
   buffer = arrow::SliceMutableBuffer(combine_buffer_, combine_buffer_->size(), size);
 
-  combine_buffer_->Resize(combine_buffer_->size() + size, /*shrink_to_fit = */ false);
+  RETURN_NOT_OK(combine_buffer_->Resize(combine_buffer_->size() + size, /*shrink_to_fit = */ false));
   return arrow::Status::OK();
-}
-
-int64_t Splitter::CompressedSize(const arrow::RecordBatch& rb) {
-  auto payload = std::make_shared<arrow::ipc::IpcPayload>();
-  arrow::Status result;
-  result = arrow::ipc::GetRecordBatchPayload(rb, options_.ipc_write_options, payload.get());
-  if (result.ok()) {
-    return payload->body_length;
-  } else {
-    result.UnknownError("Failed to get the compressed size.");
-    return -1;
-  }
 }
 
 arrow::Status Splitter::SetCompressType(arrow::Compression::type compressed_type) {
@@ -920,13 +908,13 @@ arrow::Status Splitter::SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb)
 
     switch (arrow::bit_width(column_type_id_[col_idx]->id())) {
       case 8:
-        SplitFixedType<uint8_t>(src_addr, dst_addrs);
+        RETURN_NOT_OK(SplitFixedType<uint8_t>(src_addr, dst_addrs));
         break;
       case 16:
-        SplitFixedType<uint16_t>(src_addr, dst_addrs);
+        RETURN_NOT_OK(SplitFixedType<uint16_t>(src_addr, dst_addrs));
         break;
       case 32:
-        SplitFixedType<uint32_t>(src_addr, dst_addrs);
+        RETURN_NOT_OK(SplitFixedType<uint32_t>(src_addr, dst_addrs));
         break;
       case 64:
 #ifdef PROCESSAVX
@@ -987,7 +975,7 @@ arrow::Status Splitter::SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb)
         }
         break;
 #else
-        SplitFixedType<uint64_t>(src_addr, dst_addrs);
+        RETURN_NOT_OK(SplitFixedType<uint64_t>(src_addr, dst_addrs));
 #endif
         break;
 #if defined(__x86_64__)
@@ -1179,7 +1167,7 @@ arrow::Status Splitter::SplitBinaryType(
         multiply = std::min(3, multiply + 1);
         auto value_buffer = std::static_pointer_cast<arrow::ResizableBuffer>(
             partition_buffers_[fixed_width_col_cnt_ + binary_idx][pid][2]);
-        value_buffer->Reserve(capacity);
+        RETURN_NOT_OK(value_buffer->Reserve(capacity));
 
         dst_addrs[pid].valueptr = value_buffer->mutable_data();
         dst_addrs[pid].value_capacity = capacity;
@@ -1225,12 +1213,12 @@ arrow::Status Splitter::SplitBinaryArray(const arrow::RecordBatch& rb) {
     auto typeids = column_type_id_[col_idx]->id();
     if (typeids == arrow::BinaryType::type_id || typeids == arrow::StringType::type_id) {
       auto src_offset_addr = arr_data->GetValuesSafe<arrow::BinaryType::offset_type>(1);
-      SplitBinaryType<arrow::BinaryType::offset_type>(
-          src_value_addr, src_offset_addr, dst_addrs, col - fixed_width_col_cnt_);
+      RETURN_NOT_OK(SplitBinaryType<arrow::BinaryType::offset_type>(
+          src_value_addr, src_offset_addr, dst_addrs, col - fixed_width_col_cnt_));
     } else {
       auto src_offset_addr = arr_data->GetValuesSafe<arrow::LargeBinaryType::offset_type>(1);
-      SplitBinaryType<arrow::LargeBinaryType::offset_type>(
-          src_value_addr, src_offset_addr, dst_addrs, col - fixed_width_col_cnt_);
+      RETURN_NOT_OK(SplitBinaryType<arrow::LargeBinaryType::offset_type>(
+          src_value_addr, src_offset_addr, dst_addrs, col - fixed_width_col_cnt_));
     }
   }
 
@@ -1366,7 +1354,7 @@ arrow::Status SinglePartSplitter::Init() {
 arrow::Status SinglePartSplitter::Split(const arrow::RecordBatch& rb) {
   EVAL_START("split", options_.thread_id)
 
-  CacheRecordBatch(0, rb);
+  RETURN_NOT_OK(CacheRecordBatch(0, rb));
 
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
@@ -1454,8 +1442,8 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
         "lea (%[num_partitions],%[pid],1),%[tmp]\n"
         "test %[pid],%[pid]\n"
         "cmovs %[tmp],%[pid]\n"
-        : [ pid ] "+r"(pid)
-        : [ num_partitions ] "r"(num_partitions_), [ tmp ] "r"(0));
+        : [pid] "+r"(pid)
+        : [num_partitions] "r"(num_partitions_), [tmp] "r"(0));
 #else
     if (pid < 0)
       pid += num_partitions_;

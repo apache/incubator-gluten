@@ -47,6 +47,7 @@ class ColumnarBatch {
 
   virtual std::shared_ptr<ArrowSchema> exportArrowSchema() = 0;
 
+  // FIXME: No need to have this virtual function
   virtual void saveToFile(std::shared_ptr<ArrowWriter> writer) = 0;
 
   virtual int64_t getExportNanos() const {
@@ -83,8 +84,8 @@ class ArrowColumnarBatch final : public ColumnarBatch {
   }
 
   void saveToFile(std::shared_ptr<ArrowWriter> writer) override {
-    writer->initWriter(*(batch_->schema().get()));
-    writer->writeInBatches(batch_);
+    GLUTEN_THROW_NOT_OK(writer->initWriter(*(batch_->schema().get())));
+    GLUTEN_THROW_NOT_OK(writer->writeInBatches(batch_));
   }
 
  private:
@@ -118,8 +119,8 @@ class ArrowCStructColumnarBatch final : public ColumnarBatch {
 
   void saveToFile(std::shared_ptr<ArrowWriter> writer) override {
     GLUTEN_ASSIGN_OR_THROW(auto rb, arrow::ImportRecordBatch(cArray_.get(), cSchema_.get()));
-    writer->initWriter(*(rb->schema().get()));
-    writer->writeInBatches(rb);
+    GLUTEN_THROW_NOT_OK(writer->initWriter(*(rb->schema().get())));
+    GLUTEN_THROW_NOT_OK(writer->writeInBatches(rb));
 
     arrow::Status status = arrow::ExportRecordBatch(*rb, cArray_.get(), cSchema_.get());
     if (!status.ok()) {

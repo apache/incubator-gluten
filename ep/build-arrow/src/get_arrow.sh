@@ -4,10 +4,10 @@ set -exu
 #setting gluten root path
 ARROW_REPO=https://github.com/oap-project/arrow.git
 #for velox_backend
-ARROW_BRANCH=backend_velox_main
+ARROW_BRANCH=arrow-11.0.0-gluten
 #for gazelle backend
 #ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
-
+ENABLE_EP_CACHE=OFF
 
 for arg in "$@"
 do
@@ -20,8 +20,12 @@ do
         ARROW_BRANCH=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-	    *)
-	    OTHER_ARGUMENTS+=("$1")
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+	      *)
+	      OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
         ;;
     esac
@@ -50,7 +54,7 @@ function check_ep_cache {
 
 function checkout_code {
   if [ -d $ARROW_SOURCE_DIR ]; then
-    echo "Applying incremental build for Arrow..."
+    echo "Arrow source folder $ARROW_SOURCE_DIR already exists..."
     cd $ARROW_SOURCE_DIR
     git init .
     EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true`
@@ -63,6 +67,10 @@ function checkout_code {
     git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     cd $ARROW_SOURCE_DIR
     git checkout $TARGET_BUILD_COMMIT
+  fi
+
+  if [ $ENABLE_EP_CACHE == "OFF" ]; then
+    git clean -dfx
   fi
 }
 

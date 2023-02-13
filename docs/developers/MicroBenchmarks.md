@@ -37,7 +37,7 @@ cd /path_to_gluten
 mvn clean package -Pspark-3.2 -Pbackends-velox
 
 mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am \
--DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
+-DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
 ```
 
 The generated example files are placed in gluten/backends-velox:

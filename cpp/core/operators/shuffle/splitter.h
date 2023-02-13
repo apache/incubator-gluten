@@ -66,11 +66,6 @@ class Splitter {
   virtual arrow::Status Split(const arrow::RecordBatch&);
 
   /**
-   * Compute the compresse size of record batch.
-   */
-  virtual int64_t CompressedSize(const arrow::RecordBatch&);
-
-  /**
    * For each partition, merge spilled file into shuffle data file and write any
    * cached record batch to shuffle data file. Close all resources and collect
    * metrics.

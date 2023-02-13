@@ -25,38 +25,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
-  arrow-backend-test:
-    runs-on: velox-self-hosted
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup docker container
-        run: |
-          EXTRA_DOCKER_OPTIONS="--name arrow-backend-test-$GITHUB_RUN_ID -v /mnt/tpcds:/mnt/tpcds -v /home/sparkuser:/home/sparkuser -v /tmp:/tmp --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
-      - name: Setup maven cache
-        run: |
-          docker cp ~/.m2/repository arrow-backend-test-$GITHUB_RUN_ID:/root/.m2/
-      - name: Install Gluten Arrow-backend
-        run: |
-          docker exec arrow-backend-test-$GITHUB_RUN_ID bash -c "cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_branch=arrow-8.0.0-gluten-20220427a && \
-          ./build_arrow_for_gazelle.sh && \
-          cd /opt/gluten/cpp && mkdir build && cd build && \
-          cmake -DBUILD_GAZELLE_CPP_BACKEND=ON .. && make -j && \
-          cd /opt/gluten && \
-          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests"
-      # - name: Run unit tests
-      #   run: |
-      #     mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
-      - name: Run TPCDS q82,q85,q37,q60,q26
-        run: |
-          docker exec arrow-backend-test-$GITHUB_RUN_ID bash -c "cd /mnt/tpcds && \
-          bash tpcds_spark.sh"
-      - name: Exit docker container
-        if: ${{ always() }}
-        run: |
-          docker stop arrow-backend-test-$GITHUB_RUN_ID || true
-
   velox-backend-ubuntu2004-test:
     runs-on: velox-self-hosted 
     steps:
@@ -233,11 +201,18 @@ jobs:
   formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - check: 'gluten/cpp/core'
+            exclude: ''
+          - check: 'gluten/cpp/velox'
+            exclude: ''
     steps:
     - uses: actions/checkout@v2
     - name: Run clang-format style check for C/C++ programs.
       uses: jidicula/clang-format-action@v3.5.1
       with:
-        clang-format-version: '10'
-        check-path: 'gluten/cpp/src'
+        clang-format-version: '11'
+        check-path: ${{ matrix.path['check'] }}
         fallback-style: 'Google' # optional

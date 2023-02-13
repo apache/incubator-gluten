@@ -139,7 +139,7 @@ static inline arrow::Status MakeArrayData(
         // Chendi: For some reason, for ListArray::FromArrays will remove last
         // row from offset array, refer to array_nested.cc CleanListOffsets
         // function
-        FIXOffsetBuffer(&in_bufs[*buf_idx_ptr], num_rows);
+        RETURN_NOT_OK(FIXOffsetBuffer(&in_bufs[*buf_idx_ptr], num_rows));
         RETURN_NOT_OK(
             MakeArrayData(offset_data_type, num_rows + 1, in_bufs, in_bufs_len, &offset_array_data, buf_idx_ptr));
         auto offset_array = arrow::MakeArray(offset_array_data);

@@ -4,6 +4,7 @@ set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=main
+ENABLE_EP_CACHE=OFF
 
 for arg in "$@"
 do
@@ -14,6 +15,10 @@ do
         ;;
         --velox_branch=*)
         VELOX_BRANCH=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -46,7 +51,7 @@ function check_ep_cache {
 
 function checkout_code {
   if [ -d $VELOX_SOURCE_DIR ]; then
-    echo "Applying incremental build for Velox..."
+    echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
     cd $VELOX_SOURCE_DIR
     git init .
     EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true`
@@ -63,6 +68,10 @@ function checkout_code {
   #sync submodules
   git submodule sync --recursive
   git submodule update --init --recursive
+
+  if [ $ENABLE_EP_CACHE == "OFF" ]; then
+    git clean -dfx
+  fi
 }
 
 echo "Velox-get start..."

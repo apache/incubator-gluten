@@ -47,8 +47,8 @@ void VeloxColumnarBatch::saveToFile(std::shared_ptr<ArrowWriter> writer) {
     throw gluten::GlutenException("Get batch failed!");
     return;
   }
-  writer->initWriter(*maybeBatch.ValueOrDie()->schema().get());
-  writer->writeInBatches(maybeBatch.ValueOrDie());
+  GLUTEN_THROW_NOT_OK(writer->initWriter(*maybeBatch.ValueOrDie()->schema().get()));
+  GLUTEN_THROW_NOT_OK(writer->writeInBatches(maybeBatch.ValueOrDie()));
 }
 
 RowVectorPtr VeloxColumnarBatch::getRowVector() const {
