@@ -68,12 +68,14 @@ class VeloxBackend final : public Backend {
 
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {}) override;
+      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
+      std::unordered_map<std::string, std::string> sessionConf = {}) override;
 
   // Used by unit test and benchmark.
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      std::unordered_map<std::string, std::string> sessionConf = {});
 
   arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,

@@ -20,7 +20,6 @@ package io.glutenproject.backendsapi.gazelle
 import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.IInitializerApi
-import io.glutenproject.GlutenPlugin.buildNativeConfNode
 import org.apache.commons.lang3.StringUtils
 
 import org.apache.spark.SparkConf
@@ -44,6 +43,6 @@ class GazelleInitializerApi extends IInitializerApi {
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_GAZELLE_BACKEND, false)
     val initKernel = new GlutenNativeExpressionEvaluator()
-    initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
+    initKernel.initNative(conf)
   }
 }

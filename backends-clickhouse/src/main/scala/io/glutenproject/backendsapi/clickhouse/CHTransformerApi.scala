@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.CHInputPartitionsUtil
 
 import org.apache.spark.internal.Logging
@@ -30,6 +31,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partition
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.types.{ArrayType, StructField}
 
 class CHTransformerApi extends ITransformerApi with Logging {
 
@@ -75,8 +77,8 @@ class CHTransformerApi extends ITransformerApi with Logging {
    * @return
    *   true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(fileFormat: FileFormat): Boolean =
-    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat)
+  def supportsReadFileFormat(fileFormat: ReadFileFormat, fields: Array[StructField]): Boolean =
+    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(

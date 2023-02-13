@@ -367,8 +367,7 @@ object ConverterUtils extends Logging {
           case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
           case _ => ReadFileFormat.UnknownFormat
         }
-      case other =>
-        throw new UnsupportedOperationException(s"$other not supported.")
+      case _ => ReadFileFormat.UnknownFormat
     }
   }
 

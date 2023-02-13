@@ -168,6 +168,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         jni/JniWrapper.cc
         compute/Backend.cc
         compute/ResultIterator.cc
+        config/GlutenConfig.cc
         memory/MemoryAllocator.cc
         memory/ArrowMemoryPool.cc
         ${PROTO_SRCS}
@@ -212,6 +213,14 @@ if(ENABLE_HBM)
   if(BUILD_TESTS)
     add_test_case(hbw_allocator_test SOURCES tests/HbwAllocatorTest.cc)
   endif()
+endif()
+
+if(ENABLE_QAT)
+  include(BuildQATzip)
+  target_include_directories(spark_columnar_jni PUBLIC ${QATZIP_INCLUDE_DIR})
+  target_sources(spark_columnar_jni PRIVATE utils/qat_util.cc)
+  target_link_libraries(spark_columnar_jni PUBLIC qatzip::qatzip)
+  add_definitions(-DGLUTEN_ENABLE_QAT)
 endif()
 
 if(BUILD_PROTOBUF)

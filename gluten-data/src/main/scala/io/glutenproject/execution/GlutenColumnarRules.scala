@@ -19,8 +19,9 @@ package io.glutenproject.execution
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-
+import io.glutenproject.utils.{LogicalPlanSelector, QueryPlanSelector}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.InternalRow
@@ -79,13 +80,14 @@ class FakeRow(val batch: ColumnarBatch) extends InternalRow {
     throw new UnsupportedOperationException()
 }
 
-case class ColumnarToFakeRowStrategy() extends Strategy {
-  override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
+case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy {
+  override def apply(plan: LogicalPlan): Seq[SparkPlan] = LogicalPlanSelector.maybeNil(session,
+    plan) {plan match {
     case ColumnarToFakeRowLogicAdaptor(child: LogicalPlan) =>
       Seq(ColumnarToFakeRowAdaptor(planLater(child)))
     case other =>
       Nil
-  }
+  }}
 }
 
 private case class ColumnarToFakeRowLogicAdaptor(child: LogicalPlan)

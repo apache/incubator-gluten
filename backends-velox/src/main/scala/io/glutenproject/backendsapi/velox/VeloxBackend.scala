@@ -19,12 +19,10 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
+import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, MapType, StructField, StructType}
 
 class VeloxBackend extends Backend {
   override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
@@ -37,10 +35,23 @@ class VeloxBackend extends Backend {
 }
 
 object VeloxBackendSettings extends BackendSettings {
-  override def supportFileFormatRead(): FileFormat => Boolean = {
-    case _ : ParquetFileFormat | _ : OrcFileFormat | _ : DwrfFileFormat => true
-    case _ => false
+  override def supportFileFormatRead(format: ReadFileFormat,
+                                     fields: Array[StructField]): Boolean = {
+    format match {
+      case ParquetReadFormat =>
+        // Unsupported types are prevented.
+        fields.map(_.dataType).collect {
+          case _: BooleanType =>
+          case _: ByteType =>
+          case _: ArrayType =>
+          case _: MapType =>
+          case _: StructType =>
+        }.isEmpty
+      case DwrfReadFormat => true
+      case _ => false
+    }
   }
+
   override def supportExpandExec(): Boolean = true
   override def needProjectExpandOutput: Boolean = true
   override def supportSortExec(): Boolean = true

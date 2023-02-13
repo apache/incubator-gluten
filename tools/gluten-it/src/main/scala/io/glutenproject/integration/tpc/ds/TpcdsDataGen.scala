@@ -11,7 +11,7 @@ import java.nio.file.{Files, Paths, StandardCopyOption}
 import scala.collection.JavaConverters._
 
 class TpcdsDataGen(val spark: SparkSession, scale: Double, partitions: Int, dir: String,
-  typeModifiers: List[TypeModifier] = List(), val partition: Boolean, val fileFormat: String)
+  typeModifiers: List[TypeModifier] = List(), val genPartitionedData: Boolean)
   extends Serializable with DataGen {
 
   def writeParquetTable(t: Table): Unit = {
@@ -45,7 +45,7 @@ class TpcdsDataGen(val spark: SparkSession, scale: Double, partitions: Int, dir:
       case "web_page" => TpcdsDataGen.webPageSchema
       case "web_site" => TpcdsDataGen.webSiteSchema
     }
-    val partitionBy: List[String] = if (!partition) List[String]() else name match {
+    val partitionBy: List[String] = if (!genPartitionedData) List[String]() else name match {
       case "catalog_sales" => List("cs_sold_date_sk")
       case "web_sales" => List("ws_sold_date_sk")
       case _ => List[String]()
@@ -65,8 +65,9 @@ class TpcdsDataGen(val spark: SparkSession, scale: Double, partitions: Int, dir:
     val columns = modifiedSchema.fields.map { f =>
       new Column(f.name).cast(f.dataType).as(f.name)
     }
-    // if is dwrf path, save to tmp path and then read from this path
-    val tablePath = if (fileFormat.equals("dwrf")) dir + "-dwrf" + File.separator + tableName else dir + File.separator + tableName
+    // dwrf support was temporarily dropped since it impacts data gen skipping strategy.
+    // Better design is required to re-enable it
+    val tablePath = dir + File.separator + tableName
     spark.range(0, partitions, 1L, partitions)
       .mapPartitions { itr =>
         val id = itr.toArray
@@ -91,11 +92,6 @@ class TpcdsDataGen(val spark: SparkSession, scale: Double, partitions: Int, dir:
       .mode(SaveMode.Overwrite)
       .partitionBy(partitionBy.toArray: _*)
       .parquet(tablePath)
-
-    if (fileFormat.equals("dwrf")) {
-      val tbl = spark.read.format("parquet").load(dir + "-dwrf" + File.separator + tableName)
-      tbl.write.mode(SaveMode.Overwrite).format("dwrf").save(dir + File.separator + tableName)
-    }
   }
 
   override def gen(): Unit = {

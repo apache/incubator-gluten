@@ -350,7 +350,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     jint stage_id,
     jint partition_id,
     jlong task_id,
-    jboolean saveInput) {
+    jboolean saveInput,
+    jbyteArray confArr) {
   JNI_METHOD_START
   arrow::Status msg;
 
@@ -367,19 +368,21 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     gluten::JniThrow("Failed to parse plan.");
   }
 
+  auto confs = getConfMap(env, confArr);
+
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<ResultIterator>> input_iters;
   for (int idx = 0; idx < iters_len; idx++) {
     std::shared_ptr<ArrowWriter> writer = nullptr;
     if (saveInput) {
-      auto dir = backend->GetConf()[kGlutenSaveDir];
+      auto dir = confs[kGlutenSaveDir];
       std::filesystem::path f{dir};
       if (!std::filesystem::exists(f)) {
         gluten::JniThrow("Save input path " + dir + " does not exists");
       }
-      auto file = backend->GetConf()[kGlutenSaveDir] + "/input_" + std::to_string(task_id) + "_" + std::to_string(idx) +
-          "_" + std::to_string(partition_id) + ".parquet";
+      auto file = confs[kGlutenSaveDir] + "/input_" + std::to_string(task_id) + "_" + std::to_string(idx) + "_" +
+          std::to_string(partition_id) + ".parquet";
       writer = std::make_shared<ArrowWriter>(file);
     }
     jobject iter = env->GetObjectArrayElement(iter_arr, idx);
@@ -388,7 +391,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     input_iters.push_back(std::move(result_iter));
   }
 
-  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, input_iters);
+  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, input_iters, confs);
   return result_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
 }

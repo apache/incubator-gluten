@@ -18,8 +18,10 @@ package io.glutenproject.backendsapi.gazelle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
+import org.apache.spark.sql.types.{ArrayType, StructField}
 
 // FIXME The backend reuses some of Velox BE's code. Cleanup is needed
 //  to avoid this.
@@ -34,9 +36,12 @@ class GazelleBackend extends Backend {
 }
 
 object GazelleBackendSettings extends BackendSettings {
-  override def supportFileFormatRead: FileFormat => Boolean = {
-    case _: ParquetFileFormat => true
-    case _ => false
+  override def supportFileFormatRead(format: ReadFileFormat,
+                                     fields: Array[StructField]): Boolean = {
+    format match {
+      case ParquetReadFormat => true
+      case _ => false
+    }
   }
 
   override def disableVanillaColumnarReaders(): Boolean = true

@@ -17,12 +17,13 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
-
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.types.StructField
 
 trait BackendSettings {
-  def supportFileFormatRead: FileFormat => Boolean = _ => false
+  def supportFileFormatRead(format: ReadFileFormat, fields: Array[StructField]): Boolean = false
   def supportExpandExec(): Boolean = false
   def needProjectExpandOutput: Boolean = false
   def supportSortExec(): Boolean = false

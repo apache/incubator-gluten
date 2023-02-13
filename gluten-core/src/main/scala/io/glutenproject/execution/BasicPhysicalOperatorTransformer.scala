@@ -517,7 +517,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
   def doValidate(): Boolean = {
-    BackendsApiManager.getValidatorApiInstance.doValidateSchema(schema)
+    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)
   }
 }
 

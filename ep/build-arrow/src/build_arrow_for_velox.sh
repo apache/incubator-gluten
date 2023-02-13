@@ -9,6 +9,7 @@ TARGET_BUILD_COMMIT=""
 ARROW_REPO=https://github.com/oap-project/arrow.git
 ARROW_BRANCH=backend_velox_main
 ARROW_HOME=
+ENABLE_QAT=OFF
 
 for arg in "$@"
 do
@@ -23,6 +24,10 @@ do
         ;;
         --arrow_home=*)
         ARROW_HOME=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_qat=*)
+        ENABLE_QAT=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -45,6 +50,7 @@ echo "CMAKE Arguments:"
 echo "BUILD_TESTS=${BUILD_TESTS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "ARROW_HOME=${ARROW_HOME}"
+echo "ENABLE_QAT=${ENABLE_QAT}"
 
 if [ -d $ARROW_INSTALL_DIR ]; then
     rm -rf $ARROW_INSTALL_DIR
@@ -57,6 +63,12 @@ if [ $BUILD_TESTS == ON ]; then
   WITH_JSON=ON
 fi
 pushd $ARROW_SOURCE_DIR
+
+# apply patch for custom codec
+if [ $ENABLE_QAT == ON ]; then
+  git apply --reverse --check $CURRENT_DIR/custom-codec.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
+fi
+
 TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
 mkdir -p java/build
 pushd java/build

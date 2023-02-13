@@ -2,41 +2,38 @@ package io.glutenproject.integration.tpc.h
 
 import io.glutenproject.integration.tpc.{Constants, DataGen, TpcSuite, TypeModifier}
 import io.glutenproject.integration.tpc.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_PATH}
+import io.glutenproject.integration.tpc.action.Action
 import org.apache.log4j.Level
-
 import org.apache.spark.SparkConf
 
 class TpchSuite(
+  val actions: Array[Action],
   val testConf: SparkConf,
   val baselineConf: SparkConf,
-  val scale: Double,
   val fixedWidthAsDouble: Boolean,
-  val queryIds: Array[String],
   val logLevel: Level,
-  val explain: Boolean,
   val errorOnMemLeak: Boolean,
+  val enableUi: Boolean,
   val enableHsUi: Boolean,
   val hsUiPort: Int,
   val cpus: Int,
   val offHeapSize: String,
-  val iterations: Int,
   val disableAqe: Boolean,
   val disableBhj: Boolean,
   val disableWscg: Boolean,
-  val useExistingData: Boolean) extends TpcSuite(testConf, baselineConf, scale, fixedWidthAsDouble,
-  queryIds, logLevel, explain, errorOnMemLeak, enableHsUi, hsUiPort, cpus,
-  offHeapSize, iterations, disableAqe, disableBhj, disableWscg, useExistingData) {
-
-  override protected def dataWritePath(): String = TPCH_WRITE_PATH
+  val shufflePartitions: Int,
+  val minimumScanPartitions: Boolean) extends TpcSuite(actions, testConf, baselineConf,
+  fixedWidthAsDouble, logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort, cpus,
+  offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions, minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
-  override protected def createDataGen(): DataGen = new TpchDataGen(sessionSwitcher.spark(),
-    scale, cpus, TpchSuite.TPCH_WRITE_PATH, typeModifiers())
+  override private[tpc] def dataWritePath(scale: Double): String = TPCH_WRITE_PATH + s"-$scale"
 
-  override protected def allQueryIds(): Array[String] = TpchSuite.ALL_QUERY_IDS
+  override private[tpc] def createDataGen(scale: Double, genPartitionedData: Boolean): DataGen = new TpchDataGen(sessionSwitcher.spark(),
+    scale, cpus, dataWritePath(scale), typeModifiers())
 
-  override protected def queryResource(): String = {
+  override private[tpc] def queryResource(): String = {
     if (fixedWidthAsDouble) {
       "/tpch-queries-noint-nodate"
     } else {
@@ -53,7 +50,9 @@ class TpchSuite(
     }
   }
 
-  override protected def desc(): String = "TPC-H"
+  override private[tpc] def allQueryIds(): Array[String] = TpchSuite.ALL_QUERY_IDS
+
+  override private[tpc] def desc(): String = "TPC-H"
 }
 
 object TpchSuite {

@@ -218,19 +218,27 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSuite]
+    // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
   enableSuite[GlutenJsonFunctionsSuite]
+    // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
-    .exclude("roundtrip in to_json and from_json - struct")
   enableSuite[GlutenProductAggSuite]
   enableSuite[GlutenReplaceNullWithFalseInPredicateEndToEndSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenXPathFunctionsSuite]
-  // enableSuite[GlutenFileBasedDataSourceSuite]
+  enableSuite[GlutenFileBasedDataSourceSuite]
+    .include("Do not use cache on append")
+    .includeByPrefix("SPARK-23072")
+   // To Fix
+  // SPARK-22790
+  // SPARK-25237
+  // Return correct results when data columns overlap with partition columns
   enableSuite[GlutenEnsureRequirementsSuite]
-    .exclude("SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection")
+    // Rewrite to change the shuffle partitions for optimizing repartition
+    .excludeByPrefix("SPARK-35675")
   // enableSuite[GlutenCoalesceShufflePartitionsSuite]
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
@@ -241,21 +249,20 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNestedDataSourceV2Suite]
   enableSuite[GlutenBinaryFileFormatSuite]
     .exclude("column pruning - non-readable file")
-  // enableSuite[GlutenCSVv1Suite]
-  // enableSuite[GlutenCSVv2Suite]
-  // enableSuite[GlutenCSVLegacyTimeParserSuite]
+  enableSuite[GlutenCSVv1Suite]
+  enableSuite[GlutenCSVv2Suite]
+  enableSuite[GlutenCSVLegacyTimeParserSuite]
   enableSuite[GlutenJsonV1Suite]
-    .exclude("SPARK-35047: Write Non-ASCII character as codepoint")
-    .exclude("SPARK-35104: Fix wrong indentation for multiple JSON even if `pretty` option is true")
-  // enableSuite[GlutenJsonV2Suite]
+  enableSuite[GlutenJsonV2Suite]
+    .exclude("SPARK-23772 ignore column of all null values or empty array during schema inference")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
   enableSuite[GlutenTextV1Suite]
-  // enableSuite[GlutenTextV2Suite]
+  enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
-  // enableSuite[GlutenOrcPartitionDiscoverySuite]
-  // enableSuite[GlutenOrcV1PartitionDiscoverySuite]
+  enableSuite[GlutenOrcPartitionDiscoverySuite]
+  enableSuite[GlutenOrcV1PartitionDiscoverySuite]
   // enableSuite[GlutenOrcV1QuerySuite]
   // enableSuite[GlutenOrcV2QuerySuite]
   // enableSuite[GlutenOrcSourceSuite]
@@ -303,7 +310,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
     .exclude("write and read - file source parquet - codec: lz4")
-  // enableSuite[GlutenOrcCodecSuite]
+  enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     .exclude("partitioned table - after scan filters")
     .exclude(
@@ -315,9 +322,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVReadSchemaSuite]
   enableSuite[GlutenHeaderCSVReadSchemaSuite]
   enableSuite[GlutenJsonReadSchemaSuite]
-  // enableSuite[GlutenOrcReadSchemaSuite]
+  enableSuite[GlutenOrcReadSchemaSuite]
   // enableSuite[GlutenVectorizedOrcReadSchemaSuite]
-  // enableSuite[GlutenMergedOrcReadSchemaSuite]
+  enableSuite[GlutenMergedOrcReadSchemaSuite]
   enableSuite[GlutenParquetReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
@@ -353,6 +360,36 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSaveLoadSuite]
   enableSuite[GlutenTableScanSuite]
   enableSuite[GlutenDataSourceV2Suite]
+    // Gluten does not support the convert from spark columnar data
+    // to velox columnar data.
     .exclude("columnar batch scan implementation")
+    // Rewrite the following test in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
+  enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
+  enableSuite[GlutenCachedTableSuite]
+    .exclude("A cached table preserves the partitioning and ordering of its cached SparkPlan")
+  enableSuite[GlutenConfigBehaviorSuite]
+  enableSuite[GlutenCountMinSketchAggQuerySuite]
+  enableSuite[GlutenCsvFunctionsSuite]
+    .exclude("roundtrip to_csv -> from_csv")
+  enableSuite[GlutenCTEHintSuite]
+  enableSuite[GlutenCTEInlineSuiteAEOff]
+  enableSuite[GlutenCTEInlineSuiteAEOn]
+  enableSuite[GlutenDataFrameHintSuite]
+  enableSuite[GlutenDataFrameWriterV2Suite]
+  enableSuite[GlutenDatasetCacheSuite]
+  enableSuite[GlutenExpressionsSchemaSuite]
+  enableSuite[GlutenExtraStrategiesSuite]
+  enableSuite[GlutenMiscFunctionsSuite]
+  enableSuite[GlutenProcessingTimeSuite]
+  enableSuite[GlutenScalaReflectionRelationSuite]
+  enableSuite[GlutenSerializationSuite]
+  enableSuite[GlutenTypedImperativeAggregateSuite]
+  enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
+    .exclude("cases when literal is max")
+  enableSuite[GlutenDatasetSerializerRegistratorSuite]
+  enableSuite[GlutenDeprecatedAPISuite]
+  enableSuite[GlutenMetadataCacheSuite]
+  enableSuite[GlutenSimpleShowCreateTableSuite]
+  enableSuite[GlutenStatisticsCollectionSuite]
 }

@@ -55,7 +55,8 @@ public class ExpressionEvaluatorJniWrapper {
                                                     int stageId,
                                                     int partitionId,
                                                     long taskId,
-                                                    boolean saveInputToFile
+                                                    boolean saveInputToFile,
+                                                    byte[] confPlan
   ) throws RuntimeException;
 
   /**

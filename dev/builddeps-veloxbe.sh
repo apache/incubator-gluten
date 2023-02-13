@@ -12,8 +12,9 @@ BUILD_TYPE=Release
 BUILD_TESTS=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=ON
-ENABLE_HBM=OFF
 BUILD_PROTOBUF=ON
+ENABLE_QAT=OFF
+ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_EP_CACHE=OFF
@@ -34,6 +35,10 @@ do
         ;;
         --build_jemalloc=*)
         BUILD_JEMALLOC=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_qat=*)
+        ENABLE_QAT=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hbm=*)
@@ -69,7 +74,7 @@ cd $GLUTEN_DIR/ep/build-arrow/src
 
 if [ $ENABLE_EP_CACHE == 'OFF' ] || [ ! -f $GLUTEN_DIR/ep/build-arrow/build/arrow-commit.cache ]; then
   ./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
-                           --enable_ep_cache=$ENABLE_EP_CACHE
+                           --enable_qat=$ENABLE_QAT --enable_ep_cache=$ENABLE_EP_CACHE
 fi
 
 ##install velox
@@ -89,11 +94,7 @@ mkdir build
 cd build
 cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
       -DBUILD_TESTS=$BUILD_TESTS -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
-      -DENABLE_HBM=$ENABLE_HBM -DVELOX_ENABLE_S3=$ENABLE_S3 -DVELOX_ENABLE_HDFS=$ENABLE_HDFS ..
+      -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DVELOX_ENABLE_S3=$ENABLE_S3 -DVELOX_ENABLE_HDFS=$ENABLE_HDFS ..
 make -j
-
-cd $GLUTEN_DIR
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
-mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 

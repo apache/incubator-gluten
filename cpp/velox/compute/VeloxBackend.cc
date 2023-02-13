@@ -378,7 +378,8 @@ void VeloxBackend::getInfoAndIds(
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<ResultIterator>> inputs) {
+    std::vector<std::shared_ptr<ResultIterator>> inputs,
+    std::unordered_map<std::string, std::string> sessionConf) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
@@ -396,18 +397,19 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
-        std::make_unique<WholeStageResultIteratorMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
+        std::make_unique<WholeStageResultIteratorMiddleStage>(veloxPool, planNode_, streamIds, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
+        veloxPool, planNode_, scanIds, scanInfos, streamIds, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& setScanInfos) {
+    const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& setScanInfos,
+    std::unordered_map<std::string, std::string> sessionConf) {
   planNode_ = getVeloxPlanNode(plan_);
 
   // In test, use setScanInfos to replace the one got from Substrait.
