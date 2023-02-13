@@ -134,13 +134,24 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         ProjectExecTransformer(plan.projectList, columnarChild)
       case plan: FilterExec =>
+        // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
+        //  a individual rule.
         // Push down the left conditions in Filter into Scan.
-        val newChild =
+        val newChild: SparkPlan =
           if (plan.child.isInstanceOf[FileSourceScanExec] ||
             plan.child.isInstanceOf[BatchScanExec]) {
             TransformHints.getHint(plan.child) match {
               case TRANSFORM_SUPPORTED() =>
-                FilterHandler.applyFilterPushdownToScan(plan)
+                val newScan = FilterHandler.applyFilterPushdownToScan(plan)
+                newScan match {
+                  case ts: TransformSupport =>
+                    if (ts.doValidate()) {
+                      ts
+                    } else {
+                      replaceWithTransformerPlan(plan.child)
+                    }
+                  case p: SparkPlan => p
+                }
               case _ =>
                 replaceWithTransformerPlan(plan.child)
             }

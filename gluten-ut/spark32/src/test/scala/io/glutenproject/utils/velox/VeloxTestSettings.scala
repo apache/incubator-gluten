@@ -299,13 +299,6 @@ class VeloxTestSettings extends BackendTestSettings {
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
   enableSuite[GlutenParquetV1SchemaPruningSuite]
-    // FIXME pushed filter validations
-    //  (Subfield filters creation not supported for input type
-    //  'ROW<col_0:ROW<col_0:VARCHAR,col_1:VARCHAR>>')
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select nullable complex field and having is not null predicate")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select nullable complex field and having is not null predicate")
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
