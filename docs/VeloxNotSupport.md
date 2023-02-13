@@ -31,3 +31,6 @@ Set the gluten config `spark.gluten.sql.native.bloomFilter=false`, it will fallb
 
 Gluten currently doesn't support ANSI mode, if Spark configured ansi, gluten will fallback to vanilla Spark.
 
+# Case Sensitive mode
+
+Gluten only supports spark default case-insensitive mode, if case-sensitive, may get incorrect result.
