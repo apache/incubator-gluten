@@ -45,6 +45,8 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def getPartitionSchemas: StructType
 
+  def getInputFilePaths: Seq[String]
+
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("outputRows")
     val numOutputVectors = longMetric("outputVectors")
@@ -74,6 +76,12 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   override def doValidate(): Boolean = {
+    // Fallback to vanilla spark when the input path
+    // does not contain the partition info.
+    if (!(getPartitionSchemas.nonEmpty &&
+      getInputFilePaths.forall(_.contains("=")))) {
+      return false
+    }
     val fileFormat = ConverterUtils.getFileFormat(this)
     if (!BackendsApiManager
       .getTransformerApiInstance.supportsReadFileFormat(fileFormat, schema.fields)) {
