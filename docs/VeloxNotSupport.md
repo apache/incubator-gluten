@@ -35,11 +35,16 @@ Gluten currently doesn't support ANSI mode, if Spark configured ansi, gluten wil
 
 Gluten only supports spark default case-insensitive mode, if case-sensitive, may get incorrect result.
 
-# JSON FUNCTION
-
-Gluten only support double quotes operator not single quotes in json function.
-
 # Spark's columnar reading
 
 If the user enables Spark's columnar reading, error can occur due to Spark's columnar vector is not compatible with
 Gluten's.
+
+# JSON FUNCTION
+
+Gluten only supports double quotes surrounded strings, not single quotes, in JSON data.
+
+# Lookaround pattern for regexp functions
+
+In velox, lookaround (lookahead/lookbehind) pattern is not supported in RE2-based implementations for Spark functions,
+such as `rlike`, `regexp_extract`, etc.
