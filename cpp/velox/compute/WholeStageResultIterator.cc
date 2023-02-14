@@ -18,6 +18,7 @@ const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
 const std::string kFlushRowCount = "flushRowCount";
+const std::string kTotalScanTime = "totalScanTime";
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
@@ -140,6 +141,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
           runtimeMetric("sum", entry.second->customStats, kReplacedWithDynamicFilterRows);
       metrics_->flushRowCount[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kFlushRowCount);
+      metrics_->scanTime[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kTotalScanTime);
       metricsIdx += 1;
     }
   }

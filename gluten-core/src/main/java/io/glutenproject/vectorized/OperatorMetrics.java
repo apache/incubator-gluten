@@ -28,6 +28,7 @@ public class OperatorMetrics {
   public long outputBytes;
   public long count;
   public long wallNanos;
+  public long scanTime;
   public long peakMemoryBytes;
   public long numMemoryAllocations;
   public long spilledBytes;
@@ -64,7 +65,8 @@ public class OperatorMetrics {
       long numDynamicFiltersProduced,
       long numDynamicFiltersAccepted,
       long numReplacedWithDynamicFilterRows,
-      long flushRowCount) {
+      long flushRowCount,
+      long scanTime) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -75,6 +77,7 @@ public class OperatorMetrics {
     this.outputBytes = outputBytes;
     this.count = count;
     this.wallNanos = wallNanos;
+    this.scanTime = scanTime;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
     this.spilledBytes = spilledBytes;

@@ -484,6 +484,7 @@ object WholeStageTransformerExec extends Logging {
     var numDynamicFiltersAccepted: Long = 0
     var numReplacedWithDynamicFilterRows: Long = 0
     var flushRowCount: Long = 0
+    var scanTime: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -500,6 +501,7 @@ object WholeStageTransformerExec extends Logging {
       numDynamicFiltersAccepted += metrics.numDynamicFiltersAccepted
       numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
       flushRowCount += metrics.flushRowCount
+      scanTime += metrics.scanTime
     }
 
     new OperatorMetrics(
@@ -522,7 +524,8 @@ object WholeStageTransformerExec extends Logging {
       numDynamicFiltersProduced,
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,
-      flushRowCount
+      flushRowCount,
+      scanTime
     )
   }
 

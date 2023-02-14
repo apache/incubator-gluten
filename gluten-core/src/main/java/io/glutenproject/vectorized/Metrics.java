@@ -28,6 +28,7 @@ public class Metrics {
   public long[] outputBytes;
   public long[] count;
   public long[] wallNanos;
+  public long[] scanTime;
   public long[] peakMemoryBytes;
   public long[] numMemoryAllocations;
   public long[] spilledBytes;
@@ -64,7 +65,8 @@ public class Metrics {
       long[] numDynamicFiltersProduced,
       long[] numDynamicFiltersAccepted,
       long[] numReplacedWithDynamicFilterRows,
-      long[] flushRowCount) {
+      long[] flushRowCount,
+      long[] scanTime) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -75,6 +77,7 @@ public class Metrics {
     this.outputBytes = outputBytes;
     this.count = count;
     this.wallNanos = wallNanos;
+    this.scanTime = scanTime;
     this.singleMetric.veloxToArrow = veloxToArrow;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
@@ -113,7 +116,8 @@ public class Metrics {
         numDynamicFiltersProduced[index],
         numDynamicFiltersAccepted[index],
         numReplacedWithDynamicFilterRows[index],
-        flushRowCount[index]);
+        flushRowCount[index],
+        scanTime[index]);
   }
 
   public SingleMetric getSingleMetrics() {
