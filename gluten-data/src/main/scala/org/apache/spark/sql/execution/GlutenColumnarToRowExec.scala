@@ -28,9 +28,11 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.types._
 import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.NANOSECONDS
 
@@ -114,6 +116,10 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
   }
 
   override def output: Seq[Attribute] = child.output
+
+  override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   protected def doProduce(ctx: CodegenContext): String = {
     throw new RuntimeException("Codegen is not supported!")
