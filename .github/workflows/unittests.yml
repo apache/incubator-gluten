@@ -70,7 +70,6 @@ jobs:
       - name: Build Gluten Velox-backend third party
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
-          tar -zxvf /home/sparkuser/repo.tar.gz -C ~/ && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
