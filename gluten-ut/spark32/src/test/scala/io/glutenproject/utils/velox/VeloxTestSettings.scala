@@ -336,6 +336,7 @@ class VeloxTestSettings extends BackendTestSettings {
   // enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
+    // The following two suites also will fail in ubuntu os both Gluten and vanilla spark.
     .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
     .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
