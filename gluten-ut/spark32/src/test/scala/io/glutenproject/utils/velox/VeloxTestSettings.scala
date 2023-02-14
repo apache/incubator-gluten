@@ -340,6 +340,14 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV2SchemaPruningSuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .excludeByPrefix("Spark vectorized reader - ")
+   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
+     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
+     .excludeByPrefix("SPARK-31159")
+     .excludeByPrefix("SPARK-35427")
+   enableSuite[GlutenParquetRebaseDatetimeV2Suite]
+     // jar path and ignore PARQUET_REBASE_MODE_IN_READ
+     .excludeByPrefix("SPARK-31159")
+     .excludeByPrefix("SPARK-35427")
   enableSuite[GlutenParquetSchemaInferenceSuite]
   enableSuite[GlutenParquetSchemaSuite]
     .exclude("schema mismatch failure error message for parquet reader")
