@@ -33,6 +33,9 @@ jobs:
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name arrow-backend-test-$GITHUB_RUN_ID -v /mnt/tpcds:/mnt/tpcds -v /home/sparkuser:/home/sparkuser -v /tmp:/tmp --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
+      - name: Setup maven cache
+        run: |
+          docker cp ~/.m2/repository arrow-backend-test-$GITHUB_RUN_ID:/root/.m2/
       - name: Install Gluten Arrow-backend
         run: |
           docker exec arrow-backend-test-$GITHUB_RUN_ID bash -c "cd /opt/gluten/ep/build-arrow/src && \
@@ -61,6 +64,9 @@ jobs:
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
+      - name: Setup maven cache
+        run: |
+          docker cp ~/.m2/repository velox-backend-test-$GITHUB_RUN_ID:/root/.m2/
       - name: Build Gluten Velox-backend third party
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
