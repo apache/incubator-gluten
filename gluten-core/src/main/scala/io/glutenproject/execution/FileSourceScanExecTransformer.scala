@@ -56,16 +56,14 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
     "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
     "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
     "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_filescan"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "total wall time"),
     "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "total scan time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
@@ -91,9 +89,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   object MetricsUpdaterImpl extends MetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
     val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
     val rawInputRows: SQLMetric = longMetric("rawInputRows")
     val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
     val outputRows: SQLMetric = longMetric("outputRows")
@@ -115,9 +111,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
     override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
       if (operatorMetrics != null) {
-        inputRows += operatorMetrics.inputRows
         inputVectors += operatorMetrics.inputVectors
-        inputBytes += operatorMetrics.inputBytes
         rawInputRows += operatorMetrics.rawInputRows
         rawInputBytes += operatorMetrics.rawInputBytes
         outputRows += operatorMetrics.outputRows
