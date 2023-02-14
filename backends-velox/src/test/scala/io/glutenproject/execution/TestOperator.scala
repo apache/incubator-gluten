@@ -384,4 +384,22 @@ class TestOperator extends WholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("stddev_pop") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      runQueryAndCompare(
+        """
+          |select stddev_pop(l_quantity) from lineitem;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+      runQueryAndCompare(
+        """
+          |select l_orderkey, stddev_pop(l_quantity) from lineitem
+          |group by l_orderkey;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+    }
+  }
 }
