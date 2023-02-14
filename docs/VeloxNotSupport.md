@@ -48,3 +48,9 @@ Gluten only supports double quotes surrounded strings, not single quotes, in JSO
 
 In velox, lookaround (lookahead/lookbehind) pattern is not supported in RE2-based implementations for Spark functions,
 such as `rlike`, `regexp_extract`, etc.
+
+# FileSource format
+Gluten only supports parquet, if is other format, will fallback to vanilla spark.
+
+# Parquet read conf
+Gluten supports spark.files.ignoreCorruptFiles and spark.files.ignoreMissingFiles with default false, if true, the behavior is same as config false.
