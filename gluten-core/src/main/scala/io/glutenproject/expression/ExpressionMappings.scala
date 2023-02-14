@@ -33,6 +33,7 @@ object ExpressionMappings {
   final val MIN = "min"
   final val MAX = "max"
   final val STDDEV_SAMP = "stddev_samp"
+  final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
 
@@ -342,6 +343,7 @@ object ExpressionMappings {
     Sig[Min](MIN),
     Sig[Max](MAX),
     Sig[StddevSamp](STDDEV_SAMP),
+    Sig[StddevPop](STDDEV_POP),
     Sig[CollectList](COLLECT_LIST)
   )
 
