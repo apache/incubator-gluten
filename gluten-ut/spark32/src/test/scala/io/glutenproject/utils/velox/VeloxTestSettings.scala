@@ -312,9 +312,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("write and read - file source parquet - codec: lz4")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
+    // Plan comparison.
     .exclude("partitioned table - after scan filters")
-    .exclude(
-      "SPARK-32352: Partially push down support data filter if it mixed in partition filters")
+    // Rewrite because Gluten aims to push down all the conditions in Filter into Scan.
+    .exclude("SPARK-32352: Partially push down " +
+      "support data filter if it mixed in partition filters")
   enableSuite[GlutenHadoopFileLinesReaderSuite]
   enableSuite[GlutenPathFilterStrategySuite]
   enableSuite[GlutenPathFilterSuite]
@@ -332,12 +334,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceV2DataFrameSuite]
   enableSuite[GlutenDataSourceV2FunctionSuite]
   enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
-  // enableSuite[GlutenDataSourceV2SQLSuite]
+  enableSuite[GlutenDataSourceV2SQLSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
-  // enableSuite[GlutenWriteDistributionAndOrderingSuite]
+  enableSuite[GlutenWriteDistributionAndOrderingSuite]
   // enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
   enableSuite[GlutenCreateTableAsSelectSuite]

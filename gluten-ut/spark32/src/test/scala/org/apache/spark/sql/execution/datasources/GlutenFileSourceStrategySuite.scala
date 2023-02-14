@@ -18,7 +18,42 @@
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.sources.{And, EqualTo, Or}
 
 class GlutenFileSourceStrategySuite extends FileSourceStrategySuite
   with GlutenSQLTestsBaseTrait {
+
+  test(GlutenTestConstants.GLUTEN_TEST +
+    "SPARK-32352: Partially push down support data filter if it mixed in partition filters") {
+    val table =
+      createTable(
+        files = Seq(
+          "p1=1/file1" -> 10,
+          "p1=2/file2" -> 10,
+          "p1=3/file3" -> 10,
+          "p1=4/file4" -> 10))
+
+    checkScan(table.where("(c1 = 1) OR (c1 = 2)")) { partitions =>
+      assert(partitions.size == 1, "when checking partitions")
+    }
+    checkDataFilters(Set(Or(EqualTo("c1", 1), EqualTo("c1", 2))))
+
+    checkScan(table.where("(p1 = 1 AND c1 = 1) OR (p1 = 2 and c1 = 2)")) { partitions =>
+      assert(partitions.size == 1, "when checking partitions")
+    }
+    // Gluten aims to push down all the conditions in Filter into Scan.
+    checkDataFilters(Set(Or(EqualTo("c1", 1), EqualTo("c1", 2)),
+      Or(And(EqualTo("p1", 1), EqualTo("c1", 1)), And(EqualTo("p1", 2), EqualTo("c1", 2)))))
+
+    checkScan(table.where("(p1 = '1' AND c1 = 2) OR (c1 = 1 OR p1 = '2')")) { partitions =>
+      assert(partitions.size == 1, "when checking partitions")
+    }
+    checkDataFilters(Set.empty)
+
+    checkScan(table.where("p1 = '1' OR (p1 = '2' AND c1 = 1)")) { partitions =>
+      assert(partitions.size == 1, "when checking partitions")
+    }
+    // Gluten aims to push down all the conditions in Filter into Scan.
+    checkDataFilters(Set(Or(EqualTo("p1", 1), And(EqualTo("p1", 2), EqualTo("c1", 1)))))
+  }
 }
