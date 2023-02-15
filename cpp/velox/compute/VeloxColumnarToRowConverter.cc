@@ -171,8 +171,8 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
         break;
       }
       case arrow::TimestampType::type_id: {
-         SERIALIZE_COLUMN(TimestampType);
-         break;
+        SERIALIZE_COLUMN(TimestampType);
+        break;
       }
       default:
         return arrow::Status::Invalid(
