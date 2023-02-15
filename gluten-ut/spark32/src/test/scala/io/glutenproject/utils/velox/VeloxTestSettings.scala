@@ -395,9 +395,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFilteredScanSuite]
   enableSuite[GlutenFiltersSuite]
   enableSuite[GlutenInsertSuite]
-    .exclude("SPARK-20236: dynamic partition overwrite with customer partition path")
-    .exclude("SPARK-35106: insert overwrite with custom partition path")
-    .exclude("SPARK-35106: dynamic partition overwrite with custom partition path")
   enableSuite[GlutenPartitionedWriteSuite]
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]
