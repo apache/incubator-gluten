@@ -416,6 +416,7 @@ arrow::Status Splitter::Stop() {
   return arrow::Status::OK();
 }
 
+namespace {
 int64_t batch_nbytes(const arrow::RecordBatch& batch) {
   int64_t accumulated = 0L;
 
@@ -439,6 +440,7 @@ int64_t batch_nbytes(std::shared_ptr<arrow::RecordBatch> batch) {
   }
   return batch_nbytes(*batch);
 }
+} // anonymous namespace
 
 arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch) {
   int64_t raw_size = batch_nbytes(batch);
@@ -474,9 +476,10 @@ arrow::Status Splitter::CreateRecordBatchFromBuffer(int32_t partition_id, bool r
   auto list_idx = 0;
   auto num_fields = schema_->num_fields();
   auto num_rows = partition_buffer_idx_base_[partition_id];
-  int8_t sizeof_binary_offset = -1;
+
   std::vector<std::shared_ptr<arrow::Array>> arrays(num_fields);
   for (int i = 0; i < num_fields; ++i) {
+    size_t sizeof_binary_offset = -1;
     switch (column_type_id_[i]->id()) {
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id:
@@ -580,11 +583,12 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
   auto fixed_width_idx = 0;
   auto binary_idx = 0;
   auto list_idx = 0;
-  int8_t sizeof_binary_offset = -1;
 
   std::vector<std::shared_ptr<arrow::ArrayBuilder>> new_list_builders;
 
   for (auto i = 0; i < num_fields; ++i) {
+    size_t sizeof_binary_offset = -1;
+
     switch (column_type_id_[i]->id()) {
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id:
@@ -909,8 +913,6 @@ arrow::Status Splitter::SplitFixedType(const uint8_t* src_addr, const std::vecto
 }
 
 arrow::Status Splitter::SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb) {
-  std::vector<row_offset_type> partition_buffer_idx_offset;
-
   for (auto col = 0; col < fixed_width_col_cnt_; ++col) {
     const auto& dst_addrs = partition_fixed_width_value_addrs_[col];
     auto col_idx = array_idx_[col];
@@ -1171,8 +1173,7 @@ arrow::Status Splitter::SplitBinaryType(
       auto strlength = src_offset_addr[src_offset + 1] - src_offset_addr[src_offset];
       value_offset = dst_offset_base[x + 1] = value_offset + strlength;
       if (ARROW_PREDICT_FALSE(value_offset >= capacity)) {
-        // allocate value buffer again
-        // enlarge the buffer by 8x
+        // allocate value buffer again, enlarge the buffer
         auto old_capacity = capacity;
         capacity = capacity + std::max((capacity >> multiply), (uint64_t)strlength);
         multiply = std::min(3, multiply + 1);
