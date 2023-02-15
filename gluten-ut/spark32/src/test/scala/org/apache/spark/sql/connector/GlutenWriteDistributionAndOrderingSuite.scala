@@ -17,8 +17,14 @@
 
 package org.apache.spark.sql.connector
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenWriteDistributionAndOrderingSuite
   extends WriteDistributionAndOrderingSuite with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = {
+    // Native SQL configs
+    super.sparkConf
+      .set("spark.sql.shuffle.partitions", "5")
+  }
 }

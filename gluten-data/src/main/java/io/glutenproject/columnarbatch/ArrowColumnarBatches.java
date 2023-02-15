@@ -169,6 +169,10 @@ public class ArrowColumnarBatches {
    * will take place if loading is required, which means when the input batch is not loaded yet.
    */
   public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
+    if (batch.numCols() == 0) {
+      // No need to load batch if no column.
+      return batch;
+    }
     if (isArrowColumnarBatch(batch)) {
       return batch;
     }

@@ -148,21 +148,26 @@ class GlutenColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch
       numInputBatches += 1
       numOutputRows += batch.numRows()
 
+      val nonGlutenBatch = batch.numCols() > 0 &&
+        !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
+        !batch.column(0).isInstanceOf[GlutenIndicatorVector]
       if (batch.numRows == 0) {
         logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
         Iterator.empty
-      } else if (this.output.isEmpty || (batch.numCols() > 0 &&
-        !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
-        !batch.column(0).isInstanceOf[GlutenIndicatorVector])) {
-        // Fallback to ColumnarToRow
+      } else if (this.output.isEmpty || nonGlutenBatch) {
+        // Fallback to ColumnarToRow of vanilla Spark.
         val localOutput = this.output
         numInputBatches += 1
         numOutputRows += batch.numRows()
 
         val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-          .rowIterator().asScala.map(toUnsafe)
+        if (nonGlutenBatch) {
+          batch.rowIterator().asScala.map(toUnsafe)
+        } else {
+          ArrowColumnarBatches
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+            .rowIterator().asScala.map(toUnsafe)
+        }
       } else {
         var info: NativeColumnarToRowInfo = null
         val beforeConvert = System.nanoTime()
