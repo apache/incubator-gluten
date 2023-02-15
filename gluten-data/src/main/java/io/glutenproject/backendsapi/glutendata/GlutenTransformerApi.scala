@@ -63,8 +63,11 @@ abstract class GlutenTransformerApi extends ITransformerApi with Logging {
    * @return true if backend supports reading the file format.
    */
   override def supportsReadFileFormat(fileFormat: ReadFileFormat,
-                                      fields: Array[StructField]): Boolean = {
-    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields)
+                                      fields: Array[StructField],
+                                      partTable: Boolean,
+                                      paths: Seq[String]): Boolean = {
+    BackendsApiManager.getSettings
+      .supportFileFormatRead(fileFormat, fields, partTable, paths)
   }
 
   /**
