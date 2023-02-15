@@ -25,6 +25,7 @@
 #include "VeloxBridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
+#include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
 #include "velox/common/file/FileSystems.h"
 #ifdef VELOX_ENABLE_HDFS

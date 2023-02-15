@@ -17,7 +17,7 @@ class WholeStageResultIterator {
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       std::shared_ptr<const facebook::velox::core::PlanNode> planNode,
       const std::unordered_map<std::string, std::string>& confMap)
-      : planNode_(planNode), pool_(pool), confMap_(confMap) {
+      : planNode_(planNode), confMap_(confMap), pool_(pool) {
     getOrderedNodeIds(planNode_, orderedNodeIds_);
   }
 
@@ -38,11 +38,17 @@ class WholeStageResultIterator {
   /// Set the Spark confs to Velox query context.
   void setConfToQueryContext(const std::shared_ptr<facebook::velox::core::QueryCtx>& queryCtx);
 
+  std::shared_ptr<facebook::velox::Config> getConnectorConfig();
+
   std::shared_ptr<facebook::velox::exec::Task> task_;
 
   std::function<void(facebook::velox::exec::Task*)> addSplits_;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
+
+ protected:
+  /// A map of custome configs.
+  std::unordered_map<std::string, std::string> confMap_;
 
  private:
   /// Get all the children plan node ids with postorder traversal.
@@ -69,9 +75,6 @@ class WholeStageResultIterator {
 
   /// Node ids should be ommited in metrics.
   std::unordered_set<facebook::velox::core::PlanNodeId> omittedNodeIds_;
-
-  /// A map of custome configs.
-  std::unordered_map<std::string, std::string> confMap_;
 };
 
 class WholeStageResultIteratorFirstStage final : public WholeStageResultIterator {

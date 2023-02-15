@@ -30,6 +30,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InSubqueryExec
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -99,11 +100,16 @@ trait BasicScanExecTransformer extends TransformSupport {
     }
   }
 
-  def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
+  private def normalizeColName(name: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) name else name.toLowerCase()
+  }
+
+  private def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
     val nameList = new java.util.ArrayList[String]()
     attributes.foreach(
       attr => {
-        nameList.add(attr.name)
+        nameList.add(normalizeColName(attr.name))
         if (BackendsApiManager.getSettings.supportStructType()) {
           attr.dataType match {
             case struct: StructType =>
@@ -117,15 +123,15 @@ trait BasicScanExecTransformer extends TransformSupport {
     nameList
   }
 
-  def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
+  private def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
     val nameList = new java.util.ArrayList[String]()
     dataType match {
       case structType: StructType =>
         structType.fields.foreach(
           field => {
-            nameList.add(field.name)
+            nameList.add(normalizeColName(field.name))
             val nestedNames = collectDataTypeNamesDFS(field.dataType)
-            nameList.addAll(nestedNames);
+            nameList.addAll(nestedNames)
           }
         )
       case _ =>
