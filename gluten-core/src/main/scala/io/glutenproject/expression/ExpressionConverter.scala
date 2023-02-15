@@ -565,6 +565,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           seq.stepOpt.map(replaceWithExpressionTransformer(_, attributeSeq)),
           seq
         )
+      case j : JsonTuple =>
+        val children = j.children.map(child =>
+          replaceWithExpressionTransformer(child, attributeSeq))
+        new JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
       case expr =>
         logWarning(s"${expr.getClass} or $expr is not currently supported.")
         throw new UnsupportedOperationException(

@@ -154,6 +154,7 @@ object ExpressionMappings {
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
     Sig[StructsToJson](TO_JSON),
     Sig[JsonToStructs](FROM_JSON),
+    Sig[JsonTuple](JSON_TUPLE),
     // Hash functions
     Sig[Murmur3Hash](MURMUR3HASH),
     Sig[XxHash64](XXHASH64),
