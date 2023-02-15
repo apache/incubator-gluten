@@ -794,7 +794,7 @@ abstract class HashAggregateExecBaseTransformer(
             case Partial | PartialMerge =>
               val min = aggregateFunc.asInstanceOf[Min]
               val aggBufferAttr = min.inputAggBufferAttributes
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(0))
+              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
               aggregateAttr += attr
               res_index += 1
             case Final =>
@@ -803,29 +803,10 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case StddevSamp(_, _) =>
+        case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           mode match {
             case Partial =>
-              val stddevSamp = aggregateFunc.asInstanceOf[StddevSamp]
-              val aggBufferAttr = stddevSamp.inputAggBufferAttributes
-              for (index <- aggBufferAttr.indices) {
-                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-                aggregateAttr += attr
-              }
-              res_index += 3
-            case PartialMerge =>
-              throw new UnsupportedOperationException("not currently supported: PartialMerge.")
-            case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
-            case other =>
-              throw new UnsupportedOperationException(s"not currently supported: $other.")
-          }
-        case StddevPop(_, _) =>
-          mode match {
-            case Partial =>
-              val stddevPop = aggregateFunc.asInstanceOf[StddevPop]
-              val aggBufferAttr = stddevPop.inputAggBufferAttributes
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
               for (index <- aggBufferAttr.indices) {
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr

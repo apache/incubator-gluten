@@ -36,6 +36,8 @@ object ExpressionMappings {
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
+  final val VAR_SAMP = "var_samp"
+  final val VAR_POP = "var_pop"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -344,7 +346,9 @@ object ExpressionMappings {
     Sig[Max](MAX),
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
-    Sig[CollectList](COLLECT_LIST)
+    Sig[CollectList](COLLECT_LIST),
+    Sig[VarianceSamp](VAR_SAMP),
+    Sig[VariancePop](VAR_POP)
   )
 
   // some spark new version class

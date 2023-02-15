@@ -134,4 +134,13 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       checkAnswer(df, Row("abellina", 2) :: Row("mithunr", 1) :: Nil)
     }
   }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "variance") {
+    checkAnswer(
+      testData2.agg(var_samp($"a"), var_pop($"a"), variance($"a")),
+      Row(0.8, 2.0 / 3.0, 0.8))
+    checkAnswer(
+      testData2.agg(var_samp("a"), var_pop("a"), variance("a")),
+      Row(0.8, 2.0 / 3.0, 0.8))
+  }
 }
