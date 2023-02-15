@@ -195,6 +195,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenBroadcastJoinSuite]
   enableSuite[GlutenSQLQuerySuite]
+    // Unstable. Needs to be fixed.
+    .exclude("SPARK-36093: RemoveRedundantAliases should not change expression's name")
     // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
     .exclude("SPARK-28156: self-join should not miss cached view")
     .exclude("SPARK-33338: GROUP BY using literal map should not fail")
@@ -252,13 +254,13 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
   enableSuite[GlutenBinaryFileFormatSuite]
+    // Exception.
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
   enableSuite[GlutenCSVv2Suite]
   enableSuite[GlutenCSVLegacyTimeParserSuite]
   enableSuite[GlutenJsonV1Suite]
   enableSuite[GlutenJsonV2Suite]
-    .exclude("SPARK-23772 ignore column of all null values or empty array during schema inference")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
   enableSuite[GlutenTextV1Suite]
   enableSuite[GlutenTextV2Suite]
@@ -267,9 +269,35 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcPartitionDiscoverySuite]
   enableSuite[GlutenOrcV1PartitionDiscoverySuite]
-  // enableSuite[GlutenOrcV1QuerySuite]
-  // enableSuite[GlutenOrcV2QuerySuite]
-  // enableSuite[GlutenOrcSourceSuite]
+  enableSuite[GlutenOrcV1QuerySuite]
+    // Rewrite to disable Spark's columnar reader.
+    .exclude("Simple selection form ORC table")
+    .exclude("simple select queries")
+    .exclude("overwriting")
+    .exclude("self-join")
+    .exclude("columns only referenced by pushed down filters should remain")
+    .exclude("SPARK-5309 strings stored using dictionary compression in orc")
+    // For exception test.
+    .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+  enableSuite[GlutenOrcV2QuerySuite]
+    // Rewrite to disable Spark's columnar reader.
+    .exclude("Simple selection form ORC table")
+    .exclude("simple select queries")
+    .exclude("overwriting")
+    .exclude("self-join")
+    .exclude("columns only referenced by pushed down filters should remain")
+    .exclude("SPARK-5309 strings stored using dictionary compression in orc")
+    // For exception test.
+    .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+  enableSuite[GlutenOrcSourceSuite]
+    // Rewrite to disable Spark's columnar reader.
+    .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .exclude("SPARK-31238, SPARK-31423: rebasing dates in write")
+    .exclude("SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
+    .exclude("SPARK-31284, SPARK-31423: rebasing timestamps in write")
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
+    // Ignored to disable vectorized reading check.
+    .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
   enableSuite[GlutenOrcV1FilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   // enableSuite[GlutenOrcV1SchemaPruningSuite]
