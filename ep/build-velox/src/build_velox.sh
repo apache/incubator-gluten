@@ -147,7 +147,7 @@ function process_setup_centos8 {
 
 function process_script {
     sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
-    sed -i "s/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=${BUILD_MARCH} -std=c++17/g" scripts/setup-helper-functions.sh
+    sed -i "s/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=${BUILD_MARCH} -std=c++17 -mno-avx512f -mno-avx512vl -mno-avx512cd -mno-avx512dq -mno-avx512bw/g" scripts/setup-helper-functions.sh
     # make sure developer passed valid value and correct
     if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]] || [[ "$BUILD_TYPE" == "DEBUG" ]]; then
       BUILD_TYPE='debug';
