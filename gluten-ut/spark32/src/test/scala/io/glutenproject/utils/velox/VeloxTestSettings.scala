@@ -361,9 +361,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
     .exclude("partitioned table - after scan filters")
-    // Rewrite because Gluten aims to push down all the conditions in Filter into Scan.
-    .exclude("SPARK-32352: Partially push down " +
-      "support data filter if it mixed in partition filters")
   enableSuite[GlutenHadoopFileLinesReaderSuite]
   enableSuite[GlutenPathFilterStrategySuite]
   enableSuite[GlutenPathFilterSuite]
