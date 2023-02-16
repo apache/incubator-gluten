@@ -169,8 +169,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleWriteSchema: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
 
-  // When spark.gluten.sql.columnar.qat=false, the supported codecs are lz4 and zstd.
+  // By default, the supported codecs are lz4 and zstd.
   // When spark.gluten.sql.columnar.qat=true, the supported codec is gzip.
+  // When spark.gluten.sql.columnar.iaa=true, the supported codec is gzip.
   def columnarShuffleUseCustomizedCompressionCodec: String =
     conf
       .getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
@@ -314,6 +315,11 @@ object GlutenConfig {
   val GLUTEN_ENABLE_QAT = "spark.gluten.sql.columnar.qat"
   val GLUTEN_QAT_CODEC_PREFIX = "gluten_qat_"
   val GLUTEN_QAT_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
+
+  // IAA config
+  val GLUTEN_ENABLE_IAA = "spark.gluten.sql.columnar.iaa"
+  val GLUTEN_IAA_CODEC_PREFIX = "gluten_iaa_"
+  val GLUTEN_IAA_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
 
   // Backends.
   val GLUTEN_VELOX_BACKEND = "velox"

@@ -20,7 +20,7 @@
 #include <arrow/util/logging.h>
 #include <qatzip.h>
 
-#include "utils/qat_util.h"
+#include "qat_util.h"
 
 #define QZ_INIT_FAIL(rc) (QZ_OK != rc && QZ_DUPLICATE != rc)
 
@@ -31,7 +31,7 @@ namespace qat {
 
 class QatCodec : public arrow::util::Codec {
  protected:
-  explicit QatCodec(QzPollingMode_T polling_mode) : polling_mode_(polling_mode) {}
+  explicit QatCodec(QzPollingMode_T polling_mode) : pollingMode(polling_mode) {}
 
   arrow::Result<int64_t>
   Decompress(int64_t input_len, const uint8_t* input, int64_t output_buffer_len, uint8_t* output_buffer) override {
@@ -79,20 +79,20 @@ class QatCodec : public arrow::util::Codec {
   }
 
   QzSession_T qzSession = {0};
-  QzPollingMode_T polling_mode_;
+  QzPollingMode_T pollingMode;
 };
 
 class QatGZipCodec final : public QatCodec {
  public:
   QatGZipCodec(QzPollingMode_T polling_mode, int compression_level)
-      : QatCodec(polling_mode), compression_level_(compression_level) {
+      : QatCodec(polling_mode), compressionLevel(compression_level) {
     auto rc = qzInit(&qzSession, 1);
     if (QZ_INIT_FAIL(rc)) {
       ARROW_LOG(WARNING) << "qzInit failed with error: " << rc;
     } else {
       QzSessionParamsDeflate_T params;
       qzGetDefaultsDeflate(&params); // get the default value.
-      params.common_params.polling_mode = polling_mode_;
+      params.common_params.polling_mode = pollingMode;
       rc = qzSetupSessionDeflate(&qzSession, &params);
       if (QZ_SETUP_SESSION_FAIL(rc)) {
         ARROW_LOG(WARNING) << "qzSetupSession failed with error: " << rc;
@@ -115,7 +115,7 @@ class QatGZipCodec final : public QatCodec {
   }
 
  private:
-  int compression_level_; // unused.
+  int compressionLevel; // unused.
 };
 
 bool SupportsCodec(const std::string& codec) {
@@ -138,8 +138,7 @@ std::unique_ptr<arrow::util::Codec> MakeQatGZipCodec(QzPollingMode_T polling_mod
 }
 
 std::unique_ptr<arrow::util::Codec> MakeDefaultQatGZipCodec() {
-  auto r = MakeQatGZipCodec(QZ_BUSY_POLLING, QZ_COMP_LEVEL_DEFAULT);
-  return r;
+  return MakeQatGZipCodec(QZ_BUSY_POLLING, QZ_COMP_LEVEL_DEFAULT);
 }
 
 } // namespace qat

@@ -27,7 +27,11 @@
 #include "utils/exception.h"
 
 #ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat_util.h"
+#include "utils/qat/qat_util.h"
+#endif
+
+#ifdef GLUTEN_ENABLE_IAA
+#include "utils/qpl/qpl_codec.h"
 #endif
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
@@ -272,6 +276,21 @@ static inline arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv*
     auto codec = codec_l.substr(qat_codec_prefix.size());
     if (gluten::qat::SupportsCodec(codec)) {
       gluten::qat::EnsureQatCodecRegistered(codec);
+      codec_l = "custom";
+    } else {
+      std::string error_message = "Unrecognized compression codec: " + codec_l;
+      env->ReleaseStringUTFChars(codec_jstr, codec_u);
+      throw gluten::GlutenException(error_message);
+    }
+  }
+#endif
+
+#ifdef GLUTEN_ENABLE_IAA
+  static const std::string qpl_codec_prefix = "gluten_iaa_";
+  if (codec_l.rfind(qpl_codec_prefix, 0) == 0) {
+    auto codec = codec_l.substr(qpl_codec_prefix.size());
+    if (gluten::qpl::SupportsCodec(codec)) {
+      gluten::qpl::EnsureQplCodecRegistered(codec);
       codec_l = "custom";
     } else {
       std::string error_message = "Unrecognized compression codec: " + codec_l;

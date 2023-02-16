@@ -14,6 +14,7 @@ BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=OFF
 BUILD_PROTOBUF=ON
 ENABLE_QAT=OFF
+ENABLE_IAA=OFF
 ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
@@ -39,6 +40,10 @@ do
         ;;
         --enable_qat=*)
         ENABLE_QAT=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_iaa=*)
+        ENABLE_IAA=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hbm=*)
@@ -87,7 +92,7 @@ mkdir build
 cd build
 cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
       -DBUILD_TESTS=$BUILD_TESTS -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
-      -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DVELOX_ENABLE_S3=$ENABLE_S3 -DVELOX_ENABLE_HDFS=$ENABLE_HDFS ..
+      -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DVELOX_ENABLE_S3=$ENABLE_S3 -DVELOX_ENABLE_HDFS=$ENABLE_HDFS ..
 make -j
 
 

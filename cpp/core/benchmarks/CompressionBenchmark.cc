@@ -58,7 +58,7 @@ namespace gluten {
 #define ALIGNMENT 2 * 1024 * 1024
 
 const int32_t QAT_GZIP = 0;
-const int32_t QAT_LZ4 = 1;
+const int32_t QPL_GZIP = 1;
 const int32_t LZ4 = 2;
 
 class MyMemoryPool final : public arrow::MemoryPool {
@@ -216,7 +216,7 @@ class BenchmarkCompression {
   }
 
   void operator()(benchmark::State& state) {
-    SetCPU(state.thread_index());
+    SetCPU(state.range(2) + state.thread_index());
     auto ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
     ipc_write_options.use_threads = false;
     auto split_buffer_size = (uint32_t)state.range(1);
@@ -229,6 +229,13 @@ class BenchmarkCompression {
 #ifdef GLUTEN_ENABLE_QAT
       case gluten::QAT_GZIP: {
         qat::EnsureQatCodecRegistered("gzip");
+        GLUTEN_ASSIGN_OR_THROW(ipc_write_options.codec, CreateArrowIpcCodec(arrow::Compression::CUSTOM));
+        break;
+      }
+#endif
+#ifdef GLUTEN_ENABLE_IAA
+      case gluten::QPL_GZIP: {
+        qpl::EnsureQplCodecRegistered("gzip");
         GLUTEN_ASSIGN_OR_THROW(ipc_write_options.codec, CreateArrowIpcCodec(arrow::Compression::CUSTOM));
         break;
       }
@@ -368,10 +375,11 @@ class BenchmarkCompression_CacheScan_Benchmark final : public BenchmarkCompressi
       }
     } while (record_batch);
 
-    //    std::cout << "parquet parse done elapsed time " << elapse_read / 1000000 << " ms " << std::endl;
-    //    std::cout << "batches = " << num_batches << " rows = " << num_rows << std::endl;
+    std::cout << "parquet parse done elapsed time " << elapse_read / 1000000 << " ms " << std::endl;
+    std::cout << "batches = " << num_batches << " rows = " << num_rows << std::endl;
     for (auto _ : state) {
       auto it = batches.begin();
+      auto processed_batches = 0;
       while (it != batches.end()) {
         record_batch = *it++;
         for (auto i = 0; i < record_batch->num_columns(); ++i) {
@@ -383,7 +391,7 @@ class BenchmarkCompression_CacheScan_Benchmark final : public BenchmarkCompressi
             compress_time, arrow::ipc::GetRecordBatchPayload(*record_batch, ipc_write_options, payload.get()));
         uncompressed_size += payload->raw_body_length;
         compressed_size += payload->body_length;
-        //        std::cout << "Compressed " << num_batches << " batches" << std::endl;
+        std::cout << "Compressed " << processed_batches++ << " batches" << std::endl;
         TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       }
     }
@@ -444,6 +452,7 @@ class BenchmarkCompression_IterateScan_Benchmark final : public BenchmarkCompres
 int main(int argc, char** argv) {
   uint32_t iterations = 1;
   uint32_t threads = 1;
+  uint32_t cpu_offset = 0;
   std::string datafile;
   auto codec = gluten::LZ4;
   uint32_t split_buffer_size = 8192;
@@ -457,16 +466,16 @@ int main(int argc, char** argv) {
       datafile = argv[i + 1];
     } else if (strcmp(argv[i], "--qat-gzip") == 0) {
       std::cout << "QAT gzip is used as codec" << std::endl;
-      GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("ARROW_GZIP_BACKEND", "QAT"));
       codec = gluten::QAT_GZIP;
-    } else if (strcmp(argv[i], "--qat-lz4") == 0) {
-      std::cout << "QAT lz4 is used as codec" << std::endl;
-      GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("ARROW_LZ4_BACKEND", "QAT"));
-      codec = gluten::QAT_LZ4;
+    } else if (strcmp(argv[i], "--qpl-gzip") == 0) {
+      std::cout << "QPL gzip is used as codec" << std::endl;
+      codec = gluten::QPL_GZIP;
     } else if (strcmp(argv[i], "--busy") == 0) {
       GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("QZ_POLLING_MODE", "BUSY"));
     } else if (strcmp(argv[i], "--buffer-size") == 0) {
       split_buffer_size = atol(argv[i + 1]);
+    } else if (strcmp(argv[i], "--cpu-offset") == 0) {
+      cpu_offset = atol(argv[i + 1]);
     }
   }
   std::cout << "iterations = " << iterations << std::endl;
@@ -481,6 +490,7 @@ int main(int argc, char** argv) {
       ->Args({
           codec,
           split_buffer_size,
+          cpu_offset,
       })
       ->Threads(threads)
       ->ReportAggregatesOnly(false)
