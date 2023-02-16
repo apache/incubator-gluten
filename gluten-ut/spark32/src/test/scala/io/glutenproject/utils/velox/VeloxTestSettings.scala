@@ -382,9 +382,31 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
-  // enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
+  enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
+    // Exclude the following suite for plan changed from SMJ to SHJ.
+    .exclude("avoid shuffle when join 2 bucketed tables")
+    .exclude("avoid shuffle and sort when sort columns are a super set of join keys")
+    .exclude("only shuffle one side when join bucketed table and non-bucketed table")
+    .exclude("only shuffle one side when 2 bucketed tables have different bucket number")
+    .exclude("only shuffle one side when 2 bucketed tables have different bucket keys")
+    .exclude("shuffle when join keys are not equal to bucket keys")
+    .exclude("shuffle when join 2 bucketed tables with bucketing disabled")
+    .exclude("check sort and shuffle when bucket and sort columns are join keys")
+    .exclude("only sort one side when sort columns are different")
+    .exclude("only sort one side when sort columns are same but their ordering is different")
+    .exclude("SPARK-17698 Join predicates should not contain filter clauses")
+    .exclude("SPARK-19122 Re-order join predicates if they match with the child's" +
+      " output partitioning")
+    .exclude("SPARK-19122 No re-ordering should happen if set of join columns != set of child's " +
+      "partitioning columns")
+    .exclude("SPARK-29655 Read bucketed tables obeys spark.sql.shuffle.partitions")
+    .exclude("SPARK-32767 Bucket join should work if SHUFFLE_PARTITIONS larger than bucket number")
+    .exclude("bucket coalescing eliminates shuffle")
+    .exclude("bucket coalescing is not satisfied")
+    .excludeByPrefix("bucket coalescing is applied when join expressions match")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
+    // TODO Gluten can not catch the spark exception in Driver side.
     .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
     .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
