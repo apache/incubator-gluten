@@ -166,7 +166,12 @@ object VeloxBackendSettings extends BackendSettings {
 
   override def recreateJoinExecOnFallback(): Boolean = true
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
+
   override def rescaleDecimalLiteral(): Boolean = true
+
+  override def replaceSortAggWithHashAgg: Boolean = {
+    GlutenConfig.getConf.forceToUseHashAgg
+  }
 
   /**
    * Get the config prefix for each backend

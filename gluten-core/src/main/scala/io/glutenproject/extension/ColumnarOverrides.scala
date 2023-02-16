@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partition
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
@@ -262,6 +262,34 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
         genFilterExec(plan)
       case plan: HashAggregateExec =>
         genHashAggregateExec(plan)
+      case plan: SortAggregateExec =>
+        try {
+          val child = replaceWithTransformerPlan(plan.child)
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance
+              .genHashAggregateExecTransformer(
+            plan.requiredChildDistributionExpressions,
+            plan.groupingExpressions,
+            plan.aggregateExpressions,
+            plan.aggregateAttributes,
+            plan.initialInputBufferOffset,
+            plan.resultExpressions,
+            // If SortAggregateExec is forcibly replaced by HashAggregateExecTransformer,
+            // Sort operator is useless. So just use its child to initialize.
+            child match {
+              case sort: SortExecTransformer =>
+                sort.child
+              case sort: SortExec =>
+                sort.child
+              case other =>
+                other
+            })
+        } catch {
+          case _: Throwable =>
+            logInfo("Fallback to SortAggregateExec instead of forcibly" +
+                " using HashAggregateExecTransformer!")
+            plan
+        }
       case plan: ObjectHashAggregateExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
