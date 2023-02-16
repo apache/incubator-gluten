@@ -248,8 +248,6 @@ class VeloxTestSettings extends BackendTestSettings {
   // enableSuite[GlutenCoalesceShufflePartitionsSuite]
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
-    .exclude("char type values should be padded: nested in struct")
-    .exclude("char type values should be padded: nested in struct of array")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
