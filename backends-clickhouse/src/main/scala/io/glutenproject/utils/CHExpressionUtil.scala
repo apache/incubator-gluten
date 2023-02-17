@@ -40,6 +40,8 @@ object CHExpressionUtil {
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     MURMUR3HASH -> Set(EMPTY_TYPE),
     MD5 -> Set(EMPTY_TYPE),
+    SHA1 -> Set(EMPTY_TYPE),
+    CRC32 -> Set(EMPTY_TYPE),
     XXHASH64 -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
