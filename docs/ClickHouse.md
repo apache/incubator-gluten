@@ -136,9 +136,9 @@ tar zxf spark-3.2.2-bin-hadoop2.7.tgz
 cd spark-3.2.2-bin-hadoop2.7
 rm -f jars/protobuf-java-2.5.0.jar
 #download protobuf-java-3.16.3.jar, delta-core_2.12-2.0.1.jar and delta-storage-2.0.1.jar
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars -O protobuf-java-3.16.3.jar
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P ./jars -O delta-core_2.12-2.0.1.jar
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P ./jars -O delta-storage-2.0.1.jar
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P ./jars
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P ./jars
 cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
 ```
 
@@ -148,9 +148,9 @@ tar zxf spark-3.3.1-bin-hadoop2.7.tgz
 cd spark-3.3.1-bin-hadoop2.7
 rm -f jars/protobuf-java-2.5.0.jar
 #download protobuf-java-3.16.3.jar, delta-core_2.12-2.2.0.jar and delta-storage-2.2.0.jar
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars -O protobuf-java-3.16.3.jar
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P ./jars -O delta-core_2.12-2.2.0.jar
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P ./jars -O delta-storage-2.2.0.jar
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P ./jars
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P ./jars
 cp gluten-XXXXX-spark-3.3-jar-with-dependencies.jar jars/
 ```
 
