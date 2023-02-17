@@ -248,8 +248,6 @@ class VeloxTestSettings extends BackendTestSettings {
   // enableSuite[GlutenCoalesceShufflePartitionsSuite]
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
-    .exclude("char type values should be padded: nested in struct")
-    .exclude("char type values should be padded: nested in struct of array")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
@@ -266,7 +264,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
-    .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcPartitionDiscoverySuite]
   enableSuite[GlutenOrcV1PartitionDiscoverySuite]
   enableSuite[GlutenOrcV1QuerySuite]
@@ -299,9 +296,30 @@ class VeloxTestSettings extends BackendTestSettings {
     // Ignored to disable vectorized reading check.
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
   enableSuite[GlutenOrcV1FilterSuite]
-    .exclude("SPARK-32622: case sensitivity in predicate pushdown")
-  // enableSuite[GlutenOrcV1SchemaPruningSuite]
-  // enableSuite[GlutenOrcV2SchemaPruningSuite]
+  enableSuite[GlutenOrcV1SchemaPruningSuite]
+    .exclude(
+      "Spark vectorized reader - without partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - with partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after outer join")
+  enableSuite[GlutenOrcV2SchemaPruningSuite]
+    .exclude(
+      "Spark vectorized reader - without partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - with partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after outer join")
   enableSuite[GlutenParquetColumnIndexSuite]
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
   enableSuite[GlutenParquetEncodingSuite]
@@ -375,7 +393,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHeaderCSVReadSchemaSuite]
   enableSuite[GlutenJsonReadSchemaSuite]
   enableSuite[GlutenOrcReadSchemaSuite]
-  // enableSuite[GlutenVectorizedOrcReadSchemaSuite]
+  enableSuite[GlutenVectorizedOrcReadSchemaSuite]
+    // Rewrite to disable Spark's vectorized reading.
+    .exclude("change column position")
+    .exclude("read byte, int, short, long together")
+    .exclude("read float and double together")
   enableSuite[GlutenMergedOrcReadSchemaSuite]
   enableSuite[GlutenParquetReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
