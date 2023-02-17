@@ -20,6 +20,7 @@ package io.glutenproject.backendsapi
 import io.glutenproject.substrait.plan.PlanNode
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -56,6 +57,14 @@ trait IValidatorApi {
     substraitFuncName: String,
     func: AggregateFunction): Boolean = true
 
+  /**
+   * Validate against a whole Spark plan, before being interpreted by Gluten.
+   */
+  def doSparkPlanValidate(plan: SparkPlan): Boolean
+
+  /**
+   * Validate against Substrait plan node.
+   */
   def doValidate(plan: PlanNode): Boolean
 
   /**
@@ -65,5 +74,5 @@ trait IValidatorApi {
    *
    * @return true by default
    */
-  def doValidateSchema(schema: StructType): Boolean = true
+  def doSchemaValidate(schema: StructType): Boolean = true
 }

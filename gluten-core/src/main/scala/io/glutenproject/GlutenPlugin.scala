@@ -20,18 +20,14 @@ package io.glutenproject
 import java.util
 import java.util.{Collections, Objects}
 import scala.language.implicitConversions
-import com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
-import io.glutenproject.substrait.expression.ExpressionBuilder
-import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
+import org.apache.spark.sql.internal.StaticSQLConf
 
 class GlutenPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
@@ -152,65 +148,5 @@ private[glutenproject] object GlutenPlugin {
 
   implicit def sparkConfImplicit(conf: SparkConf): SparkConfImplicits = {
     new SparkConfImplicits(conf)
-  }
-
-  def buildNativeConfNode(conf: SparkConf): PlanNode = {
-    val nativeConfMap = new util.HashMap[String, String]()
-
-    if (conf.contains(GlutenConfig.SPARK_HIVE_EXEC_ORC_STRIPE_SIZE)) {
-      nativeConfMap.put(
-        GlutenConfig.HIVE_EXEC_ORC_STRIPE_SIZE,
-        conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_STRIPE_SIZE))
-    }
-    if (conf.contains(GlutenConfig.SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE)) {
-      nativeConfMap.put(
-        GlutenConfig.HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
-        conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE))
-    }
-    if (conf.contains(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS)) {
-      nativeConfMap.put(
-        GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
-    }
-
-    // HDFS config
-    nativeConfMap.put(
-      GlutenConfig.SPARK_HDFS_URI, conf.get(GlutenConfig.SPARK_HDFS_URI, "hdfs://localhost:9000"))
-
-    // S3 config
-    nativeConfMap.put(
-      GlutenConfig.SPARK_S3_ACCESS_KEY, conf.get(GlutenConfig.SPARK_S3_ACCESS_KEY, "minio"))
-    nativeConfMap.put(
-      GlutenConfig.SPARK_S3_SECRET_KEY, conf.get(GlutenConfig.SPARK_S3_SECRET_KEY, "miniopass"))
-    nativeConfMap.put(
-      GlutenConfig.SPARK_S3_ENDPOINT, conf.get(GlutenConfig.SPARK_S3_ENDPOINT, "localhost:9000"))
-    nativeConfMap.put(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED,
-      conf.get(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED, "false"))
-    nativeConfMap.put(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS,
-      conf.get(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS, "true"))
-    nativeConfMap.put(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS,
-      conf.get(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"))
-
-    conf.getAll.filter {
-      case (k, v) => k.startsWith(BackendsApiManager.getSettings.getBackendConfigPrefix())
-    }.foreach {
-      case (k, v) => nativeConfMap.put(k, v)
-    }
-
-    nativeConfMap.put(
-      SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key,
-      conf.get(SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "32768"))
-
-    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      nativeConfMap.put(
-        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
-        conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY).toString)
-    }
-
-    nativeConfMap.put(GlutenConfig.GLUTEN_SAVE_DIR, conf.get(GlutenConfig.GLUTEN_SAVE_DIR, ""))
-
-    val stringMapNode = ExpressionBuilder.makeStringMap(nativeConfMap)
-    val extensionNode = ExtensionBuilder
-      .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf))
-    PlanBuilder.makePlan(extensionNode)
   }
 }

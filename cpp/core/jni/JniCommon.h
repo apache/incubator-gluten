@@ -26,6 +26,10 @@
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
+#ifdef GLUTEN_ENABLE_QAT
+#include "utils/qat_util.h"
+#endif
+
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
 static inline jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
@@ -257,17 +261,32 @@ static inline jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::S
 }
 
 static inline arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv* env, jstring codec_jstr) {
-  auto codec_l = env->GetStringUTFChars(codec_jstr, JNI_FALSE);
+  auto codec_u = env->GetStringUTFChars(codec_jstr, JNI_FALSE);
 
-  std::string codec_u;
-  std::transform(codec_l, codec_l + std::strlen(codec_l), std::back_inserter(codec_u), ::tolower);
+  std::string codec_l;
+  std::transform(codec_u, codec_u + std::strlen(codec_u), std::back_inserter(codec_l), ::tolower);
+#ifdef GLUTEN_ENABLE_QAT
+  // TODO: Support more codec.
+  static const std::string qat_codec_prefix = "gluten_qat_";
+  if (codec_l.rfind(qat_codec_prefix, 0) == 0) {
+    auto codec = codec_l.substr(qat_codec_prefix.size());
+    if (gluten::qat::SupportsCodec(codec)) {
+      gluten::qat::EnsureQatCodecRegistered(codec);
+      codec_l = "custom";
+    } else {
+      std::string error_message = "Unrecognized compression codec: " + codec_l;
+      env->ReleaseStringUTFChars(codec_jstr, codec_u);
+      throw gluten::GlutenException(error_message);
+    }
+  }
+#endif
 
-  ARROW_ASSIGN_OR_RAISE(auto compression_type, arrow::util::Codec::GetCompressionType(codec_u));
+  ARROW_ASSIGN_OR_RAISE(auto compression_type, arrow::util::Codec::GetCompressionType(codec_l));
 
   if (compression_type == arrow::Compression::LZ4) {
     compression_type = arrow::Compression::LZ4_FRAME;
   }
-  env->ReleaseStringUTFChars(codec_jstr, codec_l);
+  env->ReleaseStringUTFChars(codec_jstr, codec_u);
   return compression_type;
 }
 

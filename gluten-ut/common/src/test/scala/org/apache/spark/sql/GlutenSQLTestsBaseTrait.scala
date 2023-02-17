@@ -20,7 +20,6 @@ package org.apache.spark.sql
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.SystemParameters
-
 import org.scalactic.source.Position
 import org.scalatest.Tag
 

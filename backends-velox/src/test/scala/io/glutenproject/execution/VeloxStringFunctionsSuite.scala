@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
 
 class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
 

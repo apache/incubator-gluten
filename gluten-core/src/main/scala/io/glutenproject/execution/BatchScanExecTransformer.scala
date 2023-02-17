@@ -95,10 +95,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     }
   }
 
-  override def filterExprs(): Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
-    scan.asInstanceOf[FileScan].dataFilters ++ pushdownFilters
-  } else {
-    throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
+  override def filterExprs(): Seq[Expression] = scan match {
+    case fileScan: FileScan =>
+      fileScan.dataFilters ++ pushdownFilters
+    case _ =>
+      throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
 
   override def outputAttributes(): Seq[Attribute] = output
@@ -110,6 +111,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   override def getPartitionSchemas: StructType = scan match {
     case fileScan: FileScan => fileScan.readPartitionSchema
     case _ => new StructType()
+  }
+
+  override def getInputFilePaths: Seq[String] = scan match {
+    case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
+    case _ => Seq.empty
   }
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator

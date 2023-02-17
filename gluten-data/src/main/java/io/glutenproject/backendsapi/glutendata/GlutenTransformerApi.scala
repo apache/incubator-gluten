@@ -18,14 +18,14 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{GlutenArrowUtil, InputPartitionsUtil}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.types.{ArrayType, BooleanType, DecimalType, MapType, StructType}
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
 abstract class GlutenTransformerApi extends ITransformerApi with Logging {
 
@@ -62,8 +62,9 @@ abstract class GlutenTransformerApi extends ITransformerApi with Logging {
    *
    * @return true if backend supports reading the file format.
    */
-  override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
-    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat)
+  override def supportsReadFileFormat(fileFormat: ReadFileFormat,
+                                      fields: Array[StructField]): Boolean = {
+    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields)
   }
 
   /**

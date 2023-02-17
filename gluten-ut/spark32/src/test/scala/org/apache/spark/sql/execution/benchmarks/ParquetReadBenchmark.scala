@@ -131,7 +131,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
 
     // generate ColumnarToRow
     val columnarToRowPlan =
-      BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(newWholeStage)
+      BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(newWholeStage)
 
     val newWholeStageRDD = newWholeStage.executeColumnar()
     val newColumnarToRowRDD = columnarToRowPlan.execute()
@@ -171,7 +171,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
     }
 
     if (executedVanilla) {
-      spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+      spark.conf.set("spark.gluten.enabled", "false")
 
       val vanillaParquet = spark.sql(s"""
                                         |select $scanSchema from parquet.`$parquetDir`

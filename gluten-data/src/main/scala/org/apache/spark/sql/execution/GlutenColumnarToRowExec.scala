@@ -28,9 +28,11 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.types._
 import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.NANOSECONDS
 
@@ -115,6 +117,10 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
 
   override def output: Seq[Attribute] = child.output
 
+  override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+
   protected def doProduce(ctx: CodegenContext): String = {
     throw new RuntimeException("Codegen is not supported!")
   }
@@ -142,21 +148,26 @@ class GlutenColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch
       numInputBatches += 1
       numOutputRows += batch.numRows()
 
+      val nonGlutenBatch = batch.numCols() > 0 &&
+        !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
+        !batch.column(0).isInstanceOf[GlutenIndicatorVector]
       if (batch.numRows == 0) {
         logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
         Iterator.empty
-      } else if (this.output.isEmpty || (batch.numCols() > 0 &&
-        !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
-        !batch.column(0).isInstanceOf[GlutenIndicatorVector])) {
-        // Fallback to ColumnarToRow
+      } else if (this.output.isEmpty || nonGlutenBatch) {
+        // Fallback to ColumnarToRow of vanilla Spark.
         val localOutput = this.output
         numInputBatches += 1
         numOutputRows += batch.numRows()
 
         val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-          .rowIterator().asScala.map(toUnsafe)
+        if (nonGlutenBatch) {
+          batch.rowIterator().asScala.map(toUnsafe)
+        } else {
+          ArrowColumnarBatches
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+            .rowIterator().asScala.map(toUnsafe)
+        }
       } else {
         var info: NativeColumnarToRowInfo = null
         val beforeConvert = System.nanoTime()

@@ -153,6 +153,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override def getPartitionSchemas: StructType = relation.partitionSchema
 
+  override def getInputFilePaths: Seq[String] = relation.location.inputFiles.toSeq
+
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecTransformer =>
       (that canEqual this) && super.equals(that)
@@ -181,8 +183,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override def doValidate(): Boolean = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
-    if (BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(relation.fileFormat) &&
-    !bucketedScan) {
+    if (!bucketedScan) {
       super.doValidate()
     } else {
       false

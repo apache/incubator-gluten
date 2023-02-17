@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.benchmarks
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.UTSystemParameters
 import io.glutenproject.vectorized.JniLibLoader
 
@@ -29,7 +30,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarShuffleExchangeAdaptor, FileSourceScanExec, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.benchmarks.utils.FakeFileOutputStream
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -321,7 +322,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
       // Get the file partitions for generating the `FileScanRDD`
       val filePartitions = fileScan.getFlattenPartitions
         .map(_.asInstanceOf[FilePartition])
-      spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+      spark.conf.set("spark.gluten.enabled", "false")
       val sparkExecutedPlan = allStages.queryExecution.executedPlan
 
       // Get the `FileSourceScanExec`
@@ -340,8 +341,10 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
           hadoopConf = relation.sparkSession.sessionState.newHadoopConfWithOptions(relation.options)
         )
 
-      val newFileScanRDD = new FileScanRDD(spark, readFile, filePartitions)
-        .asInstanceOf[RDD[ColumnarBatch]]
+      val newFileScanRDD =
+        SparkShimLoader.getSparkShims
+          .generateFileScanRDD(spark, readFile, filePartitions, sparkFileScan)
+          .asInstanceOf[RDD[ColumnarBatch]]
 
       // Get the total row count
       val rowCnt = newFileScanRDD

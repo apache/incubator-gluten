@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.sql.shims.SparkShimLoader
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -32,7 +33,11 @@ object ExpressionMappings {
   final val MIN = "min"
   final val MAX = "max"
   final val STDDEV_SAMP = "stddev_samp"
+  final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
+  final val BLOOM_FILTER_AGG = "bloom_filter_agg"
+  final val VAR_SAMP = "var_samp"
+  final val VAR_POP = "var_pop"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -143,9 +148,12 @@ object ExpressionMappings {
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
   final val JSON_ARRAY_LENGTH = "json_array_length"
+  final val TO_JSON = "to_json"
+  final val FROM_JSON = "from_json"
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
+  final val XXHASH64 = "xxhash64"
   final val MD5 = "md5"
 
   // Array functions
@@ -162,6 +170,7 @@ object ExpressionMappings {
 
   // Spark 3.3
   final val SPLIT_PART = "split_part"
+  final val MIGHT_CONTAIN = "might_contain"
 
   // Specific expression
   final val IF = "if"
@@ -298,8 +307,11 @@ object ExpressionMappings {
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
+    Sig[StructsToJson](TO_JSON),
+    Sig[JsonToStructs](FROM_JSON),
     // Hash functions
     Sig[Murmur3Hash](MURMUR3HASH),
+    Sig[XxHash64](XXHASH64),
     Sig[Md5](MD5),
     // Array functions
     Sig[Size](SIZE),
@@ -337,11 +349,26 @@ object ExpressionMappings {
     Sig[Min](MIN),
     Sig[Max](MAX),
     Sig[StddevSamp](STDDEV_SAMP),
-    Sig[CollectList](COLLECT_LIST)
+    Sig[StddevPop](STDDEV_POP),
+    Sig[CollectList](COLLECT_LIST),
+    Sig[VarianceSamp](VAR_SAMP),
+    Sig[VariancePop](VAR_POP)
   )
+
+  // some spark new version class
+  def getScalarSigOther: Map[String, String] =
+    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+      Map((MIGHT_CONTAIN, MIGHT_CONTAIN))
+    } else Map()
+
+  def getAggSigOther: Map[String, String] =
+    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+      Map((BLOOM_FILTER_AGG, BLOOM_FILTER_AGG))
+    } else Map()
 
   lazy val scalar_functions_map: Map[Class[_], String] =
     SCALAR_SIGS.map(s => (s.expClass, s.name)).toMap
-  lazy val aggregate_functions_map: Map[Class[_], String] =
+  lazy val aggregate_functions_map: Map[Class[_], String] = {
     AGGREGATE_SIGS.map(s => (s.expClass, s.name)).toMap
+  }
 }

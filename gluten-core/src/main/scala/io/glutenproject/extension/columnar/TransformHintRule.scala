@@ -17,26 +17,26 @@
 
 package io.glutenproject.extension.columnar
 
-import scala.util.control.Breaks.{break, breakable}
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.commons.lang3.exception.ExceptionUtils
-
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
+
+import scala.util.control.Breaks.{break, breakable}
 
 
 trait TransformHint {
@@ -102,21 +102,30 @@ object TransformHints {
 // Holds rules which have higher privilege to tag (not) transformable before AddTransformHintRule.
 object TagBeforeTransformHits {
   val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
-    List((_: SparkSession) => FallbackOneRowRelation(),
-      (_: SparkSession) => FallbackMultiCodegens())
+    List(FallbackOneRowRelation, FallbackOnANSIMode, FallbackMultiCodegens)
   }
 }
 
-case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
+case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case agg @ HashAggregateExec(_, _, _, _, _, _, _, _, child: ExpandExec) =>
+    case agg: HashAggregateExec if agg.child.isInstanceOf[ExpandExec] =>
+      val childExpandExec = agg.child.asInstanceOf[ExpandExec]
       agg.copy(child = CustomExpandExec(
-        child.projections, agg.groupingExpressions,
-        child.output, child.child))
+        childExpandExec.projections, agg.groupingExpressions,
+        childExpandExec.output, childExpandExec.child))
   }
 }
 
-case class FallbackMultiCodegens() extends Rule[SparkPlan] {
+case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
+    if (GlutenConfig.getSessionConf.enableAnsiMode) {
+      plan.foreach(TransformHints.tagNotTransformable)
+    }
+    plan
+  }
+}
+
+case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
   lazy val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   lazy val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
   lazy val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
@@ -182,7 +191,7 @@ case class FallbackMultiCodegens() extends Rule[SparkPlan] {
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (physicalJoinOptimize) {
       insertRowGuardOrNot(plan)
     } else plan
@@ -191,8 +200,8 @@ case class FallbackMultiCodegens() extends Rule[SparkPlan] {
 
 // This rule will fall back the whole plan if it contains OneRowRelation scan.
 // This should only affect some light-weight cases in some basic UTs.
-case class FallbackOneRowRelation() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = {
+case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     val hasOneRowRelation =
       plan.find(_.isInstanceOf[RDDScanExec]) match {
         case Some(scan: RDDScanExec) => scan.name.equals("OneRowRelation")
@@ -202,6 +211,23 @@ case class FallbackOneRowRelation() extends Rule[SparkPlan] {
       plan.foreach(TransformHints.tagNotTransformable)
     }
     plan
+  }
+}
+
+case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
+    case p =>
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
+        if (p.output.isEmpty) {
+          // Some backends are not eligible to offload zero-column plan so far
+          TransformHints.tagNotTransformable(p)
+        }
+        if (p.children.exists(_.output.isEmpty)) {
+          // Some backends are also not eligible to offload plan within zero-column input so far
+          TransformHints.tagNotTransformable(p)
+        }
+      }
+      p
   }
 }
 
@@ -254,41 +280,39 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       return
     }
     try {
-      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
-        if (plan.output.isEmpty) {
-          // Some backends are not eligible to offload zero-column plan so far
-          TransformHints.tagNotTransformable(plan)
-          return
-        }
-        if (plan.children.exists(_.output.isEmpty)) {
-          // Some backends are also not eligible to offload plan within zero-column input so far
-          TransformHints.tagNotTransformable(plan)
-          return
-        }
-      }
       plan match {
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = new BatchScanExecTransformer(plan.output, plan.scan,
-              plan.runtimeFilters)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            // IF filter expressions aren't empty, we need to transform the inner operators.
+            if (plan.runtimeFilters.nonEmpty) {
+              TransformHints.tagTransformable(plan)
+            } else {
+              val transformer = new BatchScanExecTransformer(plan.output, plan.scan,
+                plan.runtimeFilters)
+              TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            }
           }
         case plan: FileSourceScanExec =>
           if (!enableColumnarFileScan) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = new FileSourceScanExecTransformer(plan.relation,
-              plan.output,
-              plan.requiredSchema,
-              plan.partitionFilters,
-              plan.optionalBucketSet,
-              plan.optionalNumCoalescedBuckets,
-              plan.dataFilters,
-              plan.tableIdentifier,
-              plan.disableBucketedScan)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            // IF filter expressions aren't empty, we need to transform the inner operators.
+            if (plan.partitionFilters.nonEmpty) {
+              TransformHints.tagTransformable(plan)
+            } else {
+              val transformer = new FileSourceScanExecTransformer(plan.relation,
+                plan.output,
+                plan.requiredSchema,
+                plan.partitionFilters,
+                plan.optionalBucketSet,
+                plan.optionalNumCoalescedBuckets,
+                plan.dataFilters,
+                plan.tableIdentifier,
+                plan.disableBucketedScan)
+              TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            }
           }
         case plan: InMemoryTableScanExec =>
           // ColumnarInMemoryTableScanExec.scala appears to be out-of-date
@@ -310,6 +334,21 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: HashAggregateExec =>
+          if (!enableColumnarHashAgg) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              .genHashAggregateExecTransformer(
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
+        case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(plan)
           } else {

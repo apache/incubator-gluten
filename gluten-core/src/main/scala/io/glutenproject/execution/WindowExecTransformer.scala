@@ -198,18 +198,12 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
             }
 
-            var outputMap: Map[Expression, Int] = Map()
-            output.zipWithIndex.foreach { case (attr, index) =>
-              outputMap += (attr.canonicalized -> index)
-            }
-
             val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            val childrenNodes = aggregateFunc.children.toList.map(expr => {
-              ExpressionBuilder.makeSelection(outputMap(expr.canonicalized))
-            })
-            for (node <- childrenNodes) {
-              childrenNodeList.add(node)
-            }
+            aggregateFunc.children.foreach(
+              expr => childrenNodeList.add(
+                ExpressionConverter.replaceWithExpressionTransformer(expr,
+                  originalInputAttributes).doTransform(args))
+            )
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,

@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
@@ -31,6 +30,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InSubqueryExec
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -45,6 +45,8 @@ trait BasicScanExecTransformer extends TransformSupport {
   def getFlattenPartitions: Seq[InputPartition]
 
   def getPartitionSchemas: StructType
+
+  def getInputFilePaths: Seq[String]
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("outputRows")
@@ -74,36 +76,29 @@ trait BasicScanExecTransformer extends TransformSupport {
     )
   }
 
-  def unsupportedDataType () : Boolean = {
-    schema.fields.map(_.dataType).collect{
-      case byte: ByteType =>
-      case array: ArrayType =>
-      case bool: BooleanType =>
-      case map: MapType =>
-      case struct: StructType =>
-    }.nonEmpty
-  }
-
   override def doValidate(): Boolean = {
-    // TODO need also check orc file format and also move this check in native.
-    ConverterUtils.getFileFormat(this) match {
-      case ParquetReadFormat =>
-        if (BackendsApiManager.getBackendName.equals("velox") &&
-          unsupportedDataType()) {
-          return false
-        }
-      case _ =>
+    // Fallback to vanilla spark when the input path
+    // does not contain the partition info.
+    if (getPartitionSchemas.nonEmpty &&
+      !getInputFilePaths.forall(_.contains("="))) {
+      return false
+    }
+    val fileFormat = ConverterUtils.getFileFormat(this)
+    if (!BackendsApiManager
+      .getTransformerApiInstance.supportsReadFileFormat(fileFormat, schema.fields)) {
+      logDebug(
+        s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
+      return false
     }
 
     val substraitContext = new SubstraitContext
-    val relNode =
-      try {
-        doTransform(substraitContext).root
-      } catch {
-        case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-          return false
-      }
+    val relNode = try {
+      doTransform(substraitContext).root
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
 
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
@@ -112,11 +107,17 @@ trait BasicScanExecTransformer extends TransformSupport {
       true
     }
   }
-  def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
+
+  private def normalizeColName(name: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) name else name.toLowerCase()
+  }
+
+  private def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
     val nameList = new java.util.ArrayList[String]()
     attributes.foreach(
       attr => {
-        nameList.add(attr.name)
+        nameList.add(normalizeColName(attr.name))
         if (BackendsApiManager.getSettings.supportStructType()) {
           attr.dataType match {
             case struct: StructType =>
@@ -130,15 +131,15 @@ trait BasicScanExecTransformer extends TransformSupport {
     nameList
   }
 
-  def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
+  private def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
     val nameList = new java.util.ArrayList[String]()
     dataType match {
       case structType: StructType =>
         structType.fields.foreach(
           field => {
-            nameList.add(field.name)
+            nameList.add(normalizeColName(field.name))
             val nestedNames = collectDataTypeNamesDFS(field.dataType)
-            nameList.addAll(nestedNames);
+            nameList.addAll(nestedNames)
           }
         )
       case _ =>

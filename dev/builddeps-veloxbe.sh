@@ -8,12 +8,13 @@ set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
-BUILD_TYPE=release
+BUILD_TYPE=Release
 BUILD_TESTS=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=ON
-ENABLE_HBM=OFF
 BUILD_PROTOBUF=ON
+ENABLE_QAT=OFF
+ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_EP_CACHE=OFF
@@ -36,6 +37,10 @@ do
         BUILD_JEMALLOC=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --enable_qat=*)
+        ENABLE_QAT=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
         --enable_hbm=*)
         ENABLE_HBM=("${arg#*=}")
         shift # Remove argument name from processing
@@ -50,14 +55,6 @@ do
         ;;
         --enable_hdfs=*)
         ENABLE_HDFS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_arrow_from_source=*)
-        BUILD_ARROW_FROM_SOURCE=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_velox_from_source=*)
-        BUILD_VELOX_FROM_SOURCE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_ep_cache=*)
@@ -77,7 +74,7 @@ cd $GLUTEN_DIR/ep/build-arrow/src
 
 if [ $ENABLE_EP_CACHE == 'OFF' ] || [ ! -f $GLUTEN_DIR/ep/build-arrow/build/arrow-commit.cache ]; then
   ./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
-                           --enable_ep_cache=$ENABLE_EP_CACHE
+                           --enable_qat=$ENABLE_QAT --enable_ep_cache=$ENABLE_EP_CACHE
 fi
 
 ##install velox
@@ -92,12 +89,12 @@ fi
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
-./compile.sh --build_velox_backend=ON --build_type=$BUILD_TYPE --build_velox_backend=ON \
-             --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS --build_jemalloc=$BUILD_JEMALLOC \
-             --enable_hbm=$ENABLE_HBM --enable_s3=$ENABLE_S3 --enable_hdfs=$ENABLE_HDFS
-
-cd $GLUTEN_DIR
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
-mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+rm -rf build
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+      -DBUILD_TESTS=$BUILD_TESTS -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
+      -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DVELOX_ENABLE_S3=$ENABLE_S3 -DVELOX_ENABLE_HDFS=$ENABLE_HDFS ..
+make -j
 
 

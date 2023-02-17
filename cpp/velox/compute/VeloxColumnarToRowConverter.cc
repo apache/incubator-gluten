@@ -170,6 +170,10 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
         }
         break;
       }
+      case arrow::TimestampType::type_id: {
+        SERIALIZE_COLUMN(TimestampType);
+        break;
+      }
       default:
         return arrow::Status::Invalid(
             "Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");

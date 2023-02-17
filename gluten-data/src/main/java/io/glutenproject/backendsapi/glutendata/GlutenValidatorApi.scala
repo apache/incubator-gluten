@@ -25,6 +25,7 @@ import io.glutenproject.utils.GlutenExpressionUtil
 import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructType
 
 abstract class GlutenValidatorApi extends IValidatorApi {
@@ -39,11 +40,12 @@ abstract class GlutenValidatorApi extends IValidatorApi {
                   expr: Expression): Boolean = {
     // To handle cast(struct as string) AS col_name expression
     val key = if (substraitExprName.toLowerCase().equals(ExpressionMappings.ALIAS)) {
-      ExpressionMappings.scalar_functions_map.get(expr.asInstanceOf[Alias].child.getClass)
-    } else Some(substraitExprName)
+      ExpressionMappings.scalar_functions_map.getOrElse(expr.asInstanceOf[Alias].child.getClass,
+        ExpressionMappings.getScalarSigOther(expr.asInstanceOf[Alias].child.prettyName))
+    } else substraitExprName
     if (key.isEmpty) return false
     if (blacklist.isEmpty) return true
-    val value = blacklist.get(key.get)
+    val value = blacklist.get(key)
     if (value.isEmpty) {
       return true
     }
@@ -98,7 +100,9 @@ abstract class GlutenValidatorApi extends IValidatorApi {
     validator.doValidate(plan.toProtobuf.toByteArray)
   }
 
-  override def doValidateSchema(schema: StructType): Boolean = {
+  override def doSparkPlanValidate(plan: SparkPlan): Boolean = true
+
+  override def doSchemaValidate(schema: StructType): Boolean = {
     RowToColumnConverter.supportSchema(schema)
   }
 }

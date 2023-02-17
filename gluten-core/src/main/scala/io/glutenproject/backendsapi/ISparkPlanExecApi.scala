@@ -18,8 +18,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer}
-
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -41,18 +40,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 trait ISparkPlanExecApi {
 
   /**
-   * Whether support gluten for current SparkPlan
-   * @return
-   */
-  def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean
-
-  /**
    * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
+  def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
 
   /**
    * Generate RowToColumnarExec.
@@ -209,8 +202,11 @@ trait ISparkPlanExecApi {
 
   /**
    * Generate an ExpressionTransformer to transform GetStructFiled expression.
+   * GetStructFieldTransformer is the default implementation.
    */
   def genGetStructFieldTransformer(substraitExprName: String,
                                  childTransformer: ExpressionTransformer, ordinal: Int,
-                                 original: GetStructField): ExpressionTransformer = null
+                                 original: GetStructField): ExpressionTransformer = {
+    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+  }
 }

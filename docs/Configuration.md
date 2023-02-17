@@ -11,8 +11,9 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 | spark.memory.offHeap.size| To set up how much memory to be used for Java OffHeap.<br /> Please notice Gluten Plugin will leverage this setting to allocate memory space for native usage even offHeap is disabled. <br /> The value is based on your system and it is recommended to set it larger if you are facing Out of Memory issue in Gluten Plugin | 30G |
 | spark.sql.sources.useV1SourceList | Choose to use V1 source | avro |
 | spark.sql.join.preferSortMergeJoin | To turn off preferSortMergeJoin in Spark | false |
-| spark.plugins | To turn on Gluten Plugin | com.intel.oap.GlutenPlugin |
+| spark.plugins | To load Gluten's components by Spark's plug-in loader | com.intel.oap.GlutenPlugin |
 | spark.shuffle.manager | To turn on Gluten Columnar Shuffle Plugin | org.apache.spark.shuffle.sort.ColumnarShuffleManager |
+| spark.gluten.enabled | Enable Gluten, default is true | true |
 | spark.gluten.sql.columnar.batchscan | Enable or Disable Columnar Batchscan, default is true | true |
 | spark.gluten.sql.columnar.hashagg | Enable or Disable Columnar Hash Aggregate, default is true | true |
 | spark.gluten.sql.columnar.projfilter | Enable or Disable Columnar Project and Filter, default is true | true |
@@ -32,6 +33,8 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 | spark.gluten.sql.columnar.shuffle.customizedCompression.codec | Set up the codec to be used for Columnar Shuffle, default is lz4| lz4 |
 | spark.gluten.sql.columnar.numaBinding | Set up NUMABinding, default is false| true |
 | spark.gluten.sql.columnar.coreRange | Set up the core range for NUMABinding, only works when numaBinding set to true. <br /> The setting is based on the number of cores in your system. Use 72 cores as an example. | 0-17,36-53 &#124;18-35,54-71 |
+| spark.gluten.sql.columnar.qat | Enable using QAT for shuffle compression. | false |
+| spark.gluten.sql.native.bloomFilter | Enable of Disable native runtime bloomfilter | true |
 
 Below is an example for spark-default.conf, if you are using conda to install OAP project.
 
@@ -42,8 +45,7 @@ spark.sql.sources.useV1SourceList avro
 spark.plugins io.glutenproject.GlutenPlugin
 spark.shuffle.manager org.apache.spark.shuffle.sort.ColumnarShuffleManager
 spark.gluten.sql.columnar.backend.lib=velox # Valid options: velox, clickhouse, gazelle-cpp
-# Options: ${GLUTEN_HOME}/package/velox/spark33/target/gluten-<>-jar-with-dependencies.jar
-spark.driver.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
+spark.driver.extraClassPath ${GLUTEN_HOME}/package/target/gluten-<>-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GLUTEN_HOME}/package/target/gluten-<>-jar-with-dependencies.jar
 ######
 ```

@@ -18,11 +18,11 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, ParquetReadFormat}
 
-import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{ArrayType, StructField}
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
@@ -56,10 +56,15 @@ object CHBackendSettings extends BackendSettings {
       ".customized.buffer.size"
   val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = "4096"
 
-  override def supportFileFormatRead(): FileFormat => Boolean = {
-    case _: ParquetFileFormat => true
-    case _: OrcFileFormat => true
-    case _ => false
+  override def supportFileFormatRead(
+      format: ReadFileFormat,
+      fields: Array[StructField]): Boolean = {
+    format match {
+      case ParquetReadFormat => true
+      case OrcReadFormat => true
+      // True for CH backend for unknown type.
+      case _ => true
+    }
   }
 
   override def utilizeShuffledHashJoinHint(): Boolean = true
@@ -71,6 +76,8 @@ object CHBackendSettings extends BackendSettings {
   override def supportWindowExec(): Boolean = true
 
   override def supportStructType(): Boolean = true
+
+  override def supportExpandExec(): Boolean = true
 
   override def excludeScanExecFromCollapsedStage(): Boolean =
     SQLConf.get

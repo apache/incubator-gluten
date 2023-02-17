@@ -17,14 +17,25 @@
 
 package io.glutenproject.vectorized;
 
+import com.google.protobuf.Any;
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
+import io.glutenproject.substrait.expression.ExpressionBuilder;
+import io.glutenproject.substrait.expression.StringMapNode;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+import io.glutenproject.substrait.extensions.ExtensionBuilder;
+import io.glutenproject.substrait.plan.PlanBuilder;
+import io.glutenproject.substrait.plan.PlanNode;
 import io.glutenproject.utils.DebugUtil;
 import io.substrait.proto.Plan;
+import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A toolkit for backends that may require JNI to implement native validation/evaluation.
@@ -40,13 +51,21 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
   }
 
   // Used to initialize the native computing.
-  public void initNative(byte[] subPlan) {
-    jniWrapper.nativeInitNative(subPlan);
+  public void initNative(SparkConf conf) {
+    jniWrapper.nativeInitNative(buildNativeConfNode(GlutenConfig.getNativeStaticConf(conf,
+        BackendsApiManager.getSettings().getBackendConfigPrefix())).toProtobuf().toByteArray());
   }
 
   // Used to validate the Substrait plan in native compute engine.
   public boolean doValidate(byte[] subPlan) {
     return jniWrapper.nativeDoValidate(subPlan);
+  }
+
+  private PlanNode buildNativeConfNode(Map<String, String> confs) {
+    StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
+    AdvancedExtensionNode extensionNode = ExtensionBuilder
+        .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
+    return PlanBuilder.makePlan(extensionNode);
   }
 
   // Used by WholeStageTransfrom to create the native computing pipeline and
@@ -59,7 +78,8 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
         jniWrapper.nativeCreateKernelWithIterator(allocId, getPlanBytesBuf(wsPlan),
             iterList.toArray(new GeneralInIterator[0]), TaskContext.get().stageId(),
             TaskContext.getPartitionId(), TaskContext.get().taskAttemptId(),
-            DebugUtil.saveInputToFile());
+            DebugUtil.saveInputToFile(),
+            buildNativeConfNode(GlutenConfig.getNativeSessionConf()).toProtobuf().toByteArray());
     return createOutIterator(handle, outAttrs);
   }
 
