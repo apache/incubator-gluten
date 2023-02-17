@@ -368,6 +368,7 @@ class VeloxTestSettings extends BackendTestSettings {
      .excludeByPrefix("SPARK-35427")
   enableSuite[GlutenParquetSchemaInferenceSuite]
   enableSuite[GlutenParquetSchemaSuite]
+    // error message mismatch is accepted
     .exclude("schema mismatch failure error message for parquet reader")
     .exclude("schema mismatch failure error message for parquet vectorized reader")
   enableSuite[GlutenParquetThriftCompatibilitySuite]
@@ -377,7 +378,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenBucketingUtilsSuite]
   enableSuite[GlutenDataSourceStrategySuite]
   enableSuite[GlutenDataSourceSuite]
-  // enableSuite[GlutenFileFormatWriterSuite]
+  enableSuite[GlutenFileFormatWriterSuite]
+    .excludeByPrefix("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
     .exclude("write and read - file source parquet - codec: lz4")
