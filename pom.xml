@@ -96,7 +96,7 @@
 
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
-    <scala.compiler.version>4.3.0</scala.compiler.version>
+    <scala.compiler.version>4.8.0</scala.compiler.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
