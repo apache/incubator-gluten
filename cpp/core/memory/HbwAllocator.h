@@ -23,6 +23,8 @@ namespace gluten {
 
 class HbwMemoryAllocator final : public MemoryAllocator {
  public:
+  static std::shared_ptr<MemoryAllocator> NewInstance();
+
   bool Allocate(int64_t size, void** out) override;
 
   bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;

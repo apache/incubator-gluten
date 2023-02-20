@@ -181,7 +181,7 @@ std::string WrappedArrowMemoryPool::backend_name() const {
 
 std::shared_ptr<MemoryAllocator> DefaultMemoryAllocator() {
 #if defined(GLUTEN_ENABLE_HBM)
-  static std::shared_ptr<MemoryAllocator> alloc = std::make_shared<HbwMemoryAllocator>();
+  static std::shared_ptr<MemoryAllocator> alloc = HbwMemoryAllocator::NewInstance();
 #else
   static std::shared_ptr<MemoryAllocator> alloc = std::make_shared<StdMemoryAllocator>();
 #endif
