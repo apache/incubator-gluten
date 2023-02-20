@@ -129,7 +129,7 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of stream side output vectors"),
     "streamOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of stream side output bytes"),
-    "streamCount" -> SQLMetrics.createMetric(
+    "streamCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "stream side cpu wall time count"),
     "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_stream_input"),
@@ -156,7 +156,7 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of stream preProjection output vectors"),
     "streamPreProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of stream preProjection output bytes"),
-    "streamPreProjectionCount" -> SQLMetrics.createMetric(
+    "streamPreProjectionCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "stream preProjection cpu wall time count"),
     "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_stream_preProjection"),
@@ -181,7 +181,7 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of build side output vectors"),
     "buildOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of build side output bytes"),
-    "buildCount" -> SQLMetrics.createMetric(
+    "buildCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "build side cpu wall time count"),
     "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_build_input"),
@@ -206,7 +206,7 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of build preProjection output vectors"),
     "buildPreProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of build preProjection output bytes"),
-    "buildPreProjectionCount" -> SQLMetrics.createMetric(
+    "buildPreProjectionCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "build preProjection cpu wall time count"),
     "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_build_preProjection"),
@@ -231,7 +231,7 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of hash build output vectors"),
     "hashBuildOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of hash build output bytes"),
-    "hashBuildCount" -> SQLMetrics.createMetric(
+    "hashBuildCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "hash build cpu wall time count"),
     "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_hashbuild"),
@@ -264,7 +264,7 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of hash probe output vectors"),
     "hashProbeOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of hash probe output bytes"),
-    "hashProbeCount" -> SQLMetrics.createMetric(
+    "hashProbeCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "hash probe cpu wall time count"),
     "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_hashprobe"),
@@ -301,7 +301,7 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of postProjection output vectors"),
     "postProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of postProjection output bytes"),
-    "postProjectionCount" -> SQLMetrics.createMetric(
+    "postProjectionCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "postProjection cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_postProjection"),
@@ -456,7 +456,7 @@ trait HashJoinLikeExecTransformer
         postProjectionOutputRows += metrics.outputRows
         postProjectionOutputVectors += metrics.outputVectors
         postProjectionOutputBytes += metrics.outputBytes
-        postProjectionCount += metrics.count
+        postProjectionCount += metrics.cpuNanos
         postProjectionWallNanos += metrics.wallNanos
         postProjectionPeakMemoryBytes += metrics.peakMemoryBytes
         postProjectionNumMemoryAllocations += metrics.numMemoryAllocations
@@ -473,7 +473,7 @@ trait HashJoinLikeExecTransformer
       hashProbeOutputRows += hashProbeMetrics.outputRows
       hashProbeOutputVectors += hashProbeMetrics.outputVectors
       hashProbeOutputBytes += hashProbeMetrics.outputBytes
-      hashProbeCount += hashProbeMetrics.count
+      hashProbeCount += hashProbeMetrics.cpuNanos
       hashProbeWallNanos += hashProbeMetrics.wallNanos
       hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
       hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
@@ -495,7 +495,7 @@ trait HashJoinLikeExecTransformer
       hashBuildOutputRows += hashBuildMetrics.outputRows
       hashBuildOutputVectors += hashBuildMetrics.outputVectors
       hashBuildOutputBytes += hashBuildMetrics.outputBytes
-      hashBuildCount += hashBuildMetrics.count
+      hashBuildCount += hashBuildMetrics.cpuNanos
       hashBuildWallNanos += hashBuildMetrics.wallNanos
       hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
       hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
@@ -515,7 +515,7 @@ trait HashJoinLikeExecTransformer
         buildPreProjectionOutputRows += metrics.outputRows
         buildPreProjectionOutputVectors += metrics.outputVectors
         buildPreProjectionOutputBytes += metrics.outputBytes
-        buildPreProjectionCount += metrics.count
+        buildPreProjectionCount += metrics.cpuNanos
         buildPreProjectionWallNanos += metrics.wallNanos
         buildPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
         buildPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
@@ -532,7 +532,7 @@ trait HashJoinLikeExecTransformer
         buildOutputRows += metrics.outputRows
         buildOutputVectors += metrics.outputVectors
         buildOutputBytes += metrics.outputBytes
-        buildCount += metrics.count
+        buildCount += metrics.cpuNanos
         buildWallNanos += metrics.wallNanos
         buildPeakMemoryBytes += metrics.peakMemoryBytes
         buildNumMemoryAllocations += metrics.numMemoryAllocations
@@ -549,7 +549,7 @@ trait HashJoinLikeExecTransformer
         streamPreProjectionOutputRows += metrics.outputRows
         streamPreProjectionOutputVectors += metrics.outputVectors
         streamPreProjectionOutputBytes += metrics.outputBytes
-        streamPreProjectionCount += metrics.count
+        streamPreProjectionCount += metrics.cpuNanos
         streamPreProjectionWallNanos += metrics.wallNanos
         streamPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
         streamPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
@@ -566,7 +566,7 @@ trait HashJoinLikeExecTransformer
         streamOutputRows += metrics.outputRows
         streamOutputVectors += metrics.outputVectors
         streamOutputBytes += metrics.outputBytes
-        streamCount += metrics.count
+        streamCount += metrics.cpuNanos
         streamWallNanos += metrics.wallNanos
         streamVeloxToArrow += singleMetrics.veloxToArrow
         streamPeakMemoryBytes += metrics.peakMemoryBytes
