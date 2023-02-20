@@ -476,6 +476,10 @@ object WholeStageTransformerExec extends Logging {
     var wallNanos: Long = 0
     var peakMemoryBytes: Long = 0
     var numMemoryAllocations: Long = 0
+    var spilledBytes: Long = 0
+    var spilledRows: Long = 0
+    var spilledPartitions: Long = 0
+    var spilledFiles: Long = 0
     var numDynamicFiltersProduced: Long = 0
     var numDynamicFiltersAccepted: Long = 0
     var numReplacedWithDynamicFilterRows: Long = 0
@@ -488,6 +492,10 @@ object WholeStageTransformerExec extends Logging {
       wallNanos += metrics.wallNanos
       peakMemoryBytes = peakMemoryBytes.max(metrics.peakMemoryBytes)
       numMemoryAllocations += metrics.numMemoryAllocations
+      spilledBytes += metrics.spilledBytes
+      spilledRows += metrics.spilledRows
+      spilledPartitions += metrics.spilledPartitions
+      spilledFiles += metrics.spilledFiles
       numDynamicFiltersProduced += metrics.numDynamicFiltersProduced
       numDynamicFiltersAccepted += metrics.numDynamicFiltersAccepted
       numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
@@ -507,6 +515,10 @@ object WholeStageTransformerExec extends Logging {
       wallNanos,
       peakMemoryBytes,
       numMemoryAllocations,
+      spilledBytes,
+      spilledRows,
+      spilledPartitions,
+      spilledFiles,
       numDynamicFiltersProduced,
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,

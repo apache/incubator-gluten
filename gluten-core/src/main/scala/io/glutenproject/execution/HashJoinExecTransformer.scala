@@ -239,6 +239,14 @@ trait HashJoinLikeExecTransformer
       sparkContext, "hash build peak memory bytes"),
     "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash build memory allocations"),
+    "hashBuildSpilledBytes" -> SQLMetrics.createMetric(
+      sparkContext, "total bytes written for spilling of hash build"),
+    "hashBuildSpilledRows" -> SQLMetrics.createMetric(
+      sparkContext, "total rows written for spilling of hash build"),
+    "hashBuildSpilledPartitions" -> SQLMetrics.createMetric(
+      sparkContext, "total spilled partitions of hash build"),
+    "hashBuildSpilledFiles" -> SQLMetrics.createMetric(
+      sparkContext, "total spilled files of hash build"),
 
     "hashProbeInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe input rows"),
@@ -264,6 +272,14 @@ trait HashJoinLikeExecTransformer
       sparkContext, "hash probe peak memory bytes"),
     "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe memory allocations"),
+    "hashProbeSpilledBytes" -> SQLMetrics.createMetric(
+      sparkContext, "total bytes written for spilling of hash probe"),
+    "hashProbeSpilledRows" -> SQLMetrics.createMetric(
+      sparkContext, "total rows written for spilling of hash probe"),
+    "hashProbeSpilledPartitions" -> SQLMetrics.createMetric(
+      sparkContext, "total spilled partitions of hash probe"),
+    "hashProbeSpilledFiles" -> SQLMetrics.createMetric(
+      sparkContext, "total spilled files of hash probe"),
     "hashProbeReplacedWithDynamicFilterRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe replaced with dynamic filter rows"),
     "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
@@ -369,6 +385,10 @@ trait HashJoinLikeExecTransformer
     val hashBuildWallNanos: SQLMetric = longMetric("hashBuildWallNanos")
     val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
     val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
+    val hashBuildSpilledBytes: SQLMetric = longMetric("hashBuildSpilledBytes")
+    val hashBuildSpilledRows: SQLMetric = longMetric("hashBuildSpilledRows")
+    val hashBuildSpilledPartitions: SQLMetric = longMetric("hashBuildSpilledPartitions")
+    val hashBuildSpilledFiles: SQLMetric = longMetric("hashBuildSpilledFiles")
 
     val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
     val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
@@ -382,6 +402,10 @@ trait HashJoinLikeExecTransformer
     val hashProbeWallNanos: SQLMetric = longMetric("hashProbeWallNanos")
     val hashProbePeakMemoryBytes: SQLMetric = longMetric("hashProbePeakMemoryBytes")
     val hashProbeNumMemoryAllocations: SQLMetric = longMetric("hashProbeNumMemoryAllocations")
+    val hashProbeSpilledBytes: SQLMetric = longMetric("hashProbeSpilledBytes")
+    val hashProbeSpilledRows: SQLMetric = longMetric("hashProbeSpilledRows")
+    val hashProbeSpilledPartitions: SQLMetric = longMetric("hashProbeSpilledPartitions")
+    val hashProbeSpilledFiles: SQLMetric = longMetric("hashProbeSpilledFiles")
 
     // The number of rows which were passed through without any processing
     // after filter was pushed down.
@@ -453,6 +477,10 @@ trait HashJoinLikeExecTransformer
       hashProbeWallNanos += hashProbeMetrics.wallNanos
       hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
       hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
+      hashProbeSpilledBytes += hashProbeMetrics.spilledBytes
+      hashProbeSpilledRows += hashProbeMetrics.spilledRows
+      hashProbeSpilledPartitions += hashProbeMetrics.spilledPartitions
+      hashProbeSpilledFiles += hashProbeMetrics.spilledFiles
       hashProbeReplacedWithDynamicFilterRows += hashProbeMetrics.numReplacedWithDynamicFilterRows
       hashProbeDynamicFiltersProduced += hashProbeMetrics.numDynamicFiltersProduced
       idx += 1
@@ -471,6 +499,10 @@ trait HashJoinLikeExecTransformer
       hashBuildWallNanos += hashBuildMetrics.wallNanos
       hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
       hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
+      hashBuildSpilledBytes += hashProbeMetrics.spilledBytes
+      hashBuildSpilledRows += hashProbeMetrics.spilledRows
+      hashBuildSpilledPartitions += hashProbeMetrics.spilledPartitions
+      hashBuildSpilledFiles += hashProbeMetrics.spilledFiles
       idx += 1
 
       if (joinParams.buildPreProjectionNeeded) {

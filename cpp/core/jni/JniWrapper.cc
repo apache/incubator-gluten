@@ -269,7 +269,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_class = CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/Metrics;");
 
   metrics_builder_constructor =
-      GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J)V");
+      GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J)V");
 
   serialized_arrow_array_iterator_class =
       CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ArrowInIterator;");
@@ -446,6 +446,10 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
   auto wallNanos = env->NewLongArray(numMetrics);
   auto peakMemoryBytes = env->NewLongArray(numMetrics);
   auto numMemoryAllocations = env->NewLongArray(numMetrics);
+  auto spilledBytes = env->NewLongArray(numMetrics);
+  auto spilledRows = env->NewLongArray(numMetrics);
+  auto spilledPartitions = env->NewLongArray(numMetrics);
+  auto spilledFiles = env->NewLongArray(numMetrics);
   auto numDynamicFiltersProduced = env->NewLongArray(numMetrics);
   auto numDynamicFiltersAccepted = env->NewLongArray(numMetrics);
   auto numReplacedWithDynamicFilterRows = env->NewLongArray(numMetrics);
@@ -464,6 +468,10 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
     env->SetLongArrayRegion(wallNanos, 0, numMetrics, metrics->wallNanos);
     env->SetLongArrayRegion(peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
     env->SetLongArrayRegion(numMemoryAllocations, 0, numMetrics, metrics->numMemoryAllocations);
+    env->SetLongArrayRegion(spilledBytes, 0, numMetrics, metrics->spilledBytes);
+    env->SetLongArrayRegion(spilledRows, 0, numMetrics, metrics->spilledRows);
+    env->SetLongArrayRegion(spilledPartitions, 0, numMetrics, metrics->spilledPartitions);
+    env->SetLongArrayRegion(spilledFiles, 0, numMetrics, metrics->spilledFiles);
     env->SetLongArrayRegion(numDynamicFiltersProduced, 0, numMetrics, metrics->numDynamicFiltersProduced);
     env->SetLongArrayRegion(numDynamicFiltersAccepted, 0, numMetrics, metrics->numDynamicFiltersAccepted);
     env->SetLongArrayRegion(numReplacedWithDynamicFilterRows, 0, numMetrics, metrics->numReplacedWithDynamicFilterRows);
@@ -486,6 +494,10 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
       metrics ? metrics->veloxToArrow : -1,
       peakMemoryBytes,
       numMemoryAllocations,
+      spilledBytes,
+      spilledRows,
+      spilledPartitions,
+      spilledFiles,
       numDynamicFiltersProduced,
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,

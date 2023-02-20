@@ -39,6 +39,12 @@ struct Metrics {
   long* peakMemoryBytes;
   long* numMemoryAllocations;
 
+  // Spill
+  long* spilledBytes;
+  long* spilledRows;
+  long* spilledPartitions;
+  long* spilledFiles;
+
   // Runtime metrics.
   long* numDynamicFiltersProduced;
   long* numDynamicFiltersAccepted;
@@ -58,6 +64,10 @@ struct Metrics {
     wallNanos = new long[numMetrics]();
     peakMemoryBytes = new long[numMetrics]();
     numMemoryAllocations = new long[numMetrics]();
+    spilledBytes = new long[numMetrics]();
+    spilledRows = new long[numMetrics]();
+    spilledFiles = new long[numMetrics]();
+    spilledPartitions = new long[numMetrics]();
     numDynamicFiltersProduced = new long[numMetrics]();
     numDynamicFiltersAccepted = new long[numMetrics]();
     numReplacedWithDynamicFilterRows = new long[numMetrics]();
@@ -82,6 +92,10 @@ struct Metrics {
     delete[] wallNanos;
     delete[] peakMemoryBytes;
     delete[] numMemoryAllocations;
+    delete[] spilledBytes;
+    delete[] spilledRows;
+    delete[] spilledFiles;
+    delete[] spilledPartitions;
     delete[] numDynamicFiltersProduced;
     delete[] numDynamicFiltersAccepted;
     delete[] numReplacedWithDynamicFilterRows;

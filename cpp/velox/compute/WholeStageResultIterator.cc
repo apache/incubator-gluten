@@ -129,6 +129,10 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
       metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
+      metrics_->spilledBytes[metricsIdx] = entry.second->spilledBytes;
+      metrics_->spilledRows[metricsIdx] = entry.second->spilledRows;
+      metrics_->spilledPartitions[metricsIdx] = entry.second->spilledPartitions;
+      metrics_->spilledFiles[metricsIdx] = entry.second->spilledFiles;
       metrics_->numDynamicFiltersProduced[metricsIdx] =
           runtimeMetric("sum", entry.second->customStats, kDynamicFiltersProduced);
       metrics_->numDynamicFiltersAccepted[metricsIdx] =
@@ -183,6 +187,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   }
   // To align with Spark's behavior, set casting to int to be truncating.
   configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
+  configs[velox::core::QueryConfig::kSpillEnabled] = std::to_string(true);
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 

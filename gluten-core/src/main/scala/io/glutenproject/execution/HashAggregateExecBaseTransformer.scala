@@ -132,6 +132,14 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "aggregation peak memory bytes"),
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of aggregation memory allocations"),
+    "aggSpilledBytes" -> SQLMetrics.createMetric(
+      sparkContext, "total bytes written for spilling"),
+    "aggSpilledRows" -> SQLMetrics.createMetric(
+      sparkContext, "total rows written for spilling"),
+    "aggSpilledPartitions" -> SQLMetrics.createMetric(
+      sparkContext, "total spilled partitions"),
+    "aggSpilledFiles" -> SQLMetrics.createMetric(
+      sparkContext, "total spilled files"),
     "flushRowCount" -> SQLMetrics.createMetric(
       sparkContext, "number of aggregation flushed rows"),
 
@@ -229,6 +237,10 @@ abstract class HashAggregateExecBaseTransformer(
     val aggWallNanos: SQLMetric = longMetric("aggWallNanos")
     val aggPeakMemoryBytes: SQLMetric = longMetric("aggPeakMemoryBytes")
     val aggNumMemoryAllocations: SQLMetric = longMetric("aggNumMemoryAllocations")
+    val aggSpilledBytes: SQLMetric = longMetric("aggSpilledBytes")
+    val aggSpilledRows: SQLMetric = longMetric("aggSpilledRows")
+    val aggSpilledPartitions: SQLMetric = longMetric("aggSpilledPartitions")
+    val aggSpilledFiles: SQLMetric = longMetric("aggSpilledFiles")
     val flushRowCount: SQLMetric = longMetric("flushRowCount")
 
     val extractionInputRows: SQLMetric = longMetric("extractionInputRows")
@@ -317,6 +329,10 @@ abstract class HashAggregateExecBaseTransformer(
       aggWallNanos += aggMetrics.wallNanos
       aggPeakMemoryBytes += aggMetrics.peakMemoryBytes
       aggNumMemoryAllocations += aggMetrics.numMemoryAllocations
+      aggSpilledBytes += aggMetrics.spilledBytes
+      aggSpilledRows += aggMetrics.spilledRows
+      aggSpilledPartitions += aggMetrics.spilledPartitions
+      aggSpilledFiles += aggMetrics.spilledFiles
       flushRowCount += aggMetrics.flushRowCount
       idx += 1
 
