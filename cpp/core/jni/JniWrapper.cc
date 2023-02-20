@@ -442,7 +442,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
   auto outputRows = env->NewLongArray(numMetrics);
   auto outputVectors = env->NewLongArray(numMetrics);
   auto outputBytes = env->NewLongArray(numMetrics);
-  auto count = env->NewLongArray(numMetrics);
+  auto cpuNanos = env->NewLongArray(numMetrics);
   auto wallNanos = env->NewLongArray(numMetrics);
   auto peakMemoryBytes = env->NewLongArray(numMetrics);
   auto numMemoryAllocations = env->NewLongArray(numMetrics);
@@ -465,7 +465,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
     env->SetLongArrayRegion(outputRows, 0, numMetrics, metrics->outputRows);
     env->SetLongArrayRegion(outputVectors, 0, numMetrics, metrics->outputVectors);
     env->SetLongArrayRegion(outputBytes, 0, numMetrics, metrics->outputBytes);
-    env->SetLongArrayRegion(count, 0, numMetrics, metrics->count);
+    env->SetLongArrayRegion(cpuNanos, 0, numMetrics, metrics->cpuNanos);
     env->SetLongArrayRegion(wallNanos, 0, numMetrics, metrics->wallNanos);
     env->SetLongArrayRegion(peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
     env->SetLongArrayRegion(numMemoryAllocations, 0, numMetrics, metrics->numMemoryAllocations);
@@ -491,7 +491,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
       outputRows,
       outputVectors,
       outputBytes,
-      count,
+      cpuNanos,
       wallNanos,
       metrics ? metrics->veloxToArrow : -1,
       peakMemoryBytes,

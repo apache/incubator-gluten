@@ -77,8 +77,8 @@ abstract class HashAggregateExecBaseTransformer(
     "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_input"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
+    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"),
@@ -99,7 +99,7 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "number of preProjection output vectors"),
     "preProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of preProjection output bytes"),
-    "preProjectionCount" -> SQLMetrics.createMetric(
+    "preProjectionCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "preProjection cpu wall time count"),
     "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_preProjection"),
@@ -124,7 +124,7 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "number of aggregation output vectors"),
     "aggOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of aggregation output bytes"),
-    "aggCount" -> SQLMetrics.createMetric(
+    "aggCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "aggregation cpu wall time count"),
     "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_aggregation"),
@@ -159,7 +159,7 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "number of extraction output vectors"),
     "extractionOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of extraction output bytes"),
-    "extractionCount" -> SQLMetrics.createMetric(
+    "extractionCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "extraction cpu wall time count"),
     "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_extraction"),
@@ -184,7 +184,7 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "number of postProjection output vectors"),
     "postProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of postProjection output bytes"),
-    "postProjectionCount" -> SQLMetrics.createMetric(
+    "postProjectionCount" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "postProjection cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_postProjection"),
@@ -206,7 +206,7 @@ abstract class HashAggregateExecBaseTransformer(
     val outputRows: SQLMetric = longMetric("outputRows")
     val outputVectors: SQLMetric = longMetric("outputVectors")
     val outputBytes: SQLMetric = longMetric("outputBytes")
-    val count: SQLMetric = longMetric("count")
+    val cpuNanos: SQLMetric = longMetric("cpuNanos")
     val wallNanos: SQLMetric = longMetric("wallNanos")
     val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
     val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
@@ -292,7 +292,7 @@ abstract class HashAggregateExecBaseTransformer(
         postProjectionOutputRows += metrics.outputRows
         postProjectionOutputVectors += metrics.outputVectors
         postProjectionOutputBytes += metrics.outputBytes
-        postProjectionCount += metrics.count
+        postProjectionCount += metrics.cpuNanos
         postProjectionWallNanos += metrics.wallNanos
         postProjectionPeakMemoryBytes += metrics.peakMemoryBytes
         postProjectionNumMemoryAllocations += metrics.numMemoryAllocations
@@ -309,7 +309,7 @@ abstract class HashAggregateExecBaseTransformer(
         extractionOutputRows += metrics.outputRows
         extractionOutputVectors += metrics.outputVectors
         extractionOutputBytes += metrics.outputBytes
-        extractionCount += metrics.count
+        extractionCount += metrics.cpuNanos
         extractionWallNanos += metrics.wallNanos
         extractionPeakMemoryBytes += metrics.peakMemoryBytes
         extractionNumMemoryAllocations += metrics.numMemoryAllocations
@@ -325,7 +325,7 @@ abstract class HashAggregateExecBaseTransformer(
       aggOutputRows += aggMetrics.outputRows
       aggOutputVectors += aggMetrics.outputVectors
       aggOutputBytes += aggMetrics.outputBytes
-      aggCount += aggMetrics.count
+      aggCount += aggMetrics.cpuNanos
       aggWallNanos += aggMetrics.wallNanos
       aggPeakMemoryBytes += aggMetrics.peakMemoryBytes
       aggNumMemoryAllocations += aggMetrics.numMemoryAllocations
@@ -346,7 +346,7 @@ abstract class HashAggregateExecBaseTransformer(
         preProjectionOutputRows += metrics.outputRows
         preProjectionOutputVectors += metrics.outputVectors
         preProjectionOutputBytes += metrics.outputBytes
-        preProjectionCount += metrics.count
+        preProjectionCount += metrics.cpuNanos
         preProjectionWallNanos += metrics.wallNanos
         preProjectionPeakMemoryBytes += metrics.peakMemoryBytes
         preProjectionNumMemoryAllocations += metrics.numMemoryAllocations
@@ -363,7 +363,7 @@ abstract class HashAggregateExecBaseTransformer(
         outputRows += metrics.outputRows
         outputVectors += metrics.outputVectors
         outputBytes += metrics.outputBytes
-        count += metrics.count
+        cpuNanos += metrics.cpuNanos
         wallNanos += metrics.wallNanos
         peakMemoryBytes += metrics.peakMemoryBytes
         numMemoryAllocations += metrics.numMemoryAllocations

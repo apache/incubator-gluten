@@ -472,7 +472,7 @@ object WholeStageTransformerExec extends Logging {
     val outputVectors = operatorMetrics.get(0).outputVectors
     val outputBytes = operatorMetrics.get(0).outputBytes
 
-    var count: Long = 0
+    var cpuNanos: Long = 0
     var wallNanos: Long = 0
     var peakMemoryBytes: Long = 0
     var numMemoryAllocations: Long = 0
@@ -489,7 +489,7 @@ object WholeStageTransformerExec extends Logging {
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
       val metrics = metricsIterator.next()
-      count += metrics.count
+      cpuNanos += metrics.cpuNanos
       wallNanos += metrics.wallNanos
       peakMemoryBytes = peakMemoryBytes.max(metrics.peakMemoryBytes)
       numMemoryAllocations += metrics.numMemoryAllocations
@@ -513,7 +513,7 @@ object WholeStageTransformerExec extends Logging {
       outputRows,
       outputVectors,
       outputBytes,
-      count,
+      cpuNanos,
       wallNanos,
       peakMemoryBytes,
       numMemoryAllocations,
