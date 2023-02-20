@@ -64,6 +64,7 @@ jobs:
       - name: Setup docker container
         run: |
           sed -i 's/gluten-buildenv:latest/gluten-buildenv-ubuntu:20.04/g' tools/gluten-te/defaults.conf && \
+          sed -i 's/gluten-buildenv/gluten-buildenv-ubuntu:20.04/g' tools/gluten-te/dockerfile-buildenv && \
           EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2004-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
       - name: Setup maven cache
         run: |
@@ -134,6 +135,7 @@ jobs:
       - name: Setup docker container
         run: |
           sed -i 's/gluten-buildenv:latest/gluten-buildenv-ubuntu:22.04/g' tools/gluten-te/defaults.conf && \
+          sed -i 's/gluten-buildenv/gluten-buildenv-ubuntu:22.04/g' tools/gluten-te/dockerfile-buildenv && \
           sed -i 's/ubuntu:20.04/ubuntu:22.04/g' tools/gluten-te/defaults.conf && \
           EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2204-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
       - name: Setup maven cache
