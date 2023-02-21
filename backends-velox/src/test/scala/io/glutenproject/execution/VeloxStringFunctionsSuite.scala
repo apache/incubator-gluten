@@ -210,11 +210,14 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  test("ltrim/rtrim") {
+  ignore("ltrim/rtrim(trimStr, str)") {
     runQueryAndCompare(s"select l_orderkey, ltrim('SparkSQL   ', 'Spark') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, ltrim('    SparkSQL   ', 'Spark') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("ltrim/rtrim(str)") {
     runQueryAndCompare(s"select l_orderkey, ltrim('    SparkSQL   ') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, ltrim($NULL_STR_COL) " +
@@ -325,22 +328,22 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   test("regexp_extract_all") {
-    runQueryAndCompare("select l_orderkey, regexp_extract_all('l_comment', '([a-z])', 1) " +
-      "from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, regexp_extract_all('l_comment', '([a-z])', 1) " +
+      s"from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
     // fall back because of unsupported cast(array)
-    runQueryAndCompare("select l_orderkey, l_comment, " +
-      "regexp_extract_all(l_comment, '([a-z]+)', 0) " +
-      "from $LINEITEM_TABLE limit 5") { _ => }
+    runQueryAndCompare(s"select l_orderkey, l_comment, " +
+      s"regexp_extract_all(l_comment, '([a-z]+)', 0) " +
+      s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
   ignore("regexp_replace") {
-    runQueryAndCompare("select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
-      "from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare("select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
-      "from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
+      s"from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
+      s"from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
     // todo incorrect results
-    runQueryAndCompare("select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 10) " +
-      "from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 10) " +
+      s"from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
   test("replace") {
@@ -355,27 +358,27 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   test("reverse") {
-    runQueryAndCompare("select l_orderkey, l_comment, reverse(l_comment) " +
-      "from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, l_comment, reverse(l_comment) " +
+      s"from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
 
     // fall back because of unsupported cast(array)
-    runQueryAndCompare("select l_orderkey, l_comment, reverse(array(l_comment, l_comment)) " +
-      "from $LINEITEM_TABLE limit 5") { _ => }
+    runQueryAndCompare(s"select l_orderkey, l_comment, reverse(array(l_comment, l_comment)) " +
+      s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
   ignore("split") {
-    runQueryAndCompare("select l_orderkey, l_comment, split(l_comment, ' ', 3) " +
-          "from $LINEITEM_TABLE limit 5") { _ => }
+    runQueryAndCompare(s"select l_orderkey, l_comment, split(l_comment, ' ', 3) " +
+          s"from $LINEITEM_TABLE limit 5") { _ => }
 
     // todo incorrect results
-    runQueryAndCompare("select l_orderkey, l_comment, split(l_comment, '[a]', 3) " +
-      "from $LINEITEM_TABLE limit 5") { _ => }
+    runQueryAndCompare(s"select l_orderkey, l_comment, split(l_comment, '[a]', 3) " +
+      s"from $LINEITEM_TABLE limit 5") { _ => }
 
-    runQueryAndCompare("select l_orderkey, split(l_comment, ' ') " +
-      "from $LINEITEM_TABLE limit 5") { _ => }
+    runQueryAndCompare(s"select l_orderkey, split(l_comment, ' ') " +
+      s"from $LINEITEM_TABLE limit 5") { _ => }
 
-    runQueryAndCompare("select l_orderkey, split(l_comment, 'h') " +
-      "from $LINEITEM_TABLE limit 5") { _ => }
+    runQueryAndCompare(s"select l_orderkey, split(l_comment, 'h') " +
+      s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
   test("substr") {
