@@ -36,6 +36,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.TimeUnit
@@ -158,6 +159,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       context: TaskContext,
       pipelineTime: SQLMetric,
       updateOutputMetrics: (Long, Long) => Unit,
+      updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: Metrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
