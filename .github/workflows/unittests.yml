@@ -91,7 +91,7 @@ jobs:
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.0'
       - name: Build for Spark 3.2.1
         run: |
-          docker exec velox-backend-ubuntu2004-$GITHUB_RUN_ID bash -c '
+          docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.1'
       - name: Build and run unit test for Spark 3.2.2
