@@ -245,7 +245,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
-  // enableSuite[GlutenCoalesceShufflePartitionsSuite]
+  enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite with columnar operators
+    .excludeByPrefix("SPARK-24705")
+    .excludeByPrefix("SPARK-34790")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenFileScanSuite]
