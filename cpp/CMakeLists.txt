@@ -88,8 +88,6 @@ add_compile_options(-Wno-error=parentheses)
 add_compile_options(-Wno-error=unused-function)
 add_compile_options(-Wno-error=unused-variable)
 add_compile_options(-Wno-error=unused-but-set-variable)
-add_compile_options(-Wno-error=use-after-free)
-add_compile_options(-Wno-error=nonnull)
 
 #
 # Dependencies
