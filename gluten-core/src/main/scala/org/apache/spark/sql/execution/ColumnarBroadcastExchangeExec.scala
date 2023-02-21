@@ -44,7 +44,6 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
-    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to build"),
     "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast")
   )
 
@@ -80,7 +79,6 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
         val beforeBroadcast = System.nanoTime()
 
         longMetric("collectTime") += NANOSECONDS.toMillis(beforeBroadcast - beforeCollect)
-        longMetric("buildTime") += NANOSECONDS.toMillis(beforeBroadcast - beforeCollect)
 
         // Broadcast the relation
         val broadcasted = sparkContext.broadcast(relation.asInstanceOf[Any])
