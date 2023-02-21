@@ -225,12 +225,6 @@ object ExpressionConverter extends Logging {
           substraitExprName,
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
           r)
-      case r: StringRepeat =>
-        new StringRepeatExpressionTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformer(r.str, attributeSeq),
-          replaceWithExpressionTransformer(r.times, attributeSeq),
-          r)
       case m: HashExpression[_] =>
         new HashExpressionTransformer(
           substraitExprName,
