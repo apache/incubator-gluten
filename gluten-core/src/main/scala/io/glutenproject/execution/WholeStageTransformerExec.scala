@@ -314,7 +314,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
         metricsUpdater().updateOutputMetrics,
-        leafMetricsUpdate().updateInputMetrics,
+        leafMetricsUpdater().updateInputMetrics,
         metricsUpdatingFunction
       )
     } else {
@@ -364,7 +364,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
   }
 
-  def leafMetricsUpdate(): MetricsUpdater = {
+  def leafMetricsUpdater(): MetricsUpdater = {
     getStreamedLeafPlan match {
       case transformer: TransformSupport => transformer.metricsUpdater()
       case _ => NoopMetricsUpdater
