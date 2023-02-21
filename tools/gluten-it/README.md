@@ -52,7 +52,8 @@ Gluten integration test using TPC benchmark's data and queries
                            TPC benchmark type: h, ds
                              Default: h
       --conf=<String=String>
-                           Test line Spark conf, --conf=k1=v1 --conf=k2=v2
+                           Extra Spark config entries applying to generated
+                             Spark session. E.g. --conf=k1=v1 --conf=k2=v2
       --cpus=<cpus>        Executor cpu number
                              Default: 2
       --disable-aqe        Disable Spark SQL adaptive query execution

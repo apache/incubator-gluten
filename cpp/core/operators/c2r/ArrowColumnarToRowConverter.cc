@@ -18,6 +18,7 @@
 #include "ArrowColumnarToRowConverter.h"
 
 #include <arrow/array/array_decimal.h>
+#include <arrow/status.h>
 #include <arrow/util/decimal.h>
 #if defined(__x86_64__)
 #include <immintrin.h>
@@ -342,7 +343,7 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
   int32_t i = 0;
 #define BATCH_ROW_NUM 16
   for (; i + BATCH_ROW_NUM < num_rows_; i += BATCH_ROW_NUM) {
-    FillBuffer(
+    RETURN_NOT_OK(FillBuffer(
         i,
         BATCH_ROW_NUM,
         dataptrs,
@@ -356,11 +357,11 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
         typevec,
         typewidth,
         arrays,
-        support_avx512_);
+        support_avx512_));
   }
 
   for (; i < num_rows_; i++) {
-    FillBuffer(
+    RETURN_NOT_OK(FillBuffer(
         i,
         1,
         dataptrs,
@@ -374,7 +375,7 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
         typevec,
         typewidth,
         arrays,
-        support_avx512_);
+        support_avx512_));
   }
 
   return arrow::Status::OK();

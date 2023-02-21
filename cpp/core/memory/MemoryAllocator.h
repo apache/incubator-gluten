@@ -100,16 +100,15 @@ class StdMemoryAllocator final : public MemoryAllocator {
   std::atomic_int64_t bytes_{0};
 };
 
-// TODO aligned allocation
 class WrappedArrowMemoryPool final : public arrow::MemoryPool {
  public:
   explicit WrappedArrowMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
 
-  arrow::Status Allocate(int64_t size, uint8_t** out) override;
+  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
 
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override;
+  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override;
 
-  void Free(uint8_t* buffer, int64_t size) override;
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
 
   int64_t bytes_allocated() const override;
 

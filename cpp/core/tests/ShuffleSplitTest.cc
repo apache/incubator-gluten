@@ -49,7 +49,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool(int64_t capacity) : capacity_(capacity) {}
 
-  Status Allocate(int64_t size, uint8_t** out) override {
+  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
     if (bytes_allocated() + size > capacity_) {
       return Status::OutOfMemory("malloc of size ", size, " failed");
     }
@@ -61,7 +61,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+  Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
     if (new_size > capacity_) {
       return Status::OutOfMemory("malloc of size ", new_size, " failed");
     }
@@ -77,7 +77,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  void Free(uint8_t* buffer, int64_t size) override {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
     pool_->Free(buffer, size);
     stats_.UpdateAllocatedBytes(-size);
     // std::cout << "Free: size = " << size << " addr = " << std::hex <<
@@ -106,7 +106,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
 
 class SplitterTest : public ::testing::Test {
  protected:
-  void SetUp() {
+  void SetUp() override {
     auto hash_partition_key = field("hash_partition_key", arrow::int32());
     auto f_na = field("f_na", arrow::null());
     auto f_int8_a = field("f_int8_a", arrow::int8());
@@ -119,8 +119,8 @@ class SplitterTest : public ::testing::Test {
     auto f_nullable_string = field("f_nullable_string", arrow::utf8());
     auto f_decimal = field("f_decimal128", arrow::decimal(10, 2));
 
-    ARROW_ASSIGN_OR_THROW(tmp_dir_1_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
-    ARROW_ASSIGN_OR_THROW(tmp_dir_2_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
+    ARROW_ASSIGN_OR_THROW(tmp_dir_1_, arrow::internal::TemporaryDir::Make(tmp_dir_prefix))
+    ARROW_ASSIGN_OR_THROW(tmp_dir_2_, arrow::internal::TemporaryDir::Make(tmp_dir_prefix))
     auto config_dirs = tmp_dir_1_->path().ToString() + "," + tmp_dir_2_->path().ToString();
 
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", config_dirs.c_str(), 1);
@@ -162,7 +162,7 @@ class SplitterTest : public ::testing::Test {
 
   void TearDown() override {
     if (file_ != nullptr && !file_->closed()) {
-      file_->Close();
+      GLUTEN_THROW_NOT_OK(file_->Close());
     }
   }
 

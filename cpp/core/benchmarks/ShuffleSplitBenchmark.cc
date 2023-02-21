@@ -64,7 +64,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool() {}
 
-  Status Allocate(int64_t size, uint8_t** out) override {
+  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
     RETURN_NOT_OK(pool_->Allocate(size, out));
     stats_.UpdateAllocatedBytes(size);
     // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
@@ -72,7 +72,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+  Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
     // auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
@@ -83,7 +83,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  void Free(uint8_t* buffer, int64_t size) override {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
     pool_->Free(buffer, size);
     stats_.UpdateAllocatedBytes(-size);
     // std::cout << "Free: size = " << size << " addr = " << std::hex <<
@@ -116,7 +116,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 
   ~LargePageMemoryPool() override = default;
 
-  Status Allocate(int64_t size, uint8_t** out) override {
+  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
 #ifdef ENABLELARGEPAGE
     if (size < 2 * 1024 * 1024) {
       return pool_->Allocate(size, out);
@@ -132,7 +132,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 #endif
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+  Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
     return pool_->Reallocate(old_size, new_size, ptr);
 #ifdef ENABLELARGEPAGE
     if (new_size < 2 * 1024 * 1024) {
@@ -147,7 +147,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 #endif
   }
 
-  void Free(uint8_t* buffer, int64_t size) override {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
 #ifdef ENABLELARGEPAGE
     if (size < 2 * 1024 * 1024) {
       pool_->Free(buffer, size);
@@ -241,7 +241,7 @@ class BenchmarkShuffleSplit {
     auto total_time = (end_time - start_time).count();
 
     auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
-    fs->DeleteFile(splitter->DataFile());
+    GLUTEN_THROW_NOT_OK(fs->DeleteFile(splitter->DataFile()));
 
     state.SetBytesProcessed(int64_t(splitter->RawPartitionBytes()));
 

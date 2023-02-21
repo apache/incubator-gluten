@@ -22,14 +22,14 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.util.TaskCompletionListener
-import org.apache.spark.util.memory.TaskMemoryResources._
+import org.apache.spark.util.memory.TaskMemoryResources.inSparkTask
+import org.apache.spark.util.{TaskCompletionListener, TaskFailureListener}
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.JavaConverters._
 
-object TaskMemoryResources {
+object TaskMemoryResources extends Logging {
   val DEBUG: Boolean = {
     SQLConf.get
       .getConfString("spark.gluten.sql.memory.debug", "false").toBoolean
@@ -60,6 +60,13 @@ object TaskMemoryResources {
 
       if (!RESOURCE_REGISTRIES.containsKey(tc)) {
         RESOURCE_REGISTRIES.put(tc, new TaskMemoryResourceRegistry)
+        tc.addTaskFailureListener(
+          // in case of crashing in task completion listener, errors may be swallowed
+          new TaskFailureListener {
+            override def onTaskFailure(context: TaskContext, error: Throwable): Unit = {
+              logError(s"Task ${context.taskAttemptId()} failed by error: ", error)
+            }
+          })
         tc.addTaskCompletionListener(
           new TaskCompletionListener {
             override def onTaskCompletion(context: TaskContext): Unit = {

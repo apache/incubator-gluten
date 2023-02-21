@@ -29,8 +29,8 @@ class VeloxInitializerApi extends IInitializerApi {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
     loader.newTransaction()
-      .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000", false)
-      .loadAndCreateLink("libparquet.so.1000.0.0", "libparquet.so.1000", false)
+      .loadAndCreateLink("libarrow.so.1100.0.0", "libarrow.so.1100", false)
+      .loadAndCreateLink("libparquet.so.1100.0.0", "libparquet.so.1100", false)
       .commit()
     if (conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false)) {
       loader.newTransaction()

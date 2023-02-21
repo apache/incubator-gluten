@@ -65,7 +65,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool() {}
 
-  Status Allocate(int64_t size, uint8_t** out) override {
+  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
     RETURN_NOT_OK(pool_->Allocate(size, out));
     stats_.UpdateAllocatedBytes(size);
     // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
@@ -73,7 +73,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+  Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
     // auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
@@ -84,7 +84,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  void Free(uint8_t* buffer, int64_t size) override {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
     pool_->Free(buffer, size);
     stats_.UpdateAllocatedBytes(-size);
     // std::cout << "Free: size = " << size << " addr = " << std::hex <<
@@ -117,7 +117,7 @@ class LargePageMemoryPool final : public arrow::MemoryPool {
 
   ~LargePageMemoryPool() override = default;
 
-  Status Allocate(int64_t size, uint8_t** out) override {
+  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
 #ifdef ENABLELARGEPAGE
     if (size < 2 * 1024 * 1024) {
       return pool_->Allocate(size, out);
@@ -133,7 +133,7 @@ class LargePageMemoryPool final : public arrow::MemoryPool {
 #endif
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+  Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
     return pool_->Reallocate(old_size, new_size, ptr);
 #ifdef ENABLELARGEPAGE
     if (new_size < 2 * 1024 * 1024) {
@@ -148,7 +148,7 @@ class LargePageMemoryPool final : public arrow::MemoryPool {
 #endif
   }
 
-  void Free(uint8_t* buffer, int64_t size) override {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
 #ifdef ENABLELARGEPAGE
     if (size < 2 * 1024 * 1024) {
       pool_->Free(buffer, size);
@@ -457,14 +457,14 @@ int main(int argc, char** argv) {
       datafile = argv[i + 1];
     } else if (strcmp(argv[i], "--qat-gzip") == 0) {
       std::cout << "QAT gzip is used as codec" << std::endl;
-      arrow::internal::SetEnvVar("ARROW_GZIP_BACKEND", "QAT");
+      GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("ARROW_GZIP_BACKEND", "QAT"));
       codec = gluten::QAT_GZIP;
     } else if (strcmp(argv[i], "--qat-lz4") == 0) {
       std::cout << "QAT lz4 is used as codec" << std::endl;
-      arrow::internal::SetEnvVar("ARROW_LZ4_BACKEND", "QAT");
+      GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("ARROW_LZ4_BACKEND", "QAT"));
       codec = gluten::QAT_LZ4;
     } else if (strcmp(argv[i], "--busy") == 0) {
-      arrow::internal::SetEnvVar("QZ_POLLING_MODE", "BUSY");
+      GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("QZ_POLLING_MODE", "BUSY"));
     } else if (strcmp(argv[i], "--buffer-size") == 0) {
       split_buffer_size = atol(argv[i + 1]);
     }

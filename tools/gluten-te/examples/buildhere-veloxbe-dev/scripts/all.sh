@@ -15,7 +15,7 @@ mvn clean install $EXTRA_MAVEN_OPTIONS
 
 # Setup SSH server
 apt-get update
-apt-get -y -q --no-install-recommends install openssh-server
+apt-get -y -q --no-install-recommends install openssh-server firefox tmux openjdk-8-source
 
 echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config.d/override.conf
 echo 'X11Forwarding yes' >> /etc/ssh/sshd_config.d/override.conf

@@ -51,7 +51,7 @@
     <scala.version>${spark32.scala}</scala.version>
     <spark.version>${spark32.version}</spark.version>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-    <arrow.version>10.0.0-SNAPSHOT</arrow.version>
+    <arrow.version>11.0.0-gluten</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -190,7 +190,7 @@
       </modules>
       <properties>
         <backend_type>velox</backend_type>
-        <arrow.version>10.0.0-SNAPSHOT</arrow.version>
+        <arrow.version>11.0.0-gluten</arrow.version>
         <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
