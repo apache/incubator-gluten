@@ -325,11 +325,53 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetEncodingSuite]
   enableSuite[GlutenParquetFileFormatV1Suite]
   enableSuite[GlutenParquetFileFormatV2Suite]
-  // enableSuite[GlutenParquetV1FilterSuite]
-  // enableSuite[GlutenParquetV2FilterSuite]
+  enableSuite[GlutenParquetV1FilterSuite]
+    // Rewrite.
+    .exclude("Filter applied on merged Parquet schema with new column should work")
+    .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .exclude("filter pushdown - date")
+    // Ignore Spark's filter pushdown check.
+    .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
+    .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
+    .exclude("Filters should be pushed down for Parquet readers at row group level")
+    .exclude("filter pushdown - StringStartsWith")
+    .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
+    .exclude("Support Parquet column index")
+    .exclude("SPARK-34562: Bloom filter push down")
+  enableSuite[GlutenParquetV2FilterSuite]
+    // Rewrite.
+    .exclude("Filter applied on merged Parquet schema with new column should work")
+    .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .exclude("filter pushdown - date")
+    // Ignore Spark's filter pushdown check.
+    .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
+    .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
+    .exclude("Filters should be pushed down for Parquet readers at row group level")
+    .exclude("filter pushdown - StringStartsWith")
+    .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
+    .exclude("Support Parquet column index")
+    .exclude("SPARK-34562: Bloom filter push down")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
-  // enableSuite[GlutenParquetIOSuite]
+  enableSuite[GlutenParquetIOSuite]
+    // Disable Spark's vectorized reading tests.
+    .exclude("Standard mode - fixed-length decimals")
+    .exclude("Legacy mode - fixed-length decimals")
+    .exclude("SPARK-34167: read LongDecimals with precision < 10, VectorizedReader true")
+    .exclude("read dictionary encoded decimals written as FIXED_LEN_BYTE_ARRAY")
+    .exclude("read dictionary encoded decimals written as INT64")
+    .exclude("read dictionary encoded decimals written as INT32")
+    .exclude("SPARK-34817: Read UINT_64 as Decimal from parquet")
+    // Spark plans scan schema as (i16/i32/i64) so the fallback does not take effect.
+    // But Velox reads data based on the schema acquired from file metadata,
+    // while i8 is not supported, so error occurs.
+    .exclude("SPARK-34817: Read UINT_8/UINT_16/UINT_32 from parquet")
+    // Exception.
+    .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
+    // Rewrite to align exception msg.
+    .exclude("SPARK-35640: int as long should throw schema incompatible error")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude(
