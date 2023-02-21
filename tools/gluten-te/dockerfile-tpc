@@ -1,4 +1,6 @@
-FROM gluten-te/gluten-build:latest AS gluten-tpc
+ARG OS_IMAGE
+
+FROM gluten-te/gluten-build-$OS_IMAGE AS gluten-tpc
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-c"]

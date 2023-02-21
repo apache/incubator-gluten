@@ -1,4 +1,6 @@
-FROM gluten-te/gluten-buildenv:latest AS gluten-build
+ARG OS_IMAGE
+
+FROM gluten-te/gluten-buildenv-$OS_IMAGE AS gluten-build
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 # Whether debug build is enabled
