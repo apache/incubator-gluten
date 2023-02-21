@@ -105,6 +105,7 @@ macro(build_protobuf)
     PROPERTIES IMPORTED_LOCATION "${PROTOBUF_STATIC_LIB}" INTERFACE_INCLUDE_DIRECTORIES
                "${PROTOBUF_INCLUDE_DIR}")
   add_dependencies(protobuf::libprotobuf protobuf_ep)
+  include_directories(${PROTOBUF_INCLUDE_DIR})
 endmacro()
 
 macro(find_protobuf)
@@ -115,6 +116,7 @@ macro(find_protobuf)
     message(FATAL_ERROR "Protobuf Library Not Found")
   endif()
   set(PROTOC_BIN ${Protobuf_PROTOC_EXECUTABLE})
+  include_directories(${Protobuf_INCLUDE_DIRS})
 endmacro()
 
 if(USE_AVX512)
