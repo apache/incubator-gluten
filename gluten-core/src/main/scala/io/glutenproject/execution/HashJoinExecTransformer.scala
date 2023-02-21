@@ -433,11 +433,6 @@ trait HashJoinLikeExecTransformer
     val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
     val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
 
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      finalOutputVectors += outNumBatches
-      finalOutputRows += outNumRows
-    }
-
     override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
       throw new UnsupportedOperationException(s"updateNativeMetrics is not supported for join.")
     }

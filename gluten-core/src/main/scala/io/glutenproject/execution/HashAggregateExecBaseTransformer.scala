@@ -274,11 +274,6 @@ abstract class HashAggregateExecBaseTransformer(
     val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
     val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
 
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      finalOutputVectors += outNumBatches
-      finalOutputRows += outNumRows
-    }
-
     override def updateAggregationMetrics(aggregationMetrics: java.util.ArrayList[OperatorMetrics],
                                  aggParams: AggregationParams): Unit = {
       var idx = 0

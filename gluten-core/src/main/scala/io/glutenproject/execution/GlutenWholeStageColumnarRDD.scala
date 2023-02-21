@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util._
 
@@ -101,6 +102,7 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
                                   var rdds: Seq[RDD[ColumnarBatch]],
                                   pipelineTime: SQLMetric,
                                   updateOutputMetrics: (Long, Long) => Unit,
+                                  updateInputMetrics: (InputMetricsWrapper) => Unit,
                                   updateNativeMetrics: Metrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
@@ -116,6 +118,7 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
         context,
         pipelineTime,
         updateOutputMetrics,
+        updateInputMetrics,
         updateNativeMetrics)
     } else {
       val partitions = split.asInstanceOf[FirstZippedPartitionsPartition].partitions
@@ -128,6 +131,7 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
         context,
         pipelineTime,
         updateOutputMetrics,
+        updateInputMetrics,
         updateNativeMetrics,
         inputIterators)
     }

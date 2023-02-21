@@ -80,11 +80,6 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
     val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
     val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      outputVectors += outNumBatches
-      outputRows += outNumRows
-    }
-
     override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
       if (operatorMetrics != null) {
         inputRows += operatorMetrics.inputRows

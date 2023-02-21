@@ -219,6 +219,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
                                      updateOutputMetrics: (Long, Long) => Unit,
+                                     updateInputMetrics: (InputMetricsWrapper) => Unit,
                                      updateNativeMetrics: Metrics => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
@@ -239,6 +240,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
         val res = resIter.hasNext
         if (!res) {
           updateNativeMetrics(resIter.getMetrics)
+          updateInputMetrics(inputMetrics)
         }
         res
       }
@@ -260,7 +262,6 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
             }.sum
           case _ => 0L
         }
-        inputMetrics.bridgeIncBytesRead(bytes)
         updateOutputMetrics(1, cb.numRows())
         cb
       }
