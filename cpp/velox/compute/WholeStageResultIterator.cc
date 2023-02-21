@@ -18,6 +18,7 @@ const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
 const std::string kFlushRowCount = "flushRowCount";
+const std::string kTotalScanTime = "totalScanTime";
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
@@ -125,7 +126,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->outputRows[metricsIdx] = entry.second->outputRows;
       metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
       metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
-      metrics_->count[metricsIdx] = entry.second->cpuWallTiming.count;
+      metrics_->cpuNanos[metricsIdx] = entry.second->cpuWallTiming.cpuNanos;
       metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
       metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
@@ -140,6 +141,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
           runtimeMetric("sum", entry.second->customStats, kReplacedWithDynamicFilterRows);
       metrics_->flushRowCount[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kFlushRowCount);
+      metrics_->scanTime[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kTotalScanTime);
       metricsIdx += 1;
     }
   }

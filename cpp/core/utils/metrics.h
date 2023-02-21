@@ -32,7 +32,7 @@ struct Metrics {
   long* outputBytes;
 
   // CpuWallTiming.
-  long* count;
+  long* cpuNanos;
   long* wallNanos;
   long veloxToArrow;
 
@@ -50,6 +50,7 @@ struct Metrics {
   long* numDynamicFiltersAccepted;
   long* numReplacedWithDynamicFilterRows;
   long* flushRowCount;
+  long* scanTime;
 
   Metrics(int size) : numMetrics(size) {
     inputRows = new long[numMetrics]();
@@ -60,7 +61,7 @@ struct Metrics {
     outputRows = new long[numMetrics]();
     outputVectors = new long[numMetrics]();
     outputBytes = new long[numMetrics]();
-    count = new long[numMetrics]();
+    cpuNanos = new long[numMetrics]();
     wallNanos = new long[numMetrics]();
     peakMemoryBytes = new long[numMetrics]();
     numMemoryAllocations = new long[numMetrics]();
@@ -72,6 +73,7 @@ struct Metrics {
     numDynamicFiltersAccepted = new long[numMetrics]();
     numReplacedWithDynamicFilterRows = new long[numMetrics]();
     flushRowCount = new long[numMetrics]();
+    scanTime = new long[numMetrics]();
   }
 
   Metrics(const Metrics&) = delete;
@@ -88,7 +90,7 @@ struct Metrics {
     delete[] outputRows;
     delete[] outputVectors;
     delete[] outputBytes;
-    delete[] count;
+    delete[] cpuNanos;
     delete[] wallNanos;
     delete[] peakMemoryBytes;
     delete[] numMemoryAllocations;
@@ -100,6 +102,7 @@ struct Metrics {
     delete[] numDynamicFiltersAccepted;
     delete[] numReplacedWithDynamicFilterRows;
     delete[] flushRowCount;
+    delete[] scanTime;
   }
 };
 

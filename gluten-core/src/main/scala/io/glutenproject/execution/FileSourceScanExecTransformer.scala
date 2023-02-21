@@ -56,17 +56,14 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
     "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
     "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
     "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_filescan"),
-    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "total scan time"),
+    "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan time"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
+    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
     "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
@@ -91,16 +88,14 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   object MetricsUpdaterImpl extends MetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
-    val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
     val rawInputRows: SQLMetric = longMetric("rawInputRows")
     val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
     val outputRows: SQLMetric = longMetric("outputRows")
     val outputVectors: SQLMetric = longMetric("outputVectors")
     val outputBytes: SQLMetric = longMetric("outputBytes")
-    val count: SQLMetric = longMetric("count")
     val wallNanos: SQLMetric = longMetric("wallNanos")
+    val cpuNanos: SQLMetric = longMetric("cpuNanos")
+    val scanTime: SQLMetric = longMetric("scanTime")
     val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
     val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
@@ -114,16 +109,14 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
     override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
       if (operatorMetrics != null) {
-        inputRows += operatorMetrics.inputRows
-        inputVectors += operatorMetrics.inputVectors
-        inputBytes += operatorMetrics.inputBytes
         rawInputRows += operatorMetrics.rawInputRows
         rawInputBytes += operatorMetrics.rawInputBytes
         outputRows += operatorMetrics.outputRows
         outputVectors += operatorMetrics.outputVectors
         outputBytes += operatorMetrics.outputBytes
-        count += operatorMetrics.count
         wallNanos += operatorMetrics.wallNanos
+        cpuNanos += operatorMetrics.cpuNanos
+        scanTime += operatorMetrics.scanTime
         peakMemoryBytes += operatorMetrics.peakMemoryBytes
         numMemoryAllocations += operatorMetrics.numMemoryAllocations
         numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
