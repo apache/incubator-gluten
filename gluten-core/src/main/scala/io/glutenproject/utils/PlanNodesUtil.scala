@@ -63,7 +63,7 @@ object PlanNodesUtil {
     for (expr <- columnarProjExprs) {
       projExprNodeList.add(expr.doTransform(args))
     }
-    val projectNode = RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId)
+    val projectNode = RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)
 
     val outNames = new java.util.ArrayList[String]()
     for (k <- keys) {

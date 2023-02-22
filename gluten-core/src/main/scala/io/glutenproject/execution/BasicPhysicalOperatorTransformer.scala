@@ -409,8 +409,9 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     for (expr <- columnarProjExprs) {
       projExprNodeList.add(expr.doTransform(args))
     }
+    val emitStartIndex = originalInputAttributes.size
     if (!validation) {
-      RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId)
+      RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -419,7 +420,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode, context, operatorId, emitStartIndex)
     }
   }
 

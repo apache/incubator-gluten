@@ -176,8 +176,9 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     })
 
     // Add a Project Rel both original columns and the sorting columns
+    val emitStartIndex = originalInputAttributes.size
     val inputRel = if (!validation) {
-      RelBuilder.makeProjectRel(input, projectExpressions, context, operatorId)
+      RelBuilder.makeProjectRel(input, projectExpressions, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -192,7 +193,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(input, projectExpressions, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(input, projectExpressions, extensionNode, context, operatorId, emitStartIndex)
     }
 
     val sortRel = if (!validation) {
@@ -220,7 +221,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     // Add a Project Rel to remove the sorting columns
     if (!validation) {
       RelBuilder.makeProjectRel(sortRel, new java.util.ArrayList[ExpressionNode](
-        selectOrigins.asJava), context, operatorId)
+        selectOrigins.asJava), context, operatorId, originalInputAttributes.size + sortFieldList.size)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -232,7 +233,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(sortRel, new java.util.ArrayList[ExpressionNode](
-        selectOrigins.asJava), extensionNode, context, operatorId)
+        selectOrigins.asJava), extensionNode, context, operatorId, originalInputAttributes.size + sortFieldList.size)
     }
   }
 

@@ -21,13 +21,14 @@ using namespace facebook;
 
 namespace gluten {
 namespace {
-#define VELOX_MEM_MANUAL_CAP()                          \
-  _VELOX_THROW(                                         \
-      velox::VeloxRuntimeError,                         \
-      velox::error_source::kErrorSourceRuntime.c_str(), \
-      velox::error_code::kMemCapExceeded.c_str(),       \
-      /* isRetriable */ true,                           \
-      "Memory allocation manually capped");
+#define VELOX_MEM_MANAGER_CAP_EXCEEDED(cap)                         \
+  _VELOX_THROW(                                                     \
+      ::facebook::velox::VeloxRuntimeError,                         \
+      ::facebook::velox::error_source::kErrorSourceRuntime.c_str(), \
+      ::facebook::velox::error_code::kMemCapExceeded.c_str(),       \
+      /* isRetriable */ true,                                       \
+      "Exceeded memory manager cap of {} MB",                       \
+      (cap) / 1024 / 1024);
 } // namespace
 
 class VeloxMemoryAllocatorVariant {
@@ -105,13 +106,10 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       std::shared_ptr<VeloxMemoryAllocatorVariant> glutenAllocator,
       const Options& options = Options{})
       : velox::memory::MemoryPool{name, parent, options},
-        cap_{options.capacity},
         memoryManager_{memoryManager},
         localMemoryUsage_{},
         allocator_{memoryManager_.getAllocator()},
-        glutenAllocator_{glutenAllocator} {
-    VELOX_USER_CHECK_GT(cap_, 0);
-  }
+        glutenAllocator_{glutenAllocator} {}
 
   ~WrappedVeloxMemoryPool() {
     if (const auto& tracker = getMemoryUsageTracker()) {
@@ -134,21 +132,26 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   // tree periodically, this is slightly stale and we have to reserve our own
   // overhead.
   void* FOLLY_NULLABLE allocate(int64_t size) {
-    if (this->isMemoryCapped()) {
-      VELOX_MEM_MANUAL_CAP();
-    }
     const auto alignedSize = sizeAlign(size);
     reserve(alignedSize);
-    return glutenAllocator_->alloc(alignedSize);
+    void* buffer = glutenAllocator_->alloc(alignedSize);
+    if (FOLLY_UNLIKELY(buffer == nullptr)) {
+      release(alignedSize);
+      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} bytes from {}", __FUNCTION__, size, toString()));
+    }
+    return buffer;
   }
 
-  void* FOLLY_NULLABLE allocateZeroFilled(int64_t numMembers, int64_t sizeEach) {
-    if (this->isMemoryCapped()) {
-      VELOX_MEM_MANUAL_CAP();
-    }
-    const auto alignedSize = sizeAlign(sizeEach * numMembers);
+  void* FOLLY_NULLABLE allocateZeroFilled(int64_t numEntries, int64_t sizeEach) {
+    const auto alignedSize = sizeAlign(sizeEach * numEntries);
     reserve(alignedSize);
-    return glutenAllocator_->allocZeroFilled(alignedSize, 1);
+    void* buffer = glutenAllocator_->allocZeroFilled(alignedSize, 1);
+    if (FOLLY_UNLIKELY(buffer == nullptr)) {
+      release(alignedSize);
+      VELOX_MEM_ALLOC_ERROR(fmt::format(
+          "{} failed with {} entries and {} bytes each from {}", __FUNCTION__, numEntries, sizeEach, toString()));
+    }
+    return buffer;
   }
 
   // No-op for attempts to shrink buffer.
@@ -156,19 +159,14 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     auto alignedSize = sizeAlign(size);
     auto alignedNewSize = sizeAlign(newSize);
     int64_t difference = alignedNewSize - alignedSize;
-    if (UNLIKELY(difference <= 0)) {
-      // Track and pretend the shrink took place for accounting purposes.
-      release(-difference);
-      return p;
-    }
-
     reserve(difference);
-    void* newP = reallocAligned(p, alignedSize, alignedNewSize);
-    if (UNLIKELY(!newP)) {
+    void* newP = glutenAllocator_->realloc(p, alignedSize, alignedNewSize);
+    if (FOLLY_UNLIKELY(newP == nullptr)) {
       free(p, alignedSize);
-      VELOX_MEM_CAP_EXCEEDED(cap_);
+      release(alignedNewSize);
+      VELOX_MEM_ALLOC_ERROR(
+          fmt::format("{} failed with {} new bytes and {} old bytes from {}", __FUNCTION__, newSize, size, toString()));
     }
-
     return newP;
   }
 
@@ -193,7 +191,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
                 memoryUsageTracker_->update(preAllocate ? allocBytes : -allocBytes);
               }
             },
-            minSizeClass)) {
+            256)) {
       VELOX_CHECK(out.empty());
       VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} pages from {}", __FUNCTION__, numPages, toString()));
     }
@@ -285,10 +283,6 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     return memoryUsageTracker_;
   }
 
-  void setSubtreeMemoryUsage(int64_t size) {
-    updateSubtreeMemoryUsage([size](velox::memory::MemoryUsage& subtreeUsage) { subtreeUsage.setCurrentBytes(size); });
-  }
-
   int64_t updateSubtreeMemoryUsage(int64_t size) {
     int64_t aggregateBytes;
     updateSubtreeMemoryUsage([&aggregateBytes, size](velox::memory::MemoryUsage& subtreeUsage) {
@@ -297,20 +291,9 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     });
     return aggregateBytes;
   }
-
-  // Get the cap for the memory node and its subtree.
-  int64_t cap() const {
-    return cap_;
-  }
-
   uint16_t getAlignment() const {
     return alignment_;
   }
-
-  bool isMemoryCapped() const {
-    return capped_.load();
-  }
-
   std::shared_ptr<velox::memory::MemoryPool> genChild(
       std::shared_ptr<velox::memory::MemoryPool> parent,
       const std::string& name) {
@@ -350,18 +333,13 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     localMemoryUsage_.incrementCurrentBytes(size);
 
     bool success = memoryManager_.reserve(size);
-    bool manualCap = isMemoryCapped();
-    int64_t aggregateBytes = getAggregateBytes();
-    if (UNLIKELY(!success || manualCap || aggregateBytes > cap_)) {
+    if (UNLIKELY(!success)) {
       // NOTE: If we can make the reserve and release a single transaction we
-      // would have more accurate aggregates in intermediate states. However,
-      // this is low-pri because we can only have inflated aggregates, and be on
-      // the more conservative side.
+      // would have more accurate aggregates in intermediate states. However, this
+      // is low-pri because we can only have inflated aggregates, and be on the
+      // more conservative side.
       release(size);
-      if (manualCap) {
-        VELOX_MEM_MANUAL_CAP();
-      }
-      VELOX_MEM_CAP_EXCEEDED(cap_);
+      VELOX_MEM_MANAGER_CAP_EXCEEDED(memoryManager_.getMemoryQuota());
     }
   }
 
@@ -385,10 +363,6 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     return (remainder == 0) ? size : (size + alignment_ - remainder);
   }
 
-  void* FOLLY_NULLABLE reallocAligned(void* FOLLY_NULLABLE p, int64_t size, int64_t newSize) {
-    return glutenAllocator_->realloc(p, size, newSize);
-  }
-
   void accessSubtreeMemoryUsage(std::function<void(const velox::memory::MemoryUsage&)> visitor) const {
     folly::SharedMutex::ReadHolder readLock{subtreeUsageMutex_};
     visitor(subtreeMemoryUsage_);
@@ -407,7 +381,6 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   std::shared_ptr<velox::memory::MemoryUsageTracker> memoryUsageTracker_;
   mutable folly::SharedMutex subtreeUsageMutex_;
   velox::memory::MemoryUsage subtreeMemoryUsage_;
-  std::atomic_bool capped_{false};
   velox::memory::MemoryAllocator& allocator_;
   std::shared_ptr<VeloxMemoryAllocatorVariant> glutenAllocator_;
 };

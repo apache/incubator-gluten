@@ -146,8 +146,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
     veloxTypeList.push_back(velox::substrait::toVeloxType(subType->type));
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto arrowStreamNode = std::make_shared<velox::core::ArrowStreamNode>(
-      nextPlanNodeId(), outputType, arrowStream, GetDefaultWrappedVeloxMemoryPool());
+  auto arrowStreamNode = std::make_shared<velox::core::ArrowStreamNode>(nextPlanNodeId(), outputType, arrowStream);
   subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
 }
 

@@ -442,8 +442,9 @@ abstract class HashAggregateExecBaseTransformer(
       preExprNodes.add(ExpressionConverter
         .replaceWithExpressionTransformer(expr, originalInputAttributes).doTransform(args))
     }
+    val emitStartIndex = originalInputAttributes.size
     val inputRel = if (!validation) {
-      RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId)
+      RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -452,7 +453,7 @@ abstract class HashAggregateExecBaseTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(input, preExprNodes, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(input, preExprNodes, extensionNode, context, operatorId, emitStartIndex)
     }
 
     // Handle the pure Aggregate after Projection. Both grouping and Aggregate expressions are
@@ -530,8 +531,9 @@ abstract class HashAggregateExecBaseTransformer(
       resExprNodes.add(ExpressionConverter
         .replaceWithExpressionTransformer(expr, allAggregateResultAttributes).doTransform(args))
     })
+    val emitStartIndex = allAggregateResultAttributes.size
     if (!validation) {
-      RelBuilder.makeProjectRel(aggRel, resExprNodes, context, operatorId)
+      RelBuilder.makeProjectRel(aggRel, resExprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -540,7 +542,7 @@ abstract class HashAggregateExecBaseTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(aggRel, resExprNodes, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(aggRel, resExprNodes, extensionNode, context, operatorId, emitStartIndex)
     }
   }
 

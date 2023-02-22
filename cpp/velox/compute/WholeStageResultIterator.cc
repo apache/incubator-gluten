@@ -269,9 +269,6 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
       }
       task->noMoreSplits(scanNodeIds_[idx]);
     }
-    for (const auto& streamId : streamIds_) {
-      task->noMoreSplits(streamId);
-    }
     noMoreSplits_ = true;
   };
 }
@@ -339,9 +336,6 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
   addSplits_ = [&](velox::exec::Task* task) {
     if (noMoreSplits_) {
       return;
-    }
-    for (const auto& streamId : streamIds_) {
-      task->noMoreSplits(streamId);
     }
     noMoreSplits_ = true;
   };
