@@ -185,7 +185,9 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     orderings.foreach {
       ordering =>
         val node = jsonMapper.createObjectNode()
-        node.put("column_ref", getExpressionFieldReference(context, ordering, attributes))
+        val index = getExpressionFieldReference(context, ordering, attributes)
+        node.put("column_name", attributes(index).name)
+        node.put("column_ref", index)
         node.put("data_type", ordering.dataType.toString)
         node.put("is_nullable", ordering.nullable)
         node.put(
