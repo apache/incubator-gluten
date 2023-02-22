@@ -425,7 +425,16 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     TransformContext(inputAttributes, outputAttrs, currRel)
   }
 
-  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
+  override def output: Seq[Attribute] = projectList.map(a => {
+    // Set the nullable property according to child output
+    val newAttr = a.toAttribute
+    val originalAttr = child.output.find(_.exprId == newAttr.exprId)
+    if (originalAttr.isEmpty) {
+      newAttr
+    } else {
+      newAttr.withNullability(originalAttr.get.nullable)
+    }
+  })
 
   // override def canEqual(that: Any): Boolean = false
 
