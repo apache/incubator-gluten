@@ -45,18 +45,12 @@ public class ShuffleSplitterJniWrapper {
   public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
                    int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
                    String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema) {
-    try (ArrowSchema schema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())) {
-      GlutenArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(),
-          GlutenArrowUtil.getSchemaFromBytesBuf(part.getSchema()), schema);
-      return nativeMake(part.getShortName(), part.getNumPartitions(), schema.memoryAddress(),
+      return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
           subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
-  public native long nativeMake(String shortName, int numPartitions, long cSchema,
+  public native long nativeMake(String shortName, int numPartitions,
                                 long offheapPerTask, int bufferSize,
                                 String codec, int batchCompressThreshold, String dataFile,
                                 int subDirsPerLocalDir, String localDirs, boolean preferSpill,
@@ -82,12 +76,11 @@ public class ShuffleSplitterJniWrapper {
    *
    * @param splitterId splitter instance id
    * @param numRows Rows per batch
-   * @param cArray Addresses of ArrowArray
-   * record batch in the first partition.
-   * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
+   * @param handler handler of Velox Vector
+   * @return batch bytes.
    */
   public native long split(
-      long splitterId, int numRows, long cArray) throws IOException;
+      long splitterId, int numRows, long handler) throws IOException;
 
   /**
    * Write the data remained in the buffers hold by native splitter to each partition's temporary

@@ -117,7 +117,6 @@ object CHExecUtil {
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric,
       inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     val nativePartitioning: NativePartitioning = newPartitioning match {
@@ -337,7 +336,6 @@ object CHExecUtil {
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,
-        prepareTime = prepareTime,
         inputBatches = inputBatches
       )
 

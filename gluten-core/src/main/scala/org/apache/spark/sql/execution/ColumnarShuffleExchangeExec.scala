@@ -54,7 +54,6 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_split"),
     "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle spill time"),
     "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_compress"),
-    "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_prepare"),
     "avgReadBatchNumRows" -> SQLMetrics
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -94,7 +93,6 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       longMetric("splitTime"),
       longMetric("spillTime"),
       longMetric("compressTime"),
-      longMetric("prepareTime"),
       longMetric("inputBatches"))
   }
 
@@ -184,7 +182,6 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
     "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_split"),
     "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle spill time"),
     "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_compress"),
-    "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_prepare"),
     "avgReadBatchNumRows" -> SQLMetrics
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -224,7 +221,6 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
       longMetric("splitTime"),
       longMetric("spillTime"),
       longMetric("compressTime"),
-      longMetric("prepareTime"),
       longMetric("inputBatches"))
   }
 
@@ -316,7 +312,6 @@ object ColumnarShuffleExchangeExec extends Logging {
                                splitTime: SQLMetric,
                                spillTime: SQLMetric,
                                compressTime: SQLMetric,
-                               prepareTime: SQLMetric,
                                inputBatches: SQLMetric)
   // scalastyle:on argcount
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
@@ -332,7 +327,6 @@ object ColumnarShuffleExchangeExec extends Logging {
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric,
       inputBatches: SQLMetric)
   }
 

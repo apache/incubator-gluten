@@ -101,11 +101,8 @@ class CHColumnarShuffleWriter[K, V](
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val startTimeForPrepare = System.nanoTime()
-
         val startTime = System.nanoTime()
         firstRecordBatch = false
-        dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
         val col = cb.column(0).asInstanceOf[CHColumnVector]
         val block = col.getBlockAddress
         splitterJniWrapper

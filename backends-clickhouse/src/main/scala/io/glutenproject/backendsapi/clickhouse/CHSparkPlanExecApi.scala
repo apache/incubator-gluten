@@ -189,7 +189,6 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric,
       inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
@@ -204,7 +203,6 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
       splitTime,
       spillTime,
       compressTime,
-      prepareTime,
       inputBatches
     )
   }

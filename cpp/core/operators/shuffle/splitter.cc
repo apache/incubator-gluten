@@ -197,53 +197,22 @@ class Splitter::PartitionWriter {
 // ----------------------------------------------------------------------
 // Splitter
 
-arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
-    const std::string& short_name,
-    std::shared_ptr<arrow::Schema> schema,
-    int num_partitions,
-    SplitOptions options) {
+arrow::Result<std::shared_ptr<Splitter>>
+Splitter::Make(const std::string& short_name, int num_partitions, SplitOptions options) {
   if (short_name == "hash") {
-    return HashSplitter::Create(num_partitions, std::move(schema), std::move(options));
+    return HashSplitter::Create(num_partitions, std::move(options));
   } else if (short_name == "rr") {
-    return RoundRobinSplitter::Create(num_partitions, std::move(schema), std::move(options));
+    return RoundRobinSplitter::Create(num_partitions, std::move(options));
   } else if (short_name == "range") {
-    return FallbackRangeSplitter::Create(num_partitions, std::move(schema), std::move(options));
+    return FallbackRangeSplitter::Create(num_partitions, std::move(options));
   } else if (short_name == "single") {
-    return SinglePartSplitter::Create(1, std::move(schema), std::move(options));
+    return SinglePartSplitter::Create(1, std::move(options));
   }
   return arrow::Status::NotImplemented("Partitioning " + short_name + " not supported yet.");
 }
 
-arrow::Status Splitter::Init() {
-  support_avx512_ = false;
-#if defined(__x86_64__)
-  support_avx512_ = __builtin_cpu_supports("avx512bw");
-#endif
-  // partition number should be less than 64k
-  ARROW_CHECK_LE(num_partitions_, 64 * 1024);
-  // split record batch size should be less than 32k
-  ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
-
+arrow::Status Splitter::InitColumnType() {
   ARROW_ASSIGN_OR_RAISE(column_type_id_, ToSplitterTypeId(schema_->fields()));
-
-  partition_writer_.resize(num_partitions_);
-
-  // pre-computed row count for each partition after the record batch split
-  partition_id_cnt_.resize(num_partitions_);
-  // pre-allocated buffer size for each partition, unit is row count
-  partition_buffer_size_.resize(num_partitions_);
-
-  // start index for each partition when new record batch starts to split
-  partition_buffer_idx_base_.resize(num_partitions_);
-  // the offset of each partition during record batch split
-  partition_buffer_idx_offset_.resize(num_partitions_);
-
-  partition_cached_recordbatch_.resize(num_partitions_);
-  partition_cached_recordbatch_size_.resize(num_partitions_);
-  partition_lengths_.resize(num_partitions_);
-  raw_partition_lengths_.resize(num_partitions_);
-  reducer_offset_offset_.resize(num_partitions_ + 1);
-
   std::vector<int32_t> binary_array_idx;
 
   for (size_t i = 0; i < column_type_id_.size(); ++i) {
@@ -301,6 +270,36 @@ arrow::Status Splitter::Init() {
   for (size_t i = 0; i < list_array_idx_.size(); ++i) {
     partition_list_builders_[i].resize(num_partitions_);
   }
+  return arrow::Status::OK();
+}
+
+arrow::Status Splitter::Init() {
+  support_avx512_ = false;
+#if defined(__x86_64__)
+  support_avx512_ = __builtin_cpu_supports("avx512bw");
+#endif
+  // partition number should be less than 64k
+  ARROW_CHECK_LE(num_partitions_, 64 * 1024);
+  // split record batch size should be less than 32k
+  ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
+
+  partition_writer_.resize(num_partitions_);
+
+  // pre-computed row count for each partition after the record batch split
+  partition_id_cnt_.resize(num_partitions_);
+  // pre-allocated buffer size for each partition, unit is row count
+  partition_buffer_size_.resize(num_partitions_);
+
+  // start index for each partition when new record batch starts to split
+  partition_buffer_idx_base_.resize(num_partitions_);
+  // the offset of each partition during record batch split
+  partition_buffer_idx_offset_.resize(num_partitions_);
+
+  partition_cached_recordbatch_.resize(num_partitions_);
+  partition_cached_recordbatch_size_.resize(num_partitions_);
+  partition_lengths_.resize(num_partitions_);
+  raw_partition_lengths_.resize(num_partitions_);
+  reducer_offset_offset_.resize(num_partitions_ + 1);
 
   ARROW_ASSIGN_OR_RAISE(configured_dirs_, GetConfiguredLocalDirs());
   sub_dir_selection_.assign(configured_dirs_.size(), 0);
@@ -355,6 +354,10 @@ arrow::Status Splitter::SetCompressType(arrow::Compression::type compressed_type
 
 arrow::Status Splitter::Split(const arrow::RecordBatch& rb) {
   EVAL_START("split", options_.thread_id)
+  if (schema_ == nullptr) {
+    schema_ = rb.schema();
+    RETURN_NOT_OK(InitColumnType());
+  }
   RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
   RETURN_NOT_OK(DoSplit(rb));
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
@@ -1286,10 +1289,10 @@ arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> Splitter::GetSchemaPayloa
 // ----------------------------------------------------------------------
 // RoundRobinSplitter
 
-arrow::Result<std::shared_ptr<RoundRobinSplitter>>
-RoundRobinSplitter::Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options) {
-  std::shared_ptr<RoundRobinSplitter> res(
-      new RoundRobinSplitter(num_partitions, std::move(schema), std::move(options)));
+arrow::Result<std::shared_ptr<RoundRobinSplitter>> RoundRobinSplitter::Create(
+    int32_t num_partitions,
+    SplitOptions options) {
+  std::shared_ptr<RoundRobinSplitter> res(new RoundRobinSplitter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
@@ -1308,10 +1311,10 @@ arrow::Status RoundRobinSplitter::ComputeAndCountPartitionId(const arrow::Record
 // ----------------------------------------------------------------------
 // SinglePartSplitter
 
-arrow::Result<std::shared_ptr<SinglePartSplitter>>
-SinglePartSplitter::Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options) {
-  std::shared_ptr<SinglePartSplitter> res(
-      new SinglePartSplitter(num_partitions, std::move(schema), std::move(options)));
+arrow::Result<std::shared_ptr<SinglePartSplitter>> SinglePartSplitter::Create(
+    int32_t num_partitions,
+    SplitOptions options) {
+  std::shared_ptr<SinglePartSplitter> res(new SinglePartSplitter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
@@ -1353,7 +1356,10 @@ arrow::Status SinglePartSplitter::Init() {
 
 arrow::Status SinglePartSplitter::Split(const arrow::RecordBatch& rb) {
   EVAL_START("split", options_.thread_id)
-
+  if (schema_ == nullptr) {
+    schema_ = rb.schema();
+    RETURN_NOT_OK(InitColumnType());
+  }
   RETURN_NOT_OK(CacheRecordBatch(0, rb));
 
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
@@ -1404,15 +1410,8 @@ arrow::Status SinglePartSplitter::Stop() {
 // ----------------------------------------------------------------------
 // HashSplitter
 
-arrow::Status HashSplitter::Init() {
-  input_schema_ = std::move(schema_);
-  ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
-  return Splitter::Init();
-}
-
-arrow::Result<std::shared_ptr<HashSplitter>>
-HashSplitter::Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options) {
-  std::shared_ptr<HashSplitter> res(new HashSplitter(num_partitions, std::move(schema), std::move(options)));
+arrow::Result<std::shared_ptr<HashSplitter>> HashSplitter::Create(int32_t num_partitions, SplitOptions options) {
+  std::shared_ptr<HashSplitter> res(new HashSplitter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
@@ -1458,6 +1457,10 @@ arrow::Status HashSplitter::Split(const arrow::RecordBatch& rb) {
   EVAL_START("split", options_.thread_id)
   RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
   ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  if (schema_ == nullptr) {
+    schema_ = remove_pid->schema();
+    RETURN_NOT_OK(InitColumnType());
+  }
   RETURN_NOT_OK(DoSplit(*remove_pid));
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
@@ -1466,24 +1469,24 @@ arrow::Status HashSplitter::Split(const arrow::RecordBatch& rb) {
 // ----------------------------------------------------------------------
 // FallBackRangeSplitter
 
-arrow::Result<std::shared_ptr<FallbackRangeSplitter>>
-FallbackRangeSplitter::Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options) {
-  auto res = std::shared_ptr<FallbackRangeSplitter>(
-      new FallbackRangeSplitter(num_partitions, std::move(schema), std::move(options)));
+arrow::Result<std::shared_ptr<FallbackRangeSplitter>> FallbackRangeSplitter::Create(
+    int32_t num_partitions,
+    SplitOptions options) {
+  auto res = std::shared_ptr<FallbackRangeSplitter>(new FallbackRangeSplitter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
 
-arrow::Status FallbackRangeSplitter::Init() {
-  input_schema_ = std::move(schema_);
-  ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
-  return Splitter::Init();
-}
-
 arrow::Status FallbackRangeSplitter::Split(const arrow::RecordBatch& rb) {
   EVAL_START("split", options_.thread_id)
+  std::cout << rb.schema()->ToString() << std::endl;
+  std::cout << rb.ToString() << std::endl;
   RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
   ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  if (schema_ == nullptr) {
+    schema_ = remove_pid->schema();
+    RETURN_NOT_OK(InitColumnType());
+  }
   RETURN_NOT_OK(DoSplit(*remove_pid));
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();

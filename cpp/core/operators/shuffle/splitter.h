@@ -46,15 +46,8 @@ class Splitter {
   };
 
  public:
-  static arrow::Result<std::shared_ptr<Splitter>> Make(
-      const std::string& short_name,
-      std::shared_ptr<arrow::Schema> schema,
-      int num_partitions,
-      SplitOptions options = SplitOptions::Defaults());
-
-  virtual const std::shared_ptr<arrow::Schema>& input_schema() const {
-    return schema_;
-  }
+  static arrow::Result<std::shared_ptr<Splitter>>
+  Make(const std::string& short_name, int num_partitions, SplitOptions options = SplitOptions::Defaults());
 
   typedef uint32_t row_offset_type;
 
@@ -128,10 +121,12 @@ class Splitter {
   }
 
  protected:
-  Splitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : num_partitions_(num_partitions), options_(std::move(options)), schema_(std::move(schema)) {}
+  Splitter(int32_t num_partitions, SplitOptions options)
+      : num_partitions_(num_partitions), options_(std::move(options)) {}
 
   virtual arrow::Status Init();
+
+  arrow::Status InitColumnType();
 
   virtual arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) = 0;
 
@@ -297,12 +292,10 @@ class Splitter {
 
 class RoundRobinSplitter final : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<RoundRobinSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<RoundRobinSplitter>> Create(int32_t num_partitions, SplitOptions options);
 
  private:
-  RoundRobinSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
+  RoundRobinSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
@@ -311,12 +304,10 @@ class RoundRobinSplitter final : public Splitter {
 
 class SinglePartSplitter final : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<SinglePartSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<SinglePartSplitter>> Create(int32_t num_partitions, SplitOptions options);
 
  private:
-  SinglePartSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
+  SinglePartSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
@@ -329,46 +320,26 @@ class SinglePartSplitter final : public Splitter {
 
 class HashSplitter final : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<HashSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
-
-  const std::shared_ptr<arrow::Schema>& input_schema() const override {
-    return input_schema_;
-  }
+  static arrow::Result<std::shared_ptr<HashSplitter>> Create(int32_t num_partitions, SplitOptions options);
 
  private:
-  HashSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
+  HashSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   arrow::Status Split(const arrow::RecordBatch& rb) override;
-
-  arrow::Status Init() override;
-
-  std::shared_ptr<arrow::Schema> input_schema_;
 };
 
 class FallbackRangeSplitter final : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>> Create(int32_t num_partitions, SplitOptions options);
 
   arrow::Status Split(const arrow::RecordBatch& rb) override;
 
-  const std::shared_ptr<arrow::Schema>& input_schema() const override {
-    return input_schema_;
-  }
-
  private:
-  FallbackRangeSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
-
-  arrow::Status Init() override;
+  FallbackRangeSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
-
-  std::shared_ptr<arrow::Schema> input_schema_;
 };
 
 } // namespace gluten

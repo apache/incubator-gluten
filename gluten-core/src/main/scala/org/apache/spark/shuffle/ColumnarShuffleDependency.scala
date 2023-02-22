@@ -47,7 +47,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
  * @param bytesSpilled           for shuffle spill size tracking
  * @param computePidTime partition id computation time metric
  * @param splitTime              native split time metric
- * @param prepareTime            native split prepare time metric
  * @param inputBatches            number input batches
  */
 class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
@@ -66,7 +65,6 @@ class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
             val splitTime: SQLMetric,
             val spillTime: SQLMetric,
             val compressTime: SQLMetric,
-            val prepareTime: SQLMetric,
             val inputBatches: SQLMetric)
   extends ShuffleDependency[K, V, C](
     _rdd,

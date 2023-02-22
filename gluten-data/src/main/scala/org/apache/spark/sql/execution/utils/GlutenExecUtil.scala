@@ -21,10 +21,7 @@ import scala.collection.JavaConverters._
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
-
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
@@ -58,7 +55,6 @@ object GlutenExecUtil {
                            splitTime: SQLMetric,
                            spillTime: SQLMetric,
                            compressTime: SQLMetric,
-                           prepareTime: SQLMetric,
                            inputBatches: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
@@ -107,7 +103,6 @@ object GlutenExecUtil {
             cb => ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
           }
           .map { cb =>
-            val startTime = System.nanoTime()
             val pidVec = ArrowWritableColumnVector
               .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
               .head
@@ -123,34 +118,24 @@ object GlutenExecUtil {
                   cb).column)).toArray
             newColumns.foreach(
               _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(cb.numRows))
-            (0, new ColumnarBatch(newColumns, cb.numRows))
+            val offloadCb = ArrowColumnarBatches.ensureOffloaded(
+              ArrowBufferAllocators.contextInstance(),
+              new ColumnarBatch(newColumns, cb.numRows))
+            (0, offloadCb)
           }
       }
     }
 
-    def serializeSchema(fields: Seq[Field]): Array[Byte] = {
-      val schema = new Schema(fields.asJava)
-      GlutenArrowUtil.getSchemaBytesBuf(schema)
-    }
-
-    val arrowFields = outputAttributes.map(attr =>
-      GlutenArrowUtil.createArrowField(attr)
-    )
-
     val nativePartitioning: NativePartitioning = newPartitioning match {
       case SinglePartition =>
-        new NativePartitioning("single", 1, serializeSchema(arrowFields))
+        new NativePartitioning("single", 1)
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, serializeSchema(arrowFields))
+        new NativePartitioning("rr", n)
       case HashPartitioning(exprs, n) =>
-        new NativePartitioning(
-          "hash",
-          n,
-          serializeSchema(arrowFields))
+        new NativePartitioning("hash", n)
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
-        val pidField = Field.nullable("pid", new ArrowType.Int(32, true))
-        new NativePartitioning("range", n, serializeSchema(pidField +: arrowFields))
+        new NativePartitioning("range", n)
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
@@ -173,7 +158,7 @@ object GlutenExecUtil {
           val newIter = computeAndAddPartitionId(cbIter, partitionKeyExtractor)
 
           TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
-            newIter.closeAppendedVector()
+            newIter.closeColumnBatch()
           }
 
           newIter
@@ -182,15 +167,7 @@ object GlutenExecUtil {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              val acb = ArrowColumnarBatches
-                .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-                  cb)
-              (0 until cb.numCols).foreach(
-                acb.column(_)
-                  .asInstanceOf[ArrowWritableColumnVector]
-                  .getValueVector
-                  .setValueCount(acb.numRows))
-              (0, acb)
+              (0, cb)
             },
           isOrderSensitive = isOrderSensitive)
     }
@@ -210,7 +187,6 @@ object GlutenExecUtil {
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,
-        prepareTime = prepareTime,
         inputBatches = inputBatches)
 
     dependency
@@ -229,21 +205,18 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
   }
 
   override def next(): (Int, ColumnarBatch) = {
-    closeAppendedVector()
+    closeColumnBatch()
     if (iter.hasNext) {
       cur = iter.next()
       cur
     } else Iterator.empty.next()
   }
 
-  def closeAppendedVector(): Unit = {
+  def closeColumnBatch(): Unit = {
     if (cur != null) {
       logDebug("Close appended partition id vector")
       cur match {
-        case (_, cb: ColumnarBatch) =>
-          ArrowColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-              cb).column(0).asInstanceOf[ArrowWritableColumnVector].close()
+        case (_, cb: ColumnarBatch) => ArrowColumnarBatches.close(cb)
       }
       cur = null
     }
