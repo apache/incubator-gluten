@@ -21,7 +21,7 @@
 #include "memory/HbwAllocator.h"
 #include "memory/MemoryAllocator.h"
 
-class TestHbwAllocator final : public ::testing::Test {
+class TestHbwAllocator : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
     setenv("MEMKIND_HBW_NODES", "0", 1);
