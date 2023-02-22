@@ -41,7 +41,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")
-    val processTime = longMetric("processTime")
+    val convertTime = longMetric("convertTime")
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = this.schema
@@ -80,7 +80,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
               elapse += System.nanoTime() - start
               val block = new CHNativeBlock(last_address)
 
-              processTime += NANOSECONDS.toMillis(elapse)
+              convertTime += NANOSECONDS.toMillis(elapse)
               numInputRows += block.numRows()
               numOutputBatches += 1
 
