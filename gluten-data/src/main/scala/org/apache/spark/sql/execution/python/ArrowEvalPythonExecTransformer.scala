@@ -57,7 +57,7 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
+  override def getStreamedLeafPlan: SparkPlan = child match {
     case c: TransformSupport =>
       c.getStreamedLeafPlan
     case _ =>
