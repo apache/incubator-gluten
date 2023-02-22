@@ -42,7 +42,7 @@ Gluten's.
 
 ### JSON FUNCTION (incompatible behavior)
 
-Gluten only supports double quotes surrounded strings, not single quotes, in JSON data.
+Gluten only supports double quotes surrounded strings, not single quotes, in JSON data. If user use single quotes, will get incorrect result.
 
 ### Lookaround pattern for regexp functions (fallback behavior)
 
@@ -55,3 +55,6 @@ Gluten only supports parquet, if is other format, will fallback to vanilla spark
 ### Parquet read conf (incompatible behavior)
 Gluten supports spark.files.ignoreCorruptFiles and spark.files.ignoreMissingFiles with default false, if true, the behavior is same as config false.
 Gluten ignore spark.sql.parquet.datetimeRebaseModeInRead, it only returns what write in parquet file. It does not consider the difference between legacy hybrid (Julian Gregorian) calendar and Proleptic Gregorian calendar. The result maybe different with vanilla spark.
+
+### Partitioned Table Scan (fallback behavior)
+Gluten only support the partitioned table scan when the file path contain the partition info, otherwise will fallback to vanilla spark.
