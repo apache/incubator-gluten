@@ -18,11 +18,11 @@
 package org.apache.spark.sql.execution.adaptive
 
 import scala.collection.mutable.ArrayBuffer
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning, RoundRobinPartitioning, SinglePartition, UnknownPartitioning}
+import org.apache.spark.sql.catalyst.trees.CurrentOrigin
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
@@ -60,6 +60,27 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
           }
         case _ =>
           throw new IllegalStateException("operating on canonicalization plan")
+      }
+    } else if (isCoalescedRead) {
+      // For coalesced shuffle read, the data distribution is not changed, only the number of
+      // partitions is changed.
+      child.outputPartitioning match {
+        case h: HashPartitioning =>
+          CurrentOrigin.withOrigin(h.origin)(h.copy(numPartitions = partitionSpecs.length))
+        case r: RangePartitioning =>
+          CurrentOrigin.withOrigin(r.origin)(r.copy(numPartitions = partitionSpecs.length))
+        // This can only happen for `REBALANCE_PARTITIONS_BY_NONE`, which uses
+        // `RoundRobinPartitioning` but we don't need to retain the number of partitions.
+        case r: RoundRobinPartitioning =>
+          r.copy(numPartitions = partitionSpecs.length)
+        case other@SinglePartition =>
+          throw new IllegalStateException(
+            "Unexpected partitioning for coalesced shuffle read: " + other)
+        case _ =>
+          // Spark plugins may have custom partitioning and may replace this operator
+          // during the postStageOptimization phase, so return UnknownPartitioning here
+          // rather than throw an exception
+          UnknownPartitioning(partitionSpecs.length)
       }
     } else {
       UnknownPartitioning(partitionSpecs.length)
