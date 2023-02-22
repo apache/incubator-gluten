@@ -17,18 +17,66 @@
 
 package org.apache.spark.sql.execution
 
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.config.IO_ENCRYPTION_ENABLED
+import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.functions.{col, max}
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, QueryTest, Row, SparkSession}
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestsCommonTrait, QueryTest, Row, SparkSession}
 
 class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuite
-  with GlutenSQLTestsBaseTrait {
+   with GlutenTestsCommonTrait {
 
   object ColumnarCoalescedShuffleRead {
     def unapply(read: ColumnarAQEShuffleReadExec): Boolean = {
+      print("$$$$ local read: " + read.isLocalRead)
       !read.isLocalRead && !read.hasSkewedPartition && read.hasCoalescedPartition
+    }
+  }
+
+  override protected def afterAll(): Unit = {
+  }
+
+  override def withSparkSession(
+                          f: SparkSession => Unit,
+                          targetPostShuffleInputSize: Int,
+                          minNumPostShufflePartitions: Option[Int],
+                          enableIOEncryption: Boolean = false): Unit = {
+    val sparkConf =
+      new SparkConf(false)
+          .setMaster("local[*]")
+          .setAppName("test")
+          .set(UI_ENABLED, false)
+          .set(IO_ENCRYPTION_ENABLED, enableIOEncryption)
+          .set(SQLConf.SHUFFLE_PARTITIONS.key, "5")
+          .set(SQLConf.COALESCE_PARTITIONS_INITIAL_PARTITION_NUM.key, "5")
+          .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "true")
+          .set(SQLConf.FETCH_SHUFFLE_BLOCKS_IN_BATCH.key, "true")
+          .set(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, "-1")
+          .set(
+            SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key,
+            targetPostShuffleInputSize.toString)
+          .set(SQLConf.COALESCE_PARTITIONS_ENABLED.key, "true")
+          // Gluten config
+          .set("spark.plugins", "io.glutenproject.GlutenPlugin")
+          .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+          .set("spark.memory.offHeap.enabled", "true")
+          .set("spark.memory.offHeap.size", "1024MB")
+    minNumPostShufflePartitions match {
+      case Some(numPartitions) =>
+        sparkConf.set(SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_NUM.key, numPartitions.toString)
+      case None =>
+        sparkConf.set(SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_NUM.key, "1")
+    }
+
+    val spark = SparkSession.builder()
+        .config(sparkConf)
+        .getOrCreate()
+    try f(spark) finally {
+        spark.stop()
     }
   }
 
@@ -117,6 +165,50 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
     Seq(true, false).foreach { enableIOEncryption =>
       // Before SPARK-34790, it will throw an exception when io encryption enabled.
       withSparkSession(test, Int.MaxValue, None, enableIOEncryption)
+    }
+  }
+
+  Seq(Some(5), None).foreach { minNumPostShufflePartitions =>
+    val testNameNote = minNumPostShufflePartitions match {
+      case Some(numPartitions) => "(minNumPostShufflePartitions: " + numPartitions + ")"
+      case None => ""
+    }
+
+    test(GLUTEN_TEST + s"determining the number of reducers: aggregate operator$testNameNote") {
+      val test: SparkSession => Unit = { spark: SparkSession =>
+        val df =
+          spark
+              .range(0, 1000, 1, numInputPartitions)
+              .selectExpr("id % 20 as key", "id as value")
+        val agg = df.groupBy("key").count()
+
+        // Check the answer first.
+        QueryTest.checkAnswer(
+          agg,
+          spark.range(0, 20).selectExpr("id", "50 as cnt").collect())
+
+        // Then, let's look at the number of post-shuffle partitions estimated
+        // by the ExchangeCoordinator.
+        val finalPlan = agg.queryExecution.executedPlan
+            .asInstanceOf[AdaptiveSparkPlanExec].executedPlan
+        val shuffleReads = finalPlan.collect {
+           case r@CoalescedShuffleRead() => r
+          case r@ColumnarCoalescedShuffleRead() => r
+        }
+
+        minNumPostShufflePartitions match {
+          case Some(numPartitions) =>
+            assert(shuffleReads.isEmpty)
+          case None =>
+            assert(shuffleReads.length === 1)
+            shuffleReads.foreach { read =>
+              assert(read.outputPartitioning.numPartitions === 3)
+            }
+        }
+      }
+      // Change the original value 400 to 6000 in gluten. The test depends on the calculation for
+      // bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
+      withSparkSession(test, 6000, minNumPostShufflePartitions)
     }
   }
 

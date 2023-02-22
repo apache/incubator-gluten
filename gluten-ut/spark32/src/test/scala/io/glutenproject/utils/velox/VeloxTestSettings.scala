@@ -249,6 +249,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite with columnar operators
     .excludeByPrefix("SPARK-24705")
     .excludeByPrefix("SPARK-34790")
+    .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenFileScanSuite]
