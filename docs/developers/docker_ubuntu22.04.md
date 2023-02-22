@@ -43,6 +43,6 @@ cd gluten/
 #vim ~/.m2/settings.xml
 
 # the script download velox & arrow and compile all dependency library automatically
-mvn clean package -Pbackends-velox -Pspark-3.2 -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+./dev/buildbundle-veloxbe.sh
 
 ```
