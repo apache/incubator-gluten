@@ -1,4 +1,5 @@
-ARG OS_IMAGE=ubuntu:20.04
+ARG OS_IMAGE
+
 FROM $OS_IMAGE AS gluten-buildenv
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
