@@ -174,6 +174,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
       case None => ""
     }
 
+    // Ported from vanilla spark with targetPostShuffleInputSize changed.
     test(GLUTEN_TEST + s"determining the number of reducers: aggregate operator$testNameNote") {
       val test: SparkSession => Unit = { spark: SparkSession =>
         val df =
@@ -208,6 +209,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
       }
       // Change the original value 400 to 6000 in gluten. The test depends on the calculation for
       // bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
+      // See ShufflePartitionsUtil.coalescePartitions.
       withSparkSession(test, 6000, minNumPostShufflePartitions)
     }
   }
