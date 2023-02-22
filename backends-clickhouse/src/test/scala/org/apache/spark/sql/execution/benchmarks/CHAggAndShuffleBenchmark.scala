@@ -92,7 +92,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
       .setIfMissing("spark.executor.memory", memorySize)
       .setIfMissing("spark.sql.files.maxPartitionBytes", "1G")
       .setIfMissing("spark.sql.files.openCostInBytes", "1073741824")
-      .setIfMissing("spark.gluten.sql.columnar.coalesce.batches", "true")
+      .setIfMissing("spark.gluten.sql.columnar.coalesce.batches", "false")
       .setIfMissing("spark.shuffle.manager", "sort")
       .setIfMissing("spark.io.compression.codec", "SNAPPY")
 

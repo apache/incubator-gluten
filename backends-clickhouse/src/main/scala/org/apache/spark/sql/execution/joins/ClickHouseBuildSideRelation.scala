@@ -65,6 +65,7 @@ case class ClickHouseBuildSideRelation(
     )
     // Build the hash table
     storageJoinBuilder.build()
+    storageJoinBuilder.close()
     this
   }
 

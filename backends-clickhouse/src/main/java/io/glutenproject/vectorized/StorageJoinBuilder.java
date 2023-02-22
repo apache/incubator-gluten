@@ -32,7 +32,7 @@ import io.substrait.proto.Type;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 
-public class StorageJoinBuilder {
+public class StorageJoinBuilder implements AutoCloseable {
   private ShuffleInputStream in;
 
   private int customizeBufferSize;
@@ -106,5 +106,14 @@ public class StorageJoinBuilder {
         joinKey,
         join,
         structure);
+  }
+
+  @Override
+  public void close() throws Exception {
+    try {
+      in.close();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
