@@ -65,7 +65,6 @@ public class AggregateFunctionNode implements Serializable {
     }
     for (ExpressionNode expressionNode : expressionNodes) {
       FunctionArgument.Builder functionArgument = FunctionArgument.newBuilder();
-      // functionArgument.setType();
       functionArgument.setValue(expressionNode.toProtobuf());
       aggBuilder.addArguments(functionArgument.build());
     }
