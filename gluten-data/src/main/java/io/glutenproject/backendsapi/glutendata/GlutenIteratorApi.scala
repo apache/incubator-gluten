@@ -218,7 +218,6 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
-                                     updateOutputMetrics: (Long, Long) => Unit,
                                      updateInputMetrics: (InputMetricsWrapper) => Unit,
                                      updateNativeMetrics: Metrics => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
@@ -250,19 +249,6 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
           throw new java.util.NoSuchElementException("End of stream")
         }
         val cb = resIter.next()
-        val bytes: Long = cb match {
-          case batch: ColumnarBatch =>
-            (0 until batch.numCols()).map { i =>
-              val vector = Option(batch.column(i))
-              vector.map {
-                case av: ArrowWritableColumnVector =>
-                  av.getValueVector.getBufferSize.toLong
-                case _ => 0L
-              }.sum
-            }.sum
-          case _ => 0L
-        }
-        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
@@ -287,7 +273,6 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
                                      outputAttributes: Seq[Attribute],
                                      rootNode: PlanNode,
                                      pipelineTime: SQLMetric,
-                                     updateOutputMetrics: (Long, Long) => Unit,
                                      updateNativeMetrics: Metrics => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch])
   : Iterator[ColumnarBatch] = {
@@ -318,7 +303,6 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
 
       override def next(): ColumnarBatch = {
         val cb = nativeResultIterator.next
-        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }

@@ -101,7 +101,6 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
                                   outputAttributes: Seq[Attribute],
                                   var rdds: Seq[RDD[ColumnarBatch]],
                                   pipelineTime: SQLMetric,
-                                  updateOutputMetrics: (Long, Long) => Unit,
                                   updateInputMetrics: (InputMetricsWrapper) => Unit,
                                   updateNativeMetrics: Metrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
@@ -117,7 +116,6 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
         outputAttributes,
         context,
         pipelineTime,
-        updateOutputMetrics,
         updateInputMetrics,
         updateNativeMetrics)
     } else {
@@ -130,7 +128,6 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
         outputAttributes,
         context,
         pipelineTime,
-        updateOutputMetrics,
         updateInputMetrics,
         updateNativeMetrics,
         inputIterators)

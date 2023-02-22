@@ -60,7 +60,6 @@ case class WholestageTransformContext(
  * TODO place it to some other where since it's used not only by whole stage facilities
  */
 trait MetricsUpdater extends Serializable {
-  def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {}
   def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {}
   def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {}
 }
@@ -313,7 +312,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
-        metricsUpdater().updateOutputMetrics,
         leafMetricsUpdater().updateInputMetrics,
         metricsUpdatingFunction
       )
@@ -348,7 +346,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         resCtx,
         pipelineTime,
         buildRelationBatchHolder,
-        metricsUpdater().updateOutputMetrics,
         metricsUpdatingFunction)
     }
   }
