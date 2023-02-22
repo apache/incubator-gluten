@@ -23,7 +23,7 @@ import java.io.InputStream;
 
 public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
-  private final InputStream in;
+  private InputStream in;
   private final boolean isCompressed;
   private int bufferSize;
   private long bytesRead = 0L;
@@ -78,6 +78,7 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
   public void close() {
     try {
       in.close();
+      in = null;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

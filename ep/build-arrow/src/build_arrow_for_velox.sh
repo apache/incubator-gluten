@@ -64,6 +64,7 @@ if [ $BUILD_TESTS == ON ]; then
 fi
 pushd $ARROW_SOURCE_DIR
 
+git apply --reverse --check $CURRENT_DIR/memorypool.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
 # apply patch for custom codec
 if [ $ENABLE_QAT == ON ]; then
   git apply --reverse --check $CURRENT_DIR/custom-codec.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
