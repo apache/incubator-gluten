@@ -266,7 +266,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")
-    val processTime = longMetric("processTime")
+    val convertTime = longMetric("convertTime")
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     val numRows = conf.columnBatchSize
@@ -296,7 +296,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
               rowCount += 1
             }
             vectors.foreach(v => v.asInstanceOf[ArrowWritableColumnVector].setValueCount(rowCount))
-            processTime.set(NANOSECONDS.toMillis(elapse))
+            convertTime.set(NANOSECONDS.toMillis(elapse))
             numInputRows += rowCount
             numOutputBatches += 1
             last_cb = new ColumnarBatch(vectors.toArray, rowCount)

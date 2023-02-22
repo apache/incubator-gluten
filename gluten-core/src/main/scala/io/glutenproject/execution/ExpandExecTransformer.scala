@@ -51,8 +51,6 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
     "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
     "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
@@ -66,8 +64,6 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     val inputRows: SQLMetric = longMetric("inputRows")
     val inputVectors: SQLMetric = longMetric("inputVectors")
     val inputBytes: SQLMetric = longMetric("inputBytes")
-    val rawInputRows: SQLMetric = longMetric("rawInputRows")
-    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
     val outputRows: SQLMetric = longMetric("outputRows")
     val outputVectors: SQLMetric = longMetric("outputVectors")
     val outputBytes: SQLMetric = longMetric("outputBytes")
@@ -81,8 +77,6 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         inputRows += operatorMetrics.inputRows
         inputVectors += operatorMetrics.inputVectors
         inputBytes += operatorMetrics.inputBytes
-        rawInputRows += operatorMetrics.rawInputRows
-        rawInputBytes += operatorMetrics.rawInputBytes
         outputRows += operatorMetrics.outputRows
         outputVectors += operatorMetrics.outputVectors
         outputBytes += operatorMetrics.outputBytes
