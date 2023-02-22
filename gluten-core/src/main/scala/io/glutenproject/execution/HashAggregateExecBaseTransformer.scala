@@ -689,7 +689,9 @@ abstract class HashAggregateExecBaseTransformer(
         AggregateFunctionsBuilder.create(args, aggregateFunction),
         childrenNodeList,
         modeToKeyWord(aggregateMode),
-        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)))
+        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable),
+        ConverterUtils.getTypeNodeFromAttributes(
+          aggregateFunction.inputAggBufferAttributes)))
   }
 
   protected def applyPostProjection(context: SubstraitContext,

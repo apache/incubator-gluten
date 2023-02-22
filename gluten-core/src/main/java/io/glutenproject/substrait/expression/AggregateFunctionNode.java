@@ -30,12 +30,16 @@ public class AggregateFunctionNode implements Serializable {
   private final String phase;
   private final TypeNode outputTypeNode;
 
+  private final ArrayList<TypeNode> inputTypeNodes;
+
   AggregateFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
-                        String phase, TypeNode outputTypeNode) {
+                        String phase, TypeNode outputTypeNode,
+                        ArrayList<TypeNode> inputTypeNodes) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.phase = phase;
     this.outputTypeNode = outputTypeNode;
+    this.inputTypeNodes = inputTypeNodes;
   }
 
   public AggregateFunction toProtobuf() {
@@ -61,7 +65,13 @@ public class AggregateFunctionNode implements Serializable {
     }
     for (ExpressionNode expressionNode : expressionNodes) {
       FunctionArgument.Builder functionArgument = FunctionArgument.newBuilder();
+      // functionArgument.setType();
       functionArgument.setValue(expressionNode.toProtobuf());
+      aggBuilder.addArguments(functionArgument.build());
+    }
+    for (TypeNode inputTypeNode: inputTypeNodes) {
+      FunctionArgument.Builder functionArgument = FunctionArgument.newBuilder();
+      functionArgument.setType(inputTypeNode.toProtobuf());
       aggBuilder.addArguments(functionArgument.build());
     }
     aggBuilder.setOutputType(outputTypeNode.toProtobuf());

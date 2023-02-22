@@ -166,14 +166,18 @@ case class GlutenHashAggregateExecTransformer(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
               modeToKeyWord(aggregateMode),
-              getIntermediateTypeNode(aggregateFunction))
+              getIntermediateTypeNode(aggregateFunction),
+              ConverterUtils.getTypeNodeFromAttributes(
+                aggregateFunction.inputAggBufferAttributes))
             aggregateNodeList.add(partialNode)
           case Final =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
               modeToKeyWord(aggregateMode),
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable),
+              ConverterUtils.getTypeNodeFromAttributes(
+                aggregateFunction.inputAggBufferAttributes))
             aggregateNodeList.add(aggFunctionNode)
           case other =>
             throw new UnsupportedOperationException(s"$other is not supported.")
@@ -183,7 +187,9 @@ case class GlutenHashAggregateExecTransformer(
           AggregateFunctionsBuilder.create(args, aggregateFunction),
           childrenNodeList,
           modeToKeyWord(aggregateMode),
-          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable),
+          ConverterUtils.getTypeNodeFromAttributes(
+            aggregateFunction.inputAggBufferAttributes))
         aggregateNodeList.add(aggFunctionNode)
     }
   }

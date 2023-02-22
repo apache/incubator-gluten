@@ -256,8 +256,10 @@ public class ExpressionBuilder {
       Long functionId,
       ArrayList<ExpressionNode> expressionNodes,
       String phase,
-      TypeNode outputTypeNode) {
-    return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
+      TypeNode outputTypeNode,
+      ArrayList<TypeNode> inputTypeNodes) {
+    return new AggregateFunctionNode(
+        functionId, expressionNodes, phase, outputTypeNode, inputTypeNodes);
   }
 
   public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode,
