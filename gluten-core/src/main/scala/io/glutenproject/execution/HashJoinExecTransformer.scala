@@ -113,12 +113,6 @@ trait HashJoinLikeExecTransformer
   def hashJoinType: JoinType
 
   override lazy val metrics = Map(
-    "hashBuildInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash build input rows"),
-    "hashBuildInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash build input vectors"),
-    "hashBuildInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of hash build input bytes"),
     "hashBuildOutputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash build output rows"),
     "hashBuildOutputVectors" -> SQLMetrics.createMetric(
@@ -142,12 +136,6 @@ trait HashJoinLikeExecTransformer
     "hashBuildSpilledFiles" -> SQLMetrics.createMetric(
       sparkContext, "total spilled files of hash build"),
 
-    "hashProbeInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe input rows"),
-    "hashProbeInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe input vectors"),
-    "hashProbeInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of hash probe input bytes"),
     "hashProbeOutputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe output rows"),
     "hashProbeOutputVectors" -> SQLMetrics.createMetric(
@@ -181,9 +169,6 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of final output vectors"))
 
   object MetricsUpdaterImpl extends HashJoinMetricsUpdater {
-    val hashBuildInputRows: SQLMetric = longMetric("hashBuildInputRows")
-    val hashBuildInputVectors: SQLMetric = longMetric("hashBuildInputVectors")
-    val hashBuildInputBytes: SQLMetric = longMetric("hashBuildInputBytes")
     val hashBuildOutputRows: SQLMetric = longMetric("hashBuildOutputRows")
     val hashBuildOutputVectors: SQLMetric = longMetric("hashBuildOutputVectors")
     val hashBuildOutputBytes: SQLMetric = longMetric("hashBuildOutputBytes")
@@ -196,9 +181,6 @@ trait HashJoinLikeExecTransformer
     val hashBuildSpilledPartitions: SQLMetric = longMetric("hashBuildSpilledPartitions")
     val hashBuildSpilledFiles: SQLMetric = longMetric("hashBuildSpilledFiles")
 
-    val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
-    val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
-    val hashProbeInputBytes: SQLMetric = longMetric("hashProbeInputBytes")
     val hashProbeOutputRows: SQLMetric = longMetric("hashProbeOutputRows")
     val hashProbeOutputVectors: SQLMetric = longMetric("hashProbeOutputVectors")
     val hashProbeOutputBytes: SQLMetric = longMetric("hashProbeOutputBytes")
@@ -242,9 +224,6 @@ trait HashJoinLikeExecTransformer
 
       // HashProbe
       val hashProbeMetrics = joinMetrics.get(idx)
-      hashProbeInputRows += hashProbeMetrics.inputRows
-      hashProbeInputVectors += hashProbeMetrics.inputVectors
-      hashProbeInputBytes += hashProbeMetrics.inputBytes
       hashProbeOutputRows += hashProbeMetrics.outputRows
       hashProbeOutputVectors += hashProbeMetrics.outputVectors
       hashProbeOutputBytes += hashProbeMetrics.outputBytes
@@ -262,9 +241,6 @@ trait HashJoinLikeExecTransformer
 
       // HashBuild
       val hashBuildMetrics = joinMetrics.get(idx)
-      hashBuildInputRows += hashBuildMetrics.inputRows
-      hashBuildInputVectors += hashBuildMetrics.inputVectors
-      hashBuildInputBytes += hashBuildMetrics.inputBytes
       hashBuildOutputRows += hashBuildMetrics.outputRows
       hashBuildOutputVectors += hashBuildMetrics.outputVectors
       hashBuildOutputBytes += hashBuildMetrics.outputBytes
