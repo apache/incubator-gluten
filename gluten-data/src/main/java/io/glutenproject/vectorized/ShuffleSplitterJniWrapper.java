@@ -17,11 +17,6 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
-import io.glutenproject.utils.GlutenArrowAbiUtil;
-import io.glutenproject.utils.GlutenArrowUtil;
-import org.apache.arrow.c.ArrowSchema;
-
 import java.io.IOException;
 
 public class ShuffleSplitterJniWrapper {

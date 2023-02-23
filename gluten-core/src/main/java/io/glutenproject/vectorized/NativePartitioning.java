@@ -29,6 +29,8 @@ public class NativePartitioning implements Serializable {
 
   private final byte[] exprList;
 
+  private final byte[] schema;
+
   /**
    * Constructs a new instance.
    *
@@ -43,10 +45,18 @@ public class NativePartitioning implements Serializable {
     this.shortName = shortName;
     this.numPartitions = numPartitions;
     this.exprList = exprList;
+    this.schema = null;
   }
 
   public NativePartitioning(String shortName, int numPartitions) {
-    this(shortName, numPartitions, null);
+    this(shortName, numPartitions, null, null);
+  }
+
+  public NativePartitioning(String shortName, int numPartitions, byte[] schema, byte[] exprList) {
+    this.shortName = shortName;
+    this.numPartitions = numPartitions;
+    this.schema = schema;
+    this.exprList = exprList;
   }
 
   public String getShortName() {
@@ -59,6 +69,10 @@ public class NativePartitioning implements Serializable {
 
   public byte[] getExprList() {
     return exprList;
+  }
+
+  public byte[] getSchema() {
+    return schema;
   }
 
 }

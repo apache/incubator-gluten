@@ -120,9 +120,9 @@ object CHExecUtil {
       inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     val nativePartitioning: NativePartitioning = newPartitioning match {
-      case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte])
+      case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte], null)
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, Array.empty[Byte])
+        new NativePartitioning("rr", n, Array.empty[Byte], null)
       case HashPartitioning(exprs, n) =>
         val outputsIndex =
           outputAttributes.map(attr => ConverterUtils.genColumnNameWithExprId(attr))
@@ -158,7 +158,8 @@ object CHExecUtil {
           sortingExpressions,
           outputAttributes)
         val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
-        new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes())
+        new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes(),
+          null)
       case p =>
         throw new IllegalStateException(s"Unknow partition type: ${p.getClass.toString}")
     }
