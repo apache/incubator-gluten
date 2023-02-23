@@ -17,30 +17,26 @@
 #  FOLLY_LIBRARIES         The folly library/libraries
 #  FOLLY_INCLUDE_DIR       The location of folly headers
 
-find_path(FOLLY_ROOT_DIR
-        NAMES include/folly/folly-config.h
-        )
+if( FOLLY_ROOT_DIR )
+    find_library(FOLLY_LIBRARIES
+            NAMES folly
+            HINTS ${FOLLY_ROOT_DIR}/lib)
 
-find_library(FOLLY_LIBRARIES
-        NAMES folly
-        HINTS ${FOLLY_ROOT_DIR}/lib
-        )
+    find_path(FOLLY_INCLUDE_DIR
+            NAMES folly/folly-config.h
+            HINTS ${FOLLY_ROOT_DIR}/include)
+else()
+    find_library(FOLLY_LIBRARIES NAMES folly)
 
-find_library(FOLLY_BENCHMARK_LIBRARIES
-        NAMES follybenchmark
-        HINTS ${FOLLY_ROOT_DIR}/lib
-        )
-
-find_path(FOLLY_INCLUDE_DIR
-        NAMES folly/folly-config.h
-        HINTS ${FOLLY_ROOT_DIR}/include
-        )
+    find_path(FOLLY_INCLUDE_DIR NAMES folly/folly-config.h)
+endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(folly DEFAULT_MSG
+find_package_handle_standard_args(
+        folly
+        DEFAULT_MSG
         FOLLY_LIBRARIES
-        FOLLY_INCLUDE_DIR
-        )
+        FOLLY_INCLUDE_DIR)
 
 if(folly_FOUND)
     message(STATUS "Found folly: ${FOLLY_LIBRARIES}")
@@ -53,6 +49,5 @@ if(folly_FOUND)
             FOLLY_ROOT_DIR
             FOLLY_LIBRARIES
             FOLLY_BENCHMARK_LIBRARIES
-            FOLLY_INCLUDE_DIR
-    )
+            FOLLY_INCLUDE_DIR)
 endif()
