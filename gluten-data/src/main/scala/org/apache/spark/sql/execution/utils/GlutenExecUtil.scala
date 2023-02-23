@@ -167,7 +167,9 @@ object GlutenExecUtil {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              (0, cb)
+              (0, ArrowColumnarBatches.ensureOffloaded(
+                ArrowBufferAllocators.contextInstance(),
+                cb))
             },
           isOrderSensitive = isOrderSensitive)
     }
