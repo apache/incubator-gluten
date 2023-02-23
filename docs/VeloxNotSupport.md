@@ -53,8 +53,16 @@ such as `rlike`, `regexp_extract`, etc.
 Gluten only supports parquet, if is other format, will fallback to vanilla spark.
 
 ### Parquet read conf (incompatible behavior)
-Gluten supports spark.files.ignoreCorruptFiles and spark.files.ignoreMissingFiles with default false, if true, the behavior is same as config false.
-Gluten ignore spark.sql.parquet.datetimeRebaseModeInRead, it only returns what write in parquet file. It does not consider the difference between legacy hybrid (Julian Gregorian) calendar and Proleptic Gregorian calendar. The result maybe different with vanilla spark.
+Gluten supports `spark.files.ignoreCorruptFiles` and `spark.files.ignoreMissingFiles` with default false, if true, the behavior is same as config false.
+Gluten ignore `spark.sql.parquet.datetimeRebaseModeInRead`, it only returns what write in parquet file. It does not consider the difference between legacy hybrid (Julian Gregorian) calendar and Proleptic Gregorian calendar. The result maybe different with vanilla spark.
+
+### Parquet write conf (incompatible behavior)
+
+Spark has `spark.sql.parquet.datetimeRebaseModeInWrite` config to decide whether legacy hybrid (Julian + Gregorian) calendar 
+or Proleptic Gregorian calendar should be used during parquet writing for dates/timestamps. If the parquet to read is written
+by Spark with this config as true, Velox's TableScan will output different result when reading it back.
+
+`` 
 
 ### Partitioned Table Scan (fallback behavior)
 Gluten only support the partitioned table scan when the file path contain the partition info, otherwise will fallback to vanilla spark.
