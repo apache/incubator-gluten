@@ -187,13 +187,9 @@ set_target_properties(velox PROPERTIES
 
 find_package(folly REQUIRED)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
-find_package(Boost REQUIRED)
-find_package(Protobuf REQUIRED)
 
 include_directories(${LIBGFLAGS_INCLUDE_DIR})
 include_directories(${FOLLY_INCLUDE_DIR})
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${Protobuf_INCLUDE_DIRS})
 
 target_link_libraries(velox PUBLIC spark_columnar_jni)
 add_velox_dependencies()
