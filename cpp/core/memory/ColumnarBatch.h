@@ -44,7 +44,7 @@ class ColumnarBatch {
   virtual std::string GetType() const = 0;
 
   virtual int64_t GetBytes() = 0;
-  
+
   virtual std::shared_ptr<ArrowArray> exportArrowArray() = 0;
 
   virtual std::shared_ptr<ArrowSchema> exportArrowSchema() = 0;
@@ -74,7 +74,7 @@ class ArrowColumnarBatch final : public ColumnarBatch {
   }
 
   int64_t GetBytes() override {
-   throw gluten::GlutenException("Not implemented GetBytes for ArrowColumnarBatch");
+    throw gluten::GlutenException("Not implemented GetBytes for ArrowColumnarBatch");
   }
 
   std::shared_ptr<ArrowSchema> exportArrowSchema() override {
