@@ -58,3 +58,6 @@ Gluten ignore spark.sql.parquet.datetimeRebaseModeInRead, it only returns what w
 
 ### Partitioned Table Scan (fallback behavior)
 Gluten only support the partitioned table scan when the file path contain the partition info, otherwise will fallback to vanilla spark.
+
+### NAN support (incompatible behavior)
+Velox does not support NAN, will return null instead.
