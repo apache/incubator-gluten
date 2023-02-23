@@ -169,9 +169,7 @@ object VeloxBackendSettings extends BackendSettings {
 
   override def rescaleDecimalLiteral(): Boolean = true
 
-  override def replaceSortAggWithHashAgg: Boolean = {
-    GlutenConfig.getConf.forceToUseHashAgg
-  }
+  override def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
   /**
    * Get the config prefix for each backend
