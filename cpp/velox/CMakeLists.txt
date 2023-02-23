@@ -191,6 +191,7 @@ find_package(Boost REQUIRED)
 find_package(Protobuf REQUIRED)
 
 include_directories(${gflags_INCLUDE_DIR})
+include_directories(${FOLLY_INCLUDE_DIR})
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${Protobuf_INCLUDE_DIRS})
 
