@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.types.IntegerType
 
 object ExpressionConverter extends Logging {
 
@@ -129,6 +130,30 @@ object ExpressionConverter extends Logging {
           replaceWithExpressionTransformer(r.rep, attributeSeq),
           replaceWithExpressionTransformer(r.pos, attributeSeq),
           r
+        )
+      case s: StringLocate =>
+        // locate function. in spark while the third argument(start position)
+        // value less or equals than 0, the result value is 0. But in CH, the
+        // result value is 1 when start position is 0. So make the convert
+        // locate(s1, s2, n) => if (n<=0, 0, locate(s1,s2,n))
+        val predictExpression = LessThanOrEqual(s.third, new Literal(0, IntegerType))
+        val trueValueExpression = Literal(0, IntegerType)
+        new IfTransformer(
+          replaceWithExpressionTransformer(predictExpression, attributeSeq),
+          replaceWithExpressionTransformer(trueValueExpression, attributeSeq),
+          TernaryExpressionTransformer(
+            substraitExprName,
+            replaceWithExpressionTransformer(
+              s.first,
+              attributeSeq),
+            replaceWithExpressionTransformer(
+              s.second,
+              attributeSeq),
+            replaceWithExpressionTransformer(
+              s.third,
+              attributeSeq),
+            s),
+          s
         )
       case i: If =>
         new IfTransformer(

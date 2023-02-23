@@ -33,7 +33,6 @@ object CHExpressionUtil {
   final val CH_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
     REGEXP_EXTRACT -> Set(EMPTY_TYPE),
     REGEXP_EXTRACT_ALL -> Set(EMPTY_TYPE),
-    LOCATE -> Set(EMPTY_TYPE),
     LPAD -> Set(EMPTY_TYPE),
     RPAD -> Set(EMPTY_TYPE),
     REVERSE -> Set(EMPTY_TYPE),
