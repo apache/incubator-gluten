@@ -143,7 +143,9 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val startTime = System.nanoTime()
-        jniWrapper.split(nativeSplitter, cb.numRows, ArrowColumnarBatches.getHandler(cb))
+        val bytes = jniWrapper.split(nativeSplitter, cb.numRows,
+          ArrowColumnarBatches.getHandler(cb))
+        dep.dataSize.add(bytes)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
         dep.inputBatches.add(1)

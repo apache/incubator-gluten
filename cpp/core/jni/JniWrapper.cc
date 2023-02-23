@@ -579,6 +579,14 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getType(JNIEnv* env,
 }
 
 JNIEXPORT jlong JNICALL
+Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getBytes(JNIEnv* env, jobject, jlong handle) {
+  JNI_METHOD_START
+  std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
+  return batch->GetBytes();
+  JNI_METHOD_END(-1)
+}
+
+JNIEXPORT jlong JNICALL
 Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumColumns(JNIEnv* env, jobject, jlong handle) {
   JNI_METHOD_START
   std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
@@ -768,7 +776,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
   std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
       arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
   gluten::JniAssertOkOrThrow(splitter->Split(*in), "Native split: splitter split failed");
-  return -1L;
+  return batch->GetBytes();
   JNI_METHOD_END(-1L)
 }
 
