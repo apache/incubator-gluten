@@ -772,6 +772,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     gluten::JniThrow(error_message);
   }
 
+  // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeSplitter)
   std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
   std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
       arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));

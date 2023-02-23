@@ -19,16 +19,10 @@ package org.apache.spark.shuffle
 
 import java.io.IOException
 
-import scala.collection.JavaConverters._
-
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.GlutenConfig
-import io.glutenproject.utils.{GlutenArrowAbiUtil, GlutenArrowUtil}
 import io.glutenproject.vectorized._
-import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -144,7 +138,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
       } else {
         val startTime = System.nanoTime()
         val bytes = jniWrapper.split(nativeSplitter, cb.numRows,
-          ArrowColumnarBatches.getHandler(cb))
+          GlutenColumnarBatches.getNativeHandle(cb))
         dep.dataSize.add(bytes)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)

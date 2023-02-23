@@ -64,25 +64,12 @@ public class ArrowColumnarBatches {
     }
   }
 
-  public static long getHandler(ColumnarBatch input) {
-    if (!GlutenColumnarBatches.isIntermediateColumnarBatch(input)) {
-      throw new IllegalArgumentException("input is not intermediate Gluten columnar input. " +
-          "Please consider to use vanilla spark's row based input by setting one of the below" +
-          " configs: \n" +
-          "spark.sql.parquet.enableVectorizedReader=false\n" +
-          "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n" +
-          "spark.sql.orc.enableVectorizedReader=false\n");
-    }
-    GlutenIndicatorVector iv = (GlutenIndicatorVector) input.column(0);
-    return iv.getNativeHandle();
-  }
-
   public static void close(ColumnarBatch input) {
-    ColumnarBatchJniWrapper.INSTANCE.close(getHandler(input));
+    ColumnarBatchJniWrapper.INSTANCE.close(GlutenColumnarBatches.getNativeHandle(input));
   }
 
   public static long getBytes(ColumnarBatch input) {
-    return ColumnarBatchJniWrapper.INSTANCE.getBytes(getHandler(input));
+    return ColumnarBatchJniWrapper.INSTANCE.getBytes(GlutenColumnarBatches.getNativeHandle(input));
   }
 
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {

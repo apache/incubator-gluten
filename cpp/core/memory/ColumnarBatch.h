@@ -116,7 +116,11 @@ class ArrowCStructColumnarBatch final : public ColumnarBatch {
   }
 
   int64_t GetBytes() override {
-    throw gluten::GlutenException("Not implemented GetBytes for ArrowCStructColumnarBatch");
+    int64_t bytes = cArray_->n_buffers;
+    for (int64_t i = 0; i < cArray_->n_children; ++i) {
+      bytes += cArray_->children[i]->n_buffers;
+    }
+    return bytes;
   }
 
   std::shared_ptr<ArrowSchema> exportArrowSchema() override {

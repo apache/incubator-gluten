@@ -1479,8 +1479,6 @@ arrow::Result<std::shared_ptr<FallbackRangeSplitter>> FallbackRangeSplitter::Cre
 
 arrow::Status FallbackRangeSplitter::Split(const arrow::RecordBatch& rb) {
   EVAL_START("split", options_.thread_id)
-  std::cout << rb.schema()->ToString() << std::endl;
-  std::cout << rb.ToString() << std::endl;
   RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
   ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
   if (schema_ == nullptr) {

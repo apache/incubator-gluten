@@ -158,8 +158,7 @@ object CHExecUtil {
           sortingExpressions,
           outputAttributes)
         val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
-        new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes(),
-          null)
+        new NativePartitioning("range",numPartitions, null, orderingAndRangeBounds.getBytes())
       case p =>
         throw new IllegalStateException(s"Unknow partition type: ${p.getClass.toString}")
     }
