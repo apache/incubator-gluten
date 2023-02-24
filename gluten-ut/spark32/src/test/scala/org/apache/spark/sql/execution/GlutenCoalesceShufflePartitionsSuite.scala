@@ -194,7 +194,8 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
             .asInstanceOf[AdaptiveSparkPlanExec].executedPlan
         val shuffleReads = finalPlan.collect {
            case r@CoalescedShuffleRead() => r
-          case r@ColumnarCoalescedShuffleRead() => r
+           // Added for gluten.
+           case r@ColumnarCoalescedShuffleRead() => r
         }
 
         minNumPostShufflePartitions match {
@@ -207,11 +208,64 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
             }
         }
       }
-      // Change the original value 2000 to 6000 in gluten. The test depends on the calculation for
+      // Change the original value 2000 to 6000 for gluten. The test depends on the calculation for
       // bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
-      // See ShufflePartitionsUtil.coalescePartitions.
+      // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
       withSparkSession(test, 6000, minNumPostShufflePartitions)
     }
-  }
 
+    test(GLUTEN_TEST + s"determining the number of reducers: join operator$testNameNote") {
+      val test: SparkSession => Unit = { spark: SparkSession =>
+        val df1 =
+          spark
+              .range(0, 1000, 1, numInputPartitions)
+              .selectExpr("id % 500 as key1", "id as value1")
+        val df2 =
+          spark
+              .range(0, 1000, 1, numInputPartitions)
+              .selectExpr("id % 500 as key2", "id as value2")
+
+        val join = df1.join(df2, col("key1") === col("key2")).select(col("key1"), col("value2"))
+
+        // Check the answer first.
+        val expectedAnswer =
+          spark
+              .range(0, 1000)
+              .selectExpr("id % 500 as key", "id as value")
+              .union(spark.range(0, 1000).selectExpr("id % 500 as key", "id as value"))
+        QueryTest.checkAnswer(
+          join,
+          expectedAnswer.collect())
+
+        // Then, let's look at the number of post-shuffle partitions estimated
+        // by the ExchangeCoordinator.
+        val finalPlan = join.queryExecution.executedPlan
+            .asInstanceOf[AdaptiveSparkPlanExec].executedPlan
+        print("$$$$$$")
+        print(join.queryExecution.executedPlan)
+        val shuffleReads = finalPlan.collect {
+          case r@CoalescedShuffleRead() => r
+          // Added for gluten.
+          case r@ColumnarCoalescedShuffleRead() => r
+        }
+
+        minNumPostShufflePartitions match {
+          case Some(numPartitions) =>
+            assert(shuffleReads.isEmpty)
+
+          case None =>
+            assert(shuffleReads.length === 2)
+            shuffleReads.foreach { read =>
+              assert(read.outputPartitioning.numPartitions === 2)
+            }
+        }
+      }
+      // Change the original value 16384 to 40000 for gluten. The test depends on the calculation
+      // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
+      // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
+      withSparkSession(test, 40000, minNumPostShufflePartitions)
+    }
+    
+
+  }
 }
