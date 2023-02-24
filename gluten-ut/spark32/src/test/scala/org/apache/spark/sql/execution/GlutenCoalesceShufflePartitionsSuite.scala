@@ -378,6 +378,41 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
       withSparkSession(test, 30000, minNumPostShufflePartitions)
     }
 
+    test(GLUTEN_TEST + s"determining the number of reducers:" +
+        s" plan already partitioned$testNameNote") {
+      val test: SparkSession => Unit = { spark: SparkSession =>
+        try {
+          spark.range(1000).write.bucketBy(30, "id").saveAsTable("t")
+          // `df1` is hash partitioned by `id`.
+          val df1 = spark.read.table("t")
+          val df2 =
+            spark
+                .range(0, 1000, 1, numInputPartitions)
+                .selectExpr("id % 500 as key2", "id as value2")
 
+          val join = df1.join(df2, col("id") === col("key2")).select(col("id"), col("value2"))
+
+          // Check the answer first.
+          val expectedAnswer = spark.range(0, 500).selectExpr("id % 500", "id as value")
+              .union(spark.range(500, 1000).selectExpr("id % 500", "id as value"))
+          QueryTest.checkAnswer(
+            join,
+            expectedAnswer.collect())
+
+          // Then, let's make sure we do not reduce number of post shuffle partitions.
+          val finalPlan = join.queryExecution.executedPlan
+              .asInstanceOf[AdaptiveSparkPlanExec].executedPlan
+          val shuffleReads = finalPlan.collect {
+            case r@CoalescedShuffleRead() => r
+            // Added for gluten.
+            case r@ColumnarCoalescedShuffleRead() => r
+          }
+          assert(shuffleReads.length === 0)
+        } finally {
+          spark.sql("drop table t")
+        }
+      }
+      withSparkSession(test, 12000, minNumPostShufflePartitions)
+    }
   }
 }
