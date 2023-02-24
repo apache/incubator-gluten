@@ -656,6 +656,23 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("test 'position/locate'") {
+    runQueryAndCompare(
+      // l_shipinstruct: DELIVER IN PERSON
+      // l_returnflag: N
+      // l_linenumber: 1
+      """
+        |select position('D', l_shipinstruct, 0), position('', l_shipinstruct, 0),
+        |position('I', l_shipinstruct, 5), position('IN', l_shipinstruct),
+        |position('', l_shipinstruct), locate(l_returnflag, l_shipinstruct),
+        |position(l_returnflag in l_shipinstruct), position('bar', 'foobarbar'),
+        |position(l_returnflag, 'TENSTNTEST', 4), position('bar', 'foobarbar', 5),
+        |position(l_returnflag, l_shipinstruct, l_linenumber + 11)
+        |from lineitem where l_orderkey = 1 and l_partkey = 15519
+        |""".stripMargin
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test stddev_samp 1") {
     val sql =
       """

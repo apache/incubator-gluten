@@ -32,7 +32,7 @@ object ExpressionConverter extends Logging {
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     // Check whether Gluten supports this expression
     val substraitExprName = ExpressionMappings.scalar_functions_map.getOrElse(expr.getClass,
-      ExpressionMappings.getScalarSigOther(expr.prettyName))
+      ExpressionMappings.getScalarSigOther.getOrElse(expr.prettyName, ""))
     if (substraitExprName.isEmpty) {
       throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
