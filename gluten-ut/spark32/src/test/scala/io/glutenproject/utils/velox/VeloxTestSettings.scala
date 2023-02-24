@@ -114,7 +114,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .include("Union/Except/Intersect queries",
       "Subquery de-correlation in Union queries",
       "force apply AQE",
-      "test log level",
       "tree string output",
     "control a plan explain mode in listener vis SQLConf",
     "AQE should set active session during execution",
