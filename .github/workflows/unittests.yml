@@ -104,7 +104,7 @@ jobs:
             --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1 --skip-data-gen'
       - name: Run HBM CPP unit test
         run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
+          docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
           cmake -DBUILD_TESTS=ON -DENABLE_HBM=ON .. && \
           cmake --build . --target hbw_allocator_test -- -j && \
           ctest -V -R TestHbw'
