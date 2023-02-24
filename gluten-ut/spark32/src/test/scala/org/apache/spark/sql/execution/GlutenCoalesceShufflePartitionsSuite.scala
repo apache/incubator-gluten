@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ColumnarA
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.functions.{col, max}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestsCommonTrait, QueryTest, Row, SparkSession}
+import org.apache.spark.sql.{GlutenTestsCommonTrait, QueryTest, Row, SparkSession}
 
 class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuite
    with GlutenTestsCommonTrait {
