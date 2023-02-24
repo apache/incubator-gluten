@@ -194,7 +194,6 @@ include_directories(${FOLLY_INCLUDE_DIR})
 target_link_libraries(velox PUBLIC spark_columnar_jni)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
-target_link_libraries(velox PUBLIC ${LIBGFLAGS_LIBRARY})
 
 if(VELOX_ENABLE_HDFS)
   add_definitions(-DVELOX_ENABLE_HDFS)
