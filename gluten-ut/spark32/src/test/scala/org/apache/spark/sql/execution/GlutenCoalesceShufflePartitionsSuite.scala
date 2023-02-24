@@ -207,7 +207,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
             }
         }
       }
-      // Change the original value 400 to 6000 in gluten. The test depends on the calculation for
+      // Change the original value 2000 to 6000 in gluten. The test depends on the calculation for
       // bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
       // See ShufflePartitionsUtil.coalescePartitions.
       withSparkSession(test, 6000, minNumPostShufflePartitions)
