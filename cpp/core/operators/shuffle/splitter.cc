@@ -127,7 +127,6 @@ class Splitter::PartitionWriter {
   // metrics
   int64_t bytes_spilled = 0;
   int64_t partition_length = 0;
-  int64_t compress_time = 0;
 
  private:
   arrow::Status EnsureOpened() {
@@ -387,7 +386,6 @@ arrow::Status Splitter::Stop() {
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
       total_bytes_spilled_ += writer->bytes_spilled;
-      total_compress_time_ += writer->compress_time;
     } else {
       partition_lengths_[pid] = 0;
     }
@@ -427,20 +425,22 @@ arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, const arrow::Reco
   int64_t raw_size = batch_nbytes(batch);
   raw_partition_lengths_[partition_id] += raw_size;
   auto payload = std::make_shared<arrow::ipc::IpcPayload>();
+  int64_t batch_compress_time = 0;
 #ifndef SKIPCOMPRESS
   if (batch.num_rows() <= (uint32_t)options_.batch_compress_threshold) {
     TIME_NANO_OR_RAISE(
-        total_compress_time_, arrow::ipc::GetRecordBatchPayload(batch, tiny_bach_write_options_, payload.get()));
+        batch_compress_time, arrow::ipc::GetRecordBatchPayload(batch, tiny_bach_write_options_, payload.get()));
   } else {
     TIME_NANO_OR_RAISE(
-        total_compress_time_, arrow::ipc::GetRecordBatchPayload(batch, options_.ipc_write_options, payload.get()));
+        batch_compress_time, arrow::ipc::GetRecordBatchPayload(batch, options_.ipc_write_options, payload.get()));
   }
 #else
   // for test reason
   TIME_NANO_OR_RAISE(
-      total_compress_time_, arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
+      batch_compress_time, arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
 #endif
 
+  total_compress_time_ += batch_compress_time;
   partition_cached_recordbatch_size_[partition_id] += payload->body_length;
   partition_cached_recordbatch_[partition_id].push_back(std::move(payload));
   partition_buffer_idx_base_[partition_id] = 0;
@@ -1379,7 +1379,6 @@ arrow::Status SinglePartSplitter::Stop() {
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
       total_bytes_spilled_ += writer->bytes_spilled;
-      total_compress_time_ += writer->compress_time;
     } else {
       partition_lengths_[pid] = 0;
     }
