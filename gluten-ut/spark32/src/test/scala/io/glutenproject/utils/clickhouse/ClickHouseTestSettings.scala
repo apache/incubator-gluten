@@ -169,8 +169,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFramePivotSuite]
     .include(
       "pivot with datatype not supported by PivotFirst",
-      // TODO: disable this ut first
-      // "pivot with datatype not supported by PivotFirst 2",
+      "pivot with datatype not supported by PivotFirst 2",
       "pivot with null and aggregate type not supported by PivotFirst returns correct result"
     )
 
