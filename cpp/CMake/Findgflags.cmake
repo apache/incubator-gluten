@@ -82,24 +82,3 @@ else()
 
     MARK_AS_ADVANCED(LIBGFLAGS_LIBRARY LIBGFLAGS_INCLUDE_DIR)
 endif()
-
-# Compat with the gflags CONFIG based detection
-if (LIBGFLAGS_FOUND AND NOT TARGET gflags)
-    add_library(gflags UNKNOWN IMPORTED)
-    if(TARGET gflags-shared)
-        # If the installed gflags CMake package config defines a gflags-shared
-        # target but not gflags, just make the gflags target that we define
-        # depend on the gflags-shared target.
-        target_link_libraries(gflags INTERFACE gflags-shared)
-        # Export LIBGFLAGS_LIBRARY as the gflags-shared target in this case.
-        set(LIBGFLAGS_LIBRARY gflags-shared)
-    else()
-        set_target_properties(
-                gflags
-                PROPERTIES
-                IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-                IMPORTED_LOCATION "${LIBGFLAGS_LIBRARY}"
-                INTERFACE_INCLUDE_DIRECTORIES "${LIBGFLAGS_INCLUDE_DIR}"
-        )
-    endif()
-endif()
