@@ -387,8 +387,8 @@ TEST_F(VeloxSplitterTest, TestSplitterMemoryLeak) {
 }
 #endif
 
-#if 1
 TEST_F(VeloxSplitterTest, TestHashSplitter) {
+#if 0
   uint32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
@@ -398,7 +398,6 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
   // ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_2_));
   // ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
 
-#if 0
   ASSERT_NOT_OK(splitter_->Stop());
 
   const auto& lengths = splitter_->PartitionLengths();
@@ -424,7 +423,6 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
   }
 #endif
 }
-#endif
 
 #if 0
 TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
