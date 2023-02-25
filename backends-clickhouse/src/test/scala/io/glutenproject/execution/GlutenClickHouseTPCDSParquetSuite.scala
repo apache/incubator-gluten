@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
@@ -25,12 +24,10 @@ import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
   override protected val tpcdsQueries: String =
-    rootPath + "../../../../jvm/src/test/resources/tpcds-queries"
+    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries"
   override protected val queriesResults: String = rootPath + "tpcds-queries-output"
 
-  /**
-   * Run Gluten + ClickHouse Backend with SortShuffleManager
-   */
+  /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "sort")
@@ -45,29 +42,29 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
 
   test("test 'select count(*)'") {
     val df = spark.sql("""
-        |select count(c_customer_sk) from customer
-        |""".stripMargin)
+                         |select count(c_customer_sk) from customer
+                         |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 100000L)
   }
 
   test("test reading from partitioned table") {
     val df = spark.sql("""
-        |select count(*)
-        |  from store_sales
-        |  where ss_quantity between 1 and 20
-        |""".stripMargin)
+                         |select count(*)
+                         |  from store_sales
+                         |  where ss_quantity between 1 and 20
+                         |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 550458L)
   }
 
   test("test reading from partitioned table with partition column filter") {
     val df = spark.sql("""
-        |select avg(ss_net_paid_inc_tax)
-        |  from store_sales
-        |  where ss_quantity between 1 and 20
-        |  and ss_sold_date_sk = 2452635
-        |""".stripMargin)
+                         |select avg(ss_net_paid_inc_tax)
+                         |  from store_sales
+                         |  where ss_quantity between 1 and 20
+                         |  and ss_sold_date_sk = 2452635
+                         |""".stripMargin)
     val result = df.collect()
     assert(result(0).getDouble(0) == 379.21313271604936)
   }
@@ -83,88 +80,133 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     assert(result(0).getDouble(1) == 80037.12727449503)
   }
 
+  test("test union all operator with two tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union all
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 791980)
+  }
+
+  test("test union all operator with three tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union all
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |  union all (
+        |   select ws_sold_date_sk as date_sk from web_sales limit 100
+        |  )
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 792080)
+  }
+
+  test("test union operator with two tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 73050)
+  }
+
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(9) { df =>
-        var countSubqueryExec = 0
-        var countReuseSubqueryExec = 0
-        df.queryExecution.executedPlan.transformAllExpressions {
-          case s @ ScalarSubquery(_: SubqueryExec, _) =>
-            countSubqueryExec = countSubqueryExec + 1
-            s
-          case s @ ScalarSubquery(_: ReusedSubqueryExec, _) =>
-            countReuseSubqueryExec = countReuseSubqueryExec + 1
-            s
-        }
-        assert(countSubqueryExec == 15)
-        assert(countReuseSubqueryExec == 0)
+      runTPCDSQuery(9) {
+        df =>
+          var countSubqueryExec = 0
+          df.queryExecution.executedPlan.transformAllExpressions {
+            case s @ ScalarSubquery(_: SubqueryExec, _) =>
+              countSubqueryExec = countSubqueryExec + 1
+              s
+            case s @ ScalarSubquery(_: ReusedSubqueryExec, _) =>
+              countSubqueryExec = countSubqueryExec + 1
+              s
+          }
+          assert(countSubqueryExec == 15)
       }
     }
   }
 
   test("TPCDS Q21") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(21) { df =>
-        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-          case f: FileSourceScanExecTransformer =>
-            f.partitionFilters.exists {
-              case _: DynamicPruningExpression => true
-              case _ => false
-            }
-          case _ => false
-        }
-        assert(foundDynamicPruningExpr.nonEmpty == true)
+      runTPCDSQuery(21) {
+        df =>
+          val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+            case f: FileSourceScanExecTransformer =>
+              f.partitionFilters.exists {
+                case _: DynamicPruningExpression => true
+                case _ => false
+              }
+            case _ => false
+          }
+          assert(foundDynamicPruningExpr.nonEmpty == true)
 
-        val reuseExchange = df.queryExecution.executedPlan.find {
-          case r: ReusedExchangeExec => true
-          case _ => false
-        }
-        assert(reuseExchange.nonEmpty == true)
+          val reuseExchange = df.queryExecution.executedPlan.find {
+            case r: ReusedExchangeExec => true
+            case _ => false
+          }
+          assert(reuseExchange.nonEmpty == true)
       }
     }
   }
 
   test("TPCDS Q21 with DPP + SHJ") {
-    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1"),
+    withSQLConf(
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "false")) {
-      runTPCDSQuery(21) { df =>
-        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-          case f: FileSourceScanExecTransformer =>
-            f.partitionFilters.exists {
-              case _: DynamicPruningExpression => true
-              case _ => false
-            }
-          case _ => false
-        }
-        assert(foundDynamicPruningExpr.nonEmpty == true)
+      runTPCDSQuery(21) {
+        df =>
+          val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+            case f: FileSourceScanExecTransformer =>
+              f.partitionFilters.exists {
+                case _: DynamicPruningExpression => true
+                case _ => false
+              }
+            case _ => false
+          }
+          assert(foundDynamicPruningExpr.nonEmpty == true)
 
-        val reuseExchange = df.queryExecution.executedPlan.find {
-          case r: ReusedExchangeExec => true
-          case _ => false
-        }
-        assert(reuseExchange.isEmpty)
+          val reuseExchange = df.queryExecution.executedPlan.find {
+            case r: ReusedExchangeExec => true
+            case _ => false
+          }
+          assert(reuseExchange.isEmpty)
       }
     }
   }
 
   test("TPCDS Q21 with non-separated scan rdd") {
     withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
-      runTPCDSQuery(21) { df =>
-        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-          case f: FileSourceScanExecTransformer =>
-            f.partitionFilters.exists {
-              case _: DynamicPruningExpression => true
-              case _ => false
-            }
-          case _ => false
-        }
-        assert(foundDynamicPruningExpr.nonEmpty == true)
+      runTPCDSQuery(21) {
+        df =>
+          val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+            case f: FileSourceScanExecTransformer =>
+              f.partitionFilters.exists {
+                case _: DynamicPruningExpression => true
+                case _ => false
+              }
+            case _ => false
+          }
+          assert(foundDynamicPruningExpr.nonEmpty == true)
 
-        val reuseExchange = df.queryExecution.executedPlan.find {
-          case r: ReusedExchangeExec => true
-          case _ => false
-        }
-        assert(reuseExchange.nonEmpty == true)
+          val reuseExchange = df.queryExecution.executedPlan.find {
+            case r: ReusedExchangeExec => true
+            case _ => false
+          }
+          assert(reuseExchange.nonEmpty == true)
       }
     }
   }

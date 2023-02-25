@@ -26,7 +26,9 @@ include(CheckCXXCompilerFlag)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 
 set(SYSTEM_LIB_PATH "/usr/lib" CACHE PATH "System Lib dir")
@@ -35,22 +37,18 @@ set(SYSTEM_LIB_MULTIARCH_PATH "/usr/lib/x86_64-linux-gnu" CACHE PATH "System Lib
 set(SYSTEM_LOCAL_LIB_PATH "/usr/local/lib" CACHE PATH "System Local Lib dir")
 set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 dir")
 
-if(NOT DEFINED VELOX_HOME)
-  message(FATAL_ERROR "VELOX_HOME must be set to the source directory of Velox")
-else()
-  message(STATUS "VELOX_HOME: ${VELOX_HOME}")
+if (NOT DEFINED VELOX_HOME)
+  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)
+  message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
-
-if(NOT DEFINED VELOX_BUILD_TYPE)
-  set(VELOX_BUILD_TYPE release
-      CACHE STRING "The build type specified when the Velox binary was built.")
-endif()
-string(TOLOWER "${VELOX_BUILD_TYPE}" LOWERCASE_VELOX_BUILD_TYPE)
 
 # User can specify VELOX_BUILD_PATH, if Velox are built elsewhere.
 if(NOT DEFINED VELOX_BUILD_PATH)
-  set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/${LOWERCASE_VELOX_BUILD_TYPE}"
-      CACHE PATH "Velox build directory.")
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/debug" CACHE PATH "Velox build directory.")
+  else()
+    set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/release" CACHE PATH "Velox build directory.")
+  endif()
 endif()
 
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
@@ -68,7 +66,12 @@ endfunction()
 
 macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
+  add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
   add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
+
+  add_velox_dependency(functions::prestosql::window "${VELOX_COMPONENTS_PATH}/functions/prestosql/window/libvelox_window.a")
+  add_velox_dependency(velox::buffer "${VELOX_COMPONENTS_PATH}/buffer/libvelox_buffer.a")
+
   add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
   add_velox_dependency(substrait "${VELOX_COMPONENTS_PATH}/substrait/libvelox_substrait_plan_converter.a")
   add_velox_dependency(functions::isnull "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_is_null_functions.a")
@@ -80,12 +83,16 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::test_util "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
   add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
   add_velox_dependency(parse::expression "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_expression.a")
-  add_velox_dependency(vector::arrow::bridge "${VELOX_COMPONENTS_PATH}/vector/arrow/c/libvelox_arrow_bridge.a")
+  add_velox_dependency(vector::arrow::bridge "${VELOX_COMPONENTS_PATH}/vector/arrow/libvelox_arrow_bridge.a")
 
   add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
-  add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
-
+  if(VELOX_ENABLE_HDFS)
+    add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
+  endif()
+  if(VELOX_ENABLE_S3)
+    add_velox_dependency(connector::hive::s3fs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a")
+  endif()
   add_velox_dependency(dwio::dwrf::test_utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/test/utils/libvelox_dwrf_test_utils.a")
   add_velox_dependency(dwio::dwrf::writer "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
   add_velox_dependency(dwio::dwrf::reader "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
@@ -95,19 +102,16 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_reader.a")
   add_velox_dependency(parquet::reader::native "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_native_parquet_reader.a")
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
-  add_velox_dependency(duckdb::duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
-  add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")  
-  
-  add_velox_dependency(duckdb::allocator "${VELOX_COMPONENTS_PATH}/duckdb/memory/libvelox_duckdb_allocator.a")
-  add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
-  add_velox_dependency(duckdb::function "${VELOX_COMPONENTS_PATH}/duckdb/functions/libvelox_duckdb_functions.a")
-  add_velox_dependency(duckdb::conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
+  add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
 
+  add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
+  add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
   add_velox_dependency(expression "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression.a")
   add_velox_dependency(core "${VELOX_COMPONENTS_PATH}/core/libvelox_core.a")
 
   add_velox_dependency(type "${VELOX_COMPONENTS_PATH}/type/libvelox_type.a")
   add_velox_dependency(vector::serializes "${VELOX_COMPONENTS_PATH}/serializers/libvelox_presto_serializer.a")
+  add_velox_dependency(functions::lib::util "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_functions_util.a")
   add_velox_dependency(vector "${VELOX_COMPONENTS_PATH}/vector/libvelox_vector.a")
   add_velox_dependency(expression::function "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression_functions.a")
   add_velox_dependency(expression::type_calculation "${VELOX_COMPONENTS_PATH}/expression/type_calculation/libvelox_type_calculation.a")
@@ -119,7 +123,6 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::base::exception "${VELOX_COMPONENTS_PATH}/common/base/libvelox_exception.a")
 
   add_velox_dependency(type::tz "${VELOX_COMPONENTS_PATH}/type/tz/libvelox_type_tz.a")
-  add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
   add_velox_dependency(dwio::dwrf::proto "${VELOX_COMPONENTS_PATH}/dwio/dwrf/proto/libvelox_dwio_dwrf_proto.a")
   add_velox_dependency(dwio::common::exception "${VELOX_COMPONENTS_PATH}/dwio/common/exception/libvelox_dwio_common_exception.a")
   add_velox_dependency(dwio::common::encryption "${VELOX_COMPONENTS_PATH}/dwio/common/encryption/libvelox_dwio_common_encryption.a")
@@ -130,13 +133,9 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::time "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
   add_velox_dependency(common::file "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
   add_velox_dependency(common::process "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
-  add_velox_dependency(common::testutil "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
 
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
-  add_velox_dependency(external::duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
-  add_velox_dependency(external::duckdb::tpch "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/libtpch_extension.a")
-  add_velox_dependency(external::duckdb::tpch::dbgen "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/dbgen/libdbgen.a")
 
 endmacro()
 
@@ -151,16 +150,25 @@ macro(find_libhdfs3)
   endif()
 endmacro()
 
+macro(find_awssdk)
+  set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
+endmacro()
+
+
 # Build Velox backend.
 set(VELOX_SRCS
-    jni/jni_wrapper.cc
-    compute/VeloxPlanConverter.cc
+    shuffle/VeloxSplitter.cc
+    jni/JniWrapper.cc
+    compute/VeloxBackend.cc
+    compute/WholeStageResultIterator.cc
+    compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc
-    compute/VeloxToRowConverter.cc
-    compute/RowConstructor.cc
+    compute/VeloxColumnarToRowConverter.cc
     compute/DwrfDatasource.cc
-    compute/bridge.cc
-    memory/velox_memory_pool.cc
+    compute/VeloxBridge.cc
+    memory/VeloxMemoryPool.cc
+    memory/VeloxColumnarBatch.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
@@ -185,15 +193,24 @@ target_link_libraries(velox PUBLIC spark_columnar_jni)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
 
-find_libhdfs3()
-add_library(libhdfs3 SHARED IMPORTED)
-set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
-target_link_libraries(velox PUBLIC libhdfs3)
+if(BUILD_TESTS)
+  add_test_case(velox_splitter_test SOURCES tests/VeloxSplitterTest.cc EXTRA_LINK_LIBS velox)
+endif()
+
+if(VELOX_ENABLE_HDFS)
+  add_definitions(-DVELOX_ENABLE_HDFS)
+  find_libhdfs3()
+  add_library(libhdfs3 SHARED IMPORTED)
+  set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
+  target_link_libraries(velox PUBLIC libhdfs3)
+endif()
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
 
-if(BUILD_TESTS)
-  add_test_case(shuffle_test SOURCES tests/shuffle_split_test.cc)
+if(VELOX_ENABLE_S3)
+  add_definitions(-DVELOX_ENABLE_S3)
+  find_awssdk()
+  target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()

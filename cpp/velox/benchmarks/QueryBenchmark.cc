@@ -18,14 +18,13 @@
 #include <benchmark/benchmark.h>
 
 #include "BenchmarkUtils.h"
-#include "compute/VeloxPlanConverter.h"
-#include "compute/exec_backend.h"
+#include "compute/VeloxBackend.h"
 
 auto BM = [](::benchmark::State& state,
              const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile,
              const std::string& fileFormat) {
-  const auto& filePath = getExampleFilePath(jsonFile);
+  const auto& filePath = getExampleFilePath("plan/" + jsonFile);
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
     state.SkipWithError(maybePlan.status().message().c_str());
@@ -41,13 +40,10 @@ auto BM = [](::benchmark::State& state,
 
   for (auto _ : state) {
     state.PauseTiming();
-    auto backend =
-        std::dynamic_pointer_cast<velox::compute::VeloxPlanConverter>(
-            gluten::CreateBackend());
+    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::CreateBackend());
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(
-        gluten::memory::DefaultMemoryAllocator().get(), scanInfos);
+    auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), scanInfos);
     auto outputSchema = backend->GetOutputSchema();
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
@@ -72,11 +68,7 @@ int main(int argc, char** argv) {
   std::string lineitemOrcPath = getExampleFilePath("orc/bm_lineitem/");
   if (argc < 2) {
     ::benchmark::RegisterBenchmark(
-        "q1_first_stage_orc",
-        BM,
-        std::vector<std::string>{lineitemOrcPath},
-        "q1_first_stage_orc.json",
-        "orc");
+        "q1_first_stage_orc", BM, std::vector<std::string>{lineitemOrcPath}, "q1_first_stage_orc.json", "orc");
   } else {
     ::benchmark::RegisterBenchmark(
         "q1_first_stage_orc",
@@ -89,11 +81,7 @@ int main(int argc, char** argv) {
   // Register for TPC-H Q6 ORC tests.
   if (argc < 2) {
     ::benchmark::RegisterBenchmark(
-        "q6_first_stage_orc",
-        BM,
-        std::vector<std::string>{lineitemOrcPath},
-        "q6_first_stage_orc.json",
-        "orc");
+        "q6_first_stage_orc", BM, std::vector<std::string>{lineitemOrcPath}, "q6_first_stage_orc.json", "orc");
   } else {
     ::benchmark::RegisterBenchmark(
         "q6_first_stage_orc",

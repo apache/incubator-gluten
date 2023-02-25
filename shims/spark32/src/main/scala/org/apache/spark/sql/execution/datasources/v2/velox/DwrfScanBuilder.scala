@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.velox
 
 import org.apache.spark.sql.SparkSession
@@ -25,13 +24,14 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class DwrfScanBuilder(sparkSession: SparkSession,
-                           fileIndex: PartitioningAwareFileIndex,
-                           schema: StructType,
-                           dataSchema: StructType,
-                           options: CaseInsensitiveStringMap)
+case class DwrfScanBuilder(
+    sparkSession: SparkSession,
+    fileIndex: PartitioningAwareFileIndex,
+    schema: StructType,
+    dataSchema: StructType,
+    options: CaseInsensitiveStringMap)
   extends FileScanBuilder(sparkSession, fileIndex, dataSchema)
-    with SupportsPushDownFilters {
+  with SupportsPushDownFilters {
 
   private lazy val pushedArrowFilters: Array[Filter] = {
     filters // todo filter validation & pushdown

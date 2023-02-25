@@ -1,0 +1,29 @@
+ARG DOCKER_TARGET_IMAGE_BUILD_WITH_OS_IMAGE
+
+FROM $DOCKER_TARGET_IMAGE_BUILD_WITH_OS_IMAGE AS gluten-tpc
+MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ssh net-tools vim unzip libjemalloc-dev
+
+ARG BUILD_BACKEND_TYPE
+
+RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false)
+
+RUN GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2" \
+    && echo $GLUTEN_IT_MAVEN_OPTIONS > ~/.gluten-it-mvn-options;
+
+RUN GLUTEN_IT_MAVEN_OPTIONS=$(cat ~/.gluten-it-mvn-options) \
+    && cd /opt/gluten/tools/gluten-it \
+    && bash -c "mvn clean package $GLUTEN_IT_MAVEN_OPTIONS"
+
+FROM gluten-tpc AS gluten-tpc-gdb
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gdb
+
+FROM gluten-tpc-gdb AS gluten-tpc-gdb-server
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gdbserver
+
+# EOF

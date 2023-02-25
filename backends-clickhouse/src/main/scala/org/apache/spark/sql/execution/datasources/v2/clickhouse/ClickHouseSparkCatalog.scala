@@ -14,49 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
-import java.util
-
-import scala.collection.mutable
-
-import org.apache.hadoop.fs.Path
+import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{
-  NoSuchDatabaseException,
-  NoSuchNamespaceException,
-  NoSuchTableException
-}
+import org.apache.spark.sql.catalyst.analysis.{NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
-import org.apache.spark.sql.connector.expressions.{
-  BucketTransform,
-  FieldReference,
-  IdentityTransform,
-  Transform
-}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.DeltaTableIdentifier.gluePermissionError
 import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetSchemaConverter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.commands.CreateClickHouseTableCommand
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.{
-  CHDataSourceUtils,
-  ScanMergeTreePartsUtils
-}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.{CHDataSourceUtils, ScanMergeTreePartsUtils}
 import org.apache.spark.sql.types.StructType
 
+import org.apache.hadoop.fs.Path
+
+import java.util
+
 class ClickHouseSparkCatalog
-    extends DelegatingCatalogExtension
-    with StagingTableCatalog
-    with SupportsPathIdentifier
-    with Logging {
+  extends DelegatingCatalogExtension
+  with StagingTableCatalog
+  with SupportsPathIdentifier
+  with Logging {
 
   val spark = SparkSession.active
 
@@ -82,16 +68,21 @@ class ClickHouseSparkCatalog
   /**
    * Creates a ClickHouse table
    *
-   * @param ident              The identifier of the table
-   * @param schema             The schema of the table
-   * @param partitions         The partition transforms for the table
-   * @param allTableProperties The table properties that configure the behavior of the table or
-   *                           provide information about the table
-   * @param writeOptions       Options specific to the write during table creation or replacement
-   * @param sourceQuery        A query if this CREATE request came from a CTAS or RTAS
-   * @param operation          The specific table creation mode, whether this is a
-   *                           Create/Replace/Create or
-   *                           Replace
+   * @param ident
+   *   The identifier of the table
+   * @param schema
+   *   The schema of the table
+   * @param partitions
+   *   The partition transforms for the table
+   * @param allTableProperties
+   *   The table properties that configure the behavior of the table or provide information about
+   *   the table
+   * @param writeOptions
+   *   Options specific to the write during table creation or replacement
+   * @param sourceQuery
+   *   A query if this CREATE request came from a CTAS or RTAS
+   * @param operation
+   *   The specific table creation mode, whether this is a Create/Replace/Create or Replace
    */
   private def createClickHouseTable(
       ident: Identifier,
@@ -102,7 +93,8 @@ class ClickHouseSparkCatalog
       sourceQuery: Option[DataFrame],
       operation: TableCreationModes.CreationMode): Table = {
     val tableProperties = ClickHouseConfig.validateConfigurations(allTableProperties)
-    val (partitionColumns, maybeBucketSpec) = convertTransforms(partitions)
+    val (partitionColumns, maybeBucketSpec) =
+      SparkShimLoader.getSparkShims.convertPartitionTransforms(partitions)
     var newSchema = schema
     var newPartitionColumns = partitionColumns
     var newBucketSpec = maybeBucketSpec
@@ -132,10 +124,10 @@ class ClickHouseSparkCatalog
       partitionColumnNames = newPartitionColumns,
       bucketSpec = newBucketSpec,
       properties = tableProperties,
-      comment = commentOpt)
+      comment = commentOpt
+    )
 
     val withDb = verifyTableAndSolidify(tableDesc, None)
-    ParquetSchemaConverter.checkFieldNames(tableDesc.schema)
 
     // TODO: Generate WriteClickHouseTableCommand
     // val writer = sourceQuery.map { df =>
@@ -161,25 +153,6 @@ class ClickHouseSparkCatalog
     loadedNewTable
   }
 
-  // Copy of V2SessionCatalog.convertTransforms, which is private.
-  private def convertTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
-    val identityCols = new mutable.ArrayBuffer[String]
-    var bucketSpec = Option.empty[BucketSpec]
-
-    partitions.map {
-      case IdentityTransform(FieldReference(Seq(col))) =>
-        identityCols += col
-
-      case BucketTransform(numBuckets, FieldReference(Seq(col))) =>
-        bucketSpec = Some(BucketSpec(numBuckets, col :: Nil, Nil))
-
-      case transform =>
-        throw new UnsupportedOperationException(s"Partitioning by expressions")
-    }
-
-    (identityCols, bucketSpec)
-  }
-
   /** Performs checks on the parameters provided for table creation for a ClickHouse table. */
   private def verifyTableAndSolidify(
       tableDesc: CatalogTable,
@@ -190,9 +163,10 @@ class ClickHouseSparkCatalog
     }
 
     val schema = query
-      .map { plan =>
-        assert(tableDesc.schema.isEmpty, "Can't specify table schema in CTAS.")
-        plan.schema.asNullable
+      .map {
+        plan =>
+          assert(tableDesc.schema.isEmpty, "Can't specify table schema in CTAS.")
+          plan.schema.asNullable
       }
       .getOrElse(tableDesc.schema)
 
@@ -241,9 +215,7 @@ class ClickHouseSparkCatalog
     try {
       loadTable(ident) match {
         case v: ClickHouseTableV2 =>
-          ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(
-            spark.sessionState.newHadoopConf(),
-            v)
+          ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(spark.sessionState.newHadoopConf(), v)
           v.refresh()
       }
       super.invalidateTable(ident)

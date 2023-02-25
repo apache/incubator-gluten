@@ -14,15 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.clickhouse
 
-import scala.collection.mutable.ArrayBuffer
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
+
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -32,63 +30,34 @@ import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
-import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
+import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
-import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
-import org.apache.spark.sql.types.{Metadata, StructType}
+import org.apache.spark.sql.extension.ClickHouseAnalysis
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper {
+import scala.collection.mutable.ArrayBuffer
+
+class CHSparkPlanExecApi extends ISparkPlanExecApi {
 
   /**
-   * Whether support gluten for current SparkPlan
-   *
-   * @return
-   */
-  override def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean = {
-    // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
-    // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
-    // For example:
-    //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
-    //   import spark.implicits._
-    //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-    //   df.summary().show(100, false)
-
-    def includedDeltaOperator(scanExec: FileSourceScanExec): Boolean = {
-      scanExec.relation.location.isInstanceOf[DeltaLogFileIndex]
-    }
-
-    val includedUnsupportedPlans = collect(plan) {
-      // case s: SerializeFromObjectExec => true
-      // case d: DeserializeToObjectExec => true
-      // case o: ObjectHashAggregateExec => true
-      case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
-      case f: FileSourceScanExec if includedDeltaOperator(f) => true
-      case v2CommandExec: V2CommandExec => true
-      case commandResultExec: CommandResultExec => true
-    }
-
-    nativeEngineEnabled && !includedUnsupportedPlans.filter(_ == true).nonEmpty
-  }
-
-  /**
-   * Generate NativeColumnarToRowExec.
+   * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec = {
-    BlockNativeColumnarToRowExec(child);
+  override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
+    BlockGlutenColumnarToRowExec(child);
   }
 
   /**
@@ -97,24 +66,34 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @param child
    * @return
    */
-  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec = {
+  override def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec = {
     new RowToCHNativeColumnarExec(child)
   }
 
   /**
    * Generate FilterExecTransformer.
    *
-   * @param condition : the filter condition
-   * @param child     : the chid of FilterExec
-   * @return the transformer of FilterExec
+   * @param condition
+   *   : the filter condition
+   * @param child
+   *   : the chid of FilterExec
+   * @return
+   *   the transformer of FilterExec
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecBaseTransformer = FilterExecTransformer(condition, child)
+      child: SparkPlan): FilterExecBaseTransformer = {
+    child match {
+      case scan: FileSourceScanExec if scan.relation.location.isInstanceOf[ClickHouseFileIndex] =>
+        CHFilterExecTransformer(condition, child)
+      case scan: BatchScanExec if scan.batch.isInstanceOf[ClickHouseScan] =>
+        CHFilterExecTransformer(condition, child)
+      case _ =>
+        FilterExecTransformer(condition, child)
+    }
+  }
 
-  /**
-   * Generate HashAggregateExecTransformer.
-   */
+  /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(
       requiredChildDistributionExpressions: Option[Seq[Expression]],
       groupingExpressions: Seq[NamedExpression],
@@ -132,50 +111,64 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       resultExpressions,
       child)
 
-  /**
-   * Generate ShuffledHashJoinExecTransformer.
-   */
-  def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                         rightKeys: Seq[Expression],
-                                         joinType: JoinType,
-                                         buildSide: BuildSide,
-                                         condition: Option[Expression],
-                                         left: SparkPlan,
-                                         right: SparkPlan): ShuffledHashJoinExecTransformer =
+  /** Generate ShuffledHashJoinExecTransformer. */
+  def genShuffledHashJoinExecTransformer(
+      leftKeys: Seq[Expression],
+      rightKeys: Seq[Expression],
+      joinType: JoinType,
+      buildSide: BuildSide,
+      condition: Option[Expression],
+      left: SparkPlan,
+      right: SparkPlan,
+      isSkewJoin: Boolean): ShuffledHashJoinExecTransformer =
     CHShuffledHashJoinExecTransformer(
-      leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+      leftKeys,
+      rightKeys,
+      joinType,
+      buildSide,
+      condition,
+      left,
+      right,
+      isSkewJoin)
 
-  /**
-   * Generate BroadcastHashJoinExecTransformer.
-   */
-  def genBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                          rightKeys: Seq[Expression],
-                                          joinType: JoinType,
-                                          buildSide: BuildSide,
-                                          condition: Option[Expression],
-                                          left: SparkPlan,
-                                          right: SparkPlan,
-                                          isNullAwareAntiJoin: Boolean = false)
-  : BroadcastHashJoinExecTransformer = CHBroadcastHashJoinExecTransformer(
-    leftKeys, rightKeys, joinType, buildSide, condition, left, right, isNullAwareAntiJoin)
+  /** Generate BroadcastHashJoinExecTransformer. */
+  def genBroadcastHashJoinExecTransformer(
+      leftKeys: Seq[Expression],
+      rightKeys: Seq[Expression],
+      joinType: JoinType,
+      buildSide: BuildSide,
+      condition: Option[Expression],
+      left: SparkPlan,
+      right: SparkPlan,
+      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer =
+    CHBroadcastHashJoinExecTransformer(
+      leftKeys,
+      rightKeys,
+      joinType,
+      buildSide,
+      condition,
+      left,
+      right,
+      isNullAwareAntiJoin)
 
   /**
    * Generate Alias transformer.
    *
-   * @param child : The computation being performed
-   * @param name  : The name to be associated with the result of computing.
+   * @param child
+   *   : The computation being performed
+   * @param name
+   *   : The name to be associated with the result of computing.
    * @param exprId
    * @param qualifier
    * @param explicitMetadata
-   * @return a transformer for alias
+   * @return
+   *   a transformer for alias
    */
   def genAliasTransformer(
-      child: Expression,
-      name: String,
-      exprId: ExprId,
-      qualifier: Seq[String],
-      explicitMetadata: Option[Metadata]): AliasBaseTransformer =
-    new AliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Expression): AliasBaseTransformer =
+    new AliasTransformer(substraitExprName, child, original)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -196,7 +189,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      prepareTime: SQLMetric,
+      inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
       outputAttributes,
@@ -210,7 +204,9 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       splitTime,
       spillTime,
       compressTime,
-      prepareTime)
+      prepareTime,
+      inputBatches
+    )
   }
   // scalastyle:on argcount
 
@@ -237,9 +233,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
     new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize)
   }
 
-  /**
-   * Create broadcast relation for BroadcastExchangeExec
-   */
+  /** Create broadcast relation for BroadcastExchangeExec */
   override def createBroadcastRelation(
       mode: BroadcastMode,
       child: SparkPlan,
@@ -247,8 +241,10 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       dataSize: SQLMetric): BuildSideRelation = {
     val hashedRelationBroadcastMode = mode.asInstanceOf[HashedRelationBroadcastMode]
     val (newChild, newOutput, newBuildKeys) =
-      if (hashedRelationBroadcastMode.key
-            .forall(k => k.isInstanceOf[AttributeReference] || k.isInstanceOf[BoundReference])) {
+      if (
+        hashedRelationBroadcastMode.key
+          .forall(k => k.isInstanceOf[AttributeReference] || k.isInstanceOf[BoundReference])
+      ) {
         (child, child.output, Seq.empty[Expression])
       } else {
         // pre projection in case of expression join keys
@@ -270,14 +266,18 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
             wt.withNewChildren(
               Seq(ProjectExecTransformer(child.output ++ appendedProjections.toSeq, wt.child)))
           case w: WholeStageCodegenExec =>
-            w.withNewChildren(
-              Seq(ProjectExec(child.output ++ appendedProjections.toSeq, w.child)))
+            w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections.toSeq, w.child)))
           case c: CoalesceBatchesExec =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
               ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+          case r2c: RowToCHNativeColumnarExec =>
+            WholeStageTransformerExec(
+              ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
+              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet()
+            )
         }
         (
           newChild,
@@ -286,17 +286,18 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       }
     val countsAndBytes = newChild
       .executeColumnar()
-      .mapPartitions { iter =>
-        var _numRows: Long = 0
+      .mapPartitions {
+        iter =>
+          var _numRows: Long = 0
 
-        // Use for reading bytes array from block
-        val blockNativeWriter = new BlockNativeWriter()
-        while (iter.hasNext) {
-          val batch = iter.next
-          blockNativeWriter.write(batch)
-          _numRows += batch.numRows
-        }
-        Iterator((_numRows, blockNativeWriter.collectAsByteArray()))
+          // Use for reading bytes array from block
+          val blockNativeWriter = new BlockNativeWriter()
+          while (iter.hasNext) {
+            val batch = iter.next
+            blockNativeWriter.write(batch)
+            _numRows += batch.numRows
+          }
+          Iterator((_numRows, blockNativeWriter.collectAsByteArray()))
       }
       .collect
 
@@ -312,18 +313,16 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
   }
 
   /**
-   * Generate extended DataSourceV2 Strategies.
-   * Currently only for ClickHouse backend.
+   * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
    *
    * @return
    */
   override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = {
-    List(spark => CHDataSourceV2Strategy(spark))
+    List.empty
   }
 
   /**
-   * Generate extended Analyzers.
-   * Currently only for ClickHouse backend.
+   * Generate extended Analyzers. Currently only for ClickHouse backend.
    *
    * @return
    */
@@ -332,33 +331,23 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
   }
 
   /**
-   * Generate extended columnar pre-rules.
-   * Currently only for Velox backend.
+   * Generate extended columnar pre-rules. Currently only for Velox backend.
    *
    * @return
    */
   override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended columnar post-rules.
-   * Currently only for Velox backend.
+   * Generate extended columnar post-rules. Currently only for Velox backend.
    *
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended Strategies.
-   * Currently only for Velox backend.
+   * Generate extended Strategies. Currently only for Velox backend.
    *
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

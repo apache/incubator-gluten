@@ -1,0 +1,26 @@
+From 04357ef88ef23096279c01bed455a43b206728f6 Mon Sep 17 00:00:00 2001
+From: Rong Ma <rong.ma@intel.com>
+Date: Mon, 6 Feb 2023 10:28:56 +0800
+Subject: [PATCH] use options_.memory_pool
+
+---
+ cpp/src/arrow/ipc/writer.cc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/cpp/src/arrow/ipc/writer.cc b/cpp/src/arrow/ipc/writer.cc
+index d015ee3f4..93919be02 100644
+--- a/cpp/src/arrow/ipc/writer.cc
++++ b/cpp/src/arrow/ipc/writer.cc
+@@ -180,7 +180,8 @@ class RecordBatchSerializer {
+                         std::shared_ptr<Buffer>* out) {
+     // Convert buffer to uncompressed-length-prefixed compressed buffer
+     int64_t maximum_length = codec->MaxCompressedLen(buffer.size(), buffer.data());
+-    ARROW_ASSIGN_OR_RAISE(auto result, AllocateBuffer(maximum_length + sizeof(int64_t)));
++    ARROW_ASSIGN_OR_RAISE(auto result,
++                          AllocateBuffer(maximum_length + sizeof(int64_t), options_.memory_pool));
+ 
+     int64_t actual_length;
+     ARROW_ASSIGN_OR_RAISE(actual_length,
+-- 
+2.34.1
+

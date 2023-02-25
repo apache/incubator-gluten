@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
-
-import org.apache.hadoop.fs.Path
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -27,6 +24,8 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouse
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
+import org.apache.hadoop.fs.Path
 
 /** A DataSource V1 for integrating Delta into Spark SQL batch and Streaming APIs. */
 class ClickHouseDataSource extends DataSourceRegister with TableProvider {

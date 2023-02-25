@@ -14,30 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.joins
 
-import java.io.ByteArrayInputStream
-
-import scala.collection.JavaConverters._
-
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeIterator}
 import io.glutenproject.utils.PlanNodesUtil
 import io.glutenproject.vectorized._
 
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.io.ByteArrayInputStream
+
+import scala.collection.JavaConverters._
+
 case class ClickHouseBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
     newBuildKeys: Seq[Expression] = Seq.empty)
-    extends BuildSideRelation
-    with Logging {
+  extends BuildSideRelation
+  with Logging {
+
+  private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
+  )
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
@@ -48,12 +54,18 @@ case class ClickHouseBuildSideRelation(
       s"BHJ value size: " +
         s"${broadCastContext.buildHashTableId} = ${allBatches.size}")
     val storageJoinBuilder = new StorageJoinBuilder(
-      new ByteArrayInputStream(allBatches),
+      new OnHeapCopyShuffleInputStream(
+        new ByteArrayInputStream(allBatches),
+        customizeBufferSize,
+        false),
       broadCastContext,
+      customizeBufferSize,
       output.asJava,
-      newBuildKeys.asJava)
+      newBuildKeys.asJava
+    )
     // Build the hash table
     storageJoinBuilder.build()
+    storageJoinBuilder.close()
     this
   }
 
@@ -65,7 +77,7 @@ case class ClickHouseBuildSideRelation(
     val allBatches = batches.flatten
     // native block reader
     val input = new ByteArrayInputStream(allBatches)
-    val blockReader = new CHStreamReader(input, false)
+    val blockReader = new CHStreamReader(input, customizeBufferSize)
     val broadCastIter = new Iterator[ColumnarBatch] {
       private var current: CHNativeBlock = _
 
@@ -88,37 +100,38 @@ case class ClickHouseBuildSideRelation(
     try {
       // convert columnar to row
       val converter = new BlockNativeConverter()
-      asScalaIterator(expressionEval).flatMap { block =>
-        val batch = new CHNativeBlock(block)
-        if (batch.numRows == 0) {
-          Iterator.empty
-        } else {
-          val info = converter.convertColumnarToRow(block)
+      asScalaIterator(expressionEval).flatMap {
+        block =>
+          val batch = new CHNativeBlock(block)
+          if (batch.numRows == 0) {
+            Iterator.empty
+          } else {
+            val info = converter.convertColumnarToRow(block)
 
-          new Iterator[InternalRow] {
-            var rowId = 0
-            val row = new UnsafeRow(batch.numColumns())
-            var closed = false
+            new Iterator[InternalRow] {
+              var rowId = 0
+              val row = new UnsafeRow(batch.numColumns())
+              var closed = false
 
-            override def hasNext: Boolean = {
-              val result = rowId < batch.numRows()
-              if (!result && !closed) {
-                converter.freeMemory(info.memoryAddress, info.totalSize)
-                closed = true
+              override def hasNext: Boolean = {
+                val result = rowId < batch.numRows()
+                if (!result && !closed) {
+                  converter.freeMemory(info.memoryAddress, info.totalSize)
+                  closed = true
+                }
+                result
               }
-              result
-            }
 
-            override def next: UnsafeRow = {
-              if (rowId >= batch.numRows()) throw new NoSuchElementException
+              override def next: UnsafeRow = {
+                if (rowId >= batch.numRows()) throw new NoSuchElementException
 
-              val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-              row.pointTo(null, info.memoryAddress + offset, length.toInt)
-              rowId += 1
-              row.copy()
+                val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+                row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                rowId += 1
+                row.copy()
+              }
             }
           }
-        }
       }.toArray
     } finally {
       blockReader.close()

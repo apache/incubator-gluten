@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.shuffle
-
-import java.io.IOException
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
@@ -28,13 +25,15 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
+import java.io.IOException
+
 class CHColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, V],
     mapId: Long,
     writeMetrics: ShuffleWriteMetricsReporter)
-    extends ShuffleWriter[K, V]
-    with Logging {
+  extends ShuffleWriter[K, V]
+  with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
 
@@ -45,14 +44,9 @@ class CHColumnarShuffleWriter[K, V](
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum;
-  private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
+  private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-  private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
-    conf.get("spark.io.compression.codec", "lz4")
-  } else {
-    "uncompressed"
-  }
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
@@ -97,8 +91,8 @@ class CHColumnarShuffleWriter[K, V](
       nativeSplitter = splitterJniWrapper.make(
         dep.nativePartitioning,
         mapId,
-        nativeBufferSize,
-        defaultCompressionCodec,
+        splitSize,
+        customizedCompressCodec,
         dataTmp.getAbsolutePath,
         localDirs)
     }
@@ -118,6 +112,7 @@ class CHColumnarShuffleWriter[K, V](
           .split(nativeSplitter, cb.numRows, block)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
+        dep.inputBatches.add(1)
         writeMetrics.incRecordsWritten(cb.numRows)
       }
     }

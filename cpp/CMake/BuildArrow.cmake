@@ -39,8 +39,6 @@ ExternalProject_Add(arrow_ep
     -DARROW_SUBSTRAIT=ON
     -DARROW_COMPUTE=ON
     -DARROW_S3=ON
-    -DARROW_GANDIVA_JAVA=ON
-    -DARROW_GANDIVA=ON
     -DARROW_PARQUET=ON
     -DARROW_CSV=ON
     -DARROW_HDFS=ON
@@ -88,39 +86,3 @@ ExternalProject_Add_Step(arrow_ep copy_arrow_header
     )
 
 add_dependencies(arrow_ep jni_proto)
-
-message(STATUS "Building Static ARROW: ${STATIC_ARROW}")
-
-if(STATIC_ARROW)
-  # Load Static Arrow Library
-  message(FATAL_ERROR "Not Support Static Arrow")
-
-  set(THREADS_PREFER_PTHREAD_FLAG ON)
-  find_package(Threads REQUIRED)
-
-  set(ARROW_LIB_NAME arrow_bundled_dependencies)
-
-  set(
-      ARROW_STATIC_LIB
-      "${ARROW_EP_INSTALL_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
-  )
-  add_library(Arrow::arrow STATIC IMPORTED)
-  set_target_properties(Arrow::arrow
-      PROPERTIES IMPORTED_LOCATION "${ARROW_STATIC_LIB}"
-      INTERFACE_INCLUDE_DIRECTORIES
-      "${ARROW_EP_INSTALL_PREFIX}/include")
-  add_dependencies(Arrow::arrow arrow_ep)
-
-  # Load Static Gandiva Library
-  set(
-      GANDIVA_STATIC_LIB
-      "${ARROW_EP_INSTALL_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
-  )
-  add_library(Arrow::gandiva STATIC IMPORTED)
-  set_target_properties(Arrow::gandiva
-      PROPERTIES IMPORTED_LOCATION "${GANDIVA_STATIC_LIB}"
-      INTERFACE_INCLUDE_DIRECTORIES
-      "${ARROW_EP_INSTALL_PREFIX}/include")
-  add_dependencies(Arrow::gandiva arrow_ep)
-
-endif()

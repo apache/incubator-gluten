@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
 import java.util
@@ -26,7 +25,7 @@ object ClickHouseConfig {
   // MergeTree DataSource name
   val NAME = "clickhouse"
   val ALT_NAME = "clickhouse"
-  val METADATA_DIR = "_metadata_log"
+  val METADATA_DIR = "_delta_log"
   val DEFAULT_ENGINE = "MergeTree"
 
   // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
@@ -37,9 +36,7 @@ object ClickHouseConfig {
 
   val CLICKHOUSE_WAREHOUSE_DIR = "spark.gluten.sql.columnar.backend.ch.warehouse.dir"
 
-  /**
-   * Validates specified configurations and returns the normalized key -> value map.
-   */
+  /** Validates specified configurations and returns the normalized key -> value map. */
   def validateConfigurations(allProperties: util.Map[String, String]): Map[String, String] = {
     val configurations = scala.collection.mutable.Map[String, String]()
     allProperties.asScala.foreach(configurations += _)

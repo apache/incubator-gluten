@@ -17,7 +17,6 @@
 
 package io.glutenproject.vectorized;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,8 +32,10 @@ import io.substrait.proto.Type;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 
-public class StorageJoinBuilder {
-  private InputStream in;
+public class StorageJoinBuilder implements AutoCloseable {
+  private ShuffleInputStream in;
+
+  private int customizeBufferSize;
 
   private BroadCastHashJoinContext broadCastContext;
 
@@ -42,18 +43,21 @@ public class StorageJoinBuilder {
 
   private List<Attribute> newOutput;
 
-  public StorageJoinBuilder(InputStream in,
+  public StorageJoinBuilder(ShuffleInputStream in,
                             BroadCastHashJoinContext broadCastContext,
+                            int customizeBufferSize,
                             List<Attribute> newOutput,
                             List<Expression> newBuildKeys) {
     this.in = in;
     this.broadCastContext = broadCastContext;
     this.newOutput = newOutput;
     this.newBuildKeys = newBuildKeys;
+    this.customizeBufferSize = customizeBufferSize;
   }
 
   private native void nativeBuild(String buildHashTableId,
-                                  InputStream in,
+                                  ShuffleInputStream in,
+                                  int customizeBufferSize,
                                   String joinKeys,
                                   String joinType,
                                   byte[] namedStruct);
@@ -95,6 +99,21 @@ public class StorageJoinBuilder {
       nStructBuilder.addNames(name);
     }
     byte[] structure = nStructBuilder.build().toByteArray();
-    nativeBuild(broadCastContext.buildHashTableId(), in, joinKey, join, structure);
+    nativeBuild(
+        broadCastContext.buildHashTableId(),
+        in,
+        this.customizeBufferSize,
+        joinKey,
+        join,
+        structure);
+  }
+
+  @Override
+  public void close() throws Exception {
+    try {
+      in.close();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

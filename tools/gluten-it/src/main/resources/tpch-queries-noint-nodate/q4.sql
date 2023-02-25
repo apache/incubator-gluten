@@ -1,0 +1,1 @@
+select o_orderpriority, count(o_custkey) as order_count from orders where o_orderdate >= 8582 and o_orderdate < 8674 and exists ( select l_orderkey,l_partkey,l_suppkey,l_linenumber,l_quantity,l_extendedprice,l_discount,l_tax from lineitem where l_orderkey = o_orderkey and l_commitdate < l_receiptdate) group by o_orderpriority order by o_orderpriority

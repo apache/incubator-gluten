@@ -26,8 +26,11 @@ import java.io.IOException;
 import java.util.List;
 
 public class BatchIterator extends GeneralOutIterator {
-  public BatchIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
-    super(instance_id, outAttrs);
+  private final long handle;
+
+  public BatchIterator(long handle, List<Attribute> outAttrs) throws IOException {
+    super(outAttrs);
+    this.handle = handle;
   }
 
   private native boolean nativeHasNext(long nativeHandle);

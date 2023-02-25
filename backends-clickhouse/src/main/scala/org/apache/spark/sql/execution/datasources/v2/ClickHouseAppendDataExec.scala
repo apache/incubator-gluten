@@ -14,24 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-import scala.util.control.NonFatal
-
-import com.google.common.collect.Lists
-import io.glutenproject.execution.{FirstZippedPartitionsPartition, NativeFilePartition}
+import io.glutenproject.execution.{FirstZippedPartitionsPartition, GlutenFilePartition}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.ddlplan.{
-  DllNode,
-  DllTransformContext,
-  InsertOutputBuilder,
-  InsertPlanNode
-}
+import io.glutenproject.substrait.ddlplan.{DllNode, DllTransformContext, InsertOutputBuilder, InsertPlanNode}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -45,28 +33,26 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.catalog.SupportsWrite
-import org.apache.spark.sql.connector.write.{
-  BatchWrite,
-  DataWriterFactory,
-  Write,
-  WriterCommitMessage
-}
+import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, Write, WriterCommitMessage}
 import org.apache.spark.sql.delta.{DeltaOperations, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{
-  BasicWriteJobStatsTracker,
-  FileFormatWriter,
-  WriteJobStatsTracker
-}
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, WriteJobStatsTracker}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.files.ClickHouseCommitProtocol
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseBatchWrite
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.{LongAccumulator, SerializableConfiguration, Utils}
+
+import com.google.common.collect.Lists
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+import scala.util.control.NonFatal
 
 case class ClickHouseAppendDataExec(
     table: SupportsWrite,
@@ -74,9 +60,9 @@ case class ClickHouseAppendDataExec(
     query: SparkPlan,
     write: Write,
     refreshCache: () => Unit)
-    extends V2TableWriteExec
-    with ImplicitMetadataOperation
-    with DeltaCommand {
+  extends V2TableWriteExec
+  with ImplicitMetadataOperation
+  with DeltaCommand {
 
   override protected val canMergeSchema: Boolean = false
 
@@ -114,60 +100,61 @@ case class ClickHouseAppendDataExec(
     }
 
     try {
-      deltaLog.withNewTransaction { txn =>
-        if (txn.readVersion < 0) {
-          logError(s"Table ${clickhouseTableV2.tableIdentifier} doesn't exists.")
-          throw new SparkException(
-            s"Writing job failed: " +
-              s"table ${clickhouseTableV2.tableIdentifier} doesn't exists.")
-        }
-
-        updateMetadata(
-          sparkSession,
-          txn,
-          schema,
-          Nil,
-          configuration,
-          false,
-          deltaOptions.rearrangeOnly)
-
-        // Validate partition predicates
-        // val replaceWhere = deltaOptions.replaceWhere
-        // val partitionFilters = None
-
-        val rdd: RDD[InternalRow] = {
-          val tempRdd = query.execute()
-          // SPARK-23271 If we are attempting to write a zero partition rdd, create a dummy single
-          // partition rdd to make sure we at least set up one write task to write the metadata.
-          if (tempRdd.partitions.length == 0) {
-            sparkContext.parallelize(Array.empty[InternalRow], 1)
-          } else {
-            tempRdd
+      deltaLog.withNewTransaction {
+        txn =>
+          if (txn.readVersion < 0) {
+            logError(s"Table ${clickhouseTableV2.tableIdentifier} doesn't exists.")
+            throw new SparkException(
+              s"Writing job failed: " +
+                s"table ${clickhouseTableV2.tableIdentifier} doesn't exists.")
           }
-        }
-        val partitions = rdd.partitions
-        val useCommitCoordinator = batchWrite.useCommitCoordinator
-        val messages = new Array[WriterCommitMessage](partitions.length)
-        val totalNumRowsAccumulator = new LongAccumulator()
 
-        val newFiles = deltaTxnWriteMergeTree(
-          txn,
-          partitions,
-          query.output,
-          messages,
-          useCommitCoordinator,
-          totalNumRowsAccumulator,
-          queryId)
-        logInfo(s"Data source write support $batchWrite is committing.")
-        batchWrite.commit(messages)
-        logInfo(s"Data source write support $batchWrite committed.")
-        commitProgress = Some(StreamWriterCommitProgress(totalNumRowsAccumulator.value))
-        val operation = DeltaOperations.Write(
-          SaveMode.Append,
-          Option(Seq.empty[String]),
-          deltaOptions.replaceWhere,
-          deltaOptions.userMetadata)
-        txn.commit(newFiles, operation)
+          updateMetadata(
+            sparkSession,
+            txn,
+            schema,
+            Nil,
+            configuration,
+            false,
+            deltaOptions.rearrangeOnly)
+
+          // Validate partition predicates
+          // val replaceWhere = deltaOptions.replaceWhere
+          // val partitionFilters = None
+
+          val rdd: RDD[InternalRow] = {
+            val tempRdd = query.execute()
+            // SPARK-23271 If we are attempting to write a zero partition rdd, create a dummy single
+            // partition rdd to make sure we at least set up one write task to write the metadata.
+            if (tempRdd.partitions.length == 0) {
+              sparkContext.parallelize(Array.empty[InternalRow], 1)
+            } else {
+              tempRdd
+            }
+          }
+          val partitions = rdd.partitions
+          val useCommitCoordinator = batchWrite.useCommitCoordinator
+          val messages = new Array[WriterCommitMessage](partitions.length)
+          val totalNumRowsAccumulator = new LongAccumulator()
+
+          val newFiles = deltaTxnWriteMergeTree(
+            txn,
+            partitions,
+            query.output,
+            messages,
+            useCommitCoordinator,
+            totalNumRowsAccumulator,
+            queryId)
+          logInfo(s"Data source write support $batchWrite is committing.")
+          batchWrite.commit(messages)
+          logInfo(s"Data source write support $batchWrite committed.")
+          commitProgress = Some(StreamWriterCommitProgress(totalNumRowsAccumulator.value))
+          val operation = DeltaOperations.Write(
+            SaveMode.Append,
+            Option(Seq.empty[String]),
+            deltaOptions.replaceWhere,
+            deltaOptions.userMetadata)
+          txn.commit(newFiles, operation)
       }
     } catch {
       case cause: Throwable =>
@@ -223,44 +210,45 @@ case class ClickHouseAppendDataExec(
     // Generate insert substrait plan for per partition
     val substraitContext = new SubstraitContext
     val dllCxt = genInsertPlan(substraitContext, queryOutput)
-    val substraitPlanPartition = partitions.map(p => {
-      p match {
-        case FirstZippedPartitionsPartition(index: Int, inputPartition: NativeFilePartition, _) =>
-          val files = inputPartition.files
-          if (files.length > 1) {
+    val substraitPlanPartition = partitions.map(
+      p => {
+        p match {
+          case FirstZippedPartitionsPartition(index: Int, inputPartition: GlutenFilePartition, _) =>
+            val files = inputPartition.files
+            if (files.length > 1) {
+              throw new SparkException(
+                s"Writing job failed: " +
+                  s"can not support multiple input files in one partition.")
+            }
+            if (files.head.start != 0) {
+              throw new SparkException(
+                s"Writing job failed: " +
+                  s"can not read a parquet file from non-zero start.")
+            }
+            val paths = new java.util.ArrayList[String]()
+            val starts = new java.util.ArrayList[java.lang.Long]()
+            val lengths = new java.util.ArrayList[java.lang.Long]()
+            paths.add(files.head.filePath)
+            starts.add(files.head.start)
+            lengths.add(files.head.length)
+            val localFilesNode =
+              LocalFilesBuilder
+                .makeLocalFiles(index, paths, starts, lengths, ReadFileFormat.UnknownFormat)
+            val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
+              SnowflakeIdWorker.getInstance().nextId(),
+              database,
+              tableName,
+              tablePath)
+            dllCxt.substraitContext.setLocalFilesNodes(Seq(localFilesNode))
+            dllCxt.substraitContext.setInsertOutputNode(insertOutputNode)
+            val substraitPlan = dllCxt.root.toProtobuf
+            logWarning(dllCxt.root.toProtobuf.toString)
+          case _ =>
             throw new SparkException(
               s"Writing job failed: " +
-                s"can not support multiple input files in one partition.")
-          }
-          if (files.head.start != 0) {
-            throw new SparkException(
-              s"Writing job failed: " +
-                s"can not read a parquet file from non-zero start.")
-          }
-          val paths = new java.util.ArrayList[String]()
-          val starts = new java.util.ArrayList[java.lang.Long]()
-          val lengths = new java.util.ArrayList[java.lang.Long]()
-          paths.add(files.head.filePath)
-          starts.add(files.head.start)
-          lengths.add(files.head.length)
-          val localFilesNode =
-            LocalFilesBuilder
-              .makeLocalFiles(index, paths, starts, lengths, ReadFileFormat.UnknownFormat)
-          val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
-            SnowflakeIdWorker.getInstance().nextId(),
-            database,
-            tableName,
-            tablePath)
-          dllCxt.substraitContext.setLocalFilesNodes(Seq(localFilesNode))
-          dllCxt.substraitContext.setInsertOutputNode(insertOutputNode)
-          val substraitPlan = dllCxt.root.toProtobuf
-          logWarning(dllCxt.root.toProtobuf.toString)
-        case _ =>
-          throw new SparkException(
-            s"Writing job failed: " +
-              s"can not support input partition.")
-      }
-    })
+                s"can not support input partition.")
+        }
+      })
 
     // committer.setupJob(jobContext = )
     val newFiles = Nil
@@ -360,17 +348,20 @@ object CHDataWritingSparkTask extends Logging {
 
       DataWritingSparkTaskResult(count, msg)
 
-    })(catchBlock = {
-      // If there is an error, abort this writer
-      logError(
-        s"Aborting commit for partition $partId (task $taskId, attempt $attemptId, " +
-          s"stage $stageId.$stageAttempt)")
-      dataWriter.abort()
-      logError(
-        s"Aborted commit for partition $partId (task $taskId, attempt $attemptId, " +
-          s"stage $stageId.$stageAttempt)")
-    }, finallyBlock = {
-      dataWriter.close()
-    })
+    })(
+      catchBlock = {
+        // If there is an error, abort this writer
+        logError(
+          s"Aborting commit for partition $partId (task $taskId, attempt $attemptId, " +
+            s"stage $stageId.$stageAttempt)")
+        dataWriter.abort()
+        logError(
+          s"Aborted commit for partition $partId (task $taskId, attempt $attemptId, " +
+            s"stage $stageId.$stageAttempt)")
+      },
+      finallyBlock = {
+        dataWriter.close()
+      }
+    )
   }
 }

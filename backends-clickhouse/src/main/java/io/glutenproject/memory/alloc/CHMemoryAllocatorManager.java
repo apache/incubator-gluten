@@ -17,17 +17,14 @@
 
 package io.glutenproject.memory.alloc;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.apache.spark.util.memory.TaskMemoryResourceManager;
-
-public class CHMemoryAllocatorManager implements TaskMemoryResourceManager,
-    NativeMemoryAllocatorManager {
+public class CHMemoryAllocatorManager implements NativeMemoryAllocatorManager {
 
   private static Logger LOGGER = LoggerFactory.getLogger(CHMemoryAllocatorManager.class);
 

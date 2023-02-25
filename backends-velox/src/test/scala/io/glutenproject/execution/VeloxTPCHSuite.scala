@@ -17,14 +17,8 @@
 
 package io.glutenproject.execution
 
-import java.io.File
-
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.execution.ColumnarInputAdapter
-import org.apache.spark.sql.types.DoubleType
-
-import scala.io.Source
+import org.apache.spark.sql.{Row, TestUtils}
 
 abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -258,8 +252,7 @@ abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
     runTPCHQuery(21, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
   }
 
-  // TODO: fix q21 with partitions size == 1 when bhj enabled.
-  ignore("TPC-H q21 - bhj enable") {
+  test("TPC-H q21 - bhj enable") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "30M")) {
       runTPCHQuery(21, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
     }
@@ -273,6 +266,21 @@ abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "30M")) {
       runTPCHQuery(22, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
     }
+  }
+
+  test("test 'order by limit'") {
+    val df = spark.sql(
+      """
+        |select n_nationkey from nation order by n_nationkey limit 5
+        |""".stripMargin
+    )
+    val sortExec = df.queryExecution.executedPlan.collect {
+      case sortExec: TakeOrderedAndProjectExecTransformer => sortExec
+    }
+    assert(sortExec.size == 1)
+    val result = df.collect()
+    val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
+    TestUtils.compareAnswers(result, expectedResult)
   }
 }
 

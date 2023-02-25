@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
@@ -22,20 +21,18 @@ import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 
 class GlutenClickHouseTPCHParquetAQESuite
-    extends GlutenClickHouseTPCHAbstractSuite
-    with AdaptiveSparkPlanHelper {
+  extends GlutenClickHouseTPCHAbstractSuite
+  with AdaptiveSparkPlanHelper {
 
   override protected val resourcePath: String =
-    "../../../../jvm/src/test/resources/tpch-data"
+    "../../../../gluten-core/src/test/resources/tpch-data"
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../jvm/src/test/resources/queries"
+    rootPath + "../../../../gluten-core/src/test/resources/queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  /**
-   * Run Gluten + ClickHouse Backend with SortShuffleManager
-   */
+  /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "sort")
@@ -51,33 +48,36 @@ class GlutenClickHouseTPCHParquetAQESuite
   }
 
   test("TPCH Q1") {
-    runTPCHQuery(1) { df =>
-      assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-      val scanExec = collect(df.queryExecution.executedPlan) {
-        case scanExec: BasicScanExecTransformer => scanExec
-      }
-      assert(scanExec.size == 1)
+    runTPCHQuery(1) {
+      df =>
+        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case scanExec: BasicScanExecTransformer => scanExec
+        }
+        assert(scanExec.size == 1)
     }
   }
 
   test("TPCH Q2") {
-    runTPCHQuery(2) { df =>
-      assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-      val scanExec = collect(df.queryExecution.executedPlan) {
-        case scanExec: BasicScanExecTransformer => scanExec
-      }
-      assert(scanExec.size == 8)
+    runTPCHQuery(2) {
+      df =>
+        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case scanExec: BasicScanExecTransformer => scanExec
+        }
+        assert(scanExec.size == 8)
     }
   }
 
   test("TPCH Q3") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(3) { df =>
-        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-        val shjBuildLeft = collect(df.queryExecution.executedPlan) {
-          case shj: ShuffledHashJoinExecTransformer if shj.joinBuildSide == BuildLeft => shj
-        }
-        assert(shjBuildLeft.size == 2)
+      runTPCHQuery(3) {
+        df =>
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val shjBuildLeft = collect(df.queryExecution.executedPlan) {
+            case shj: ShuffledHashJoinExecTransformer if shj.joinBuildSide == BuildLeft => shj
+          }
+          assert(shjBuildLeft.size == 2)
       }
     }
   }
@@ -88,12 +88,13 @@ class GlutenClickHouseTPCHParquetAQESuite
 
   test("TPCH Q5") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(5) { df =>
-        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-        val bhjRes = collect(df.queryExecution.executedPlan) {
-          case bhj: BroadcastHashJoinExecTransformer => bhj
-        }
-        assert(bhjRes.isEmpty)
+      runTPCHQuery(5) {
+        df =>
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val bhjRes = collect(df.queryExecution.executedPlan) {
+            case bhj: BroadcastHashJoinExecTransformer => bhj
+          }
+          assert(bhjRes.isEmpty)
       }
     }
   }
@@ -102,9 +103,23 @@ class GlutenClickHouseTPCHParquetAQESuite
     runTPCHQuery(6) { df => }
   }
 
-  test("TPCH Q7") {
+  /**
+   * TODO: With Spark 3.3, it can not support to use Spark Shuffle Manager and set
+   * shuffle.partitions=1 at the same time, because OptimizeOneRowPlan rule will remove Sort
+   * operator.
+   */
+  ignore("TPCH Q7 - with shuffle.partitions=1") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      runTPCHQuery(7) { df => }
+    }
+  }
+
+  test("TPCH Q7") {
+    withSQLConf(
+      ("spark.sql.shuffle.partitions", "2"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
       runTPCHQuery(7) { df => }
@@ -129,12 +144,13 @@ class GlutenClickHouseTPCHParquetAQESuite
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11, compareResult = false) { df =>
-      assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-      val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
-        case adaptive: AdaptiveSparkPlanExec => adaptive
-      }
-      assert(adaptiveSparkPlanExec.size == 2)
+    runTPCHQuery(11, compareResult = false) {
+      df =>
+        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case adaptive: AdaptiveSparkPlanExec => adaptive
+        }
+        assert(adaptiveSparkPlanExec.size == 2)
     }
   }
 
@@ -156,12 +172,13 @@ class GlutenClickHouseTPCHParquetAQESuite
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) { df =>
-      assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-      val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
-        case adaptive: AdaptiveSparkPlanExec => adaptive
-      }
-      assert(adaptiveSparkPlanExec.size == 2)
+    runTPCHQuery(15) {
+      df =>
+        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case adaptive: AdaptiveSparkPlanExec => adaptive
+        }
+        assert(adaptiveSparkPlanExec.size == 2)
     }
   }
 
@@ -190,13 +207,14 @@ class GlutenClickHouseTPCHParquetAQESuite
   }
 
   test("TPCH Q22") {
-    runTPCHQuery(22) { df =>
-      assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-      val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
-        case adaptive: AdaptiveSparkPlanExec => adaptive
-      }
-      assert(adaptiveSparkPlanExec.size == 3)
-      assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
+    runTPCHQuery(22) {
+      df =>
+        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case adaptive: AdaptiveSparkPlanExec => adaptive
+        }
+        assert(adaptiveSparkPlanExec.size == 3)
+        assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
     }
   }
 }

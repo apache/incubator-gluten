@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.commands
-
-import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
@@ -35,18 +32,23 @@ import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.types.StructType
 
+import org.apache.hadoop.fs.{FileSystem, Path}
+
 /**
- * Single entry point for all write or declaration operations for Delta tables accessed through
- * the table name.
+ * Single entry point for all write or declaration operations for Delta tables accessed through the
+ * table name.
  *
- * @param table            The table identifier for the Delta table
- * @param existingTableOpt The existing table for the same identifier if exists
- * @param mode             The save mode when writing data. Relevant when the query
- *                         is empty or set to Ignore
- *                         with `CREATE TABLE IF NOT EXISTS`.
- * @param query            The query to commit into the Delta table if it exist. This can come from
- *                - CTAS
- *                - saveAsTable
+ * @param table
+ *   The table identifier for the Delta table
+ * @param existingTableOpt
+ *   The existing table for the same identifier if exists
+ * @param mode
+ *   The save mode when writing data. Relevant when the query is empty or set to Ignore with `CREATE
+ *   TABLE IF NOT EXISTS`.
+ * @param query
+ *   The query to commit into the Delta table if it exist. This can come from
+ *   - CTAS
+ *   - saveAsTable
  */
 case class CreateClickHouseTableCommand(
     table: CatalogTable,
@@ -56,8 +58,8 @@ case class CreateClickHouseTableCommand(
     operation: TableCreationModes.CreationMode = TableCreationModes.Create,
     tableByPath: Boolean = false,
     override val output: Seq[Attribute] = Nil)
-    extends LeafRunnableCommand
-    with DeltaLogging {
+  extends LeafRunnableCommand
+  with DeltaLogging {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     assert(table.tableType != CatalogTableType.VIEW)
@@ -172,7 +174,8 @@ case class CreateClickHouseTableCommand(
       description = table.comment.orNull,
       schemaString = schemaString,
       partitionColumns = table.partitionColumnNames,
-      configuration = table.properties)
+      configuration = table.properties
+    )
   }
 
   private def assertTableSchemaDefined(
@@ -232,8 +235,10 @@ case class CreateClickHouseTableCommand(
 
       // If schema is specified, we must make sure the partitioning matches, even the partitioning
       // is not specified.
-      if (tableDesc.schema.nonEmpty &&
-          tableDesc.partitionColumnNames != existingMetadata.partitionColumns) {
+      if (
+        tableDesc.schema.nonEmpty &&
+        tableDesc.partitionColumnNames != existingMetadata.partitionColumns
+      ) {
         throw DeltaErrors.createTableWithDifferentPartitioningException(
           path,
           tableDesc.partitionColumnNames,
@@ -253,9 +258,12 @@ case class CreateClickHouseTableCommand(
    * Based on the table creation operation, and parameters, we can resolve to different operations.
    * A lot of this is needed for legacy reasons in Databricks Runtime.
    *
-   * @param metadata       The table metadata, which we are creating or replacing
-   * @param isManagedTable Whether we are creating or replacing a managed table
-   * @param options        Write options, if this was a CTAS/RTAS
+   * @param metadata
+   *   The table metadata, which we are creating or replacing
+   * @param isManagedTable
+   *   Whether we are creating or replacing a managed table
+   * @param options
+   *   Write options, if this was a CTAS/RTAS
    */
   private def getOperation(
       metadata: Metadata,
@@ -283,9 +291,9 @@ case class CreateClickHouseTableCommand(
   }
 
   /**
-   * Similar to getOperation, here we disambiguate the catalog alterations we need to do based
-   * on the table operation, and whether we have reached here through legacy code or DataSourceV2
-   * code paths.
+   * Similar to getOperation, here we disambiguate the catalog alterations we need to do based on
+   * the table operation, and whether we have reached here through legacy code or DataSourceV2 code
+   * paths.
    */
   private def updateCatalog(
       spark: SparkSession,
@@ -330,12 +338,11 @@ case class CreateClickHouseTableCommand(
       partitionColumnNames = Nil,
       // Remove write specific options when updating the catalog
       storage = storageProps,
-      tracksPartitionsInCatalog = true)
+      tracksPartitionsInCatalog = true
+    )
   }
 
-  private def assertPathEmpty(
-      sparkSession: SparkSession,
-      tableWithLocation: CatalogTable): Unit = {
+  private def assertPathEmpty(sparkSession: SparkSession, tableWithLocation: CatalogTable): Unit = {
     val path = new Path(tableWithLocation.location)
     val fs = path.getFileSystem(sparkSession.sessionState.newHadoopConf())
     // Verify that the table location associated with CREATE TABLE doesn't have any data. Note that

@@ -14,23 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.files
-
-import java.net.URI
-
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapreduce.{JobContext, TaskAttemptContext}
 
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.files.DelayedCommitProtocol
 
-class ClickHouseCommitProtocol(jobId: String,
-                               path: String,
-                               queryId: String,
-                               randomPrefixLength: Option[Int])
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.mapreduce.{JobContext, TaskAttemptContext}
+
+import java.net.URI
+
+class ClickHouseCommitProtocol(
+    jobId: String,
+    path: String,
+    queryId: String,
+    randomPrefixLength: Option[Int])
   extends DelayedCommitProtocol(jobId, path, randomPrefixLength) {
 
   override def setupJob(jobContext: JobContext): Unit = {
@@ -41,23 +41,24 @@ class ClickHouseCommitProtocol(jobId: String,
     }
   }
 
-  override def commitJob(jobContext: JobContext,
-                         taskCommits: Seq[FileCommitProtocol.TaskCommitMessage]): Unit =
+  override def commitJob(
+      jobContext: JobContext,
+      taskCommits: Seq[FileCommitProtocol.TaskCommitMessage]): Unit =
     super.commitJob(jobContext, taskCommits)
 
   override def abortJob(jobContext: JobContext): Unit = super.abortJob(jobContext)
 
   override def setupTask(taskContext: TaskAttemptContext): Unit = super.setupTask(taskContext)
 
-  override def commitTask(taskContext: TaskAttemptContext
-                         ): FileCommitProtocol.TaskCommitMessage = {
+  override def commitTask(taskContext: TaskAttemptContext): FileCommitProtocol.TaskCommitMessage = {
     if (addedFiles.nonEmpty) {
       val fs = new Path(path, addedFiles.head._2).getFileSystem(taskContext.getConfiguration)
-      val statuses: Seq[FileAction] = addedFiles.map { f =>
-        val filePath = new Path(path, new Path(new URI(f._2)))
-        val stat = fs.getFileStatus(filePath)
+      val statuses: Seq[FileAction] = addedFiles.map {
+        f =>
+          val filePath = new Path(path, new Path(new URI(f._2)))
+          val stat = fs.getFileStatus(filePath)
 
-        buildActionFromAddedFile(f, stat, taskContext)
+          buildActionFromAddedFile(f, stat, taskContext)
       }
 
       new TaskCommitMessage(statuses)
