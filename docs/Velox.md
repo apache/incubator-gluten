@@ -273,7 +273,7 @@ cd /path_to_gluten/ep/build-velox/src/
 cd /path_to_gluten/cpp
 mkdir build
 cd build
-cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
+cmake -DBUILD_VELOX_BACKEND=ON -DVELOX_ENABLE_S3=ON ..
 make -j
 
 cd /path_to_gluten
