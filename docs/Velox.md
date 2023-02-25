@@ -96,6 +96,7 @@ mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 ```
+notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
 Once building successfully, the Jar file will be generated in the directory: package/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.2.2, and package/target/gluten-spark3.3_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.3.1.
 
@@ -272,7 +273,7 @@ cd /path_to_gluten/ep/build-velox/src/
 cd /path_to_gluten/cpp
 mkdir build
 cd build
-cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
+cmake -DBUILD_VELOX_BACKEND=ON -DVELOX_ENABLE_S3=ON ..
 make -j
 
 cd /path_to_gluten

@@ -30,6 +30,8 @@ import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.broadcast
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
+import org.apache.spark.sql.utils.SparkArrowUtil
 
 import io.glutenproject.vectorized._
 
@@ -85,7 +87,9 @@ object RowToColumnConverter {
   def supportSchema(schema: StructType): Boolean = {
     try {
       schema.fields.map {
-        f => RowToColumnConverter.getConverterForType(f.dataType, f.nullable)
+        f =>
+          RowToColumnConverter.getConverterForType(f.dataType, f.nullable)
+          SparkArrowUtil.toArrowType(f.dataType, SparkSchemaUtil.getLocalTimezoneID)
       }
       true
     } catch {

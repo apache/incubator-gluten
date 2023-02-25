@@ -153,6 +153,8 @@ object ExpressionMappings {
   final val MURMUR3HASH = "murmur3hash"
   final val XXHASH64 = "xxhash64"
   final val MD5 = "md5"
+  final val SHA1 = "sha1"
+  final val CRC32 = "crc32"
 
   // Array functions
   final val SIZE = "size"
@@ -309,6 +311,8 @@ object ExpressionMappings {
     Sig[Murmur3Hash](MURMUR3HASH),
     Sig[XxHash64](XXHASH64),
     Sig[Md5](MD5),
+    Sig[Sha1](SHA1),
+    Sig[Crc32](CRC32),
     // Array functions
     Sig[Size](SIZE),
     Sig[CreateArray](CREATE_ARRAY),
