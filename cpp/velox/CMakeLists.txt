@@ -185,11 +185,18 @@ set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
-find_package(folly REQUIRED)
+## If the folly is not builded in system directories,
+## please add `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
+## It is also applicable to other dependencies.
+find_package(Folly REQUIRED CONFIG)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+find_package(GTest REQUIRED)
+find_package(Protobuf REQUIRED)
 
 include_directories(${LIBGFLAGS_INCLUDE_DIR})
 include_directories(${FOLLY_INCLUDE_DIR})
+include_directories(${GTEST_INCLUDE_DIRS})
+include_directories(${Protobuf_INCLUDE_DIR})
 
 target_link_libraries(velox PUBLIC spark_columnar_jni)
 add_velox_dependencies()
