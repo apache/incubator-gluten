@@ -19,9 +19,6 @@ include(ExternalProject)
 
 macro(build_qatzip)
   message(STATUS "Building QATzip from source")
-  # if(CMAKE_VERSION VERSION_LESS 3.6)
-  #   message(FATAL_ERROR "Building gbenchmark from source requires at least CMake 3.6")
-  # endif()
   set(QATZIP_BUILD_VERSION "v1.1.1")
   set(QATZIP_BUILD_SHA256_CHECKSUM "679f5522deb35e7ffa36f227ae49d07ef2d69a83e56bfda849303829b274e79b")
   set(QATZIP_SOURCE_URL

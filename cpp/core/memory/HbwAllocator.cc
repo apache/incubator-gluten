@@ -18,9 +18,21 @@
 #include "HbwAllocator.h"
 
 #include <hbwmalloc.h>
+#include <cstdlib>
+#include <iostream>
 #include "MemoryAllocator.h"
 
 namespace gluten {
+
+std::shared_ptr<MemoryAllocator> HbwMemoryAllocator::NewInstance() {
+  auto memkindHbwNodes = std::getenv("MEMKIND_HBW_NODES");
+  if (memkindHbwNodes == nullptr) {
+    std::cout << "MEMKIND_HBW_NODES not set. Use StdMemoryAllocator." << std::endl;
+    return std::make_shared<StdMemoryAllocator>();
+  }
+  std::cout << "MEMKIND_HBW_NODES set. Use StdMemoryAllocator." << std::endl;
+  return std::make_shared<HbwMemoryAllocator>();
+}
 
 bool HbwMemoryAllocator::Allocate(int64_t size, void** out) {
   *out = hbw_malloc(size);
