@@ -608,6 +608,14 @@
           <version>3.0.1</version>
         </plugin>
         <plugin>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.4.1</version>
+          <configuration>
+            <finalName>${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}-jar-with-dependencies</finalName>
+            <createDependencyReducedPom>false</createDependencyReducedPom>
+          </configuration>
+        </plugin>
+        <plugin>
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
