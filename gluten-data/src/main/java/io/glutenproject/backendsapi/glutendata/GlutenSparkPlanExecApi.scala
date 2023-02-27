@@ -163,7 +163,6 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
     splitTime: SQLMetric,
     spillTime: SQLMetric,
     compressTime: SQLMetric,
-    prepareTime: SQLMetric,
     inputBatches: SQLMetric)
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
@@ -180,7 +179,6 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
       splitTime,
       spillTime,
       compressTime,
-      prepareTime,
       inputBatches)
   }
   // scalastyle:on argcount

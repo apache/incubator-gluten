@@ -24,10 +24,11 @@ import io.glutenproject.extension.columnar._
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._

@@ -117,13 +117,12 @@ object CHExecUtil {
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric,
       inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     val nativePartitioning: NativePartitioning = newPartitioning match {
-      case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte])
+      case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte], null)
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, Array.empty[Byte])
+        new NativePartitioning("rr", n, Array.empty[Byte], null)
       case HashPartitioning(exprs, n) =>
         val outputsIndex =
           outputAttributes.map(attr => ConverterUtils.genColumnNameWithExprId(attr))
@@ -337,7 +336,6 @@ object CHExecUtil {
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,
-        prepareTime = prepareTime,
         inputBatches = inputBatches
       )
 

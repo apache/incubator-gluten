@@ -252,7 +252,7 @@ const std::vector<std::string> SplitterTest::hash_key_2 = {"[2, 2]"};
 TEST_F(SplitterTest, TestSingleSplitter) {
   split_options_.buffer_size = 10;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", schema_, 1, split_options_))
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", 1, split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
@@ -296,7 +296,7 @@ TEST_F(SplitterTest, TestSingleSplitter) {
 TEST_F(SplitterTest, TestRoundRobinSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", schema_, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
@@ -365,7 +365,7 @@ TEST_F(SplitterTest, TestSplitterMemoryLeak) {
   split_options_.memory_pool = pool;
   split_options_.write_schema = false;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", schema_, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
@@ -382,7 +382,7 @@ TEST_F(SplitterTest, TestHashSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", hash_schema_, num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", num_partitions, split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
   ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_2_));
@@ -430,7 +430,7 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
   ARROW_ASSIGN_OR_THROW(input_batch_1_w_pid, input_batch_1_->AddColumn(0, "pid", pid_arr_0));
   ARROW_ASSIGN_OR_THROW(input_batch_2_w_pid, input_batch_2_->AddColumn(0, "pid", pid_arr_1));
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("range", std::move(schema_w_pid), num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("range", num_partitions, split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_w_pid));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_2_w_pid));
@@ -497,7 +497,7 @@ TEST_F(SplitterTest, TestSpillFailWithOutOfMemory) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
   split_options_.memory_pool = pool;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", schema_, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   auto status = splitter_->Split(*input_batch_1_);
   // should return OOM status because there's no partition buffer to spill
@@ -513,7 +513,7 @@ TEST_F(SplitterTest, TestSpillLargestPartition) {
   split_options_.buffer_size = 4;
   // split_options_.memory_pool = pool.get();
   split_options_.compression_type = arrow::Compression::UNCOMPRESSED;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", schema_, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   for (int i = 0; i < 100; ++i) {
     ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
@@ -544,7 +544,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
@@ -615,7 +615,7 @@ TEST_F(SplitterTest, TestRoundRobinNestListArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
@@ -685,7 +685,7 @@ TEST_F(SplitterTest, TestRoundRobinNestLargeListArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
@@ -757,7 +757,7 @@ TEST_F(SplitterTest, TestRoundRobinListStructArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
@@ -827,7 +827,7 @@ TEST_F(SplitterTest, TestRoundRobinListMapArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
@@ -899,7 +899,7 @@ TEST_F(SplitterTest, TestRoundRobinStructArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
@@ -969,7 +969,7 @@ TEST_F(SplitterTest, TestRoundRobinMapArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
@@ -1038,7 +1038,7 @@ TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_batch_1_data, rb_schema, &input_batch_arr);
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
 
@@ -1086,7 +1086,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitterwithCompression) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
   auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
   ASSERT_NOT_OK(splitter_->SetCompressType(compression_type.MoveValueUnsafe()));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));

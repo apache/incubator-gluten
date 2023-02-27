@@ -19,15 +19,10 @@ package org.apache.spark.shuffle
 
 import java.io.IOException
 
-import scala.collection.JavaConverters._
-
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.GlutenConfig
-import io.glutenproject.utils.{GlutenArrowAbiUtil, GlutenArrowUtil}
 import io.glutenproject.vectorized._
-import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -92,8 +87,6 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private var rawPartitionLengths: Array[Long] = _
 
-  private var firstRecordBatch: Boolean = true
-
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
@@ -138,43 +131,20 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         writeSchema)
     }
 
-    var schema: Schema = null
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val startTimeForPrepare = System.nanoTime()
-        val allocator = ArrowBufferAllocators.contextInstance()
-        val cArray = ArrowArray.allocateNew(allocator)
-        // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
-        // RecordBatch to ArrowArray without Schema, may optimize later
-        val rb = GlutenArrowUtil.createArrowRecordBatch(cb)
-        dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
-
-        if (firstRecordBatch) {
-          schema = GlutenArrowUtil.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
-          firstRecordBatch = false
-        }
-        try {
-          GlutenArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
-            null, cArray)
-        } finally {
-          GlutenArrowUtil.releaseArrowRecordBatch(rb)
-        }
-
         val startTime = System.nanoTime()
-
-        dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
-
-        jniWrapper
-          .split(nativeSplitter, cb.numRows, cArray.memoryAddress())
+        val bytes = jniWrapper.split(nativeSplitter, cb.numRows,
+          GlutenColumnarBatches.getNativeHandle(cb))
+        dep.dataSize.add(bytes)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
         dep.inputBatches.add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(cb.numRows())
-        cArray.close()
       }
     }
 
