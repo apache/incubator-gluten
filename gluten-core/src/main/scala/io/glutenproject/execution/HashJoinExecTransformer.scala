@@ -144,6 +144,8 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of hash probe output rows"),
     "hashProbeOutputVectors" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe output vectors"),
+    "hashProbeOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of hash probe output bytes"),
     "hashProbeCpuNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "hash probe cpu time"),
     "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
