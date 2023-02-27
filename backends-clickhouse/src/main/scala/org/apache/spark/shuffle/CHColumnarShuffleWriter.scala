@@ -119,7 +119,6 @@ class CHColumnarShuffleWriter[K, V](
     dep.splitTime.add(System.nanoTime() - startTime)
     dep.spillTime.add(splitResult.getTotalSpillTime)
     dep.compressTime.add(splitResult.getTotalCompressTime)
-    dep.computePidTime.add(splitResult.getTotalComputePidTime)
     dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
     dep.dataSize.add(splitResult.getTotalBytesWritten)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)

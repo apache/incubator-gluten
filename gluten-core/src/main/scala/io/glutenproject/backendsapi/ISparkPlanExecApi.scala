@@ -128,8 +128,8 @@ trait ISparkPlanExecApi {
                            newPartitioning: Partitioning, serializer: Serializer,
                            writeMetrics: Map[String, SQLMetric], dataSize: SQLMetric,
                            bytesSpilled: SQLMetric, numInputRows: SQLMetric,
-                           computePidTime: SQLMetric, splitTime: SQLMetric,
-                           spillTime: SQLMetric, compressTime: SQLMetric,
+                           splitTime: SQLMetric, spillTime: SQLMetric,
+                           compressTime: SQLMetric,
                            inputBatches: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
   // scalastyle:on argcount
