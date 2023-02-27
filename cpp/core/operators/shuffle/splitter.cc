@@ -771,11 +771,14 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(const arrow::RecordB
       }
     }
   }
+
   size_per_row = std::accumulate(binary_array_empirical_size_.begin(), binary_array_empirical_size_.end(), 0);
 
   for (size_t col = 0; col < array_idx_.size(); ++col) {
     auto col_idx = array_idx_[col];
-    size_per_row += arrow::bit_width(column_type_id_[col_idx]->id()) >> 3;
+    auto type_id = column_type_id_[col_idx]->id();
+    // why +7? to fit column bool
+    size_per_row += ((arrow::bit_width(type_id) + 7) >> 3);
   }
 
   int64_t prealloc_row_cnt = options_.offheap_per_task > 0 && size_per_row > 0
