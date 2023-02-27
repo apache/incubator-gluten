@@ -178,6 +178,7 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
+    "computePidTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compute pid"),
     "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
     "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
     "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
