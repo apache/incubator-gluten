@@ -158,6 +158,7 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
+    shuffle/VeloxSplitter.cc
     jni/JniWrapper.cc
     compute/VeloxBackend.cc
     compute/WholeStageResultIterator.cc
@@ -201,6 +202,10 @@ include_directories(${Protobuf_INCLUDE_DIR})
 target_link_libraries(velox PUBLIC spark_columnar_jni)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
+
+if(BUILD_TESTS)
+  add_test_case(velox_splitter_test SOURCES tests/VeloxSplitterTest.cc EXTRA_LINK_LIBS velox)
+endif()
 
 if(VELOX_ENABLE_HDFS)
   add_definitions(-DVELOX_ENABLE_HDFS)

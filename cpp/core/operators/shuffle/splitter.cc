@@ -421,13 +421,6 @@ int64_t batch_nbytes(const arrow::RecordBatch& batch) {
   }
   return accumulated;
 }
-
-int64_t batch_nbytes(std::shared_ptr<arrow::RecordBatch> batch) {
-  if (batch == nullptr) {
-    return 0;
-  }
-  return batch_nbytes(*batch);
-}
 } // anonymous namespace
 
 arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch) {
