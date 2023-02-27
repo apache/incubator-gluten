@@ -260,7 +260,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   jni_byte_input_stream_close = GetMethodIDOrError(env, jni_byte_input_stream_class, "close", "()V");
 
   split_result_class = CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/SplitResult;");
-  split_result_constructor = GetMethodIDOrError(env, split_result_class, "<init>", "(JJJJJ[J[J)V");
+  split_result_constructor = GetMethodIDOrError(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
   metrics_builder_class = CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/Metrics;");
 
@@ -805,6 +805,7 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(JNIEnv* env, job
   jobject split_result = env->NewObject(
       split_result_class,
       split_result_constructor,
+      0L,
       splitter->TotalWriteTime(),
       splitter->TotalSpillTime(),
       splitter->TotalCompressTime(),
