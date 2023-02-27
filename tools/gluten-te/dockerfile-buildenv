@@ -50,11 +50,11 @@ RUN cat /root/.m2/settings.xml
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev
 
 # install HBM dependencies
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
 
 # Install OpenJDK 8 and Maven
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk;
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y maven;
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk;
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven;
 
 ARG TIMEZONE
 RUN test -n "$TIMEZONE" || (echo "TIMEZONE not set" && false)
