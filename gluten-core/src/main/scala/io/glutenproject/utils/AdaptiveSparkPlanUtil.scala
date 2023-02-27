@@ -41,5 +41,4 @@ object AdaptiveSparkPlanUtil {
             !plan.logicalLink.exists(_.isStreaming) &&
             plan.children.forall(supportAdaptiveWithExchangeConsidered)))
   }
-
 }
