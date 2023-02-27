@@ -186,8 +186,8 @@ set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
-## If the folly is not builded in system directories,
-## please add `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
+## If the folly is not builded in system directories, please add
+## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
