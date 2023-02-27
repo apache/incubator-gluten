@@ -22,7 +22,7 @@ import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer,
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{CelebornShuffleWriterWrapper, GenCelebornShuffleWriterParameters, GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GetStructField, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
@@ -138,6 +138,16 @@ trait SparkPlanExecApi {
    */
   def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V]
                                     ): GlutenShuffleWriterWrapper[K, V]
+
+  /**
+   * Generate CelebornColumnarShuffleWriter for ColumnarShuffleManager.
+   *
+   * @return
+   */
+  def genCelebornColumnarShuffleWriter[K, V](parameters: GenCelebornShuffleWriterParameters[K, V]
+                                    ): CelebornShuffleWriterWrapper[K, V] = {
+    throw new UnsupportedOperationException
+  }
 
   /**
    * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.

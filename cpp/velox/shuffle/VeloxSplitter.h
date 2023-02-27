@@ -105,7 +105,7 @@ class VeloxSplitter : public SplitterBase {
 
   virtual arrow::Status Stop();
 
-  arrow::Status SpillFixedSize(int64_t size, int64_t* actual);
+  arrow::Status EvictFixedSize(int64_t size, int64_t* actual);
 
   int64_t RawPartitionBytes() const {
     return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);

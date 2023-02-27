@@ -390,7 +390,7 @@ arrow::Status Splitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
+      total_bytes_evicted_ += writer->bytes_spilled;
     } else {
       partition_lengths_[pid] = 0;
     }
@@ -681,7 +681,7 @@ arrow::Status Splitter::AllocateNew(int32_t partition_id, int32_t new_size) {
 }
 
 // call from memory management
-arrow::Status Splitter::SpillFixedSize(int64_t size, int64_t* actual) {
+arrow::Status Splitter::EvictFixedSize(int64_t size, int64_t* actual) {
   int64_t current_spilled = 0L;
   int32_t try_count = 0;
   while (current_spilled < size && try_count < 5) {
@@ -701,7 +701,7 @@ arrow::Status Splitter::SpillPartition(int32_t partition_id) {
   if (partition_writer_[partition_id] == nullptr) {
     partition_writer_[partition_id] = std::make_shared<PartitionWriter>(this, partition_id);
   }
-  TIME_NANO_OR_RAISE(total_spill_time_, partition_writer_[partition_id]->Spill());
+  TIME_NANO_OR_RAISE(total_evict_time_, partition_writer_[partition_id]->Spill());
 
   // reset validity buffer after spill
   std::for_each(
@@ -1361,7 +1361,6 @@ arrow::Status SinglePartSplitter::Split(ColumnarBatch* batch) {
     RETURN_NOT_OK(InitColumnType());
   }
   RETURN_NOT_OK(CacheRecordBatch(0, *rb));
-
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
 }
@@ -1391,7 +1390,7 @@ arrow::Status SinglePartSplitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
+      total_bytes_evicted_ += writer->bytes_spilled;
     } else {
       partition_lengths_[pid] = 0;
     }
