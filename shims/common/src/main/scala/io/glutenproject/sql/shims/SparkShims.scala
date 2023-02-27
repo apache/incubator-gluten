@@ -42,10 +42,6 @@ trait SparkShims {
   // https://github.com/apache/spark/pull/32875
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
 
-  protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
-
-  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
-
   def expressionMappings: Seq[Sig]
 
   def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec])

@@ -40,18 +40,6 @@ class Spark32Shims extends SparkShims {
     HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {
-    // Only QueryStage will have Exchange as Leaf Plan
-    val isLeafPlanExchange = plan match {
-      case _: Exchange => true
-      case _ => false
-    }
-    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled &&
-      (sanityCheck(plan) &&
-        !plan.logicalLink.exists(_.isStreaming) &&
-        plan.children.forall(supportAdaptiveWithExchangeConsidered)))
-  }
-
   override def expressionMappings: Seq[Sig] = Seq.empty
 
   override def convertPartitionTransforms(

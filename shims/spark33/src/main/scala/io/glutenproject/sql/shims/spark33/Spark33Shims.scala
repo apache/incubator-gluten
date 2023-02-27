@@ -41,20 +41,6 @@ class Spark33Shims extends SparkShims {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {
-    // TODO migrate dynamic-partition-pruning onto adaptive execution.
-    // Only QueryStage will have Exchange as Leaf Plan
-    val isLeafPlanExchange = plan match {
-      case _: Exchange => true
-      case _ => false
-    }
-    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled &&
-      (sanityCheck(plan) &&
-        !plan.logicalLink.exists(_.isStreaming) &&
-        !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
-        plan.children.forall(supportAdaptiveWithExchangeConsidered)))
-  }
-
   override def expressionMappings: Seq[Sig] = Seq(
     Sig[SplitPart]("split_part")
   )
