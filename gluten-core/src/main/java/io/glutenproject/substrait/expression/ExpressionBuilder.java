@@ -20,13 +20,16 @@ package io.glutenproject.substrait.expression;
 import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** Contains helper functions for constructing substrait relations. */
 public class ExpressionBuilder {
@@ -104,6 +107,10 @@ public class ExpressionBuilder {
 
   public static StringListNode makeStringList(ArrayList<String> strConstants) {
     return new StringListNode(strConstants);
+  }
+
+  public static BinaryStructNode makeBinaryStruct(byte[][] binary, StructType type) {
+    return new BinaryStructNode(binary, type);
   }
 
   public static BinaryLiteralNode makeBinaryLiteral(byte[] bytesConstant) {
@@ -223,6 +230,26 @@ public class ExpressionBuilder {
       }
     } else if (dataType instanceof NullType) {
         return makeNullLiteral(TypeBuilder.makeNothing());
+    } else  if (dataType instanceof StructType) {
+      StructType type = (StructType) dataType;
+      if (obj == null) {
+        List<TypeNode> typeNodes = Arrays.stream(type.fields())
+            .map(f -> ConverterUtils.getTypeNode(f.dataType(), f.nullable()))
+            .collect(Collectors.toList());
+        return makeNullLiteral(TypeBuilder.makeStruct(nullable, new ArrayList<>(typeNodes)));
+      } else {
+        if (Arrays.stream(type.fields()).anyMatch(f -> !(f.dataType() instanceof BinaryType))) {
+          throw new UnsupportedOperationException(
+              String.format("Type not supported in struct: %s, obj: %s, class: %s",
+                  dataType, obj, obj.getClass().toString()));
+        }
+        InternalRow row = (InternalRow) obj;
+        byte[][] binarys = new byte[row.numFields()][];
+        for (int i = 0; i < row.numFields(); i++) {
+          binarys[i] = row.getBinary(i);
+        }
+        return makeBinaryStruct(binarys, type);
+      }
     } else {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
       throw new UnsupportedOperationException(

@@ -36,11 +36,6 @@ class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
     println(s"Executing SQL query from resource path $path...")
     val sql = TpcRunner.resourceToString(path)
     val prev = System.nanoTime()
-    if (caseId.equals("q8")) {
-      // because q8 fallback might_contain and offload bloomfilter
-      print("set bloomFilter false\n")
-      spark.conf.set("spark.gluten.sql.native.bloomFilter", "false")
-    }
     val df = spark.sql(sql)
     if (explain) {
       df.explain(extended = true)
