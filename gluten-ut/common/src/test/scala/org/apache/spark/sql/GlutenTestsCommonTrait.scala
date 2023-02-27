@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import java.io.File
+import java.io.{File, FileWriter}
 import scala.collection.mutable.ArrayBuffer
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -25,6 +25,7 @@ import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.scalactic.source.Position
 import org.scalatest.{Args, Status, Tag}
 import org.apache.spark.SparkFunSuite
@@ -55,10 +56,42 @@ trait GlutenTestsCommonTrait
     status
   }
 
-  override protected def test(testName: String,
-                              testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
+  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
     if (shouldRun(testName)) {
-      super.test(testName, testTags: _*)(testFun)
+      super.test(testName, testTags: _*) {
+        try {
+          testFun
+          classOf[GlutenTestsBaseTrait].synchronized {
+            val writer = new FileWriter("/tmp/gluten-leak-report.log", true)
+            try {
+              writer.write(
+                String
+                  .format("%-50s %-50s\n", String.format("[%s]", getClass.getSimpleName), testName))
+            } finally {
+              writer.close()
+            }
+          }
+        } catch {
+          case e: Exception =>
+            if (ExceptionUtils.getStackTrace(e).contains("Managed memory leak detected")) {
+              classOf[GlutenTestsBaseTrait].synchronized {
+                val writer = new FileWriter("/tmp/gluten-leak-report.log", true)
+                try {
+                  writer.write(
+                    String.format(
+                      "%-50s -%-50s - LEAK\n",
+                      String.format("[%s]", getClass.getSimpleName),
+                      testName))
+                } finally {
+                  writer.close()
+                }
+              }
+            } else {
+              throw e
+            }
+        }
+      }
     }
   }
 }

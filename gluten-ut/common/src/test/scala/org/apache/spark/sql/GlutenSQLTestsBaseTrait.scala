@@ -20,11 +20,13 @@ package org.apache.spark.sql
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.SystemParameters
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.scalactic.source.Position
 import org.scalatest.Tag
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.test.SharedSparkSession
+
+import java.io.FileWriter
 
 /**
  * Basic trait for Gluten SQL test cases.
@@ -34,7 +36,37 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
   override protected def test(testName: String,
                               testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
     if (shouldRun(testName)) {
-      super.test(testName, testTags: _*)(testFun)
+      super.test(testName, testTags: _*) {
+        try {
+          testFun
+          classOf[GlutenTestsBaseTrait].synchronized {
+            val writer = new FileWriter("/tmp/gluten-leak-report.log", true)
+            try {
+              writer.write(
+                String.format("%-50s %-50s\n",
+                  String.format("[%s]", getClass.getSimpleName), testName))
+            } finally {
+              writer.close()
+            }
+          }
+        } catch {
+          case e: Exception =>
+            if (ExceptionUtils.getStackTrace(e).contains("Managed memory leak detected")) {
+              classOf[GlutenTestsBaseTrait].synchronized {
+                val writer = new FileWriter("/tmp/gluten-leak-report.log", true)
+                try {
+                  writer.write(
+                    String.format("%-50s -%-50s - LEAK\n",
+                      String.format("[%s]", getClass.getSimpleName), testName))
+                } finally {
+                  writer.close()
+                }
+              }
+            } else {
+              throw e
+            }
+        }
+      }
     } else {
       logWarning(s"Ignore test case: ${testName}")
     }
@@ -70,7 +102,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
         .set("spark.sql.files.openCostInBytes", "134217728")
         .set("spark.unsafe.exceptionOnMemoryLeak", "true")
     } else {
-      conf.set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      conf.set("spark.unsafe.exceptionOnMemoryLeak", "true")
     }
 
     conf
