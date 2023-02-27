@@ -64,6 +64,14 @@ public class ArrowColumnarBatches {
     }
   }
 
+  public static void close(ColumnarBatch input) {
+    ColumnarBatchJniWrapper.INSTANCE.close(GlutenColumnarBatches.getNativeHandle(input));
+  }
+
+  public static long getBytes(ColumnarBatch input) {
+    return ColumnarBatchJniWrapper.INSTANCE.getBytes(GlutenColumnarBatches.getNativeHandle(input));
+  }
+
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
     if (!GlutenColumnarBatches.isIntermediateColumnarBatch(input)) {
       throw new IllegalArgumentException("input is not intermediate Gluten columnar input. " +

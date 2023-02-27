@@ -357,7 +357,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << local_schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", local_schema, num_partitions, options));
+    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", num_partitions, options));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -413,7 +413,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     if (state.thread_index() == 0)
       std::cout << schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", schema, num_partitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", num_partitions, std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 

@@ -33,6 +33,8 @@ class VeloxColumnarBatch final : public ColumnarBatch {
     return "velox";
   }
 
+  int64_t GetBytes() override;
+
   std::shared_ptr<ArrowSchema> exportArrowSchema() override;
   std::shared_ptr<ArrowArray> exportArrowArray() override;
 

@@ -40,6 +40,11 @@ std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   return out;
 }
 
+int64_t VeloxColumnarBatch::GetBytes() {
+  EnsureFlattened();
+  return flattened_->estimateFlatSize();
+}
+
 void VeloxColumnarBatch::saveToFile(std::shared_ptr<ArrowWriter> writer) {
   auto schema = exportArrowSchema();
   auto maybeBatch = arrow::ImportRecordBatch(exportArrowArray().get(), schema.get());

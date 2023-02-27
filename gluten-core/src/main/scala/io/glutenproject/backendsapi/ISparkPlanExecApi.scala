@@ -129,7 +129,7 @@ trait ISparkPlanExecApi {
                            writeMetrics: Map[String, SQLMetric], dataSize: SQLMetric,
                            bytesSpilled: SQLMetric, numInputRows: SQLMetric,
                            computePidTime: SQLMetric, splitTime: SQLMetric,
-                           spillTime: SQLMetric, compressTime: SQLMetric, prepareTime: SQLMetric,
+                           spillTime: SQLMetric, compressTime: SQLMetric,
                            inputBatches: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
   // scalastyle:on argcount

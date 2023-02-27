@@ -181,10 +181,6 @@ class JavaArrowArrayIterator {
   std::shared_ptr<ColumnarBatch> Next() {
     JNIEnv* env;
     AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
-#ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "PICKING ITERATOR REF " << reinterpret_cast<long>(java_serialized_arrow_array_iterator_) << "..."
-              << std::endl;
-#endif
     if (!env->CallBooleanMethod(java_serialized_arrow_array_iterator_, serialized_arrow_array_iterator_hasNext)) {
       CheckException(env);
       return nullptr; // stream ended
@@ -516,7 +512,6 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeClose(JNIEnv* env, jobje
   if (it.use_count() > 2) {
     std::cout << "ArrowArrayResultIterator Id " << id << " use count is " << it.use_count() << std::endl;
   }
-  std::cout << "BatchIterator nativeClose." << std::endl;
 #endif
   result_iterator_holder_.Erase(id);
   JNI_METHOD_END()
@@ -584,6 +579,14 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getType(JNIEnv* env,
 }
 
 JNIEXPORT jlong JNICALL
+Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getBytes(JNIEnv* env, jobject, jlong handle) {
+  JNI_METHOD_START
+  std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
+  return batch->GetBytes();
+  JNI_METHOD_END(-1)
+}
+
+JNIEXPORT jlong JNICALL
 Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumColumns(JNIEnv* env, jobject, jlong handle) {
   JNI_METHOD_START
   std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
@@ -646,7 +649,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     jobject,
     jstring partitioning_name_jstr,
     jint num_partitions,
-    jlong c_schema,
     jlong offheap_per_task,
     jint buffer_size,
     jstring compression_type_jstr,
@@ -707,9 +709,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
   setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
   env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
 
-  std::shared_ptr<arrow::Schema> schema =
-      gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
-
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
@@ -734,7 +733,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
   auto splitter = gluten::JniGetOrThrow(
-      Splitter::Make(partitioning_name, std::move(schema), num_partitions, std::move(splitOptions)),
+      Splitter::Make(partitioning_name, num_partitions, std::move(splitOptions)),
       "Failed create native shuffle splitter");
 
   return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));
@@ -765,18 +764,20 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     jobject,
     jlong splitter_id,
     jint num_rows,
-    jlong c_array) {
+    jlong handle) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
     std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
     gluten::JniThrow(error_message);
   }
-  std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
-      arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array), splitter->input_schema()));
 
+  // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeSplitter)
+  std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
+  std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
+      arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
   gluten::JniAssertOkOrThrow(splitter->Split(*in), "Native split: splitter split failed");
-  return -1L;
+  return batch->GetBytes();
   JNI_METHOD_END(-1L)
 }
 
