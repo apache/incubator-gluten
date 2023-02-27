@@ -45,7 +45,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of batch scan"),
     "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
     "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
