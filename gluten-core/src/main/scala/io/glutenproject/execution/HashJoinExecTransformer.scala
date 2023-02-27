@@ -113,6 +113,8 @@ trait HashJoinLikeExecTransformer
   def hashJoinType: JoinType
 
   override lazy val metrics = Map(
+    "hashBuildInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash build input rows"),
     "hashBuildOutputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash build output rows"),
     "hashBuildOutputVectors" -> SQLMetrics.createMetric(
@@ -122,7 +124,7 @@ trait HashJoinLikeExecTransformer
     "hashBuildCpuNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "hash build cpu time"),
     "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "hash build wall time"),
+      sparkContext, "totaltime of hash build"),
     "hashBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "hash build peak memory bytes"),
     "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -136,16 +138,16 @@ trait HashJoinLikeExecTransformer
     "hashBuildSpilledFiles" -> SQLMetrics.createMetric(
       sparkContext, "total spilled files of hash build"),
 
+    "hashProbeInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe input rows"),
     "hashProbeOutputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe output rows"),
     "hashProbeOutputVectors" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe output vectors"),
-    "hashProbeOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of hash probe output bytes"),
     "hashProbeCpuNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "hash probe cpu time"),
     "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "hash probe wall time"),
+      sparkContext, "totaltime of hash probe"),
     "hashProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "hash probe peak memory bytes"),
     "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -163,12 +165,34 @@ trait HashJoinLikeExecTransformer
     "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe dynamic filters produced"),
 
+    "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of stream input"),
+    "streamVeloxToArrow" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of velox2arrow converter"),
+
+    "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of stream preProjection"),
+
+    "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime to build input"),
+
+    "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime to build preProjection"),
+
+    "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of postProjection"),
+    "postProjectionOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection output rows"),
+    "postProjectionOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection output vectors"),
+
     "finalOutputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of final output rows"),
     "finalOutputVectors" -> SQLMetrics.createMetric(
       sparkContext, "number of final output vectors"))
 
   object MetricsUpdaterImpl extends HashJoinMetricsUpdater {
+    val hashBuildInputRows: SQLMetric = longMetric("hashBuildInputRows")
     val hashBuildOutputRows: SQLMetric = longMetric("hashBuildOutputRows")
     val hashBuildOutputVectors: SQLMetric = longMetric("hashBuildOutputVectors")
     val hashBuildOutputBytes: SQLMetric = longMetric("hashBuildOutputBytes")
@@ -181,6 +205,7 @@ trait HashJoinLikeExecTransformer
     val hashBuildSpilledPartitions: SQLMetric = longMetric("hashBuildSpilledPartitions")
     val hashBuildSpilledFiles: SQLMetric = longMetric("hashBuildSpilledFiles")
 
+    val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
     val hashProbeOutputRows: SQLMetric = longMetric("hashProbeOutputRows")
     val hashProbeOutputVectors: SQLMetric = longMetric("hashProbeOutputVectors")
     val hashProbeOutputBytes: SQLMetric = longMetric("hashProbeOutputBytes")
@@ -202,6 +227,15 @@ trait HashJoinLikeExecTransformer
     val hashProbeDynamicFiltersProduced: SQLMetric =
       longMetric("hashProbeDynamicFiltersProduced")
 
+    val streamWallNanos: SQLMetric = longMetric("streamWallNanos")
+    val streamVeloxToArrow: SQLMetric = longMetric("streamVeloxToArrow")
+    val streamPreProjectionWallNanos: SQLMetric = longMetric("streamPreProjectionWallNanos")
+    val buildWallNanos: SQLMetric = longMetric("buildWallNanos")
+    val buildPreProjectionWallNanos: SQLMetric = longMetric("buildPreProjectionWallNanos")
+    val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
+    val postProjectionOutputRows: SQLMetric = longMetric("postProjectionOutputRows")
+    val postProjectionOutputVectors: SQLMetric = longMetric("postProjectionOutputVectors")
+
     val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
     val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
 
@@ -219,11 +253,16 @@ trait HashJoinLikeExecTransformer
                           joinParams: JoinParams): Unit = {
       var idx = 0
       if (joinParams.postProjectionNeeded) {
+        val postProjectMetrics = joinMetrics.get(idx)
+        postProjectionWallNanos += postProjectMetrics.wallNanos
+        postProjectionOutputRows += postProjectMetrics.outputRows
+        postProjectionOutputVectors += postProjectMetrics.outputVectors
         idx += 1
       }
 
       // HashProbe
       val hashProbeMetrics = joinMetrics.get(idx)
+      hashProbeInputRows += hashProbeMetrics.inputRows
       hashProbeOutputRows += hashProbeMetrics.outputRows
       hashProbeOutputVectors += hashProbeMetrics.outputVectors
       hashProbeOutputBytes += hashProbeMetrics.outputBytes
@@ -241,6 +280,7 @@ trait HashJoinLikeExecTransformer
 
       // HashBuild
       val hashBuildMetrics = joinMetrics.get(idx)
+      hashBuildInputRows += hashBuildMetrics.inputRows
       hashBuildOutputRows += hashBuildMetrics.outputRows
       hashBuildOutputVectors += hashBuildMetrics.outputVectors
       hashBuildOutputBytes += hashBuildMetrics.outputBytes
@@ -255,18 +295,24 @@ trait HashJoinLikeExecTransformer
       idx += 1
 
       if (joinParams.buildPreProjectionNeeded) {
+        buildPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (joinParams.isBuildReadRel) {
+        buildWallNanos += joinMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (joinParams.streamPreProjectionNeeded) {
+        streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (joinParams.isStreamedReadRel) {
+        val streamMetrics = joinMetrics.get(idx)
+        streamWallNanos += streamMetrics.wallNanos
+        streamVeloxToArrow += singleMetrics.veloxToArrow
         idx += 1
       }
     }

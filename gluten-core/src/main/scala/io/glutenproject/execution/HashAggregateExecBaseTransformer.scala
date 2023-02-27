@@ -78,7 +78,7 @@ abstract class HashAggregateExecBaseTransformer(
     "aggCpuNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "cpu time"),
     "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "wall time"),
+      sparkContext, "totaltime of aggregation"),
     "aggPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "peak memory bytes"),
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -93,6 +93,13 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "number of spilled files"),
     "flushRowCount" -> SQLMetrics.createMetric(
       sparkContext, "number of flushed rows"),
+
+    "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of preProjection"),
+    "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of postProjection"),
+    "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of extraction"),
 
     "finalOutputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of final output rows"),
@@ -113,6 +120,10 @@ abstract class HashAggregateExecBaseTransformer(
     val aggSpilledFiles: SQLMetric = longMetric("aggSpilledFiles")
     val flushRowCount: SQLMetric = longMetric("flushRowCount")
 
+    val preProjectionWallNanos: SQLMetric = longMetric("preProjectionWallNanos")
+    val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
+    val extractionWallNanos: SQLMetric = longMetric("extractionWallNanos")
+
     val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
     val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
 
@@ -125,10 +136,12 @@ abstract class HashAggregateExecBaseTransformer(
                                  aggParams: AggregationParams): Unit = {
       var idx = 0
       if (aggParams.postProjectionNeeded) {
+        postProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (aggParams.extractionNeeded) {
+        extractionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
@@ -148,6 +161,7 @@ abstract class HashAggregateExecBaseTransformer(
       idx += 1
 
       if (aggParams.preProjectionNeeded) {
+        preProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
