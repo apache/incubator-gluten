@@ -20,6 +20,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{StringType, StructType}
 
 import java.util.Date
+
 import scala.language.implicitConversions
 
 class GlutenClickHouseParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
