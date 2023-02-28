@@ -427,6 +427,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
+    // Unsupported compression codec.
     .exclude("write and read - file source parquet - codec: lz4")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
