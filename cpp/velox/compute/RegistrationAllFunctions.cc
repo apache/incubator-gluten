@@ -28,7 +28,9 @@ namespace gluten {
 
 void registerCustomFunctions() {
   velox::exec::registerVectorFunction(
-      "row_constructor", std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{}, std::make_unique<RowConstructor>());
+      "row_constructor",
+      std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
+      std::make_unique<RowConstructor>());
 }
 
 void registerAllFunctions() {

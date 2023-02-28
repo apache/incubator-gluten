@@ -31,7 +31,8 @@ class RowConstructor final : public facebook::velox::exec::VectorFunction {
       facebook::velox::VectorPtr& result) const override {
     auto argsCopy = args;
 
-    facebook::velox::BufferPtr nulls = facebook::velox::AlignedBuffer::allocate<char>(facebook::velox::bits::nbytes(rows.size()), context.pool(), 1);
+    facebook::velox::BufferPtr nulls =
+        facebook::velox::AlignedBuffer::allocate<char>(facebook::velox::bits::nbytes(rows.size()), context.pool(), 1);
     auto* nullsPtr = nulls->asMutable<uint64_t>();
     auto cntNull = 0;
     rows.applyToSelected([&](facebook::velox::vector_size_t i) {

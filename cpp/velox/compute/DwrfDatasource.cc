@@ -99,10 +99,11 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
   reader_options.setFileFormat(format);
 
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
-    auto input =
-        std::make_unique<velox::dwio::common::BufferedInput>(std::make_shared<velox::LocalReadFile>(file_path_.substr(5)), *pool_);
+    auto input = std::make_unique<velox::dwio::common::BufferedInput>(
+        std::make_shared<velox::LocalReadFile>(file_path_.substr(5)), *pool_);
     std::unique_ptr<velox::dwio::common::Reader> reader =
-        velox::dwio::common::getReaderFactory(reader_options.getFileFormat())->createReader(std::move(input), reader_options);
+        velox::dwio::common::getReaderFactory(reader_options.getFileFormat())
+            ->createReader(std::move(input), reader_options);
     return toArrowSchema(reader->rowType());
   }
 #ifdef VELOX_ENABLE_HDFS
@@ -114,13 +115,14 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
     hdfsFreeBuilder(builder);
     std::regex hdfsPrefixExp("hdfs://(\\w+)/");
     std::string hdfsFilePath = regex_replace(file_path_.c_str(), hdfsPrefixExp, "/");
-    std::unique_ptr<velox::dwio::common::Reader> reader = velox::dwio::common::getReaderFactory(reader_options.getFileFormat())
-                                                       ->createReader(
-                                                           std::make_unique<velox::dwio::common::BufferedInput>(
-                                                               std::make_shared<velox::dwio::common::ReadFileInputStream>(
-                                                                   std::make_shared<velox::HdfsReadFile>(hdfs, hdfsFilePath)),
-                                                               *pool_),
-                                                           reader_options);
+    std::unique_ptr<velox::dwio::common::Reader> reader =
+        velox::dwio::common::getReaderFactory(reader_options.getFileFormat())
+            ->createReader(
+                std::make_unique<velox::dwio::common::BufferedInput>(
+                    std::make_shared<velox::dwio::common::ReadFileInputStream>(
+                        std::make_shared<velox::HdfsReadFile>(hdfs, hdfsFilePath)),
+                    *pool_),
+                reader_options);
     return toArrowSchema(reader->rowType());
   }
 #endif

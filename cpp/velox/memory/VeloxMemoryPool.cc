@@ -286,8 +286,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   }
 
   void setSubtreeMemoryUsage(int64_t size) {
-    updateSubtreeMemoryUsage(
-        [size](velox::memory::MemoryUsage& subtreeUsage) { subtreeUsage.setCurrentBytes(size); });
+    updateSubtreeMemoryUsage([size](velox::memory::MemoryUsage& subtreeUsage) { subtreeUsage.setCurrentBytes(size); });
   }
 
   int64_t updateSubtreeMemoryUsage(int64_t size) {
@@ -312,7 +311,9 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     return capped_.load();
   }
 
-  std::shared_ptr<velox::memory::MemoryPool> genChild(std::shared_ptr<velox::memory::MemoryPool> parent, const std::string& name) {
+  std::shared_ptr<velox::memory::MemoryPool> genChild(
+      std::shared_ptr<velox::memory::MemoryPool> parent,
+      const std::string& name) {
     return std::make_shared<WrappedVeloxMemoryPool>(
         memoryManager_, name, parent, glutenAllocator_, Options{.alignment = alignment_});
   }
@@ -336,9 +337,8 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
   int64_t getSubtreeMaxBytes() const {
     int64_t maxBytes;
-    accessSubtreeMemoryUsage([&maxBytes](const velox::memory::MemoryUsage& subtreeUsage) {
-      maxBytes = subtreeUsage.getMaxBytes();
-    });
+    accessSubtreeMemoryUsage(
+        [&maxBytes](const velox::memory::MemoryUsage& subtreeUsage) { maxBytes = subtreeUsage.getMaxBytes(); });
     return maxBytes;
   }
 
@@ -374,8 +374,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   }
 
   std::string toString() const {
-    return fmt::format(
-        "Memory Pool[{} {}]", name_, velox::memory::MemoryAllocator::kindString(allocator_.kind()));
+    return fmt::format("Memory Pool[{} {}]", name_, velox::memory::MemoryAllocator::kindString(allocator_.kind()));
   }
 
  private:
@@ -415,12 +414,18 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
 std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
   return std::make_shared<WrappedVeloxMemoryPool>(
-      velox::memory::MemoryManager::getInstance(), "wrapped", nullptr, std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
+      velox::memory::MemoryManager::getInstance(),
+      "wrapped",
+      nullptr,
+      std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
 }
 
 velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool() {
   static WrappedVeloxMemoryPool default_pool(
-      velox::memory::MemoryManager::getInstance(), "root", nullptr, VeloxMemoryAllocatorVariant::createDefaultAllocator());
+      velox::memory::MemoryManager::getInstance(),
+      "root",
+      nullptr,
+      VeloxMemoryAllocatorVariant::createDefaultAllocator());
   return &default_pool;
 }
 

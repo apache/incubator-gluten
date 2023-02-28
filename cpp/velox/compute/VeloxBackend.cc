@@ -164,8 +164,9 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 #endif
 
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
-  auto hiveConnector = velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
-                           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
+  auto hiveConnector =
+      velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
+          ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
 
   velox::connector::registerConnector(hiveConnector);
   velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
