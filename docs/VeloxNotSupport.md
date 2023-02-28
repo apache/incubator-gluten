@@ -62,13 +62,11 @@ Spark has `spark.sql.parquet.datetimeRebaseModeInWrite` config to decide whether
 or Proleptic Gregorian calendar should be used during parquet writing for dates/timestamps. If the parquet to read is written
 by Spark with this config as true, Velox's TableScan will output different result when reading it back.
 
-`` 
-
 ### Partitioned Table Scan (fallback behavior)
-Gluten only support the partitioned table scan when the file path contain the partition info, otherwise will fallback to vanilla spark.
+Gluten only support the partitioned table scan when the file path contain the partition info, otherwise will fall back to vanilla spark.
 
-### NAN support (incompatible behavior)
-Velox does not support NAN, will return null instead.
+### NaN support (incompatible behavior)
+Velox does NOT support NaN. So unexpected result can be obtained for a few cases, e.g., comparing a number with NaN.
 
 ### File compression codec (exception)
 

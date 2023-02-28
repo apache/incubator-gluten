@@ -511,7 +511,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenConfigBehaviorSuite]
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
-    .exclude("roundtrip to_csv -> from_csv")
   enableSuite[GlutenCTEHintSuite]
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
@@ -526,6 +525,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSerializationSuite]
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
+      // Rewrite with NaN test cases excluded.
     .exclude("cases when literal is max")
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
   enableSuite[GlutenDeprecatedAPISuite]
