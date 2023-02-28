@@ -17,25 +17,22 @@
 
 #include "VeloxMemoryPool.h"
 
-using facebook::velox::memory::kMaxMemory;
-using facebook::velox::memory::MachinePageCount;
-using facebook::velox::memory::MemoryAllocator;
-using facebook::velox::memory::MemoryManager;
+using namespace facebook;
 
 namespace gluten {
 namespace {
-#define VELOX_MEM_MANUAL_CAP()                                      \
-  _VELOX_THROW(                                                     \
-      ::facebook::velox::VeloxRuntimeError,                         \
-      ::facebook::velox::error_source::kErrorSourceRuntime.c_str(), \
-      ::facebook::velox::error_code::kMemCapExceeded.c_str(),       \
-      /* isRetriable */ true,                                       \
+#define VELOX_MEM_MANUAL_CAP()                          \
+  _VELOX_THROW(                                         \
+      velox::VeloxRuntimeError,                         \
+      velox::error_source::kErrorSourceRuntime.c_str(), \
+      velox::error_code::kMemCapExceeded.c_str(),       \
+      /* isRetriable */ true,                           \
       "Memory allocation manually capped");
 } // namespace
 
 class VeloxMemoryAllocatorVariant {
  public:
-  VeloxMemoryAllocatorVariant(MemoryAllocator* gluten_alloc) : gluten_alloc_(gluten_alloc) {}
+  VeloxMemoryAllocatorVariant(gluten::MemoryAllocator* gluten_alloc) : gluten_alloc_(gluten_alloc) {}
 
   static std::shared_ptr<VeloxMemoryAllocatorVariant> createDefaultAllocator() {
     static std::shared_ptr<VeloxMemoryAllocatorVariant> velox_alloc =
@@ -92,22 +89,22 @@ class VeloxMemoryAllocatorVariant {
   }
 
  private:
-  MemoryAllocator* gluten_alloc_;
+  gluten::MemoryAllocator* gluten_alloc_;
 };
 
 //  The code is originated from /velox/common/memory/Memory.h
 //  Removed memory manager.
-class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool {
+class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
  public:
   // Should perhaps make this method private so that we only create node through
   // parent.
   WrappedVeloxMemoryPool(
-      facebook::velox::memory::MemoryManager& memoryManager,
+      velox::memory::MemoryManager& memoryManager,
       const std::string& name,
-      std::shared_ptr<MemoryPool> parent,
+      std::shared_ptr<velox::memory::MemoryPool> parent,
       std::shared_ptr<VeloxMemoryAllocatorVariant> glutenAllocator,
       const Options& options = Options{})
-      : MemoryPool{name, parent, options},
+      : velox::memory::MemoryPool{name, parent, options},
         cap_{options.capacity},
         memoryManager_{memoryManager},
         localMemoryUsage_{},
@@ -183,9 +180,9 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
 
   // FIXME: This function should call glutenAllocator_.
   void allocateNonContiguous(
-      MachinePageCount numPages,
-      facebook::velox::memory::Allocation& out,
-      MachinePageCount minSizeClass) {
+      velox::memory::MachinePageCount numPages,
+      velox::memory::Allocation& out,
+      velox::memory::MachinePageCount minSizeClass) {
     VELOX_CHECK_GT(numPages, 0);
 
     if (!allocator_.allocateNonContiguous(
@@ -205,7 +202,7 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     out.setPool(this);
   }
 
-  void freeNonContiguous(facebook::velox::memory::Allocation& allocation) {
+  void freeNonContiguous(velox::memory::Allocation& allocation) {
     const int64_t freedBytes = allocator_.freeNonContiguous(allocation);
     VELOX_CHECK(allocation.empty());
     if (memoryUsageTracker_ != nullptr) {
@@ -213,15 +210,15 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     }
   }
 
-  MachinePageCount largestSizeClass() const {
+  velox::memory::MachinePageCount largestSizeClass() const {
     return allocator_.largestSizeClass();
   }
 
-  const std::vector<MachinePageCount>& sizeClasses() const {
+  const std::vector<velox::memory::MachinePageCount>& sizeClasses() const {
     return allocator_.sizeClasses();
   }
 
-  void allocateContiguous(MachinePageCount numPages, facebook::velox::memory::ContiguousAllocation& out) {
+  void allocateContiguous(velox::memory::MachinePageCount numPages, velox::memory::ContiguousAllocation& out) {
     VELOX_CHECK_GT(numPages, 0);
 
     if (!allocator_.allocateContiguous(numPages, nullptr, out, [this](int64_t allocBytes, bool preAlloc) {
@@ -237,7 +234,7 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     out.setPool(this);
   }
 
-  void freeContiguous(facebook::velox::memory::ContiguousAllocation& allocation) {
+  void freeContiguous(velox::memory::ContiguousAllocation& allocation) {
     const int64_t bytesToFree = allocation.size();
     allocator_.freeContiguous(allocation);
     VELOX_CHECK(allocation.empty());
@@ -275,7 +272,7 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     return std::max(getSubtreeMaxBytes(), localMemoryUsage_.getMaxBytes());
   }
 
-  void setMemoryUsageTracker(const std::shared_ptr<facebook::velox::memory::MemoryUsageTracker>& tracker) {
+  void setMemoryUsageTracker(const std::shared_ptr<velox::memory::MemoryUsageTracker>& tracker) {
     const auto currentBytes = getCurrentBytes();
     if (memoryUsageTracker_) {
       memoryUsageTracker_->update(-currentBytes);
@@ -284,18 +281,17 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     memoryUsageTracker_->update(currentBytes);
   }
 
-  const std::shared_ptr<facebook::velox::memory::MemoryUsageTracker>& getMemoryUsageTracker() const {
+  const std::shared_ptr<velox::memory::MemoryUsageTracker>& getMemoryUsageTracker() const {
     return memoryUsageTracker_;
   }
 
   void setSubtreeMemoryUsage(int64_t size) {
-    updateSubtreeMemoryUsage(
-        [size](facebook::velox::memory::MemoryUsage& subtreeUsage) { subtreeUsage.setCurrentBytes(size); });
+    updateSubtreeMemoryUsage([size](velox::memory::MemoryUsage& subtreeUsage) { subtreeUsage.setCurrentBytes(size); });
   }
 
   int64_t updateSubtreeMemoryUsage(int64_t size) {
     int64_t aggregateBytes;
-    updateSubtreeMemoryUsage([&aggregateBytes, size](facebook::velox::memory::MemoryUsage& subtreeUsage) {
+    updateSubtreeMemoryUsage([&aggregateBytes, size](velox::memory::MemoryUsage& subtreeUsage) {
       aggregateBytes = subtreeUsage.getCurrentBytes() + size;
       subtreeUsage.setCurrentBytes(aggregateBytes);
     });
@@ -315,7 +311,9 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     return capped_.load();
   }
 
-  std::shared_ptr<MemoryPool> genChild(std::shared_ptr<MemoryPool> parent, const std::string& name) {
+  std::shared_ptr<velox::memory::MemoryPool> genChild(
+      std::shared_ptr<velox::memory::MemoryPool> parent,
+      const std::string& name) {
     return std::make_shared<WrappedVeloxMemoryPool>(
         memoryManager_, name, parent, glutenAllocator_, Options{.alignment = alignment_});
   }
@@ -323,7 +321,7 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the
   // current MemoryPoolImpl. Not to be confused with total memory usage of the
   // subtree.
-  const facebook::velox::memory::MemoryUsage& getLocalMemoryUsage() const {
+  const velox::memory::MemoryUsage& getLocalMemoryUsage() const {
     return localMemoryUsage_;
   }
 
@@ -331,7 +329,7 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
   // children.
   int64_t getAggregateBytes() const {
     int64_t aggregateBytes = localMemoryUsage_.getCurrentBytes();
-    accessSubtreeMemoryUsage([&aggregateBytes](const facebook::velox::memory::MemoryUsage& subtreeUsage) {
+    accessSubtreeMemoryUsage([&aggregateBytes](const velox::memory::MemoryUsage& subtreeUsage) {
       aggregateBytes += subtreeUsage.getCurrentBytes();
     });
     return aggregateBytes;
@@ -339,9 +337,8 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
 
   int64_t getSubtreeMaxBytes() const {
     int64_t maxBytes;
-    accessSubtreeMemoryUsage([&maxBytes](const facebook::velox::memory::MemoryUsage& subtreeUsage) {
-      maxBytes = subtreeUsage.getMaxBytes();
-    });
+    accessSubtreeMemoryUsage(
+        [&maxBytes](const velox::memory::MemoryUsage& subtreeUsage) { maxBytes = subtreeUsage.getMaxBytes(); });
     return maxBytes;
   }
 
@@ -377,8 +374,7 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
   }
 
   std::string toString() const {
-    return fmt::format(
-        "Memory Pool[{} {}]", name_, facebook::velox::memory::MemoryAllocator::kindString(allocator_.kind()));
+    return fmt::format("Memory Pool[{} {}]", name_, velox::memory::MemoryAllocator::kindString(allocator_.kind()));
   }
 
  private:
@@ -393,37 +389,43 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     return glutenAllocator_->realloc(p, size, newSize);
   }
 
-  void accessSubtreeMemoryUsage(std::function<void(const facebook::velox::memory::MemoryUsage&)> visitor) const {
+  void accessSubtreeMemoryUsage(std::function<void(const velox::memory::MemoryUsage&)> visitor) const {
     folly::SharedMutex::ReadHolder readLock{subtreeUsageMutex_};
     visitor(subtreeMemoryUsage_);
   }
 
-  void updateSubtreeMemoryUsage(std::function<void(facebook::velox::memory::MemoryUsage&)> visitor) {
+  void updateSubtreeMemoryUsage(std::function<void(velox::memory::MemoryUsage&)> visitor) {
     folly::SharedMutex::WriteHolder writeLock{subtreeUsageMutex_};
     visitor(subtreeMemoryUsage_);
   }
 
   int64_t cap_;
-  MemoryManager& memoryManager_;
+  velox::memory::MemoryManager& memoryManager_;
 
   // Memory allocated attributed to the memory node.
-  facebook::velox::memory::MemoryUsage localMemoryUsage_;
-  std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> memoryUsageTracker_;
+  velox::memory::MemoryUsage localMemoryUsage_;
+  std::shared_ptr<velox::memory::MemoryUsageTracker> memoryUsageTracker_;
   mutable folly::SharedMutex subtreeUsageMutex_;
-  facebook::velox::memory::MemoryUsage subtreeMemoryUsage_;
+  velox::memory::MemoryUsage subtreeMemoryUsage_;
   std::atomic_bool capped_{false};
-  facebook::velox::memory::MemoryAllocator& allocator_;
+  velox::memory::MemoryAllocator& allocator_;
   std::shared_ptr<VeloxMemoryAllocatorVariant> glutenAllocator_;
 };
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(MemoryAllocator* allocator) {
+std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
   return std::make_shared<WrappedVeloxMemoryPool>(
-      MemoryManager::getInstance(), "wrapped", nullptr, std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
+      velox::memory::MemoryManager::getInstance(),
+      "wrapped",
+      nullptr,
+      std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
 }
 
-facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool() {
+velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool() {
   static WrappedVeloxMemoryPool default_pool(
-      MemoryManager::getInstance(), "root", nullptr, VeloxMemoryAllocatorVariant::createDefaultAllocator());
+      velox::memory::MemoryManager::getInstance(),
+      "root",
+      nullptr,
+      VeloxMemoryAllocatorVariant::createDefaultAllocator());
   return &default_pool;
 }
 

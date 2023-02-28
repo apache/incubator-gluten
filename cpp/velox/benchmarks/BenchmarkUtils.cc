@@ -35,6 +35,7 @@ DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 0, "The number of iterations to run this benchmark");
 
+using namespace facebook;
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
 
@@ -45,7 +46,7 @@ std::string getExampleFilePath(const std::string& fileName) {
   if (path.is_absolute()) {
     return fileName;
   }
-  return ::facebook::velox::test::getDataFilePath("cpp/velox/benchmarks", "data/" + fileName);
+  return velox::test::getDataFilePath("cpp/velox/benchmarks", "data/" + fileName);
 }
 
 arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
@@ -85,17 +86,17 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string&
   return maybePlan;
 }
 
-std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
+std::shared_ptr<velox::substrait::SplitInfo> getFileInfos(
     const std::string& datasetPath,
     const std::string& fileFormat) {
-  auto scanInfo = std::make_shared<facebook::velox::substrait::SplitInfo>();
+  auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
 
   // Set format to scan info.
-  auto format = facebook::velox::dwio::common::FileFormat::UNKNOWN;
+  auto format = velox::dwio::common::FileFormat::UNKNOWN;
   if (fileFormat.compare("orc") == 0) {
-    format = facebook::velox::dwio::common::FileFormat::ORC;
+    format = velox::dwio::common::FileFormat::ORC;
   } else if (fileFormat.compare("parquet") == 0) {
-    format = facebook::velox::dwio::common::FileFormat::PARQUET;
+    format = velox::dwio::common::FileFormat::PARQUET;
   }
   scanInfo->format = format;
 

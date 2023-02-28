@@ -2,9 +2,7 @@
 
 namespace gluten {
 
-using facebook::velox::BaseVector;
-using facebook::velox::RowVector;
-using facebook::velox::RowVectorPtr;
+using namespace facebook;
 
 void VeloxColumnarBatch::EnsureFlattened() {
   if (flattened_ != nullptr) {
@@ -17,8 +15,8 @@ void VeloxColumnarBatch::EnsureFlattened() {
   }
 
   // Perform copy to flatten dictionary vectors.
-  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
-      BaseVector::create(rowVector_->type(), rowVector_->size(), rowVector_->pool()));
+  velox::RowVectorPtr copy = std::dynamic_pointer_cast<velox::RowVector>(
+      velox::BaseVector::create(rowVector_->type(), rowVector_->size(), rowVector_->pool()));
   copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
   flattened_ = copy;
   auto endTime = std::chrono::steady_clock::now();
@@ -29,14 +27,14 @@ void VeloxColumnarBatch::EnsureFlattened() {
 std::shared_ptr<ArrowSchema> VeloxColumnarBatch::exportArrowSchema() {
   auto out = std::make_shared<ArrowSchema>();
   EnsureFlattened();
-  facebook::velox::exportToArrow(flattened_, *out);
+  velox::exportToArrow(flattened_, *out);
   return out;
 }
 
 std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   auto out = std::make_shared<ArrowArray>();
   EnsureFlattened();
-  facebook::velox::exportToArrow(flattened_, *out, GetDefaultWrappedVeloxMemoryPool());
+  velox::exportToArrow(flattened_, *out, GetDefaultWrappedVeloxMemoryPool());
   return out;
 }
 
@@ -56,11 +54,11 @@ void VeloxColumnarBatch::saveToFile(std::shared_ptr<ArrowWriter> writer) {
   GLUTEN_THROW_NOT_OK(writer->writeInBatches(maybeBatch.ValueOrDie()));
 }
 
-RowVectorPtr VeloxColumnarBatch::getRowVector() const {
+velox::RowVectorPtr VeloxColumnarBatch::getRowVector() const {
   return rowVector_;
 }
 
-RowVectorPtr VeloxColumnarBatch::getFlattenedRowVector() {
+velox::RowVectorPtr VeloxColumnarBatch::getFlattenedRowVector() {
   EnsureFlattened();
   return flattened_;
 }

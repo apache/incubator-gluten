@@ -7,7 +7,6 @@
 #include "velox/exec/PlanNodeStats.h"
 
 using namespace facebook;
-using namespace facebook::velox;
 
 namespace gluten {
 
@@ -91,7 +90,7 @@ void WholeStageResultIterator::collectMetrics() {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
         std::cout << "Not found node id: " << nodeId << std::endl;
         std::cout << "Plan Node: " << std::endl << planNode_->toString(true, true) << std::endl;
 #endif

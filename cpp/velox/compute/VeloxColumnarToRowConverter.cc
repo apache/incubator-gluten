@@ -28,7 +28,7 @@
 #include "velox/row/UnsafeRowSerializer.h"
 #include "velox/vector/arrow/Bridge.h"
 
-using namespace facebook::velox;
+using namespace facebook;
 
 namespace gluten {
 
@@ -37,7 +37,7 @@ arrow::Status VeloxColumnarToRowConverter::Init() {
   num_cols_ = rv_->childrenSize();
 
   ArrowSchema c_schema{};
-  facebook::velox::exportToArrow(rv_, c_schema);
+  velox::exportToArrow(rv_, c_schema);
   ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Schema> schema, arrow::ImportSchema(&c_schema));
   if (num_cols_ != schema->num_fields()) {
     return arrow::Status::Invalid("Mismatch: num_cols_ != schema->num_fields()");
@@ -60,7 +60,7 @@ arrow::Status VeloxColumnarToRowConverter::Init() {
   for (int64_t col_idx = 0; col_idx < num_cols_; col_idx++) {
     std::shared_ptr<arrow::Field> field = schema_->field(col_idx);
     if (arrow::is_binary_like(field->type()->id())) {
-      auto str_views = vecs_[col_idx]->asFlatVector<StringView>()->rawValues();
+      auto str_views = vecs_[col_idx]->asFlatVector<velox::StringView>()->rawValues();
       for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
         auto length = str_views[row_idx].size();
         int64_t bytes = RoundNumberOfBytesToNearestWord(length);
@@ -97,23 +97,23 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
     int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
     auto field_address = (char*)(buffer_address_ + field_offset);
 
-#define SERIALIZE_COLUMN(DataType)                                                    \
-  do {                                                                                \
-    if (mayHaveNulls) {                                                               \
-      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                         \
-        if (vec->isNullAt(row_idx)) {                                                 \
-          SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);       \
-        } else {                                                                      \
-          auto write_address = (char*)(field_address + offsets_[row_idx]);            \
-          row::UnsafeRowSerializer::serialize<DataType>(vec, write_address, row_idx); \
-        }                                                                             \
-      }                                                                               \
-    } else {                                                                          \
-      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                         \
-        auto write_address = (char*)(field_address + offsets_[row_idx]);              \
-        row::UnsafeRowSerializer::serialize<DataType>(vec, write_address, row_idx);   \
-      }                                                                               \
-    }                                                                                 \
+#define SERIALIZE_COLUMN(DataType)                                                                  \
+  do {                                                                                              \
+    if (mayHaveNulls) {                                                                             \
+      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                                       \
+        if (vec->isNullAt(row_idx)) {                                                               \
+          SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);                     \
+        } else {                                                                                    \
+          auto write_address = (char*)(field_address + offsets_[row_idx]);                          \
+          velox::row::UnsafeRowSerializer::serialize<velox::DataType>(vec, write_address, row_idx); \
+        }                                                                                           \
+      }                                                                                             \
+    } else {                                                                                        \
+      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                                       \
+        auto write_address = (char*)(field_address + offsets_[row_idx]);                            \
+        velox::row::UnsafeRowSerializer::serialize<velox::DataType>(vec, write_address, row_idx);   \
+      }                                                                                             \
+    }                                                                                               \
   } while (0)
 
     auto col_type_id = schema_->field(col_idx)->type()->id();
@@ -153,7 +153,7 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
       }
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id: {
-        auto str_views = vec->asFlatVector<StringView>()->rawValues();
+        auto str_views = vec->asFlatVector<velox::StringView>()->rawValues();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);

@@ -17,7 +17,7 @@
 
 #include "ArrowTypeUtils.h"
 
-using namespace facebook::velox;
+using namespace facebook;
 
 namespace gluten {
 
@@ -160,21 +160,21 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& typeName
   throw std::runtime_error("Type name is not supported: " + typeName + ".");
 }
 
-std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
+std::shared_ptr<arrow::DataType> toArrowType(const velox::TypePtr& type) {
   switch (type->kind()) {
-    case TypeKind::INTEGER:
+    case velox::TypeKind::INTEGER:
       return arrow::int32();
-    case TypeKind::BIGINT:
+    case velox::TypeKind::BIGINT:
       return arrow::int64();
-    case TypeKind::REAL:
+    case velox::TypeKind::REAL:
       return arrow::float32();
-    case TypeKind::DOUBLE:
+    case velox::TypeKind::DOUBLE:
       return arrow::float64();
-    case TypeKind::VARCHAR:
+    case velox::TypeKind::VARCHAR:
       return arrow::utf8();
-    case TypeKind::VARBINARY:
+    case velox::TypeKind::VARBINARY:
       return arrow::utf8();
-    case TypeKind::TIMESTAMP:
+    case velox::TypeKind::TIMESTAMP:
       return arrow::timestamp(arrow::TimeUnit::MICRO);
     default:
       throw std::runtime_error("Type conversion is not supported.");
@@ -201,7 +201,7 @@ const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
 }
 */
 
-std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const RowType>& rowType) {
+std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const velox::RowType>& rowType) {
   std::vector<std::shared_ptr<arrow::Field>> fields;
   auto size = rowType->size();
   fields.reserve(size);

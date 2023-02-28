@@ -22,27 +22,27 @@
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
 
-using namespace facebook::velox;
-using namespace facebook::velox::exec;
-using namespace facebook::velox::aggregate::prestosql;
+using namespace facebook;
 
 namespace gluten {
 
 void registerCustomFunctions() {
-  exec::registerVectorFunction(
-      "row_constructor", std::vector<std::shared_ptr<exec::FunctionSignature>>{}, std::make_unique<RowConstructor>());
+  velox::exec::registerVectorFunction(
+      "row_constructor",
+      std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
+      std::make_unique<RowConstructor>());
 }
 
 void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
   // presto sql functions to overwrite the registration for same named
   // functions.
-  functions::prestosql::registerAllScalarFunctions();
-  functions::sparksql::registerFunctions("");
+  velox::functions::prestosql::registerAllScalarFunctions();
+  velox::functions::sparksql::registerFunctions("");
   registerCustomFunctions();
-  registerAllAggregateFunctions();
-  functions::sparksql::aggregates::registerAggregateFunctions("");
-  window::prestosql::registerAllWindowFunctions();
+  velox::aggregate::prestosql::registerAllAggregateFunctions();
+  velox::functions::sparksql::aggregates::registerAggregateFunctions("");
+  velox::window::prestosql::registerAllWindowFunctions();
 }
 
 } // namespace gluten

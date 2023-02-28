@@ -33,7 +33,7 @@
 #include "velox/row/UnsafeRowSerializer.h"
 #include "velox/vector/arrow/Bridge.h"
 
-using namespace facebook::velox;
+using namespace facebook;
 
 namespace gluten {
 
@@ -62,47 +62,48 @@ void DwrfDatasource::Init(const std::unordered_map<std::string, std::string>& sp
     throw std::runtime_error("Failed to export from Arrow record batch");
   }
 
-  type_ = importFromArrow(c_schema);
-  auto sink = std::make_unique<dwio::common::LocalFileSink>(final_path_);
-  auto config = std::make_shared<dwrf::Config>();
+  type_ = velox::importFromArrow(c_schema);
+  auto sink = std::make_unique<velox::dwio::common::LocalFileSink>(final_path_);
+  auto config = std::make_shared<velox::dwrf::Config>();
 
   for (auto iter = sparkConfs.begin(); iter != sparkConfs.end(); iter++) {
     auto key = iter->first;
     if (strcmp(key.c_str(), "hive.exec.orc.stripe.size") == 0) {
-      config->set(dwrf::Config::STRIPE_SIZE, static_cast<uint64_t>(stoi(iter->second)));
+      config->set(velox::dwrf::Config::STRIPE_SIZE, static_cast<uint64_t>(stoi(iter->second)));
     } else if (strcmp(key.c_str(), "hive.exec.orc.row.index.stride") == 0) {
-      config->set(dwrf::Config::ROW_INDEX_STRIDE, static_cast<uint32_t>(stoi(iter->second)));
+      config->set(velox::dwrf::Config::ROW_INDEX_STRIDE, static_cast<uint32_t>(stoi(iter->second)));
     } else if (strcmp(key.c_str(), "hive.exec.orc.compress") == 0) {
       // Currently velox only support ZLIB and ZSTD and the default is ZSTD.
       if (strcasecmp(iter->second.c_str(), "ZLIB") == 0) {
-        config->set(dwrf::Config::COMPRESSION, dwio::common::CompressionKind::CompressionKind_ZLIB);
+        config->set(velox::dwrf::Config::COMPRESSION, velox::dwio::common::CompressionKind::CompressionKind_ZLIB);
       } else {
-        config->set(dwrf::Config::COMPRESSION, dwio::common::CompressionKind::CompressionKind_ZSTD);
+        config->set(velox::dwrf::Config::COMPRESSION, velox::dwio::common::CompressionKind::CompressionKind_ZSTD);
       }
     }
   }
   const int64_t writerMemoryCap = std::numeric_limits<int64_t>::max();
 
-  dwrf::WriterOptions options;
+  velox::dwrf::WriterOptions options;
   options.config = config;
   options.schema = type_;
   options.memoryBudget = writerMemoryCap;
   options.flushPolicyFactory = nullptr;
   options.layoutPlannerFactory = nullptr;
 
-  writer_ = std::make_unique<dwrf::Writer>(options, std::move(sink), *pool_);
+  writer_ = std::make_unique<velox::dwrf::Writer>(options, std::move(sink), *pool_);
 }
 
 std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
-  dwio::common::ReaderOptions reader_options{pool_};
-  auto format = dwio::common::FileFormat::DWRF; // DWRF
+  velox::dwio::common::ReaderOptions reader_options{pool_};
+  auto format = velox::dwio::common::FileFormat::DWRF; // DWRF
   reader_options.setFileFormat(format);
 
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
-    auto input =
-        std::make_unique<dwio::common::BufferedInput>(std::make_shared<LocalReadFile>(file_path_.substr(5)), *pool_);
-    std::unique_ptr<dwio::common::Reader> reader =
-        dwio::common::getReaderFactory(reader_options.getFileFormat())->createReader(std::move(input), reader_options);
+    auto input = std::make_unique<velox::dwio::common::BufferedInput>(
+        std::make_shared<velox::LocalReadFile>(file_path_.substr(5)), *pool_);
+    std::unique_ptr<velox::dwio::common::Reader> reader =
+        velox::dwio::common::getReaderFactory(reader_options.getFileFormat())
+            ->createReader(std::move(input), reader_options);
     return toArrowSchema(reader->rowType());
   }
 #ifdef VELOX_ENABLE_HDFS
@@ -114,13 +115,14 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
     hdfsFreeBuilder(builder);
     std::regex hdfsPrefixExp("hdfs://(\\w+)/");
     std::string hdfsFilePath = regex_replace(file_path_.c_str(), hdfsPrefixExp, "/");
-    std::unique_ptr<dwio::common::Reader> reader = dwio::common::getReaderFactory(reader_options.getFileFormat())
-                                                       ->createReader(
-                                                           std::make_unique<dwio::common::BufferedInput>(
-                                                               std::make_shared<dwio::common::ReadFileInputStream>(
-                                                                   std::make_shared<HdfsReadFile>(hdfs, hdfsFilePath)),
-                                                               *pool_),
-                                                           reader_options);
+    std::unique_ptr<velox::dwio::common::Reader> reader =
+        velox::dwio::common::getReaderFactory(reader_options.getFileFormat())
+            ->createReader(
+                std::make_unique<velox::dwio::common::BufferedInput>(
+                    std::make_shared<velox::dwio::common::ReadFileInputStream>(
+                        std::make_shared<velox::HdfsReadFile>(hdfs, hdfsFilePath)),
+                    *pool_),
+                reader_options);
     return toArrowSchema(reader->rowType());
   }
 #endif
@@ -139,7 +141,7 @@ void DwrfDatasource::Write(const std::shared_ptr<arrow::RecordBatch>& rb) {
   auto num_cols = rb->num_columns();
   num_rbs_ += 1;
 
-  std::vector<VectorPtr> vecs;
+  std::vector<velox::VectorPtr> vecs;
 
   for (int col_idx = 0; col_idx < num_cols; col_idx++) {
     auto array = rb->column(col_idx);
@@ -150,11 +152,11 @@ void DwrfDatasource::Write(const std::shared_ptr<arrow::RecordBatch>& rb) {
       throw std::runtime_error("Failed to export from Arrow record batch");
     }
 
-    VectorPtr vec = importFromArrowAsOwner(c_schema, c_array, pool_);
+    velox::VectorPtr vec = velox::importFromArrowAsOwner(c_schema, c_array, pool_);
     vecs.push_back(vec);
   }
 
-  auto row_vec = std::make_shared<RowVector>(pool_, type_, nullptr, rb->num_rows(), vecs, 0);
+  auto row_vec = std::make_shared<velox::RowVector>(pool_, type_, nullptr, rb->num_rows(), vecs, 0);
   writer_->write(row_vec);
 }
 
