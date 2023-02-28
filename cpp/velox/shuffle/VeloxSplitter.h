@@ -27,6 +27,8 @@
 #include "operators/shuffle/type.h"
 #include "operators/shuffle/utils.h"
 
+#include "utils/Print.h"
+
 namespace gluten {
 
 class VeloxSplitter {
@@ -104,6 +106,51 @@ class VeloxSplitter {
   }
 
   arrow::Status SetCompressType(arrow::Compression::type compressed_type);
+
+  // for debugging
+  void PrintColumnsInfo() const {
+    PRINT_FUNCTION_SPLIT_LINE();
+    PRINTLF(fixed_width_column_count_);
+
+    PRINT_CONTAINER(simple_column_indices_);
+    PRINT_CONTAINER(binary_column_indices_);
+    PRINT_CONTAINER(complex_column_indices_);
+
+    PRINT_VECTOR_2_STRING(velox_column_types_);
+    PRINT_VECTOR_TO_STRING(arrow_column_types_);
+  }
+
+  void PrintPartition() const {
+    PRINT_FUNCTION_SPLIT_LINE();
+    // row ID -> partition ID
+    PRINT_VECTOR_MAPPING(row_2_partition_);
+
+    // partition -> row count
+    PRINT_VECTOR_MAPPING(partition_2_row_count_);
+  }
+
+  void PrintPartitionBuffer() const {
+    PRINT_FUNCTION_SPLIT_LINE();
+    PRINT_VECTOR_MAPPING(partition_2_buffer_size_);
+    PRINT_VECTOR_MAPPING(partition_buffer_idx_base_);
+  }
+
+  void PrintPartition2Row() const {
+    PRINT_FUNCTION_SPLIT_LINE();
+    PRINT_VECTOR_MAPPING(partition_2_row_offset_);
+
+    for (auto pid = 0; pid < num_partitions_; ++pid) {
+      auto begin = partition_2_row_offset_[pid];
+      auto end = partition_2_row_offset_[pid + 1];
+      Print("partition", pid);
+      PrintVectorRange(row_offset_2_row_id_, begin, end);
+    }
+  }
+
+  void PrintInputHasNull() const {
+    PRINT_FUNCTION_SPLIT_LINE();
+    PRINT_CONTAINER(input_has_null_);
+  }
 
  protected:
   VeloxSplitter(uint32_t num_partitions, const SplitOptions& options)
