@@ -47,8 +47,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 abstract class GlutenRowToColumnarExec(child: SparkPlan) extends UnaryExecNode {
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_rowtoarrowcolumnar")
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
+    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime to convert")
   )
 
   override def output: Seq[Attribute] = child.output

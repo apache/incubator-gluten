@@ -22,9 +22,8 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
+import io.glutenproject.utils.{AdaptiveSparkPlanUtil, LogLevelUtil, PhysicalPlanSelector}
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
@@ -81,7 +80,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
                                  child: SparkPlan,
                                  removeHashColumn: Boolean = false): SparkPlan = {
-    if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
+    if (AdaptiveSparkPlanUtil.supportAdaptiveWithExchangeConsidered(plan)) {
       ColumnarShuffleExchangeAdaptor(
         plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn)
     } else {

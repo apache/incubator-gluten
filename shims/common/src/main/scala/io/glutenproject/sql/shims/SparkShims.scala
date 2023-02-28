@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
+import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
 
 sealed abstract class ShimDescriptor
@@ -41,10 +41,6 @@ trait SparkShims {
   // for this purpose, change HashClusteredDistribution to ClusteredDistribution
   // https://github.com/apache/spark/pull/32875
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
-
-  protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
-
-  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
 
   def expressionMappings: Seq[Sig]
 

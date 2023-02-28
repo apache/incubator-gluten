@@ -69,3 +69,13 @@ Gluten only support the partitioned table scan when the file path contain the pa
 
 ### NAN support (incompatible behavior)
 Velox does not support NAN, will return null instead.
+
+### File compression codec (exception)
+
+Some compression codecs are not supported in Velox on certain file format.
+Exception occurs when Velox TableScan is used to read files with unsupported compression codec.
+
+| File Format | none | zlib | zstd | snappy | lzo | lz4 | gzip |
+|-------------|------|------|------|--------|-----|-----|------|
+| Parquet     | Y    | N    | Y    | Y      | N   | N   | Y    |
+| DWRF        | Y    | Y    | Y    | Y      | Y   | Y   | N    |
