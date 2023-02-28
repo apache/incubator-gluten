@@ -26,7 +26,7 @@ public class OperatorMetrics {
   public long outputRows;
   public long outputVectors;
   public long outputBytes;
-  public long cpuNanos;
+  public long cpuCount;
   public long wallNanos;
   public long scanTime;
   public long peakMemoryBytes;
@@ -54,7 +54,7 @@ public class OperatorMetrics {
       long outputRows,
       long outputVectors,
       long outputBytes,
-      long cpuNanos,
+      long cpuCount,
       long wallNanos,
       long peakMemoryBytes,
       long numMemoryAllocations,
@@ -75,7 +75,7 @@ public class OperatorMetrics {
     this.outputRows = outputRows;
     this.outputVectors = outputVectors;
     this.outputBytes = outputBytes;
-    this.cpuNanos = cpuNanos;
+    this.cpuCount = cpuCount;
     this.wallNanos = wallNanos;
     this.scanTime = scanTime;
     this.peakMemoryBytes = peakMemoryBytes;

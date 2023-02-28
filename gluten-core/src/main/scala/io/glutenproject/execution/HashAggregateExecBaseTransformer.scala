@@ -149,7 +149,7 @@ abstract class HashAggregateExecBaseTransformer(
       aggOutputRows += aggMetrics.outputRows
       aggOutputVectors += aggMetrics.outputVectors
       aggOutputBytes += aggMetrics.outputBytes
-      aggCpuNanos += aggMetrics.cpuNanos
+      aggCpuNanos += aggMetrics.cpuCount
       aggWallNanos += aggMetrics.wallNanos
       aggPeakMemoryBytes += aggMetrics.peakMemoryBytes
       aggNumMemoryAllocations += aggMetrics.numMemoryAllocations

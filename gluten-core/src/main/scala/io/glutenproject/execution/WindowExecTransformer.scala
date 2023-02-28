@@ -53,7 +53,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of window"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
+    "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
@@ -62,7 +62,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     val outputRows: SQLMetric = longMetric("outputRows")
     val outputVectors: SQLMetric = longMetric("outputVectors")
     val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuNanos: SQLMetric = longMetric("cpuNanos")
+    val cpuCount: SQLMetric = longMetric("cpuCount")
     val wallNanos: SQLMetric = longMetric("wallNanos")
     val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
     val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
@@ -72,7 +72,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         outputRows += operatorMetrics.outputRows
         outputVectors += operatorMetrics.outputVectors
         outputBytes += operatorMetrics.outputBytes
-        cpuNanos += operatorMetrics.cpuNanos
+        cpuCount += operatorMetrics.cpuCount
         wallNanos += operatorMetrics.wallNanos
         peakMemoryBytes += operatorMetrics.peakMemoryBytes
         numMemoryAllocations += operatorMetrics.numMemoryAllocations
