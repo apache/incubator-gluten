@@ -235,10 +235,9 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_))
 
   SplitRecordBatch(*splitter_, *hash_input_batch_1_);
-  // SplitRecordBatch(*splitter_, *hash_input_batch_2_);
-  // SplitRecordBatch(*splitter_, *hash_input_batch_1_);
+  SplitRecordBatch(*splitter_, *hash_input_batch_2_);
+  SplitRecordBatch(*splitter_, *hash_input_batch_1_);
 
-#if 0
   ASSERT_NOT_OK(splitter_->Stop());
 
   const auto& lengths = splitter_->PartitionLengths();
@@ -262,7 +261,6 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
       ASSERT_EQ(rb->column(i)->length(), rb->num_rows());
     }
   }
-#endif
 }
 
 #if 0

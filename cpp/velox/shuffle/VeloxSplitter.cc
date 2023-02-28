@@ -362,9 +362,7 @@ arrow::Status VeloxSplitter::SplitRowVector(const velox::RowVector& rv) {
   RETURN_NOT_OK(SplitFixedWidthValueBuffer(rv));
   RETURN_NOT_OK(SplitValidityBuffer(rv));
   RETURN_NOT_OK(SplitBinaryArray(rv));
-#if 0
   RETURN_NOT_OK(SplitListArray(rv));
-#endif
   return arrow::Status::OK();
 }
 
@@ -680,6 +678,7 @@ arrow::Status VeloxSplitter::SplitListArray(const velox::RowVector& rv) {
     auto col_idx = complex_column_indices_[i];
     auto column = rv.childAt(col_idx);
 
+    // TODO: rethink the cost of `exportToArrow+ImportArray`
     ArrowArray arrowArray;
     velox::exportToArrow(column, arrowArray);
 
