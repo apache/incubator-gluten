@@ -75,7 +75,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateFunctionsSuite]
     .include(
       "quarter",
-      "second"
+      "second",
+      "dayofmonth"
     )
 
   enableSuite[GlutenDateExpressionsSuite]
