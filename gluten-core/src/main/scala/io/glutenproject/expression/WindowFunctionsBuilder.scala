@@ -19,8 +19,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
-import org.apache.spark.sql.catalyst.expressions.{CumeDist, DenseRank, NTile, NthValue, PercentRank, Rank, RowNumber, WindowFunction}
-import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.catalyst.expressions.{CumeDist, DenseRank, PercentRank, Rank, RowNumber, WindowFunction}
 
 object WindowFunctionsBuilder {
   def create(args: java.lang.Object, windowFunc: WindowFunction): Long = {
