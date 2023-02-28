@@ -178,16 +178,11 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
           case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
-            val dataType = aggWindowFunc match {
-              // Velox dense_rank/ntile output bigint
-              case _: DenseRank => LongType
-              case _ => aggWindowFunc.dataType
-            }
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
               new util.ArrayList[ExpressionNode](),
               columnName,
-              ConverterUtils.getTypeNode(dataType, aggWindowFunc.nullable),
+              ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
               frame.upper.sql,
               frame.lower.sql,
               frame.frameType.sql)
