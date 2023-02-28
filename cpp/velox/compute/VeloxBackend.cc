@@ -99,7 +99,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   std::unordered_map<std::string, std::string> configurationValues;
 
 #ifdef VELOX_ENABLE_HDFS
-  filesystems::registerHdfsFileSystem();
+  velox::filesystems::registerHdfsFileSystem();
   std::unordered_map<std::string, std::string> hdfsConfig({});
 
   std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
@@ -124,7 +124,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 #endif
 
 #ifdef VELOX_ENABLE_S3
-  filesystems::registerS3FileSystem();
+  velox::filesystems::registerS3FileSystem();
 
   std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
   std::string awsSecretKey = conf["spark.hadoop.fs.s3a.secret.key"];
