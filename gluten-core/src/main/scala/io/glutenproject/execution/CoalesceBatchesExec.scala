@@ -31,10 +31,10 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
 
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "collectTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_collectbatch"),
-    "concatTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_coalescebatch"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
+    "collectTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to collect batch"),
+    "concatTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to coalesce batch"),
     "avgCoalescedNumRows" -> SQLMetrics
       .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
 

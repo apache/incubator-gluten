@@ -69,171 +69,48 @@ abstract class HashAggregateExecBaseTransformer(
       aggregateExpressions.flatMap(_.aggregateFunction.inputAggBufferAttributes)
 
   override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
-    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"),
-
-    "preProjectionInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection input rows"),
-    "preProjectionInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection input vectors"),
-    "preProjectionInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of preProjection input bytes"),
-    "preProjectionRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection raw input rows"),
-    "preProjectionRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of preProjection raw input bytes"),
-    "preProjectionOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection output rows"),
-    "preProjectionOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection output vectors"),
-    "preProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of preProjection output bytes"),
-    "preProjectionCount" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "preProjection cpu wall time count"),
-    "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_preProjection"),
-    "preProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "preProjection peak memory bytes"),
-    "preProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection memory allocations"),
-
-    "aggInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation input rows"),
-    "aggInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation input vectors"),
-    "aggInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of aggregation input bytes"),
-    "aggRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation raw input rows"),
-    "aggRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of aggregation raw input bytes"),
     "aggOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation output rows"),
+      sparkContext, "number of output rows"),
     "aggOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation output vectors"),
+      sparkContext, "number of output vectors"),
     "aggOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of aggregation output bytes"),
-    "aggCount" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "aggregation cpu wall time count"),
+      sparkContext, "number of output bytes"),
+    "aggCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "cpu time"),
     "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_aggregation"),
+      sparkContext, "totaltime of aggregation"),
     "aggPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "aggregation peak memory bytes"),
+      sparkContext, "peak memory bytes"),
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation memory allocations"),
+      sparkContext, "number of memory allocations"),
     "aggSpilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "total bytes written for spilling"),
+      sparkContext, "number of spilled bytes"),
     "aggSpilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "total rows written for spilling"),
+      sparkContext, "number of spilled rows"),
     "aggSpilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled partitions"),
+      sparkContext, "number of spilled partitions"),
     "aggSpilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled files"),
+      sparkContext, "number of spilled files"),
     "flushRowCount" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation flushed rows"),
+      sparkContext, "number of flushed rows"),
 
-    "extractionInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction input rows"),
-    "extractionInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction input vectors"),
-    "extractionInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of extraction input bytes"),
-    "extractionRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction raw input rows"),
-    "extractionRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of extraction raw input bytes"),
-    "extractionOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction output rows"),
-    "extractionOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction output vectors"),
-    "extractionOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of extraction output bytes"),
-    "extractionCount" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "extraction cpu wall time count"),
-    "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_extraction"),
-    "extractionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "extraction peak memory bytes"),
-    "extractionNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction memory allocations"),
-
-    "postProjectionInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection input rows"),
-    "postProjectionInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection input vectors"),
-    "postProjectionInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of postProjection input bytes"),
-    "postProjectionRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection raw input rows"),
-    "postProjectionRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of postProjection raw input bytes"),
-    "postProjectionOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection output rows"),
-    "postProjectionOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection output vectors"),
-    "postProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of postProjection output bytes"),
-    "postProjectionCount" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "postProjection cpu wall time count"),
+    "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of preProjection"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_postProjection"),
-    "postProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "postProjection peak memory bytes"),
-    "postProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection memory allocations"),
+      sparkContext, "totaltime of postProjection"),
+    "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime of extraction"),
+
     "finalOutputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of final output rows"),
     "finalOutputVectors" -> SQLMetrics.createMetric(
       sparkContext, "number of final output vectors"))
 
   object MetricsUpdaterImpl extends HashAggregateMetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
-    val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
-    val rawInputRows: SQLMetric = longMetric("rawInputRows")
-    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-    val outputRows: SQLMetric = longMetric("outputRows")
-    val outputVectors: SQLMetric = longMetric("outputVectors")
-    val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuNanos: SQLMetric = longMetric("cpuNanos")
-    val wallNanos: SQLMetric = longMetric("wallNanos")
-    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
-
-    val preProjectionInputRows: SQLMetric = longMetric("preProjectionInputRows")
-    val preProjectionInputVectors: SQLMetric = longMetric("preProjectionInputVectors")
-    val preProjectionInputBytes: SQLMetric = longMetric("preProjectionInputBytes")
-    val preProjectionRawInputRows: SQLMetric = longMetric("preProjectionRawInputRows")
-    val preProjectionRawInputBytes: SQLMetric = longMetric("preProjectionRawInputBytes")
-    val preProjectionOutputRows: SQLMetric = longMetric("preProjectionOutputRows")
-    val preProjectionOutputVectors: SQLMetric = longMetric("preProjectionOutputVectors")
-    val preProjectionOutputBytes: SQLMetric = longMetric("preProjectionOutputBytes")
-    val preProjectionCount: SQLMetric = longMetric("preProjectionCount")
-    val preProjectionWallNanos: SQLMetric = longMetric("preProjectionWallNanos")
-    val preProjectionPeakMemoryBytes: SQLMetric = longMetric("preProjectionPeakMemoryBytes")
-    val preProjectionNumMemoryAllocations: SQLMetric =
-      longMetric("preProjectionNumMemoryAllocations")
-
-    val aggInputRows: SQLMetric = longMetric("aggInputRows")
-    val aggInputVectors: SQLMetric = longMetric("aggInputVectors")
-    val aggInputBytes: SQLMetric = longMetric("aggInputBytes")
-    val aggRawInputRows: SQLMetric = longMetric("aggRawInputRows")
-    val aggRawInputBytes: SQLMetric = longMetric("aggRawInputBytes")
     val aggOutputRows: SQLMetric = longMetric("aggOutputRows")
     val aggOutputVectors: SQLMetric = longMetric("aggOutputVectors")
     val aggOutputBytes: SQLMetric = longMetric("aggOutputBytes")
-    val aggCount: SQLMetric = longMetric("aggCount")
+    val aggCpuNanos: SQLMetric = longMetric("aggCpuNanos")
     val aggWallNanos: SQLMetric = longMetric("aggWallNanos")
     val aggPeakMemoryBytes: SQLMetric = longMetric("aggPeakMemoryBytes")
     val aggNumMemoryAllocations: SQLMetric = longMetric("aggNumMemoryAllocations")
@@ -243,33 +120,9 @@ abstract class HashAggregateExecBaseTransformer(
     val aggSpilledFiles: SQLMetric = longMetric("aggSpilledFiles")
     val flushRowCount: SQLMetric = longMetric("flushRowCount")
 
-    val extractionInputRows: SQLMetric = longMetric("extractionInputRows")
-    val extractionInputVectors: SQLMetric = longMetric("extractionInputVectors")
-    val extractionInputBytes: SQLMetric = longMetric("extractionInputBytes")
-    val extractionRawInputRows: SQLMetric = longMetric("extractionRawInputRows")
-    val extractionRawInputBytes: SQLMetric = longMetric("extractionRawInputBytes")
-    val extractionOutputRows: SQLMetric = longMetric("extractionOutputRows")
-    val extractionOutputVectors: SQLMetric = longMetric("extractionOutputVectors")
-    val extractionOutputBytes: SQLMetric = longMetric("extractionOutputBytes")
-    val extractionCount: SQLMetric = longMetric("extractionCount")
-    val extractionWallNanos: SQLMetric = longMetric("extractionWallNanos")
-    val extractionPeakMemoryBytes: SQLMetric = longMetric("extractionPeakMemoryBytes")
-    val extractionNumMemoryAllocations: SQLMetric =
-      longMetric("extractionNumMemoryAllocations")
-
-    val postProjectionInputRows: SQLMetric = longMetric("postProjectionInputRows")
-    val postProjectionInputVectors: SQLMetric = longMetric("postProjectionInputVectors")
-    val postProjectionInputBytes: SQLMetric = longMetric("postProjectionInputBytes")
-    val postProjectionRawInputRows: SQLMetric = longMetric("postProjectionRawInputRows")
-    val postProjectionRawInputBytes: SQLMetric = longMetric("postProjectionRawInputBytes")
-    val postProjectionOutputRows: SQLMetric = longMetric("postProjectionOutputRows")
-    val postProjectionOutputVectors: SQLMetric = longMetric("postProjectionOutputVectors")
-    val postProjectionOutputBytes: SQLMetric = longMetric("postProjectionOutputBytes")
-    val postProjectionCount: SQLMetric = longMetric("postProjectionCount")
+    val preProjectionWallNanos: SQLMetric = longMetric("preProjectionWallNanos")
     val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
-    val postProjectionPeakMemoryBytes: SQLMetric = longMetric("postProjectionPeakMemoryBytes")
-    val postProjectionNumMemoryAllocations: SQLMetric =
-      longMetric("postProjectionNumMemoryAllocations")
+    val extractionWallNanos: SQLMetric = longMetric("extractionWallNanos")
 
     val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
     val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
@@ -283,49 +136,20 @@ abstract class HashAggregateExecBaseTransformer(
                                  aggParams: AggregationParams): Unit = {
       var idx = 0
       if (aggParams.postProjectionNeeded) {
-        val metrics = aggregationMetrics.get(idx)
-        postProjectionInputRows += metrics.inputRows
-        postProjectionInputVectors += metrics.inputVectors
-        postProjectionInputBytes += metrics.inputBytes
-        postProjectionRawInputRows += metrics.rawInputRows
-        postProjectionRawInputBytes += metrics.rawInputBytes
-        postProjectionOutputRows += metrics.outputRows
-        postProjectionOutputVectors += metrics.outputVectors
-        postProjectionOutputBytes += metrics.outputBytes
-        postProjectionCount += metrics.cpuNanos
-        postProjectionWallNanos += metrics.wallNanos
-        postProjectionPeakMemoryBytes += metrics.peakMemoryBytes
-        postProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+        postProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (aggParams.extractionNeeded) {
-        val metrics = aggregationMetrics.get(idx)
-        extractionInputRows += metrics.inputRows
-        extractionInputVectors += metrics.inputVectors
-        extractionInputBytes += metrics.inputBytes
-        extractionRawInputRows += metrics.rawInputRows
-        extractionRawInputBytes += metrics.rawInputBytes
-        extractionOutputRows += metrics.outputRows
-        extractionOutputVectors += metrics.outputVectors
-        extractionOutputBytes += metrics.outputBytes
-        extractionCount += metrics.cpuNanos
-        extractionWallNanos += metrics.wallNanos
-        extractionPeakMemoryBytes += metrics.peakMemoryBytes
-        extractionNumMemoryAllocations += metrics.numMemoryAllocations
+        extractionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
       val aggMetrics = aggregationMetrics.get(idx)
-      aggInputRows += aggMetrics.inputRows
-      aggInputVectors += aggMetrics.inputVectors
-      aggInputBytes += aggMetrics.inputBytes
-      aggRawInputRows += aggMetrics.rawInputRows
-      aggRawInputBytes += aggMetrics.rawInputBytes
       aggOutputRows += aggMetrics.outputRows
       aggOutputVectors += aggMetrics.outputVectors
       aggOutputBytes += aggMetrics.outputBytes
-      aggCount += aggMetrics.cpuNanos
+      aggCpuNanos += aggMetrics.cpuNanos
       aggWallNanos += aggMetrics.wallNanos
       aggPeakMemoryBytes += aggMetrics.peakMemoryBytes
       aggNumMemoryAllocations += aggMetrics.numMemoryAllocations
@@ -337,36 +161,11 @@ abstract class HashAggregateExecBaseTransformer(
       idx += 1
 
       if (aggParams.preProjectionNeeded) {
-        val metrics = aggregationMetrics.get(idx)
-        preProjectionInputRows += metrics.inputRows
-        preProjectionInputVectors += metrics.inputVectors
-        preProjectionInputBytes += metrics.inputBytes
-        preProjectionRawInputRows += metrics.rawInputRows
-        preProjectionRawInputBytes += metrics.rawInputBytes
-        preProjectionOutputRows += metrics.outputRows
-        preProjectionOutputVectors += metrics.outputVectors
-        preProjectionOutputBytes += metrics.outputBytes
-        preProjectionCount += metrics.cpuNanos
-        preProjectionWallNanos += metrics.wallNanos
-        preProjectionPeakMemoryBytes += metrics.peakMemoryBytes
-        preProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+        preProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (aggParams.isReadRel) {
-        val metrics = aggregationMetrics.get(idx)
-        inputRows += metrics.inputRows
-        inputVectors += metrics.inputVectors
-        inputBytes += metrics.inputBytes
-        rawInputRows += metrics.rawInputRows
-        rawInputBytes += metrics.rawInputBytes
-        outputRows += metrics.outputRows
-        outputVectors += metrics.outputVectors
-        outputBytes += metrics.outputBytes
-        cpuNanos += metrics.cpuNanos
-        wallNanos += metrics.wallNanos
-        peakMemoryBytes += metrics.peakMemoryBytes
-        numMemoryAllocations += metrics.numMemoryAllocations
         idx += 1
       }
     }

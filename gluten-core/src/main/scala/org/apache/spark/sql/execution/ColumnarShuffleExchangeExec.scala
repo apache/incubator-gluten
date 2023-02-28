@@ -50,10 +50,10 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-    "computePidTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_computepid"),
-    "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_split"),
+    "computePidTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of computepid"),
+    "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
     "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle spill time"),
-    "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_compress"),
+    "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
     "avgReadBatchNumRows" -> SQLMetrics
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -178,10 +178,11 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-    "computePidTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_computepid"),
-    "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_split"),
-    "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle spill time"),
-    "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_compress"),
+    "computePidTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compute pid"),
+    "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
+    "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
+    "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
+    "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
     "avgReadBatchNumRows" -> SQLMetrics
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
