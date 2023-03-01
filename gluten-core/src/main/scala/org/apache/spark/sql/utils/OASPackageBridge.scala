@@ -27,5 +27,9 @@ object OASPackageBridge {
     def bridgeIncBytesRead(v: Long): Unit = {
       m.incBytesRead(v)
     }
+
+    def bridgeIncRecordsRead(v: Long): Unit = {
+      m.incRecordsRead(v)
+    }
   }
 }

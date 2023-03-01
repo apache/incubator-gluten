@@ -26,7 +26,7 @@ public class Metrics {
   public long[] outputRows;
   public long[] outputVectors;
   public long[] outputBytes;
-  public long[] cpuNanos;
+  public long[] cpuCount;
   public long[] wallNanos;
   public long[] scanTime;
   public long[] peakMemoryBytes;
@@ -53,7 +53,7 @@ public class Metrics {
       long[] outputRows,
       long[] outputVectors,
       long[] outputBytes,
-      long[] cpuNanos,
+      long[] cpuCount,
       long[] wallNanos,
       long veloxToArrow,
       long[] peakMemoryBytes,
@@ -75,7 +75,7 @@ public class Metrics {
     this.outputRows = outputRows;
     this.outputVectors = outputVectors;
     this.outputBytes = outputBytes;
-    this.cpuNanos = cpuNanos;
+    this.cpuCount = cpuCount;
     this.wallNanos = wallNanos;
     this.scanTime = scanTime;
     this.singleMetric.veloxToArrow = veloxToArrow;
@@ -105,7 +105,7 @@ public class Metrics {
         outputRows[index],
         outputVectors[index],
         outputBytes[index],
-        cpuNanos[index],
+        cpuCount[index],
         wallNanos[index],
         peakMemoryBytes[index],
         numMemoryAllocations[index],

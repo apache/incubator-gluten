@@ -70,11 +70,6 @@ case class SortMergeJoinExecTransformer(
     val joinTime = longMetric("joinTime")
     val prepareTime = longMetric("prepareTime")
     val totaltime_sortmegejoin = longMetric("totaltime_sortmergejoin")
-
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      numOutputBatches += outNumBatches
-      numOutputRows += outNumRows
-    }
   }
 
   val resultSchema = this.schema
