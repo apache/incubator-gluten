@@ -29,6 +29,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
@@ -71,9 +72,9 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     // Number of dynamic filters received.
     val numDynamicFiltersAccepted: SQLMetric = longMetric("numDynamicFiltersAccepted")
 
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      outputVectors += outNumBatches
-      outputRows += outNumRows
+    override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
+      inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
+      inputMetrics.bridgeIncRecordsRead(rawInputRows.value)
     }
 
     override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {

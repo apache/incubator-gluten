@@ -31,6 +31,7 @@ import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLEx
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
@@ -102,9 +103,9 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     // Number of dynamic filters received.
     val numDynamicFiltersAccepted: SQLMetric = longMetric("numDynamicFiltersAccepted")
 
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      outputVectors += outNumBatches
-      outputRows += outNumRows
+    override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
+      inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
+      inputMetrics.bridgeIncRecordsRead(rawInputRows.value)
     }
 
     override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {

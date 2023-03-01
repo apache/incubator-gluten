@@ -100,8 +100,11 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
   }
 
   override def getChild: SparkPlan = child
