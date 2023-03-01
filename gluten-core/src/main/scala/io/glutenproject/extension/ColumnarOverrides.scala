@@ -389,16 +389,10 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
 // This rule will try to convert the row-to-columnar and columnar-to-row
 // into columnar implementations.
-case class TransformPostOverrides(session: SparkSession) extends Rule[SparkPlan] {
+case class TransformPostOverrides(session: SparkSession, supportAdaptive: Boolean)
+    extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getSessionConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-
-  // FIXME avoid using this config value in columnar rules
-  //  Since AQE can still be skipped although the value is true in some
-  //  cases such as a plan without exchange
-  // (deprecated)
-  @deprecated
-  lazy val adaptiveExecutionEnabled = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
@@ -409,7 +403,7 @@ case class TransformPostOverrides(session: SparkSession) extends Rule[SparkPlan]
     // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
     // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE mode
     // have tested gluten-it TPCH when AQE OFF
-    case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) if adaptiveExecutionEnabled =>
+    case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) if supportAdaptive =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>
       replaceWithTransformerPlan(child)
@@ -474,17 +468,18 @@ case class ColumnarOverrideRules(session: SparkSession)
   extends ColumnarRule with Logging with LogLevelUtil {
 
   lazy val transformPlanLogLevel = GlutenConfig.getSessionConf.transformPlanLogLevel
-  @deprecated
-  lazy val adaptiveExecutionEnabled = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean
+
+  // It is set according to vanilla spark's code logic by checking the given spark plan.
+  var supportAdaptive = false
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
-  def preOverrides: List[SparkSession => Rule[SparkPlan]] = {
-    val tagBeforeTransformHitsRules = if (!adaptiveExecutionEnabled) {
+  def preOverrides(supportAdaptive: Boolean): List[SparkSession => Rule[SparkPlan]] = {
+    val tagBeforeTransformHitsRules = if (!supportAdaptive) {
       TagBeforeTransformHits.ruleBuilders
     } else {
-      // When AQE is on, rules are applied in ColumnarQueryStagePrepOverrides
+      // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
       List.empty
     }
     tagBeforeTransformHitsRules :::
@@ -497,8 +492,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
   }
 
-  def postOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List((s: SparkSession) => TransformPostOverrides(s)) :::
+  def postOverrides(supportAdaptive: Boolean): List[SparkSession => Rule[SparkPlan]] =
+    List((s: SparkSession) => TransformPostOverrides(s, supportAdaptive)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
 
@@ -506,10 +501,11 @@ case class ColumnarOverrideRules(session: SparkSession)
     maybe(session, plan) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
+      supportAdaptive = AdaptiveSparkPlanUtil.supportAdaptiveWithExchangeConsidered(plan)
       logOnLevel(
         transformPlanLogLevel,
         s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
-      preOverrides.foreach { r =>
+      preOverrides(supportAdaptive).foreach { r =>
         overridden = r(session)(overridden)
         planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
@@ -529,7 +525,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
-      postOverrides.foreach { r =>
+      postOverrides(supportAdaptive).foreach { r =>
         overridden = r(session)(overridden)
         planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
