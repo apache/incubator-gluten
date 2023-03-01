@@ -324,6 +324,13 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test("RowToArrow native") {
+    withSQLConf("spark.gluten.sql.columnar.batchscan" -> "false") {
+      runQueryAndCompare("select count(short, bool, byte, int, long, float, double, " +
+        "string, binary) from type1") { _ => }
+    }
+  }
+
   // Some type cannot read by velox, so we cannot test it
   test("RowToArrow decimal type") {
     val schema = StructType(Seq(

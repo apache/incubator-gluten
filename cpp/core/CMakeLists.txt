@@ -175,6 +175,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/ProtobufUtils.cc
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
+        operators/r2c/RowToArrowColumnarConverter.cc
         operators/shuffle/reader.cc
         operators/shuffle/splitter.cc
         operators/writer/ArrowWriter.cc
@@ -206,9 +207,6 @@ if(ENABLE_HBM)
   target_sources(gluten PRIVATE memory/HbwAllocator.cc)
   target_link_libraries(gluten PRIVATE memkind::memkind)
   add_definitions(-DGLUTEN_ENABLE_HBM)
-  if(BUILD_TESTS)
-    add_test_case(hbw_allocator_test SOURCES tests/HbwAllocatorTest.cc)
-  endif()
 endif()
 
 if(ENABLE_QAT)
@@ -259,9 +257,7 @@ else() #
 endif()
 
 if(BUILD_TESTS)
-  add_test_case(exec_backend_test SOURCES compute/BackendTest.cc)
-  add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
-  add_test_case(columnar_to_row SOURCES tests/ColumnarToRowTest.cc)
+  add_subdirectory(tests)
 endif()
 
 if(BUILD_BENCHMARKS)

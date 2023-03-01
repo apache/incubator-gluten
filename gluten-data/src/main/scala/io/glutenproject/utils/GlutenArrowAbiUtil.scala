@@ -73,7 +73,10 @@ object GlutenArrowAbiUtil {
     val rowCount: Int = vsr.getRowCount
     val vectors: Array[ColumnVector] =
       ArrowWritableColumnVector.loadColumns(rowCount, vsr.getFieldVectors)
-        .map(v => v)
+        .map(v => {
+          v.setValueCount(rowCount)
+          v
+        })
     new ColumnarBatch(vectors, rowCount)
   }
 

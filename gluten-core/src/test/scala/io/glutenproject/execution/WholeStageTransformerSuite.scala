@@ -163,6 +163,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     if (compareResult) {
       checkAnswer(df, expected)
     }
+    print(df.queryExecution.executedPlan)
     customCheck(df)
     df
   }
