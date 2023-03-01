@@ -121,8 +121,8 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of hash build output vectors"),
     "hashBuildOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of hash build output bytes"),
-    "hashBuildCpuNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "hash build cpu time"),
+    "hashBuildCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "hash build cpu wall time count"),
     "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of hash build"),
     "hashBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
@@ -146,8 +146,8 @@ trait HashJoinLikeExecTransformer
       sparkContext, "number of hash probe output vectors"),
     "hashProbeOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of hash probe output bytes"),
-    "hashProbeCpuNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "hash probe cpu time"),
+    "hashProbeCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "hash probe cpu wall time count"),
     "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of hash probe"),
     "hashProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
@@ -167,20 +167,30 @@ trait HashJoinLikeExecTransformer
     "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe dynamic filters produced"),
 
+    "streamCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "stream input cpu wall time count"),
     "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of stream input"),
     "streamVeloxToArrow" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of velox2arrow converter"),
 
+    "streamPreProjectionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "stream preProject cpu wall time count"),
     "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of stream preProjection"),
 
+    "buildCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "build input cpu wall time count"),
     "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime to build input"),
 
+    "buildPreProjectionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "preProject cpu wall time count"),
     "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime to build preProjection"),
 
+    "postProjectionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "postProject cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of postProjection"),
     "postProjectionOutputRows" -> SQLMetrics.createMetric(
@@ -198,7 +208,7 @@ trait HashJoinLikeExecTransformer
     val hashBuildOutputRows: SQLMetric = longMetric("hashBuildOutputRows")
     val hashBuildOutputVectors: SQLMetric = longMetric("hashBuildOutputVectors")
     val hashBuildOutputBytes: SQLMetric = longMetric("hashBuildOutputBytes")
-    val hashBuildCpuNanos: SQLMetric = longMetric("hashBuildCpuNanos")
+    val hashBuildCpuCount: SQLMetric = longMetric("hashBuildCpuCount")
     val hashBuildWallNanos: SQLMetric = longMetric("hashBuildWallNanos")
     val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
     val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
@@ -211,7 +221,7 @@ trait HashJoinLikeExecTransformer
     val hashProbeOutputRows: SQLMetric = longMetric("hashProbeOutputRows")
     val hashProbeOutputVectors: SQLMetric = longMetric("hashProbeOutputVectors")
     val hashProbeOutputBytes: SQLMetric = longMetric("hashProbeOutputBytes")
-    val hashProbeCpuNanos: SQLMetric = longMetric("hashProbeCpuNanos")
+    val hashProbeCpuCount: SQLMetric = longMetric("hashProbeCpuCount")
     val hashProbeWallNanos: SQLMetric = longMetric("hashProbeWallNanos")
     val hashProbePeakMemoryBytes: SQLMetric = longMetric("hashProbePeakMemoryBytes")
     val hashProbeNumMemoryAllocations: SQLMetric = longMetric("hashProbeNumMemoryAllocations")
@@ -229,11 +239,20 @@ trait HashJoinLikeExecTransformer
     val hashProbeDynamicFiltersProduced: SQLMetric =
       longMetric("hashProbeDynamicFiltersProduced")
 
+    val streamCpuCount: SQLMetric = longMetric("streamCpuCount")
     val streamWallNanos: SQLMetric = longMetric("streamWallNanos")
     val streamVeloxToArrow: SQLMetric = longMetric("streamVeloxToArrow")
+
+    val streamPreProjectionCpuCount: SQLMetric = longMetric("streamPreProjectionCpuCount")
     val streamPreProjectionWallNanos: SQLMetric = longMetric("streamPreProjectionWallNanos")
+
+    val buildCpuCount: SQLMetric = longMetric("buildCpuCount")
     val buildWallNanos: SQLMetric = longMetric("buildWallNanos")
+
+    val buildPreProjectionCpuCount: SQLMetric = longMetric("buildPreProjectionCpuCount")
     val buildPreProjectionWallNanos: SQLMetric = longMetric("buildPreProjectionWallNanos")
+
+    val postProjectionCpuCount: SQLMetric = longMetric("postProjectionCpuCount")
     val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
     val postProjectionOutputRows: SQLMetric = longMetric("postProjectionOutputRows")
     val postProjectionOutputVectors: SQLMetric = longMetric("postProjectionOutputVectors")
@@ -251,6 +270,7 @@ trait HashJoinLikeExecTransformer
       var idx = 0
       if (joinParams.postProjectionNeeded) {
         val postProjectMetrics = joinMetrics.get(idx)
+        postProjectionCpuCount += postProjectMetrics.cpuCount
         postProjectionWallNanos += postProjectMetrics.wallNanos
         postProjectionOutputRows += postProjectMetrics.outputRows
         postProjectionOutputVectors += postProjectMetrics.outputVectors
@@ -263,7 +283,7 @@ trait HashJoinLikeExecTransformer
       hashProbeOutputRows += hashProbeMetrics.outputRows
       hashProbeOutputVectors += hashProbeMetrics.outputVectors
       hashProbeOutputBytes += hashProbeMetrics.outputBytes
-      hashProbeCpuNanos += hashProbeMetrics.cpuNanos
+      hashProbeCpuCount += hashProbeMetrics.cpuCount
       hashProbeWallNanos += hashProbeMetrics.wallNanos
       hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
       hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
@@ -281,7 +301,7 @@ trait HashJoinLikeExecTransformer
       hashBuildOutputRows += hashBuildMetrics.outputRows
       hashBuildOutputVectors += hashBuildMetrics.outputVectors
       hashBuildOutputBytes += hashBuildMetrics.outputBytes
-      hashBuildCpuNanos += hashBuildMetrics.cpuNanos
+      hashBuildCpuCount += hashBuildMetrics.cpuCount
       hashBuildWallNanos += hashBuildMetrics.wallNanos
       hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
       hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
@@ -292,22 +312,26 @@ trait HashJoinLikeExecTransformer
       idx += 1
 
       if (joinParams.buildPreProjectionNeeded) {
+        buildPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
         buildPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (joinParams.isBuildReadRel) {
+        buildCpuCount += joinMetrics.get(idx).cpuCount
         buildWallNanos += joinMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (joinParams.streamPreProjectionNeeded) {
+        streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
         streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (joinParams.isStreamedReadRel) {
         val streamMetrics = joinMetrics.get(idx)
+        streamCpuCount += streamMetrics.cpuCount
         streamWallNanos += streamMetrics.wallNanos
         streamVeloxToArrow += singleMetrics.veloxToArrow
         idx += 1

@@ -75,8 +75,8 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "number of output vectors"),
     "aggOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of output bytes"),
-    "aggCpuNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "cpu time"),
+    "aggCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "cpu wall time count"),
     "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of aggregation"),
     "aggPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
@@ -94,10 +94,18 @@ abstract class HashAggregateExecBaseTransformer(
     "flushRowCount" -> SQLMetrics.createMetric(
       sparkContext, "number of flushed rows"),
 
+    "preProjectionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "preProjection cpu wall time count"),
     "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of preProjection"),
+
+    "postProjectionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "postProjection cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of postProjection"),
+
+    "extractionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "extraction cpu wall time count"),
     "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of extraction"),
 
@@ -110,7 +118,7 @@ abstract class HashAggregateExecBaseTransformer(
     val aggOutputRows: SQLMetric = longMetric("aggOutputRows")
     val aggOutputVectors: SQLMetric = longMetric("aggOutputVectors")
     val aggOutputBytes: SQLMetric = longMetric("aggOutputBytes")
-    val aggCpuNanos: SQLMetric = longMetric("aggCpuNanos")
+    val aggCpuCount: SQLMetric = longMetric("aggCpuCount")
     val aggWallNanos: SQLMetric = longMetric("aggWallNanos")
     val aggPeakMemoryBytes: SQLMetric = longMetric("aggPeakMemoryBytes")
     val aggNumMemoryAllocations: SQLMetric = longMetric("aggNumMemoryAllocations")
@@ -120,8 +128,13 @@ abstract class HashAggregateExecBaseTransformer(
     val aggSpilledFiles: SQLMetric = longMetric("aggSpilledFiles")
     val flushRowCount: SQLMetric = longMetric("flushRowCount")
 
+    val preProjectionCpuCount: SQLMetric = longMetric("preProjectionCpuCount")
     val preProjectionWallNanos: SQLMetric = longMetric("preProjectionWallNanos")
+
+    val postProjectionCpuCount: SQLMetric = longMetric("postProjectionCpuCount")
     val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
+
+    val extractionCpuCount: SQLMetric = longMetric("extractionCpuCount")
     val extractionWallNanos: SQLMetric = longMetric("extractionWallNanos")
 
     val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
@@ -131,11 +144,13 @@ abstract class HashAggregateExecBaseTransformer(
                                  aggParams: AggregationParams): Unit = {
       var idx = 0
       if (aggParams.postProjectionNeeded) {
+        postProjectionCpuCount += aggregationMetrics.get(idx).cpuCount
         postProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (aggParams.extractionNeeded) {
+        extractionCpuCount += aggregationMetrics.get(idx).cpuCount
         extractionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
@@ -144,7 +159,7 @@ abstract class HashAggregateExecBaseTransformer(
       aggOutputRows += aggMetrics.outputRows
       aggOutputVectors += aggMetrics.outputVectors
       aggOutputBytes += aggMetrics.outputBytes
-      aggCpuNanos += aggMetrics.cpuNanos
+      aggCpuCount += aggMetrics.cpuCount
       aggWallNanos += aggMetrics.wallNanos
       aggPeakMemoryBytes += aggMetrics.peakMemoryBytes
       aggNumMemoryAllocations += aggMetrics.numMemoryAllocations
@@ -156,6 +171,7 @@ abstract class HashAggregateExecBaseTransformer(
       idx += 1
 
       if (aggParams.preProjectionNeeded) {
+        preProjectionCpuCount += aggregationMetrics.get(idx).cpuCount
         preProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }

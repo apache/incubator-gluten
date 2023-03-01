@@ -62,9 +62,9 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan time"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
+    "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of scan"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of scan and filter"),
+    "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
     "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
@@ -95,7 +95,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     val outputVectors: SQLMetric = longMetric("outputVectors")
     val outputBytes: SQLMetric = longMetric("outputBytes")
     val wallNanos: SQLMetric = longMetric("wallNanos")
-    val cpuNanos: SQLMetric = longMetric("cpuNanos")
+    val cpuCount: SQLMetric = longMetric("cpuCount")
     val scanTime: SQLMetric = longMetric("scanTime")
     val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
     val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
@@ -116,7 +116,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
         outputVectors += operatorMetrics.outputVectors
         outputBytes += operatorMetrics.outputBytes
         wallNanos += operatorMetrics.wallNanos
-        cpuNanos += operatorMetrics.cpuNanos
+        cpuCount += operatorMetrics.cpuCount
         scanTime += operatorMetrics.scanTime
         peakMemoryBytes += operatorMetrics.peakMemoryBytes
         numMemoryAllocations += operatorMetrics.numMemoryAllocations

@@ -125,7 +125,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->outputRows[metricsIdx] = entry.second->outputRows;
       metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
       metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
-      metrics_->cpuNanos[metricsIdx] = entry.second->cpuWallTiming.cpuNanos;
+      metrics_->cpuCount[metricsIdx] = entry.second->cpuWallTiming.count;
       metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
       metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
