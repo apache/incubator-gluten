@@ -33,7 +33,7 @@ case class GlutenNumaBindingInfo(
 
 class GlutenConfig(conf: SQLConf) extends Logging {
 
-  val enableAnsiMode: Boolean =
+  def enableAnsiMode: Boolean =
     conf.getConfString("spark.sql.ansi.enabled", "false").toBoolean
 
   // This is tmp config to specify whether to enable the native validation based on
@@ -41,151 +41,151 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // this config should be removed.
   //
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
-  val enableNativeValidation: Boolean =
+  def enableNativeValidation: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
 
   // enable or disable columnar batchscan
-  val enableColumnarBatchScan: Boolean =
+  def enableColumnarBatchScan: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.batchscan", "true").toBoolean
 
   // enable or disable columnar filescan
-  val enableColumnarFileScan: Boolean =
+  def enableColumnarFileScan: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.filescan", "true").toBoolean
 
   // enable or disable columnar hashagg
-  val enableColumnarHashAgg: Boolean =
+  def enableColumnarHashAgg: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.hashagg", "true").toBoolean
 
   // enable or disable columnar project
-  val enableColumnarProject: Boolean =
+  def enableColumnarProject: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.project", "true").toBoolean
 
   // enable or disable columnar filter
-  val enableColumnarFilter: Boolean =
+  def enableColumnarFilter: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.filter", "true").toBoolean
 
   // enable or disable columnar sort
-  val enableColumnarSort: Boolean =
+  def enableColumnarSort: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.sort", "true").toBoolean
 
   // enable or disable columnar window
-  val enableColumnarWindow: Boolean =
+  def enableColumnarWindow: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.window", "true").toBoolean
 
   // enable or disable columnar shuffledhashjoin
-  val enableColumnarShuffledHashJoin: Boolean =
+  def enableColumnarShuffledHashJoin: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffledhashjoin", "true").toBoolean
 
-  val enableNativeColumnarToRow: Boolean =
+  def enableNativeColumnarToRow: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.columnartorow", "true").toBoolean
 
-  val forceShuffledHashJoin: Boolean =
+  def forceShuffledHashJoin: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.forceshuffledhashjoin", "true").toBoolean
 
   // enable or disable columnar sortmergejoin
   // this should be set with preferSortMergeJoin=false
-  val enableColumnarSortMergeJoin: Boolean =
+  def enableColumnarSortMergeJoin: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean
 
   // enable or disable columnar union
-  val enableColumnarUnion: Boolean =
+  def enableColumnarUnion: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.union", "true").toBoolean
 
   // enable or disable columnar expand
-  val enableColumnarExpand: Boolean =
+  def enableColumnarExpand: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.expand", "true").toBoolean
 
   // enable or disable columnar broadcastexchange
-  val enableColumnarBroadcastExchange: Boolean =
+  def enableColumnarBroadcastExchange: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.broadcastexchange", "true").toBoolean
 
   // enable or disable columnar BroadcastHashJoin
-  val enableColumnarBroadcastJoin: Boolean =
+  def enableColumnarBroadcastJoin: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.broadcastJoin", "true").toBoolean
 
   // enable or disable columnar columnar arrow udf
-  val enableColumnarArrowUDF: Boolean =
+  def enableColumnarArrowUDF: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.arrowudf", "true").toBoolean
 
   // enable or disable columnar wholestage transform
-  val enableColumnarWholeStageTransform: Boolean =
+  def enableColumnarWholeStageTransform: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
 
   // whether to use ColumnarShuffleManager
-  val isUseColumnarShuffleManager: Boolean =
+  def isUseColumnarShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
   // enable or disable columnar exchange
-  val enableColumnarShuffle: Boolean =
+  def enableColumnarShuffle: Boolean =
     conf
       .getConfString("spark.gluten.sql.columnar.shuffle", "true")
       .toBoolean
 
   // prefer to use columnar operators if set to true
-  val enablePreferColumnar: Boolean =
+  def enablePreferColumnar: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.preferColumnar", "true").toBoolean
 
   // This config is used for specifying whether to use a columnar iterator in WS transformer.
-  val enableColumnarIterator: Boolean =
+  def enableColumnarIterator: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.iterator", "true").toBoolean
 
   // fallback to row operators if there are several continuous joins
-  val physicalJoinOptimizationThrottle: Integer =
+  def physicalJoinOptimizationThrottle: Integer =
     conf.getConfString("spark.gluten.sql.columnar.physicalJoinOptimizationLevel", "12").toInt
 
-  val enablePhysicalJoinOptimize: Boolean =
+  def enablePhysicalJoinOptimize: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false").toBoolean
 
-  val logicalJoinOptimizationThrottle: Integer =
+  def logicalJoinOptimizationThrottle: Integer =
     conf.getConfString("spark.gluten.sql.columnar.logicalJoinOptimizationLevel", "12").toInt
 
-  val enableLogicalJoinOptimize: Boolean =
+  def enableLogicalJoinOptimize: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.logicalJoinOptimizeEnable", "false").toBoolean
 
   // a folder to store the codegen files
-  val tmpFile: String =
+  def tmpFile: String =
     conf.getConfString("spark.gluten.sql.columnar.tmp_dir", null)
 
-  @deprecated val broadcastCacheTimeout: Int =
+  @deprecated def broadcastCacheTimeout: Int =
     conf.getConfString("spark.sql.columnar.sort.broadcast.cache.timeout", "-1").toInt
 
   // Whether to spill the partition buffers when buffers are full.
   // If false, the partition buffers will be cached in memory first,
   // and the cached buffers will be spilled when reach maximum memory.
-  val columnarShufflePreferSpill: Boolean =
+  def columnarShufflePreferSpill: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.preferSpill", "true").toBoolean
 
-  val columnarShuffleWriteSchema: Boolean =
+  def columnarShuffleWriteSchema: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
 
   // When spark.gluten.sql.columnar.qat=false, the supported codecs are lz4 and zstd.
   // When spark.gluten.sql.columnar.qat=true, the supported codec is gzip.
-  val columnarShuffleUseCustomizedCompressionCodec: String =
+  def columnarShuffleUseCustomizedCompressionCodec: String =
     conf
       .getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
       .toUpperCase(Locale.ROOT)
 
-  val columnarShuffleBatchCompressThreshold: Int =
+  def columnarShuffleBatchCompressThreshold: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
 
-  val shuffleSplitDefaultSize: Int =
+  def shuffleSplitDefaultSize: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
-  val enableCoalesceBatches: Boolean =
+  def enableCoalesceBatches: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
 
-  val enableColumnarLimit: Boolean =
+  def enableColumnarLimit: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.limit", "true").toBoolean
 
-  val enableColumnarGenerate: Boolean =
+  def enableColumnarGenerate: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.generate", "true").toBoolean
 
-  val enableNativeBloomFilter: Boolean =
+  def enableNativeBloomFilter: Boolean =
     conf.getConfString("spark.gluten.sql.native.bloomFilter", "true").toBoolean
 
-  val numaBindingInfo: GlutenNumaBindingInfo = {
+  def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.gluten.sql.columnar.numaBinding", "false").toBoolean
     if (!enableNumaBinding) {
@@ -205,36 +205,36 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // velox caching options
   // enable Velox cache, default off
-  val enableVeloxCache: Boolean =
+  def enableVeloxCache: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "false").toBoolean
 
   // The folder to store the cache files, better on SSD
-  val veloxCachePath: String =
+  def veloxCachePath: String =
     conf.getConfString("spark.gluten.sql.columnar.backend.velox.cachePath", "/tmp")
 
   // The total cache size
-  val veloxCacheSize: Long =
+  def veloxCacheSize: Long =
     conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheSize", "1073741824").toLong
 
   // The cache shards
-  val veloxCacheShards: Integer =
+  def veloxCacheShards: Integer =
     conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheShards", "1").toInt
 
   // The IO threads for cache promoting
-  val veloxIOThreads: Integer =
+  def veloxIOThreads: Integer =
     conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheIOThreads", "1").toInt
 
-  val transformPlanLogLevel: String =
+  def transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
 
-  val substraitPlanLogLevel: String =
+  def substraitPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.substrait.plan.logLevel", "DEBUG")
 
-  val debug: Boolean = conf.getConfString("spark.gluten.sql.debug", "false").toBoolean
-  val taskStageId: Int = conf.getConfString("spark.gluten.sql.benchmark_task.stageId", "1").toInt
-  val taskPartitionId: Int =
+  def debug: Boolean = conf.getConfString("spark.gluten.sql.debug", "false").toBoolean
+  def taskStageId: Int = conf.getConfString("spark.gluten.sql.benchmark_task.stageId", "1").toInt
+  def taskPartitionId: Int =
     conf.getConfString("spark.gluten.sql.benchmark_task.partitionId", "-1").toInt
-  val taskId: Long = conf.getConfString("spark.gluten.sql.benchmark_task.taskId", "-1").toLong
+  def taskId: Long = conf.getConfString("spark.gluten.sql.benchmark_task.taskId", "-1").toLong
 }
 
 object GlutenConfig {
