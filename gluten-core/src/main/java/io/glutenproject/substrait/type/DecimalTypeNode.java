@@ -32,6 +32,14 @@ public class DecimalTypeNode implements TypeNode, Serializable {
     this.scale = scale;
   }
 
+  public int getPrecision() {
+    return precision;
+  }
+
+  public int getScale() {
+    return scale;
+  }
+
   @Override
   public Type toProtobuf() {
     Type.Decimal.Builder decimalBuilder = Type.Decimal.newBuilder();

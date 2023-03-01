@@ -18,15 +18,15 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
-import com.google.protobuf.Any
+import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.{DecimalTypeNode, TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import java.util
 
+import java.util
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -357,6 +357,7 @@ case class GlutenHashAggregateExecTransformer(
 
     val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
+    val childrenTypeNodes = new util.ArrayList[TypeNode]()
     aggregateExpressions.foreach(aggExpr => {
       if (aggExpr.filter.isDefined) {
         val exprNode = ExpressionConverter
@@ -366,24 +367,58 @@ case class GlutenHashAggregateExecTransformer(
 
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
+
       aggregateFunc match {
         case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
+          childrenTypeNodes.add(getIntermediateTypeNode(aggregateFunc))
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
         case _ =>
-          aggregateFunc.inputAggBufferAttributes.toList.map(_ => {
+          aggregateFunc.inputAggBufferAttributes.toList.map(inputExpr => {
             childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
+            childrenTypeNodes.add(ConverterUtils.getTypeNode(
+              inputExpr.dataType, inputExpr.nullable))
             colIdx += 1
             aggExpr
           })
       }
-      addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
+      addFunctionNode(args, aggregateFunc, childrenNodes,
+        aggExpr.mode, aggregateFunctionList)
     })
-    RelBuilder.makeAggregateRel(
-      projectRel, groupingList, aggregateFunctionList, aggFilterList,
-      context, operatorId)
+
+    var result = ""
+    childrenTypeNodes.forEach { childrenNode =>
+      childrenNode match {
+        case dec: DecimalTypeNode =>
+          result += "<" + dec.getPrecision() + "," + dec.getScale() + ">"
+        case _ =>
+      }
+    }
+
+    if (result != "") {
+      val message = StringValue
+        .newBuilder()
+        .setValue(result)
+        .build()
+      val precisionsBuilder = Any.newBuilder
+        .setValue(message.toByteString)
+        .setTypeUrl("/google.protobuf.StringValue")
+
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        precisionsBuilder.build(),
+        Any.pack(TypeBuilder.makeStruct(false, childrenTypeNodes).toProtobuf))
+      RelBuilder.makeAggregateRel(
+        projectRel, groupingList, aggregateFunctionList, aggFilterList,
+        extensionNode,
+        context, operatorId)
+    } else {
+      RelBuilder.makeAggregateRel(
+        projectRel, groupingList, aggregateFunctionList, aggFilterList,
+        context, operatorId)
+    }
+
   }
 
   /**
