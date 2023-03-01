@@ -33,12 +33,13 @@ import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Expression, NamedExpression, Rank, RowNumber, SortOrder, SpecifiedWindowFrame, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.{AggregateWindowFunction, Alias, Attribute, CumeDist, DenseRank, Expression, NamedExpression, PercentRank, Rank, RowNumber, SortOrder, SpecifiedWindowFrame, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.window.WindowExecBase
+import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
@@ -162,13 +163,14 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         val columnName = aliasExpr.name
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
-          case rowNumber: RowNumber =>
-            val frame = rowNumber.frame.asInstanceOf[SpecifiedWindowFrame]
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
+            val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
+            val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, rowNumber).toInt,
+              WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
               new util.ArrayList[ExpressionNode](),
               columnName,
-              ConverterUtils.getTypeNode(rowNumber.dataType, rowNumber.nullable),
+              ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
               frame.upper.sql,
               frame.lower.sql,
               frame.frameType.sql)
@@ -198,17 +200,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
-              frame.frameType.sql)
-            windowExpressions.add(windowFunctionNode)
-          case rank: Rank =>
-            val frame = rank.frame.asInstanceOf[SpecifiedWindowFrame]
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, rank).toInt,
-              new util.ArrayList[ExpressionNode](),
-              columnName,
-              ConverterUtils.getTypeNode(rank.dataType, rank.nullable),
               frame.upper.sql,
               frame.lower.sql,
               frame.frameType.sql)
