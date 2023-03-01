@@ -135,12 +135,12 @@ jobs:
           ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
-          ./build_velox.sh'
+          ./build_velox.sh --enable_hdfs=ON --enable_s3=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
+          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DVELOX_ENABLE_S3=ON -DVELOX_ENABLE_HDFS=ON .. && make -j'
       - name: Build for Spark 3.3.0
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
