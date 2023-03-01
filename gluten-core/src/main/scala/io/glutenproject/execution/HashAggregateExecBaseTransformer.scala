@@ -665,12 +665,21 @@ abstract class HashAggregateExecBaseTransformer(
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
 
       aggregateFunc.children.toList.map(childExpr => {
-        val typeNode = ConverterUtils.getTypeNode(childExpr.dataType, childExpr.nullable)
         val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
         colIdx += 1
         childrenNodeList.add(aggExpr)
-        childrenTypeNodeList.add(typeNode)
       })
+
+      aggregateFunc.children.foreach { expr =>
+        expr match {
+          case UnscaledValue(child: Expression) =>
+            val typeNode = ConverterUtils.getTypeNode(child.dataType, child.nullable)
+            childrenTypeNodeList.add(typeNode)
+          case _ =>
+            val typeNode = ConverterUtils.getTypeNode(expr.dataType, expr.nullable)
+            childrenTypeNodeList.add(typeNode)
+        }
+      }
 
       addFunctionNode(context.registeredFunction, aggregateFunc,
         childrenNodeList, aggExpr.mode, aggregateFunctionList)
@@ -929,31 +938,36 @@ abstract class HashAggregateExecBaseTransformer(
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
 
-      aggExpr.mode match {
+      aggregateFunc.children.foreach { expr =>
+        expr match {
+          case UnscaledValue(child: Expression) =>
+            val typeNode = ConverterUtils.getTypeNode(child.dataType, child.nullable)
+            childrenTypeNodeList.add(typeNode)
+          case _ =>
+            val typeNode = ConverterUtils.getTypeNode(expr.dataType, expr.nullable)
+            childrenTypeNodeList.add(typeNode)
+        }
+      }
+
+      val childrenNodes = aggExpr.mode match {
         case Partial =>
           aggregateFunc.children.toList.map(expr => {
-            val childNode = ExpressionConverter
+            ExpressionConverter
               .replaceWithExpressionTransformer(expr, originalInputAttributes)
               .doTransform(args)
-            val childTypeNode = ConverterUtils.getTypeNode(expr.dataType, expr.nullable);
-            childrenNodeList.add(childNode)
-            childrenTypeNodeList.add(childTypeNode)
           })
         case Final =>
           aggregateFunc.inputAggBufferAttributes.toList.map(attr => {
-            val childNode = ExpressionConverter
+            ExpressionConverter
               .replaceWithExpressionTransformer(attr, originalInputAttributes)
               .doTransform(args)
-            val childTypeNode = ConverterUtils.getTypeNode(attr.dataType, attr.nullable);
-            childrenNodeList.add(childNode)
-            childrenTypeNodeList.add(childTypeNode)
           })
         case other =>
           throw new UnsupportedOperationException(s"$other not supported.")
       }
-//      for (node <- childrenNodes) {
-//        childrenNodeList.add(node)
-//      }
+      for (node <- childrenNodes) {
+        childrenNodeList.add(node)
+      }
       addFunctionNode(args, aggregateFunc, childrenNodeList,
         aggExpr.mode, aggregateFunctionList)
     })

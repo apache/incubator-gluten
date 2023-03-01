@@ -365,6 +365,17 @@ case class GlutenHashAggregateExecTransformer(
         aggFilterList.add(exprNode)
       }
 
+      aggExpr.children.foreach { expr => expr
+      match {
+        case UnscaledValue(child: Expression) =>
+          val typeNode = ConverterUtils.getTypeNode(child.dataType, child.nullable)
+          childrenTypeNodes.add(typeNode)
+        case _ =>
+          val typeNode = ConverterUtils.getTypeNode(expr.dataType, expr.nullable)
+          childrenTypeNodes.add(typeNode)
+      }
+      }
+
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
 
@@ -372,14 +383,11 @@ case class GlutenHashAggregateExecTransformer(
         case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
-          childrenTypeNodes.add(getIntermediateTypeNode(aggregateFunc))
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
         case _ =>
           aggregateFunc.inputAggBufferAttributes.toList.map(inputExpr => {
             childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
-            childrenTypeNodes.add(ConverterUtils.getTypeNode(
-              inputExpr.dataType, inputExpr.nullable))
             colIdx += 1
             aggExpr
           })
