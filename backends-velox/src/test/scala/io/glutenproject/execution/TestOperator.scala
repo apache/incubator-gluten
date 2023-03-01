@@ -215,6 +215,18 @@ class TestOperator extends WholeStageTransformerSuite {
         " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
     runQueryAndCompare(
+      "select dense_rank() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+    runQueryAndCompare(
+      "select percent_rank() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+    runQueryAndCompare(
+      "select cume_dist() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+    runQueryAndCompare(
       "select sum(l_partkey + 1) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem") { _ => }
 

@@ -184,10 +184,18 @@ object ExpressionMappings {
   final val EXPLODE = "explode"
   final val CHECK_OVERFLOW = "check_overflow"
   final val PROMOTE_PRECISION = "promote_precision"
+  final val ROW_CONSTRUCTOR = "row_constructor"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
   final val NORMALIZE_NANAND_ZERO = "normalize_nanand_zero"
+
+  // Window functions used by Substrait plan.
+  final val RANK = "rank"
+  final val DENSE_RANK = "dense_rank"
+  final val ROW_NUMBER = "row_number"
+  final val CUME_DIST = "cume_dist"
+  final val PERCENT_RANK = "percent_rank"
 
   /**
    * Mapping Spark scalar expression to Substrait function name
@@ -355,6 +363,17 @@ object ExpressionMappings {
     Sig[VariancePop](VAR_POP)
   )
 
+  /**
+   * Mapping Spark window expression to Substrait function name
+   */
+  val WINDOW_SIGS: Seq[Sig] = Seq(
+    Sig[Rank](RANK),
+    Sig[DenseRank](DENSE_RANK),
+    Sig[RowNumber](ROW_NUMBER),
+    Sig[CumeDist](CUME_DIST),
+    Sig[PercentRank](PERCENT_RANK)
+  )
+
   // some spark new version class
   def getScalarSigOther: Map[String, String] =
     if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
@@ -368,7 +387,8 @@ object ExpressionMappings {
 
   lazy val scalar_functions_map: Map[Class[_], String] =
     SCALAR_SIGS.map(s => (s.expClass, s.name)).toMap
-  lazy val aggregate_functions_map: Map[Class[_], String] = {
+  lazy val aggregate_functions_map: Map[Class[_], String] =
     AGGREGATE_SIGS.map(s => (s.expClass, s.name)).toMap
-  }
+  lazy val window_functions_map: Map[Class[_], String] =
+    WINDOW_SIGS.map(s => (s.expClass, s.name)).toMap
 }

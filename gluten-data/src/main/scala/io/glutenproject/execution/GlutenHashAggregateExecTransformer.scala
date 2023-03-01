@@ -239,7 +239,7 @@ case class GlutenHashAggregateExecTransformer(
                                   rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
-      ConverterUtils.ROW_CONSTRUCTOR,
+      ExpressionMappings.ROW_CONSTRUCTOR,
       rowConstructAttributes.map(attr => attr.dataType),
       FunctionConfig.NON)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)

@@ -373,9 +373,4 @@ object ConverterUtils extends Logging {
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
-
-  // Other
-  final val ROW_CONSTRUCTOR = "row_constructor"
-  final val ROW_NUMBER = "row_number"
-  final val RANK = "rank"
 }
