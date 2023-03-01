@@ -601,25 +601,12 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case Max(_) =>
+        case _ @ (Max(_) | Min(_) | BitAndAgg(_) | BitOrAgg(_)) =>
           mode match {
             case Partial | PartialMerge =>
-              val max = aggregateFunc.asInstanceOf[Max]
-              val aggBufferAttr = max.inputAggBufferAttributes
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              aggregateAttr += attr
-              res_index += 1
-            case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
-            case other =>
-              throw new UnsupportedOperationException(s"not currently supported: $other.")
-          }
-        case Min(_) =>
-          mode match {
-            case Partial | PartialMerge =>
-              val min = aggregateFunc.asInstanceOf[Min]
-              val aggBufferAttr = min.inputAggBufferAttributes
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+              assert(aggBufferAttr.size == 1,
+                s"Aggregate function ${aggregateFunc} expects one buffer attribute.")
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
               aggregateAttr += attr
               res_index += 1

@@ -38,6 +38,8 @@ object ExpressionMappings {
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
   final val VAR_SAMP = "var_samp"
   final val VAR_POP = "var_pop"
+  final val BIT_AND_AGG = "bitwise_and_agg"
+  final val BIT_OR_AGG = "bitwise_or_agg"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -360,7 +362,9 @@ object ExpressionMappings {
     Sig[StddevPop](STDDEV_POP),
     Sig[CollectList](COLLECT_LIST),
     Sig[VarianceSamp](VAR_SAMP),
-    Sig[VariancePop](VAR_POP)
+    Sig[VariancePop](VAR_POP),
+    Sig[BitAndAgg](BIT_AND_AGG),
+    Sig[BitOrAgg](BIT_OR_AGG)
   )
 
   /**
