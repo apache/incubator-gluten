@@ -19,11 +19,15 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
+import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
-
 import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Expression, NamedExpression, PercentRank, Rank, RowNumber, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, MapType, StructField, StructType}
+
+import scala.util.control.Breaks.{break, breakable}
 
 class VeloxBackend extends Backend {
   override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
@@ -56,7 +60,26 @@ object VeloxBackendSettings extends BackendSettings {
   override def supportExpandExec(): Boolean = true
   override def needProjectExpandOutput: Boolean = true
   override def supportSortExec(): Boolean = true
-  override def supportWindowExec(): Boolean = true
+
+  override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
+    var allSupported = true
+    breakable {
+      windowFunctions.foreach(
+        func => {
+          val aliasExpr = func.asInstanceOf[Alias]
+          val wExpression = WindowFunctionsBuilder.extractWindowExpression(aliasExpr.child)
+          wExpression match {
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
+                 _: PercentRank =>
+              allSupported = allSupported & true
+            case _ =>
+              allSupported = false
+              break
+          }
+        })
+    }
+    allSupported
+  }
   override def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getSessionConf.isUseColumnarShuffleManager
   }

@@ -19,7 +19,9 @@ package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
-import org.apache.spark.sql.catalyst.expressions.{CumeDist, DenseRank, PercentRank, Rank, RowNumber, WindowFunction}
+import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression, WindowFunction}
+
+import scala.util.control.Breaks.{break, breakable}
 
 object WindowFunctionsBuilder {
   def create(args: java.lang.Object, windowFunc: WindowFunction): Long = {
@@ -34,6 +36,22 @@ object WindowFunctionsBuilder {
     } else {
       throw new UnsupportedOperationException(
         s"not currently supported: ${windowFunc.getClass.getName}.")
+    }
+  }
+
+  def extractWindowExpression(expr: Expression): WindowExpression = {
+    expr match {
+      case w: WindowExpression => w
+      case other =>
+        var w: WindowExpression = null
+        breakable {
+          other.children.foreach(
+            child => {
+              w = extractWindowExpression(child)
+              break
+            })
+        }
+        w
     }
   }
 }

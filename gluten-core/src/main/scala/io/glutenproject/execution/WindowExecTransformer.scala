@@ -33,13 +33,15 @@ import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AggregateWindowFunction, Alias, Attribute, CumeDist, DenseRank, Expression, NamedExpression, PercentRank, Rank, RowNumber, SortOrder, SpecifiedWindowFrame, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.{AggregateWindowFunction, Alias, Attribute,
+  CumeDist, DenseRank, Expression, FrameLessOffsetWindowFunction, Lag, Lead, NamedExpression,
+  PercentRank, Rank, RowNumber, SortOrder,
+  SpecifiedWindowFrame, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.window.WindowExecBase
-import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
@@ -179,7 +181,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
             val frame = wExpression.windowSpec.
                       frameSpecification.asInstanceOf[SpecifiedWindowFrame]
             val aggregateFunc = aggExpression.aggregateFunction
-
             val substraitAggFuncName =
               ExpressionMappings.aggregate_functions_map.get(aggregateFunc.getClass)
             // Check whether each backend supports this aggregate function
@@ -200,6 +201,28 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
+              frame.upper.sql,
+              frame.lower.sql,
+              frame.frameType.sql)
+            windowExpressions.add(windowFunctionNode)
+          case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
+            val offset_wf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
+            val frame = offset_wf.frame.asInstanceOf[SpecifiedWindowFrame]
+            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              offset_wf.input,
+              attributeSeq = originalInputAttributes).doTransform(args))
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              offset_wf.offset,
+              attributeSeq = originalInputAttributes).doTransform(args))
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              offset_wf.default,
+              attributeSeq = originalInputAttributes).doTransform(args))
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, offset_wf).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(offset_wf.dataType, offset_wf.nullable),
               frame.upper.sql,
               frame.lower.sql,
               frame.frameType.sql)
@@ -271,7 +294,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
   }
 
   override def doValidate(): Boolean = {
-    if (!BackendsApiManager.getSettings.supportWindowExec()) {
+    if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
+      logDebug(s"Not support window function")
       return false
     }
     val substraitContext = new SubstraitContext
