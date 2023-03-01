@@ -33,10 +33,7 @@ public class GenerateRelNode implements RelNode, Serializable {
   private final AdvancedExtensionNode extensionNode;
 
   GenerateRelNode(RelNode input, ExpressionNode generator, ArrayList<ExpressionNode> childOutput) {
-    this.input = input;
-    this.generator = generator;
-    this.childOutput = childOutput;
-    this.extensionNode = null;
+    this(input, generator, childOutput, null);
   }
 
   GenerateRelNode(RelNode input, ExpressionNode generator, ArrayList<ExpressionNode> childOutput,
@@ -44,7 +41,7 @@ public class GenerateRelNode implements RelNode, Serializable {
     this.input = input;
     this.generator = generator;
     this.childOutput = childOutput;
-    this.extensionNode = null;
+    this.extensionNode = extensionNode;
   }
 
   @Override
