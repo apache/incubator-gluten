@@ -243,30 +243,32 @@ object GlutenConfig {
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
 
   // Hive configurations.
+  val SPARK_PREFIX = "spark."
   val HIVE_EXEC_ORC_STRIPE_SIZE = "hive.exec.orc.stripe.size"
-  val SPARK_HIVE_EXEC_ORC_STRIPE_SIZE: String = "spark." + HIVE_EXEC_ORC_STRIPE_SIZE
+  val SPARK_HIVE_EXEC_ORC_STRIPE_SIZE: String = SPARK_PREFIX + HIVE_EXEC_ORC_STRIPE_SIZE
   val HIVE_EXEC_ORC_ROW_INDEX_STRIDE = "hive.exec.orc.row.index.stride"
-  val SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE: String = "spark." + HIVE_EXEC_ORC_ROW_INDEX_STRIDE
+  val SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE: String = SPARK_PREFIX + HIVE_EXEC_ORC_ROW_INDEX_STRIDE
   val HIVE_EXEC_ORC_COMPRESS = "hive.exec.orc.compress"
-  val SPARK_HIVE_EXEC_ORC_COMPRESS: String = "spark." + HIVE_EXEC_ORC_COMPRESS
+  val SPARK_HIVE_EXEC_ORC_COMPRESS: String = SPARK_PREFIX + HIVE_EXEC_ORC_COMPRESS
 
   // Hadoop config
-  val HDFS_URI = "hadoop.fs.defaultFS"
-  val SPARK_HDFS_URI = "spark." + HDFS_URI
+  val HADOOP_PREFIX = "spark.hadoop."
+  val HDFS_URI = "fs.defaultFS"
+  val SPARK_HDFS_URI: String = HADOOP_PREFIX + HDFS_URI
 
   // S3 config
-  val S3_ACCESS_KEY = "hadoop.fs.s3a.access.key"
-  val SPARK_S3_ACCESS_KEY: String = "spark." + S3_ACCESS_KEY
-  val S3_SECRET_KEY = "hadoop.fs.s3a.secret.key"
-  val SPARK_S3_SECRET_KEY: String = "spark." + S3_SECRET_KEY
-  val S3_ENDPOINT = "hadoop.fs.s3a.endpoint"
-  val SPARK_S3_ENDPOINT: String = "spark." + S3_ENDPOINT
-  val S3_CONNECTION_SSL_ENABLED = "hadoop.fs.s3a.connection.ssl.enabled"
-  val SPARK_S3_CONNECTION_SSL_ENABLED: String = "spark." + S3_CONNECTION_SSL_ENABLED
-  val S3_PATH_STYLE_ACCESS = "hadoop.fs.s3a.path.style.access"
-  val SPARK_S3_PATH_STYLE_ACCESS: String = "spark." + S3_PATH_STYLE_ACCESS
-  val S3_USE_INSTANCE_CREDENTIALS = "hadoop.fs.s3a.use.instance.credentials"
-  val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = "spark." + S3_USE_INSTANCE_CREDENTIALS
+  val S3_ACCESS_KEY = "fs.s3a.access.key"
+  val SPARK_S3_ACCESS_KEY: String = HADOOP_PREFIX + S3_ACCESS_KEY
+  val S3_SECRET_KEY = "fs.s3a.secret.key"
+  val SPARK_S3_SECRET_KEY: String = HADOOP_PREFIX + S3_SECRET_KEY
+  val S3_ENDPOINT = "fs.s3a.endpoint"
+  val SPARK_S3_ENDPOINT: String = HADOOP_PREFIX + S3_ENDPOINT
+  val S3_CONNECTION_SSL_ENABLED = "fs.s3a.connection.ssl.enabled"
+  val SPARK_S3_CONNECTION_SSL_ENABLED: String = HADOOP_PREFIX + S3_CONNECTION_SSL_ENABLED
+  val S3_PATH_STYLE_ACCESS = "fs.s3a.path.style.access"
+  val SPARK_S3_PATH_STYLE_ACCESS: String = HADOOP_PREFIX + S3_PATH_STYLE_ACCESS
+  val S3_USE_INSTANCE_CREDENTIALS = "fs.s3a.use.instance.credentials"
+  val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = HADOOP_PREFIX + S3_USE_INSTANCE_CREDENTIALS
 
   // QAT config
   val GLUTEN_ENABLE_QAT = "spark.gluten.sql.columnar.qat"
