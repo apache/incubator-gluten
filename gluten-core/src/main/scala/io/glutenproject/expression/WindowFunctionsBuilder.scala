@@ -26,15 +26,10 @@ object WindowFunctionsBuilder {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val substraitFunc = ExpressionMappings.window_functions_map.get(windowFunc.getClass)
     if (substraitFunc.isDefined) {
-      val functionName = windowFunc match {
-        case _: RowNumber | _: Rank | _: DenseRank | _: PercentRank | _: CumeDist =>
-          ConverterUtils.makeFuncName(
-            substraitFunc.get,
-            Seq(windowFunc.dataType),
-            FunctionConfig.OPT)
-        case other =>
-          throw new UnsupportedOperationException(s"not currently supported: $other.")
-      }
+      val functionName = ConverterUtils.makeFuncName(
+        substraitFunc.get,
+        Seq(windowFunc.dataType),
+        FunctionConfig.OPT)
       ExpressionBuilder.newScalarFunction(functionMap, functionName)
     } else {
       throw new UnsupportedOperationException(
