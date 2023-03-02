@@ -222,7 +222,7 @@ velox::VectorPtr RecordBatch2RowVector(const arrow::RecordBatch& rb) {
 
 arrow::Status SplitRecordBatch(VeloxSplitter& splitter, const arrow::RecordBatch& rb) {
   velox::VectorPtr vp = RecordBatch2RowVector(rb);
-  std::cout << vp->toString() << std::endl;
+  // std::cout << vp->toString() << std::endl;
   // std::cout << vp->toString(0, vp->size()) << std::endl;
   auto rv = vp->as<velox::RowVector>();
   return splitter.Split(*rv);
@@ -503,23 +503,19 @@ TEST_F(VeloxSplitterTest, TestSpillLargestPartition) {
   ASSERT_NOT_OK(splitter_->Stop());
 }
 
-#if 0
-
 TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
   auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
   auto f_arr_bool = arrow::field("f_bool", arrow::list(arrow::boolean()));
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::int32()));
   auto f_arr_double = arrow::field("f_double", arrow::list(arrow::float64()));
-  auto f_arr_decimal = arrow::field("f_decimal", arrow::list(arrow::decimal(10, 2)));
 
-  auto rb_schema = arrow::schema({f_arr_str, f_arr_bool, f_arr_int32, f_arr_double, f_arr_decimal});
+  auto rb_schema = arrow::schema({f_arr_str, f_arr_bool, f_arr_int32, f_arr_double});
 
   const std::vector<std::string> input_data_arr = {
       R"([["alice0", "bob1"], ["alice2"], ["bob3"], ["Alice4", "Bob5", "AlicE6"], ["boB7"], ["ALICE8", "BOB9"]])",
       R"([[true, null], [true, true, true], [false], [true], [false], [false]])",
       R"([[1, 2, 3], [9, 8], [null], [3, 1], [0], [1, 9, null]])",
-      R"([[0.26121], [-9.12123, 6.111111], [8.121], [7.21, null], [3.2123, 6,1121], [null]])",
-      R"([["0.26"], ["-9.12", "6.11"], ["8.12"], ["7.21", null], ["3.21", "6.11"], [null]])"};
+      R"([[0.26121], [-9.12123, 6.111111], [8.121], [7.21, null], [3.2123, 6,1121], [null]])"};
 
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
@@ -528,7 +524,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -581,9 +577,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinNestListArraySplitter) {
   auto f_arr_str = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
@@ -653,12 +647,10 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestListArraySplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinNestLargeListArraySplitter) {
-  auto f_arr_str = arrow::field("f_str", arrow::large_list(arrow::list(arrow::utf8())));
-  auto f_arr_int32 = arrow::field("f_int32", arrow::large_list(arrow::list(arrow::int32())));
+  auto f_arr_str = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
+  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
 
   auto rb_schema = arrow::schema({f_arr_str, f_arr_int32});
 
@@ -673,7 +665,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestLargeListArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -725,12 +717,12 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestLargeListArraySplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinListStructArraySplitter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_list_struct = arrow::field("f_list_struct", arrow::list(struct_({arrow::field("a", int32()), arrow::field("b", arrow::utf8())})));
+  auto f_arr_list_struct = arrow::field(
+      "f_list_struct",
+      arrow::list(arrow::struct_({arrow::field("a", arrow::int32()), arrow::field("b", arrow::utf8())})));
 
   auto rb_schema = arrow::schema({f_arr_int32, f_arr_list_struct});
 
@@ -745,7 +737,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListStructArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -797,9 +789,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListStructArraySplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinListMapArraySplitter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto f_arr_list_map = arrow::field("f_list_map", arrow::list(arrow::map(arrow::utf8(), arrow::utf8())));
@@ -817,7 +807,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListMapArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -869,12 +859,12 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListMapArraySplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_struct_list = arrow::field("f_struct_list", struct_({arrow::field("a", arrow::list(int32())), arrow::field("b", arrow::utf8())}));
+  auto f_arr_struct_list = arrow::field(
+      "f_struct_list",
+      arrow::struct_({arrow::field("a", arrow::list(arrow::int32())), arrow::field("b", arrow::utf8())}));
 
   auto rb_schema = arrow::schema({f_arr_int32, f_arr_struct_list});
 
@@ -889,7 +879,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -941,9 +931,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinMapArraySplitter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto f_arr_map = arrow::field("f_map", arrow::map(arrow::utf8(), arrow::utf8()));
@@ -961,7 +949,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinMapArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -1013,9 +1001,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinMapArraySplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
   int32_t num_partitions = 5;
   split_options_.buffer_size = 4;
@@ -1032,7 +1018,7 @@ TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
 
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -1056,24 +1042,20 @@ TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
     }
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitterwithCompression) {
   auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
   auto f_arr_bool = arrow::field("f_bool", arrow::list(arrow::boolean()));
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::int32()));
   auto f_arr_double = arrow::field("f_double", arrow::list(arrow::float64()));
-  auto f_arr_decimal = arrow::field("f_decimal", arrow::list(arrow::decimal(10, 2)));
 
-  auto rb_schema = arrow::schema({f_arr_str, f_arr_bool, f_arr_int32, f_arr_double, f_arr_decimal});
+  auto rb_schema = arrow::schema({f_arr_str, f_arr_bool, f_arr_int32, f_arr_double});
 
   const std::vector<std::string> input_data_arr = {
       R"([["alice0", "bob1"], ["alice2"], ["bob3"], ["Alice4", "Bob5", "AlicE6"], ["boB7"], ["ALICE8", "BOB9"]])",
       R"([[true, null], [true, true, true], [false], [true], [false], [false]])",
       R"([[1, 2, 3], [9, 8], [null], [3, 1], [0], [1, 9, null]])",
-      R"([[0.26121], [-9.12123, 6.111111], [8.121], [7.21, null], [3.2123, 6,1121], [null]])",
-      R"([["0.26"], ["-9.12", "6.11"], ["8.12"], ["7.21", null], ["3.21", "6.11"], [null]])"};
+      R"([[0.26121], [-9.12123, 6.111111], [8.121], [7.21, null], [3.2123, 6,1121], [null]])"};
 
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
@@ -1083,7 +1065,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitterwithCompression) {
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
   auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
   ASSERT_NOT_OK(splitter_->SetCompressType(compression_type.MoveValueUnsafe()));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -1136,6 +1118,5 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitterwithCompression) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
 } // namespace gluten

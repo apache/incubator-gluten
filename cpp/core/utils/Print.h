@@ -10,11 +10,6 @@ namespace gluten {
 // the token `ToString` means the method of `ToString()`
 // the token `2String` means the method of `toString()`
 
-// just for test, will be deleted in the future
-#ifndef GLUTEN_PRINT_DEBUG
-// #define GLUTEN_PRINT_DEBUG
-#endif
-
 #ifdef GLUTEN_PRINT_DEBUG
 
 template <typename T>
