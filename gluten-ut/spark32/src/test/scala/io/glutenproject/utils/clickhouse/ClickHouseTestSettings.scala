@@ -142,7 +142,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringExpressionsSuite]
     .include(
       "concat_ws",
-      "LPAD/RPAD",
+      // "LPAD/RPAD", not ready because CH required the third arg to be constant string
       "REVERSE"
     )
 
