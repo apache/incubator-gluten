@@ -285,15 +285,11 @@ object RangePartitionerBoundsGenerator {
 
   def supportedOrderings(orderings: Seq[SortOrder]): Boolean = {
     var enableRangePartitioning = true
+
     // TODO. support complex data type in orderings
     breakable {
       for (ordering <- orderings) {
         if (!RangePartitionerBoundsGenerator.supportedFieldType(ordering.dataType)) {
-          enableRangePartitioning = false
-          break
-        }
-        // FIXME: there is a weird bug to handle expressions.
-        if (!ordering.child.isInstanceOf[Attribute]) {
           enableRangePartitioning = false
           break
         }
