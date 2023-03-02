@@ -15,11 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-if (BUILD_VELOX_BACKEND AND BUILD_GAZELLE_CPP_BACKEND)
-  message(FATAL_ERROR "BUILD_VELOX_BACKEND and BUILD_GAZELLE_CPP_BACKEND cannot both be ON!")
-endif()
-
 if(BUILD_VELOX_BACKEND)
   set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1100")
   set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1100.0.0")

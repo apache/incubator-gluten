@@ -44,7 +44,7 @@ Below is an example for spark-default.conf, if you are using conda to install OA
 spark.sql.sources.useV1SourceList avro
 spark.plugins io.glutenproject.GlutenPlugin
 spark.shuffle.manager org.apache.spark.shuffle.sort.ColumnarShuffleManager
-spark.gluten.sql.columnar.backend.lib=velox # Valid options: velox, clickhouse, gazelle-cpp
+spark.gluten.sql.columnar.backend.lib=velox # Valid options: velox, clickhouse
 spark.driver.extraClassPath ${GLUTEN_HOME}/package/target/gluten-<>-jar-with-dependencies.jar
 spark.executor.extraClassPath ${GLUTEN_HOME}/package/target/gluten-<>-jar-with-dependencies.jar
 ######

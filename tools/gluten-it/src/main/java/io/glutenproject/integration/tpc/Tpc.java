@@ -26,10 +26,10 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--mode"}, description = "Mode: data-gen-only, queries, queries-compare, spark-shell", defaultValue = "queries-compare")
   private String mode;
 
-  @CommandLine.Option(names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, gazelle-cpp, ...", defaultValue = "velox")
+  @CommandLine.Option(names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, ...", defaultValue = "velox")
   private String backendType;
 
-  @CommandLine.Option(names = {"--baseline-backend-type"}, description = "Baseline backend used: vanilla, velox, gazelle-cpp, ...", defaultValue = "vanilla")
+  @CommandLine.Option(names = {"--baseline-backend-type"}, description = "Baseline backend used: vanilla, velox, ...", defaultValue = "vanilla")
   private String baselineBackendType;
 
   @CommandLine.Option(names = {"-s", "--scale"}, description = "The scale factor of sample TPC-H dataset", defaultValue = "0.1")
@@ -100,9 +100,6 @@ public class Tpc implements Callable<Integer> {
         break;
       case "velox":
         conf = Constants.VELOX_BACKEND_CONF();
-        break;
-      case "gazelle-cpp":
-        conf = Constants.GAZELLE_CPP_BACKEND_CONF();
         break;
       default:
         throw new IllegalArgumentException("Backend type not found: " + backendType);

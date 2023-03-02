@@ -3,7 +3,6 @@
 set -exu
 
 BUILD_TYPE=release
-BUILD_GAZELLE_CPP_BACKEND=OFF
 BUILD_VELOX_BACKEND=OFF
 BUILD_TESTS=OFF
 BUILD_BENCHMARKS=OFF
@@ -30,10 +29,6 @@ do
         ;;
         --build_type=*)
         BUILD_TYPE=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_gazelle_cpp_backend=*)
-        BUILD_GAZELLE_CPP_BACKEND=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --build_velox_backend=*)
@@ -95,7 +90,6 @@ echo "CMAKE Arguments:"
 echo "ARROW_ROOT=${ARROW_ROOT}"
 echo "VELOX_HOME=${VELOX_HOME}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
-echo "BUILD_GAZELLE_CPP_BACKEND=${BUILD_GAZELLE_CPP_BACKEND}"
 echo "BUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND}"
 echo "BUILD_TESTS=${BUILD_TESTS}"
 echo "BUILD_BENCHMARKS=${BUILD_BENCHMARKS}"
@@ -114,7 +108,6 @@ cmake .. \
   -DBUILD_TESTS=${BUILD_TESTS} \
   -DARROW_ROOT=${ARROW_ROOT} \
   -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
-  -DBUILD_GAZELLE_CPP_BACKEND=${BUILD_GAZELLE_CPP_BACKEND} \
   -DBUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND} \
   -DVELOX_HOME=${VELOX_HOME} \
   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \

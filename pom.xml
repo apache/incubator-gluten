@@ -195,20 +195,6 @@
       </properties>
     </profile>
     <profile>
-      <id>backends-gazelle</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <modules>
-        <module>gluten-data</module>
-        <module>backends-gazelle</module>
-      </modules>
-      <properties>
-        <backend_type>gazelle_cpp</backend_type>
-        <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
-      </properties>
-    </profile>
-    <profile>
       <id>spark-ut</id>
       <modules>
         <module>gluten-ut</module>
