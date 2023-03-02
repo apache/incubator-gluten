@@ -45,7 +45,7 @@ The overview chart is like below. Spark physical plan is transformed to substrai
 <p align="center">
 <img src="https://user-images.githubusercontent.com/47296334/199617207-1140698a-4d53-462d-9bc7-303d14be060b.png" width="800">
 </p>
-There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. We also implemented a basic backend using Arrow Computer Engine which is for reference only. Gluten can also be easily extended to any accelerator libraries as backend.
+There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. Gluten can also be easily extended to any accelerator libraries as backend.
 
 There are several key component in Gluten:
 * Query plan conversion which convert Spark's physical plan into substrait plan in each stage.
