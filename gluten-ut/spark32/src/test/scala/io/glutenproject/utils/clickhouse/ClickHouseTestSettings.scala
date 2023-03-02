@@ -148,14 +148,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include(
       "concat_ws",
       // "LPAD/RPAD", not ready because CH required the third arg to be constant string
-      "REVERSE",
-      "translate"
+      // "translate" Not ready because CH requires from and to argument have the same length
+      "REVERSE"
     )
 
   enableSuite[GlutenStringFunctionsSuite]
     .include(
-      "string concat_ws",
-      "string translate"
+      "string concat_ws"
+      // "string translate" Not ready because CH requires from and to argument have the same length
     )
 
   enableSuite[GlutenSubquerySuite]
