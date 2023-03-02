@@ -1,5 +1,6 @@
 #include "VeloxSplitter.h"
 #include "VeloxSplitterPartitionWriter.h"
+#include "memory/VeloxMemoryPool.h"
 #include "velox/vector/arrow/Bridge.h"
 
 #include "utils/compression.h"
@@ -98,9 +99,6 @@ arrow::Status VeloxSplitter::Init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  // moved to InitColumnTypes()
-  // ARROW_ASSIGN_OR_RAISE(column_type_id_, ToSplitterTypeId(schema_->fields()));
-
   partition_writer_.resize(num_partitions_);
 
   partition_2_row_count_.resize(num_partitions_);
@@ -118,8 +116,6 @@ arrow::Status VeloxSplitter::Init() {
   raw_partition_lengths_.resize(num_partitions_);
 
   partition_2_row_offset_.resize(num_partitions_ + 1);
-
-  // column related statements are moved to InitColumnTypes()
 
   ARROW_ASSIGN_OR_RAISE(configured_dirs_, GetConfiguredLocalDirs());
   sub_dir_selection_.assign(configured_dirs_.size(), 0);
@@ -655,10 +651,13 @@ arrow::Status VeloxSplitter::SplitBinaryType(
         binary_buf.value_capacity = capacity;
         dst_value_ptr = binary_buf.value_ptr + value_offset - string_len;
 
-        std::cout << "Split value buffer resized col_idx = " << binary_idx << " dst_start " << dst_offset_base[x]
-                  << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity
-                  << " new size = " << capacity << " row = " << partition_buffer_idx_base_[pid]
-                  << " strlen = " << string_len << std::endl;
+        PrintSplit("Split value buffer resized col_idx", binary_idx);
+        PrintSplit(" dst_start", dst_offset_base[x]);
+        PrintSplit(" dst_end", dst_offset_base[x + 1]);
+        PrintSplit(" old size", old_capacity);
+        PrintSplit(" new size", capacity);
+        PrintSplit(" row", partition_buffer_idx_base_[pid]);
+        PrintSplitLF(" string len", string_len);
       }
 
       // 2. copy value
@@ -714,37 +713,15 @@ arrow::Status VeloxSplitter::SplitBinaryArray(const velox::RowVector& rv) {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSplitter::TransferSchema(const velox::RowVector& rv, std::shared_ptr<arrow::Schema>& input_schema) {
-  if (rv.childrenSize() == 0) {
-    return arrow::Status::Invalid("has not child.");
-  }
-
-  if (!rv.childAt(0)->type()->isInteger()) {
-    return arrow::Status::Invalid("RowVector field 0 should be integer");
-  }
-
+arrow::Status VeloxSplitter::VeloxType2ArrowSchema(const velox::TypePtr& type) {
   auto out = std::make_shared<ArrowSchema>();
-  // TODO: need this following loop?
-  // Make sure to load lazy vector if not loaded already.
-  for (auto& child : rv.children()) {
-    child->loadedVector();
-  }
-
-  // TODO: need recheck
-  auto rvp = velox::RowVector::createEmpty(rv.type(), rv.pool());
+  auto rvp = velox::RowVector::createEmpty(type, GetDefaultWrappedVeloxMemoryPool());
 
   // get ArrowSchema from velox::RowVector
   velox::exportToArrow(rvp, *out);
 
   // convert ArrowSchema to arrow::Schema
-  ARROW_ASSIGN_OR_RAISE(input_schema, arrow::ImportSchema(out.get()));
-
-  PrintSplitLF("input_schema", input_schema->ToString());
-
-  // remove the first column，then schema_'s column is one less than input_schema_'s
-  ARROW_ASSIGN_OR_RAISE(schema_, input_schema->RemoveField(0));
-
-  PrintSplitLF("schema_", schema_->ToString());
+  ARROW_ASSIGN_OR_RAISE(schema_, arrow::ImportSchema(out.get()));
 
   return arrow::Status::OK();
 }
@@ -755,6 +732,8 @@ arrow::Status VeloxSplitter::InitColumnTypes(const velox::RowVector& rv) {
       velox_column_types_.push_back(rv.childAt(i)->type());
     }
   }
+
+  PrintSplitLF("schema_", schema_->ToString());
 
   // get arrow_column_types_ from schema
   ARROW_ASSIGN_OR_RAISE(arrow_column_types_, ToSplitterTypeId(schema_->fields()));
@@ -1236,6 +1215,12 @@ arrow::Status VeloxSplitter::SpillPartition(uint32_t partition_id) {
 }
 
 // VeloxRoundRobinSplitter
+arrow::Status VeloxRoundRobinSplitter::InitColumnTypes(const velox::RowVector& rv) {
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+
+  return VeloxSplitter::InitColumnTypes(rv);
+}
+
 arrow::Status VeloxRoundRobinSplitter::Partition(const velox::RowVector& rv) {
   std::fill(std::begin(partition_2_row_count_), std::end(partition_2_row_count_), 0);
   row_2_partition_.resize(rv.size());
@@ -1273,14 +1258,30 @@ arrow::Status VeloxSinglePartSplitter::Init() {
   return arrow::Status::OK();
 }
 
+arrow::Status VeloxSinglePartSplitter::InitColumnTypes(const velox::RowVector& rv) {
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+  return VeloxSplitter::InitColumnTypes(rv);
+}
+
 arrow::Status VeloxSinglePartSplitter::Partition(const velox::RowVector& rv) {
-  // it's ok to just return
+  // nothing is need do here
   return arrow::Status::OK();
 }
 
 arrow::Status VeloxSinglePartSplitter::Split(const velox::RowVector& rv) {
-  // TODO
-  // CacheRecordBatch(0, rv);
+  // 1. convert RowVector to RecordBatch
+  velox::VectorPtr vp(&const_cast<velox::RowVector&>(rv));
+
+  ArrowArray arrowArray;
+  velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool());
+  vp.reset();
+
+  auto result = arrow::ImportRecordBatch(&arrowArray, schema_);
+  RETURN_NOT_OK(result);
+
+  // 2. call CacheRecordBatch with RecordBatch
+  RETURN_NOT_OK(CacheRecordBatch(0, *(*result)));
+
   return arrow::Status::OK();
 }
 
@@ -1322,13 +1323,6 @@ arrow::Status VeloxSinglePartSplitter::Stop() {
 }
 
 // VeloxHashSplitter
-arrow::Status VeloxHashSplitter::Init() {
-  // this logic is moved to InitColumnTypes()
-  // input_schema_ = std::move(schema_);
-  // ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
-  return VeloxSplitter::Init();
-}
-
 arrow::Status VeloxHashSplitter::Partition(const velox::RowVector& rv) {
   if (rv.childrenSize() == 0) {
     return arrow::Status::Invalid("RowVector missing partition id column.");
@@ -1363,7 +1357,10 @@ arrow::Status VeloxHashSplitter::Partition(const velox::RowVector& rv) {
 }
 
 arrow::Status VeloxHashSplitter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(TransferSchema(rv, input_schema_));
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+
+  // remove the first column
+  ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
 
   // skip the first column
   for (size_t i = 1; i < rv.childrenSize(); ++i) {
@@ -1382,15 +1379,11 @@ arrow::Status VeloxHashSplitter::Split(const velox::RowVector& rv) {
 }
 
 // VeloxFallbackRangeSplitter
-arrow::Status VeloxFallbackRangeSplitter::Init() {
-  // this logic is moved to InitColumnTypes()
-  // input_schema_ = std::move(schema_);
-  // ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
-  return arrow::Status::OK();
-}
-
 arrow::Status VeloxFallbackRangeSplitter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(TransferSchema(rv, input_schema_));
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+
+  // remove the first column
+  ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
 
   // skip the first column
   for (size_t i = 1; i < rv.childrenSize(); ++i) {

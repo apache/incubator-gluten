@@ -220,12 +220,12 @@ velox::VectorPtr RecordBatch2RowVector(const arrow::RecordBatch& rb) {
   return velox::importFromArrowAsViewer(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
 }
 
-void SplitRecordBatch(VeloxSplitter& splitter, const arrow::RecordBatch& rb) {
+arrow::Status SplitRecordBatch(VeloxSplitter& splitter, const arrow::RecordBatch& rb) {
   velox::VectorPtr vp = RecordBatch2RowVector(rb);
   std::cout << vp->toString() << std::endl;
   // std::cout << vp->toString(0, vp->size()) << std::endl;
   auto rv = vp->as<velox::RowVector>();
-  ASSERT_NOT_OK(splitter.Split(*rv));
+  return splitter.Split(*rv);
 }
 
 TEST_F(VeloxSplitterTest, TestHashSplitter) {
@@ -234,9 +234,9 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
 
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_))
 
-  SplitRecordBatch(*splitter_, *hash_input_batch_1_);
-  SplitRecordBatch(*splitter_, *hash_input_batch_2_);
-  SplitRecordBatch(*splitter_, *hash_input_batch_1_);
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_1_));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -263,15 +263,14 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
   }
 }
 
-#if 0
 TEST_F(VeloxSplitterTest, TestSingleSplitter) {
   split_options_.buffer_size = 10;
 
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", 1, split_options_))
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -301,22 +300,21 @@ TEST_F(VeloxSplitterTest, TestSingleSplitter) {
       //      std::cout << " result " << rb->column(j)->ToString() << std::endl;
       //      std::cout << " expected " << expected[i]->column(j)->ToString() <<
       //      std::endl;
-      ASSERT_TRUE(rb->column(j)->Equals(*expected[i]->column(j), EqualOptions::Defaults().diff_sink(&std::cout)));
+      ASSERT_TRUE(
+          rb->column(j)->Equals(*expected[i]->column(j), arrow::EqualOptions::Defaults().diff_sink(&std::cout)));
     }
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestRoundRobinSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -372,9 +370,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinSplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestSplitterMemoryLeak) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(17 * 1024 * 1024);
 
@@ -385,9 +381,9 @@ TEST_F(VeloxSplitterTest, TestSplitterMemoryLeak) {
 
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -395,9 +391,7 @@ TEST_F(VeloxSplitterTest, TestSplitterMemoryLeak) {
   splitter_.reset();
   ASSERT_TRUE(pool->bytes_allocated() == 0);
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
@@ -415,11 +409,11 @@ TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
   ARROW_ASSIGN_OR_THROW(input_batch_1_w_pid, input_batch_1_->AddColumn(0, "pid", pid_arr_0));
   ARROW_ASSIGN_OR_THROW(input_batch_2_w_pid, input_batch_2_->AddColumn(0, "pid", pid_arr_1));
 
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("range", std::move(schema_w_pid), num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("range", num_partitions, split_options_))
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_w_pid));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_w_pid));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_w_pid));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_w_pid));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_w_pid));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_w_pid));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -475,9 +469,7 @@ TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestSpillFailWithOutOfMemory) {
   auto pool = std::make_shared<MyMemoryPool>(0);
 
@@ -486,14 +478,13 @@ TEST_F(VeloxSplitterTest, TestSpillFailWithOutOfMemory) {
   split_options_.memory_pool = pool;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  auto status = splitter_->Split(*input_batch_1_);
+  auto status = SplitRecordBatch(*splitter_, *input_batch_1_);
+
   // should return OOM status because there's no partition buffer to spill
   ASSERT_TRUE(status.IsOutOfMemory());
   ASSERT_NOT_OK(splitter_->Stop());
 }
-#endif
 
-#if 0
 TEST_F(VeloxSplitterTest, TestSpillLargestPartition) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(9 * 1024 * 1024);
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
@@ -505,12 +496,14 @@ TEST_F(VeloxSplitterTest, TestSpillLargestPartition) {
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
   for (int i = 0; i < 100; ++i) {
-    ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-    ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-    ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+    ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+    ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
+    ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
   }
   ASSERT_NOT_OK(splitter_->Stop());
 }
+
+#if 0
 
 TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
   auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
@@ -608,7 +601,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestListArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
