@@ -31,7 +31,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup docker container
         run: |
-          EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2004-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
+          EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2004-test-$GITHUB_RUN_ID -e NUM_THREADS=30 \
+          -e VELOX_DEPENDENCY_SOURCE=BUNDLED --detach" \
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=ubuntu:20.04 \
@@ -119,7 +120,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup docker container
         run: |
-          EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2204-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
+          EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2204-test-$GITHUB_RUN_ID -e NUM_THREADS=30 \
+           -e VELOX_DEPENDENCY_SOURCE=BUNDLED --detach" \
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=ubuntu:22.04 \
