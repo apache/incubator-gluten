@@ -494,6 +494,9 @@ abstract class HashAggregateExecBaseTransformer(
       if (aggExpr.filter.isDefined) {
         aggFilterList.add(ExpressionBuilder.makeSelection(selections(colIdx)))
         colIdx += 1
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
       }
     })
 
@@ -715,6 +718,9 @@ abstract class HashAggregateExecBaseTransformer(
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
         aggFilterList.add(exprNode)
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
       }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()

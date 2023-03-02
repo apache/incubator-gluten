@@ -76,9 +76,9 @@ public class AggregateRelNode implements RelNode, Serializable {
     for (int i = 0; i < aggregateFunctionNodes.size(); i ++) {
       AggregateRel.Measure.Builder measureBuilder = AggregateRel.Measure.newBuilder();
       measureBuilder.setMeasure(aggregateFunctionNodes.get(i).toProtobuf());
-      // Need to set the filter expression if exists filter expression.
-      if (i < filters.size()) {
-        measureBuilder.setFilter(filters.get(i).toProtobuf());
+      // Set the filter expression if valid.
+      if (this.filters.get(i) != null) {
+        measureBuilder.setFilter(this.filters.get(i).toProtobuf());
       }
       aggBuilder.addMeasures(measureBuilder.build());
     }
