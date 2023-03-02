@@ -173,6 +173,17 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
+  test("sha2") {
+    Seq(-1, 0, 1, 224, 256, 384, 512).foreach { bitLength =>
+      runQueryAndCompare(s"select l_orderkey, sha2(l_comment, $bitLength) " +
+        s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    }
+    runQueryAndCompare(s"select l_orderkey, sha2($NULL_STR_COL, 256) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, sha2(l_comment, $NULL_STR_COL) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
   test("crc32") {
     runQueryAndCompare(s"select l_orderkey, crc32(l_comment) " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
