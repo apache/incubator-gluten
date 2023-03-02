@@ -12,7 +12,7 @@ namespace gluten {
 
 // just for test, will be deleted in the future
 #ifndef GLUTEN_PRINT_DEBUG
-#define GLUTEN_PRINT_DEBUG
+// #define GLUTEN_PRINT_DEBUG
 #endif
 
 #ifdef GLUTEN_PRINT_DEBUG

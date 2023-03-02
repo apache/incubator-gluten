@@ -58,10 +58,6 @@ class VeloxSplitter {
   static arrow::Result<std::shared_ptr<VeloxSplitter>>
   Make(const std::string& name, uint32_t num_partitions, SplitOptions options = SplitOptions::Defaults());
 
-  virtual const std::shared_ptr<arrow::Schema>& input_schema() const {
-    return schema_;
-  }
-
   virtual arrow::Status Split(const facebook::velox::RowVector& rv);
 
   virtual arrow::Status Stop();
@@ -166,9 +162,7 @@ class VeloxSplitter {
 
   virtual arrow::Status Partition(const facebook::velox::RowVector& rv) = 0;
 
-  virtual arrow::Status TransferSchema(
-      const facebook::velox::RowVector& rv,
-      std::shared_ptr<arrow::Schema>& input_schema);
+  arrow::Status VeloxType2ArrowSchema(const facebook::velox::TypePtr& type);
 
   facebook::velox::RowVector GetStrippedRowVector(const facebook::velox::RowVector& rv) const;
 
@@ -355,6 +349,8 @@ class VeloxRoundRobinSplitter final : public VeloxSplitter {
   VeloxRoundRobinSplitter(uint32_t num_partitions, const SplitOptions& options)
       : VeloxSplitter(num_partitions, std::move(options)) {}
 
+  arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
+
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 
   uint32_t pid_selection_ = 0;
@@ -367,6 +363,8 @@ class VeloxSinglePartSplitter final : public VeloxSplitter {
 
   arrow::Status Init() override;
 
+  arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
+
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Split(const facebook::velox::RowVector& rv) override;
@@ -375,41 +373,24 @@ class VeloxSinglePartSplitter final : public VeloxSplitter {
 }; // class VeloxSinglePartSplitter
 
 class VeloxHashSplitter final : public VeloxSplitter {
-  // original schema
-  std::shared_ptr<arrow::Schema> input_schema_;
-
  public:
   VeloxHashSplitter(uint32_t num_partitions, const SplitOptions& options) : VeloxSplitter(num_partitions, options) {}
-
-  arrow::Status Init() override;
 
   arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Split(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
-
-  const std::shared_ptr<arrow::Schema>& input_schema() const override {
-    return input_schema_;
-  }
 }; // class VeloxHashSplitter
 
 class VeloxFallbackRangeSplitter final : public VeloxSplitter {
-  std::shared_ptr<arrow::Schema> input_schema_;
-
  public:
   VeloxFallbackRangeSplitter(uint32_t num_partitions, const SplitOptions& options)
       : VeloxSplitter(num_partitions, options) {}
 
-  arrow::Status Init() override;
-
   arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Split(const facebook::velox::RowVector& rv) override;
-
-  const std::shared_ptr<arrow::Schema>& input_schema() const override {
-    return input_schema_;
-  }
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 }; // class VeloxFallbackRangeSplitter

@@ -26,17 +26,18 @@ using namespace facebook;
 
 namespace gluten {
 
+namespace {
 void registerCustomFunctions() {
   velox::exec::registerVectorFunction(
       "row_constructor",
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowConstructor>());
 }
+} // anonymous namespace
 
 void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
-  // presto sql functions to overwrite the registration for same named
-  // functions.
+  // presto sql functions to overwrite the registration for same named functions.
   velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
   registerCustomFunctions();
