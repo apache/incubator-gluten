@@ -470,7 +470,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   lazy val transformPlanLogLevel = GlutenConfig.getSessionConf.transformPlanLogLevel
 
   // It is set according to vanilla spark's code logic by checking the given spark plan.
-  var supportAdaptive = false
+  private var supportAdaptive = false
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
