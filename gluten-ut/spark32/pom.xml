@@ -110,23 +110,6 @@
         <clickhouse.lib.path></clickhouse.lib.path>
       </properties>
     </profile>
-    <profile>
-      <id>backends-gazelle</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>backends-gazelle</artifactId>
-          <version>${project.version}</version>
-          <scope>test</scope>
-        </dependency>
-      </dependencies>
-      <properties>
-        <clickhouse.lib.path></clickhouse.lib.path>
-      </properties>
-    </profile>
   </profiles>
 
   <build>

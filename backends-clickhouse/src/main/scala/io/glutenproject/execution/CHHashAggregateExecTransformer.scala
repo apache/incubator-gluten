@@ -104,7 +104,7 @@ case class CHHashAggregateExecTransformer(
       // Prepare the input schema.
       // Notes: Currently, ClickHouse backend uses the output attributes of
       // aggregateResultAttributes as Shuffle output,
-      // which is different from the Velox and Gazelle.
+      // which is different from Velox backend.
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       // When the child is file scan operator
