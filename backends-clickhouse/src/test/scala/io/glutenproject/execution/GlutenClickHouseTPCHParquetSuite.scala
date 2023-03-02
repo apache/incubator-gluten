@@ -656,6 +656,22 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("test stddev_samp 1") {
+    val sql =
+      """
+        |select stddev_samp(n_nationkey), stddev_samp(n_regionkey) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test stddev_samp 2") {
+    val sql =
+      """
+        |select stddev_samp(l_orderkey), stddev_samp(l_quantity) from lineitem
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
