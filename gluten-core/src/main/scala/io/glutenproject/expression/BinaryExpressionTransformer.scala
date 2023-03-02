@@ -36,13 +36,6 @@ class BinaryExpressionTransformer(
     original: Expression)
   extends ExpressionTransformer with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (ExpressionMappings.REPEAT.equalsIgnoreCase(original.prettyName) &&
-      !BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
-      val errMsg = String.format("%s or %s is not currently supported for non clickhouse backend.",
-        original.getClass, original)
-      logWarning(errMsg)
-      throw new UnsupportedOperationException(errMsg)
-    }
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
