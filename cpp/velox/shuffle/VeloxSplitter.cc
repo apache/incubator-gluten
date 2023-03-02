@@ -150,7 +150,6 @@ arrow::Status VeloxSplitter::InitIpcWriteOptions() {
 
 arrow::Status VeloxSplitter::InitPartitions(const velox::RowVector& rv) {
   auto simple_column_count = simple_column_indices_.size();
-  assert(simple_column_count > 0);
 
   partition_validity_addrs_.resize(simple_column_count);
   std::for_each(partition_validity_addrs_.begin(), partition_validity_addrs_.end(), [this](std::vector<uint8_t*>& v) {
@@ -582,8 +581,8 @@ arrow::Status VeloxSplitter::SplitValidityBuffer(const velox::RowVector& rv) {
     auto column = rv.childAt(col_idx);
     auto null_count = column->getNullCount().value_or(0);
     if (null_count > 0) {
-      Print(col_idx, " column null count = ");
-      PrintLF(null_count);
+      VsPrint(col_idx, " column null count = ");
+      VsPrintLF(null_count);
 
       auto& dst_addrs = partition_validity_addrs_[col];
       for (auto pid = 0; pid < num_partitions_; ++pid) {
@@ -602,7 +601,7 @@ arrow::Status VeloxSplitter::SplitValidityBuffer(const velox::RowVector& rv) {
       auto src_addr = (const uint8_t*)(column->mutableRawNulls());
       RETURN_NOT_OK(SplitBoolType(src_addr, dst_addrs));
     } else {
-      PrintLF(col_idx, " column hasn't null");
+      VsPrintLF(col_idx, " column hasn't null");
     }
   }
   return arrow::Status::OK();
@@ -639,6 +638,7 @@ arrow::Status VeloxSplitter::SplitBinaryType(
 
       if (value_offset >= capacity) {
         auto old_capacity = capacity;
+        (void)old_capacity; // suppress warning
         capacity = capacity + std::max((capacity >> multiply), (uint64_t)string_len);
         multiply = std::min(3, multiply + 1);
 
@@ -651,13 +651,13 @@ arrow::Status VeloxSplitter::SplitBinaryType(
         binary_buf.value_capacity = capacity;
         dst_value_ptr = binary_buf.value_ptr + value_offset - string_len;
 
-        PrintSplit("Split value buffer resized col_idx", binary_idx);
-        PrintSplit(" dst_start", dst_offset_base[x]);
-        PrintSplit(" dst_end", dst_offset_base[x + 1]);
-        PrintSplit(" old size", old_capacity);
-        PrintSplit(" new size", capacity);
-        PrintSplit(" row", partition_buffer_idx_base_[pid]);
-        PrintSplitLF(" string len", string_len);
+        VsPrintSplit("Split value buffer resized col_idx", binary_idx);
+        VsPrintSplit(" dst_start", dst_offset_base[x]);
+        VsPrintSplit(" dst_end", dst_offset_base[x + 1]);
+        VsPrintSplit(" old size", old_capacity);
+        VsPrintSplit(" new size", capacity);
+        VsPrintSplit(" row", partition_buffer_idx_base_[pid]);
+        VsPrintSplitLF(" string len", string_len);
       }
 
       // 2. copy value
@@ -706,7 +706,7 @@ arrow::Status VeloxSplitter::SplitBinaryArray(const velox::RowVector& rv) {
       assert(string_column);
       RETURN_NOT_OK(SplitBinaryType(binary_idx, *string_column, dst_addrs));
     } else {
-      PrintLF("INVALID TYPE: neither VARCHAR nor VARBINARY!");
+      VsPrintLF("INVALID TYPE: neither VARCHAR nor VARBINARY!");
       assert(false);
     }
   }
@@ -733,7 +733,7 @@ arrow::Status VeloxSplitter::InitColumnTypes(const velox::RowVector& rv) {
     }
   }
 
-  PrintSplitLF("schema_", schema_->ToString());
+  VsPrintSplitLF("schema_", schema_->ToString());
 
   // get arrow_column_types_ from schema
   ARROW_ASSIGN_OR_RAISE(arrow_column_types_, ToSplitterTypeId(schema_->fields()));
@@ -764,8 +764,6 @@ arrow::Status VeloxSplitter::InitColumnTypes(const velox::RowVector& rv) {
 
   simple_column_indices_.insert(
       simple_column_indices_.end(), binary_column_indices_.begin(), binary_column_indices_.end());
-
-  assert(!simple_column_indices_.empty());
 
   PrintColumnsInfo();
 
@@ -828,7 +826,7 @@ uint32_t VeloxSplitter::CalculatePartitionBufferSize(const velox::RowVector& rv)
     }
   }
 
-  PRINT_VECTOR_MAPPING(binary_array_empirical_size_);
+  VS_PRINT_VECTOR_MAPPING(binary_array_empirical_size_);
 
   size_per_row = std::accumulate(binary_array_empirical_size_.begin(), binary_array_empirical_size_.end(), 0);
 
@@ -838,14 +836,14 @@ uint32_t VeloxSplitter::CalculatePartitionBufferSize(const velox::RowVector& rv)
     size_per_row += ((arrow::bit_width(arrow_column_types_[col_idx]->id()) + 7) >> 3);
   }
 
-  PRINTLF(size_per_row);
+  VS_PRINTLF(size_per_row);
 
   uint64_t prealloc_row_cnt = options_.offheap_per_task > 0 && size_per_row > 0
       ? options_.offheap_per_task / size_per_row / num_partitions_ >> 2
       : options_.buffer_size;
   prealloc_row_cnt = std::min(prealloc_row_cnt, (uint64_t)options_.buffer_size);
 
-  PRINTLF(prealloc_row_cnt);
+  VS_PRINTLF(prealloc_row_cnt);
 
   return prealloc_row_cnt;
 }
