@@ -31,8 +31,8 @@ object CHExpressionUtil {
   final val DATE_TYPE = "date"
 
   final val CH_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
-    REGEXP_EXTRACT -> Set(EMPTY_TYPE),
     REGEXP_EXTRACT_ALL -> Set(EMPTY_TYPE),
+    REGEXP_EXTRACT -> Set(EMPTY_TYPE),
     LOCATE -> Set(EMPTY_TYPE),
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     SHA1 -> Set(EMPTY_TYPE),
