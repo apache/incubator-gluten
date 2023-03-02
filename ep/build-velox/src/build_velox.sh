@@ -10,8 +10,8 @@ BUILD_PROTOBUF=ON
 BUILD_TYPE=release
 VELOX_HOME=
 #for ep cache
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/liujiayi771/velox.git
+VELOX_BRANCH=bitwise-agg
 TARGET_BUILD_COMMIT=""
 
 LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
