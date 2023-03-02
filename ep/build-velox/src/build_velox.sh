@@ -51,7 +51,7 @@ function process_setup_ubuntu {
       sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
       sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
       sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libkrb5-dev \\' scripts/setup-ubuntu.sh
-      sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\ libgsasl7-dev \\' scripts/setup-ubuntu.sh
+      sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
       sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libuuid1 \\' scripts/setup-ubuntu.sh
       sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  uuid-dev \\' scripts/setup-ubuntu.sh
       sed -i 's/^  liblzo2-dev.*/  liblzo2-dev \\/g' scripts/setup-ubuntu.sh
