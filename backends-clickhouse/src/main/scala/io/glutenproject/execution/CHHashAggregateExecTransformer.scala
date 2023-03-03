@@ -235,6 +235,8 @@ case class CHHashAggregateExecTransformer(
             .replaceWithExpressionTransformer(aggExpr.filter.get, child.output)
             .doTransform(args)
           aggFilterList.add(exprNode)
+        } else {
+          aggFilterList.add(null)
         }
 
         val aggregateFunc = aggExpr.aggregateFunction
