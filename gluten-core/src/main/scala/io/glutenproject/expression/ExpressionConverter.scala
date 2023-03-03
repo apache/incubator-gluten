@@ -247,7 +247,9 @@ object ExpressionConverter extends Logging {
             replaceWithExpressionTransformer(getStructField.child, attributeSeq),
             getStructField.ordinal,
             getStructField)
-
+      case md5: Md5 =>
+        Md5Transformer(substraitExprName,
+          replaceWithExpressionTransformer(md5.child, attributeSeq), md5) 
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName, l)
       case u: UnaryExpression =>

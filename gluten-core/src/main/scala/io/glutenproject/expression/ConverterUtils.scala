@@ -323,6 +323,8 @@ object ConverterUtils extends Logging {
           typedFuncName.concat("struct")
         case MapType(_, _, _) =>
           typedFuncName.concat("map")
+        case CharType(_) =>
+          typedFuncName.concat("fchar")
         case NullType =>
           typedFuncName.concat("nothing")
         case other =>
