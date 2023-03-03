@@ -114,7 +114,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "unhex",
       "hypot",
       "log10",
-      "factorial"
+      "factorial",
+      "abs",
+      "round/bround"
     )
 
   enableSuite[GlutenComplexTypesSuite]
