@@ -65,6 +65,9 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
+        <configuration>
+          <finalName>gluten-package-${project.version}</finalName>
+        </configuration>
         <executions>
           <execution>
             <phase>package</phase>
@@ -95,6 +98,29 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>Native</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>cp</executable>
+              <arguments>
+                <argument>target/gluten-package-${project.version}.jar</argument>
+                <argument>
+                  target/${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}-jar-with-dependencies.jar
+                </argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
 
