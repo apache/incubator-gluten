@@ -45,7 +45,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       " before using it", // [not urgent]
       "max_by", // [not urgent]
       "min_by", // [not urgent]
-      "count_if" // [not urgent]
+      "count_if", // [not urgent]
+      "aggregation with filter"
     )
     .excludeByPrefix(
       "SPARK-22951", // [not urgent] dropDuplicates

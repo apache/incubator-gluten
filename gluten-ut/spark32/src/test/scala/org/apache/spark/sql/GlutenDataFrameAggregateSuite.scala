@@ -143,4 +143,27 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       testData2.agg(var_samp("a"), var_pop("a"), variance("a")),
       Row(0.8, 2.0 / 3.0, 0.8))
   }
+
+  test("aggregation with filter") {
+    Seq(
+      ("mithunr", 12.3f, 5.0f, true, 9.4f),
+      ("mithunr", 15.5f, 4.0f, false, 19.9f),
+      ("mithunr", 19.8f, 3.0f, false, 35.6f),
+      ("abellina", 20.1f, 2.0f, true, 98.0f),
+      ("abellina", 20.1f, 1.0f, true, 0.5f),
+      ("abellina", 23.6f, 2.0f, true, 3.9f))
+      .toDF("uid", "time", "score", "pass", "rate")
+      .createOrReplaceTempView("view")
+    var df = spark.sql("select count(score) filter (where pass) from view group by time")
+    checkAnswer(df, Row(1) :: Row(0) :: Row(0) :: Row(2) :: Row(1) :: Nil)
+
+    df = spark.sql("select count(score) filter (where pass) from view")
+    checkAnswer(df, Row(4) :: Nil)
+
+    df = spark.sql("select count(score) filter (where rate > 20) from view group by time")
+    checkAnswer(df, Row(0) :: Row(0) :: Row(1) :: Row(1) :: Row(0) :: Nil)
+
+    df = spark.sql("select count(score) filter (where rate > 20) from view")
+    checkAnswer(df, Row(2) :: Nil)
+  }
 }

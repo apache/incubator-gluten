@@ -331,6 +331,11 @@ abstract class HashAggregateExecBaseTransformer(
     }
     breakable {
       for (expr <- aggregateExpressions) {
+        if (expr.filter.isDefined && !expr.filter.get.isInstanceOf[Attribute] &&
+          !expr.filter.get.isInstanceOf[Literal]) {
+          needsProjection = true
+          break
+        }
         expr.mode match {
           case Partial | PartialMerge =>
             for (aggChild <- expr.aggregateFunction.children) {
@@ -339,7 +344,7 @@ abstract class HashAggregateExecBaseTransformer(
                 break
               }
             }
-          // Do not need to consider pre-projection for Final Agg.
+          // No need to consider pre-projection for Final Agg.
           case _ =>
         }
       }
@@ -391,10 +396,11 @@ abstract class HashAggregateExecBaseTransformer(
     // so the expression in preExpressions will be unique.
     var preExpressions: Seq[Expression] = Seq()
     var selections: Seq[Int] = Seq()
+    // Indices of filter used columns.
+    var filterSelections: Seq[Int] = Seq()
 
-    // Get the needed expressions from grouping expressions.
-    groupingExpressions.foreach(expr => {
-      val foundExpr = preExpressions.find(e => e.semanticEquals(expr)).orNull
+    def appendIfNotFound(expression: Expression): Unit = {
+      val foundExpr = preExpressions.find(e => e.semanticEquals(expression)).orNull
       if (foundExpr != null) {
         // If found, no need to add it to preExpressions again.
         // The selecting index will be found.
@@ -402,27 +408,30 @@ abstract class HashAggregateExecBaseTransformer(
       } else {
         // If not found, add this expression into preExpressions.
         // A new selecting index will be created.
-        preExpressions = preExpressions :+ expr.clone()
+        preExpressions = preExpressions :+ expression.clone()
         selections = selections :+ (preExpressions.size - 1)
       }
-    })
+    }
+
+    // Get the needed expressions from grouping expressions.
+    groupingExpressions.foreach(expression => appendIfNotFound(expression))
 
     // Get the needed expressions from aggregation expressions.
     aggregateExpressions.foreach(aggExpr => {
       val aggregateFunc = aggExpr.aggregateFunction
       aggExpr.mode match {
         case Partial =>
-          aggregateFunc.children.toList.map(childExpr => {
-            val foundExpr = preExpressions.find(e => e.semanticEquals(childExpr)).orNull
-            if (foundExpr != null) {
-              selections = selections :+ preExpressions.indexOf(foundExpr)
-            } else {
-              preExpressions = preExpressions :+ childExpr.clone()
-              selections = selections :+ (preExpressions.size - 1)
-            }
-          })
+          aggregateFunc.children.foreach(expression => appendIfNotFound(expression))
         case other =>
           throw new UnsupportedOperationException(s"$other not supported.")
+      }
+    })
+
+    // Handle expressions used in Aggregate filter.
+    aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        appendIfNotFound(aggExpr.filter.orNull)
+        filterSelections = filterSelections :+ selections.last
       }
     })
 
@@ -447,11 +456,14 @@ abstract class HashAggregateExecBaseTransformer(
 
     // Handle the pure Aggregate after Projection. Both grouping and Aggregate expressions are
     // selections.
-    getAggRelAfterProject(context, selections, inputRel, operatorId)
+    getAggRelAfterProject(context, selections, filterSelections, inputRel, operatorId)
   }
 
-  protected def getAggRelAfterProject(context: SubstraitContext, selections: Seq[Int],
-                                      inputRel: RelNode, operatorId: Long): RelNode = {
+  protected def getAggRelAfterProject(context: SubstraitContext,
+                                      selections: Seq[Int],
+                                      filterSelections: Seq[Int],
+                                      inputRel: RelNode,
+                                      operatorId: Long): RelNode = {
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
@@ -461,15 +473,8 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     // Create Aggregation functions.
-    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
-      if (aggExpr.filter.isDefined) {
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(aggExpr.filter.get,
-            child.output).doTransform(context.registeredFunction)
-        aggFilterList.add(exprNode)
-      }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggregateFunc.children.toList.map(_ => {
@@ -484,9 +489,19 @@ abstract class HashAggregateExecBaseTransformer(
         aggExpr.mode, aggregateFunctionList)
     })
 
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
+    aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        aggFilterList.add(ExpressionBuilder.makeSelection(selections(colIdx)))
+        colIdx += 1
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
+      }
+    })
+
     RelBuilder.makeAggregateRel(
-      inputRel, groupingList, aggregateFunctionList,
-      aggFilterList, context, operatorId)
+      inputRel, groupingList, aggregateFunctionList, aggFilterList, context, operatorId)
   }
 
   protected def addFunctionNode(args: java.lang.Object,
@@ -690,6 +705,9 @@ abstract class HashAggregateExecBaseTransformer(
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
         aggFilterList.add(exprNode)
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
       }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
