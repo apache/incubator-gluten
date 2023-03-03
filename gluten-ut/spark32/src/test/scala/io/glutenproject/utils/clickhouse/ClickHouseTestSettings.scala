@@ -32,6 +32,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "multiple column distinct count", // [not urgent, function with multiple params]
       "agg without groups and functions", // [not urgent]
       "zero moments", // [not urgent]
+      "moments", // [not urgent]
+      GlutenTestConstants.GLUTEN_TEST + "variance", // [not urgent]
       "collect functions structs", // [not urgent]
       "SPARK-31500: collect_set() of BinaryType returns duplicate elements", // [not urgent]
       "SPARK-17641: collect functions should not collect null values", // [not urgent]
