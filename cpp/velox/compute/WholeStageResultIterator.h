@@ -47,7 +47,7 @@ class WholeStageResultIterator {
   std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
 
  protected:
-  /// A map of custome configs.
+  /// A map of custom configs.
   std::unordered_map<std::string, std::string> confMap_;
 
  private:

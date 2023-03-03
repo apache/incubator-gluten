@@ -18,163 +18,19 @@
 
 #include "VeloxBackend.h"
 
-#include <folly/executors/IOThreadPoolExecutor.h>
-
 #include "ArrowTypeUtils.h"
-#include "RegistrationAllFunctions.h"
 #include "VeloxBridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
 #include "velox/common/file/FileSystems.h"
-#ifdef VELOX_ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
-#endif
-#ifdef VELOX_ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
-#endif
-#include "velox/common/memory/MmapAllocator.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/exec/Operator.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
 
 namespace gluten {
-
-// The Init will be called per executor.
-void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
-  // Setup and register.
-  velox::filesystems::registerLocalFileSystem();
-
-  // TODO(yuan): move to seperate func initcache()
-  auto key = conf.find(kVeloxCacheEnabled);
-  if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
-    uint64_t cacheSize = std::stol(kVeloxCacheSizeDefault);
-    int32_t cacheShards = std::stoi(kVeloxCacheShardsDefault);
-    int32_t ioTHreads = std::stoi(kVeloxCacheIOThreadsDefault);
-    std::string cachePathPrefix = kVeloxCachePathDefault;
-    for (auto& [k, v] : conf) {
-      if (k == kVeloxCacheSize)
-        cacheSize = std::stol(v);
-      if (k == kVeloxCacheShards)
-        cacheShards = std::stoi(v);
-      if (k == kVeloxCachePath)
-        cachePathPrefix = v;
-      if (k == kVeloxCacheIOThreads)
-        ioTHreads = std::stoi(v);
-    }
-    std::string cachePath = cachePathPrefix + "/cache." + genUuid() + ".";
-    cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
-    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioTHreads);
-    auto ssd = std::make_unique<velox::cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
-
-    std::error_code ec;
-    const std::filesystem::space_info si = std::filesystem::space(cachePathPrefix, ec);
-    if (si.available < cacheSize) {
-      VELOX_FAIL(
-          "not enough space for cache in " + cachePath + " cacha size: " + std::to_string(cacheSize) +
-          "free space: " + std::to_string(si.available));
-    }
-
-    velox::memory::MmapAllocator::Options options;
-    // TODO(yuan): should try to parse the offheap memory size here:
-    uint64_t memoryBytes = 200L << 30;
-    options.capacity = memoryBytes;
-
-    auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
-    mappedMemory_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memoryBytes, std::move(ssd));
-
-    // register as default instance, will be used in parquet reader
-    velox::memory::MemoryAllocator::setDefaultInstance(mappedMemory_.get());
-    VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(mappedMemory_.get()));
-    LOG(INFO) << "STARTUP: Using AsyncDataCache"
-              << ", cache prefix: " << cachePath << ", cache size: " << cacheSize << ", cache shards: " << cacheShards
-              << ", cache IO threads: " << ioTHreads;
-  }
-
-  std::unordered_map<std::string, std::string> configurationValues;
-
-#ifdef VELOX_ENABLE_HDFS
-  velox::filesystems::registerHdfsFileSystem();
-  std::unordered_map<std::string, std::string> hdfsConfig({});
-
-  std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
-  const char* envHdfsUri = std::getenv("VELOX_HDFS");
-  if (envHdfsUri != nullptr) {
-    hdfsUri = std::string(envHdfsUri);
-  }
-
-  auto hdfsHostWithPort = hdfsUri.substr(hdfsUri.find(':') + 3);
-  std::size_t pos = hdfsHostWithPort.find(':');
-  if (pos != std::string::npos) {
-    auto hdfsPort = hdfsHostWithPort.substr(pos + 1);
-    auto hdfsHost = hdfsHostWithPort.substr(0, pos);
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
-  } else {
-    // For HDFS HA mode. In this case, hive.hdfs.host should be the nameservice, we can
-    // get it from HDFS uri, and hive.hdfs.port should be an empty string, and the HDFS HA
-    // configurations should be taken from the LIBHDFS3_CONF file.
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHostWithPort}, {"hive.hdfs.port", ""}});
-  }
-  configurationValues.merge(hdfsConfig);
-#endif
-
-#ifdef VELOX_ENABLE_S3
-  velox::filesystems::registerS3FileSystem();
-
-  std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
-  std::string awsSecretKey = conf["spark.hadoop.fs.s3a.secret.key"];
-  std::string awsEndpoint = conf["spark.hadoop.fs.s3a.endpoint"];
-  std::string sslEnabled = conf["spark.hadoop.fs.s3a.connection.ssl.enabled"];
-  std::string pathStyleAccess = conf["spark.hadoop.fs.s3a.path.style.access"];
-  std::string useInstanceCredentials = conf["spark.hadoop.fs.s3a.use.instance.credentials"];
-
-  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
-  if (envAwsAccessKey != nullptr) {
-    awsAccessKey = std::string(envAwsAccessKey);
-  }
-  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
-  if (envAwsSecretKey != nullptr) {
-    awsSecretKey = std::string(envAwsSecretKey);
-  }
-  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
-  if (envAwsEndpoint != nullptr) {
-    awsEndpoint = std::string(envAwsEndpoint);
-  }
-
-  std::unordered_map<std::string, std::string> S3Config({});
-  if (useInstanceCredentials == "true") {
-    S3Config.insert({
-        {"hive.s3.use-instance-credentials", useInstanceCredentials},
-    });
-  } else {
-    S3Config.insert({
-        {"hive.s3.aws-access-key", awsAccessKey},
-        {"hive.s3.aws-secret-key", awsSecretKey},
-        {"hive.s3.endpoint", awsEndpoint},
-        {"hive.s3.ssl.enabled", sslEnabled},
-        {"hive.s3.path-style-access", pathStyleAccess},
-    });
-  }
-  configurationValues.merge(S3Config);
-#endif
-
-  auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
-  auto hiveConnector =
-      velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
-
-  velox::connector::registerConnector(hiveConnector);
-  velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
-  velox::dwrf::registerDwrfReaderFactory();
-  // Register Velox functions
-  registerAllFunctions();
-}
-
 void VeloxBackend::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
     setInputPlanNode(fetchRel.input());

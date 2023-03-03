@@ -1,4 +1,6 @@
 #include "WholeStageResultIterator.h"
+#include "VeloxBackend.h"
+#include "VeloxInitializer.h"
 #include "config/GlutenConfig.h"
 #include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConfig.h"
@@ -33,7 +35,7 @@ std::shared_ptr<velox::core::QueryCtx> createNewVeloxQueryCtx(
       nullptr,
       std::make_shared<velox::core::MemConfig>(),
       connectorConfigs,
-      velox::memory::MemoryAllocator::getInstance(),
+      VeloxInitializer::getAsyncDataCache(),
       std::move(ctxRoot),
       nullptr,
       "");
