@@ -261,6 +261,7 @@ endif()
 if(BUILD_TESTS)
   add_test_case(exec_backend_test SOURCES compute/BackendTest.cc)
   add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
+  add_test_case(columnar_to_row SOURCES tests/ColumnarToRowTest.cc)
 endif()
 
 if(BUILD_BENCHMARKS)

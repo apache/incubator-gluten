@@ -1145,10 +1145,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
   private static class ArrayAccessor extends ArrowVectorAccessor {
     private final ListVector accessor;
+    private final ArrowColumnVector elements;
 
     ArrayAccessor(ListVector vector) {
       super(vector);
       this.accessor = vector;
+      this.elements = new ArrowColumnVector(vector.getDataVector());
     }
 
     @Override
@@ -1173,6 +1175,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     public int getArrayOffset(int rowId) {
       int index = rowId * ListVector.OFFSET_WIDTH;
       return accessor.getOffsetBuffer().getInt(index);
+    }
+
+    @Override
+    final ColumnarArray getArray(int rowId) {
+      return new ColumnarArray(elements, getArrayOffset(rowId), getArrayLength(rowId));
     }
 
     @Override
