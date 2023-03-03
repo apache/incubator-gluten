@@ -26,9 +26,9 @@ import io.glutenproject.utils.CHInputPartitionsUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.types.StructField
@@ -45,9 +45,8 @@ class CHTransformerApi extends TransformerApi with Logging {
    */
   override def validateColumnarShuffleExchangeExec(
       outputPartitioning: Partitioning,
-      outputAttributes: Seq[Attribute]): Boolean = {
-    !outputPartitioning.isInstanceOf[RangePartitioning]
-
+      child: SparkPlan): Boolean = {
+    val outputAttributes = child.output
     // check repartition expression
     val substraitContext = new SubstraitContext
     outputPartitioning match {
@@ -59,16 +58,18 @@ class CHTransformerApi extends TransformerApi with Logging {
                 .replaceWithExpressionTransformer(expr, outputAttributes)
                 .doTransform(substraitContext.registeredFunction)
               if (!node.isInstanceOf[SelectionNode]) {
+                // This is should not happen.
                 logDebug("Expressions are not supported in HashPartitioning.")
                 false
               } else {
                 true
               }
             })
-          .exists(_ == false))
-      case RangePartitioning(orderings, _) =>
+          .exists(_ == false)) ||
+        BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
+      case rangePartitoning: RangePartitioning =>
         GlutenConfig.getConf.enableColumnarSort &&
-        RangePartitionerBoundsGenerator.supportedOrderings(orderings)
+        RangePartitionerBoundsGenerator.supportedOrderings(rangePartitoning, child)
       case _ => true
     }
   }

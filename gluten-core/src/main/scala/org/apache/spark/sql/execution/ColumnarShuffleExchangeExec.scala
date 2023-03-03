@@ -38,9 +38,8 @@ import scala.concurrent.Future
 case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitioning,
                                        child: SparkPlan,
                                        shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
-                                       removeHashColumn: Boolean = false)
-  extends ShuffleExchangeLike with GlutenPlan {
-
+                                       projectOutputAttributes: Seq[Attribute])
+  extends ShuffleExchangeLike with GlutenPlan{
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
@@ -73,6 +72,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     ColumnarShuffleExchangeExec.prepareShuffleDependency(
       inputColumnarRDD,
       child.output,
+      projectOutputAttributes,
       outputPartitioning,
       serializer,
       writeMetrics,
@@ -105,7 +105,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   def doValidate(): Boolean = {
     BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
-      outputPartitioning, child.output)
+      outputPartitioning, child)
   }
 
   override def nodeName: String = "ColumnarExchange"
@@ -150,8 +150,10 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     }.toString()
   }
 
-  override def output: Seq[Attribute] = {
-    if (removeHashColumn) child.output.drop(1) else child.output
+  override  def output: Seq[Attribute] = if (projectOutputAttributes != null) {
+    projectOutputAttributes
+  } else {
+    child.output
   }
 
   protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeExec =
@@ -161,7 +163,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 object ColumnarShuffleExchangeExec extends Logging {
   // scalastyle:off argcount
   def prepareShuffleDependency(rdd: RDD[ColumnarBatch],
-                               outputAttributes: Seq[Attribute],
+                               childOutputAttributes: Seq[Attribute],
+                               projectOutputAttributes: Seq[Attribute],
                                newPartitioning: Partitioning,
                                serializer: Serializer,
                                writeMetrics: Map[String, SQLMetric],
@@ -169,7 +172,8 @@ object ColumnarShuffleExchangeExec extends Logging {
   // scalastyle:on argcount
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(rdd,
-      outputAttributes,
+      childOutputAttributes,
+      projectOutputAttributes,
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics,

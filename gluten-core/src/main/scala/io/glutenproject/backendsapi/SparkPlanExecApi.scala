@@ -121,10 +121,13 @@ trait SparkPlanExecApi {
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
+   * childOutputAttributes may be different from outputAttributes, for example, the
+   * childOutputAttributes include additional shuffle key columns
    * @return
    */
   // scalastyle:off argcount
-  def genShuffleDependency(rdd: RDD[ColumnarBatch], outputAttributes: Seq[Attribute],
+  def genShuffleDependency(rdd: RDD[ColumnarBatch], childOutputAttributes: Seq[Attribute],
+                           outputAttributes: Seq[Attribute],
                            newPartitioning: Partitioning, serializer: Serializer,
                            writeMetrics: Map[String, SQLMetric],
                            metrics: Map[String, SQLMetric]
