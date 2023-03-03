@@ -41,7 +41,8 @@ object VeloxExpressionUtil {
     DATE_DIFF -> Set(EMPTY_TYPE),
     FROM_UNIXTIME -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(EMPTY_TYPE),
-    UNIX_TIMESTAMP -> Set(EMPTY_TYPE)
+    UNIX_TIMESTAMP -> Set(EMPTY_TYPE),
+    REPEAT -> Set(EMPTY_TYPE)
   )
 
   final val VELOX_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(

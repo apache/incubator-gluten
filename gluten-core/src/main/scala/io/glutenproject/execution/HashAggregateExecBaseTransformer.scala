@@ -75,8 +75,8 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "number of output vectors"),
     "aggOutputBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "number of output bytes"),
-    "aggCpuNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "cpu time"),
+    "aggCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "cpu wall time count"),
     "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of aggregation"),
     "aggPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
@@ -94,10 +94,18 @@ abstract class HashAggregateExecBaseTransformer(
     "flushRowCount" -> SQLMetrics.createMetric(
       sparkContext, "number of flushed rows"),
 
+    "preProjectionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "preProjection cpu wall time count"),
     "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of preProjection"),
+
+    "postProjectionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "postProjection cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of postProjection"),
+
+    "extractionCpuCount" -> SQLMetrics.createMetric(
+      sparkContext, "extraction cpu wall time count"),
     "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime of extraction"),
 
@@ -110,7 +118,7 @@ abstract class HashAggregateExecBaseTransformer(
     val aggOutputRows: SQLMetric = longMetric("aggOutputRows")
     val aggOutputVectors: SQLMetric = longMetric("aggOutputVectors")
     val aggOutputBytes: SQLMetric = longMetric("aggOutputBytes")
-    val aggCpuNanos: SQLMetric = longMetric("aggCpuNanos")
+    val aggCpuCount: SQLMetric = longMetric("aggCpuCount")
     val aggWallNanos: SQLMetric = longMetric("aggWallNanos")
     val aggPeakMemoryBytes: SQLMetric = longMetric("aggPeakMemoryBytes")
     val aggNumMemoryAllocations: SQLMetric = longMetric("aggNumMemoryAllocations")
@@ -120,27 +128,29 @@ abstract class HashAggregateExecBaseTransformer(
     val aggSpilledFiles: SQLMetric = longMetric("aggSpilledFiles")
     val flushRowCount: SQLMetric = longMetric("flushRowCount")
 
+    val preProjectionCpuCount: SQLMetric = longMetric("preProjectionCpuCount")
     val preProjectionWallNanos: SQLMetric = longMetric("preProjectionWallNanos")
+
+    val postProjectionCpuCount: SQLMetric = longMetric("postProjectionCpuCount")
     val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
+
+    val extractionCpuCount: SQLMetric = longMetric("extractionCpuCount")
     val extractionWallNanos: SQLMetric = longMetric("extractionWallNanos")
 
     val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
     val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
 
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      finalOutputVectors += outNumBatches
-      finalOutputRows += outNumRows
-    }
-
     override def updateAggregationMetrics(aggregationMetrics: java.util.ArrayList[OperatorMetrics],
                                  aggParams: AggregationParams): Unit = {
       var idx = 0
       if (aggParams.postProjectionNeeded) {
+        postProjectionCpuCount += aggregationMetrics.get(idx).cpuCount
         postProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
 
       if (aggParams.extractionNeeded) {
+        extractionCpuCount += aggregationMetrics.get(idx).cpuCount
         extractionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
@@ -149,7 +159,7 @@ abstract class HashAggregateExecBaseTransformer(
       aggOutputRows += aggMetrics.outputRows
       aggOutputVectors += aggMetrics.outputVectors
       aggOutputBytes += aggMetrics.outputBytes
-      aggCpuNanos += aggMetrics.cpuNanos
+      aggCpuCount += aggMetrics.cpuCount
       aggWallNanos += aggMetrics.wallNanos
       aggPeakMemoryBytes += aggMetrics.peakMemoryBytes
       aggNumMemoryAllocations += aggMetrics.numMemoryAllocations
@@ -161,6 +171,7 @@ abstract class HashAggregateExecBaseTransformer(
       idx += 1
 
       if (aggParams.preProjectionNeeded) {
+        preProjectionCpuCount += aggregationMetrics.get(idx).cpuCount
         preProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
         idx += 1
       }
@@ -320,6 +331,11 @@ abstract class HashAggregateExecBaseTransformer(
     }
     breakable {
       for (expr <- aggregateExpressions) {
+        if (expr.filter.isDefined && !expr.filter.get.isInstanceOf[Attribute] &&
+          !expr.filter.get.isInstanceOf[Literal]) {
+          needsProjection = true
+          break
+        }
         expr.mode match {
           case Partial | PartialMerge =>
             for (aggChild <- expr.aggregateFunction.children) {
@@ -328,7 +344,7 @@ abstract class HashAggregateExecBaseTransformer(
                 break
               }
             }
-          // Do not need to consider pre-projection for Final Agg.
+          // No need to consider pre-projection for Final Agg.
           case _ =>
         }
       }
@@ -380,10 +396,11 @@ abstract class HashAggregateExecBaseTransformer(
     // so the expression in preExpressions will be unique.
     var preExpressions: Seq[Expression] = Seq()
     var selections: Seq[Int] = Seq()
+    // Indices of filter used columns.
+    var filterSelections: Seq[Int] = Seq()
 
-    // Get the needed expressions from grouping expressions.
-    groupingExpressions.foreach(expr => {
-      val foundExpr = preExpressions.find(e => e.semanticEquals(expr)).orNull
+    def appendIfNotFound(expression: Expression): Unit = {
+      val foundExpr = preExpressions.find(e => e.semanticEquals(expression)).orNull
       if (foundExpr != null) {
         // If found, no need to add it to preExpressions again.
         // The selecting index will be found.
@@ -391,27 +408,30 @@ abstract class HashAggregateExecBaseTransformer(
       } else {
         // If not found, add this expression into preExpressions.
         // A new selecting index will be created.
-        preExpressions = preExpressions :+ expr.clone()
+        preExpressions = preExpressions :+ expression.clone()
         selections = selections :+ (preExpressions.size - 1)
       }
-    })
+    }
+
+    // Get the needed expressions from grouping expressions.
+    groupingExpressions.foreach(expression => appendIfNotFound(expression))
 
     // Get the needed expressions from aggregation expressions.
     aggregateExpressions.foreach(aggExpr => {
       val aggregateFunc = aggExpr.aggregateFunction
       aggExpr.mode match {
         case Partial =>
-          aggregateFunc.children.toList.map(childExpr => {
-            val foundExpr = preExpressions.find(e => e.semanticEquals(childExpr)).orNull
-            if (foundExpr != null) {
-              selections = selections :+ preExpressions.indexOf(foundExpr)
-            } else {
-              preExpressions = preExpressions :+ childExpr.clone()
-              selections = selections :+ (preExpressions.size - 1)
-            }
-          })
+          aggregateFunc.children.foreach(expression => appendIfNotFound(expression))
         case other =>
           throw new UnsupportedOperationException(s"$other not supported.")
+      }
+    })
+
+    // Handle expressions used in Aggregate filter.
+    aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        appendIfNotFound(aggExpr.filter.orNull)
+        filterSelections = filterSelections :+ selections.last
       }
     })
 
@@ -436,11 +456,14 @@ abstract class HashAggregateExecBaseTransformer(
 
     // Handle the pure Aggregate after Projection. Both grouping and Aggregate expressions are
     // selections.
-    getAggRelAfterProject(context, selections, inputRel, operatorId)
+    getAggRelAfterProject(context, selections, filterSelections, inputRel, operatorId)
   }
 
-  protected def getAggRelAfterProject(context: SubstraitContext, selections: Seq[Int],
-                                      inputRel: RelNode, operatorId: Long): RelNode = {
+  protected def getAggRelAfterProject(context: SubstraitContext,
+                                      selections: Seq[Int],
+                                      filterSelections: Seq[Int],
+                                      inputRel: RelNode,
+                                      operatorId: Long): RelNode = {
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
@@ -450,15 +473,8 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     // Create Aggregation functions.
-    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
-      if (aggExpr.filter.isDefined) {
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(aggExpr.filter.get,
-            child.output).doTransform(context.registeredFunction)
-        aggFilterList.add(exprNode)
-      }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggregateFunc.children.toList.map(_ => {
@@ -473,9 +489,19 @@ abstract class HashAggregateExecBaseTransformer(
         aggExpr.mode, aggregateFunctionList)
     })
 
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
+    aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        aggFilterList.add(ExpressionBuilder.makeSelection(selections(colIdx)))
+        colIdx += 1
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
+      }
+    })
+
     RelBuilder.makeAggregateRel(
-      inputRel, groupingList, aggregateFunctionList,
-      aggFilterList, context, operatorId)
+      inputRel, groupingList, aggregateFunctionList, aggFilterList, context, operatorId)
   }
 
   protected def addFunctionNode(args: java.lang.Object,
@@ -590,25 +616,12 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case Max(_) =>
+        case _ @ (Max(_) | Min(_) | BitAndAgg(_) | BitOrAgg(_)) =>
           mode match {
             case Partial | PartialMerge =>
-              val max = aggregateFunc.asInstanceOf[Max]
-              val aggBufferAttr = max.inputAggBufferAttributes
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              aggregateAttr += attr
-              res_index += 1
-            case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
-            case other =>
-              throw new UnsupportedOperationException(s"not currently supported: $other.")
-          }
-        case Min(_) =>
-          mode match {
-            case Partial | PartialMerge =>
-              val min = aggregateFunc.asInstanceOf[Min]
-              val aggBufferAttr = min.inputAggBufferAttributes
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+              assert(aggBufferAttr.size == 1,
+                s"Aggregate function ${aggregateFunc} expects one buffer attribute.")
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
               aggregateAttr += attr
               res_index += 1
@@ -692,6 +705,9 @@ abstract class HashAggregateExecBaseTransformer(
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
         aggFilterList.add(exprNode)
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
       }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()

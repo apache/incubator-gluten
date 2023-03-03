@@ -22,6 +22,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{GlutenColumnarToRowExecBase, WholeStageTransformerExec}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.ApproximatePercentile
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
@@ -246,7 +247,9 @@ object ExpressionConverter extends Logging {
             replaceWithExpressionTransformer(getStructField.child, attributeSeq),
             getStructField.ordinal,
             getStructField)
-
+      case md5: Md5 =>
+        Md5Transformer(substraitExprName,
+          replaceWithExpressionTransformer(md5.child, attributeSeq), md5) 
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName, l)
       case u: UnaryExpression =>
@@ -295,6 +298,35 @@ object ExpressionConverter extends Logging {
             q.fourth,
             attributeSeq),
           q)
+      case namedStruct: CreateNamedStruct =>
+        var childrenTransformers = Seq[ExpressionTransformer]()
+        namedStruct.children.foreach(
+          child => childrenTransformers = childrenTransformers :+
+            replaceWithExpressionTransformer(child, attributeSeq)
+        )
+        new NamedStructTransformer(substraitExprName, childrenTransformers, namedStruct)
+      case element_at: ElementAt =>
+        new BinaryArgumentsCollectionOperationTransformer(substraitExprName,
+          left = replaceWithExpressionTransformer(element_at.left, attributeSeq),
+          right = replaceWithExpressionTransformer(element_at.right, attributeSeq),
+          element_at)
+      case arrayContains: ArrayContains =>
+        new BinaryArgumentsCollectionOperationTransformer(substraitExprName,
+          left = replaceWithExpressionTransformer(arrayContains.left, attributeSeq),
+          right = replaceWithExpressionTransformer(arrayContains.right, attributeSeq),
+          arrayContains)
+      case arrayMax: ArrayMax =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(arrayMax.child, attributeSeq), arrayMax)
+      case arrayMin: ArrayMin =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(arrayMin.child, attributeSeq), arrayMin)
+      case mapKeys: MapKeys =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(mapKeys.child, attributeSeq), mapKeys)
+      case mapValues: MapValues =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(mapValues.child, attributeSeq), mapValues)
       case expr =>
         logWarning(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(

@@ -547,6 +547,84 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window lead") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lead(n_nationkey, 1) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window lead with default value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lead(n_nationkey, 1, 3) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window lag") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lag(n_nationkey, 1) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window lag with default value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lag(n_nationkey, 1, 3) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window dense_rank") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | dense_rank(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window first value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | first_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  ignore("window last value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | last_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("group with rollup") {
     val sql =
       """

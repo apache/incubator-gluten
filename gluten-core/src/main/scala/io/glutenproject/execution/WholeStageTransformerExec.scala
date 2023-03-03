@@ -38,6 +38,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class TransformContext(
@@ -59,7 +60,7 @@ case class WholestageTransformContext(
  * TODO place it to some other where since it's used not only by whole stage facilities
  */
 trait MetricsUpdater extends Serializable {
-  def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {}
+  def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {}
   def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {}
 }
 
@@ -311,7 +312,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
-        metricsUpdater().updateOutputMetrics,
+        leafMetricsUpdater().updateInputMetrics,
         metricsUpdatingFunction
       )
     } else {
@@ -345,7 +346,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         resCtx,
         pipelineTime,
         buildRelationBatchHolder,
-        metricsUpdater().updateOutputMetrics,
         metricsUpdatingFunction)
     }
   }
@@ -356,6 +356,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def metricsUpdater(): MetricsUpdater = {
     child match {
+      case transformer: TransformSupport => transformer.metricsUpdater()
+      case _ => NoopMetricsUpdater
+    }
+  }
+
+  def leafMetricsUpdater(): MetricsUpdater = {
+    getStreamedLeafPlan match {
       case transformer: TransformSupport => transformer.metricsUpdater()
       case _ => NoopMetricsUpdater
     }
@@ -472,7 +479,7 @@ object WholeStageTransformerExec extends Logging {
     val outputVectors = operatorMetrics.get(0).outputVectors
     val outputBytes = operatorMetrics.get(0).outputBytes
 
-    var cpuNanos: Long = 0
+    var cpuCount: Long = 0
     var wallNanos: Long = 0
     var peakMemoryBytes: Long = 0
     var numMemoryAllocations: Long = 0
@@ -489,7 +496,7 @@ object WholeStageTransformerExec extends Logging {
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
       val metrics = metricsIterator.next()
-      cpuNanos += metrics.cpuNanos
+      cpuCount += metrics.cpuCount
       wallNanos += metrics.wallNanos
       peakMemoryBytes = peakMemoryBytes.max(metrics.peakMemoryBytes)
       numMemoryAllocations += metrics.numMemoryAllocations
@@ -513,7 +520,7 @@ object WholeStageTransformerExec extends Logging {
       outputRows,
       outputVectors,
       outputBytes,
-      cpuNanos,
+      cpuCount,
       wallNanos,
       peakMemoryBytes,
       numMemoryAllocations,

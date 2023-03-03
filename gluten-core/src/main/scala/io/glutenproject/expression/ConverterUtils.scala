@@ -323,6 +323,8 @@ object ConverterUtils extends Logging {
           typedFuncName.concat("struct")
         case MapType(_, _, _) =>
           typedFuncName.concat("map")
+        case CharType(_) =>
+          typedFuncName.concat("fchar")
         case NullType =>
           typedFuncName.concat("nothing")
         case other =>
@@ -373,9 +375,4 @@ object ConverterUtils extends Logging {
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
-
-  // Other
-  final val ROW_CONSTRUCTOR = "row_constructor"
-  final val ROW_NUMBER = "row_number"
-  final val RANK = "rank"
 }

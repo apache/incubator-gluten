@@ -45,7 +45,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       " before using it", // [not urgent]
       "max_by", // [not urgent]
       "min_by", // [not urgent]
-      "count_if" // [not urgent]
+      "count_if", // [not urgent]
+      "aggregation with filter"
     )
     .excludeByPrefix(
       "SPARK-22951", // [not urgent] dropDuplicates
@@ -141,7 +142,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenStringExpressionsSuite]
     .include(
-      "concat_ws"
+      "concat_ws",
+      // "LPAD/RPAD", not ready because CH required the third arg to be constant string
+      "REVERSE"
     )
 
   enableSuite[GlutenStringFunctionsSuite]
@@ -187,5 +190,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite]
     .include(
       "big inner join, 4 matches per row"
+    )
+
+  enableSuite[GlutenHashExpressionsSuite]
+    .include(
+      "md5"
     )
 }

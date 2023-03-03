@@ -39,16 +39,6 @@
 
   <profiles>
     <profile>
-      <id>backends-gazelle</id>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>backends-gazelle</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
       <id>backends-velox</id>
       <dependencies>
         <dependency>

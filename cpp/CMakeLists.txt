@@ -40,7 +40,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 project(spark_columnar_plugin)
 
 option(BUILD_VELOX_BACKEND, "Build velox backend" OFF)
-option(BUILD_GAZELLE_CPP_BACKEND "Build the gazelle-cpp libraries" OFF)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
@@ -53,7 +52,7 @@ option(VELOX_ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 
-if (NOT BUILD_VELOX_BACKEND AND NOT BUILD_GAZELLE_CPP_BACKEND)
+if (NOT BUILD_VELOX_BACKEND)
   message(STATUS "Not select any backend, build velox backend default")
   set(BUILD_VELOX_BACKEND ON)
 endif()
@@ -163,10 +162,6 @@ endif()
 #
 
 add_subdirectory(core)
-
-if(BUILD_GAZELLE_CPP_BACKEND)
-  add_subdirectory(gazelle-cpp)
-endif()
 
 if(BUILD_VELOX_BACKEND)
   add_subdirectory(velox)

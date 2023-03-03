@@ -19,21 +19,39 @@ package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
-import org.apache.spark.sql.catalyst.expressions.{Rank, RowNumber, WindowFunction}
+import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression, WindowFunction}
+
+import scala.util.control.Breaks.{break, breakable}
 
 object WindowFunctionsBuilder {
   def create(args: java.lang.Object, windowFunc: WindowFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = windowFunc match {
-      case rowNumber: RowNumber =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.ROW_NUMBER, Seq(rowNumber.dataType), FunctionConfig.OPT)
-      case rank: Rank =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.RANK, Seq(rank.dataType), FunctionConfig.OPT)
-      case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
+    val substraitFunc = ExpressionMappings.window_functions_map.get(windowFunc.getClass)
+    if (substraitFunc.isDefined) {
+      val functionName = ConverterUtils.makeFuncName(
+        substraitFunc.get,
+        Seq(windowFunc.dataType),
+        FunctionConfig.OPT)
+      ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    } else {
+      throw new UnsupportedOperationException(
+        s"not currently supported: ${windowFunc.getClass.getName}.")
     }
-    ExpressionBuilder.newScalarFunction(functionMap, functionName)
+  }
+
+  def extractWindowExpression(expr: Expression): WindowExpression = {
+    expr match {
+      case w: WindowExpression => w
+      case other =>
+        var w: WindowExpression = null
+        breakable {
+          other.children.foreach(
+            child => {
+              w = extractWindowExpression(child)
+              break
+            })
+        }
+        w
+    }
   }
 }

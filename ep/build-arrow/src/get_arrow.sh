@@ -5,8 +5,6 @@ set -exu
 ARROW_REPO=https://github.com/oap-project/arrow.git
 #for velox_backend
 ARROW_BRANCH=arrow-11.0.0-gluten
-#for gazelle backend
-#ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
 ENABLE_EP_CACHE=OFF
 
 for arg in "$@"

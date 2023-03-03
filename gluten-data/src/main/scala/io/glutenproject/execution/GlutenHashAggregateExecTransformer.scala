@@ -239,7 +239,7 @@ case class GlutenHashAggregateExecTransformer(
                                   rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
-      ConverterUtils.ROW_CONSTRUCTOR,
+      ExpressionMappings.ROW_CONSTRUCTOR,
       rowConstructAttributes.map(attr => attr.dataType),
       FunctionConfig.NON)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
@@ -359,9 +359,10 @@ case class GlutenHashAggregateExecTransformer(
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
       if (aggExpr.filter.isDefined) {
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
-        aggFilterList.add(exprNode)
+        throw new UnsupportedOperationException("Filter in final aggregation is not supported.")
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
       }
 
       val aggregateFunc = aggExpr.aggregateFunction
@@ -382,8 +383,7 @@ case class GlutenHashAggregateExecTransformer(
       addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
     })
     RelBuilder.makeAggregateRel(
-      projectRel, groupingList, aggregateFunctionList, aggFilterList,
-      context, operatorId)
+      projectRel, groupingList, aggregateFunctionList, aggFilterList, context, operatorId)
   }
 
   /**

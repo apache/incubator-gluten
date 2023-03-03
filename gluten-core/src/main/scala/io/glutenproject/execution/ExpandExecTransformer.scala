@@ -51,8 +51,8 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of expand"),
+    "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
@@ -61,7 +61,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     val outputRows: SQLMetric = longMetric("outputRows")
     val outputVectors: SQLMetric = longMetric("outputVectors")
     val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuNanos: SQLMetric = longMetric("cpuNanos")
+    val cpuCount: SQLMetric = longMetric("cpuCount")
     val wallNanos: SQLMetric = longMetric("wallNanos")
     val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
     val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
@@ -71,7 +71,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         outputRows += operatorMetrics.outputRows
         outputVectors += operatorMetrics.outputVectors
         outputBytes += operatorMetrics.outputBytes
-        cpuNanos += operatorMetrics.cpuNanos
+        cpuCount += operatorMetrics.cpuCount
         wallNanos += operatorMetrics.wallNanos
         peakMemoryBytes += operatorMetrics.peakMemoryBytes
         numMemoryAllocations += operatorMetrics.numMemoryAllocations
@@ -100,8 +100,11 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
   }
 
   override def getChild: SparkPlan = child

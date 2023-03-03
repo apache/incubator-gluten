@@ -20,30 +20,28 @@
 #include "velox/expression/VectorFunction.h"
 #include "velox/type/Type.h"
 
-using namespace facebook::velox;
-using namespace facebook::velox::exec;
-
 namespace gluten {
 
-class RowConstructor final : public exec::VectorFunction {
+class RowConstructor final : public facebook::velox::exec::VectorFunction {
   void apply(
-      const SelectivityVector& rows,
-      std::vector<VectorPtr>& args,
-      const TypePtr& outputType,
-      exec::EvalCtx& context,
-      VectorPtr& result) const override {
+      const facebook::velox::SelectivityVector& rows,
+      std::vector<facebook::velox::VectorPtr>& args,
+      const facebook::velox::TypePtr& outputType,
+      facebook::velox::exec::EvalCtx& context,
+      facebook::velox::VectorPtr& result) const override {
     auto argsCopy = args;
 
-    BufferPtr nulls = AlignedBuffer::allocate<char>(bits::nbytes(rows.size()), context.pool(), 1);
+    facebook::velox::BufferPtr nulls =
+        facebook::velox::AlignedBuffer::allocate<char>(facebook::velox::bits::nbytes(rows.size()), context.pool(), 1);
     auto* nullsPtr = nulls->asMutable<uint64_t>();
     auto cntNull = 0;
-    rows.applyToSelected([&](vector_size_t i) {
-      bits::clearNull(nullsPtr, i);
-      if (!bits::isBitNull(nullsPtr, i)) {
+    rows.applyToSelected([&](facebook::velox::vector_size_t i) {
+      facebook::velox::bits::clearNull(nullsPtr, i);
+      if (!facebook::velox::bits::isBitNull(nullsPtr, i)) {
         for (size_t c = 0; c < argsCopy.size(); c++) {
           auto arg = argsCopy[c].get();
           if (arg->mayHaveNulls() && arg->isNullAt(i)) {
-            bits::setNull(nullsPtr, i, true);
+            facebook::velox::bits::setNull(nullsPtr, i, true);
             cntNull++;
             break;
           }
@@ -51,7 +49,7 @@ class RowConstructor final : public exec::VectorFunction {
       }
     });
 
-    RowVectorPtr localResult = std::make_shared<RowVector>(
+    facebook::velox::RowVectorPtr localResult = std::make_shared<facebook::velox::RowVector>(
         context.pool(), outputType, nulls, rows.size(), std::move(argsCopy), cntNull /*nullCount*/);
     context.moveOrCopyResult(localResult, rows, result);
   }

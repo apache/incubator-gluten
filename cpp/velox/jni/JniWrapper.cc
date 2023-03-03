@@ -32,7 +32,7 @@
 
 #include <iostream>
 
-using namespace facebook::velox;
+using namespace facebook;
 
 static std::unordered_map<std::string, std::string> sparkConfs_;
 
@@ -79,14 +79,14 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   gluten::ParseProtobuf(planData, planSize, &subPlan);
 
   // A query context used for function validation.
-  core::QueryCtx queryCtx;
+  velox::core::QueryCtx queryCtx;
 
   auto pool = gluten::GetDefaultWrappedVeloxMemoryPool();
 
   // An execution context used for function validation.
-  core::ExecCtx execCtx(pool, &queryCtx);
+  velox::core::ExecCtx execCtx(pool, &queryCtx);
 
-  facebook::velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
+  velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
   try {
     return planValidator.validate(subPlan);
   } catch (std::invalid_argument& e) {
