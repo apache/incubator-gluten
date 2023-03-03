@@ -450,4 +450,23 @@ class TestOperator extends WholeStageTransformerSuite {
       }
     }
   }
+
+  test("bit_and and bit_or") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      runQueryAndCompare(
+        """
+          |select bit_and(l_linenumber) from lineitem
+          |group by l_orderkey;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+      runQueryAndCompare(
+        """
+          |select bit_or(l_linenumber) from lineitem
+          |group by l_orderkey;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+    }
+  }
 }
