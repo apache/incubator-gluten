@@ -501,7 +501,8 @@ case class ColumnarOverrideRules(session: SparkSession)
     maybe(session, plan) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
-      supportAdaptive = AdaptiveSparkPlanUtil.supportAdaptiveWithExchangeConsidered(plan)
+      supportAdaptive = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean &&
+          AdaptiveSparkPlanUtil.supportAdaptiveWithExchangeConsidered(plan)
       logOnLevel(
         transformPlanLogLevel,
         s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
