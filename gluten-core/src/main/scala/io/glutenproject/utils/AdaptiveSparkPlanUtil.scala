@@ -23,6 +23,7 @@ import org.apache.spark.sql.internal.SQLConf
 
 /**
  * Mostly ported from spark source code for checking whether a plan supports adaptive.
+ * See InsertAdaptiveSparkPlan#supportAdaptive in vanilla spark.
  * Since spark-3.2, AQE can work for DPP, so no need to exclude DPP plan in the check.
  * This part of code may need update for supporting higher versions of spark.
  */
