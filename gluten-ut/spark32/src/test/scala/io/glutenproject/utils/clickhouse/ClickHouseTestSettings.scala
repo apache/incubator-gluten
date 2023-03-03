@@ -88,8 +88,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "date_add",
       "date_sub",
       "datediff",
-      "add_months",
-      "DateFormat"
+      "add_months"
+      // "DateFormat" // ch formatDateTimeInJodaSyntax doesn't support non-constant format argument
     )
 
 
