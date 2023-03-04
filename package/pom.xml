@@ -56,7 +56,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <configuration>
-          <finalName>gluten-package-${project.version}</finalName>
+          <finalName>gluten-package-${project.version}-jar-with-dependencies</finalName>
         </configuration>
         <executions>
           <execution>
@@ -101,7 +101,7 @@
             <configuration>
               <executable>cp</executable>
               <arguments>
-                <argument>target/gluten-package-${project.version}.jar</argument>
+                <argument>target/gluten-package-${project.version}-jar-with-dependencies.jar</argument>
                 <argument>
                   target/${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}-jar-with-dependencies.jar
                 </argument>
