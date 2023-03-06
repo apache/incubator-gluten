@@ -28,6 +28,7 @@
 #include <thread>
 
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxInitializer.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(write_file, "", "Write the output to parquet file, file absolute path");
