@@ -250,6 +250,11 @@ object ExpressionConverter extends Logging {
       case md5: Md5 =>
         Md5Transformer(substraitExprName,
           replaceWithExpressionTransformer(md5.child, attributeSeq), md5) 
+      case t: StringTranslate =>
+        StringTranslateTransformer(substraitExprName,
+          replaceWithExpressionTransformer(t.srcExpr, attributeSeq),
+          replaceWithExpressionTransformer(t.matchingExpr, attributeSeq),
+          replaceWithExpressionTransformer(t.replaceExpr, attributeSeq), t)
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName, l)
       case u: UnaryExpression =>

@@ -24,6 +24,33 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.StringTranslate
+import io.glutenproject.substrait.expression.StringLiteralNode
+
+case class StringTranslateTransformer(substraitExprName: String, srcExpr: ExpressionTransformer,
+  matchingExpr: ExpressionTransformer, replaceExpr: ExpressionTransformer, original: StringTranslate)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // In CH, translateUTF8 requires matchingExpr and replaceExpr argument have the same length
+    var matchingNode = matchingExpr.doTransform(args)
+    var replaceNode = replaceExpr.doTransform(args)
+    if (!matchingNode.isInstanceOf[StringLiteralNode] ||
+      !replaceNode.isInstanceOf[StringLiteralNode]) {
+      throw new UnsupportedOperationException(s"${original} not supported yet.")
+    }
+
+    var matchingLiteral = matchingNode.asInstanceOf[StringLiteralNode].getValue()
+    var replaceLiteral = replaceNode.asInstanceOf[StringLiteralNode].getValue()
+    if (matchingLiteral.length() != replaceLiteral.length()) {
+      throw new UnsupportedOperationException(s"${original} not supported yet.")
+    }
+
+    TernaryExpressionTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
+      .doTransform(args)
+  }
+}
+
 
 /**
  * Transformer for the normal ternary expression
