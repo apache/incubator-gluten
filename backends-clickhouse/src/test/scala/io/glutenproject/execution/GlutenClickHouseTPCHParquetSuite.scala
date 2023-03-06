@@ -672,6 +672,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("isNaN") {
+    val sql =
+      """
+        |select isNaN(l_shipinstruct), isNaN(l_partkey), isNaN(l_discount)
+        |from lineitem
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,

@@ -65,6 +65,7 @@ object ExpressionMappings {
   final val IS_NOT_NULL = "is_not_null"
   final val IS_NULL = "is_null"
   final val NOT = "not"
+  final val IS_NAN = "isnan"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -239,6 +240,7 @@ object ExpressionMappings {
     Sig[IsNotNull](IS_NOT_NULL),
     Sig[IsNull](IS_NULL),
     Sig[Not](NOT),
+    Sig[IsNaN](IS_NAN),
     // SparkSQL String functions
     Sig[Ascii](ASCII),
     Sig[Chr](CHR),
