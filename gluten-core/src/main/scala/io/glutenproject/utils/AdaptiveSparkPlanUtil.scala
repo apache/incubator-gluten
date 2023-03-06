@@ -17,8 +17,9 @@
 
 package io.glutenproject.utils
 
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.exchange.Exchange
+import io.glutenproject.execution.CoalesceBatchesExec
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeAdaptor, ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.exchange.{Exchange, ShuffleExchangeExec}
 import org.apache.spark.sql.internal.SQLConf
 
 /**
@@ -41,5 +42,26 @@ object AdaptiveSparkPlanUtil {
         (sanityCheck(plan) &&
             !plan.logicalLink.exists(_.isStreaming) &&
             plan.children.forall(supportAdaptiveWithExchangeConsidered)))
+  }
+
+  /**
+   * Generate a columnar plan for shuffle exchange.
+   *
+   * @param plan             the spark plan of shuffle exchange.
+   * @param child            the child of shuffle exchange.
+   * @param removeHashColumn whether the hash column should be removed.
+   * @return a columnar shuffle exchange.
+   */
+  def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
+                                 child: SparkPlan,
+                                 removeHashColumn: Boolean = false,
+                                 supportAdaptive: Boolean): SparkPlan = {
+    if (supportAdaptive) {
+      ColumnarShuffleExchangeAdaptor(
+        plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn)
+    } else {
+      CoalesceBatchesExec(ColumnarShuffleExchangeExec(
+        plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn))
+    }
   }
 }
