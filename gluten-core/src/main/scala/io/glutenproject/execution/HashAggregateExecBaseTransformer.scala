@@ -249,6 +249,7 @@ abstract class HashAggregateExecBaseTransformer(
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType
        | DoubleType | StringType | TimestampType | DateType | BinaryType => true
       case d: DecimalType => true
+      case a: ArrayType => true
       case other => logInfo(s"Type ${dataType} not support"); false
     }
   }
@@ -665,9 +666,25 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-      case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
-      }
+        case CollectList(_, _, _) =>
+          mode match {
+            case Partial => 
+              val collectList = aggregateFunc.asInstanceOf[CollectList]
+              val aggBufferAttr = collectList.inputAggBufferAttributes
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              res_index += aggBufferAttr.size
+            case Final => 
+              aggregateAttr += aggregateAttributeList(res_index)
+              res_index += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
+        case other =>
+          throw new UnsupportedOperationException(s"not currently supported: $other.")
+        }
     }
     aggregateAttr.toList
   }

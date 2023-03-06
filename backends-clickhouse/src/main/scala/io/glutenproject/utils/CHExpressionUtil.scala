@@ -51,7 +51,8 @@ object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
     STDDEV_SAMP -> Set(EMPTY_TYPE),
-    COLLECT_LIST -> Set(EMPTY_TYPE),
+    VAR_SAMP -> Set(EMPTY_TYPE),
+    VAR_POP -> Set(EMPTY_TYPE),
     BLOOM_FILTER_AGG -> Set(EMPTY_TYPE)
   )
 }
