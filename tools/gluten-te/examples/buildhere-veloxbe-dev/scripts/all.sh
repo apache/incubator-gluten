@@ -33,6 +33,3 @@ wget https://download.jetbrains.com/idea/ideaIC-2022.3.2.tar.gz
 tar -xvzf ideaIC-2022.3.2.tar.gz
 wget https://download.jetbrains.com/cpp/CLion-2022.3.2.tar.gz
 tar -xvzf CLion-2022.3.2.tar.gz
-
-# Hold the prompt, wait for ssh connections
-bash
