@@ -360,6 +360,7 @@ object ConverterUtils extends Logging {
           case "OrcScan" => ReadFileFormat.OrcReadFormat
           case "ParquetScan" => ReadFileFormat.ParquetReadFormat
           case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+          case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
           case _ => ReadFileFormat.UnknownFormat
         }
       case f: FileSourceScanExecTransformer =>
@@ -367,6 +368,7 @@ object ConverterUtils extends Logging {
           case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
           case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
           case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
+          case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
           case _ => ReadFileFormat.UnknownFormat
         }
       case _ => ReadFileFormat.UnknownFormat

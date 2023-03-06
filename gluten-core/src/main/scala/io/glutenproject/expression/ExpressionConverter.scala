@@ -22,7 +22,6 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{GlutenColumnarToRowExecBase, WholeStageTransformerExec}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.ApproximatePercentile
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
@@ -249,7 +248,7 @@ object ExpressionConverter extends Logging {
             getStructField)
       case md5: Md5 =>
         Md5Transformer(substraitExprName,
-          replaceWithExpressionTransformer(md5.child, attributeSeq), md5) 
+          replaceWithExpressionTransformer(md5.child, attributeSeq), md5)
       case t: StringTranslate =>
         StringTranslateTransformer(substraitExprName,
           replaceWithExpressionTransformer(t.srcExpr, attributeSeq),

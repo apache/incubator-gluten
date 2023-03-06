@@ -20,7 +20,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
+import org.apache.spark.sql.execution.datasources.{PartitioningAwareFileIndex, PartitionSpec}
 import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitionsUtil
 import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
@@ -28,9 +28,11 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileStatus, Path}
 
 import java.util.OptionalLong
+
+import scala.collection.mutable
 
 abstract class ClickHouseScanBase(
     sparkSession: SparkSession,
@@ -45,9 +47,25 @@ abstract class ClickHouseScanBase(
 
   override def isSplitable(path: Path): Boolean = false
 
+  /** TODO: MergeTree DS V2 can not support partitions now. */
   override def readPartitionSchema: StructType = new StructType()
 
-  override def fileIndex: PartitioningAwareFileIndex = null
+  override def fileIndex: PartitioningAwareFileIndex =
+    new PartitioningAwareFileIndex(sparkSession, Map.empty, None) {
+      override def partitionSpec(): PartitionSpec = PartitionSpec.emptySpec
+
+      override protected def leafFiles: mutable.LinkedHashMap[Path, FileStatus] =
+        mutable.LinkedHashMap.empty[Path, FileStatus]
+
+      override protected def leafDirToChildrenFiles: Map[Path, Array[FileStatus]] =
+        Map.empty
+
+      override def rootPaths: Seq[Path] = Seq.empty
+
+      override def refresh(): Unit = {}
+
+      override def inputFiles: Array[String] = table.listFiles().map(_.path).toArray
+    }
 
   override def toBatch: Batch = this
 

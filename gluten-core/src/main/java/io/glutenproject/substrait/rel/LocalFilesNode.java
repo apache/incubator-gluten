@@ -34,6 +34,7 @@ public class LocalFilesNode implements Serializable {
     ArrowReadFormat(),
     OrcReadFormat(),
     DwrfReadFormat(),
+    MergeTreeReadFormat(),
     UnknownFormat()
   }
 
