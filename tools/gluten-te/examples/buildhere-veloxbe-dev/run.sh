@@ -11,4 +11,5 @@ export PRESERVE_CONTAINER=ON
 
 $BASEDIR/../../cbash.sh 'sleep infinity'
 docker exec buildhere-veloxbe-dev-$TIMESTAMP bash -c '/opt/scripts/all.sh'
+docker exec buildhere-veloxbe-dev-$TIMESTAMP bash -c 'service ssh restart'
 

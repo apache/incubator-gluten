@@ -21,7 +21,6 @@ echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config.d/override.conf
 echo 'X11Forwarding yes' >> /etc/ssh/sshd_config.d/override.conf
 echo 'X11UseLocalhost no' >> /etc/ssh/sshd_config.d/override.conf
 
-service ssh restart
 echo -e "123\n123" | passwd
 
 # Install IDEs
