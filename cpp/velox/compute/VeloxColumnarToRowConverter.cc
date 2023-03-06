@@ -170,7 +170,7 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
         }
         break;
       }
-      case arrow::TimestampType::type_id: {
+      case arrow::Time64Type::type_id: {
         SERIALIZE_COLUMN(TimestampType);
         break;
       }
