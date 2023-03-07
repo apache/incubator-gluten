@@ -266,7 +266,7 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
 TEST_F(VeloxSplitterTest, TestSingleSplitter) {
   split_options_.buffer_size = 10;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", 1, split_options_))
+  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("single", 1, split_options_))
 
   ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
   ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
