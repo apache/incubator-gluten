@@ -31,6 +31,8 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
 
   object ScalarFunction {
     def unapply(e: Expression): Option[Seq[Expression]] = e match {
+      case MakeDecimal(child, precision, scale, nullOnOverflow) =>
+        Some(Seq(child, Literal(precision), Literal(scale), Literal(nullOnOverflow)))
       case BinaryExpression(left, right) => Some(Seq(left, right))
       case UnaryExpression(child) => Some(Seq(child))
       case t: TernaryExpression => Some(Seq(t.first, t.second, t.third))

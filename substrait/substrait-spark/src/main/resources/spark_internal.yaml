@@ -9,5 +9,23 @@ scalar_functions:
       we don't need to do type check for it.
     impls:
       - args:
-          - value: DECIMAL<P,S>
+          - name: input
+            value: DECIMAL<P,S>
         return: i64
+  -
+    name: make_decimal
+    description: >-
+      Create a Decimal from an unscaled Long value. 
+      Note: this expression is internal and created only by the optimizer, 
+      we don't need to do type check for it.
+    impls:
+      - args:
+          - name: input
+            value: i64
+          - name: precision
+            value: i32
+          - name: scale
+            value: i32
+          - name: nullOnOverflow
+            value: boolean
+        return: DECIMAL<P,S>

@@ -19,6 +19,7 @@ package io.substrait.spark.expression
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.types.IntegerType
 
 import scala.reflect.ClassTag
 
@@ -28,10 +29,20 @@ case class Sig(expClass: Class[_], name: String, builder: Seq[Expression] => Exp
 }
 
 class FunctionMappings {
-
-  private def s[T <: Expression: ClassTag](name: String): Sig = {
-    val builder = FunctionRegistryBase.build[T](name, None)._2
-    Sig(scala.reflect.classTag[T].runtimeClass, name, builder)
+  private def s[T <: Expression: ClassTag](
+      name: String,
+      builder: Option[Seq[Expression] => Expression] = None): Sig = {
+    val b = builder.getOrElse(
+      FunctionRegistryBase.build[T](name, None)._2
+    )
+    Sig(scala.reflect.classTag[T].runtimeClass, name, b)
+  }
+  private def makeDecimal(args: Seq[Expression]): Expression = {
+    require(args.size == 4)
+    val precision = args(1).asInstanceOf[Literal].value.asInstanceOf[Int]
+    val scale = args(2).asInstanceOf[Literal].value.asInstanceOf[Int]
+    val nullOnOverflow = args(3).asInstanceOf[Literal].value.asInstanceOf[Boolean]
+    new MakeDecimal(args.head, precision, scale, nullOnOverflow);
   }
 
   val SCALAR_SIGS: Seq[Sig] = Seq(
@@ -58,7 +69,8 @@ class FunctionMappings {
     s[Year]("year"),
 
     // internal
-    s[UnscaledValue]("unscaled")
+    s[UnscaledValue]("unscaled"),
+    s[MakeDecimal]("make_decimal", Some(makeDecimal))
   )
 
   val AGGREGATE_SIGS: Seq[Sig] = Seq(

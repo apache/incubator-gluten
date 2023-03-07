@@ -55,4 +55,14 @@ class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTe
       bidirectional = true
     )
   }
+
+  test("MakeDecimal") {
+    val makeDecimal = MakeDecimal(Literal(1000000L), 10, 0)
+    runTest(
+      "make_decimal:i64_i32_i32_bool",
+      makeDecimal,
+      func => {},
+      bidirectional = true
+    )
+  }
 }
