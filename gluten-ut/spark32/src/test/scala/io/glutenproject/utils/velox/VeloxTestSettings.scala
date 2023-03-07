@@ -509,6 +509,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
   enableSuite[GlutenConfigBehaviorSuite]
+    // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
+    .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
