@@ -301,7 +301,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
   }
 }
 
-class GlutenParquetV1FilterSuite extends ParquetV1FilterSuite with GlutenSQLTestsBaseTrait {
+class GlutenParquetV1FilterSuite extends GltuenParquetFilterSuite with GlutenSQLTestsBaseTrait {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =
     super
