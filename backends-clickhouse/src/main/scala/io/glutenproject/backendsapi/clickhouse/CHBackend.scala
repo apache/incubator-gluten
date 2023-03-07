@@ -64,9 +64,21 @@ object CHBackendSettings extends BackendSettings with Logging {
 
   override def supportFileFormatRead(
       format: ReadFileFormat,
-      fields: Array[StructField]): Boolean = {
+      fields: Array[StructField],
+      partTable: Boolean,
+      paths: Seq[String]): Boolean = {
+
+    def validateFilePath: Boolean = {
+      // Fallback to vanilla spark when the input path
+      // does not contain the partition info.
+      if (partTable && !paths.forall(_.contains("="))) {
+        return false
+      }
+      true
+    }
+
     format match {
-      case ParquetReadFormat => true
+      case ParquetReadFormat => validateFilePath
       case OrcReadFormat => true
       // True for CH backend for unknown type.
       case _ => true

@@ -25,7 +25,10 @@ import org.apache.spark.sql.types.StructField
 
 
 trait BackendSettings {
-  def supportFileFormatRead(format: ReadFileFormat, fields: Array[StructField]): Boolean = false
+  def supportFileFormatRead(format: ReadFileFormat,
+                            fields: Array[StructField],
+                            partTable: Boolean,
+                            paths: Seq[String]): Boolean = false
   def supportExpandExec(): Boolean = false
   def needProjectExpandOutput: Boolean = false
   def supportSortExec(): Boolean = false

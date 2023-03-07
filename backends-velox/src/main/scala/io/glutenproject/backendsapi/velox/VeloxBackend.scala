@@ -22,6 +22,7 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
+
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Expression, NamedExpression, PercentRank, Rank, RowNumber, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
@@ -41,17 +42,32 @@ class VeloxBackend extends Backend {
 
 object VeloxBackendSettings extends BackendSettings {
   override def supportFileFormatRead(format: ReadFileFormat,
-                                     fields: Array[StructField]): Boolean = {
+                                     fields: Array[StructField],
+                                     partTable: Boolean,
+                                     paths: Seq[String]): Boolean = {
+    // Validate if all types are supported.
+    def validateTypes: Boolean = {
+      // Collect unsupported types.
+      fields.map(_.dataType).collect {
+        case _: BooleanType =>
+        case _: ByteType =>
+        case _: ArrayType =>
+        case _: MapType =>
+        case _: StructType =>
+      }.isEmpty
+    }
+
+    def validateFilePath: Boolean = {
+      // Fallback to vanilla spark when the input path
+      // does not contain the partition info.
+      if (partTable && !paths.forall(_.contains("="))) {
+        return false
+      }
+      true
+    }
+
     format match {
-      case ParquetReadFormat =>
-        // Unsupported types are prevented.
-        fields.map(_.dataType).collect {
-          case _: BooleanType =>
-          case _: ByteType =>
-          case _: ArrayType =>
-          case _: MapType =>
-          case _: StructType =>
-        }.isEmpty
+      case ParquetReadFormat => validateTypes && validateFilePath
       case DwrfReadFormat => true
       case _ => false
     }

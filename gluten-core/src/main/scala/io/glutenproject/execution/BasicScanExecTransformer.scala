@@ -77,15 +77,10 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   override def doValidate(): Boolean = {
-    // Fallback to vanilla spark when the input path
-    // does not contain the partition info.
-    if (getPartitionSchemas.nonEmpty &&
-      !getInputFilePaths.forall(_.contains("="))) {
-      return false
-    }
     val fileFormat = ConverterUtils.getFileFormat(this)
-    if (!BackendsApiManager
-      .getTransformerApiInstance.supportsReadFileFormat(fileFormat, schema.fields)) {
+    if (!BackendsApiManager.getTransformerApiInstance
+      .supportsReadFileFormat(
+        fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
       logDebug(
         s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
       return false

@@ -39,7 +39,10 @@ trait ITransformerApi {
    *
    * @return true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(fileFormat: ReadFileFormat, fields: Array[StructField]): Boolean
+  def supportsReadFileFormat(fileFormat: ReadFileFormat,
+                             fields: Array[StructField],
+                             partTable: Boolean,
+                             paths: Seq[String]): Boolean
 
   /**
    * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
