@@ -93,7 +93,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>Native</id>
+            <id>copy-fat-jar</id>
             <phase>package</phase>
             <goals>
               <goal>exec</goal>
