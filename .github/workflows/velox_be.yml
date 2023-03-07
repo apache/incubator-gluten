@@ -15,10 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Gluten Unit Tests Suite
+name: Velox backend
 
 on:
-  pull_request
+  pull_request:
+    paths:
+      - '.github/**'
+      - 'pom.xml'
+      - 'backends-velox/**'
+      - 'gluten-core/**'
+      - 'gluten-data/**'
+      - 'gluten-ut/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+      - 'tools/gluten-te/**'
+      - 'ep/build-arrow/**'
+      - 'ep/build-velox/**'
+      - 'cpp/*'
+      - 'cpp/CMake/**'
+      - 'cpp/velox/**'
+      - 'cpp/core/**'
+#      - 'substrait/substrait-spark/**'
+
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -26,7 +44,7 @@ concurrency:
 
 jobs:
   velox-backend-ubuntu2004-test:
-    runs-on: velox-self-hosted 
+    runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -114,7 +132,7 @@ jobs:
           docker stop velox-backend-ubuntu2004-test-$GITHUB_RUN_ID || true
 
   velox-backend-ubuntu2204-test:
-    runs-on: velox-self-hosted 
+    runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -150,76 +168,3 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop velox-backend-ubuntu2204-test-$GITHUB_RUN_ID || true
-
-  ch-backend-test:
-    runs-on: libch-self-hosted
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'zulu'
-          java-version: '8'
-          java-package: jdk
-          overwrite-settings: false
-      - run: sudo swapoff -a
-      - run: free
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y maven
-      - name: Install and Check ClickHouse Backend lib
-        uses: liuneng1994/pull-request-comment-trigger@master
-        id: ch_version
-        with:
-          trigger: 'test by CH\[\[(\S*)]]'
-      - run: |
-          wget -O /tmp/libch.so.new https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
-          mv /tmp/libch.so.new /tmp/libch.so
-        if: steps.ch_version.outputs.triggered == 'false'
-      - run: |
-          cd /home/qwe1398775315/code/ClickHouse
-          gh pr checkout ${{ steps.ch_version.outputs.trigger_var }} --force
-          sudo rm -f /tmp/ch_output/*
-          sudo docker run  --rm --volume=/tmp/ch_output:/output --volume=/home/qwe1398775315/code/ClickHouse:/clickhouse --volume=/home/qwe1398775315/.cache:/ccache -e ENABLE_EMBEDDED_COMPILER=ON qwe1398775315/libchbuilder:0.2.0
-          cp /tmp/ch_output/libch*.so /tmp/libch.so
-        if: steps.ch_version.outputs.triggered == 'true'
-      - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
-        run: |
-          pushd /tmp
-          if [ -d "/tmp/spark" ]
-          then
-            rm -rf /tmp/spark
-          fi
-          git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git
-          popd
-          export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so -DargLine="-Dspark.test.home=/tmp/spark"
-      - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.3
-        run: |
-          pushd /tmp
-          if [ -d "/tmp/spark" ]
-          then
-            rm -rf /tmp/spark
-          fi
-          git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git
-          popd
-          export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so -DargLine="-Dspark.test.home=/tmp/spark"
-
-  formatting-check:
-    name: Formatting Check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        path:
-          - check: 'gluten/cpp/core'
-            exclude: ''
-          - check: 'gluten/cpp/velox'
-            exclude: ''
-    steps:
-    - uses: actions/checkout@v2
-    - name: Run clang-format style check for C/C++ programs.
-      uses: jidicula/clang-format-action@v3.5.1
-      with:
-        clang-format-version: '11'
-        check-path: ${{ matrix.path['check'] }}
-        fallback-style: 'Google' # optional
