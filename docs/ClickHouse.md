@@ -245,7 +245,7 @@ bin/beeline -u jdbc:hive2://localhost:10000/ -n root
     SELECT
         sum(l_extendedprice * l_discount) AS revenue
     FROM
-        lineitem_ch
+        lineitem
     WHERE
         l_shipdate >= date'1994-01-01'
         AND l_shipdate < date'1994-01-01' + interval 1 year
