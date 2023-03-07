@@ -277,7 +277,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   // The child columns may already be created in super class's constructor
-  //  org.apache.spark.sql.execution.vectorized.WritableColumnVector#WritableColumnVector(int, DataType).
+  //  org.apache.spark.sql.execution.vectorized
+  //    .WritableColumnVector#WritableColumnVector(int, DataType).
   //  So we close them then create new ones.
   private void reallocateChildColumns(int width) {
     if (childColumns != null) {
