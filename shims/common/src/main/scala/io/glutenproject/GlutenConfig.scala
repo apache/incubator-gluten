@@ -107,9 +107,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarArrowUDF: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.arrowudf", "true").toBoolean
 
-  // enable or disable columnar wholestage transform
-  def enableColumnarWholeStageTransform: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
+  // enable or disable columnar columnar coalesce
+  def enableColumnarCoalesce: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.coalesce", "true").toBoolean
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -143,6 +143,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableLogicalJoinOptimize: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.logicalJoinOptimizeEnable", "false").toBoolean
+
+  // When enabled, only scan and the filter after scan will be offloaded to native.
+  def enableScanOnly: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.scanOnly", "false").toBoolean
 
   // a folder to store the codegen files
   def tmpFile: String =
@@ -181,6 +185,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarGenerate: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.generate", "true").toBoolean
+
+  def enableTakeOrderedAndProject: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.takeOrderedAndProject", "true").toBoolean
 
   def enableNativeBloomFilter: Boolean =
     conf.getConfString("spark.gluten.sql.native.bloomFilter", "true").toBoolean

@@ -35,8 +35,7 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = {
-    if (numPartitions == 1) SinglePartition
-    else UnknownPartitioning(numPartitions)
+    if (numPartitions == 1) SinglePartition else UnknownPartitioning(numPartitions)
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
@@ -79,9 +78,8 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
 }
 
 object CoalesceExecTransformer {
-  class EmptyRDDWithPartitions(
-                                @transient private val sc: SparkContext,
-                                numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
+  class EmptyRDDWithPartitions(@transient private val sc: SparkContext,
+                               numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
 
     override def getPartitions: Array[Partition] =
       Array.tabulate(numPartitions)(i => EmptyPartition(i))
