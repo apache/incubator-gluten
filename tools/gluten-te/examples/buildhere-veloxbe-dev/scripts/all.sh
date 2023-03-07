@@ -10,19 +10,10 @@ EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                      -Dcheckstyle.skip=true"
 
 cd /opt/gluten
-bash dev/builddeps-veloxbe.sh
+bash dev/builddeps-veloxbe.sh --build_type=Debug --enable_ep_cache=ON
 mvn clean install $EXTRA_MAVEN_OPTIONS
 
-# Setup SSH server
-apt-get update
-apt-get -y -q --no-install-recommends install openssh-server firefox tmux openjdk-8-source
-
-echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config.d/override.conf
-echo 'X11Forwarding yes' >> /etc/ssh/sshd_config.d/override.conf
-echo 'X11UseLocalhost no' >> /etc/ssh/sshd_config.d/override.conf
-
-service ssh restart
-echo -e "123\n123" | passwd
+apt-get -y -q --no-install-recommends install firefox tmux openjdk-8-source
 
 # Install IDEs
 apt-get update
@@ -33,6 +24,3 @@ wget https://download.jetbrains.com/idea/ideaIC-2022.3.2.tar.gz
 tar -xvzf ideaIC-2022.3.2.tar.gz
 wget https://download.jetbrains.com/cpp/CLion-2022.3.2.tar.gz
 tar -xvzf CLion-2022.3.2.tar.gz
-
-# Hold the prompt, wait for ssh connections
-bash

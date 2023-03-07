@@ -21,7 +21,12 @@ class WholeStageResultIterator {
     getOrderedNodeIds(planNode_, orderedNodeIds_);
   }
 
-  virtual ~WholeStageResultIterator() = default;
+  virtual ~WholeStageResultIterator() {
+    if (task_->isRunning()) {
+      // calling .wait() may take no effect in single thread execution mode
+      task_->requestCancel().wait();
+    }
+  };
 
   arrow::Result<std::shared_ptr<VeloxColumnarBatch>> Next();
 

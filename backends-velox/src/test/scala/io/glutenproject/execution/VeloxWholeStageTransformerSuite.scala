@@ -18,9 +18,8 @@
 package io.glutenproject.execution
 
 import java.io.File
-
 import io.glutenproject.sql.shims.SparkShimLoader
-
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ColumnarInputAdapter
 
 class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
@@ -31,6 +30,9 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
   }
+
+  override protected def sparkConf: SparkConf = super.sparkConf
+    .set("spark.unsafe.exceptionOnMemoryLeak", "true")
 
   override protected def createTPCHNotNullTables(): Unit = {
     Seq(

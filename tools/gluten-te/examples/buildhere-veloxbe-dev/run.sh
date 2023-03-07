@@ -4,6 +4,10 @@ set -ex
 
 BASEDIR=$(readlink -f $(dirname $0))
 
-export EXTRA_DOCKER_OPTIONS="-v $BASEDIR/scripts:/opt/scripts"
+TIMESTAMP=$(date +%s)
 
-$BASEDIR/../../cbash.sh 'bash -c /opt/scripts/all.sh'
+export EXTRA_DOCKER_OPTIONS="--name buildhere-veloxbe-dev-$TIMESTAMP --detach -v $BASEDIR/scripts:/opt/scripts"
+export PRESERVE_CONTAINER=ON
+
+$BASEDIR/../../cbash.sh 'bash /root/.cmd.sh'
+docker exec buildhere-veloxbe-dev-$TIMESTAMP bash -c '/opt/scripts/all.sh'
