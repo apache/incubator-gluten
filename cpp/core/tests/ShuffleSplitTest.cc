@@ -40,6 +40,7 @@ void print_trace(void) {
 }
 
 #include "TestUtils.h"
+#include "memory/ColumnarBatch.h"
 #include "operators/shuffle/splitter.h"
 
 namespace gluten {
@@ -249,14 +250,21 @@ const std::vector<std::string> SplitterTest::input_data_2 = {
 const std::vector<std::string> SplitterTest::hash_key_1 = {"[1, 2, 2, 2, 2, 1, 1, 1, 2, 1]"};
 const std::vector<std::string> SplitterTest::hash_key_2 = {"[2, 2]"};
 
+std::shared_ptr<ColumnarBatch> RecordBatchToColumnarBatch(std::shared_ptr<arrow::RecordBatch> rb) {
+  std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
+  std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
+  ASSERT_NOT_OK(arrow::ExportRecordBatch(*rb, cArray.get(), cSchema.get()));
+  return std::make_shared<ArrowCStructColumnarBatch>(std::move(cSchema), std::move(cArray));
+}
+
 TEST_F(SplitterTest, TestSingleSplitter) {
   split_options_.buffer_size = 10;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", 1, split_options_))
+  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("single", 1, split_options_))
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_2_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -298,9 +306,9 @@ TEST_F(SplitterTest, TestRoundRobinSplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_2_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -367,9 +375,9 @@ TEST_F(SplitterTest, TestSplitterMemoryLeak) {
 
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_2_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -384,9 +392,9 @@ TEST_F(SplitterTest, TestHashSplitter) {
 
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", num_partitions, split_options_))
 
-  ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(hash_input_batch_1_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(hash_input_batch_2_).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(hash_input_batch_1_).get()));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -432,9 +440,9 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
 
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("range", num_partitions, split_options_))
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_w_pid));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_w_pid));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_w_pid));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_w_pid).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_2_w_pid).get()));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_w_pid).get()));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -499,7 +507,7 @@ TEST_F(SplitterTest, TestSpillFailWithOutOfMemory) {
   split_options_.memory_pool = pool;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  auto status = splitter_->Split(*input_batch_1_);
+  auto status = splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get());
   // should return OOM status because there's no partition buffer to spill
   ASSERT_TRUE(status.IsOutOfMemory());
   ASSERT_NOT_OK(splitter_->Stop());
@@ -516,9 +524,9 @@ TEST_F(SplitterTest, TestSpillLargestPartition) {
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
   for (int i = 0; i < 100; ++i) {
-    ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-    ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-    ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+    ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
+    ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_2_).get()));
+    ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_1_).get()));
   }
   ASSERT_NOT_OK(splitter_->Stop());
 }
@@ -546,7 +554,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -617,7 +625,7 @@ TEST_F(SplitterTest, TestRoundRobinNestListArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -687,7 +695,7 @@ TEST_F(SplitterTest, TestRoundRobinNestLargeListArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -759,7 +767,7 @@ TEST_F(SplitterTest, TestRoundRobinListStructArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -829,7 +837,7 @@ TEST_F(SplitterTest, TestRoundRobinListMapArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -901,7 +909,7 @@ TEST_F(SplitterTest, TestRoundRobinStructArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -971,7 +979,7 @@ TEST_F(SplitterTest, TestRoundRobinMapArraySplitter) {
   split_options_.buffer_size = 4;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
@@ -1040,7 +1048,7 @@ TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
 
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -1089,7 +1097,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitterwithCompression) {
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", num_partitions, split_options_));
   auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
   ASSERT_NOT_OK(splitter_->SetCompressType(compression_type.MoveValueUnsafe()));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
+  ASSERT_NOT_OK(splitter_->Split(RecordBatchToColumnarBatch(input_batch_arr).get()));
   ASSERT_NOT_OK(splitter_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;

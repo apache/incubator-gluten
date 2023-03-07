@@ -1,5 +1,6 @@
 #include "VeloxSplitter.h"
 #include "VeloxSplitterPartitionWriter.h"
+#include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -197,7 +198,9 @@ arrow::Status VeloxSplitter::SetCompressType(arrow::Compression::type compressed
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSplitter::Split(const velox::RowVector& rv) {
+arrow::Status VeloxSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
   RETURN_NOT_OK(InitFromRowVector(rv));
   RETURN_NOT_OK(Partition(rv));
   RETURN_NOT_OK(DoSplit(rv));
@@ -1273,12 +1276,11 @@ arrow::Status VeloxSinglePartSplitter::Partition(const velox::RowVector& rv) {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSinglePartSplitter::Split(const velox::RowVector& rv) {
-  RETURN_NOT_OK(InitFromRowVector(rv));
-
+arrow::Status VeloxSinglePartSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto vp = veloxColumnBatch->getFlattenedRowVector();
+  RETURN_NOT_OK(InitFromRowVector(*vp));
   // 1. convert RowVector to RecordBatch
-  velox::VectorPtr vp(&const_cast<velox::RowVector&>(rv), [](velox::BaseVector*) {});
-
   ArrowArray arrowArray;
   velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool());
 
@@ -1352,7 +1354,20 @@ arrow::Status VeloxHashSplitter::Partition(const velox::RowVector& rv) {
 
   auto raw_values = pid_flat_vector->rawValues();
   for (auto i = 0; i < num_rows; ++i) {
-    uint32_t pid = raw_values[i] % num_partitions_;
+    auto pid = raw_values[i] % num_partitions_;
+#if defined(__x86_64__)
+    // force to generate ASM
+    __asm__(
+        "lea (%[num_partitions],%[pid],1),%[tmp]\n"
+        "test %[pid],%[pid]\n"
+        "cmovs %[tmp],%[pid]\n"
+        : [pid] "+r"(pid)
+        : [num_partitions] "r"(num_partitions_), [tmp] "r"(0));
+#else
+    if (pid < 0) {
+      pid += num_partitions_;
+    }
+#endif
     row_2_partition_[i] = pid;
     partition_2_row_count_[pid]++;
   }
@@ -1376,7 +1391,9 @@ arrow::Status VeloxHashSplitter::InitColumnTypes(const velox::RowVector& rv) {
   return VeloxSplitter::InitColumnTypes(rv);
 }
 
-arrow::Status VeloxHashSplitter::Split(const velox::RowVector& rv) {
+arrow::Status VeloxHashSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
   RETURN_NOT_OK(InitFromRowVector(rv));
   RETURN_NOT_OK(Partition(rv));
   auto stripped_rv = GetStrippedRowVector(rv);
@@ -1433,7 +1450,9 @@ arrow::Status VeloxFallbackRangeSplitter::Partition(const velox::RowVector& rv) 
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxFallbackRangeSplitter::Split(const velox::RowVector& rv) {
+arrow::Status VeloxFallbackRangeSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
   RETURN_NOT_OK(InitFromRowVector(rv));
   RETURN_NOT_OK(Partition(rv));
   auto stripped_rv = GetStrippedRowVector(rv);
