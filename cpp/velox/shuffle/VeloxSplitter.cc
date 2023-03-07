@@ -1267,12 +1267,13 @@ arrow::Status VeloxSinglePartSplitter::Partition(const velox::RowVector& rv) {
 }
 
 arrow::Status VeloxSinglePartSplitter::Split(const velox::RowVector& rv) {
+  RETURN_NOT_OK(InitFromRowVector(rv));
+
   // 1. convert RowVector to RecordBatch
-  velox::VectorPtr vp(&const_cast<velox::RowVector&>(rv));
+  velox::VectorPtr vp(&const_cast<velox::RowVector&>(rv), [](velox::BaseVector*) {});
 
   ArrowArray arrowArray;
   velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool());
-  vp.reset();
 
   auto result = arrow::ImportRecordBatch(&arrowArray, schema_);
   RETURN_NOT_OK(result);
