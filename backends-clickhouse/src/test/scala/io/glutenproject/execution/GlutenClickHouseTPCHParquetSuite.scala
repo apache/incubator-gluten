@@ -388,15 +388,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("test 'function from_unixtime'") {
     val df = runQueryAndCompare(
-      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
+      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss'), " +
+        "from_unixtime(l_orderkey, 'yyyy-MM-dd') " +
         "from lineitem order by l_orderkey desc limit 10"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 
-  test("test 'aggregate function collect_list'") {
+  ignore("test 'aggregate function collect_list'") {
     val df = runQueryAndCompare(
-      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
+      "select l_orderkey,from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
         "from lineitem order by l_orderkey desc limit 10"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)

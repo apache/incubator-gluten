@@ -16,13 +16,8 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.`type`.ListNode
-import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.`type`.ListNode
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.GlutenConfig
-import io.glutenproject.substrait.`type`.TypeBuilder
+import com.google.common.collect.Lists
+import java.util.ArrayList
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
@@ -30,8 +25,13 @@ import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-import java.util.ArrayList
-import com.google.common.collect.Lists
+import io.glutenproject.substrait.`type`.ListNode
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.GlutenConfig
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.`type`.MapNode
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 
 class KnownFloatingPointNormalizedTransformer(
     child: ExpressionTransformer,
@@ -80,11 +80,15 @@ class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer
       ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
 
     val expressionNodes = Lists.newArrayList(childNode)
-
     val childTypeNode = ConverterUtils.getTypeNode(original.child.dataType, original.child.nullable)
-    val typeNode = childTypeNode.asInstanceOf[ListNode].getNestedType()
-
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    childTypeNode match {
+      case l: ListNode =>
+        ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, l.getNestedType())
+      case m: MapNode =>
+        ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, m.getNestedType())
+      case _ =>
+        throw new UnsupportedOperationException(s"explode(${childTypeNode}) not supported yet.")
+    }
   }
 }
 

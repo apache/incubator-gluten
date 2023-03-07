@@ -86,14 +86,7 @@ class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransfor
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val secNode = sec.doTransform(args)
-    var formatNode = format.doTransform(args)
-
-    // Only when format = 'yyyy-MM-dd HH:mm:ss' can we transfrom the expr to substrait.
-    if (!formatNode.isInstanceOf[StringLiteralNode] ||
-      formatNode.asInstanceOf[StringLiteralNode].getValue != "yyyy-MM-dd HH:mm:ss") {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-    formatNode = ExpressionBuilder.makeStringLiteral("%Y-%m-%d %R:%S")
+    val formatNode = format.doTransform(args)
 
     val dataTypes = if (timeZoneId != None) {
       Seq(original.sec.dataType, original.format.dataType, StringType)
@@ -112,7 +105,6 @@ class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransfor
     }
 
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
