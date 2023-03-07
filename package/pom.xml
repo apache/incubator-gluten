@@ -35,7 +35,7 @@
 
   <artifactId>gluten-package</artifactId>
   <name>Gluten Package</name>
-  <packaging>pom</packaging>
+  <packaging>jar</packaging>
 
   <profiles>
     <profile>
@@ -53,22 +53,64 @@
   <build>
     <plugins>
       <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
         <configuration>
-          <finalName>
-            ${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}
-          </finalName>
+          <finalName>gluten-package-${project.version}</finalName>
         </configuration>
         <executions>
           <execution>
-            <id>make-assembly</id>
             <phase>package</phase>
             <goals>
-              <goal>single</goal>
+              <goal>shade</goal>
             </goals>
+            <configuration>
+              <relocations>
+                <relocation>
+                  <pattern>com.google.protobuf</pattern>
+                  <shadedPattern>io.glutenproject.shaded.com.google.protobuf</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.arrow</pattern>
+                  <shadedPattern>io.glutenproject.shaded.org.apache.arrow</shadedPattern>
+                  <!--arrow's C wrapper refers to the original class path, so we should not relocate here-->
+                  <excludes>
+                    <exclude>org.apache.arrow.c.*</exclude>
+                    <exclude>org.apache.arrow.c.jni.*</exclude>
+                  </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.flatbuffers</pattern>
+                  <shadedPattern>io.glutenproject.shaded.com.google.flatbuffers</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-fat-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>cp</executable>
+              <arguments>
+                <argument>target/gluten-package-${project.version}.jar</argument>
+                <argument>
+                  target/${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}-jar-with-dependencies.jar
+                </argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
 
