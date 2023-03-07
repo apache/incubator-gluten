@@ -6,9 +6,10 @@ nav_order: 4
 
 # Spark Configurations for Gluten Plugin
 
-There are many configuration could impact the Gluten Plugin performance and can be fine tune in Spark.
+There are many configuration could impact the Gluten Plugin performance and can be fine tuned in Spark.
 You can add these configuration into spark-defaults.conf to enable or disable the setting.
 
+<<<<<<< HEAD
 | Parameters                                | Description                                                                                                                                                                                                                                                                                                      | Recommend Setting                                    |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
 | spark.driver.extraClassPath               | To add Gluten Plugin jar file in Spark Driver                                                                                                                                                                                                                                                                    | /path/to/jar_file                                    |
@@ -44,6 +45,7 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 | spark.gluten.sql.native.bloomFilter       | Enable of Disable native runtime bloomfilter                                                                                                                                                                                                                                                                     | true                                                 |
 | spark.gluten.sql.columnar.wholeStage.fallback.threshold       | Configure the threshold for whether whole stage will fall back in AQE supported case by counting the number of ColumnarToRow & vanilla leaf node                                                                                                                                             | \>= 3                                                |
 | spark.gluten.loadLibFromJar               | Gluten will load dynamic link library from jars for gluten/cpp.                                                                                                                                                                                                                                                  | false                                                |
+| spark.gluten.sql.columnar.force.hashagg   | Force to use hash agg to replace sort agg. | true |
 
 
 Below is an example for spark-default.conf, if you are using conda to install OAP project.
