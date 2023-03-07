@@ -388,8 +388,6 @@ case class TransformPostOverrides(session: SparkSession, supportAdaptive: Boolea
     // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
     // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE mode
     // have tested gluten-it TPCH when AQE OFF
-    // ColumnarShuffleExchangeAdaptor will only be created when AQE is supported.
-    // No need to check AQE support state.
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor)
       if enableAdaptive && supportAdaptive =>
       replaceWithTransformerPlan(child)
@@ -456,7 +454,6 @@ case class ColumnarOverrideRules(session: SparkSession)
   extends ColumnarRule with Logging with LogLevelUtil {
 
   lazy val transformPlanLogLevel = GlutenConfig.getSessionConf.transformPlanLogLevel
-
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   private var supportAdaptive: Boolean = false
   // Do not create rules in class initialization as we should access SQLConf
@@ -474,7 +471,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       (_: SparkSession) => FallbackEmptySchemaRelation(),
       (_: SparkSession) => StoreExpandGroupExpression(),
       (_: SparkSession) => AddTransformHintRule(),
-      (_: SparkSession) => TransformPreOverrides(supportAdaptive: Boolean),
+      (_: SparkSession) => TransformPreOverrides(supportAdaptive),
       (_: SparkSession) => RemoveTransformHintRule()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
   }
