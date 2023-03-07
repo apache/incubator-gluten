@@ -44,6 +44,11 @@ class ToSparkExpression(
       Literal.FalseLiteral
     }
   }
+
+  override def visit(expr: SExpression.NullLiteral): Expression = {
+    Literal(null)
+  }
+
   override def visit(expr: SExpression.I32Literal): Expression = {
     Literal(expr.value(), ToSubstraitType.convert(expr.getType))
   }
