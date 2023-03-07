@@ -49,7 +49,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
@@ -289,7 +289,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, like(l_comment, 'a_%b') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, like('l_comment', 'a\\__b') " +
+    runQueryAndCompare(s"select l_orderkey, like(l_comment, 'a\\__b') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, like(l_comment, 'abc_') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
@@ -353,7 +353,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   test("regexp_extract_all") {
-    runQueryAndCompare(s"select l_orderkey, regexp_extract_all('l_comment', '([a-z])', 1) " +
+    runQueryAndCompare(s"select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
       s"from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
     // fall back because of unsupported cast(array)
     runQueryAndCompare(s"select l_orderkey, l_comment, " +

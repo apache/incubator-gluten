@@ -63,7 +63,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "10M")
       .set("spark.sql.sources.useV1SourceList", "avro")
   }
