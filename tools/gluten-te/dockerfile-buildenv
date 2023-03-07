@@ -58,6 +58,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven
 
 # Setup SSH server
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
+RUN systemctl disable ssh
 RUN ssh-keygen -A
 RUN mkdir -p /run/sshd
 RUN echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config.d/override.conf
