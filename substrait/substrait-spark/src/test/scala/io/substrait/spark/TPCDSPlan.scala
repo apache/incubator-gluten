@@ -30,7 +30,7 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
   }
 
   // "q9" failed in spark 3.3
-  val successfulSQL: Set[String] = Set("q1", "q3", "q4", "q41", "q62", "q93", "q96", "q99")
+  val successfulSQL: Set[String] = Set("q1", "q3", "q4", "q6", "q7", "q41", "q62", "q93", "q96", "q99")
 
   tpcdsQueries.foreach {
     q =>
