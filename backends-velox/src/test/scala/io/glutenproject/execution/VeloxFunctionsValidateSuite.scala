@@ -34,6 +34,8 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
 
   private var parquetPath: String = _
 
+  import testImplicits._
+
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -231,6 +233,25 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   test("Test shiftright function") {
     val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("date_add") {
+    withTempPath { path =>
+      Seq(
+        (java.sql.Date.valueOf("2022-03-11"), 1: Integer),
+        (java.sql.Date.valueOf("2022-03-12"), 2: Integer),
+        (java.sql.Date.valueOf("2022-03-13"), 3: Integer),
+        (java.sql.Date.valueOf("2022-03-14"), 4: Integer),
+        (java.sql.Date.valueOf("2022-03-15"), 5: Integer),
+        (java.sql.Date.valueOf("2022-03-16"), 6: Integer))
+        .toDF("a", "b").write.parquet(path.getCanonicalPath)
+
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+      runQueryAndCompare("SELECT date_add(a, b) from view") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 }
