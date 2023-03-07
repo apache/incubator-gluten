@@ -20,14 +20,19 @@ import io.substrait.spark.expression.ToAggregateFunction
 
 import io.substrait.function.SimpleExtension
 
-import java.util.Collections
+import java.util
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaBufferConverter
 
 object SparkExtension {
+
   private val SparkImpls: SimpleExtension.ExtensionCollection =
-    SimpleExtension.load(Collections.singletonList("/spark.yml"))
+    SimpleExtension.load(
+      util.Arrays.asList(
+        "/spark.yml",
+        "/spark_internal.yaml"
+      ))
 
   private val EXTENSION_COLLECTION: SimpleExtension.ExtensionCollection =
     SimpleExtension.loadDefaults()
