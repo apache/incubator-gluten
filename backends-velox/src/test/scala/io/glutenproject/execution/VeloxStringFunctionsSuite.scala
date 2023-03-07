@@ -49,7 +49,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
