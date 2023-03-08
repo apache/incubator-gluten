@@ -389,7 +389,7 @@ case class TransformPostOverrides(session: SparkSession, supportAdaptive: Boolea
     // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE mode
     // have tested gluten-it TPCH when AQE OFF
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor)
-      if enableAdaptive && supportAdaptive =>
+      if enableAdaptive =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>
       replaceWithTransformerPlan(child)

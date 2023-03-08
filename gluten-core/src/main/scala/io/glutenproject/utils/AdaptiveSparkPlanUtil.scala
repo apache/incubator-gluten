@@ -32,16 +32,20 @@ object AdaptiveSparkPlanUtil {
 
   def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
 
+  def supportAdaptive(plan: SparkPlan): Boolean = {
+    SQLConf.get.adaptiveExecutionEnabled &&
+        (sanityCheck(plan) &&
+            !plan.logicalLink.exists(_.isStreaming) &&
+            plan.children.forall(supportAdaptive))
+  }
+
   def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {
     // Only QueryStage will have Exchange as Leaf Plan
     val isLeafPlanExchange = plan match {
       case _: Exchange => true
       case _ => false
     }
-    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled &&
-        (sanityCheck(plan) &&
-            !plan.logicalLink.exists(_.isStreaming) &&
-            plan.children.forall(supportAdaptiveWithExchangeConsidered)))
+    isLeafPlanExchange || supportAdaptive(plan)
   }
 
   /**
