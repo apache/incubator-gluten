@@ -110,7 +110,7 @@ wait to add
 wait to complete
 ```
 cd the_directory_of_core_file_generated
-gdb gluten_home/cpp/build/releases/libspark_columnar_jni.so 'core-Executor task l-2000883-1671542526'
+gdb gluten_home/cpp/build/releases/libgluten.so 'core-Executor task l-2000883-1671542526'
 
 ```
 - the `core-Executor task l-2000883-1671542526` represents the core file name.

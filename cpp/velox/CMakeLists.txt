@@ -191,7 +191,7 @@ set_target_properties(velox PROPERTIES
 find_package(Folly REQUIRED CONFIG)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
 
-target_link_libraries(velox PUBLIC spark_columnar_jni)
+target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
 

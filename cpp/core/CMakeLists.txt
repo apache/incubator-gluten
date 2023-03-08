@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(spark_columnar_jni)
+project(gluten)
 
 include(ExternalProject)
 include(FindPkgConfig)
@@ -181,8 +181,8 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
-add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
-add_dependencies(spark_columnar_jni jni_proto)
+add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
+add_dependencies(gluten jni_proto)
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
   execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libstdc++fs.a
@@ -191,10 +191,10 @@ if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
     OUTPUT_STRIP_TRAILING_WHITESPACE)
   if (LIBSTDCXXFS_STATIC_RESULT EQUAL 0 AND EXISTS "${LIBSTDCXXFS_STATIC_PATH}")
     message(STATUS "libstdc++fs.a found at: ${LIBSTDCXXFS_STATIC_PATH}")
-    target_link_libraries(spark_columnar_jni PRIVATE ${LIBSTDCXXFS_STATIC_PATH})
+    target_link_libraries(gluten PRIVATE ${LIBSTDCXXFS_STATIC_PATH})
   else()
     find_library(LIBSTDCXXFS stdc++fs REQUIRED)
-    target_link_libraries(spark_columnar_jni PUBLIC ${LIBSTDCXXFS})
+    target_link_libraries(gluten PUBLIC ${LIBSTDCXXFS})
   endif()
 endif()
 
@@ -203,8 +203,8 @@ find_arrow_lib(${PARQUET_LIB_NAME})
 
 if(ENABLE_HBM)
   include(BuildMemkind)
-  target_sources(spark_columnar_jni PRIVATE memory/HbwAllocator.cc)
-  target_link_libraries(spark_columnar_jni PRIVATE memkind::memkind)
+  target_sources(gluten PRIVATE memory/HbwAllocator.cc)
+  target_link_libraries(gluten PRIVATE memkind::memkind)
   add_definitions(-DGLUTEN_ENABLE_HBM)
   if(BUILD_TESTS)
     add_test_case(hbw_allocator_test SOURCES tests/HbwAllocatorTest.cc)
@@ -213,21 +213,21 @@ endif()
 
 if(ENABLE_QAT)
   include(BuildQATzip)
-  target_include_directories(spark_columnar_jni PUBLIC ${QATZIP_INCLUDE_DIR})
-  target_sources(spark_columnar_jni PRIVATE utils/qat_util.cc)
-  target_link_libraries(spark_columnar_jni PUBLIC qatzip::qatzip)
+  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR})
+  target_sources(gluten PRIVATE utils/qat_util.cc)
+  target_link_libraries(gluten PUBLIC qatzip::qatzip)
   add_definitions(-DGLUTEN_ENABLE_QAT)
 endif()
 
 if(BUILD_PROTOBUF)
   build_protobuf()
   message(STATUS "Building ProtoBuf from Source: ${BUILD_PROTOBUF}")
-  target_link_libraries(spark_columnar_jni
+  target_link_libraries(gluten
                         LINK_PRIVATE protobuf::libprotobuf)
 else()
   find_protobuf()
   message(STATUS "Use existing ProtoBuf libraries: ${PROTOBUF_LIBRARY}")
-  target_link_libraries(spark_columnar_jni
+  target_link_libraries(gluten
                         LINK_PUBLIC ${PROTOBUF_LIBRARY})
 endif()
 
@@ -243,8 +243,8 @@ add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
                    VERBATIM)
 add_custom_target(jni_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)
-target_include_directories(spark_columnar_jni PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
-set_target_properties(spark_columnar_jni PROPERTIES
+target_include_directories(gluten PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
+set_target_properties(gluten PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
 )
 
@@ -275,10 +275,10 @@ else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-target_link_libraries(spark_columnar_jni
+target_link_libraries(gluten
     PUBLIC Arrow::arrow Arrow::parquet)
 
-install(TARGETS spark_columnar_jni
+install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
         DESTINATION ${LIBHDFS3_DESTINATION})
