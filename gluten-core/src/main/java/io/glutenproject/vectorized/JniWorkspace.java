@@ -1,6 +1,7 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,13 @@ public class JniWorkspace {
       this.jniLibLoader = new JniLibLoader(workDir);
       this.jniResourceHelper = new JniResourceHelper(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        try {
+          FileUtils.deleteDirectory(created.toFile());
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
