@@ -163,6 +163,7 @@ set(VELOX_SRCS
     shuffle/VeloxSplitter.cc
     jni/JniWrapper.cc
     compute/VeloxBackend.cc
+    compute/VeloxInitializer.cc
     compute/WholeStageResultIterator.cc
     compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc

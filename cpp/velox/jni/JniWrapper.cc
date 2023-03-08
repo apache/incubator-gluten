@@ -23,8 +23,8 @@
 #include <jni/JniCommon.h>
 #include <exception>
 #include "compute/DwrfDatasource.h"
-#include "compute/RegistrationAllFunctions.h"
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
