@@ -64,7 +64,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         .getOrCreate()
     } else {
       sparkBuilder
-        .config("spark.unsafe.exceptionOnMemoryLeak", "false")
+        .config("spark.unsafe.exceptionOnMemoryLeak", "true")
         .getOrCreate()
     }
   }
