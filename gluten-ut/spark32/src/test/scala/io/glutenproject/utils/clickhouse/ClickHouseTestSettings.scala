@@ -81,7 +81,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "second",
       "dayofmonth",
       "function add_months",
-      "date format"
+      "date format",
+      "function date_add",
+      "function date_sub",
+      "datediff"
     )
 
   enableSuite[GlutenDateExpressionsSuite]
