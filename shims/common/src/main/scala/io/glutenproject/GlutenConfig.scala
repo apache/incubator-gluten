@@ -308,15 +308,6 @@ object GlutenConfig {
 
   var ins: GlutenConfig = _
 
-  /** @deprecated We should avoid caching this value in entire JVM. use #getSessionConf instead. */
-  @deprecated
-  def getConf: GlutenConfig = synchronized {
-    if (ins == null) {
-      ins = getSessionConf
-    }
-    ins
-  }
-
   def getSessionConf: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
   }

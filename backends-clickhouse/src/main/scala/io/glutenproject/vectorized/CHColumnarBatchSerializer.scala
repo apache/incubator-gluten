@@ -52,7 +52,7 @@ private class CHColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShuffleManager
+  private lazy val isUseColumnarShufflemanager = GlutenConfig.getSessionConf.isUseColumnarShuffleManager
   private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
@@ -62,7 +62,7 @@ private class CHColumnarBatchSerializerInstance(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT.toBoolean
   )
   private lazy val compressionCodec =
-    GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+    GlutenConfig.getSessionConf.columnarShuffleUseCustomizedCompressionCodec
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {

@@ -55,7 +55,7 @@ case class GlutenFilterExecTransformer(condition: Expression,
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
+    if (GlutenConfig.getSessionConf.enableNativeValidation) {
       val validator = new GlutenNativeExpressionEvaluator()
       validator.doValidate(planNode.toProtobuf.toByteArray)
     } else {

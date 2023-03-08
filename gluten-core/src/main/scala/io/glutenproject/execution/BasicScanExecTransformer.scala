@@ -95,7 +95,7 @@ trait BasicScanExecTransformer extends TransformSupport {
         return false
     }
 
-    if (GlutenConfig.getConf.enableNativeValidation) {
+    if (GlutenConfig.getSessionConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {

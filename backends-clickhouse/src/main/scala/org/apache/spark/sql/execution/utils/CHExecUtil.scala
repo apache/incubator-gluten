@@ -173,7 +173,7 @@ object CHExecUtil {
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
     val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
-      if (GlutenConfig.getConf.isUseColumnarShuffleManager) {
+      if (GlutenConfig.getSessionConf.isUseColumnarShuffleManager) {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(

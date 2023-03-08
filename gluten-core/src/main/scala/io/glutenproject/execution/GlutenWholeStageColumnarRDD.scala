@@ -104,7 +104,7 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
                                   updateInputMetrics: (InputMetricsWrapper) => Unit,
                                   updateNativeMetrics: Metrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
-  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val numaBindingInfo = GlutenConfig.getSessionConf.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     ExecutorManager.tryTaskSet(numaBindingInfo)

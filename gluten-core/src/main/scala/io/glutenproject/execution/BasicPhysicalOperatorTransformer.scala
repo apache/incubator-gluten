@@ -92,7 +92,7 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
   private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GlutenConfig.getSessionConf.enableColumnarIterator
 
   def doValidate(): Boolean
 
@@ -209,7 +209,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     }
 
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
+    if (GlutenConfig.getSessionConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
@@ -299,7 +299,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   }
   val sparkConf: SparkConf = sparkContext.getConf
 
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GlutenConfig.getSessionConf.enableColumnarIterator
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
@@ -314,7 +314,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         return false
     }
     // Then, validate the generated plan in native engine.
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
+    if (relNode != null && GlutenConfig.getSessionConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {

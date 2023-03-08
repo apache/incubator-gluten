@@ -106,7 +106,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       collectTime: SQLMetric = null,
       concatTime: SQLMetric = null,
       avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch] = {
-    val res = if (GlutenConfig.getConf.enableCoalesceBatches) {
+    val res = if (GlutenConfig.getSessionConf.enableCoalesceBatches) {
       val operator = new CHCoalesceOperator(recordsPerBatch)
       new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
@@ -204,7 +204,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       updateNativeMetrics: Metrics => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
-    GlutenConfig.getConf
+    GlutenConfig.getSessionConf
     val beforeBuild = System.nanoTime()
     val transKernel = new CHNativeExpressionEvaluator()
     val columnarNativeIterator =
