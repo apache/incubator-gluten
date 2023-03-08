@@ -18,7 +18,7 @@
 package io.glutenproject.utils
 
 import io.glutenproject.execution.CoalesceBatchesExec
-import org.apache.spark.sql.execution.{ColumnarShuffleExchangeAdaptor, ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeAdaptor, SparkPlan}
 import org.apache.spark.sql.execution.exchange.{Exchange, ShuffleExchangeExec}
 import org.apache.spark.sql.internal.SQLConf
 
@@ -64,7 +64,7 @@ object AdaptiveSparkPlanUtil {
       ColumnarShuffleExchangeAdaptor(
         plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn)
     } else {
-      CoalesceBatchesExec(ColumnarShuffleExchangeExec(
+      CoalesceBatchesExec(ColumnarShuffleExchangeAdaptor(
         plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn))
     }
   }
