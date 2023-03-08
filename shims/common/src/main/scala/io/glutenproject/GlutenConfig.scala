@@ -226,11 +226,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // velox caching options
   // enable Velox cache, default off
   def enableVeloxCache: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "true").toBoolean
 
   // The memory cache size
   def veloxMemCacheSize: Long =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.memCacheSize", "1073741824").toLong
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.memCacheSize", "3221225472").toLong
 
   // The folder to store the cache files, better on SSD
   def veloxSsdCachePath: String =
@@ -238,7 +238,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // The SSD cache size, will do memory caching only if this value = 0
   def veloxSsdCacheSize: Long =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheSize", "1073741824").toLong
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheSize", "0").toLong
 
   // The cache shards
   def veloxSsdCacheShards: Integer =
