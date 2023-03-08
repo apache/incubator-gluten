@@ -121,6 +121,11 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
+  def doValidate(): Boolean = {
+    BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
+      outputPartitioning, child.output)
+  }
+
   override def nodeName: String = "ColumnarExchangeAdaptor"
 
   override def supportsColumnar: Boolean = true
