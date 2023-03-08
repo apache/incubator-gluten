@@ -17,6 +17,7 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.{LogicalPlanSelector, QueryPlanSelector}
@@ -132,9 +133,10 @@ case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child.executeColumnar().mapPartitions { itr =>
-      itr.map { cb =>
-        ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-      }
+      BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(
+        itr.map { cb =>
+          ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
+        })
     }
   }
 
