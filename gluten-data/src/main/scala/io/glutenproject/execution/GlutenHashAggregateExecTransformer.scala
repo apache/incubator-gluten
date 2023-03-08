@@ -62,7 +62,8 @@ case class GlutenHashAggregateExecTransformer(
     for (expr <- aggregateExpressions) {
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
-        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
+        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
+             _: Corr | _: CovPopulation | _: CovSample =>
           expr.mode match {
             case Partial =>
               return true
@@ -130,6 +131,26 @@ case class GlutenHashAggregateExecTransformer(
             .makeCast(ConverterUtils.getTypeNode(BooleanType, nullable = true),
               ExpressionBuilder.makeSelection(colIdx, 1), SQLConf.get.ansiEnabled))
           colIdx += 1
+        case _: Corr =>
+          // Select count from Velox struct with count casted from LongType into DoubleType.
+          expressionNodes.add(ExpressionBuilder
+            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
+              ExpressionBuilder.makeSelection(colIdx, 1), SQLConf.get.ansiEnabled))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 4))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 5))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 3))
+          colIdx += 1
+        case _: CovPopulation | _: CovSample =>
+          // Select count from Velox struct with count casted from LongType into DoubleType.
+          expressionNodes.add(ExpressionBuilder
+            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
+              ExpressionBuilder.makeSelection(colIdx, 1), SQLConf.get.ansiEnabled))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 3))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
+          colIdx += 1
         case _ =>
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
@@ -163,6 +184,18 @@ case class GlutenHashAggregateExecTransformer(
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+      case _: Corr =>
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+      case _: CovPopulation | _: CovSample =>
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
       case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
         structTypeNodes.add(ConverterUtils.getTypeNode(sum.dataType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(IntegerType, nullable = false))
@@ -180,10 +213,10 @@ case class GlutenHashAggregateExecTransformer(
     aggregateMode: AggregateMode,
     aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
     aggregateFunction match {
-      case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
+      case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
+           _: Corr | _: CovPopulation | _: CovSample =>
         aggregateMode match {
           case Partial =>
-            assert(childrenNodeList.size() == 1, "Partial stage expects one child node.")
             val partialNode = ExpressionBuilder.makeAggregateFunction(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
@@ -241,7 +274,8 @@ case class GlutenHashAggregateExecTransformer(
     aggregateExpressions.foreach(expression => {
       val aggregateFunction = expression.aggregateFunction
       aggregateFunction match {
-        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
+        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
+             _: Corr | _: CovPopulation | _: CovSample =>
           expression.mode match {
             case Partial =>
               typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
@@ -323,7 +357,8 @@ case class GlutenHashAggregateExecTransformer(
 
     for (aggregateExpression <- aggregateExpressions) {
       val functionInputAttributes = aggregateExpression.aggregateFunction.inputAggBufferAttributes
-      aggregateExpression.aggregateFunction match {
+      val aggregateFunction = aggregateExpression.aggregateFunction
+      aggregateFunction match {
         case Average(_, _) =>
           aggregateExpression.mode match {
             case Final =>
@@ -368,6 +403,82 @@ case class GlutenHashAggregateExecTransformer(
                   index += 1
                   expressionNode
                 }).asJava)
+              exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes))
+            case other =>
+              throw new UnsupportedOperationException(s"$other is not supported.")
+          }
+        case _: Corr =>
+          aggregateExpression.mode match {
+            case Final =>
+              assert(functionInputAttributes.size == 6,
+                "Final stage of Corr expects 6 input attributes.")
+              // Use a Velox function to combine the intermediate columns into struct.
+              var index = 0
+              var newInputAttributes: Seq[Attribute] = Seq()
+              val childNodes = new util.ArrayList[ExpressionNode]()
+              // Velox's Corr order is [ck, n, xMk, yMk, xAvg, yAvg]
+              // Spark's Corr order is [n, xAvg, yAvg, ck, xMk, yMk]
+              val sparkCorrOutputAttr = aggregateFunction.inputAggBufferAttributes.map(_.name)
+              val veloxInputOrder = AggregateFunctionsBuilder.veloxCorrIntermediateDataOrder.map(
+                name => sparkCorrOutputAttr.indexOf(name))
+              for (order <- veloxInputOrder) {
+                val attr = functionInputAttributes(order)
+                val aggExpr: ExpressionTransformer = ExpressionConverter
+                  .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                val aggNode = aggExpr.doTransform(args)
+                val expressionNode = if (order == 0) {
+                  // Cast count from DoubleType into LongType to align with Velox semantics.
+                  newInputAttributes = newInputAttributes :+
+                    attr.copy(attr.name, LongType, attr.nullable, attr.metadata)(
+                      attr.exprId, attr.qualifier)
+                  ExpressionBuilder.makeCast(
+                    ConverterUtils.getTypeNode(LongType, attr.nullable), aggNode,
+                    SQLConf.get.ansiEnabled)
+                } else {
+                  newInputAttributes = newInputAttributes :+ attr
+                  aggNode
+                }
+                index += 1
+                childNodes.add(expressionNode)
+              }
+              exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes))
+            case other =>
+              throw new UnsupportedOperationException(s"$other is not supported.")
+          }
+        case _: CovPopulation | _: CovSample =>
+          aggregateExpression.mode match {
+            case Final =>
+              assert(functionInputAttributes.size == 4,
+                "Final stage of Corr expects 4 input attributes.")
+              // Use a Velox function to combine the intermediate columns into struct.
+              var index = 0
+              var newInputAttributes: Seq[Attribute] = Seq()
+              val childNodes = new util.ArrayList[ExpressionNode]()
+              // Velox's Covar order is [ck, n, xAvg, yAvg]
+              // Spark's Covar order is [n, xAvg, yAvg, ck]
+              val sparkCorrOutputAttr = aggregateFunction.inputAggBufferAttributes.map(_.name)
+              val veloxInputOrder = AggregateFunctionsBuilder.veloxCovarIntermediateDataOrder.map(
+                name => sparkCorrOutputAttr.indexOf(name))
+              for (order <- veloxInputOrder) {
+                val attr = functionInputAttributes(order)
+                val aggExpr: ExpressionTransformer = ExpressionConverter
+                  .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                val aggNode = aggExpr.doTransform(args)
+                val expressionNode = if (order == 0) {
+                  // Cast count from DoubleType into LongType to align with Velox semantics.
+                  newInputAttributes = newInputAttributes :+
+                    attr.copy(attr.name, LongType, attr.nullable, attr.metadata)(
+                      attr.exprId, attr.qualifier)
+                  ExpressionBuilder.makeCast(
+                    ConverterUtils.getTypeNode(LongType, attr.nullable), aggNode,
+                    SQLConf.get.ansiEnabled)
+                } else {
+                  newInputAttributes = newInputAttributes :+ attr
+                  aggNode
+                }
+                index += 1
+                childNodes.add(expressionNode)
+              }
               exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes))
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
@@ -437,7 +548,8 @@ case class GlutenHashAggregateExecTransformer(
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
-        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
+        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
+             _: Corr | _: CovPopulation | _: CovSample =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))

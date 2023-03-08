@@ -24,6 +24,9 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 object AggregateFunctionsBuilder {
 
+  val veloxCorrIntermediateDataOrder = Seq("ck", "n", "xMk", "yMk", "xAvg", "yAvg")
+  val veloxCovarIntermediateDataOrder = Seq("ck", "n", "xAvg", "yAvg")
+
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 

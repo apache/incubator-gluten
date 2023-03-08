@@ -502,7 +502,7 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case _ @ (Max(_) | Min(_) | BitAndAgg(_) | BitOrAgg(_)) =>
+        case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg =>
           mode match {
             case Partial | PartialMerge =>
               val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
@@ -516,6 +516,44 @@ abstract class HashAggregateExecBaseTransformer(
               res_index += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
+        case _: Corr =>
+          mode match {
+            case Partial | PartialMerge =>
+              val expectedBufferSize = 6
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+              assert(aggBufferAttr.size == expectedBufferSize,
+                s"Aggregate function ${aggregateFunc}" +
+                  s" expects ${expectedBufferSize} buffer attribute.")
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              res_index += expectedBufferSize
+            case Final =>
+              aggregateAttr += aggregateAttributeList(res_index)
+              res_index += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: ${other}.")
+          }
+        case _: CovPopulation | _: CovSample =>
+          mode match {
+            case Partial | PartialMerge =>
+              val expectedBufferSize = 4
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+              assert(aggBufferAttr.size == expectedBufferSize,
+                s"Aggregate function ${aggregateFunc}" +
+                  s" expects ${expectedBufferSize} buffer attribute.")
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              res_index += expectedBufferSize
+            case Final =>
+              aggregateAttr += aggregateAttributeList(res_index)
+              res_index += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: ${other}.")
           }
         case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           mode match {

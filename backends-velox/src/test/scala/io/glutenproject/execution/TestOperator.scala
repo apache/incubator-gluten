@@ -488,4 +488,30 @@ class TestOperator extends WholeStageTransformerSuite {
       }
     }
   }
+
+  test("corr covar_pop covar_samp") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      runQueryAndCompare(
+        """
+          |select corr(l_partkey, l_suppkey) from lineitem
+          |group by l_orderkey;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+      runQueryAndCompare(
+        """
+          |select covar_pop(l_partkey, l_suppkey) from lineitem
+          |group by l_orderkey;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+      runQueryAndCompare(
+        """
+          |select covar_samp(l_partkey, l_suppkey) from lineitem
+          |group by l_orderkey;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+    }
+  }
 }
