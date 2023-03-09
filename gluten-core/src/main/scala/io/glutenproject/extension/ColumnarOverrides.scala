@@ -494,12 +494,17 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+
   // Tracks whether the given input plan's top parent is exchange.
   private var isTopParentExchange: Boolean = false
   // Tracks whether the columnar rule is called through AQE.
   private var isAdaptiveContext: Boolean = false
   // This is an empirical value, may need to be changed for supporting other versions of spark.
   private val aqeStackTraceIndex = 13
+
+  val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
+  private var originalPlan: SparkPlan = _
+  private var fallbacks = 0
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
@@ -544,6 +549,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       // sure the calling stack has not been changed.
       this.isAdaptiveContext = traceElements(aqeStackTraceIndex).getClassName.equals(
         AdaptiveSparkPlanExec.getClass.getName)
+      // Holds the original plan for possible entire fallback.
+      originalPlan = plan
       logOnLevel(
         transformPlanLogLevel,
         s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
@@ -560,26 +567,87 @@ case class ColumnarOverrideRules(session: SparkSession)
       overridden
     }
 
+  def checkColumnarToRow(plan: SparkPlan): Unit = {
+    plan match {
+      case _: ColumnarToRowExec =>
+        fallbacks = fallbacks + 1
+      case _ =>
+    }
+    plan.children.map(plan => checkColumnarToRow(plan))
+  }
+
+  def fallbackWholeStage(plan: SparkPlan): Boolean = {
+    if (wholeStageFallbackThreshold == -1) {
+      return false
+    }
+    fallbacks = 0
+    checkColumnarToRow(plan)
+    if (fallbacks >= wholeStageFallbackThreshold) {
+      true
+    } else {
+      false
+    }
+  }
+
+  /**
+   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
+   * Inserts an transition to columnar formatted data.
+   */
+  private def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
+    if (!plan.supportsColumnar) {
+      // The tree feels kind of backwards
+      // Columnar Processing will start here, so transition from row to columnar
+      RowToColumnarExec(insertTransitions(plan, outputsColumnar = false))
+    } else if (!plan.isInstanceOf[RowToColumnarTransition]) {
+      plan.withNewChildren(plan.children.map(insertRowToColumnar))
+    } else {
+      plan
+    }
+  }
+
+  /**
+   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
+   * Inserts RowToColumnarExecs and ColumnarToRowExecs where needed.
+   */
+  private def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+    if (outputsColumnar) {
+      insertRowToColumnar(plan)
+    } else if (plan.supportsColumnar) {
+      // `outputsColumnar` is false but the plan outputs columnar format, so add a
+      // to-row transition here.
+      ColumnarToRowExec(insertRowToColumnar(plan))
+    } else if (!plan.isInstanceOf[ColumnarToRowTransition]) {
+      plan.withNewChildren(plan.children.map(insertTransitions(_, outputsColumnar = false)))
+    } else {
+      plan
+    }
+  }
+
   override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
-      logOnLevel(
-        transformPlanLogLevel,
-        s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
-      var overridden: SparkPlan = plan
-      val startTime = System.nanoTime()
-      postOverrides().foreach { r =>
-        overridden = r(session)(overridden)
-        planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+      if (supportAdaptive && fallbackWholeStage(plan)) {
+        // BatchScan with ArrowScan initialized can still connect
+        // to ColumnarToRow for transition.
+        insertTransitions(originalPlan, false)
+      } else {
+        logOnLevel(
+          transformPlanLogLevel,
+          s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
+        var overridden: SparkPlan = plan
+        val startTime = System.nanoTime()
+        postOverrides().foreach { r =>
+          overridden = r(session)(overridden)
+          planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+        }
+        logOnLevel(
+          transformPlanLogLevel,
+          s"postColumnarTransitions afterOverriden plan:\n${overridden.toString}")
+        logOnLevel(
+          transformPlanLogLevel,
+          s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
+        overridden
       }
-      logOnLevel(
-        transformPlanLogLevel,
-        s"postColumnarTransitions afterOverriden plan:\n${overridden.toString}")
-      logOnLevel(
-        transformPlanLogLevel,
-        s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
-      overridden
     }
-
 }
 
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {
