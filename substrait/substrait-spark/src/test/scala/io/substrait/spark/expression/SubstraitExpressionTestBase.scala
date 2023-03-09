@@ -21,7 +21,7 @@ import io.substrait.spark.SparkExtension
 import org.apache.spark.sql.catalyst.expressions.Expression
 
 import io.substrait.expression.{Expression => SExpression}
-import org.scalatest.Assertions.assertResult
+import org.scalatest.Assertions
 
 trait SubstraitExpressionTestBase {
 
@@ -43,13 +43,19 @@ trait SubstraitExpressionTestBase {
       f: SExpression.ScalarFunctionInvocation => Unit,
       bidirectional: Boolean): Unit = {
     val substraitExp = toSubstraitExpression(expression)
-      .asInstanceOf[SExpression.ScalarFunctionInvocation]
-    assertResult(expectedName)(substraitExp.declaration().key())
-    f(substraitExp)
+
+    substraitExp match {
+      case scalarF: SExpression.ScalarFunctionInvocation =>
+        Assertions.assertResult(expectedName)(scalarF.declaration().key())
+        f(scalarF)
+      case single: SExpression.SingleOrList =>
+        Assertions.assume(!single.options().isEmpty)
+      case other => Assertions.fail(s"Unknown Substrait Expression $other")
+    }
 
     if (bidirectional) {
       val convertedExpression = substraitExp.accept(toSparkExpression)
-      assertResult(expression)(convertedExpression)
+      Assertions.assertResult(expression)(convertedExpression)
     }
   }
 }

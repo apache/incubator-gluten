@@ -17,11 +17,22 @@
 package io.substrait.spark.expression
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions.{And, Literal}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.unsafe.types.UTF8String
 
 class PredicateSuite extends SparkFunSuite with SubstraitExpressionTestBase {
 
   test("And") {
     runTest("and:bool", And(Literal(true), Literal(false)))
+  }
+
+  test("inset") {
+    val inSet = InSet(Literal(1), Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+    runTest("", inSet)
+
+    val inSetString = InSet(
+      Literal("a"),
+      Set("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "x").map(UTF8String.fromString))
+    runTest("", inSetString)
   }
 }

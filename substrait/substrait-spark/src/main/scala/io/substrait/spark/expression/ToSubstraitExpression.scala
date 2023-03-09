@@ -19,7 +19,9 @@ package io.substrait.spark.expression
 import io.substrait.spark.HasOutputStack
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.substrait.{SparkTypeUtil, ToSubstraitType}
+import org.apache.spark.unsafe.types.UTF8String
 
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator, FieldReference, ImmutableExpression}
 import io.substrait.utils.Util
@@ -138,11 +140,18 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
       case a: Alias => translateUp(a.child)
       case p: PromotePrecision => translateUp(p.child)
       case CaseWhen(branches, elseValue) => translateCaseWhen(branches, elseValue)
+      case In(value, list) => translateIn(value, list)
+      case InSet(child, set) =>
+        translateIn(
+          child,
+          set.map {
+            case s: UTF8String => Literal(s, StringType)
+            case other => Literal(other)
+          }.toSeq)
       case scalar @ ScalarFunction(children) =>
         Util
           .seqToOption(children.map(translateUp))
           .flatMap(toScalarFunction.convert(scalar, _))
-      case In(value, list) => translateIn(value, list)
       case p: PlanExpression[_] => translateSubQuery(p)
       case other => default(other)
     }

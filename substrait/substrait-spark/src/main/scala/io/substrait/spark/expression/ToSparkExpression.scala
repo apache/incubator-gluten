@@ -19,7 +19,9 @@ package io.substrait.spark.expression
 import io.substrait.spark.{DefaultExpressionVisitor, HasOutputStack}
 import io.substrait.spark.logical.ToLogicalPlan
 
-import org.apache.spark.sql.catalyst.expressions.{CaseWhen, Cast, Expression, In, Literal, NamedExpression, ScalarSubquery}
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.SQLConfHelper
+import org.apache.spark.sql.catalyst.expressions.{CaseWhen, Cast, CreateNamedStruct, EmptyRow, EqualTo, Expression, ExpressionSet, In, InSet, Literal, NamedExpression, ScalarSubquery}
 import org.apache.spark.sql.types.Decimal
 import org.apache.spark.substrait.{SparkTypeUtil, ToSubstraitType}
 import org.apache.spark.unsafe.types.UTF8String
@@ -30,6 +32,7 @@ import io.substrait.expression.{Expression => SExpression}
 import io.substrait.util.DecimalUtil
 
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.immutable.HashSet
 
 class ToSparkExpression(
     val scalarFunctionConverter: ToScalarFunction,
@@ -115,7 +118,7 @@ class ToSparkExpression(
   override def visit(expr: SExpression.SingleOrList): Expression = {
     val value = expr.condition().accept(this)
     val list = expr.options().asScala.map(e => e.accept(this))
-    In(value, list)
+    OptimizeIn(In(value, list))
   }
   override def visit(expr: SExpression.ScalarFunctionInvocation): Expression = {
     val eArgs = expr.arguments().asScala
@@ -143,4 +146,36 @@ class ToSparkExpression(
         throw new IllegalArgumentException(msg)
       })
   }
+}
+
+/**
+ * Replaces [[In (value, seq[Literal])]] with optimized version [[InSet (value, HashSet[Literal])]]
+ * which is much faster.
+ */
+object OptimizeIn extends SQLConfHelper with Logging {
+
+  def apply(in: In): Expression = if (in.inSetConvertible) {
+    val v = in.value
+    val list = in.list
+    val newList = ExpressionSet(list).toSeq
+    if (
+      newList.length == 1
+      // TODO: `EqualTo` for structural types are not working. Until SPARK-24443 is addressed,
+      // TODO: we exclude them in this rule.
+      && !v.isInstanceOf[CreateNamedStruct]
+      && !newList.head.isInstanceOf[CreateNamedStruct]
+    ) {
+      EqualTo(v, newList.head)
+    } else if (newList.length > conf.optimizerInSetConversionThreshold) {
+      val hSet = newList.map(e => e.eval(EmptyRow))
+      InSet(v, HashSet() ++ hSet)
+    } else if (newList.length < list.length) {
+      in.copy(list = newList)
+    } else { // newList.length == list.length && newList.length > 1
+      in
+    }
+  } else {
+    in
+  }
+
 }
