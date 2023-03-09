@@ -38,7 +38,7 @@ git clone https://github.com/oap-project/gluten.git
 # 2 Build Gluten with Velox Backend
 
 It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
-[Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference.
+[Gluten Usage](./GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
 <b>For x86_64 build:</b>
 ```shell script
