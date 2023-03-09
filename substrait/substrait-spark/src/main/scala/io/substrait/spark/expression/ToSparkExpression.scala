@@ -21,7 +21,7 @@ import io.substrait.spark.logical.ToLogicalPlan
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.expressions.{CaseWhen, Cast, CreateNamedStruct, EmptyRow, EqualTo, Expression, ExpressionSet, In, InSet, Literal, NamedExpression, ScalarSubquery}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.Decimal
 import org.apache.spark.substrait.{SparkTypeUtil, ToSubstraitType}
 import org.apache.spark.unsafe.types.UTF8String
@@ -38,6 +38,7 @@ class ToSparkExpression(
     val scalarFunctionConverter: ToScalarFunction,
     val toLogicalPlan: Option[ToLogicalPlan] = None)
   extends DefaultExpressionVisitor[Expression]
+  with SQLConfHelper
   with HasOutputStack[Seq[NamedExpression]] {
 
   override def visit(expr: SExpression.BoolLiteral): Expression = {
@@ -78,7 +79,12 @@ class ToSparkExpression(
 
   override def visit(expr: SExpression.Cast): Expression = {
     val childExp = expr.input().accept(this)
-    Cast(childExp, ToSubstraitType.convert(expr.getType))
+    val dataType = ToSubstraitType.convert(expr.getType)
+    if (Cast.needsTimeZone(childExp.dataType, dataType)) {
+      Cast(childExp, dataType, Some(conf.sessionLocalTimeZone))
+    } else {
+      Cast(childExp, dataType)
+    }
   }
 
   override def visit(expr: exp.FieldReference): Expression = {
@@ -177,5 +183,4 @@ object OptimizeIn extends SQLConfHelper with Logging {
   } else {
     in
   }
-
 }
