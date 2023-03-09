@@ -468,4 +468,24 @@ class TestOperator extends WholeStageTransformerSuite {
       }
     }
   }
+
+  test("decimal abs") {
+    runQueryAndCompare(
+      """
+        |select abs(cast (l_quantity * (-1.0) as decimal(12, 2))),
+        |abs(cast (l_quantity * (-1.0) as decimal(22, 2))),
+        |abs(cast (l_quantity as decimal(12, 2))),
+        |abs(cast (l_quantity as decimal(12, 2))) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    withTempPath { path =>
+      Seq(-3099.270000, -3018.367500, -2833.887500, -1304.180000, -1263.289167, -1480.093333)
+        .toDF("a").write.parquet(path.getCanonicalPath)
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+      runQueryAndCompare("SELECT abs(cast (a as decimal(19, 6))) from view") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
 }

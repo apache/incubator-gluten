@@ -157,6 +157,25 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& typeName
     return arrow::struct_(fields);
   }
 
+  // The type name of DECIMAL type is like SHORT_DECIMAL<presision, scale>
+  // or LONG_DECIMAL<presision, scale> .
+  const std::string shortDecimalType = "SHORT_DECIMAL";
+  const std::string longDecimalType = "LONG_DECIMAL";
+  if ((typeName.substr(0, shortDecimalType.length()) == shortDecimalType) ||
+      (typeName.substr(0, longDecimalType.length()) == longDecimalType)) {
+    std::size_t start = typeName.find_first_of("<");
+    std::size_t end = typeName.find_last_of(">");
+    if (start == std::string::npos || end == std::string::npos) {
+      throw std::runtime_error("Invalid decimal type.");
+    }
+
+    std::string decimalType = typeName.substr(start + 1, end - start - 1);
+    std::size_t token_pos = decimalType.find_first_of(",");
+    auto precision = stoi(decimalType.substr(0, token_pos));
+    auto scale = stoi(decimalType.substr(token_pos + 1, decimalType.length() - 1));
+    return arrow::decimal(precision, scale);
+  }
+
   throw std::runtime_error("Type name is not supported: " + typeName + ".");
 }
 
