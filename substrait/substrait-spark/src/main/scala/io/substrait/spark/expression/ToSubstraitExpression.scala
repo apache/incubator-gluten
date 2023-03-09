@@ -98,7 +98,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
               }))
     val sparkElse = elseValue.getOrElse(Literal.create(null, branches.head._2.dataType))
     Util
-      .seqToOption(cases.toList)
+      .seqToOption(cases)
       .flatMap(
         caseConditions =>
           translateUp(sparkElse).map(
@@ -108,7 +108,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
   }
   protected def translateIn(value: Expression, list: Seq[Expression]): Option[SExpression] = {
     Util
-      .seqToOption(list.map(translateUp).toList)
+      .seqToOption(list.map(translateUp))
       .flatMap(
         inList =>
           translateUp(value).map(

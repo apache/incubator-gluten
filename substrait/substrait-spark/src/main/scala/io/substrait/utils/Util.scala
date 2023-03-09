@@ -48,17 +48,13 @@ object Util {
   }
 
   def seqToOption[T](s: Seq[Option[T]]): Option[Seq[T]] = {
-    @tailrec
-    def seqToOptionHelper(s: Seq[Option[T]], accum: Seq[T] = Seq[T]()): Option[Seq[T]] = {
-      s match {
-        case Some(head) :: Nil =>
-          Option(accum :+ head)
-        case Some(head) :: tail =>
-          seqToOptionHelper(tail, accum :+ head)
-        case _ => None
-      }
+    s.foldLeft(Option(Seq.empty[T])) {
+      (res, opt) =>
+        for {
+          seq <- res
+          v <- opt
+        } yield seq :+ v
     }
-    seqToOptionHelper(s)
   }
 
 }
