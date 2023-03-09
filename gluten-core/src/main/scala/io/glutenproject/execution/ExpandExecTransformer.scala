@@ -213,8 +213,9 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
 
       // Pass the reordered index agg + groupingsets + GID
+      val emitStartIndex = originalInputAttributes.size + 1
       if (!validation) {
-        RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId)
+        RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId, emitStartIndex)
       } else {
         // Use a extension node to send the input types through Substrait plan for a validation.
         val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -225,7 +226,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
         val extensionNode = ExtensionBuilder.makeAdvancedExtension(
           Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-        RelBuilder.makeProjectRel(expandRel, selectNodes, extensionNode, context, operatorId)
+        RelBuilder.makeProjectRel(expandRel, selectNodes, extensionNode, context, operatorId, emitStartIndex)
       }
     } else {
       expandRel

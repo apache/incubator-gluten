@@ -31,27 +31,39 @@ public class ProjectRelNode implements RelNode, Serializable {
   private final ArrayList<ExpressionNode> expressionNodes =
       new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
+  private final int emitStartIndex;
 
   ProjectRelNode(RelNode input,
-                 ArrayList<ExpressionNode> expressionNodes) {
+                 ArrayList<ExpressionNode> expressionNodes,
+                 int emitStartIndex) {
     this.input = input;
     this.expressionNodes.addAll(expressionNodes);
     this.extensionNode = null;
+    this.emitStartIndex = emitStartIndex;
   }
 
   ProjectRelNode(RelNode input,
                  ArrayList<ExpressionNode> expressionNodes,
-                 AdvancedExtensionNode extensionNode) {
+                 AdvancedExtensionNode extensionNode,
+                 int emitStartIndex) {
     this.input = input;
     this.expressionNodes.addAll(expressionNodes);
     this.extensionNode = extensionNode;
+    this.emitStartIndex = emitStartIndex;
   }
 
   @Override
   public Rel toProtobuf() {
     RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
-    relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
-
+    if (emitStartIndex == -1) {
+      relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
+    } else {
+      RelCommon.Emit.Builder emitBuilder = RelCommon.Emit.newBuilder();
+      for (int i = 0; i < expressionNodes.size(); i++) {
+        emitBuilder.addOutputMapping(i + emitStartIndex);
+      }
+      relCommonBuilder.setEmit(emitBuilder.build());
+    }
     ProjectRel.Builder projectBuilder = ProjectRel.newBuilder();
     projectBuilder.setCommon(relCommonBuilder.build());
     if (input != null) {
