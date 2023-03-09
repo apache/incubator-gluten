@@ -116,7 +116,7 @@ case class GlutenHashAggregateExecTransformer(
         case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           // Select count from Velox struct with count casted from LongType into DoubleType.
           expressionNodes.add(ExpressionBuilder
-            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
+            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = false),
               ExpressionBuilder.makeSelection(colIdx, 0), SQLConf.get.ansiEnabled))
           // Select avg from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
@@ -134,7 +134,7 @@ case class GlutenHashAggregateExecTransformer(
         case _: Corr =>
           // Select count from Velox struct with count casted from LongType into DoubleType.
           expressionNodes.add(ExpressionBuilder
-            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
+            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = false),
               ExpressionBuilder.makeSelection(colIdx, 1), SQLConf.get.ansiEnabled))
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 4))
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 5))
@@ -145,7 +145,7 @@ case class GlutenHashAggregateExecTransformer(
         case _: CovPopulation | _: CovSample =>
           // Select count from Velox struct with count casted from LongType into DoubleType.
           expressionNodes.add(ExpressionBuilder
-            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
+            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = false),
               ExpressionBuilder.makeSelection(colIdx, 1), SQLConf.get.ansiEnabled))
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 3))
@@ -181,17 +181,21 @@ case class GlutenHashAggregateExecTransformer(
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
       case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
-        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
       case _: Corr =>
-        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
       case _: CovPopulation | _: CovSample =>
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = false))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
