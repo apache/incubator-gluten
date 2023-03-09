@@ -217,7 +217,7 @@ velox::VectorPtr RecordBatch2RowVector(const arrow::RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  return velox::importFromArrowAsViewer(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
+  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
 }
 
 arrow::Status SplitRecordBatch(VeloxSplitter& splitter, const arrow::RecordBatch& rb) {

@@ -38,7 +38,7 @@ velox::VectorPtr RecordBatch2RowVector(const RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  return velox::importFromArrowAsViewer(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
+  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
 }
 
 void checkBatchEqual(std::shared_ptr<RecordBatch> input_batch, bool checkMetadata = true) {

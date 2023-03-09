@@ -64,6 +64,18 @@ std::string __m128i_toString(const __m128i var) {
 }
 #endif
 
+namespace {
+
+bool VectorHasNull(const velox::VectorPtr& vp) {
+  const auto& nulls = vp->nulls();
+  if (!nulls) {
+    return false;
+  }
+  return vp->countNulls(nulls, vp->size()) != 0;
+}
+
+} // namespace
+
 // VeloxSplitter
 arrow::Result<std::shared_ptr<VeloxSplitter>>
 VeloxSplitter::Make(const std::string& name, uint32_t num_partitions, SplitOptions options) {
@@ -262,8 +274,7 @@ arrow::Status VeloxSplitter::UpdateInputHasNull(const velox::RowVector& rv) {
     // once input_has_null_ is set to true, we didn't reset it after spill
     if (!input_has_null_[col]) {
       auto col_idx = simple_column_indices_[col];
-      auto nullcount = rv.childAt(col_idx)->getNullCount();
-      if (nullcount.has_value() && nullcount.value() > 0) {
+      if (VectorHasNull(rv.childAt(col_idx))) {
         input_has_null_[col] = true;
       }
     }
@@ -579,11 +590,7 @@ arrow::Status VeloxSplitter::SplitValidityBuffer(const velox::RowVector& rv) {
   for (size_t col = 0; col < simple_column_indices_.size(); ++col) {
     auto col_idx = simple_column_indices_[col];
     auto column = rv.childAt(col_idx);
-    auto null_count = column->getNullCount().value_or(0);
-    if (null_count > 0) {
-      VsPrint(col_idx, " column null count = ");
-      VsPrintLF(null_count);
-
+    if (VectorHasNull(column)) {
       auto& dst_addrs = partition_validity_addrs_[col];
       for (auto pid = 0; pid < num_partitions_; ++pid) {
         if (partition_2_row_count_[pid] > 0 && dst_addrs[pid] == nullptr) {
