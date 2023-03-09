@@ -197,8 +197,7 @@ add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
 
 if(BUILD_TESTS)
-  add_test_case(velox_splitter_test SOURCES tests/VeloxSplitterTest.cc EXTRA_LINK_LIBS velox)
-  add_test_case(velox_converter SOURCES tests/ArrowToVeloxTest.cc tests/VeloxColumnarToRowTest.cc EXTRA_LINK_LIBS velox protobuf)
+  add_subdirectory(tests)
 endif()
 
 if(VELOX_ENABLE_HDFS)
