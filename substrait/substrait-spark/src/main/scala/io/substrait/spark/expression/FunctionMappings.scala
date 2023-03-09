@@ -42,7 +42,7 @@ class FunctionMappings {
     val precision = args(1).asInstanceOf[Literal].value.asInstanceOf[Int]
     val scale = args(2).asInstanceOf[Literal].value.asInstanceOf[Int]
     val nullOnOverflow = args(3).asInstanceOf[Literal].value.asInstanceOf[Boolean]
-    new MakeDecimal(args.head, precision, scale, nullOnOverflow);
+    new MakeDecimal(args.head, precision, scale, nullOnOverflow)
   }
 
   val SCALAR_SIGS: Seq[Sig] = Seq(
@@ -67,6 +67,8 @@ class FunctionMappings {
     s[StartsWith]("starts_with"),
     s[Substring]("substring"),
     s[Year]("year"),
+    s[Concat]("concat"),
+    s[Coalesce]("coalesce"),
 
     // internal
     s[UnscaledValue]("unscaled"),
