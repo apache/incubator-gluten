@@ -41,7 +41,9 @@ object CHExpressionUtil {
     SPLIT_PART -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
     UNIX_TIMESTAMP -> Set(DATE_TYPE),
-    MIGHT_CONTAIN -> Set(EMPTY_TYPE)
+    MIGHT_CONTAIN -> Set(EMPTY_TYPE),
+    MAKE_DECIMAL -> Set(EMPTY_TYPE),
+    UNSCALED_VALUE -> Set(EMPTY_TYPE)
   )
 
   final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map(

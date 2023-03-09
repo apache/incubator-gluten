@@ -200,6 +200,7 @@ object ExpressionMappings {
   final val SCALAR_SUBQUERY = "scalar_subquery"
   final val EXPLODE = "explode"
   final val CHECK_OVERFLOW = "check_overflow"
+  final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
   final val ROW_CONSTRUCTOR = "row_constructor"
 
@@ -213,6 +214,9 @@ object ExpressionMappings {
   final val ROW_NUMBER = "row_number"
   final val CUME_DIST = "cume_dist"
   final val PERCENT_RANK = "percent_rank"
+
+  // Decimal functions
+  final val UNSCALED_VALUE = "unscaled_value"
 
   /**
    * Mapping Spark scalar expression to Substrait function name
@@ -375,7 +379,10 @@ object ExpressionMappings {
     Sig[InSet](IN_SET),
     Sig[ScalarSubquery](SCALAR_SUBQUERY),
     Sig[CheckOverflow](CHECK_OVERFLOW),
-    Sig[PromotePrecision](PROMOTE_PRECISION)
+    Sig[MakeDecimal](MAKE_DECIMAL),
+    Sig[PromotePrecision](PROMOTE_PRECISION),
+    // Decimal
+    Sig[UnscaledValue](UNSCALED_VALUE)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
 
   /**

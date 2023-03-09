@@ -467,18 +467,36 @@ arrow::Status VeloxSplitter::SplitFixedWidthValueBuffer(const velox::RowVector& 
               partition_buffer_idx_base_.begin(),
               partition_buffer_idx_offset_.begin(),
               [](uint8_t* x, row_offset_type y) { return x + y * sizeof(__m128i_u); });
-          // assume batch size = 32k; reducer# = 4K; row/reducer = 8
-          for (auto pid = 0; pid < num_partitions_; pid++) {
-            auto dst_pid_base = reinterpret_cast<__m128i_u*>(partition_buffer_idx_offset_[pid]); /*32k*/
-            auto r = partition_2_row_offset_[pid]; /*8k*/
-            auto size = partition_2_row_offset_[pid + 1];
-            for (; r < size; r++) {
-              auto src_offset = row_offset_2_row_id_[r]; /*16k*/
-              __m128i value = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(src_addr) + src_offset);
-              _mm_storeu_si128(dst_pid_base, value);
-              _mm_prefetch(src_addr + src_offset * sizeof(__m128i_u) + 64, _MM_HINT_T2);
-              dst_pid_base += 1;
+          if (column->type()->isShortDecimal()) {
+            // assume batch size = 32k; reducer# = 4K; row/reducer = 8
+            for (auto pid = 0; pid < num_partitions_; pid++) {
+              auto dst_pid_base = reinterpret_cast<__m128i_u*>(partition_buffer_idx_offset_[pid]); /*32k*/
+              auto r = partition_2_row_offset_[pid]; /*8k*/
+              auto size = partition_2_row_offset_[pid + 1];
+              for (; r < size; r++) {
+                auto src_offset = row_offset_2_row_id_[r]; /*16k*/
+                const int64_t value = *(reinterpret_cast<const int64_t*>(src_addr) + src_offset);
+                memcpy(dst_pid_base, &value, sizeof(int64_t));
+                dst_pid_base += 1;
+              }
             }
+          } else if (column->type()->isLongDecimal()) {
+            // assume batch size = 32k; reducer# = 4K; row/reducer = 8
+            for (auto pid = 0; pid < num_partitions_; pid++) {
+              auto dst_pid_base = reinterpret_cast<__m128i_u*>(partition_buffer_idx_offset_[pid]); /*32k*/
+              auto r = partition_2_row_offset_[pid]; /*8k*/
+              auto size = partition_2_row_offset_[pid + 1];
+              for (; r < size; r++) {
+                auto src_offset = row_offset_2_row_id_[r]; /*16k*/
+                __m128i value = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(src_addr) + src_offset);
+                _mm_storeu_si128(dst_pid_base, value);
+                _mm_prefetch(src_addr + src_offset * sizeof(__m128i_u) + 64, _MM_HINT_T2);
+                dst_pid_base += 1;
+              }
+            }
+          } else {
+            return arrow::Status::Invalid(
+                "Column type " + schema_->field(col_idx)->type()->ToString() + " is not supported.");
           }
         }
 #elif defined(__aarch64__)

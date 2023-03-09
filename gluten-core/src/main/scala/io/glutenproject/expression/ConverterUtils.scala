@@ -316,7 +316,10 @@ object ConverterUtils extends Logging {
         case BinaryType =>
           typedFuncName.concat("vbin")
         case DecimalType() =>
-          typedFuncName.concat("dec")
+          val decimalType = datatype.asInstanceOf[DecimalType]
+          val precision = decimalType.precision
+          val scale = decimalType.scale
+          typedFuncName.concat("dec<" + precision + "," + scale + ">")
         case ArrayType(_, _) =>
           typedFuncName.concat("list")
         case StructType(_) =>

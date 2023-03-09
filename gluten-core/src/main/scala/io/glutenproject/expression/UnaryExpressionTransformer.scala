@@ -118,8 +118,37 @@ class CheckOverflowTransformer(
         Seq(original.dataType, BooleanType),
         FunctionConfig.OPT))
 
+    // just make a fake toType value, because native engine cannot accept datatype itself
+    val toTypeNodes = ExpressionBuilder.makeDecimalLiteral(
+      new Decimal().set(0, original.dataType.precision, original.dataType.scale))
     val expressionNodes =
-      Lists.newArrayList(childNode, new BooleanLiteralNode(original.nullOnOverflow))
+      Lists.newArrayList(childNode, new BooleanLiteralNode(original.nullOnOverflow), toTypeNodes)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class MakeDecimalTransformer(substraitExprName: String,
+                            child: ExpressionTransformer,
+                            original: MakeDecimal)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.doTransform(args)
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        Seq(original.dataType, BooleanType),
+        FunctionConfig.OPT))
+
+    // use fake decimal literal, because velox function signature need to get return type
+    // scale and precision by input type variable
+    val toTypeNodes = ExpressionBuilder.makeDecimalLiteral(
+      new Decimal().set(0, original.precision, original.scale))
+    val expressionNodes = Lists.newArrayList(childNode, toTypeNodes,
+        new BooleanLiteralNode(original.nullOnOverflow))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -193,6 +222,8 @@ object UnaryExpressionTransformer {
     original match {
       case c: CheckOverflow =>
         new CheckOverflowTransformer(substraitExprName, child, c)
+      case m: MakeDecimal =>
+        new MakeDecimalTransformer(substraitExprName, child, m)
       case p: PromotePrecision =>
         new PromotePrecisionTransformer(child, p)
       case extract if extract.isInstanceOf[GetDateField] || extract.isInstanceOf[GetTimeField] =>

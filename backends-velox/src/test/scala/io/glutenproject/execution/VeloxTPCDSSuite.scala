@@ -28,7 +28,7 @@ import org.apache.spark.SparkConf
 class VeloxTPCDSSuite extends WholeStageTransformerSuite {
 
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = "/tmp/tpcds-generated/"
+  override protected val resourcePath: String = sys.env("SPARK_TPCDS_DATA")
   override protected val fileFormat: String = "parquet"
 
   protected var queryTables: Map[String, DataFrame] = _
@@ -92,12 +92,12 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
   }
 
   ignore("q7") {
-    val queryPath = getClass.getResource("/").getPath +
-      "../../../workload/tpcds/tpcds.queries.updated/"
+    val queryPath = System.getProperty("user.dir") +
+      "/gluten-core/src/test/resources/tpcds-queries/"
     val source = Source.fromFile(queryPath + "q7.sql")
     val sql = source.mkString
     source.close()
-    assert(spark.sql(sql).collect().length == 100)
+    runQueryAndCompare(sql) (_ => {})
   }
 
 }

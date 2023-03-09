@@ -87,6 +87,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
             case _: TimestampType =>
             case _: DateType =>
             case _: BinaryType =>
+            case _: DecimalType =>
             case _ =>
               throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
                   s"GlutenColumnarToRowExec/VeloxColumnarToRowConverter")
