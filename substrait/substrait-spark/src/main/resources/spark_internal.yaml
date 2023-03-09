@@ -29,3 +29,15 @@ scalar_functions:
           - name: nullOnOverflow
             value: boolean
         return: DECIMAL<P,S>
+  -
+    name: "equal_nullsafe"
+    description: >-
+      Returns same result as the EQUAL(=) operator for non-null operands,
+      but returns true if both are null, false if one of the them is null.
+    impls:
+      - args:
+          - value: any1
+            name: x
+          - value: any1
+            name: y
+        return: BOOLEAN

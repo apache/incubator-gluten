@@ -70,7 +70,8 @@ class FunctionMappings {
 
     // internal
     s[UnscaledValue]("unscaled"),
-    s[MakeDecimal]("make_decimal", Some(makeDecimal))
+    s[MakeDecimal]("make_decimal", Some(makeDecimal)),
+    s[EqualNullSafe]("equal_nullsafe")
   )
 
   val AGGREGATE_SIGS: Seq[Sig] = Seq(
