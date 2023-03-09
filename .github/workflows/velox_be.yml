@@ -35,7 +35,7 @@ on:
       - 'cpp/CMake/**'
       - 'cpp/velox/**'
       - 'cpp/core/**'
-#      - 'substrait/substrait-spark/**'
+      - 'substrait/substrait-spark/**'
 
 
 concurrency:
