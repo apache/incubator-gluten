@@ -282,7 +282,7 @@ cat /proc/sys/kernel/core_pattern
 echo "ulimit -c unlimited" >> ~/.bashrc
 # then you will get core file at /mnt/DP_disk1/core when program crash
 # gdb -c corefile
-# gdb <gluten_home>/cpp/build/releases/libspark_columnar_jni.so 'core-Executor task l-2000883-1671542526'
+# gdb <gluten_home>/cpp/build/releases/libgluten.so 'core-Executor task l-2000883-1671542526'
 ```
 
 'core-Executor task l-2000883-1671542526' is the gereated core file name

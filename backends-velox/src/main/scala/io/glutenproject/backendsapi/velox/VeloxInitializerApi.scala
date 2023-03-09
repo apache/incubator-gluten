@@ -42,7 +42,7 @@ class VeloxInitializerApi extends IInitializerApi {
       JniLibLoader.loadFromPath(libPath, true)
       return
     }
-    val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
+    val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
     val initKernel = new GlutenNativeExpressionEvaluator()

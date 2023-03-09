@@ -24,7 +24,7 @@ public class JniWorkspace {
     try {
       LOG.info("Creating JNI workspace in root directory {}", rootDir);
       Path root = Paths.get(rootDir);
-      Path created = Files.createTempDirectory(root, "spark_columnar_plugin_");
+      Path created = Files.createTempDirectory(root, "gluten_");
       this.workDir = created.toAbsolutePath().toString();
       this.jniLibLoader = new JniLibLoader(workDir);
       this.jniResourceHelper = new JniResourceHelper(workDir);
