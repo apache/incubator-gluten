@@ -113,7 +113,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           .getOrCreate()
       } else {
         sparkBuilder
-          .config("spark.unsafe.exceptionOnMemoryLeak", "false")
+          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
           .getOrCreate()
       }
     }
