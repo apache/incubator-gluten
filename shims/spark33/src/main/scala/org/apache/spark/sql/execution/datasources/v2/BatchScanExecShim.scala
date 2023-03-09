@@ -36,7 +36,7 @@ class BatchScanExecShim(
 
   override lazy val metrics: Map[String, SQLMetric] = Map()
 
-  override def supportsColumnar(): Boolean = GlutenConfig.getSessionConf.enableColumnarIterator
+  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")

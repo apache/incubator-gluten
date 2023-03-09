@@ -195,7 +195,7 @@ abstract class HashAggregateExecBaseTransformer(
       aggregateAttributes)
   }
 
-  override def supportsColumnar: Boolean = GlutenConfig.getSessionConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
@@ -275,7 +275,7 @@ abstract class HashAggregateExecBaseTransformer(
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getSessionConf.enableNativeValidation) {
+    if (GlutenConfig.getConf.enableNativeValidation) {
       BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true

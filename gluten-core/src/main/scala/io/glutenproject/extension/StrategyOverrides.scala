@@ -151,10 +151,10 @@ case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
   def existsMultiJoins(plan: LogicalPlan, count: Int = 0): Boolean = {
     plan match {
       case plan: Join =>
-        if ((count + 1) >= GlutenConfig.getSessionConf.logicalJoinOptimizationThrottle) return true
+        if ((count + 1) >= GlutenConfig.getConf.logicalJoinOptimizationThrottle) return true
         plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
       case plan: Project =>
-        if ((count + 1) >= GlutenConfig.getSessionConf.logicalJoinOptimizationThrottle) return true
+        if ((count + 1) >= GlutenConfig.getConf.logicalJoinOptimizationThrottle) return true
         plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
       case other => false
     }
@@ -179,7 +179,7 @@ case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = LogicalPlanSelector.maybeNil(
     session, plan) {
     // Ignore forceShuffledHashJoin if exist multi continuous joins
-    if (GlutenConfig.getSessionConf.enableLogicalJoinOptimize &&
+    if (GlutenConfig.getConf.enableLogicalJoinOptimize &&
       existsMultiJoins(plan) && existLeftOuterJoin(plan)) {
       tagNotTransformableRecursive(plan)
     }
@@ -195,7 +195,7 @@ case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
           left,
           right,
           hint,
-          GlutenConfig.getSessionConf.forceShuffledHashJoin)
+          GlutenConfig.getConf.forceShuffledHashJoin)
       case _ => Nil
     }
   }

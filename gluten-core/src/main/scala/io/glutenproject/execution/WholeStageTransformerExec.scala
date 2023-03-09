@@ -117,8 +117,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   override lazy val metrics = Map(
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
   val sparkConf = sparkContext.getConf
-  val numaBindingInfo = GlutenConfig.getSessionConf.numaBindingInfo
-  val substraitPlanLogLevel = GlutenConfig.getSessionConf.substraitPlanLogLevel
+  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val substraitPlanLogLevel = GlutenConfig.getConf.substraitPlanLogLevel
 
   private var planJson: String = ""
 
@@ -135,7 +135,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  override def supportsColumnar: Boolean = GlutenConfig.getSessionConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(transformStageId.asInstanceOf[Integer])
 

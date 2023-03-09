@@ -119,7 +119,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     case _ => Seq.empty
   }
 
-  override def supportsColumnar(): Boolean = GlutenConfig.getSessionConf.enableColumnarIterator
+  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     doExecuteColumnarInternal()

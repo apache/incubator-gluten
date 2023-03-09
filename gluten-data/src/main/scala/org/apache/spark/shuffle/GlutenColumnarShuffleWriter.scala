@@ -57,10 +57,10 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum
 
-  private val nativeBufferSize = GlutenConfig.getSessionConf.shuffleSplitDefaultSize
+  private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
   private val customizedCompressionCodec = {
-    val codec = GlutenConfig.getSessionConf.columnarShuffleUseCustomizedCompressionCodec
+    val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
     val enableQat = conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false) &&
       GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC.contains(codec)
     if (enableQat) {
@@ -71,11 +71,11 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
   }
 
   private val batchCompressThreshold =
-    GlutenConfig.getSessionConf.columnarShuffleBatchCompressThreshold
+    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
 
-  private val preferSpill = GlutenConfig.getSessionConf.columnarShufflePreferSpill
+  private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
 
-  private val writeSchema = GlutenConfig.getSessionConf.columnarShuffleWriteSchema
+  private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
 
   private val jniWrapper = new ShuffleSplitterJniWrapper
 

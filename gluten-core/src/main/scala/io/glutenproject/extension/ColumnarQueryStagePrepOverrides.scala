@@ -35,7 +35,7 @@ import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 // queryStagePrepRules.
 case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
-    val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+    val columnarConf: GlutenConfig = GlutenConfig.getConf
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>
         val buildSidePlan = bhj.buildSide match {

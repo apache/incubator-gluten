@@ -44,13 +44,13 @@ class CHColumnarShuffleWriter[K, V](
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum;
-  private val splitSize = GlutenConfig.getSessionConf.shuffleSplitDefaultSize
+  private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressCodec =
-    GlutenConfig.getSessionConf.columnarShuffleUseCustomizedCompressionCodec
+    GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
   private val batchCompressThreshold =
-    GlutenConfig.getSessionConf.columnarShuffleBatchCompressThreshold;
-  private val preferSpill = GlutenConfig.getSessionConf.columnarShufflePreferSpill
-  private val writeSchema = GlutenConfig.getSessionConf.columnarShuffleWriteSchema
+    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
+  private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
+  private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure

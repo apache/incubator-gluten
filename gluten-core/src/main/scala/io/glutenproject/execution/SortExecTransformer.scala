@@ -306,7 +306,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         return false
     }
 
-    if (relNode != null && GlutenConfig.getSessionConf.enableNativeValidation) {
+    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {

@@ -128,9 +128,9 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   override lazy val supportsColumnar: Boolean = {
     /*
     relation.fileFormat
-      .supportBatch(relation.sparkSession, schema) && GlutenConfig.getSessionConf.enableColumnarIterator
+      .supportBatch(relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
     */
-    GlutenConfig.getSessionConf.enableColumnarIterator
+    GlutenConfig.getConf.enableColumnarIterator
   }
 
   override def filterExprs(): Seq[Expression] = dataFilters

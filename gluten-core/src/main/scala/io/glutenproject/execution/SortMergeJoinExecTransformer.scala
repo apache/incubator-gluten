@@ -289,7 +289,7 @@ case class SortMergeJoinExecTransformer(
         return false
     }
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getSessionConf.enableNativeValidation) {
+    if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {

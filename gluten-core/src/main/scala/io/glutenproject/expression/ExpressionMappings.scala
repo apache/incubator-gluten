@@ -407,12 +407,12 @@ object ExpressionMappings {
 
   // some spark new version class
   def getScalarSigOther: Map[String, String] =
-    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+    if (GlutenConfig.getConf.enableNativeBloomFilter) {
       Map((MIGHT_CONTAIN, MIGHT_CONTAIN))
     } else Map()
 
   def getAggSigOther: Map[String, String] =
-    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+    if (GlutenConfig.getConf.enableNativeBloomFilter) {
       Map((BLOOM_FILTER_AGG, BLOOM_FILTER_AGG))
     } else Map()
 

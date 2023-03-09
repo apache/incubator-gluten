@@ -118,7 +118,7 @@ case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
 
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
-    if (GlutenConfig.getSessionConf.enableAnsiMode) {
+    if (GlutenConfig.getConf.enableAnsiMode) {
       plan.foreach(TransformHints.tagNotTransformable)
     }
     plan
@@ -126,7 +126,7 @@ case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
 }
 
 case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
-  lazy val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  lazy val columnarConf: GlutenConfig = GlutenConfig.getConf
   lazy val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
   lazy val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
 
@@ -236,7 +236,7 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
 case class AddTransformHintRule() extends Rule[SparkPlan] {
-  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  val columnarConf: GlutenConfig = GlutenConfig.getConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
   val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
   val scanOnly: Boolean = columnarConf.enableScanOnly

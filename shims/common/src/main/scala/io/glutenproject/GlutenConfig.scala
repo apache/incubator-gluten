@@ -308,7 +308,7 @@ object GlutenConfig {
 
   var ins: GlutenConfig = _
 
-  def getSessionConf: GlutenConfig = {
+  def getConf: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
   }
 

@@ -42,7 +42,7 @@ import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPlan] {
-  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   /**
@@ -374,7 +374,7 @@ case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPla
 // into columnar implementations.
 case class TransformPostOverrides(session: SparkSession, supportAdaptive: Boolean)
     extends Rule[SparkPlan] {
-  val columnarConf = GlutenConfig.getSessionConf
+  val columnarConf = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   lazy val enableAdaptive = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean
@@ -453,7 +453,7 @@ case class TransformPostOverrides(session: SparkSession, supportAdaptive: Boolea
 case class ColumnarOverrideRules(session: SparkSession)
   extends ColumnarRule with Logging with LogLevelUtil {
 
-  lazy val transformPlanLogLevel = GlutenConfig.getSessionConf.transformPlanLogLevel
+  lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   private var supportAdaptive: Boolean = false
   // Do not create rules in class initialization as we should access SQLConf
@@ -479,7 +479,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   def postOverrides(supportAdaptive: Boolean): List[SparkSession => Rule[SparkPlan]] =
     List((s: SparkSession) => TransformPostOverrides(s, supportAdaptive)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
-      List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
+      List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getConf))
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
