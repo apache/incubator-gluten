@@ -174,8 +174,19 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
       "q65",
       "q68",
       "q69",
+      "q73",
+      "q74",
+      "q79",
+      "q81",
+      "q82",
+      "q85",
+      "q87",
+      "q92",
       "q93",
+      "q94",
+      "q95",
       "q96",
+      "q97",
       "q99")
 
   tpcdsAllQueries.foreach {
