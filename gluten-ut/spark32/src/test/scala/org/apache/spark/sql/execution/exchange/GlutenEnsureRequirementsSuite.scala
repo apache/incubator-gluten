@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.exchange
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenEnsureRequirementsSuite
@@ -33,8 +34,9 @@ class GlutenEnsureRequirementsSuite
       val df1 = Seq((1, 2)).toDF("c1", "c2")
       val df2 = Seq((1, 3)).toDF("c3", "c4")
       val res = df1.join(df2, $"c1" === $"c3").repartition($"c1")
+      print(res.queryExecution.executedPlan)
       assert(res.queryExecution.executedPlan.collect {
-        case s: ShuffleExchangeLike => s
+        case s: ColumnarShuffleExchangeExec => s
       }.size == 2)
     }
   }
