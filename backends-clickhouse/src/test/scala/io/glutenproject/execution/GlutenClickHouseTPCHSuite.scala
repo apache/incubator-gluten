@@ -351,13 +351,14 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
     val result = df.collect()
     assert(result.length == 1)
-    val expectedResult = Seq(Row(
-      new java.math.BigDecimal("1.110"),
-      new java.math.BigDecimal("1.123456789"),
-      new java.math.BigDecimal("123456789.123456789"),
-      new java.math.BigDecimal("1.12345678901234567890123456789"),
-      new java.math.BigDecimal("123456789.123456789012345678901234567")
-    ))
+    val expectedResult = Seq(
+      Row(
+        new java.math.BigDecimal("1.110"),
+        new java.math.BigDecimal("1.123456789"),
+        new java.math.BigDecimal("123456789.123456789"),
+        new java.math.BigDecimal("1.12345678901234567890123456789"),
+        new java.math.BigDecimal("123456789.123456789012345678901234567")
+      ))
     TestUtils.compareAnswers(result, expectedResult)
   }
 
