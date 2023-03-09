@@ -368,31 +368,36 @@ object ExpressionConverter extends Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    partitionFilters.map {
-      case dynamicPruning: DynamicPruningExpression =>
-        dynamicPruning.transform {
-          // Lookup inside subqueries for duplicate exchanges
-          case in: InSubqueryExec => in.plan match {
-            case _: SubqueryBroadcastExec =>
-              val newIn = in.plan.transform {
-                case exchange: BroadcastExchangeExec =>
-                  convertBroadcastExchangeToColumnar(exchange)
-              }.asInstanceOf[SubqueryBroadcastExec]
-              val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-                newIn.name, newIn.index, newIn.buildKeys, newIn.child)
-              in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
-            case _: ReusedSubqueryExec if in.plan.child.isInstanceOf[SubqueryBroadcastExec] =>
-              val newIn = in.plan.child.transform {
-                case exchange: BroadcastExchangeExec =>
-                  convertBroadcastExchangeToColumnar(exchange)
-              }.asInstanceOf[SubqueryBroadcastExec]
-              val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-                newIn.name, newIn.index, newIn.buildKeys, newIn.child)
-              in.copy(plan = ReusedSubqueryExec(transformSubqueryBroadcast))
-            case _ => in
+    if (GlutenConfig.getSessionConf.enableScanOnly) {
+      // Disable ColumnarSubqueryBroadcast for scan-only execution.
+      partitionFilters
+    } else {
+      partitionFilters.map {
+        case dynamicPruning: DynamicPruningExpression =>
+          dynamicPruning.transform {
+            // Lookup inside subqueries for duplicate exchanges.
+            case in: InSubqueryExec => in.plan match {
+              case _: SubqueryBroadcastExec =>
+                val newIn = in.plan.transform {
+                  case exchange: BroadcastExchangeExec =>
+                    convertBroadcastExchangeToColumnar(exchange)
+                }.asInstanceOf[SubqueryBroadcastExec]
+                val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
+                  newIn.name, newIn.index, newIn.buildKeys, newIn.child)
+                in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
+              case _: ReusedSubqueryExec if in.plan.child.isInstanceOf[SubqueryBroadcastExec] =>
+                val newIn = in.plan.child.transform {
+                  case exchange: BroadcastExchangeExec =>
+                    convertBroadcastExchangeToColumnar(exchange)
+                }.asInstanceOf[SubqueryBroadcastExec]
+                val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
+                  newIn.name, newIn.index, newIn.buildKeys, newIn.child)
+                in.copy(plan = ReusedSubqueryExec(transformSubqueryBroadcast))
+              case _ => in
+            }
           }
-        }
-      case e: Expression => e
+        case e: Expression => e
+      }
     }
   }
 }

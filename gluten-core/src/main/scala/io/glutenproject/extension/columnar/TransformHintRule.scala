@@ -239,25 +239,33 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
   val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
-  val enableColumnarShuffle: Boolean = BackendsApiManager.getSettings.supportColumnarShuffleExec()
-  val enableColumnarSort: Boolean = columnarConf.enableColumnarSort
-  val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow
-  val enableColumnarSortMergeJoin: Boolean = columnarConf.enableColumnarSortMergeJoin
+  val scanOnly: Boolean = columnarConf.enableScanOnly
+  val enableColumnarShuffle: Boolean =
+    !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
+  val enableColumnarSort: Boolean = !scanOnly && columnarConf.enableColumnarSort
+  val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
+  val enableColumnarSortMergeJoin: Boolean = !scanOnly && columnarConf.enableColumnarSortMergeJoin
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
   val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
-  val enableColumnarProject: Boolean = columnarConf.enableColumnarProject
+  val enableColumnarProject: Boolean = !scanOnly && columnarConf.enableColumnarProject
   val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
-  val enableColumnarHashAgg: Boolean = columnarConf.enableColumnarHashAgg
-  val enableColumnarUnion: Boolean = columnarConf.enableColumnarUnion
-  val enableColumnarExpand: Boolean = columnarConf.enableColumnarExpand
-  val enableColumnarShuffledHashJoin: Boolean = columnarConf.enableColumnarShuffledHashJoin
-  val enableColumnarBroadcastExchange: Boolean =
+  val enableColumnarHashAgg: Boolean = !scanOnly && columnarConf.enableColumnarHashAgg
+  val enableColumnarUnion: Boolean = !scanOnly && columnarConf.enableColumnarUnion
+  val enableColumnarExpand: Boolean = !scanOnly && columnarConf.enableColumnarExpand
+  val enableColumnarShuffledHashJoin: Boolean =
+    !scanOnly && columnarConf.enableColumnarShuffledHashJoin
+  val enableColumnarBroadcastExchange: Boolean = !scanOnly &&
     columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
-  val enableColumnarBroadcastJoin: Boolean =
+  val enableColumnarBroadcastJoin: Boolean = !scanOnly &&
     columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
-  val enableColumnarArrowUDF: Boolean = columnarConf.enableColumnarArrowUDF
-  val enableColumnarLimit: Boolean = columnarConf.enableColumnarLimit
-  val enableColumnarGenerate: Boolean = columnarConf.enableColumnarGenerate
+  val enableColumnarArrowUDF: Boolean = !scanOnly && columnarConf.enableColumnarArrowUDF
+  val enableColumnarLimit: Boolean = !scanOnly && columnarConf.enableColumnarLimit
+  val enableColumnarGenerate: Boolean = !scanOnly && columnarConf.enableColumnarGenerate
+  val enableColumnarCoalesce: Boolean = !scanOnly && columnarConf.enableColumnarCoalesce
+  val enableTakeOrderedAndProject: Boolean =
+    !scanOnly && columnarConf.enableTakeOrderedAndProject &&
+      enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
+
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
   }
@@ -326,7 +334,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: FilterExec =>
-          if (!enableColumnarFilter) {
+          val childIsScan = plan.child.isInstanceOf[FileSourceScanExec] ||
+            plan.child.isInstanceOf[BatchScanExec]
+          // When scanOnly is enabled, filter after scan will be offloaded.
+          if ((!scanOnly && !enableColumnarFilter) || (scanOnly && !childIsScan)) {
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -526,8 +537,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: CoalesceExec =>
-          val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
-          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          if (!enableColumnarCoalesce) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
         case plan: GlobalLimitExec =>
           if (!enableColumnarLimit) {
             TransformHints.tagNotTransformable(plan)
@@ -550,12 +565,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.outer, plan.generatorOutput, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-
         case _: AQEShuffleReadExec =>
           TransformHints.tagTransformable(plan)
         case plan: TakeOrderedAndProjectExec =>
-          if (!enableColumnarSort || !enableColumnarLimit || !enableColumnarShuffle ||
-            !enableColumnarProject) {
+          if (!enableTakeOrderedAndProject) {
             TransformHints.tagNotTransformable(plan)
           } else {
             var tagged = false
