@@ -137,8 +137,18 @@ Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
 
 # 7 Contact
 
+Gluten was initiated by Intel and Kyligence in 2022. If you are interested in Gluten project, please contact below email address for further discussion.
+![intel_logo](./docs/image/intel_logo.png) ![kyligence_logo](./docs/image/kyligence_logo.png)
+
 rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
+
+# Trademark Information
+
+Intel, the Intel logo, Arc, Intel Atom, Intel Core, Iris, OpenVINO, the OpenVINO logo, Pentium, VTune, and Xeon are trademarks of Intel Corporation or its subsidiaries.
+* Other names and brands may be claimed as the property of others.
+
+(C) Intel Corporation
 
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.
