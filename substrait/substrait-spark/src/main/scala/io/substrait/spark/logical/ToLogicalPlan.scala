@@ -154,6 +154,12 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
     }
   }
 
+  override def visit(set: relation.Set): LogicalPlan = {
+    require(set.getSetOp == relation.Set.SetOp.UNION_ALL, "Only Support Union ALL now")
+    val children = set.getInputs.asScala.map(input => input.accept(this))
+    Union(children)
+  }
+
   override def visit(project: relation.Project): LogicalPlan = {
     val child = project.getInput.accept(this)
     val (output, createProject) = child match {

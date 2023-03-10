@@ -251,6 +251,13 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
     relation.Sort.builder.addAllSortFields(fields).input(input).build
   }
 
+  /** Spark's [[Union]] is UNION ALL in SQL. */
+  override def visitUnion(p: Union): relation.Rel = {
+    val children = visit(p.children)
+    val setOp = relation.Set.SetOp.UNION_ALL
+    relation.Set.builder.inputs(children.asJava).setOp(setOp).build
+  }
+
   private def toExpression(output: Seq[Attribute])(e: Expression): SExpression = {
     toSubstraitExp(e, output)
   }
@@ -313,6 +320,10 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
           s"Unable to convert the plan to a substrait NamedScan: $plan")
     }
   }
+  def visit(plans: Seq[LogicalPlan]): Seq[relation.Rel] = {
+    plans.map(p => visit(p))
+  }
+
   def apply(p: LogicalPlan): Plan = {
     val rel = visit(p)
     ImmutablePlan.builder
