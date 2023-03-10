@@ -26,6 +26,7 @@
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
+#include "operators/shuffle/SplitterBase.h"
 
 namespace gluten {
 // This class is used to convert the Substrait plan into Velox plan.
@@ -47,6 +48,12 @@ class VeloxBackend final : public Backend {
   arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
+
+  std::shared_ptr<SplitterBase> makeSplitter(
+      const std::string& partitioning_name,
+      int num_partitions,
+      SplitOptions options,
+      const std::string& batchType) override;
 
   /// Separate the scan ids and stream ids, and get the scan infos.
   void getInfoAndIds(

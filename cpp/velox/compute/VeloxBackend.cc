@@ -24,6 +24,8 @@
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
+#include "operators/shuffle/splitter.h"
+#include "shuffle/VeloxSplitter.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/exec/Operator.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -290,6 +292,20 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
     return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
   } else {
     return Backend::getColumnar2RowConverter(allocator, cb);
+  }
+}
+
+std::shared_ptr<SplitterBase> VeloxBackend::makeSplitter(
+    const std::string& partitioning_name,
+    int num_partitions,
+    SplitOptions options,
+    const std::string& batchType) {
+  if (batchType == "velox") {
+    GLUTEN_ASSIGN_OR_THROW(auto splitter, VeloxSplitter::Make(partitioning_name, num_partitions, std::move(options)));
+    return splitter;
+  } else {
+    GLUTEN_ASSIGN_OR_THROW(auto splitter, Splitter::Make(partitioning_name, num_partitions, std::move(options)));
+    return splitter;
   }
 }
 
