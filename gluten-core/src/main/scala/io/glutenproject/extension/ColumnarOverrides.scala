@@ -68,6 +68,82 @@ case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPla
     replaceWithTransformerPlan(project)
   }
 
+  /**
+   * Generate a plan for hash aggregation.
+   * @param plan: the original Spark plan.
+   * @return the actually used plan for execution.
+   */
+  private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
+    val newChild = replaceWithTransformerPlan(plan.child)
+    // If child's output is empty, fallback or offload both the child and aggregation.
+    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
+      newChild match {
+        case _: TransformSupport =>
+          // If the child is transformable, transform aggregation as well.
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance
+            .genHashAggregateExecTransformer(
+              plan.requiredChildDistributionExpressions,
+              plan.groupingExpressions,
+              plan.aggregateExpressions,
+              plan.aggregateAttributes,
+              plan.initialInputBufferOffset,
+              plan.resultExpressions,
+              newChild)
+        case _ =>
+          // If the child is not transformable, transform the grandchildren only.
+          val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
+          plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
+      }
+    } else {
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genHashAggregateExecTransformer(
+          plan.requiredChildDistributionExpressions,
+          plan.groupingExpressions,
+          plan.aggregateExpressions,
+          plan.aggregateAttributes,
+          plan.initialInputBufferOffset,
+          plan.resultExpressions,
+          newChild)
+    }
+  }
+
+  /**
+   * Generate a plan for filter.
+   * @param plan: the original Spark plan.
+   * @return the actually used plan for execution.
+   */
+  private def genFilterExec(plan: FilterExec): SparkPlan = {
+    // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
+    //  a individual rule.
+    // Push down the left conditions in Filter into Scan.
+    val newChild: SparkPlan =
+    if (plan.child.isInstanceOf[FileSourceScanExec] ||
+      plan.child.isInstanceOf[BatchScanExec]) {
+      TransformHints.getHint(plan.child) match {
+        case TRANSFORM_SUPPORTED() =>
+          val newScan = FilterHandler.applyFilterPushdownToScan(plan)
+          newScan match {
+            case ts: TransformSupport =>
+              if (ts.doValidate()) {
+                ts
+              } else {
+                replaceWithTransformerPlan(plan.child)
+              }
+            case p: SparkPlan => p
+          }
+        case _ =>
+          replaceWithTransformerPlan(plan.child)
+      }
+    } else {
+      replaceWithTransformerPlan(plan.child)
+    }
+    logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genFilterExecTransformer(plan.condition, newChild)
+  }
+
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
       case TRANSFORM_SUPPORTED() =>
@@ -113,45 +189,9 @@ case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPla
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         ProjectExecTransformer(plan.projectList, columnarChild)
       case plan: FilterExec =>
-        // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
-        //  a individual rule.
-        // Push down the left conditions in Filter into Scan.
-        val newChild: SparkPlan =
-          if (plan.child.isInstanceOf[FileSourceScanExec] ||
-            plan.child.isInstanceOf[BatchScanExec]) {
-            TransformHints.getHint(plan.child) match {
-              case TRANSFORM_SUPPORTED() =>
-                val newScan = FilterHandler.applyFilterPushdownToScan(plan)
-                newScan match {
-                  case ts: TransformSupport =>
-                    if (ts.doValidate()) {
-                      ts
-                    } else {
-                      replaceWithTransformerPlan(plan.child)
-                    }
-                  case p: SparkPlan => p
-                }
-              case _ =>
-                replaceWithTransformerPlan(plan.child)
-            }
-          } else {
-            replaceWithTransformerPlan(plan.child)
-          }
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genFilterExecTransformer(plan.condition, newChild)
+        genFilterExec(plan)
       case plan: HashAggregateExec =>
-        val child = replaceWithTransformerPlan(plan.child)
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genHashAggregateExecTransformer(
-            plan.requiredChildDistributionExpressions,
-            plan.groupingExpressions,
-            plan.aggregateExpressions,
-            plan.aggregateAttributes,
-            plan.initialInputBufferOffset,
-            plan.resultExpressions,
-            child)
+        genHashAggregateExec(plan)
       case plan: ObjectHashAggregateExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

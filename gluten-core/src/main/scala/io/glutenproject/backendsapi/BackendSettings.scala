@@ -17,10 +17,10 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
-
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.spark.sql.catalyst.expressions.{NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructField
 
 
@@ -47,7 +47,11 @@ trait BackendSettings {
     case _ => false
   }
   def supportStructType(): Boolean = false
-  def fallbackOnEmptySchema(): Boolean = false
+  def fallbackOnEmptySchema(plan: SparkPlan): Boolean = false
+
+  // Whether to fallback aggregate at the same time if its child is fallbacked.
+  def fallbackAggregateWithChild(): Boolean = false
+
   def disableVanillaColumnarReaders(): Boolean = false
   def recreateJoinExecOnFallback(): Boolean = false
   def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
