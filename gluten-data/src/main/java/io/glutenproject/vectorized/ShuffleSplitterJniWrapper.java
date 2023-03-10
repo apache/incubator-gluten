@@ -39,17 +39,18 @@ public class ShuffleSplitterJniWrapper {
    */
   public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
                    int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
-                   String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema) {
+                   String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema,
+                   long handle) {
       return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
-          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema);
+          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema, handle);
   }
 
   public native long nativeMake(String shortName, int numPartitions,
                                 long offheapPerTask, int bufferSize,
                                 String codec, int batchCompressThreshold, String dataFile,
                                 int subDirsPerLocalDir, String localDirs, boolean preferSpill,
-                                long memoryPoolId, boolean writeSchema);
+                                long memoryPoolId, boolean writeSchema, long handle);
 
   /**
    * Spill partition data to disk.

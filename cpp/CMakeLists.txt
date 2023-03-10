@@ -37,7 +37,7 @@ endif()
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
-project(spark_columnar_plugin)
+project(gluten)
 
 option(BUILD_VELOX_BACKEND, "Build velox backend" OFF)
 option(BUILD_TESTS "Build Tests" OFF)

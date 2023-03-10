@@ -102,43 +102,45 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     }
 
     val dataTmp = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
-    if (nativeSplitter == 0) {
-      nativeSplitter = jniWrapper.make(
-        dep.nativePartitioning,
-        offheapPerTask,
-        nativeBufferSize,
-        customizedCompressionCodec,
-        batchCompressThreshold,
-        dataTmp.getAbsolutePath,
-        blockManager.subDirsPerLocalDir,
-        localDirs,
-        preferSpill,
-        NativeMemoryAllocators.createSpillable(
-          new Spiller() {
-            override def spill(size: Long, trigger: MemoryConsumer): Long = {
-              if (nativeSplitter == 0) {
-                throw new IllegalStateException("Fatal: spill() called before a shuffle splitter " +
-                  "evaluator is created. This behavior should be optimized by moving memory " +
-                  "allocations from make() to split()")
-              }
-              logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-              // fixme pass true when being called by self
-              val spilled = jniWrapper.nativeSpill(nativeSplitter, size, false)
-              logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-              spilled
-            }
-          }).getNativeInstanceId,
-        writeSchema)
-    }
 
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
+        val handle = GlutenColumnarBatches.getNativeHandle(cb)
+        if (nativeSplitter == 0) {
+          nativeSplitter = jniWrapper.make(
+            dep.nativePartitioning,
+            offheapPerTask,
+            nativeBufferSize,
+            customizedCompressionCodec,
+            batchCompressThreshold,
+            dataTmp.getAbsolutePath,
+            blockManager.subDirsPerLocalDir,
+            localDirs,
+            preferSpill,
+            NativeMemoryAllocators.createSpillable(
+              new Spiller() {
+                override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                  if (nativeSplitter == 0) {
+                    throw new IllegalStateException(
+                      "Fatal: spill() called before a shuffle splitter " +
+                      "evaluator is created. This behavior should be optimized by moving memory " +
+                      "allocations from make() to split()")
+                  }
+                  logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+                  // fixme pass true when being called by self
+                  val spilled = jniWrapper.nativeSpill(nativeSplitter, size, false)
+                  logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+                  spilled
+                }
+              }).getNativeInstanceId,
+            writeSchema,
+            handle)
+        }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeSplitter, cb.numRows,
-          GlutenColumnarBatches.getNativeHandle(cb))
+        val bytes = jniWrapper.split(nativeSplitter, cb.numRows, handle)
         dep.dataSize.add(bytes)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
@@ -149,7 +151,9 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     }
 
     val startTime = System.nanoTime()
-    splitResult = jniWrapper.stop(nativeSplitter)
+    if (nativeSplitter != 0) {
+      splitResult = jniWrapper.stop(nativeSplitter)
+    }
 
     dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
       splitResult.getTotalWriteTime -

@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.execution.ColumnarShuffleExchangeAdaptor
+import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 
 class GlutenDatasetSuite extends DatasetSuite with GlutenSQLTestsTrait {
   import testImplicits._
@@ -49,9 +49,9 @@ class GlutenDatasetSuite extends DatasetSuite with GlutenSQLTestsTrait {
 
     // Assert that no extra shuffle introduced by cogroup.
     val exchanges = collect(df3.queryExecution.executedPlan) {
-      case h: ColumnarShuffleExchangeAdaptor => h
+      case h: ColumnarShuffleExchangeExec => h
     }
-    // Assert the number of ColumnarShuffleExchangeAdaptor
+    // Assert the number of ColumnarShuffleExchangeExec
     // instead of ShuffleExchangeExec in Gluten.
     assert(exchanges.size == 2)
   }

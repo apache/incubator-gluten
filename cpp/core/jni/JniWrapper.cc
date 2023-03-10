@@ -26,8 +26,8 @@
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
 #include "operators/r2c/RowToArrowColumnarConverter.h"
+#include "operators/shuffle/SplitterBase.h"
 #include "operators/shuffle/reader.h"
-#include "operators/shuffle/splitter.h"
 
 namespace types {
 class ExpressionList;
@@ -69,7 +69,7 @@ static ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnar_to_row_co
 
 static ConcurrentMap<std::shared_ptr<ResultIterator>> result_iterator_holder_;
 
-static ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_holder_;
+static ConcurrentMap<std::shared_ptr<SplitterBase>> shuffle_splitter_holder_;
 
 static ConcurrentMap<std::shared_ptr<Reader>> shuffle_reader_holder_;
 
@@ -230,8 +230,6 @@ jclass CreateGlobalClassReferenceOrError(JNIEnv* env, const char* class_name) {
   }
   return global_class;
 }
-
-using FileSystem = arrow::fs::FileSystem;
 
 #ifdef __cplusplus
 extern "C" {
@@ -688,7 +686,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     jstring local_dirs_jstr,
     jboolean prefer_spill,
     jlong allocator_id,
-    jboolean write_schema) {
+    jboolean write_schema,
+    jlong firstBatchHandle) {
   JNI_METHOD_START
   if (partitioning_name_jstr == NULL) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
@@ -762,11 +761,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
   }
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
-  auto splitter = gluten::JniGetOrThrow(
-      Splitter::Make(partitioning_name, num_partitions, std::move(splitOptions)),
-      "Failed create native shuffle splitter");
+  auto backend = gluten::CreateBackend();
+  auto batch = gluten_columnarbatch_holder_.Lookup(firstBatchHandle);
+  auto splitter = backend->makeSplitter(partitioning_name, num_partitions, std::move(splitOptions), batch->GetType());
 
-  return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));
+  return shuffle_splitter_holder_.Insert(splitter);
 
   JNI_METHOD_END(-1L)
 }
@@ -804,10 +803,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
 
   // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeSplitter)
   std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
-  std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
-      arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
-  gluten::JniAssertOkOrThrow(splitter->Split(*in), "Native split: splitter split failed");
-  return batch->GetBytes();
+  auto numBytes = batch->GetBytes();
+  gluten::JniAssertOkOrThrow(splitter->Split(batch.get()), "Native split: splitter split failed");
+  return numBytes;
   JNI_METHOD_END(-1L)
 }
 

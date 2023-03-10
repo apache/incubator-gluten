@@ -24,6 +24,8 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
+#include "memory/ColumnarBatch.h"
+#include "operators/shuffle/splitter.h"
 #include "operators/shuffle/type.h"
 #include "operators/shuffle/utils.h"
 
@@ -72,7 +74,7 @@ namespace gluten {
 
 #endif // end of VELOX_SPLITTER_PRINT
 
-class VeloxSplitter {
+class VeloxSplitter : public SplitterBase {
   enum { VALIDITY_BUFFER_INDEX = 0, OFFSET_BUFFER_INDEX = 1, VALUE_BUFFER_INEDX = 2 };
 
  public:
@@ -99,39 +101,11 @@ class VeloxSplitter {
   static arrow::Result<std::shared_ptr<VeloxSplitter>>
   Make(const std::string& name, uint32_t num_partitions, SplitOptions options = SplitOptions::Defaults());
 
-  virtual arrow::Status Split(const facebook::velox::RowVector& rv);
+  virtual arrow::Status Split(ColumnarBatch* cb);
 
   virtual arrow::Status Stop();
 
   arrow::Status SpillFixedSize(int64_t size, int64_t* actual);
-
-  int64_t TotalBytesWritten() const {
-    return total_bytes_written_;
-  }
-
-  int64_t TotalBytesSpilled() const {
-    return total_bytes_spilled_;
-  }
-
-  int64_t TotalWriteTime() const {
-    return total_write_time_;
-  }
-
-  int64_t TotalSpillTime() const {
-    return total_spill_time_;
-  }
-
-  int64_t TotalCompressTime() const {
-    return total_compress_time_;
-  }
-
-  const std::vector<int64_t>& PartitionLengths() const {
-    return partition_lengths_;
-  }
-
-  const std::vector<int64_t>& RawPartitionLengths() const {
-    return raw_partition_lengths_;
-  }
 
   int64_t RawPartitionBytes() const {
     return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
@@ -192,8 +166,7 @@ class VeloxSplitter {
   }
 
  protected:
-  VeloxSplitter(uint32_t num_partitions, const SplitOptions& options)
-      : num_partitions_(num_partitions), options_(options) {}
+  VeloxSplitter(uint32_t num_partitions, const SplitOptions& options) : SplitterBase(num_partitions, options) {}
 
   virtual arrow::Status Init();
 
@@ -278,11 +251,6 @@ class VeloxSplitter {
  protected:
   bool support_avx512_ = false;
 
-  uint32_t num_partitions_ = 0;
-
-  // options
-  SplitOptions options_;
-
   // the first column may be stripped if hash split
   std::shared_ptr<arrow::Schema> schema_;
 
@@ -320,12 +288,6 @@ class VeloxSplitter {
   // subscript: Row offset
   // value: Row ID
   std::vector<uint32_t> row_offset_2_row_id_; // note: reducer_offsets_
-
-  // Partition ID -> length
-  std::vector<int64_t> partition_lengths_;
-
-  // Partition ID -> raw length
-  std::vector<int64_t> raw_partition_lengths_;
 
   uint32_t fixed_width_column_count_ = 0;
 
@@ -370,12 +332,6 @@ class VeloxSplitter {
 
   std::vector<bool> input_has_null_;
 
-  int64_t total_bytes_written_ = 0;
-  int64_t total_bytes_spilled_ = 0;
-  int64_t total_write_time_ = 0;
-  int64_t total_spill_time_ = 0;
-  int64_t total_compress_time_ = 0;
-
   int32_t dir_selection_ = 0;
   std::vector<int32_t> sub_dir_selection_;
 
@@ -410,7 +366,7 @@ class VeloxSinglePartSplitter final : public VeloxSplitter {
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 
-  arrow::Status Split(const facebook::velox::RowVector& rv) override;
+  arrow::Status Split(ColumnarBatch* cb) override;
 
   arrow::Status Stop() override;
 }; // class VeloxSinglePartSplitter
@@ -421,7 +377,7 @@ class VeloxHashSplitter final : public VeloxSplitter {
 
   arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
 
-  arrow::Status Split(const facebook::velox::RowVector& rv) override;
+  arrow::Status Split(ColumnarBatch* cb) override;
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 }; // class VeloxHashSplitter
@@ -433,7 +389,7 @@ class VeloxFallbackRangeSplitter final : public VeloxSplitter {
 
   arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
 
-  arrow::Status Split(const facebook::velox::RowVector& rv) override;
+  arrow::Status Split(ColumnarBatch* cb) override;
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 }; // class VeloxFallbackRangeSplitter

@@ -53,7 +53,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
       // Depending on the input type, VeloxColumnarToRowConverter or ArrowColumnarToRowConverter
       // will be used. Only for columnar shuffle, ArrowColumnarToRowConverter will be used. The
       // data type checking should align with the code in ArrowColumnarToRowConverter.cc.
-      case _: ColumnarShuffleExchangeAdaptor | _: ColumnarShuffleExchangeExec =>
+      case _: ColumnarShuffleExchangeExec =>
         for (field <- schema.fields) {
           field.dataType match {
             case _: BooleanType =>

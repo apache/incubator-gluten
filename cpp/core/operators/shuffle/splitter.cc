@@ -351,14 +351,16 @@ arrow::Status Splitter::SetCompressType(arrow::Compression::type compressed_type
   return arrow::Status::OK();
 }
 
-arrow::Status Splitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status Splitter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
   if (schema_ == nullptr) {
-    schema_ = rb.schema();
+    schema_ = rb->schema();
     RETURN_NOT_OK(InitColumnType());
   }
-  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
-  RETURN_NOT_OK(DoSplit(rb));
+  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
+  RETURN_NOT_OK(DoSplit(*rb));
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
 }
@@ -1350,13 +1352,15 @@ arrow::Status SinglePartSplitter::Init() {
   return arrow::Status::OK();
 }
 
-arrow::Status SinglePartSplitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status SinglePartSplitter::Split(ColumnarBatch* batch) {
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
   EVAL_START("split", options_.thread_id)
   if (schema_ == nullptr) {
-    schema_ = rb.schema();
+    schema_ = rb->schema();
     RETURN_NOT_OK(InitColumnType());
   }
-  RETURN_NOT_OK(CacheRecordBatch(0, rb));
+  RETURN_NOT_OK(CacheRecordBatch(0, *rb));
 
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
@@ -1448,10 +1452,12 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
   return arrow::Status::OK();
 }
 
-arrow::Status HashSplitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status HashSplitter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
-  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
-  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
+  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
+  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb->RemoveColumn(0));
   if (schema_ == nullptr) {
     schema_ = remove_pid->schema();
     RETURN_NOT_OK(InitColumnType());
@@ -1472,10 +1478,12 @@ arrow::Result<std::shared_ptr<FallbackRangeSplitter>> FallbackRangeSplitter::Cre
   return res;
 }
 
-arrow::Status FallbackRangeSplitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status FallbackRangeSplitter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
-  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
-  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
+  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
+  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb->RemoveColumn(0));
   if (schema_ == nullptr) {
     schema_ = remove_pid->schema();
     RETURN_NOT_OK(InitColumnType());
