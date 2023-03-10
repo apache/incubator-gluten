@@ -32,6 +32,7 @@ object ExpressionMappings {
   final val COUNT = "count"
   final val MIN = "min"
   final val MAX = "max"
+  final val STDDEV = "stddev"
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
