@@ -18,6 +18,12 @@ scalar_functions:
           - name: scale
             value: i32
         return: fp32
+      - args:
+          - name: input
+            value: fp64
+          - name: scale
+            value: i32
+        return: fp64
   -
     name: "abs"
     description: >
