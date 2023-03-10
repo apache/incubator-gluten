@@ -65,6 +65,9 @@ class ToSparkExpression(
     Literal(expr.value(), ToSubstraitType.convert(expr.getType))
   }
 
+  override def visit(expr: SExpression.FP32Literal): Expression = {
+    Literal(expr.value(), ToSubstraitType.convert(expr.getType))
+  }
   override def visit(expr: SExpression.StrLiteral): Expression = {
     Literal(UTF8String.fromString(expr.value()), ToSubstraitType.convert(expr.getType))
   }

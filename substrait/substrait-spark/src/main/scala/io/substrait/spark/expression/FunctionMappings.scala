@@ -70,6 +70,9 @@ class FunctionMappings {
     s[Concat]("concat"),
     s[Coalesce]("coalesce"),
 
+    // math
+    s[Round]("round"),
+
     // internal
     s[UnscaledValue]("unscaled"),
     s[MakeDecimal]("make_decimal", Some(makeDecimal)),

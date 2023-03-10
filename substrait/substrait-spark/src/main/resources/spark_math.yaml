@@ -1,0 +1,20 @@
+%YAML 1.2
+---
+scalar_functions:
+  -
+    name: round
+    description: >-
+      Returns `input` rounded to `scale` decimal places using HALF_UP rounding mode.
+    impls:
+      - args:
+          - name: input
+            value: DECIMAL<P,S>
+          - name: scale
+            value: i32
+        return: DECIMAL<P,S>
+      - args:
+          - name: input
+            value: fp32
+          - name: scale
+            value: i32
+        return: fp32

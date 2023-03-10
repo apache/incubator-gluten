@@ -139,6 +139,7 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
   val successfulSQL: Set[String] =
     Set(
       "q1",
+      "q2",
       "q3",
       "q4",
       "q6",

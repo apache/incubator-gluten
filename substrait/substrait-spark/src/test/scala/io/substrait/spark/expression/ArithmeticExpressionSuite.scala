@@ -65,4 +65,12 @@ class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTe
       bidirectional = true
     )
   }
+
+  test("round") {
+    val roundDec = Round(Literal(BigDecimal.decimal(12.1111)), Literal(2))
+    runTest("round:dec_i32", roundDec)
+
+    val roundFloat = Round(Literal(12.1111f), Literal(2))
+    runTest("round:fp32_i32", roundFloat)
+  }
 }

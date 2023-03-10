@@ -31,7 +31,8 @@ object SparkExtension {
     SimpleExtension.load(
       util.Arrays.asList(
         "/spark.yml",
-        "/spark_internal.yaml"
+        "/spark_internal.yaml",
+        "/spark_math.yaml"
       ))
 
   private val EXTENSION_COLLECTION: SimpleExtension.ExtensionCollection =
