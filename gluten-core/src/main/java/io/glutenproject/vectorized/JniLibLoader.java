@@ -62,14 +62,11 @@ public class JniLibLoader {
   public static Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
 
   static {
-    GlutenShutdownManager.registerUnloadLibShutdownHook(new Function0<BoxedUnit>() {
-      @Override
-      public BoxedUnit apply() {
-        List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
-        Collections.reverse(loaded); // use reversed order to unload
-        loaded.forEach(JniLibLoader::unloadFromPath);
-        return BoxedUnit.UNIT;
-      }
+    GlutenShutdownManager.addHookForLibUnloading(() -> {
+      List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
+      Collections.reverse(loaded); // use reversed order to unload
+      loaded.forEach(JniLibLoader::unloadFromPath);
+      return BoxedUnit.UNIT;
     });
   }
 

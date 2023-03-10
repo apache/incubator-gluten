@@ -32,7 +32,7 @@ public class JniWorkspace {
       this.jniLibLoader = new JniLibLoader(workDir);
       this.jniResourceHelper = new JniResourceHelper(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
-      GlutenShutdownManager.registerUnloadLibShutdownHook(() -> {
+      GlutenShutdownManager.addHookForTempDirRemoval(() -> {
         try {
           FileUtils.deleteDirectory(created.toFile());
         } catch (Exception e) {
