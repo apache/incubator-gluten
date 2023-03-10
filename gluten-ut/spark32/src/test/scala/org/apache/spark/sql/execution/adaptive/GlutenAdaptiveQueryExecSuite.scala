@@ -588,7 +588,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       // this config will make some empty partitions
       SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
       // `testData` is small enough to be broadcast but has empty partition ratio over the config.
-      // because testData2 in gluten sizeInBytes(from ColumnarShuffleExchangeAdaptor plan stats)
+      // because testData2 in gluten sizeInBytes(from ColumnarShuffleExchangeExec plan stats)
       // is 78B sometimes, so change the threshold from 80 to 60
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "60") {
         val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
@@ -835,7 +835,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         val (_, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT id FROM v1 GROUP BY id DISTRIBUTE BY id")
         assert(collect(adaptivePlan) {
-          case s: ColumnarShuffleExchangeAdaptor => s
+          case s: ColumnarShuffleExchangeExec => s
         }.length == 1)
       }
     }
@@ -1024,7 +1024,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       ds.collect()
       val plan = ds.queryExecution.executedPlan
       assert(collect(plan) {
-        case s: ColumnarShuffleExchangeAdaptor if s.shuffleOrigin == origin && s.numPartitions == 2
+        case s: ColumnarShuffleExchangeExec if s.shuffleOrigin == origin && s.numPartitions == 2
         => s
       }.size == 1)
       checkAnswer(ds, testData)

@@ -27,7 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeAdaptor, ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.Strategy
@@ -151,7 +151,7 @@ case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
 object GlutenColumnarRules {
   case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-      case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeAdaptor) =>
+      case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:536
       case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546

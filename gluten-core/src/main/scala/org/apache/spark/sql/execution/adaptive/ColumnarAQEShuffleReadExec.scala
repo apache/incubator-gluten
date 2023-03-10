@@ -49,11 +49,11 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
       partitionSpecs.map(_.asInstanceOf[PartialMapperPartitionSpec].mapIndex).toSet.size ==
         partitionSpecs.length) {
       child match {
-        case ShuffleQueryStageExec(_, s: ColumnarShuffleExchangeAdaptor, _) =>
+        case ShuffleQueryStageExec(_, s: ColumnarShuffleExchangeExec, _) =>
           s.child.outputPartitioning
         case ShuffleQueryStageExec(
         _,
-        r@ReusedExchangeExec(_, s: ColumnarShuffleExchangeAdaptor), _) =>
+        r@ReusedExchangeExec(_, s: ColumnarShuffleExchangeExec), _) =>
           s.child.outputPartitioning match {
             case e: Expression => r.updateAttr(e).asInstanceOf[Partitioning]
             case other => other
@@ -99,9 +99,9 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
           sendDriverMetrics()
           new ShuffledColumnarBatchRDD(
             stage.shuffle
-              .asInstanceOf[ColumnarShuffleExchangeAdaptor]
+              .asInstanceOf[ColumnarShuffleExchangeExec]
               .columnarShuffleDependency,
-            stage.shuffle.asInstanceOf[ColumnarShuffleExchangeAdaptor].readMetrics,
+            stage.shuffle.asInstanceOf[ColumnarShuffleExchangeExec].readMetrics,
             partitionSpecs.toArray)
         case _ =>
           throw new IllegalStateException("operating on canonicalized plan")

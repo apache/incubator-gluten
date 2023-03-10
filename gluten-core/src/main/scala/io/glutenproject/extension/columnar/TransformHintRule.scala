@@ -401,7 +401,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarShuffle) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = new ColumnarShuffleExchangeExec(
+            val transformer = ColumnarShuffleExchangeExec(
               plan.outputPartitioning,
               plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
