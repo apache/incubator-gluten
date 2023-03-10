@@ -138,7 +138,7 @@ Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
 # 7 Contact
 
 Gluten was initiated by Intel and Kyligence in 2022. If you are interested in Gluten project, please contact below email address for further discussion.
-![intel_logo](./docs/image/intel_logo.png) ![kyligence_logo](./docs/image/kyligence_logo.png)
+![intel_logo](./docs/image/intel_logo.jpg) ![kyligence_logo](./docs/image/kyligence_logo.png)
 
 rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
