@@ -253,15 +253,15 @@ case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPla
       case plan: AQEShuffleReadExec if
           BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
         plan.child match {
-          case _: ColumnarShuffleExchangeAdaptor =>
+          case _: ColumnarShuffleExchangeExec =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
             CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-          case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor, _) =>
+          case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _) =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
             CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
           case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
             reused match {
-              case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
+              case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeExec) =>
                 logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
                 CoalesceBatchesExec(
                   ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
@@ -384,11 +384,11 @@ case class TransformPostOverrides(session: SparkSession, supportAdaptive: Boolea
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-    // The ColumnarShuffleExchangeAdaptor node may be the top node, so we cannot remove it.
+    // The ColumnarShuffleExchangeExec node may be the top node, so we cannot remove it.
     // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
     // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE mode
     // have tested gluten-it TPCH when AQE OFF
-    case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor)
+    case ColumnarToRowExec(child: ColumnarShuffleExchangeExec)
       if enableAdaptive =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>

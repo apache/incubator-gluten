@@ -35,7 +35,7 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics, SQLShuffleReadMetricsReporter, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioning,
+case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitioning,
                                      child: SparkPlan,
                                      shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
                                           removeHashColumn: Boolean = false)
@@ -126,7 +126,7 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
       outputPartitioning, child.output)
   }
 
-  override def nodeName: String = "ColumnarExchangeAdaptor"
+  override def nodeName: String = "ColumnarExchange"
 
   override def supportsColumnar: Boolean = true
   override def numMappers: Int = shuffleDependency.rdd.getNumPartitions
@@ -172,7 +172,7 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
     if (removeHashColumn) child.output.drop(1) else child.output
   }
 
-  protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeAdaptor =
+  protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeExec =
     copy(child = newChild)
 }
 

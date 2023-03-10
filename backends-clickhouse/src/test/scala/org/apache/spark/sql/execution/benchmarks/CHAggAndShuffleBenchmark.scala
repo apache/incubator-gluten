@@ -27,7 +27,7 @@ import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarShuffleExchangeAdaptor, FileSourceScanExec, WholeStageCodegenExec}
+import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarShuffleExchangeExec, FileSourceScanExec, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.benchmarks.utils.FakeFileOutputStream
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
@@ -172,7 +172,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     //                     +- *(4) FilterExecTransformer
     //                        +- *(4) FileScan parquet
     //
-    // There are three `WholeStageTransformerExec`, two `ColumnarShuffleExchangeAdaptor`
+    // There are three `WholeStageTransformerExec`, two `ColumnarShuffleExchangeExec`
     // and one `FileSourceScanExecTransformer`.
     val executedPlan = allStages.queryExecution.executedPlan
 
@@ -251,14 +251,14 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
         resultRDD.collect()
     }
 
-    // Get all `ColumnarShuffleExchangeAdaptor` and run the second one.
+    // Get all `ColumnarShuffleExchangeExec` and run the second one.
     val shuffleStage = executedPlan.collect {
-      case shuffle: ColumnarShuffleExchangeAdaptor => shuffle
+      case shuffle: ColumnarShuffleExchangeExec => shuffle
     }(1)
 
     chAllStagesBenchmark.addCase(s"Shuffle Split Stage", executedCnt) {
       _ =>
-        val shuffleSplit = ColumnarShuffleExchangeAdaptor(
+        val shuffleSplit = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
           removeHashColumn = shuffleStage.removeHashColumn)
@@ -272,7 +272,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
 
     chAllStagesBenchmark.addCase(s"Shuffle Write Stage ( Fake output to file )", executedCnt) {
       _ =>
-        val shuffleWrite = ColumnarShuffleExchangeAdaptor(
+        val shuffleWrite = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
           removeHashColumn = shuffleStage.removeHashColumn)
@@ -298,7 +298,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
 
     chAllStagesBenchmark.addCase(s"Shuffle Read Stage", executedCnt) {
       _ =>
-        val shuffleRead = ColumnarShuffleExchangeAdaptor(
+        val shuffleRead = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
           removeHashColumn = shuffleStage.removeHashColumn)

@@ -67,7 +67,7 @@ case class ReuseColumnarExchange() extends Rule[SparkPlan] with Logging {
           exchange match {
             case b: BroadcastExchangeExec =>
               logInfo(s"Reused ${samePlan.get}")
-            case s: ColumnarShuffleExchangeAdaptor =>
+            case s: ColumnarShuffleExchangeExec =>
               logInfo(s"Reused ${samePlan.get}")
             case other =>
           }

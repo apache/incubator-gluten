@@ -21,7 +21,7 @@ import io.glutenproject.execution.WholeStageTransformerExec
 import org.apache.spark.SparkException
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression}
-import org.apache.spark.sql.execution.ColumnarShuffleExchangeAdaptor
+import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.functions._
@@ -199,7 +199,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
       assert(
         collect(join.queryExecution.executedPlan) {
           // replace ShuffleExchangeExec
-          case e: ColumnarShuffleExchangeAdaptor => true }.size === 1)
+          case e: ColumnarShuffleExchangeExec => true }.size === 1)
       assert(
         collect(join.queryExecution.executedPlan) { case e: ReusedExchangeExec => true }.size === 1)
       val broadcasted = broadcast(join)
@@ -208,7 +208,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
       assert(
         collect(join2.queryExecution.executedPlan) {
           // replace ShuffleExchangeExec
-          case e: ColumnarShuffleExchangeAdaptor => true }.size == 1)
+          case e: ColumnarShuffleExchangeExec => true }.size == 1)
       assert(
         collect(join2.queryExecution.executedPlan) {
           case e: ReusedExchangeExec => true }.size == 4)
