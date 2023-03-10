@@ -104,6 +104,13 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
     }
   }
 
+  override def visit(cross: relation.Cross): LogicalPlan = {
+    val left = cross.getLeft.accept(this)
+    val right = cross.getRight.accept(this)
+    withChild(left, right) {
+      Join(left, right, Inner, None, hint = JoinHint.NONE)
+    }
+  }
   override def visit(join: relation.Join): LogicalPlan = {
     val left = join.getLeft.accept(this)
     val right = join.getRight.accept(this)
