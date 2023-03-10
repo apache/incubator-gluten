@@ -115,7 +115,7 @@ Feel free to submit any bugs, issues or enhancement requirements to github issue
 
 Unfortunately we haven't organized the documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under development now, and some designs may change. Feel free to talk with us and share other design and ideas.
 
-CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code, this work is still in progess, so propose a new modification PR without any hesitation if you have good ideas. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
+CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code, this work is still in progress, so propose a new modification PR without any hesitation if you have good ideas. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
 
 # 5 Performance
 
