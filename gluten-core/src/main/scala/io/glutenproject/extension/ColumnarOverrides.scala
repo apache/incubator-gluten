@@ -625,7 +625,7 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
-      if (supportAdaptive && fallbackWholeStage(plan)) {
+      if (isAdaptiveContext && fallbackWholeStage(plan)) {
         // BatchScan with ArrowScan initialized can still connect
         // to ColumnarToRow for transition.
         insertTransitions(originalPlan, false)
