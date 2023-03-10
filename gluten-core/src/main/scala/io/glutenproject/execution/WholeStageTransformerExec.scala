@@ -118,7 +118,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
   val sparkConf = sparkContext.getConf
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val substraitPlanLogLevel = GlutenConfig.getSessionConf.substraitPlanLogLevel
+  val substraitPlanLogLevel = GlutenConfig.getConf.substraitPlanLogLevel
 
   private var planJson: String = ""
 

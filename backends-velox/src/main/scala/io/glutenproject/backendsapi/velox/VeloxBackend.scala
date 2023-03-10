@@ -97,7 +97,7 @@ object VeloxBackendSettings extends BackendSettings {
     allSupported
   }
   override def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getSessionConf.isUseColumnarShuffleManager
+    GlutenConfig.getConf.isUseColumnarShuffleManager
   }
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>

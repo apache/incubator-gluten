@@ -25,17 +25,17 @@ object DebugUtil {
   // if specify partitionId, use this one
   // if not, use specified taskId or save all the input of this stage
   def saveInputToFile(): Boolean = {
-    if (!GlutenConfig.getSessionConf.debug) {
+    if (!GlutenConfig.getConf.debug) {
       return false
     }
-    if (TaskContext.get().stageId() != GlutenConfig.getSessionConf.taskStageId) {
+    if (TaskContext.get().stageId() != GlutenConfig.getConf.taskStageId) {
       return false
     }
-    if (TaskContext.getPartitionId() == GlutenConfig.getSessionConf.taskPartitionId) {
+    if (TaskContext.getPartitionId() == GlutenConfig.getConf.taskPartitionId) {
       true
-    } else if (GlutenConfig.getSessionConf.taskPartitionId == -1) {
-      TaskContext.get().taskAttemptId() == GlutenConfig.getSessionConf.taskId ||
-        GlutenConfig.getSessionConf.taskId == -1
+    } else if (GlutenConfig.getConf.taskPartitionId == -1) {
+      TaskContext.get().taskAttemptId() == GlutenConfig.getConf.taskId ||
+        GlutenConfig.getConf.taskId == -1
     } else {
       false
     }

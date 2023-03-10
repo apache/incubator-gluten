@@ -37,7 +37,7 @@ object ExpressionConverter extends Logging {
       throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
     // Check whether each backend supports this expression
-    if (GlutenConfig.getSessionConf.enableAnsiMode ||
+    if (GlutenConfig.getConf.enableAnsiMode ||
         !BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
@@ -368,7 +368,7 @@ object ExpressionConverter extends Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    if (GlutenConfig.getSessionConf.enableScanOnly) {
+    if (GlutenConfig.getConf.enableScanOnly) {
       // Disable ColumnarSubqueryBroadcast for scan-only execution.
       partitionFilters
     } else {

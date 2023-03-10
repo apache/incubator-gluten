@@ -88,7 +88,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
     val substraitPlan = wsCxt.root.toProtobuf
     if (index < 3) {
       logOnLevel(
-        GlutenConfig.getSessionConf.substraitPlanLogLevel,
+        GlutenConfig.getConf.substraitPlanLogLevel,
         s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
             .substraitPlanToJson(substraitPlan)}"
       )

@@ -88,7 +88,7 @@ object CHBackendSettings extends BackendSettings with Logging {
   override def utilizeShuffledHashJoinHint(): Boolean = true
 
   override def supportSortExec(): Boolean = {
-    GlutenConfig.getSessionConf.enableColumnarSort
+    GlutenConfig.getConf.enableColumnarSort
   }
 
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {

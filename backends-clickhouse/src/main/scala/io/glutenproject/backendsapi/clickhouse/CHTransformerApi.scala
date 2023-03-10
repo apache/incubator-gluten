@@ -65,7 +65,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
             })
           .exists(_ == false))
       case RangePartitioning(orderings, _) =>
-        GlutenConfig.getSessionConf.enableColumnarSort &&
+        GlutenConfig.getConf.enableColumnarSort &&
         RangePartitionerBoundsGenerator.supportedOrderings(orderings)
       case _ => true
     }
