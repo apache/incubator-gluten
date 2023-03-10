@@ -18,3 +18,13 @@ scalar_functions:
           - name: scale
             value: i32
         return: fp32
+
+aggregate_functions:
+  - name: "stddev_samp"
+    description: >-
+      Returns the sample standard deviation calculated from values of a group
+    impls:
+      - args:
+          - name: x
+            value: any
+        return: f64

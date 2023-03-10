@@ -85,7 +85,8 @@ class FunctionMappings {
     s[Count]("count"),
     s[Min]("min"),
     s[Max]("max"),
-    s[HyperLogLogPlusPlus]("approx_count_distinct")
+    s[HyperLogLogPlusPlus]("approx_count_distinct"),
+    s[StddevSamp]("stddev_samp")
   )
 
   lazy val scalar_functions_map: Map[Class[_], Sig] = SCALAR_SIGS.map(s => (s.expClass, s)).toMap

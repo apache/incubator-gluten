@@ -45,6 +45,12 @@ object SparkExtension {
     ret
   }
 
-  val toAggregateFunction: ToAggregateFunction = ToAggregateFunction(
-    JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.aggregateFunctions()))
+  private lazy val SparkAggregateFunctions: Seq[SimpleExtension.AggregateFunctionVariant] = {
+    val ret = new collection.mutable.ArrayBuffer[SimpleExtension.AggregateFunctionVariant]()
+    ret.appendAll(EXTENSION_COLLECTION.aggregateFunctions().asScala)
+    ret.appendAll(SparkImpls.aggregateFunctions().asScala)
+    ret
+  }
+
+  val toAggregateFunction: ToAggregateFunction = ToAggregateFunction(SparkAggregateFunctions)
 }
