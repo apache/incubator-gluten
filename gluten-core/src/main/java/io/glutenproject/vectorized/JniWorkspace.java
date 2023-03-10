@@ -1,8 +1,11 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
+import org.apache.commons.io.FileUtils;
+import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.runtime.BoxedUnit;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +32,14 @@ public class JniWorkspace {
       this.jniLibLoader = new JniLibLoader(workDir);
       this.jniResourceHelper = new JniResourceHelper(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
+      GlutenShutdownManager.addHookForTempDirRemoval(() -> {
+        try {
+          FileUtils.deleteDirectory(created.toFile());
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+        return BoxedUnit.UNIT;
+      });
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
