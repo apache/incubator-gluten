@@ -53,8 +53,9 @@ void StatCreateSplitter(SPLITTER_TYPE type) {
               << " velox round-robin=" << stat[VELOX_SPLITTER_ROUND_ROBIN]
               << " velox range=" << stat[VELOX_SPLITTER_RANGE] << " velox single=" << stat[VELOX_SPLITTER_SINGLE]
               << std::endl;
-    
-    if (x <= 100) x += 10;
+
+    if (x <= 100)
+      x += 10;
   }
 }
 
