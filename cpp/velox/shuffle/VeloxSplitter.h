@@ -222,6 +222,8 @@ class VeloxSplitter : public SplitterBase {
   template <typename T>
   arrow::Status SplitFixedType(const facebook::velox::VectorPtr& src, const std::vector<uint8_t*>& dst_addrs) {
     decoded_vector_.decode(*src);
+    auto data = decoded_vector_.data<T>();
+    auto indices = decoded_vector_.indices();
 
     std::transform(
         dst_addrs.begin(),
@@ -236,7 +238,7 @@ class VeloxSplitter : public SplitterBase {
       auto end = partition_2_row_offset_[pid + 1];
       for (; pos < end; ++pos) {
         auto row_id = row_offset_2_row_id_[pos];
-        *dst_pid_base++ = decoded_vector_.valueAt<T>(row_id); // copy
+        *dst_pid_base++ = data[indices[row_id]]; // copy
       }
     }
     return arrow::Status::OK();

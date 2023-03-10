@@ -69,8 +69,10 @@ namespace {
 
 bool VectorHasNull(const velox::VectorPtr& vp) {
 #if 1
+  // work well
   return vp->mayHaveNulls() && vp->countNulls(vp->nulls(), vp->size()) != 0;
 #else
+  // doesn't work
   auto null_count = vp->getNullCount();
   return null_count.has_value() && null_count.value() > 0;
 #endif
@@ -84,12 +86,16 @@ VeloxSplitter::Make(const std::string& name, uint32_t num_partitions, SplitOptio
   std::shared_ptr<VeloxSplitter> splitter = nullptr;
   if (name == "hash") {
     splitter = VeloxSplitter::Create<VeloxHashSplitter>(num_partitions, options);
+    StatCreateSplitter(VELOX_SPLITTER_HASH);
   } else if (name == "rr") {
     splitter = VeloxSplitter::Create<VeloxRoundRobinSplitter>(num_partitions, options);
+    StatCreateSplitter(VELOX_SPLITTER_ROUND_ROBIN);
   } else if (name == "range") {
     splitter = VeloxSplitter::Create<VeloxFallbackRangeSplitter>(num_partitions, options);
+    StatCreateSplitter(VELOX_SPLITTER_RANGE);
   } else if (name == "single") {
     splitter = VeloxSplitter::Create<VeloxSinglePartSplitter>(num_partitions, options);
+    StatCreateSplitter(VELOX_SPLITTER_SINGLE);
   }
 
   if (!splitter) {
@@ -764,11 +770,13 @@ uint32_t VeloxSplitter::CalculatePartitionBufferSize(const velox::RowVector& rv)
       auto column = rv.childAt(simple_column_indices_[i]);
 
       decoded_vector_.decode(*column);
+      auto data = decoded_vector_.data<velox::StringView>();
+      auto indices = decoded_vector_.indices();
 
       // accumulate length
       uint64_t length = 0;
       for (size_t row = 0; row != num_rows; ++row) {
-        length += decoded_vector_.valueAt<velox::StringView>(row).size();
+        length += data[indices[row]].size();
       }
 
       binary_array_empirical_size_[index] = length % num_rows == 0 ? length / num_rows : length / num_rows + 1;
@@ -1286,9 +1294,11 @@ arrow::Status VeloxHashSplitter::Partition(const velox::RowVector& rv) {
   std::fill(std::begin(partition_2_row_count_), std::end(partition_2_row_count_), 0);
 
   decoded_vector_.decode(*firstColumn);
+  auto data = decoded_vector_.data<velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType>();
+  auto indices = decoded_vector_.indices();
 
   for (auto i = 0; i < num_rows; ++i) {
-    auto pid = decoded_vector_.valueAt<velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType>(i) % num_partitions_;
+    auto pid = data[indices[i]] % num_partitions_;
 #if defined(__x86_64__)
     // force to generate ASM
     __asm__(
@@ -1361,13 +1371,15 @@ arrow::Status VeloxFallbackRangeSplitter::Partition(const velox::RowVector& rv) 
   }
 
   decoded_vector_.decode(*firstColumn);
+  auto data = decoded_vector_.data<velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType>();
+  auto indices = decoded_vector_.indices();
 
   auto num_rows = rv.size();
   row_2_partition_.resize(num_rows);
   std::fill(std::begin(partition_2_row_count_), std::end(partition_2_row_count_), 0);
 
   for (auto i = 0; i < num_rows; ++i) {
-    uint32_t pid = decoded_vector_.valueAt<velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType>(i);
+    uint32_t pid = data[indices[i]];
     if (pid >= num_partitions_) {
       return arrow::Status::Invalid(
           "Partition id ", std::to_string(pid), " is equal or greater than ", std::to_string(num_partitions_));
