@@ -121,41 +121,46 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
             }))
   }
 
-  protected def translateUp(expr: Expression): Option[SExpression] = {
-    expr match {
-      case c @ Cast(child, dataType, _, _) =>
-        translateUp(child)
-          .map(ExpressionCreator.cast(ToSubstraitType.apply(dataType, c.nullable), _))
-      case c @ CheckOverflow(child, dataType, _) =>
-        // CheckOverflow similar with cast
-        translateUp(child)
-          .map(
-            childExpr => {
-              if (SparkTypeUtil.sameType(dataType, child.dataType)) {
-                childExpr
-              } else {
-                ExpressionCreator.cast(ToSubstraitType.apply(dataType, c.nullable), childExpr)
-              }
-            })
-      case SubstraitLiteral(substraitLiteral) => Some(substraitLiteral)
-      case a: AttributeReference if currentOutput.nonEmpty => translateAttribute(a)
-      case a: Alias => translateUp(a.child)
-      case p: PromotePrecision => translateUp(p.child)
-      case CaseWhen(branches, elseValue) => translateCaseWhen(branches, elseValue)
-      case In(value, list) => translateIn(value, list)
-      case InSet(child, set) =>
-        translateIn(
-          child,
-          set.map {
-            case s: UTF8String => Literal(s, StringType)
-            case other => Literal(other)
-          }.toSeq)
-      case scalar @ ScalarFunction(children) =>
-        Util
-          .seqToOption(children.map(translateUp))
-          .flatMap(toScalarFunction.convert(scalar, _))
-      case p: PlanExpression[_] => translateSubQuery(p)
-      case other => default(other)
+  protected def translateUp(expr: Expression): Option[SExpression] =
+    internalTranslateUp(expr) match {
+      case None => default(expr)
+      case other => other
     }
+
+  private def internalTranslateUp(expr: Expression): Option[SExpression] = expr match {
+    case c @ Cast(child, dataType, _, _) =>
+      translateUp(child)
+        .map(ExpressionCreator.cast(ToSubstraitType.apply(dataType, c.nullable), _))
+    case c @ CheckOverflow(child, dataType, _) =>
+      // CheckOverflow similar with cast
+      translateUp(child)
+        .map(
+          childExpr => {
+            if (SparkTypeUtil.sameType(dataType, child.dataType)) {
+              childExpr
+            } else {
+              ExpressionCreator.cast(ToSubstraitType.apply(dataType, c.nullable), childExpr)
+            }
+          })
+    case SubstraitLiteral(substraitLiteral) => Some(substraitLiteral)
+    case a: AttributeReference if currentOutput.nonEmpty => translateAttribute(a)
+    case a: Alias => translateUp(a.child)
+    case p: PromotePrecision => translateUp(p.child)
+    case CaseWhen(branches, elseValue) => translateCaseWhen(branches, elseValue)
+    case In(value, list) => translateIn(value, list)
+    case InSet(child, set) =>
+      translateIn(
+        child,
+        set.map {
+          case s: UTF8String => Literal(s, StringType)
+          case other => Literal(other)
+        }.toSeq)
+    case scalar @ ScalarFunction(children) =>
+      Util
+        .seqToOption(children.map(translateUp))
+        .flatMap(toScalarFunction.convert(scalar, _))
+    case p: PlanExpression[_] => translateSubQuery(p)
+    case _ => None
   }
+
 }
