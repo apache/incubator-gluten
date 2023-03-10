@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
+
 import com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -25,14 +26,16 @@ import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import java.util
+
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
+import io.glutenproject.utils.GlutenDecimalUtil
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DecimalType, DoubleType, LongType}
+import org.apache.spark.sql.types.{BooleanType, DecimalType, DoubleType, IntegerType, LongType}
 
 case class GlutenHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
@@ -60,6 +63,12 @@ case class GlutenHashAggregateExecTransformer(
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
         case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
+          expr.mode match {
+            case Partial =>
+              return true
+            case _ =>
+          }
+        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
           expr.mode match {
             case Partial =>
               return true
@@ -113,17 +122,27 @@ case class GlutenHashAggregateExecTransformer(
           // Select m2 from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
           colIdx += 1
+        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
+          // Select sum from Velox Struct.
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
+          // Select isEmpty from Velox Struct.
+          expressionNodes.add(ExpressionBuilder
+            .makeCast(ConverterUtils.getTypeNode(BooleanType, nullable = true),
+              ExpressionBuilder.makeSelection(colIdx, 1), SQLConf.get.ansiEnabled))
+          colIdx += 1
         case _ =>
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
       }
     }
     if (!validation) {
-      RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId, groupingExpressions.size + aggregateExpressions.size)
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId,
+        groupingExpressions.size + aggregateExpressions.size)
     } else {
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
-      RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId, groupingExpressions.size + aggregateExpressions.size)
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId,
+        groupingExpressions.size + aggregateExpressions.size)
     }
   }
 
@@ -136,21 +155,17 @@ case class GlutenHashAggregateExecTransformer(
     val structTypeNodes = new util.ArrayList[TypeNode]()
     aggregateFunction match {
       case avg: Average =>
-        avg.dataType match {
-          case _: DecimalType =>
-            // Use struct type to represent Velox Row(DECIMAL, BIGINT).
-            structTypeNodes.add(ConverterUtils.getTypeNode(avg.dataType, nullable = true))
-            structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-          case _ =>
-            // Use struct type to represent Velox Row(DOUBLE, BIGINT).
-            structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-            structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-        }
+        structTypeNodes.add(ConverterUtils.getTypeNode(
+          GlutenDecimalUtil.getAvgSumDataType(avg), nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
       case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+      case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
+        structTypeNodes.add(ConverterUtils.getTypeNode(sum.dataType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(IntegerType, nullable = false))
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
@@ -169,6 +184,25 @@ case class GlutenHashAggregateExecTransformer(
         aggregateMode match {
           case Partial =>
             assert(childrenNodeList.size() == 1, "Partial stage expects one child node.")
+            val partialNode = ExpressionBuilder.makeAggregateFunction(
+              AggregateFunctionsBuilder.create(args, aggregateFunction),
+              childrenNodeList,
+              modeToKeyWord(aggregateMode),
+              getIntermediateTypeNode(aggregateFunction))
+            aggregateNodeList.add(partialNode)
+          case Final =>
+            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+              AggregateFunctionsBuilder.create(args, aggregateFunction),
+              childrenNodeList,
+              modeToKeyWord(aggregateMode),
+              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+            aggregateNodeList.add(aggFunctionNode)
+          case other =>
+            throw new UnsupportedOperationException(s"$other is not supported.")
+        }
+      case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
+        aggregateMode match {
+          case Partial =>
             val partialNode = ExpressionBuilder.makeAggregateFunction(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
@@ -208,6 +242,16 @@ case class GlutenHashAggregateExecTransformer(
       val aggregateFunction = expression.aggregateFunction
       aggregateFunction match {
         case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
+          expression.mode match {
+            case Partial =>
+              typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
+            case Final =>
+              typeNodeList.add(
+                ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+            case other =>
+              throw new UnsupportedOperationException(s"$other is not supported.")
+          }
+        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
           expression.mode match {
             case Partial =>
               typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
@@ -328,6 +372,22 @@ case class GlutenHashAggregateExecTransformer(
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
+        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
+          aggregateExpression.mode match {
+            case Final =>
+              assert(functionInputAttributes.size == 2,
+                "Final stage of Average expects two input attributes.")
+              // Use a Velox function to combine the intermediate columns into struct.
+              val childNodes = new util.ArrayList[ExpressionNode](
+                functionInputAttributes.toList.map(attr => {
+                  ExpressionConverter
+                    .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                    .doTransform(args)
+                }).asJava)
+              exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
+            case other =>
+              throw new UnsupportedOperationException(s"$other is not supported.")
+          }
         case _ =>
           assert(functionInputAttributes.size == 1, "Only one input attribute is expected.")
           val childNodes = new util.ArrayList[ExpressionNode](
@@ -352,7 +412,8 @@ case class GlutenHashAggregateExecTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId, emitStartIndex)
+      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode,
+        context, operatorId, emitStartIndex)
     }
 
     // Create aggregation rel.
@@ -379,6 +440,9 @@ case class GlutenHashAggregateExecTransformer(
         case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
+          childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
+          colIdx += 1
+        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
         case _ =>
