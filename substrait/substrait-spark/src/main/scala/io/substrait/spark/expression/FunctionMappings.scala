@@ -69,6 +69,7 @@ class FunctionMappings {
     s[Year]("year"),
     s[Concat]("concat"),
     s[Coalesce]("coalesce"),
+    s[Upper]("upper"),
 
     // math
     s[Round]("round"),

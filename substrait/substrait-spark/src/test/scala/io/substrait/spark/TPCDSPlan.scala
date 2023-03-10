@@ -155,6 +155,8 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
       "q21",
       "q23a",
       "q23b",
+      "q24a",
+      "q24b",
       "q25",
       "q26",
       "q28",
