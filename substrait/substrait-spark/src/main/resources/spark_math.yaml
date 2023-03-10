@@ -18,6 +18,18 @@ scalar_functions:
           - name: scale
             value: i32
         return: fp32
+  -
+    name: "abs"
+    description: >
+      Calculate the absolute value of the argument.
+    impls:
+      - args:
+          - name: x
+            value: DECIMAL<P,S>
+        options:
+          overflow:
+            values: [ SILENT, SATURATE, ERROR ]
+        return: DECIMAL<P,S>
 
 aggregate_functions:
   - name: "stddev_samp"

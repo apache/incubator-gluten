@@ -47,6 +47,7 @@ class FunctionMappings {
 
   val SCALAR_SIGS: Seq[Sig] = Seq(
     s[Add]("add"),
+    s[Abs]("abs"),
     s[Subtract]("subtract"),
     s[Multiply]("multiply"),
     s[Divide]("divide"),
