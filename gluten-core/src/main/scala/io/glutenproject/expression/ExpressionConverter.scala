@@ -368,7 +368,7 @@ object ExpressionConverter extends Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    if (GlutenConfig.getSessionConf.enableScanOnly) {
+    if (GlutenConfig.getConf.enableScanOnly) {
       // Disable ColumnarSubqueryBroadcast for scan-only execution.
       partitionFilters
     } else {
