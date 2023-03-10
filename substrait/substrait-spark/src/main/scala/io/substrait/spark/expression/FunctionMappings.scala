@@ -67,10 +67,13 @@ class FunctionMappings {
     s[Contains]("contains"),
     s[StartsWith]("starts_with"),
     s[Substring]("substring"),
-    s[Year]("year"),
     s[Concat]("concat"),
     s[Coalesce]("coalesce"),
     s[Upper]("upper"),
+
+    // Date
+    s[Year]("year"),
+    s[DateAdd]("date_add"),
 
     // math
     s[Round]("round"),

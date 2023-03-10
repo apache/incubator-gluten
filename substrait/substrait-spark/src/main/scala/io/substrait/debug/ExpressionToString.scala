@@ -41,6 +41,10 @@ class ExpressionToString extends DefaultExpressionVisitor[String] {
   override def visit(expr: DateLiteral): String = {
     DateTimeUtils.toJavaDate(expr.value()).toString
   }
+
+  override def visit(expr: Expression.I32Literal): String = {
+    expr.value().toString
+  }
   override def visit(expr: FieldReference): String = {
     withFieldReference(expr)(i => "$" + i.toString)
   }

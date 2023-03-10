@@ -30,7 +30,7 @@ object SparkExtension {
   private val SparkImpls: SimpleExtension.ExtensionCollection =
     SimpleExtension.load(
       util.Arrays.asList(
-        "/spark.yml",
+        "/spark_datetime.yml",
         "/spark_internal.yaml",
         "/spark_math.yaml"
       ))

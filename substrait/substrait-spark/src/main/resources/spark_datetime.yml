@@ -1,0 +1,20 @@
+%YAML 1.2
+---
+scalar_functions:
+  -
+    name: year
+    description: Returns the year component of the date/timestamp
+    impls:
+      - args:
+          - value: date
+        return: i32
+  -
+    name: date_add
+    description: Returns the date that is `num_days` after `start_date`.
+    impls:
+      - args:
+          - name: start_date
+            value: date
+          - name: num_days
+            value: i32
+        return: date
