@@ -84,6 +84,11 @@
                   <shadedPattern>io.glutenproject.shaded.com.google.flatbuffers</shadedPattern>
                 </relocation>
               </relocations>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/services/io.glutenproject.sql.shims.SparkShimProvider</resource>
+                </transformer>
+              </transformers>
             </configuration>
           </execution>
         </executions>
