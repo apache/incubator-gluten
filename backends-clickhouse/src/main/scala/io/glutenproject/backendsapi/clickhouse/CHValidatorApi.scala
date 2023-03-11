@@ -43,24 +43,25 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
    *   true by default
    */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean = {
-    if (CHExpressionUtil.CH_EXPR_BLACKLIST.isEmpty) return true
-    val value = CHExpressionUtil.CH_EXPR_BLACKLIST.get(substraitExprName)
-    if (value.isEmpty) {
-      return true
-    }
-    val inputTypeNames = value.get
-    inputTypeNames.foreach {
-      inputTypeName =>
-        if (inputTypeName.equals(CHExpressionUtil.EMPTY_TYPE)) {
+    CHExpressionUtil.CH_EXPR_BLACKLIST_TYPE_EXISTS.get(substraitExprName) match {
+      case Some(unsupportedTypeSet) =>
+        if (unsupportedTypeSet.contains(CHExpressionUtil.EMPTY_TYPE)) {
           return false
-        } else {
-          for (input <- expr.children) {
-            if (inputTypeName.equals(input.dataType.typeName)) {
-              return false
-            }
-          }
         }
+        if (expr.children.map(_.dataType.typeName).exists(unsupportedTypeSet.contains)) {
+          return false
+        }
+      case _ =>
     }
+
+    CHExpressionUtil.CH_EXPR_BLACKLIST_TYPE_MATCH.get(substraitExprName) match {
+      case Some(unsupportedTypeSeq) =>
+        if (expr.children.map(_.dataType.typeName).equals(unsupportedTypeSeq)) {
+          return false
+        }
+      case _ =>
+    }
+
     true
   }
 
