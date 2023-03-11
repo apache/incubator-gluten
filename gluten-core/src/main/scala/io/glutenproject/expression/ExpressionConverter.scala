@@ -200,29 +200,21 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           n)
       case t: StringTrim =>
-        if (t.trimStr != None) {
-          // todo: to be remove and deal all these three exprs together
-          //  when Velox support this argument
-          throw new UnsupportedOperationException(s"not supported yet.")
-        }
         new String2TrimExpressionTransformer(
           substraitExprName,
+          t.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(t.srcStr, attributeSeq),
           t)
       case l: StringTrimLeft =>
-        if (l.trimStr != None) {
-          throw new UnsupportedOperationException(s"not supported yet.")
-        }
         new String2TrimExpressionTransformer(
           substraitExprName,
+          l.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(l.srcStr, attributeSeq),
           l)
       case r: StringTrimRight =>
-        if (r.trimStr != None) {
-          throw new UnsupportedOperationException(s"not supported yet.")
-        }
         new String2TrimExpressionTransformer(
           substraitExprName,
+          r.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
           r)
       case m: HashExpression[_] =>
