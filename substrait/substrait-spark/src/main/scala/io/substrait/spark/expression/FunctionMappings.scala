@@ -19,7 +19,7 @@ package io.substrait.spark.expression
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.DecimalType
 
 import scala.reflect.ClassTag
 
@@ -43,6 +43,14 @@ class FunctionMappings {
     val scale = args(2).asInstanceOf[Literal].value.asInstanceOf[Int]
     val nullOnOverflow = args(3).asInstanceOf[Literal].value.asInstanceOf[Boolean]
     new MakeDecimal(args.head, precision, scale, nullOnOverflow)
+  }
+
+  private def checkOverflow(args: Seq[Expression]): Expression = {
+    require(args.size == 3)
+    val dataType = args(1).dataType.asInstanceOf[DecimalType]
+    val nullOnOverflow = args(2).asInstanceOf[Literal].value.asInstanceOf[Boolean]
+
+    CheckOverflow(args.head, dataType = dataType, nullOnOverflow = nullOnOverflow)
   }
 
   val SCALAR_SIGS: Seq[Sig] = Seq(
@@ -81,6 +89,7 @@ class FunctionMappings {
     // internal
     s[UnscaledValue]("unscaled"),
     s[MakeDecimal]("make_decimal", Some(makeDecimal)),
+    s[CheckOverflow]("check_overflow", Some(checkOverflow)),
     s[EqualNullSafe]("equal_nullsafe")
   )
 

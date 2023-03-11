@@ -20,11 +20,12 @@ import io.substrait.spark.HasOutputStack
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.StringType
-import org.apache.spark.substrait.{SparkTypeUtil, ToSubstraitType}
+import org.apache.spark.substrait.ToSubstraitType
 import org.apache.spark.unsafe.types.UTF8String
 
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator, FieldReference, ImmutableExpression}
 import io.substrait.utils.Util
+import io.substrait.workaround.{SparkTypeExpression, SubstraitTypeExpression}
 
 import scala.collection.JavaConverters.asJavaIterableConverter
 
@@ -33,6 +34,8 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
 
   object ScalarFunction {
     def unapply(e: Expression): Option[Seq[Expression]] = e match {
+      case CheckOverflow(child, dataType, nullOnOverflow) =>
+        Some(Seq(child, SparkTypeExpression(dataType), Literal(nullOnOverflow)))
       case Concat(children) => Some(children)
       case Coalesce(children) => Some(children)
       case MakeDecimal(child, precision, scale, nullOnOverflow) =>
@@ -68,7 +71,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
 
   protected def translateSubQuery(expr: PlanExpression[_]): Option[SExpression] = default(expr)
 
-  protected def translateAttribute(a: AttributeReference): Option[SExpression] = {
+  private def translateAttribute(a: AttributeReference): Option[SExpression] = {
     val bindReference =
       BindReferences.bindReference[Expression](a, currentOutput, allowFailures = false)
     if (bindReference == a) {
@@ -82,7 +85,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
     }
   }
 
-  protected def translateCaseWhen(
+  private def translateCaseWhen(
       branches: Seq[(Expression, Expression)],
       elseValue: Option[Expression]): Option[SExpression] = {
     val cases =
@@ -106,7 +109,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
               ExpressionCreator.ifThenStatement(defaultResult, caseConditions.asJava)
             }))
   }
-  protected def translateIn(value: Expression, list: Seq[Expression]): Option[SExpression] = {
+  private def translateIn(value: Expression, list: Seq[Expression]): Option[SExpression] = {
     Util
       .seqToOption(list.map(translateUp))
       .flatMap(
@@ -121,7 +124,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
             }))
   }
 
-  protected def translateUp(expr: Expression): Option[SExpression] =
+  private def translateUp(expr: Expression): Option[SExpression] =
     internalTranslateUp(expr) match {
       case None => default(expr)
       case other => other
@@ -131,21 +134,12 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
     case c @ Cast(child, dataType, _, _) =>
       translateUp(child)
         .map(ExpressionCreator.cast(ToSubstraitType.apply(dataType, c.nullable), _))
-    case c @ CheckOverflow(child, dataType, _) =>
-      // CheckOverflow similar with cast
-      translateUp(child)
-        .map(
-          childExpr => {
-            if (SparkTypeUtil.sameType(dataType, child.dataType)) {
-              childExpr
-            } else {
-              ExpressionCreator.cast(ToSubstraitType.apply(dataType, c.nullable), childExpr)
-            }
-          })
+    case SparkTypeExpression(dataType) =>
+      Some(SubstraitTypeExpression(ToSubstraitType.apply(dataType, nullable = true)))
     case SubstraitLiteral(substraitLiteral) => Some(substraitLiteral)
     case a: AttributeReference if currentOutput.nonEmpty => translateAttribute(a)
-    case a: Alias => translateUp(a.child)
-    case p: PromotePrecision => translateUp(p.child)
+    case Alias(child, _) => translateUp(child)
+    case PromotePrecision(child) => translateUp(child)
     case CaseWhen(branches, elseValue) => translateCaseWhen(branches, elseValue)
     case In(value, list) => translateIn(value, list)
     case InSet(child, set) =>
@@ -162,5 +156,4 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
     case p: PlanExpression[_] => translateSubQuery(p)
     case _ => None
   }
-
 }

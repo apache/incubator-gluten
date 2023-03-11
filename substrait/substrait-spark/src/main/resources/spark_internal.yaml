@@ -41,3 +41,18 @@ scalar_functions:
           - value: any1
             name: y
         return: BOOLEAN
+  -
+    name: check_overflow
+    description: >-
+      Rounds the decimal to given scale and check whether the decimal can fit in provided precision
+      or not. If not, if `nullOnOverflow` is `true`, it returns `null`; otherwise an
+      `ArithmeticException` is thrown.
+    impls:
+      - args:
+          - value: DECIMAL<P,S>
+            name: child
+          - type: DECIMAL<P,S>
+            name: dataType
+          - name: nullOnOverflow
+            value: boolean
+        return: DECIMAL<P,S>

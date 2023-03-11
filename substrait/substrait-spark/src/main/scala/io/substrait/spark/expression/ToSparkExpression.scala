@@ -29,7 +29,9 @@ import org.apache.spark.unsafe.types.UTF8String
 import io.substrait.`type`.{StringTypeVisitor, Type}
 import io.substrait.{expression => exp}
 import io.substrait.expression.{Expression => SExpression}
+import io.substrait.function.SimpleExtension
 import io.substrait.util.DecimalUtil
+import io.substrait.workaround.SparkTypeExpression
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.immutable.HashSet
@@ -129,6 +131,11 @@ class ToSparkExpression(
     val list = expr.options().asScala.map(e => e.accept(this))
     OptimizeIn(In(value, list))
   }
+
+  override def visitType(fnDef: SimpleExtension.Function, argIdx: Int, t: Type): Expression = {
+    SparkTypeExpression(ToSubstraitType.convert(t))
+  }
+
   override def visit(expr: SExpression.ScalarFunctionInvocation): Expression = {
     val eArgs = expr.arguments().asScala
     val args = eArgs.zipWithIndex.map {

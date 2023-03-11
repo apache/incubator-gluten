@@ -29,6 +29,7 @@ import io.substrait.`type`.Type
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator, FunctionArg}
 import io.substrait.function.{ParameterizedType, SimpleExtension, ToTypeString}
 import io.substrait.utils.Util
+import io.substrait.workaround.SubstraitTypeExpression
 
 import java.{util => ju}
 
@@ -234,24 +235,33 @@ class FunctionFinder[F <: SimpleExtension.Function, T](
     val singularInputType: Option[SingularArgumentMatcher[F]],
     val parent: FunctionConverter[F, T]) {
 
-  def attemptMatch(expression: Expression, operands: Seq[SExpression]): Option[T] = {
+  private def toFuncArg(operands: Seq[SExpression]): Seq[FunctionArg] = operands.map {
+    case t: SubstraitTypeExpression => t.getType
+    case other => other
+  }
 
-    val opTypes = operands.map(_.getType)
-    val outputType = ToSubstraitType.apply(expression.dataType, expression.nullable)
-    val opTypesStr = opTypes.map(t => t.accept(ToTypeString.INSTANCE))
+  private def directMapKey(operands: Seq[SExpression]): Option[String] = {
+
+    val opTypesStr = operands.map {
+      case _: SubstraitTypeExpression => "type"
+      case other => other.getType.accept(ToTypeString.INSTANCE)
+    }
 
     val possibleKeys =
       Util.crossProduct(opTypesStr.map(s => Seq(s))).map(list => list.mkString("_"))
-
     val directMatchKey = possibleKeys
       .map(name + ":" + _)
       .find(k => directMap.contains(k))
+    directMatchKey
+  }
 
+  def attemptMatch(expression: Expression, operands: Seq[SExpression]): Option[T] = {
+    val directMatchKey = directMapKey(operands)
+    val outputType = ToSubstraitType.apply(expression.dataType, expression.nullable)
     if (directMatchKey.isDefined) {
       val variant = directMap(directMatchKey.get)
       variant.validateOutputType(JavaConverters.bufferAsJavaList(operands.toBuffer), outputType)
-      val funcArgs: Seq[FunctionArg] = operands
-      Option(parent.generateBinding(expression, variant, funcArgs, outputType))
+      Option(parent.generateBinding(expression, variant, toFuncArg(operands), outputType))
     } else if (singularInputType.isDefined) {
       val types = expression match {
         case agg: AggregateExpression => agg.aggregateFunction.children.map(_.dataType)

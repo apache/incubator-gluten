@@ -18,7 +18,7 @@ package io.substrait.spark.expression
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.{IntegerType, LongType}
+import org.apache.spark.sql.types._
 
 import io.substrait.`type`.Type
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator}
@@ -72,5 +72,13 @@ class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTe
 
     val roundFloat = Round(Literal(12.1111f), Literal(2))
     runTest("round:fp32_i32", roundFloat)
+  }
+
+  test("check_overflow") {
+    val check = CheckOverflow(
+      Literal(Literal(BigDecimal.decimal(12.1111))),
+      DecimalType(10, 2),
+      nullOnOverflow = false)
+    runTest("check_overflow:dec_type_bool", check)
   }
 }
