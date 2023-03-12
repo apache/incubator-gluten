@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
@@ -22,21 +21,23 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
-
-import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Expression, NamedExpression, PercentRank, Rank, RowNumber, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, MapType, StructField, StructType}
+import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.types._
 
 import scala.util.control.Breaks.{break, breakable}
 
 class VeloxBackend extends Backend {
   override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
-  override def initializerApi(): IInitializerApi = new VeloxInitializerApi
-  override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
-  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
-  override def transformerApi(): ITransformerApi = new VeloxTransformerApi
-  override def validatorApi(): IValidatorApi = new VeloxValidatorApi
+  override def initializerApi(): InitializerApi = new VeloxInitializerApi
+  override def iteratorApi(): IteratorApi = new VeloxIteratorApi
+  override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
+  override def transformerApi(): TransformerApi = new VeloxTransformerApi
+  override def validatorApi(): ValidatorApi = new VeloxValidatorApi
+
+  override def metricsApi(): MetricsApi = new VeloxMetricsApi
+
   override def settings(): BackendSettings = VeloxBackendSettings
 }
 

@@ -141,10 +141,10 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         }
         val startTime = System.nanoTime()
         val bytes = jniWrapper.split(nativeSplitter, cb.numRows, handle)
-        dep.dataSize.add(bytes)
-        dep.splitTime.add(System.nanoTime() - startTime)
-        dep.numInputRows.add(cb.numRows)
-        dep.inputBatches.add(1)
+        dep.metrics("dataSize").add(bytes)
+        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        dep.metrics("numInputRows").add(cb.numRows)
+        dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(cb.numRows())
       }
@@ -155,12 +155,12 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
       splitResult = jniWrapper.stop(nativeSplitter)
     }
 
-    dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+    dep.metrics("splitTime").add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
       splitResult.getTotalWriteTime -
       splitResult.getTotalCompressTime)
-    dep.spillTime.add(splitResult.getTotalSpillTime)
-    dep.compressTime.add(splitResult.getTotalCompressTime)
-    dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
+    dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
+    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+    dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 

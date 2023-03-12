@@ -17,7 +17,7 @@
 
 package io.glutenproject.backendsapi.glutendata
 
-import io.glutenproject.backendsapi.{BackendsApiManager, ISparkPlanExecApi}
+import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.execution.GlutenColumnarRules.LoadBeforeColumnarToRow
@@ -48,7 +48,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable.ArrayBuffer
 
-abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
+abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Generate GlutenColumnarToRowExecBase.
@@ -156,14 +156,7 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
     newPartitioning: Partitioning,
     serializer: Serializer,
     writeMetrics: Map[String, SQLMetric],
-    dataSize: SQLMetric,
-    bytesSpilled: SQLMetric,
-    numInputRows: SQLMetric,
-    computePidTime: SQLMetric,
-    splitTime: SQLMetric,
-    spillTime: SQLMetric,
-    compressTime: SQLMetric,
-    inputBatches: SQLMetric)
+    metrics: Map[String, SQLMetric])
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenExecUtil.genShuffleDependency(
@@ -172,14 +165,7 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
       newPartitioning,
       serializer,
       writeMetrics,
-      dataSize,
-      bytesSpilled,
-      numInputRows,
-      computePidTime,
-      splitTime,
-      spillTime,
-      compressTime,
-      inputBatches)
+      metrics)
   }
   // scalastyle:on argcount
 

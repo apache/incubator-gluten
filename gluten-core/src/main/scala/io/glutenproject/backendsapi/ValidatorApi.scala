@@ -27,7 +27,7 @@ import org.apache.spark.sql.types.StructType
  * Determine if a plan or expression can be accepted by the backend, or we fallback
  * the execution to vanilla Spark.
  */
-trait IValidatorApi {
+trait ValidatorApi {
 
   /**
    * Validate expression for specific backend, including input type.

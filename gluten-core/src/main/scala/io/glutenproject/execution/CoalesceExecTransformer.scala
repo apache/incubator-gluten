@@ -17,6 +17,7 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}
@@ -74,7 +75,7 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   override protected def withNewChildInternal(newChild: SparkPlan): CoalesceExecTransformer =
     copy(child = newChild)
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }
 
 object CoalesceExecTransformer {

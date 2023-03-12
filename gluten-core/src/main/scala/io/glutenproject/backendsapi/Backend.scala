@@ -19,10 +19,18 @@ package io.glutenproject.backendsapi
 
 trait Backend {
   def name(): String
-  def initializerApi(): IInitializerApi
-  def iteratorApi(): IIteratorApi
-  def sparkPlanExecApi(): ISparkPlanExecApi
-  def transformerApi(): ITransformerApi
-  def validatorApi(): IValidatorApi
+
+  def initializerApi(): InitializerApi
+
+  def iteratorApi(): IteratorApi
+
+  def sparkPlanExecApi(): SparkPlanExecApi
+
+  def transformerApi(): TransformerApi
+
+  def validatorApi(): ValidatorApi
+
+  def metricsApi(): MetricsApi
+
   def settings(): BackendSettings
 }

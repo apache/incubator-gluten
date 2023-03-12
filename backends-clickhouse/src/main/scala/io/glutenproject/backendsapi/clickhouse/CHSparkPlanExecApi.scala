@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.backendsapi.ISparkPlanExecApi
+import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
@@ -48,7 +48,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable.ArrayBuffer
 
-class CHSparkPlanExecApi extends ISparkPlanExecApi {
+class CHSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Generate GlutenColumnarToRowExecBase.
@@ -182,28 +182,15 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      dataSize: SQLMetric,
-      bytesSpilled: SQLMetric,
-      numInputRows: SQLMetric,
-      computePidTime: SQLMetric,
-      splitTime: SQLMetric,
-      spillTime: SQLMetric,
-      compressTime: SQLMetric,
-      inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      metrics: Map[String, SQLMetric]
+  ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
       outputAttributes,
       newPartitioning,
       serializer,
       writeMetrics,
-      dataSize,
-      bytesSpilled,
-      numInputRows,
-      computePidTime,
-      splitTime,
-      spillTime,
-      compressTime,
-      inputBatches
+      metrics
     )
   }
   // scalastyle:on argcount

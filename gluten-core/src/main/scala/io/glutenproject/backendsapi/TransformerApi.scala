@@ -24,7 +24,7 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructField
 
-trait ITransformerApi {
+trait TransformerApi {
 
   /**
    * Do validate for ColumnarShuffleExchangeExec.

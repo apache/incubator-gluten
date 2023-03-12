@@ -17,10 +17,11 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
-import io.glutenproject.backendsapi.IIteratorApi
+import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
+import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -43,7 +44,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
-class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
+class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
   /**
    * Generate native row partition.
@@ -159,7 +160,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       context: TaskContext,
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
-      updateNativeMetrics: Metrics => Unit,
+      updateNativeMetrics: IMetrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
     val transKernel = new CHNativeExpressionEvaluator()
@@ -173,13 +174,23 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
+      private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
+      private var inputRowCount = 0L
+      private var inputVectorCount = 0L
 
       override def hasNext: Boolean = {
-        resIter.hasNext
+        val res = resIter.hasNext
+        if (!res) {
+          // updateNativeMetrics(resIter.getMetrics)
+          // updateInputMetrics(inputMetrics)
+        }
+        res
       }
 
       override def next(): Any = {
         val cb = resIter.next()
+        inputVectorCount += 1
+        inputRowCount += cb.numRows()
         cb
       }
     }
@@ -201,7 +212,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       outputAttributes: Seq[Attribute],
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
-      updateNativeMetrics: Metrics => Unit,
+      updateNativeMetrics: IMetrics => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
@@ -219,7 +230,11 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = new Iterator[ColumnarBatch] {
       override def hasNext: Boolean = {
-        nativeIterator.hasNext
+        val res = nativeIterator.hasNext
+        if (!res) {
+          // updateNativeMetrics(nativeIterator.getMetrics)
+        }
+        res
       }
 
       override def next(): ColumnarBatch = {

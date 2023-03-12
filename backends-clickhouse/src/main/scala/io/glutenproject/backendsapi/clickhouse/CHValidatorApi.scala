@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.backendsapi.IValidatorApi
+import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
@@ -28,7 +28,7 @@ import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RD
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
-class CHValidatorApi extends IValidatorApi with AdaptiveSparkPlanHelper {
+class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new CHNativeExpressionEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)

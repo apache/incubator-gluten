@@ -17,13 +17,14 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
+
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
@@ -45,11 +46,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * would only be to reduce code.
  */
 abstract class GlutenRowToColumnarExec(child: SparkPlan) extends UnaryExecNode {
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime to convert")
-  )
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genRowToColumnarMetrics(sparkContext)
 
   override def output: Seq[Attribute] = child.output
 
