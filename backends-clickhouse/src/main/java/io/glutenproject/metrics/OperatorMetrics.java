@@ -14,18 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.metrics
 
-import org.apache.spark.sql.execution.metric.SQLMetric
+package io.glutenproject.metrics;
 
-class LimitMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+import java.util.Map;
 
-  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {
-      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      MetricsUtil.updateOperatorMetrics(metrics, Map.empty, operatorMetrics)
-    }
+public class OperatorMetrics implements IOperatorMetrics {
+
+  public Map<String, Long> metric;
+  public int currMetricIdx;
+
+  /**
+   * Create an instance for operator metrics.
+   */
+  public OperatorMetrics(Map<String, Long> metric, int currMetricIdx) {
+    this.metric = metric;
+    this.currMetricIdx = currMetricIdx;
   }
 }
-
-object LimitMetricsUpdater {}

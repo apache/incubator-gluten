@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
-import io.glutenproject.metrics.IMetrics
+import io.glutenproject.metrics.{IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -185,22 +185,27 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
-      private var inputRowCount = 0L
-      private var inputVectorCount = 0L
+      private var outputRowCount = 0L
+      private var outputVectorCount = 0L
 
       override def hasNext: Boolean = {
         val res = resIter.hasNext
         if (!res) {
-          // updateNativeMetrics(resIter.getMetrics)
-          // updateInputMetrics(inputMetrics)
+          // TODO: support collecting metrics from ch backend
+          // val nativeMetrics = resIter.getMetrics.asInstanceOf[NativeMetrics]
+          val nativeMetrics = new NativeMetrics(new java.util.HashMap())
+          nativeMetrics.metrics.put("outputRows", outputRowCount)
+          nativeMetrics.metrics.put("outputVectors", outputVectorCount)
+          updateNativeMetrics(nativeMetrics)
+          updateInputMetrics(inputMetrics)
         }
         res
       }
 
       override def next(): Any = {
         val cb = resIter.next()
-        inputVectorCount += 1
-        inputRowCount += cb.numRows()
+        outputVectorCount += 1
+        outputRowCount += cb.numRows()
         cb
       }
     }
@@ -239,16 +244,26 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = new Iterator[ColumnarBatch] {
+      private var outputRowCount = 0L
+      private var outputVectorCount = 0L
+
       override def hasNext: Boolean = {
         val res = nativeIterator.hasNext
         if (!res) {
-          // updateNativeMetrics(nativeIterator.getMetrics)
+          // TODO: support collecting metrics from ch backend
+          // val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
+          val nativeMetrics = new NativeMetrics(new java.util.HashMap())
+          nativeMetrics.metrics.put("outputRows", outputRowCount)
+          nativeMetrics.metrics.put("outputVectors", outputVectorCount)
+          updateNativeMetrics(nativeMetrics)
         }
         res
       }
 
       override def next(): ColumnarBatch = {
         val cb = nativeIterator.next()
+        outputVectorCount += 1
+        outputRowCount += cb.numRows()
         cb
       }
     }

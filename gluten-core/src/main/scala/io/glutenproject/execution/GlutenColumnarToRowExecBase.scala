@@ -26,7 +26,8 @@ import org.apache.spark.sql.execution.{CodegenSupport, ColumnarToRowTransition, 
 abstract class GlutenColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTransition
   with CodegenSupport {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarToRowMetrics(sparkContext)
 
   def doValidate(): Boolean = {

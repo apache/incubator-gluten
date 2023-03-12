@@ -47,7 +47,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   private[sql] lazy val readMetrics =
     SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance
       .genColumnarShuffleExchangeMetrics(sparkContext) ++ readMetrics ++ writeMetrics
 

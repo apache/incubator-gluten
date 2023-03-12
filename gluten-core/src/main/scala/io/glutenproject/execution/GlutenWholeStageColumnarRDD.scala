@@ -98,7 +98,7 @@ case class FirstZippedPartitionsPartition(idx: Int, inputPartition: InputPartiti
   def partitions: Seq[Partition] = partitionValues
 }
 
-class GlutenWholeStageColumnarRDD(sc: SparkContext,
+class GlutenWholeStageColumnarRDD(@transient sc: SparkContext,
                                   @transient private val inputPartitions: Seq[InputPartition],
                                   outputAttributes: Seq[Attribute],
                                   var rdds: Seq[RDD[ColumnarBatch]],

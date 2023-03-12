@@ -115,7 +115,8 @@ case class GenerateExecTransformer(
       getRelNode(context, operatorId, child.output, null, generatorNode, childOutputNodes, true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 

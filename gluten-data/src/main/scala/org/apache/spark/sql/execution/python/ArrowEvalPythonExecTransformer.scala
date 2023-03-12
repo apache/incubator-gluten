@@ -39,7 +39,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq[Attribute],
   child: SparkPlan, evalType: Int)
   extends EvalPythonExec with TransformSupport {
-  override lazy val metrics = Map(
+
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),

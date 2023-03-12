@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi.clickhouse
+package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder

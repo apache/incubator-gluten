@@ -55,7 +55,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     disableBucketedScan)
     with BasicScanExecTransformer {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance
     .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetrics
 

@@ -32,7 +32,8 @@ class BatchScanExecShim(
     runtimeFilters: Seq[Expression])
   extends BatchScanExec(output, scan, runtimeFilters) {
 
-  override lazy val metrics: Map[String, SQLMetric] = Map()
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 

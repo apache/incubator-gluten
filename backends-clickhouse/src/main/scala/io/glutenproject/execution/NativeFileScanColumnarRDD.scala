@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import scala.collection.JavaConverters._
 
 class NativeFileScanColumnarRDD(
-    sc: SparkContext,
+    @transient sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
     outputAttributes: Seq[Attribute],
     numOutputRows: SQLMetric,
