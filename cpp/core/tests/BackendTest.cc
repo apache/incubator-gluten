@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "Backend.h"
+#include "compute/Backend.h"
 
 #include <gtest/gtest.h>
 
