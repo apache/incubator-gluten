@@ -46,7 +46,7 @@ jobs:
   velox-backend-ubuntu2004-test:
     runs-on: velox-self-hosted
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.3.5
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2004-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
@@ -134,7 +134,7 @@ jobs:
   velox-backend-ubuntu2204-test:
     runs-on: velox-self-hosted
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.3.5
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-ubuntu2204-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
