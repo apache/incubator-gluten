@@ -93,6 +93,20 @@
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
+            <id>clean-package-jar</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>rm</executable>
+              <arguments>
+                <argument>-f</argument>
+                <argument>target/gluten-package-${project.version}.jar</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
             <id>copy-fat-jar</id>
             <phase>package</phase>
             <goals>
