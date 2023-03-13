@@ -203,6 +203,7 @@ inline arrow::Status CreateArrayData(
             const uint8_t* srcptr = (memory_address_ + offsets[position] + fieldOffset);
             bool is_null = IsNull(memory_address_ + offsets[position], columnar_id);
             auto mask = (1L << (typewidth[columnar_id])) - 1;
+            (void)mask; // suppress warning
             auto shift = _tzcnt_u32(typewidth[columnar_id]);
             uint8_t* destptr = array_data + (position << shift);
             if (!is_null) {

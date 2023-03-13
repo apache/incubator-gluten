@@ -35,6 +35,30 @@
 
 namespace gluten {
 
+void StatCreateSplitter(SPLITTER_TYPE type) {
+  static unsigned int stat[SPLITTER_TOTAL + 1] = {};
+
+  stat[type]++;
+  stat[SPLITTER_TOTAL]++;
+
+  static unsigned x = 10;
+
+  if (stat[SPLITTER_TOTAL] % x == 0) {
+    std::cout << "create splitter stat, total=" << stat[SPLITTER_TOTAL] << std::endl;
+
+    std::cout << " hash=" << stat[SPLITTER_HASH] << " round-robin=" << stat[SPLITTER_ROUND_ROBIN]
+              << " range=" << stat[SPLITTER_RANGE] << " single=" << stat[SPLITTER_SINGLE] << std::endl;
+
+    std::cout << " velox hash=" << stat[VELOX_SPLITTER_HASH]
+              << " velox round-robin=" << stat[VELOX_SPLITTER_ROUND_ROBIN]
+              << " velox range=" << stat[VELOX_SPLITTER_RANGE] << " velox single=" << stat[VELOX_SPLITTER_SINGLE]
+              << std::endl;
+
+    if (x <= 100)
+      x += 10;
+  }
+}
+
 using arrow::internal::checked_cast;
 
 #ifndef SPLIT_BUFFER_SIZE
@@ -48,17 +72,6 @@ using arrow::internal::checked_cast;
 #define rotateLeft(x, s) (x << (s - ((s >> 3) << 3)) | x >> (8 - (s - ((s >> 3) << 3))))
 #endif
 
-// on x86 machines, _MM_HINT_T0,T1,T2 are defined as 1, 2, 3
-// equivalent mapping to __builtin_prefetch hints is 3, 2, 1
-#if defined(__x86_64__)
-#define PREFETCHT0(ptr) _mm_prefetch(ptr, _MM_HINT_T0)
-#define PREFETCHT1(ptr) _mm_prefetch(ptr, _MM_HINT_T1)
-#define PREFETCHT2(ptr) _mm_prefetch(ptr, _MM_HINT_T2)
-#else
-#define PREFETCHT0(ptr) __builtin_prefetch(ptr, 0, 3)
-#define PREFETCHT1(ptr) __builtin_prefetch(ptr, 0, 2)
-#define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
-#endif
 // #define SKIPWRITE
 
 #if defined(__x86_64__)
@@ -199,12 +212,16 @@ class Splitter::PartitionWriter {
 arrow::Result<std::shared_ptr<Splitter>>
 Splitter::Make(const std::string& short_name, int num_partitions, SplitOptions options) {
   if (short_name == "hash") {
+    StatCreateSplitter(SPLITTER_HASH);
     return HashSplitter::Create(num_partitions, std::move(options));
   } else if (short_name == "rr") {
+    StatCreateSplitter(SPLITTER_ROUND_ROBIN);
     return RoundRobinSplitter::Create(num_partitions, std::move(options));
   } else if (short_name == "range") {
+    StatCreateSplitter(SPLITTER_RANGE);
     return FallbackRangeSplitter::Create(num_partitions, std::move(options));
   } else if (short_name == "single") {
+    StatCreateSplitter(SPLITTER_SINGLE);
     return SinglePartSplitter::Create(1, std::move(options));
   }
   return arrow::Status::NotImplemented("Partitioning " + short_name + " not supported yet.");

@@ -33,6 +33,24 @@
 #include "substrait/algebra.pb.h"
 
 namespace gluten {
+
+// for stat create splitter
+enum SPLITTER_TYPE {
+  SPLITTER_HASH,
+  SPLITTER_ROUND_ROBIN,
+  SPLITTER_RANGE,
+  SPLITTER_SINGLE,
+
+  VELOX_SPLITTER_HASH,
+  VELOX_SPLITTER_ROUND_ROBIN,
+  VELOX_SPLITTER_RANGE,
+  VELOX_SPLITTER_SINGLE,
+
+  SPLITTER_TOTAL
+};
+
+void StatCreateSplitter(SPLITTER_TYPE type);
+
 class Splitter : public SplitterBase {
  protected:
   struct BinaryBuff {
