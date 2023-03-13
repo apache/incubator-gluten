@@ -20,6 +20,7 @@
 #include "memory/VeloxMemoryPool.h"
 #include "tests/TestUtils.h"
 #include "velox/vector/arrow/Bridge.h"
+#include "velox/vector/tests/utils/VectorMaker.h"
 
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
@@ -157,7 +158,77 @@ class VeloxSplitterTest : public ::testing::Test {
     MakeInputBatch(hash_input_data_1, hash_schema_, &hash_input_batch_1_);
     MakeInputBatch(hash_input_data_2, hash_schema_, &hash_input_batch_2_);
 
+    SetUpRowVector();
+
     split_options_ = SplitOptions::Defaults();
+  }
+
+  void SetUpRowVector() {
+    velox::test::VectorMaker vector_maker{GetDefaultWrappedVeloxMemoryPool()};
+
+    std::vector<std::string> field_names = {
+        "hash_partition_key",
+        "f_int8_a",
+        "f_int8_b",
+        "f_int32",
+        "f_int64",
+        "f_double",
+        "f_bool",
+        "f_string",
+        "f_nullable_string"};
+
+    std::vector<velox::VectorPtr> b1 = {
+        // vector_maker.flatVector<int32_t>({1, 2, 2, 2, 2, 1, 1, 1, 2, 1}),
+        vector_maker.dictionaryVector<int32_t>({1, 2, 2, 2, 2, 1, 1, 1, 2, 1}),
+        vector_maker.flatVectorNullable<int8_t>({1, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}),
+        vector_maker.flatVectorNullable<int8_t>(
+            {1, -1, std::nullopt, std::nullopt, -2, 2, std::nullopt, std::nullopt, 3, -3}),
+        vector_maker.flatVectorNullable<int32_t>({1, 2, 3, 4, std::nullopt, 5, 6, 7, 8, std::nullopt}),
+        vector_maker.flatVectorNullable<int64_t>(
+            {std::nullopt,
+             std::nullopt,
+             std::nullopt,
+             std::nullopt,
+             std::nullopt,
+             std::nullopt,
+             std::nullopt,
+             std::nullopt,
+             std::nullopt,
+             std::nullopt}),
+        vector_maker.flatVectorNullable<double>(
+            {-0.1234567,
+             std::nullopt,
+             0.1234567,
+             std::nullopt,
+             -0.142857,
+             std::nullopt,
+             0.142857,
+             0.285714,
+             0.428617,
+             std::nullopt}),
+        vector_maker.flatVectorNullable<bool>(
+            {std::nullopt, true, false, std::nullopt, true, true, false, true, std::nullopt, std::nullopt}),
+        vector_maker.flatVectorNullable<velox::StringView>(
+            {"alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"}),
+        vector_maker.flatVectorNullable<velox::StringView>(
+            {"alice", "bob", std::nullopt, std::nullopt, "Alice", "Bob", std::nullopt, "alicE", std::nullopt, "boB"})};
+
+    row_vector1_ = vector_maker.rowVector(field_names, b1);
+
+    std::vector<velox::VectorPtr> b2 = {
+        vector_maker.flatVectorNullable<int32_t>({2, 2}),
+        vector_maker.flatVectorNullable<int8_t>({std::nullopt, std::nullopt}),
+        vector_maker.flatVectorNullable<int8_t>({1, -1}),
+        vector_maker.flatVectorNullable<int32_t>({100, std::nullopt}),
+        vector_maker.flatVectorNullable<int64_t>({1, 1}),
+        vector_maker.flatVectorNullable<double>({0.142857, -0.142857}),
+        vector_maker.flatVectorNullable<bool>({true, false}),
+        vector_maker.flatVector<velox::StringView>(
+            {"bob",
+             "alicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealice"}),
+        vector_maker.flatVectorNullable<velox::StringView>({std::nullopt, std::nullopt})};
+
+    row_vector2_ = vector_maker.rowVector(field_names, b2);
   }
 
   void TearDown() override {
@@ -211,6 +282,9 @@ class VeloxSplitterTest : public ::testing::Test {
   std::shared_ptr<arrow::RecordBatch> hash_input_batch_1_;
   std::shared_ptr<arrow::RecordBatch> hash_input_batch_2_;
 
+  velox::RowVectorPtr row_vector1_;
+  velox::RowVectorPtr row_vector2_;
+
   std::shared_ptr<arrow::io::ReadableFile> file_;
 };
 
@@ -227,15 +301,26 @@ arrow::Status SplitRecordBatch(VeloxSplitter& splitter, const arrow::RecordBatch
   return splitter.Split(cb.get());
 }
 
+arrow::Status SplitRowVector(VeloxSplitter& splitter, const velox::RowVectorPtr& rb) {
+  auto vcb = std::make_shared<VeloxColumnarBatch>(rb);
+  return splitter.Split(vcb.get());
+}
+
 TEST_F(VeloxSplitterTest, TestHashSplitter) {
   uint32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
   ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_))
 
+#if 1
+  ASSERT_NOT_OK(SplitRowVector(*splitter_, row_vector1_));
+  ASSERT_NOT_OK(SplitRowVector(*splitter_, row_vector2_));
+  ASSERT_NOT_OK(SplitRowVector(*splitter_, row_vector1_));
+#else
   ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_1_));
   ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_2_));
   ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_1_));
+#endif
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -926,8 +1011,9 @@ TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
-    // TODO: wait to fix null value
-    // ASSERT_TRUE(rb->Equals(*expected[i]));
+    ASSERT_TRUE(rb->Equals(*expected[i]));
+    // std::cout << "result:" << rb->ToString() << std::endl;
+    // std::cout << "expect:" << expected[i]->ToString() << std::endl;
   }
 }
 

@@ -33,6 +33,38 @@
 
 namespace gluten {
 
+// on x86 machines, _MM_HINT_T0,T1,T2 are defined as 1, 2, 3
+// equivalent mapping to __builtin_prefetch hints is 3, 2, 1
+#if defined(__x86_64__)
+
+#ifndef PREFETCHT0
+#define PREFETCHT0(ptr) _mm_prefetch(ptr, _MM_HINT_T0)
+#endif
+
+#ifndef PREFETCHT1
+#define PREFETCHT1(ptr) _mm_prefetch(ptr, _MM_HINT_T1)
+#endif
+
+#ifndef PREFETCHT2
+#define PREFETCHT2(ptr) _mm_prefetch(ptr, _MM_HINT_T2)
+#endif
+
+#else // __x86_64__
+
+#ifndef PREFETCHT0
+#define PREFETCHT0(ptr) __builtin_prefetch(ptr, 0, 3)
+#endif
+
+#ifndef PREFETCHT1
+#define PREFETCHT1(ptr) __builtin_prefetch(ptr, 0, 2)
+#endif
+
+#ifndef PREFETCHT2
+#define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
+#endif
+
+#endif // __x86_64__
+
 #define EVAL_START(name, thread_id) \
   //  auto eval_start = std::chrono::duration_cast<std::chrono::nanoseconds>(    \
                         std::chrono::system_clock::now().time_since_epoch()) \
