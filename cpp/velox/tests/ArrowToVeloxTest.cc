@@ -118,10 +118,10 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
   {
     // only RowVector can convert to RecordBatch
     auto row = makeRowVector({
-        makeShortDecimalFlatVector({1000265, -35610, 0}, DECIMAL(10, 3)),
+        makeShortDecimalFlatVector({1000265000, -35610000, 0}, DECIMAL(10, 3)),
     });
 
-    std::vector<std::shared_ptr<Field>> fields = {field("f_decimal128", decimal(10, 3))};
+    std::vector<std::shared_ptr<Field>> fields = {field("c0", decimal(10, 3))};
     auto schema = arrow::schema(fields);
     std::shared_ptr<RecordBatch> input_batch;
     const std::vector<std::string> input_data = {R"(["1000265.000", "-35610.000", "0.000"])"};
@@ -131,19 +131,9 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
     ArrowSchema arrowSchema;
     velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
     velox::exportToArrow(row, arrowSchema);
-    //     c0:   [
-    //     1000.265,
-    //     -35.610,
-    //     0.000
-    //   ]
-    // f_decimal128:   [
-    //     1000265.000,
-    //     -35610.000,
-    //     0.000
-    //   ]
-    // TODO:: fix bug, velox decimal vector result is not right
+
     auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
-    EXPECT_FALSE(in->Equals(*input_batch));
+    EXPECT_TRUE(in->Equals(*input_batch));
   }
 }
 
