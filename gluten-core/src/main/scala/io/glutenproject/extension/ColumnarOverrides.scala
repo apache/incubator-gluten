@@ -491,14 +491,15 @@ case class ColumnarOverrideRules(session: SparkSession)
         case _: Exchange => true
         case _ => false
       }
-      val traces = Thread.currentThread.getStackTrace()
+      val traceElements = Thread.currentThread.getStackTrace
+      assert(traceElements.length > 13, "More than 13 stack trace elements are expected!")
       // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
       // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
       // columnar rule will be applied in adaptive execution context. This part of code
       // needs to be carefully checked when supporting higher versions of spark to make
       // sure the calling stack has not been changed.
       this.isAdaptiveContext =
-        traces(13).getClassName.equals(AdaptiveSparkPlanExec.getClass.getName)
+        traceElements(13).getClassName.equals(AdaptiveSparkPlanExec.getClass.getName)
       logOnLevel(
         transformPlanLogLevel,
         s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
