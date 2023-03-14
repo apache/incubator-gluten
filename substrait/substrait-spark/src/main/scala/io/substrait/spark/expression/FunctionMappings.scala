@@ -85,7 +85,8 @@ class FunctionMappings {
 
     // math
     s[Round]("round"),
-
+    s[ShiftRight]("shift_right"),
+    s[BitwiseAnd]("bitwise_and"),
     // internal
     s[UnscaledValue]("unscaled"),
     s[MakeDecimal]("make_decimal", Some(makeDecimal)),

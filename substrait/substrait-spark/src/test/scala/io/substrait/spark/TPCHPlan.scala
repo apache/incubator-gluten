@@ -27,7 +27,7 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
 
   tpchQueries.foreach {
     q =>
-      test(s"check simplified (tpch/$q)") {
+      test(s"tpch/$q[=]") {
         testQuery("tpch", q)
       }
   }

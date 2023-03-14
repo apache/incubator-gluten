@@ -36,6 +36,23 @@ scalar_functions:
           overflow:
             values: [ SILENT, SATURATE, ERROR ]
         return: DECIMAL<P,S>
+  -
+    name: shift_right
+    description: >-
+      Bitwise (signed) right shift.
+    impls:
+      - args:
+          - name: left
+            value: i64
+          - name: right
+            value: i32
+        return: i64
+      - args:
+          - name: left
+            value: i32
+          - name: right
+            value: i32
+        return: i32
 
 aggregate_functions:
   - name: "stddev_samp"

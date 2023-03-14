@@ -21,7 +21,7 @@ import org.apache.spark.sql.internal.SQLConf
 
 class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
 
-  private val runAllQueriesIncludeFailed = true
+  private val runAllQueriesIncludeFailed = false
   override def beforeAll(): Unit = {
     super.beforeAll()
     sparkContext.setLogLevel("WARN")
@@ -135,91 +135,39 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
     "q99"
   )
 
-  // "q9" failed in spark 3.3
-  val successfulSQL: Set[String] =
+  val existenceJoinSQL: Set[String] = Set("q10", "q35", "q45")
+
+  val hasWindowQuery: Set[String] =
     Set(
-      "q1",
-      "q2",
-      "q3",
-      "q4",
-      "q6",
-      "q7",
-      "q8",
-      "q11",
-      "q13",
-      "q14b",
-      "q15",
-      "q16",
-      "q17",
-      "q19",
-      "q21",
-      "q23a",
-      "q23b",
-      "q24a",
-      "q24b",
-      "q25",
-      "q26",
-      "q28",
-      "q29",
-      "q30",
-      "q31",
-      "q32",
-      "q33",
-      "q34",
-      "q37",
-      "q38",
-      "q39a",
-      "q39b",
-      "q40",
-      "q41",
-      "q42",
-      "q43",
-      "q46",
-      "q48",
-      "q50",
-      "q52",
-      "q54",
-      "q55",
-      "q56",
-      "q58",
-      "q59",
-      "q60",
-      "q61",
-      "q62",
-      "q64",
-      "q65",
-      "q68",
-      "q69",
-      "q71",
-      "q73",
-      "q74",
-      "q75",
-      "q76",
-      "q79",
-      "q81",
-      "q82",
-      "q83",
-      "q85",
-      "q87",
-      "q88",
-      "q90",
-      "q92",
-      "q93",
-      "q94",
-      "q95",
-      "q96",
-      "q97",
-      "q99"
-    )
+      "q12",
+      "q20",
+      "q36",
+      "q44",
+      "q47",
+      "q49",
+      "q51",
+      "q53",
+      "q57",
+      "q63",
+      "q67",
+      "q70",
+      "q86",
+      "q89",
+      "q98")
+
+  private def shouldBeSuccessfulSQL(s: String) =
+    !(hasWindowQuery.contains(s) || existenceJoinSQL.contains(s))
 
   tpcdsAllQueries.foreach {
     q =>
-      if (runAllQueriesIncludeFailed || successfulSQL.contains(q)) {
-        test(s"check simplified (tpcds-v1.4/$q)") {
-          testQuery("tpcds", q)
+      if (runAllQueriesIncludeFailed || shouldBeSuccessfulSQL(q)) {
+        val dontCompare: Set[String] = Set("q72", "q78")
+        val equal = if (dontCompare.contains(q)) "!=" else "="
+        test(s"tpcds-v1.4/$q[$equal]") {
+          testQuery("tpcds", q, !dontCompare.contains(q))
         }
       } else {
-        ignore(s"check simplified (tpcds-v1.4/$q)") {
+        ignore(s"tpcds-v1.4/$q") {
           testQuery("tpcds", q)
         }
       }

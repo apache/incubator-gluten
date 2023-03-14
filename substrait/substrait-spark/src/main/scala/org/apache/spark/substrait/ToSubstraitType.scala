@@ -29,6 +29,7 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 private class ToSparkType
   extends TypeVisitor.TypeThrowsVisitor[DataType, RuntimeException]("Unknown expression type.") {
 
+  override def visit(`type`: Type.I8): DataType = ByteType
   override def visit(expr: Type.I32): DataType = IntegerType
   override def visit(expr: Type.I64): DataType = LongType
 

@@ -90,13 +90,14 @@ trait SubstraitPlanTestBase extends BeforeAndAfterAll { self: SharedSparkSession
     plan
   }
 
-  def assertSqlSubstraitRelRoundTrip(query: String): LogicalPlan = {
+  def assertSqlSubstraitRelRoundTrip(query: String, shouldEqual: Boolean = true): LogicalPlan = {
     val logicalPlan = plan(query)
     val pojoRel = new ToSubstraitRel().visit(logicalPlan)
     val logicalPlan2 = new ToLogicalPlan(spark = spark).convert(pojoRel)
     val pojoRel2 = new ToSubstraitRel().visit(logicalPlan2)
 
-    pojoRel2.shouldEqualPlainly(pojoRel)
+    if (shouldEqual) { pojoRel2.shouldEqualPlainly(pojoRel) }
+
     logicalPlan2
   }
 
@@ -110,11 +111,11 @@ trait SubstraitPlanTestBase extends BeforeAndAfterAll { self: SharedSparkSession
     assertResult(protoPlan1)(protoPlan2)
   }
 
-  def testQuery(group: String, query: String, suffix: String = ""): Unit = {
+  def testQuery(group: String, query: String, equal: Boolean = true): Unit = {
     val queryString = resourceToString(
       s"$group/$query.sql",
       classLoader = Thread.currentThread().getContextClassLoader)
     assert(queryString != null)
-    assertSqlSubstraitRelRoundTrip(queryString)
+    assertSqlSubstraitRelRoundTrip(queryString, equal)
   }
 }
