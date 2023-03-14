@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/rui-mo/velox.git
-VELOX_BRANCH=wip_date_diff
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=main
 ENABLE_EP_CACHE=OFF
 
 for arg in "$@"
