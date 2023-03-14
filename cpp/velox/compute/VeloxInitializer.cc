@@ -35,6 +35,8 @@
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/exec/Operator.h"
 
+DECLARE_int32(split_preload_per_driver);
+
 using namespace facebook;
 
 namespace gluten {
@@ -112,18 +114,21 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
   configurationValues.merge(S3Config);
 #endif
 
+  InitCache(conf);
+
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
+  if (ioExecutor_) {
+    FLAGS_split_preload_per_driver = 0;
+  }
 
   registerConnector(hiveConnector);
   velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
   velox::dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   registerAllFunctions();
-
-  InitCache(conf);
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
