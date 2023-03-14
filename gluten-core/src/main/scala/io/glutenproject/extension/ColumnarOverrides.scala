@@ -26,13 +26,14 @@ import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
@@ -68,6 +69,119 @@ case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPla
     replaceWithTransformerPlan(project)
   }
 
+  def needFallback(transformer: TransformSupport): Boolean = {
+    if (!columnarConf.enableFallbackOnlyOnce) {
+      return false
+    }
+    val nativeMode = {
+      transformer match {
+        case joinTransformer: HashJoinLikeExecTransformer =>
+          val childBuild = joinTransformer.buildPlan
+          val childStream = joinTransformer.streamedPlan
+          if (supportedNative(childBuild) && supportedNative(childStream)) {
+            childBuild match {
+              // check build side of broadcast join
+              case exchange: ColumnarBroadcastExchangeExec => supportedNative(exchange.child)
+              case _ => true
+            }
+          } else {
+            false
+          }
+        case _ =>
+          supportedNative(transformer.getChild)
+      }
+    }
+    !nativeMode
+  }
+
+  def supportedNative(child: SparkPlan): Boolean = {
+    if (child == null) {
+      return true
+    }
+    if (!child.supportsColumnar) {
+      return false
+    }
+    if (child.isInstanceOf[TransformSupport]) {
+      val childPlan = child.asInstanceOf[TransformSupport]
+      if (!childPlan.doValidate()) {
+        return false
+      }
+    }
+    true
+  }
+
+  def checkAndFallBack(plan: SparkPlan): SparkPlan = {
+    if (!plan.isInstanceOf[TransformSupport]) {
+      return plan
+    }
+    val transformer = plan.asInstanceOf[TransformSupport]
+    if (needFallback(transformer)) {
+      transformer match {
+        case plan: CoalesceExecTransformer =>
+          CoalesceExec(plan.numPartitions, plan.child)
+        case plan: ProjectExecTransformer =>
+          ProjectExec(plan.projectList, plan.child)
+        case plan: FilterExecTransformer =>
+          FilterExec(plan.condition, plan.child)
+        case plan : HashAggregateExecBaseTransformer =>
+          HashAggregateExec(plan.requiredChildDistributionExpressions,
+            plan.isStreaming,
+            plan.numShufflePartitions,
+            plan.groupingExpressions,
+            plan.aggregateExpressions,
+            plan.aggregateAttributes,
+            plan.initialInputBufferOffset,
+            plan.resultExpressions,
+            plan.child)
+        case plan: SortMergeJoinExecTransformer =>
+          SortMergeJoinExecTransformer(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.condition,
+            plan.left,
+            plan.right,
+            plan.isSkewJoin)
+        case plan: SortExecTransformer =>
+          SortExec(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
+        case plan: BroadcastHashJoinExecTransformer =>
+          // fallback build side of broadcast join
+          val fallbackBuildPlan = plan.buildPlan match {
+            case ColumnarBroadcastExchangeExec(mode, child) =>
+              BroadcastExchangeExec(mode, child)
+            case _ =>
+              plan.buildPlan
+          }
+          val (left, right) = plan.joinBuildSide match {
+            case BuildRight => (plan.left, fallbackBuildPlan)
+            case BuildLeft => (fallbackBuildPlan, plan.right)
+          }
+          BroadcastHashJoinExec(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.joinBuildSide,
+            plan.condition,
+            left,
+            right,
+            isNullAwareAntiJoin = plan._isNullAwareAntiJoin)
+        case plan: ShuffledHashJoinExecTransformer =>
+          ShuffledHashJoinExec(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.joinBuildSide,
+            plan.condition,
+            plan.left,
+            plan.right)
+        case plan =>
+          throw new UnsupportedOperationException(s"fallback not supported yet for plan: " + plan)
+      }
+    } else {
+      transformer
+    }
+  }
+
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
       case TRANSFORM_SUPPORTED() =>
@@ -96,7 +210,8 @@ case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPla
             return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
         }
     }
-    plan match {
+    val planAfterTransform =
+      plan match {
       case plan: BatchScanExec =>
         applyScanTransformer(plan)
       case plan: FileSourceScanExec =>
@@ -295,6 +410,7 @@ case class TransformPreOverrides(supportAdaptive: Boolean) extends Rule[SparkPla
         val children = plan.children.map(replaceWithTransformerPlan)
         p.withNewChildren(children)
     }
+    checkAndFallBack(planAfterTransform)
   }
 
   /**

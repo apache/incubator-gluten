@@ -641,6 +641,7 @@ abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
   override def joinBuildSide: BuildSide = buildSide
   override def hashJoinType: JoinType = joinType
   override def isSkewJoin: Boolean = false
+  def _isNullAwareAntiJoin: Boolean = isNullAwareAntiJoin
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id

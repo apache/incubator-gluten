@@ -210,6 +210,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  val enableFallbackOnlyOnce: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.fallback.onlyonce", "false").toBoolean
+
   // velox caching options
   // enable Velox cache, default off
   def enableVeloxCache: Boolean =
