@@ -25,6 +25,7 @@
 #include "jni/ConcurrentMap.h"
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
+#include "operators/r2c/RowToArrowColumnarConverter.h"
 #include "operators/shuffle/SplitterBase.h"
 #include "operators/shuffle/reader.h"
 
@@ -561,6 +562,39 @@ JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(JNIEnv* env, jobject, jlong instance_id) {
   JNI_METHOD_START
   columnar_to_row_converter_holder_.Erase(instance_id);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowToColumnar(
+    JNIEnv* env,
+    jobject,
+    jlong cSchema,
+    jlongArray row_length,
+    jlong memory_address,
+    jlong cArray,
+    long allocId) {
+  JNI_METHOD_START
+  if (row_length == nullptr) {
+    gluten::JniThrow("Native convert row to columnar: buf_addrs can't be null");
+  }
+  int num_rows = env->GetArrayLength(row_length);
+  jlong* in_row_length = env->GetLongArrayElements(row_length, JNI_FALSE);
+  uint8_t* address = reinterpret_cast<uint8_t*>(memory_address);
+  auto* allocator = reinterpret_cast<MemoryAllocator*>(allocId);
+  if (allocator == nullptr) {
+    gluten::JniThrow("Memory pool does not exist or has been closed");
+  }
+  // TODO: this will core dump now, because pool will be destroyed before allocated buffer
+  // auto pool = AsWrappedArrowMemoryPool(allocator);
+  auto pool = GetDefaultWrappedArrowMemoryPool();
+  std::shared_ptr<arrow::Schema> schema =
+      gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
+
+  auto converter =
+      std::make_shared<gluten::RowToColumnarConverter>(schema, num_rows, in_row_length, address, pool.get());
+  auto rb = converter->convert();
+  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*rb, reinterpret_cast<struct ArrowArray*>(cArray)));
+  env->ReleaseLongArrayElements(row_length, in_row_length, JNI_ABORT);
   JNI_METHOD_END()
 }
 

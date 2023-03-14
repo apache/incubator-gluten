@@ -116,8 +116,6 @@ object GlutenExecUtil {
               ArrowColumnarBatches
                 .ensureLoaded(ArrowBufferAllocators.contextInstance(),
                   cb).column)).toArray
-            newColumns.foreach(
-              _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(cb.numRows))
             val offloadCb = ArrowColumnarBatches.ensureOffloaded(
               ArrowBufferAllocators.contextInstance(),
               new ColumnarBatch(newColumns, cb.numRows))
