@@ -42,9 +42,7 @@ class CHColumnarShuffleWriter[K, V](
   private val blockManager = SparkEnv.get.blockManager
   private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
   private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
-  private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
-  private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum;
+  private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
   private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec

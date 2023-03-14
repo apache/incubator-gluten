@@ -14,12 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.utils
+package org.apache.spark.util
 
+import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.StringUtils
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
+import java.io.File
+import java.nio.file.{Path, Paths}
+import java.util.UUID
+
 object SparkResourcesUtil extends Logging {
+  private val blockManager = SparkEnv.get.blockManager
+  private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
+  private val localDirsCycleLooper = Stream.continually(localDirs).iterator
 
   /**
    * Get the total cores of the Spark application
@@ -50,5 +60,24 @@ object SparkResourcesUtil extends Logging {
     } else {
       sqlConf.getConfString("spark.executor.instances").toInt
     }
+  }
+
+  def getGlutenLocalDirRoundRobin(): String = synchronized {
+    // FIXME Could it be better not to use Spark's local dir?
+    //   Does Spark's local dir have specific rule/format for
+    //   its internal use?
+    if (!localDirsCycleLooper.hasNext) {
+      throw new IllegalStateException()
+    }
+    val localDir = localDirsCycleLooper.next()
+    if (StringUtils.isEmpty(localDir)) {
+      throw new IllegalArgumentException(s"Illegal local dir: $localDir")
+    }
+    val path = Paths.get(localDir)
+      .resolve("gluten")
+      .resolve(UUID.randomUUID().toString)
+    val file = path.toFile
+    FileUtils.forceMkdir(file)
+    file.getAbsolutePath
   }
 }

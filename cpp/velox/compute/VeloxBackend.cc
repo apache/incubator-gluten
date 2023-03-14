@@ -28,12 +28,33 @@
 #include "operators/shuffle/splitter.h"
 #include "shuffle/VeloxSplitter.h"
 #include "velox/common/file/FileSystems.h"
-#include "velox/exec/Operator.h"
-#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
 
 namespace gluten {
+
+namespace {
+const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
+}
+
+VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
+  // mem tracker
+  int64_t maxMemory;
+  auto got = confMap_.find(kSparkOffHeapMemory);
+  if (got == confMap_.end()) {
+    // not found
+    maxMemory = facebook::velox::memory::kMaxMemory;
+  } else {
+    maxMemory = (long)(0.75 * std::stol(got->second));
+  }
+  try {
+    // 1/2 of offheap size.
+    memUsageTracker_ = velox::memory::MemoryUsageTracker::create(maxMemory);
+  } catch (const std::invalid_argument&) {
+    throw std::runtime_error("Invalid off-heap memory size: " + std::to_string(maxMemory));
+  }
+}
+
 void VeloxBackend::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
     setInputPlanNode(fetchRel.input());
@@ -234,6 +255,7 @@ static void getInfoAndIds(
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
+    std::string spill_dir,
     std::vector<std::shared_ptr<ResultIterator>> inputs,
     std::unordered_map<std::string, std::string> sessionConf) {
   if (inputs.size() > 0) {
@@ -251,14 +273,16 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+  auto ctxPool = veloxPool->addChild("ctx_root");
+  ctxPool->setMemoryUsageTracker(memUsageTracker_->addChild());
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
-        std::make_unique<WholeStageResultIteratorMiddleStage>(veloxPool, veloxPlan_, streamIds, sessionConf);
+        std::make_unique<WholeStageResultIteratorMiddleStage>(ctxPool, veloxPlan_, streamIds, spill_dir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        veloxPool, veloxPlan_, scanIds, scanInfos, streamIds, sessionConf);
+        ctxPool, veloxPlan_, scanIds, scanInfos, streamIds, spill_dir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
@@ -278,9 +302,10 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-
+  auto ctxPool = veloxPool->addChild("ctx_root");
+  ctxPool->setMemoryUsageTracker(memUsageTracker_->addChild());
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      veloxPool, veloxPlan_, scanIds, setScanInfos, streamIds, confMap_);
+      ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp", confMap_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
@@ -320,6 +345,10 @@ std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
     cacheOutputSchema(veloxPlan_);
   }
   return outputSchema_;
+}
+
+std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> VeloxBackend::getMemoryUsageTracker() {
+  return memUsageTracker_;
 }
 
 void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const velox::core::PlanNode>& planNode) {

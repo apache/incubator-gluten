@@ -53,9 +53,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
 
-  private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
-  private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum
+  private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 

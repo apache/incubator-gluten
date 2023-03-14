@@ -32,10 +32,12 @@ namespace gluten {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxBackend final : public Backend {
  public:
-  VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {}
+  explicit VeloxBackend(const std::unordered_map<std::string, std::string>& confMap);
 
+  // FIXME This is not thread-safe?
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
+      std::string spillDir,
       std::vector<std::shared_ptr<ResultIterator>> inputs = {},
       std::unordered_map<std::string, std::string> sessionConf = {}) override;
 
@@ -61,6 +63,8 @@ class VeloxBackend final : public Backend {
   }
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
+
+  std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> getMemoryUsageTracker();
 
  private:
   void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
@@ -104,6 +108,7 @@ class VeloxBackend final : public Backend {
   // Cache for tests/benchmark purpose.
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
   std::shared_ptr<arrow::Schema> outputSchema_;
+  std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> memUsageTracker_;
 };
 
 } // namespace gluten

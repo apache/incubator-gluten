@@ -38,8 +38,9 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
-      std::unordered_map<std::string, std::string> sessionConf = {}) = 0;
+      std::string spillDir,
+      std::vector<std::shared_ptr<ResultIterator>> inputs,
+      std::unordered_map<std::string, std::string> sessionConf) = 0;
 
   bool ParsePlan(const uint8_t* data, int32_t size) {
     return ParsePlan(data, size, -1, -1, -1);

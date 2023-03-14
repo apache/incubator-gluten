@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include <folly/system/ThreadName.h>
 #include <jni.h>
 #include "include/arrow/c/bridge.h"
 
@@ -63,6 +62,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
     jbyteArray planArray) {
   JNI_METHOD_START
   sparkConfs_ = gluten::getConfMap(env, planArray);
+  // FIXME this is not thread-safe. The function can be called twice
+  //   within Spark local-mode, one from Driver, another from Executor.
   gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs_); });
   static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()

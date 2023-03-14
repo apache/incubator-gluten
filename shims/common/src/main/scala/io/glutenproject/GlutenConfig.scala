@@ -221,6 +221,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  def offHeapMemorySize: Long =
+    conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
+
   // velox caching options
   // enable Velox cache, default off
   def enableVeloxCache: Boolean =
@@ -320,8 +323,12 @@ object GlutenConfig {
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
+  // Pass through to native conf
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
+
+  // Added back to Spark Conf during driver / executor initialization
   val GLUTEN_TIMEZONE = "spark.gluten.timezone"
+  val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
 
   var ins: GlutenConfig = _
 
@@ -337,11 +344,35 @@ object GlutenConfig {
     }
   }
 
+  // These options will be added back to driver's / executor's
+  //   SparkConf during initialization
+  // FIXME this method is currently used only by Velox backends.
+  //   We should somehow backend-ize configurations like this.
+  def createGeneratedConf(conf: SparkConf): util.Map[String, String] = {
+    val generatedMap = new util.HashMap[String, String]()
+
+    // timezone
+    generatedMap.put(
+      GlutenConfig.GLUTEN_TIMEZONE,
+      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
+
+    // off-heap bytes
+    if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
+    }
+    val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
+    generatedMap.put(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
+
+    // return
+    generatedMap
+  }
+
   def getNativeSessionConf(): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val conf = SQLConf.get
     val keys = ImmutableList.of(
-      GLUTEN_SAVE_DIR
+      GLUTEN_SAVE_DIR,
+      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {
@@ -356,13 +387,7 @@ object GlutenConfig {
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getConfString(e._1, e._2)))
 
-    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      nativeConfMap.put(
-        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
-        JavaUtils
-          .byteStringAsBytes(conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY))
-          .toString)
-    }
+    // return
     nativeConfMap
   }
 
@@ -374,8 +399,10 @@ object GlutenConfig {
       // DWRF datasource config
       SPARK_HIVE_EXEC_ORC_STRIPE_SIZE,
       SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
-      SPARK_HIVE_EXEC_ORC_COMPRESS
+      SPARK_HIVE_EXEC_ORC_COMPRESS,
       // DWRF datasource config end
+      GLUTEN_TIMEZONE,
+      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {
@@ -399,19 +426,7 @@ object GlutenConfig {
       .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
-    // for further use
-    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      nativeConfMap.put(
-        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
-        JavaUtils
-          .byteStringAsBytes(conf.get(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY))
-          .toString)
-    }
-
-    nativeConfMap.put(
-      GlutenConfig.GLUTEN_TIMEZONE,
-      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
-
+    // return
     nativeConfMap
   }
 }
