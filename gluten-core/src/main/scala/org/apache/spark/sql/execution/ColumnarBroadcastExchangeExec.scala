@@ -40,12 +40,8 @@ import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   extends BroadcastExchangeLike {
-  override lazy val metrics = Map(
-    "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
-    "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast")
-  )
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genColumnarBroadcastExchangeMetrics(sparkContext)
 
   @transient
   lazy val promise = Promise[broadcast.Broadcast[Any]]()

@@ -48,14 +48,7 @@ object GlutenExecUtil {
                            newPartitioning: Partitioning,
                            serializer: Serializer,
                            writeMetrics: Map[String, SQLMetric],
-                           dataSize: SQLMetric,
-                           bytesSpilled: SQLMetric,
-                           numInputRows: SQLMetric,
-                           computePidTime: SQLMetric,
-                           splitTime: SQLMetric,
-                           spillTime: SQLMetric,
-                           compressTime: SQLMetric,
-                           inputBatches: SQLMetric
+                           metrics: Map[String, SQLMetric]
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     // only used for fallback range partitioning
@@ -180,14 +173,7 @@ object GlutenExecUtil {
         shuffleWriterProcessor =
           ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
-        dataSize = dataSize,
-        bytesSpilled = bytesSpilled,
-        numInputRows = numInputRows,
-        computePidTime = computePidTime,
-        splitTime = splitTime,
-        spillTime = spillTime,
-        compressTime = compressTime,
-        inputBatches = inputBatches)
+        metrics = metrics)
 
     dependency
   }

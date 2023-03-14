@@ -257,7 +257,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   split_result_class = CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/SplitResult;");
   split_result_constructor = GetMethodIDOrError(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
-  metrics_builder_class = CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/Metrics;");
+  metrics_builder_class = CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
   metrics_builder_constructor =
       GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J)V");

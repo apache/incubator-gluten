@@ -24,19 +24,12 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
 
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-    "collectTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to collect batch"),
-    "concatTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to coalesce batch"),
-    "avgCoalescedNumRows" -> SQLMetrics
-      .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genCoalesceBatchesMetrics(sparkContext)
 
   override def output: Seq[Attribute] = child.output
 

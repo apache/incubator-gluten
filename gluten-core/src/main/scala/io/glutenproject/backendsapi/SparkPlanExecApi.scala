@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait ISparkPlanExecApi {
+trait SparkPlanExecApi {
 
   /**
    * Generate GlutenColumnarToRowExecBase.
@@ -126,11 +126,8 @@ trait ISparkPlanExecApi {
   // scalastyle:off argcount
   def genShuffleDependency(rdd: RDD[ColumnarBatch], outputAttributes: Seq[Attribute],
                            newPartitioning: Partitioning, serializer: Serializer,
-                           writeMetrics: Map[String, SQLMetric], dataSize: SQLMetric,
-                           bytesSpilled: SQLMetric, numInputRows: SQLMetric,
-                           computePidTime: SQLMetric, splitTime: SQLMetric,
-                           spillTime: SQLMetric, compressTime: SQLMetric,
-                           inputBatches: SQLMetric
+                           writeMetrics: Map[String, SQLMetric],
+                           metrics: Map[String, SQLMetric]
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
   // scalastyle:on argcount
 

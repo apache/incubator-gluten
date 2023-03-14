@@ -19,28 +19,27 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.OperatorMetrics
 import io.glutenproject.utils.BindReferencesUtil
+
 import io.substrait.proto.SortField
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AggregateWindowFunction, Alias, Attribute,
-  CumeDist, DenseRank, Expression, FrameLessOffsetWindowFunction, Lag, Lead, NamedExpression,
-  PercentRank, Rank, RowNumber, SortOrder,
-  SpecifiedWindowFrame, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -51,39 +50,11 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                                  orderSpec: Seq[SortOrder],
                                  child: SparkPlan) extends WindowExecBase with TransformSupport {
 
-  override lazy val metrics = Map(
-    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of window"),
-    "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"))
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetrics(sparkContext)
 
-  object MetricsUpdaterImpl extends MetricsUpdater {
-    val outputRows: SQLMetric = longMetric("outputRows")
-    val outputVectors: SQLMetric = longMetric("outputVectors")
-    val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuCount: SQLMetric = longMetric("cpuCount")
-    val wallNanos: SQLMetric = longMetric("wallNanos")
-    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
-
-    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-      if (operatorMetrics != null) {
-        outputRows += operatorMetrics.outputRows
-        outputVectors += operatorMetrics.outputVectors
-        outputBytes += operatorMetrics.outputBytes
-        cpuCount += operatorMetrics.cpuCount
-        wallNanos += operatorMetrics.wallNanos
-        peakMemoryBytes += operatorMetrics.peakMemoryBytes
-        numMemoryAllocations += operatorMetrics.numMemoryAllocations
-      }
-    }
-  }
-
-  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetricsUpdater(metrics)
 
   override def supportsColumnar: Boolean = true
 

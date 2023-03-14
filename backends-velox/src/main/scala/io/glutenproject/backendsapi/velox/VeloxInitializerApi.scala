@@ -17,13 +17,13 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.IInitializerApi
+import io.glutenproject.backendsapi.InitializerApi
 import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
 import org.apache.commons.lang3.StringUtils
 
 import org.apache.spark.SparkConf
 
-class VeloxInitializerApi extends IInitializerApi {
+class VeloxInitializerApi extends InitializerApi {
 
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.metrics;
 
-public class OperatorMetrics {
+public class OperatorMetrics implements IOperatorMetrics {
   public long inputRows;
   public long inputVectors;
   public long inputBytes;

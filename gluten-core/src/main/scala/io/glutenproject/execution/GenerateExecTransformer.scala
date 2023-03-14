@@ -24,6 +24,11 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
 
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.expression.ExpressionTransformer
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelNode
@@ -33,15 +38,11 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.expression.ExpressionTransformer
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.GlutenConfig
 
 import java.util.ArrayList
 import com.google.protobuf.Any
 import com.google.common.collect.Lists
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
 // For clickhouse backend, it will transform Spark explode lateral view to CH array join.
@@ -186,5 +187,5 @@ case class GenerateExecTransformer(
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }
