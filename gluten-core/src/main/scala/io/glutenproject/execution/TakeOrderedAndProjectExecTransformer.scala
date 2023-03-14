@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.extension.TransformPreOverrides
 import io.glutenproject.utils.AdaptiveSparkPlanUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -34,8 +33,8 @@ case class TakeOrderedAndProjectExecTransformer (
                                                 sortOrder: Seq[SortOrder],
                                                 projectList: Seq[NamedExpression],
                                                 child: SparkPlan,
-                                                supportAdaptive: Boolean) extends
-  UnaryExecNode{
+                                                isAdaptiveContextOrLeafPlanExchange: Boolean)
+    extends UnaryExecNode{
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
   override def supportsColumnar: Boolean = true
@@ -89,7 +88,7 @@ case class TakeOrderedAndProjectExecTransformer (
           codegenStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
         val transformedShuffleExec = AdaptiveSparkPlanUtil.genColumnarShuffleExchange(shuffleExec,
-          sortStagePlan, supportAdaptive = supportAdaptive)
+          sortStagePlan, false, isAdaptiveContextOrLeafPlanExchange)
 
         val globalSortExecPlan = SortExecTransformer(sortOrder, false,
           new ColumnarInputAdapter(transformedShuffleExec))
