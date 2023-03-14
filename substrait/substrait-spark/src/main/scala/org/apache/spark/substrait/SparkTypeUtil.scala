@@ -16,12 +16,19 @@
  */
 package org.apache.spark.substrait
 
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.util.toPrettySQL
 import org.apache.spark.sql.types.DataType
 
 object SparkTypeUtil {
 
   def sameType(left: DataType, right: DataType): Boolean = {
     left.sameType(right)
+  }
+
+  def toNamedExpression(e: Expression): NamedExpression = e match {
+    case ne: NamedExpression => ne
+    case other => Alias(other, toPrettySQL(other))()
   }
 
 }

@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.util.toPrettySQL
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.substrait.SparkTypeUtil.toNamedExpression
 import org.apache.spark.substrait.ToSubstraitType
 
 import io.substrait.`type`.{StringTypeVisitor, Type}
@@ -47,7 +48,7 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
     new ToSparkExpression(ToScalarFunction(SparkExtension.SparkScalarFunctions), Some(this))
 
   private def fromMeasure(measure: relation.Aggregate.Measure): AggregateExpression = {
-    // this functions is called in createParentwithChild
+    // this functions is called in createParent with Child
     val arguments = measure.getFunction.arguments().asScala.zipWithIndex.map {
       case (arg, i) =>
         arg.accept(measure.getFunction.declaration(), i, expressionConverter)
@@ -82,25 +83,44 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
     )
   }
 
-  private def toNamedExpression(e: Expression): NamedExpression = e match {
-    case ne: NamedExpression => ne
-    case other => Alias(other, toPrettySQL(other))()
-  }
-
-  override def visit(aggregate: relation.Aggregate): LogicalPlan = {
-    require(aggregate.getGroupings.size() == 1)
-    val child = aggregate.getInput.accept(this)
+  private def recoverAggregateOverExpand(aggregate: relation.Aggregate): LogicalPlan = {
+    val substraitProject = aggregate.getInput.asInstanceOf[relation.Project]
+    val child = substraitProject.getInput.accept(this)
     withChild(child) {
-      val groupBy = aggregate.getGroupings
-        .get(0)
-        .getExpressions
-        .asScala
+      val output = substraitProject.getExpressions.asScala
         .map(expr => expr.accept(expressionConverter))
+        .map(toNamedExpression)
 
-      val outputs = groupBy.map(toNamedExpression)
+      val groupBys = aggregate.getGroupings.asScala
+        .map(_.getExpressions.asScala.map(expr => expr.accept(expressionConverter)))
+
       val aggregateExpressions =
         aggregate.getMeasures.asScala.map(fromMeasure).map(toNamedExpression)
-      Aggregate(groupBy, outputs ++= aggregateExpressions, child)
+
+      val attrMap = groupBys.flatten.zipWithIndex.toMap
+      val groupByExprs = output.filter(e => attrMap.contains(e)).map(_.toAttribute)
+
+      ExpandAdaptor.constructAggregate(groupBys, groupByExprs, aggregateExpressions, child, output)
+
+    }
+  }
+  override def visit(aggregate: relation.Aggregate): LogicalPlan = {
+    if (aggregate.getGroupings.size() > 1) {
+      recoverAggregateOverExpand(aggregate)
+    } else {
+      val child = aggregate.getInput.accept(this)
+      withChild(child) {
+        val groupBy = aggregate.getGroupings
+          .get(0)
+          .getExpressions
+          .asScala
+          .map(expr => expr.accept(expressionConverter))
+
+        val outputs = groupBy.map(toNamedExpression)
+        val aggregateExpressions =
+          aggregate.getMeasures.asScala.map(fromMeasure).map(toNamedExpression)
+        Aggregate(groupBy, outputs ++= aggregateExpressions, child)
+      }
     }
   }
 
@@ -230,6 +250,11 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
   def convert(rel: relation.Rel): LogicalPlan = {
     val logicalPlan = rel.accept(this)
     require(logicalPlan.resolved)
+    logicalPlan.find(l => l.missingInput.nonEmpty && l.children.nonEmpty) match {
+      case Some(v) =>
+        throw new IllegalStateException(s"${v.simpleString(25)}")
+      case _ =>
+    }
     logicalPlan
   }
 }

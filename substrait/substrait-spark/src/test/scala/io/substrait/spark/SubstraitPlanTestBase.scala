@@ -17,6 +17,7 @@
 package io.substrait.spark
 
 import io.substrait.spark.logical.{ToLogicalPlan, ToSubstraitRel}
+import io.substrait.spark.workaround.RemoveColumn
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.util.resourceToString
@@ -29,11 +30,16 @@ import io.substrait.proto
 import io.substrait.relation.RelProtoConverter
 import org.scalactic.Equality
 import org.scalactic.source.Position
-import org.scalatest.Succeeded
+import org.scalatest.{BeforeAndAfterAll, Succeeded}
 import org.scalatest.compatible.Assertion
 import org.scalatest.exceptions.{StackDepthException, TestFailedException}
 
-trait SubstraitPlanTestBase { self: SharedSparkSession =>
+trait SubstraitPlanTestBase extends BeforeAndAfterAll { self: SharedSparkSession =>
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    spark.experimental.extraOptimizations = Seq(RemoveColumn)
+  }
 
   implicit class PlainEquality[T: TreePrinter](actual: T) {
     // Like should equal, but does not try to mark diffs in strings with square brackets,

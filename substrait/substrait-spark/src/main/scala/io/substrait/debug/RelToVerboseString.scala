@@ -20,6 +20,7 @@ import io.substrait.spark.DefaultRelVisitor
 
 import io.substrait.relation._
 
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable
 
 class RelToVerboseString(addSuffix: Boolean) extends DefaultRelVisitor[String] {
@@ -42,6 +43,17 @@ class RelToVerboseString(addSuffix: Boolean) extends DefaultRelVisitor[String] {
 
   def apply(rel: Rel, maxFields: Int): String = {
     rel.accept(this)
+  }
+
+  override def visit(cross: Cross): String = {
+    withBuilder(cross, 6)(builder => {})
+  }
+  override def visit(set: Set): String = {
+    withBuilder(set, 4)(
+      builder => {
+        builder.append(", ")
+        builder.append("setOp=").append(set.getSetOp)
+      })
   }
 
   override def visit(fetch: Fetch): String = {
@@ -125,9 +137,13 @@ class RelToVerboseString(addSuffix: Boolean) extends DefaultRelVisitor[String] {
   override def visit(project: Project): String = {
     withBuilder(project, 8)(
       builder => {
+        val projects =
+          project.getExpressions.asScala
+            .map(_.accept(expressionStringConverter))
+            .mkString("[", ",", "]")
         builder
           .append("expressions=")
-          .append(project.getExpressions)
+          .append(projects)
       })
   }
 

@@ -20,9 +20,10 @@ import io.substrait.spark.DefaultExpressionVisitor
 
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
+import io.substrait.`type`.{StringTypeVisitor, Type}
 import io.substrait.expression.{Expression, FieldReference}
 import io.substrait.expression.Expression.{DateLiteral, DecimalLiteral, StrLiteral}
-import io.substrait.function.ToTypeString
+import io.substrait.function.SimpleExtension
 import io.substrait.util.DecimalUtil
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -35,6 +36,12 @@ class ExpressionToString extends DefaultExpressionVisitor[String] {
     decimal.toString
   }
 
+  override def visitType(fnDef: SimpleExtension.Function, argIdx: Int, t: Type): String = {
+    t.accept(new StringTypeVisitor)
+  }
+  override def visit(expr: Expression.BoolLiteral): String = {
+    expr.value().toString
+  }
   override def visit(expr: StrLiteral): String = {
     expr.value()
   }
@@ -49,11 +56,16 @@ class ExpressionToString extends DefaultExpressionVisitor[String] {
     expr.value().toString
   }
   override def visit(expr: FieldReference): String = {
-    withFieldReference(expr)(i => "$" + i.toString)
+    val typeStr = expr.getType.accept(new StringTypeVisitor)
+    withFieldReference(expr)(i => s"f$i:$typeStr")
   }
 
   override def visit(expr: Expression.SingleOrList): String = {
     expr.toString
+  }
+
+  override def visit(expr: Expression.Cast): String = {
+    s"cast(${expr.input().accept(this)} as ${expr.getType.accept(new StringTypeVisitor)}"
   }
 
   override def visit(expr: Expression.ScalarFunctionInvocation): String = {
@@ -67,6 +79,6 @@ class ExpressionToString extends DefaultExpressionVisitor[String] {
       }
       .mkString(",")
 
-    s"${expr.declaration().key()}[${expr.outputType().accept(ToTypeString.INSTANCE)}]($args)"
+    s"${expr.declaration().name()}[${expr.outputType().accept(new StringTypeVisitor)}]($args)"
   }
 }

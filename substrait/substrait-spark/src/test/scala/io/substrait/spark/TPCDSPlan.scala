@@ -21,7 +21,7 @@ import org.apache.spark.sql.internal.SQLConf
 
 class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
 
-  private val runAllQueriesIncludeFailed = false
+  private val runAllQueriesIncludeFailed = true
   override def beforeAll(): Unit = {
     super.beforeAll()
     sparkContext.setLogLevel("WARN")

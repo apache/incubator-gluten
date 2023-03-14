@@ -73,7 +73,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
 
   private def translateAttribute(a: AttributeReference): Option[SExpression] = {
     val bindReference =
-      BindReferences.bindReference[Expression](a, currentOutput, allowFailures = false)
+      BindReferences.bindReference[Expression](a, currentOutput, allowFailures = true)
     if (bindReference == a) {
       default(a)
     } else {

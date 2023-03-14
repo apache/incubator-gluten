@@ -89,44 +89,9 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
     }
   }
 
-  private def translateAggregation(
-      groupBy: Seq[Expression],
-      aggregates: Seq[AggregateExpression],
-      output: Seq[Attribute],
-      input: relation.Rel): relation.Aggregate = {
-    val groupings = Collections.singletonList(fromGroupSet(groupBy, output))
-    val aggCalls = aggregates.map(fromAggCall(_, output)).asJava
-
-    relation.Aggregate.builder
-      .input(input)
-      .addAllGroupings(groupings)
-      .addAllMeasures(aggCalls)
-      .build
-  }
-
-  /**
-   * The current substrait [[relation.Aggregate]] can't specify output, but spark [[Aggregate]]
-   * allow. So To support #1 <code>select max(b) from table group by a</code>, and #2 <code>select
-   * a, max(b) + 1 from table group by a</code>, We need create [[Project]] on top of [[Aggregate]]
-   * to correctly support it.
-   *
-   * TODO: support [[Rollup]] and [[GroupingSets]]
-   */
-  override def visitAggregate(agg: Aggregate): relation.Rel = {
-    val input = visit(agg.child)
-    val actualResultExprs = agg.aggregateExpressions
-    val actualGroupExprs = agg.groupingExpressions
-
-    val aggExprToOutputOrdinal = mutable.HashMap.empty[Expression, Int]
-    val aggregates = collectAggregates(actualResultExprs, aggExprToOutputOrdinal)
-    val aggOutputMap = aggregates.zipWithIndex.map {
-      case (e, i) =>
-        AttributeReference(s"agg_func_$i", e.dataType)() -> e
-    }
-    val aggOutput = aggOutputMap.map(_._1)
-
-    // collect group by
-    val groupByExprToOutputOrdinal = mutable.HashMap.empty[Expression, Int]
+  private def collectGroupBy(
+      actualGroupExprs: Seq[Expression],
+      groupByExprToOutputOrdinal: mutable.HashMap[Expression, Int]): Seq[AttributeReference] = {
     actualGroupExprs.zipWithIndex.foreach {
       case (expr, ordinal) =>
         if (!groupByExprToOutputOrdinal.contains(expr.canonicalized)) {
@@ -137,12 +102,63 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
       case (e, i) =>
         AttributeReference(s"group_col_$i", e.dataType)() -> e
     }
-    val groupOutput = groupOutputMap.map(_._1)
+    groupOutputMap.map(_._1)
+  }
+  private def translateAggregation(
+      groupBys: Seq[Seq[Expression]],
+      aggregates: Seq[AggregateExpression],
+      output: Seq[Attribute],
+      input: relation.Rel): relation.Aggregate = {
+    val groupings = groupBys.map(groupBy => fromGroupSet(groupBy, output))
+    val aggCalls = aggregates.map(fromAggCall(_, output)).asJava
 
-    val substraitAgg = translateAggregation(actualGroupExprs, aggregates, agg.child.output, input)
+    relation.Aggregate.builder
+      .input(input)
+      .addAllGroupings(groupings.asJava)
+      .addAllMeasures(aggCalls)
+      .build
+  }
+
+  /**
+   * The current substrait [[relation.Aggregate]] can't specify output, but spark [[Aggregate]]
+   * allow. So To support #1 <code>select max(b) from table group by a</code>, and #2 <code>select
+   * a, max(b) + 1 from table group by a</code>, We need create [[Project]] on top of [[Aggregate]]
+   * to correctly support it.
+   */
+  override def visitAggregate(agg: Aggregate): relation.Rel = {
+    val aggExprToOutputOrdinal = mutable.HashMap.empty[Expression, Int]
+    val aggregates = collectAggregates(agg.aggregateExpressions, aggExprToOutputOrdinal)
+
+    val substraitAgg = agg match {
+      case a @ Aggregate(_, _, expand: Expand)
+          if expand.output.exists(p => p.name == VirtualColumn.groupingIdName) =>
+        val newProjectList = ExpandAdaptor.collectOutput(expand)
+        translateAggregation(
+          ExpandAdaptor.collectGroupBys(a),
+          aggregates,
+          expand.output,
+          substraitProject(expand.child, newProjectList.map(toExpression(expand.child.output))))
+      case Aggregate(_, _, expand: Expand) => visitExpand(expand)
+      case thisAggregate =>
+        translateAggregation(
+          Seq(thisAggregate.groupingExpressions),
+          aggregates,
+          thisAggregate.child.output,
+          visit(thisAggregate.child))
+    }
+
+    val aggOutputMap = aggregates.zipWithIndex.map {
+      case (e, i) =>
+        AttributeReference(s"agg_func_$i", e.dataType)() -> e
+    }
+    val aggOutput = aggOutputMap.map(_._1)
+
+    // collect group by
+    val groupByExprToOutputOrdinal = mutable.HashMap.empty[Expression, Int]
+    val groupOutput = collectGroupBy(agg.groupingExpressions, groupByExprToOutputOrdinal)
+
     val newOutput = groupOutput ++ aggOutput
-
-    val projectExpressions = actualResultExprs.map {
+    val projectExpressions = agg.aggregateExpressions.map {
       expr =>
         expr.transformDown {
           case agg: AggregateExpression =>
@@ -226,13 +242,19 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
     }
   }
 
-  override def visitProject(p: Project): relation.Rel = {
-    val expressions = p.projectList.map(toExpression(p.child.output)).toList
+  private def substraitProject(
+      child: LogicalPlan,
+      expressions: Seq[SExpression]): relation.Project = {
     relation.Project.builder
-      .remap(relation.Rel.Remap.offset(p.child.output.size, expressions.size))
+      .remap(relation.Rel.Remap.offset(child.output.size, expressions.size))
       .expressions(expressions.asJava)
-      .input(visit(p.child))
+      .input(visit(child))
       .build()
+  }
+
+  override def visitProject(p: Project): relation.Project = {
+    val expressions = p.projectList.map(toExpression(p.child.output))
+    substraitProject(p.child, expressions)
   }
 
   private def toSortField(output: Seq[Attribute] = Nil)(order: SortOrder): SExpression.SortField = {

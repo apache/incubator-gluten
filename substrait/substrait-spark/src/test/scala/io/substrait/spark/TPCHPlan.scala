@@ -96,6 +96,10 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
     assertSqlSubstraitRelRoundTrip(
       "select l_partkey + l_orderkey, count(l_tax), COUNT(distinct l_discount)" +
         " from lineitem group by l_partkey + l_orderkey")
+
+    assertSqlSubstraitRelRoundTrip(
+      "select l_partkey + l_orderkey, count(l_tax) + COUNT(l_discount)" +
+        " from lineitem group by l_partkey + l_orderkey")
   }
 
   ignore("avg(distinct)") {
@@ -146,7 +150,7 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
         " where l_shipdate < date '1998-01-01' ")
   }
 
-  ignore("simpleTestGroupingSets [has Expand]") {
+  test("simpleTestGroupingSets [has Expand]") {
     assertSqlSubstraitRelRoundTrip(
       "select sum(l_discount) from lineitem group by grouping sets " +
         "((l_orderkey, L_COMMITDATE), l_shipdate)")
