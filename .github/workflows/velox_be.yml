@@ -19,6 +19,40 @@ name: Velox backend
 
 on:
   pull_request:
+    paths-ignore:
+      - '.github/**'
+      - 'pom.xml'
+      - 'backends-velox/**'
+      - 'gluten-core/**'
+      - 'gluten-data/**'
+      - 'gluten-ut/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+      - 'tools/gluten-te/**'
+      - 'ep/build-arrow/**'
+      - 'ep/build-velox/**'
+      - 'cpp/*'
+      - 'cpp/CMake/**'
+      - 'cpp/velox/**'
+      - 'cpp/core/**'
+
+
+jobs:
+  velox-backend-ubuntu2004-test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "No build required"'
+
+  velox-backend-ubuntu2204-test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "No build required"'
+
+
+name: Velox backend
+
+on:
+  pull_request:
     paths:
       - '.github/**'
       - 'pom.xml'
