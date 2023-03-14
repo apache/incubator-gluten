@@ -19,26 +19,6 @@ name: Clickhouse backend
 
 on:
   pull_request:
-    paths-ignore:
-      - '.github/**'
-      - 'pom.xml'
-      - 'backends-clickhouse/**'
-      - 'gluten-core/**'
-      - 'gluten-ut/**'
-      - 'ep/build-clickhouse/**'
-      - 'shims/**'
-
-jobs:
-  ch-backend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - run: 'echo "No build required"'
-
-
-name: Clickhouse backend
-
-on:
-  pull_request:
     paths:
       - '.github/**'
       - 'pom.xml'
