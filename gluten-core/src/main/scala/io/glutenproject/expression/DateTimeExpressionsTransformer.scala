@@ -18,6 +18,8 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
@@ -60,22 +62,26 @@ class DateDiffTransformer(substraitExprName: String, endDate: ExpressionTransfor
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // In Spark: datediff(endDate, startDate)
-    // In CH: date_diff('day', startDate, endDate)
     val endDateNode = endDate.doTransform(args)
     val startDateNode = startDate.doTransform(args)
-    val unitNode = ExpressionBuilder.makeStringLiteral("day")
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       substraitExprName, Seq(StringType, original.startDate.dataType,
       original.endDate.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressionNodes = Lists.newArrayList(
-      unitNode, startDateNode, endDateNode)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    val expressionNodes = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+      // In CH backend, datediff params are ('day', startDate, endDate).
+      Lists.newArrayList(
+        ExpressionBuilder.makeStringLiteral("day"), startDateNode, endDateNode)
+    } else {
+      // In the others, datediff params are (startDate, endDate).
+      Lists.newArrayList(startDateNode, endDateNode)
+    }
+    ExpressionBuilder.makeScalarFunction(
+      functionId, expressionNodes, ConverterUtils.getTypeNode(original.dataType, original.nullable))
   }
 }
 
