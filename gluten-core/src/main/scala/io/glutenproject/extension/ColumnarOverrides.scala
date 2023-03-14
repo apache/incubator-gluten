@@ -457,7 +457,6 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-//  private var supportAdaptive: Boolean = false
   private var isLeafPlanExchange: Boolean = false
   private var isAdaptiveContext: Boolean = false
   // Do not create rules in class initialization as we should access SQLConf
@@ -489,26 +488,19 @@ case class ColumnarOverrideRules(session: SparkSession)
     maybe(session, plan) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
-      println("############")
-      val traces = Thread.currentThread.getStackTrace()
-      println(traces(13).getClassName)
       val isLeafPlanExchange = plan match {
         case _: Exchange => true
         case _ => false
       }
       this.isLeafPlanExchange = isLeafPlanExchange
+      val traces = Thread.currentThread.getStackTrace()
+      // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
+      // AdaptiveSparkPlanExec. So by checking the stack trace, we can get know whether
+      // the currently executed code is in adaptive execution context. This part of code
+      // needs to be carefully checked when supporting higher versions of spark to make
+      // sure the calling stack has not been changed.
       this.isAdaptiveContext =
         traces(13).getClassName.equals(AdaptiveSparkPlanExec.getClass.getName)
-//      if (isLeafPlanExchange ||
-//          traces(13).getClassName.equals(AdaptiveSparkPlanExec.getClass.getName)) {
-//        supportAdaptive = true
-//      } else {
-//        supportAdaptive = false
-//      }
-//      supportAdaptive = AdaptiveSparkPlanUtil.supportAdaptiveWithExchangeConsidered(plan)
-
-//      println("supportAdaptive: " + supportAdaptive)
-//      println("support check: " + AdaptiveSparkPlanUtil.supportAdaptiveWithExchangeConsidered(plan))
       logOnLevel(
         transformPlanLogLevel,
         s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
@@ -542,8 +534,6 @@ case class ColumnarOverrideRules(session: SparkSession)
       logOnLevel(
         transformPlanLogLevel,
         s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
-      println("######## overridden plan ############")
-      println(overridden)
       overridden
     }
 
