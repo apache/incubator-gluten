@@ -405,7 +405,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
         if (nativeConversion.doValidate()) {
           nativeConversion
         } else {
-          logWarning("$$$$$ NativeColumnarToRow : Falling back to ColumnarToRow...")
+          logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
           plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
         }
       } else {
@@ -454,7 +454,9 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+  // Tracks whether the given input plan's leaf is exchange.
   private var isLeafPlanExchange: Boolean = false
+  // Tracks whether the columnar rule is called through AQE.
   private var isAdaptiveContext: Boolean = false
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -476,8 +478,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
   }
 
-  def postOverrides(isAdaptiveContext: Boolean): List[SparkSession => Rule[SparkPlan]] =
-    List((s: SparkSession) => TransformPostOverrides(s, isAdaptiveContext)) :::
+  def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
+    List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getConf))
 
@@ -485,15 +487,14 @@ case class ColumnarOverrideRules(session: SparkSession)
     maybe(session, plan) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
-      val isLeafPlanExchange = plan match {
+      this.isLeafPlanExchange = plan match {
         case _: Exchange => true
         case _ => false
       }
-      this.isLeafPlanExchange = isLeafPlanExchange
       val traces = Thread.currentThread.getStackTrace()
       // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
-      // AdaptiveSparkPlanExec. So by checking the stack trace, we can get know whether
-      // the currently executed code is in adaptive execution context. This part of code
+      // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
+      // columnar rule will be applied in adaptive execution context. This part of code
       // needs to be carefully checked when supporting higher versions of spark to make
       // sure the calling stack has not been changed.
       this.isAdaptiveContext =
@@ -521,7 +522,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
-      postOverrides(this.isAdaptiveContext).foreach { r =>
+      postOverrides().foreach { r =>
         overridden = r(session)(overridden)
         planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
