@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.utils.AdaptiveSparkPlanUtil
+import io.glutenproject.utils.ColumnarShuffleUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
@@ -87,7 +87,7 @@ case class TakeOrderedAndProjectExecTransformer (
         val sortStagePlan = WholeStageTransformerExec(limitExecPlan)(
           codegenStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
-        val transformedShuffleExec = AdaptiveSparkPlanUtil.genColumnarShuffleExchange(shuffleExec,
+        val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(shuffleExec,
           sortStagePlan, false, isAdaptiveContextOrLeafPlanExchange)
 
         val globalSortExecPlan = SortExecTransformer(sortOrder, false,

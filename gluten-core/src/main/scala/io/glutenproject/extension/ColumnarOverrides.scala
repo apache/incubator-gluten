@@ -21,12 +21,12 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
-import io.glutenproject.utils.{AdaptiveSparkPlanUtil, LogLevelUtil, PhysicalPlanSelector}
+import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
@@ -37,7 +37,6 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.internal.SQLConf.ADAPTIVE_EXECUTION_ENABLED
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -192,18 +191,18 @@ case class TransformPreOverrides(isAdaptiveContextOrLeafPlanExchange: Boolean)
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
-                  AdaptiveSparkPlanUtil.genColumnarShuffleExchange(
+                  ColumnarShuffleUtil.genColumnarShuffleExchange(
                     plan, projectChild, removeHashColumn = true,
                     isAdaptiveContextOrLeafPlanExchange)
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
-                AdaptiveSparkPlanUtil.genColumnarShuffleExchange(plan, child,
+                ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
                   isAdaptiveContextOrLeafPlanExchange = isAdaptiveContextOrLeafPlanExchange)
             }
           } else {
-            AdaptiveSparkPlanUtil.genColumnarShuffleExchange(plan, child,
+            ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
               isAdaptiveContextOrLeafPlanExchange = isAdaptiveContextOrLeafPlanExchange)
           }
         } else {
@@ -378,8 +377,6 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
     extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-
-  lazy val enableAdaptive = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
