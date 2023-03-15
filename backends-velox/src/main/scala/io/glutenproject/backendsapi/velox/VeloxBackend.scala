@@ -81,22 +81,23 @@ object VeloxBackendSettings extends BackendSettings {
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     var allSupported = true
     breakable {
-      windowFunctions.foreach(
-        func => {
-          val aliasExpr = func.asInstanceOf[Alias]
-          val wExpression = WindowFunctionsBuilder.extractWindowExpression(aliasExpr.child)
-          wExpression match {
-            case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-                 _: PercentRank =>
-              allSupported = allSupported & true
-            case _ =>
-              allSupported = false
-              break
+      windowFunctions.foreach(func => {
+        val windowExpression = func match {
+          case alias: Alias => WindowFunctionsBuilder.extractWindowExpression(alias.child)
+          case _ => throw new UnsupportedOperationException(s"$func is not supported.")
+        }
+        windowExpression.windowFunction match {
+          case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
+               _: PercentRank =>
+          case _ =>
+            allSupported = false
+            break
           }
-        })
+      })
     }
     allSupported
   }
+
   override def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getConf.isUseColumnarShuffleManager
   }
