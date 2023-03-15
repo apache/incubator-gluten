@@ -458,6 +458,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   private var isLeafPlanExchange: Boolean = false
   // Tracks whether the columnar rule is called through AQE.
   private var isAdaptiveContext: Boolean = false
+  // This is an empirical value, may need to be changed for supporting other versions of spark.
+  private val aqeStackTraceIndex = 13
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
@@ -498,8 +500,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       // columnar rule will be applied in adaptive execution context. This part of code
       // needs to be carefully checked when supporting higher versions of spark to make
       // sure the calling stack has not been changed.
-      this.isAdaptiveContext =
-        traceElements(13).getClassName.equals(AdaptiveSparkPlanExec.getClass.getName)
+      this.isAdaptiveContext = traceElements(aqeStackTraceIndex).getClassName.equals(
+        AdaptiveSparkPlanExec.getClass.getName)
       logOnLevel(
         transformPlanLogLevel,
         s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
