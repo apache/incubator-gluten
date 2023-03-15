@@ -59,7 +59,8 @@ There are several key component in Gluten:
 
 Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details
 
-```export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
+```
+export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 spark-shell 
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
