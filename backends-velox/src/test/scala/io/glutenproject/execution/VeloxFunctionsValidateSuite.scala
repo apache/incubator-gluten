@@ -254,4 +254,23 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
       }
     }
   }
+
+  test("date_diff") {
+    withTempPath { path =>
+      Seq(
+        (java.sql.Date.valueOf("2022-03-11"), java.sql.Date.valueOf("2022-02-11")),
+        (java.sql.Date.valueOf("2022-03-12"), java.sql.Date.valueOf("2022-01-12")),
+        (java.sql.Date.valueOf("2022-09-13"), java.sql.Date.valueOf("2022-05-12")),
+        (java.sql.Date.valueOf("2022-07-14"), java.sql.Date.valueOf("2022-03-12")),
+        (java.sql.Date.valueOf("2022-06-15"), java.sql.Date.valueOf("2022-01-12")),
+        (java.sql.Date.valueOf("2022-05-16"), java.sql.Date.valueOf("2022-06-12")))
+        .toDF("a", "b").write.parquet(path.getCanonicalPath)
+
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+      runQueryAndCompare("SELECT datediff(a, b) from view") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
 }
