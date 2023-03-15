@@ -92,8 +92,7 @@ object VeloxBackendSettings extends BackendSettings {
           case _ =>
             allSupported = false
             break
-          }
-      })
+        }})
     }
     allSupported
   }

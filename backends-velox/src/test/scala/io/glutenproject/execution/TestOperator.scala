@@ -65,20 +65,20 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
-  test("test_where") {
+  test("where") {
     val df = runQueryAndCompare(
       "select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
     checkLengthAndPlan(df, 59288)
   }
 
-  test("test_is_null") {
+  test("is_null") {
     val df = runQueryAndCompare("select l_orderkey from lineitem " +
       "where l_comment is null") { _ => }
     assert(df.isEmpty)
     checkLengthAndPlan(df, 0)
   }
 
-  test("test_is_null_has_null") {
+  test("is_null_has_null") {
     val data = Seq(Row(null), Row("data"), Row(null))
     val schema = StructType(Array(StructField("col1", StringType, nullable = true)))
     spark
@@ -88,14 +88,14 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 2)
   }
 
-  test("test_is_not_null") {
+  test("is_not_null") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
     checkLengthAndPlan(df, 6)
   }
 
-  test("test_and pushdown") {
+  test("and pushdown") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_orderkey > 2 " +
         "and l_orderkey = 1") { _ => }
@@ -103,7 +103,7 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 0)
   }
 
-  test("test_in") {
+  test("in") {
     val df = runQueryAndCompare("select l_orderkey from lineitem " +
       "where l_partkey in (1552, 674, 1062)") {
       _ =>
@@ -111,28 +111,28 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 122)
   }
 
-  test("test_in_and") {
+  test("in_and") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674, 1062) and l_partkey in (1552, 674)") { _ => }
     checkLengthAndPlan(df, 73)
   }
 
-  test("test_in_or") {
+  test("in_or") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674) or l_partkey in (1552, 1062)") { _ => }
     checkLengthAndPlan(df, 122)
   }
 
-  test("test_in_or_and") {
+  test("in_or_and") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674) or l_partkey in (1552) and l_orderkey > 1") { _ => }
     checkLengthAndPlan(df, 73)
   }
 
-  test("test_in_not") {
+  test("in_not") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey not in (1552, 674) or l_partkey in (1552, 1062)") { _ => }
@@ -157,7 +157,7 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 5)
   }
 
-  ignore("test_count") {
+  test("count") {
     val df = runQueryAndCompare("select count(*) from lineitem " +
       "where l_partkey in (1552, 674, 1062)") {
       _ =>
@@ -165,47 +165,47 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
-  ignore("test_avg") {
+  test("avg") {
     val df = runQueryAndCompare("select avg(l_partkey) from lineitem " +
       "where l_partkey < 1000") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  ignore("test_sum") {
+  test("sum") {
     val df = runQueryAndCompare("select sum(l_partkey) from lineitem " +
       "where l_partkey < 2000") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  ignore("test_groupby") {
+  test("groupby") {
     val df = runQueryAndCompare(
       "select l_orderkey, sum(l_partkey) as sum from lineitem " +
         "where l_orderkey < 3 group by l_orderkey") { _ => }
     checkLengthAndPlan(df, 2)
   }
 
-  test("test_group sets") {
+  test("group sets") {
     val result = runQueryAndCompare(
       "select l_orderkey, l_partkey, sum(l_suppkey) from lineitem " +
         "where l_orderkey < 3 group by ROLLUP(l_orderkey, l_partkey) " +
         "order by l_orderkey, l_partkey ") { _ => }
   }
 
-  ignore("test_orderby") {
+  test("orderby") {
     val df = runQueryAndCompare(
       "select l_suppkey from lineitem " +
         "where l_orderkey < 3 order by l_partkey") { _ => }
     checkLengthAndPlan(df, 7)
   }
 
-  ignore("test_orderby expression") {
+  test("orderby expression") {
     val df = runQueryAndCompare(
       "select l_suppkey from lineitem " +
         "where l_orderkey < 3 order by l_partkey / 2 ") { _ => }
     checkLengthAndPlan(df, 7)
   }
 
-  test("test window expression") {
+  test("window expression") {
     runQueryAndCompare(
       "select row_number() over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
@@ -244,105 +244,103 @@ class TestOperator extends WholeStageTransformerSuite {
 
   }
 
-  test("Test chr function") {
+  test("chr function") {
     val df = runQueryAndCompare("SELECT chr(l_orderkey + 64) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test abs function") {
+  test("abs function") {
     val df = runQueryAndCompare("SELECT abs(l_orderkey) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test ceil function") {
+  test("ceil function") {
     val df = runQueryAndCompare("SELECT ceil(cast(l_orderkey as long)) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test floor function") {
+  test("floor function") {
     val df = runQueryAndCompare("SELECT floor(cast(l_orderkey as long)) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test Exp function") {
+  test("exp function") {
     val df = spark.sql("SELECT exp(l_orderkey) from lineitem limit 1")
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test Power function") {
+  test("power function") {
     val df = runQueryAndCompare("SELECT power(l_orderkey, 2.0) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test Pmod function") {
+  test("pmod function") {
     val df = runQueryAndCompare("SELECT pmod(cast(l_orderkey as int), 3) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  ignore("Test round function") {
+  test("round function") {
     val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
       "from lineitem limit 1") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  test("Test greatest function") {
+  test("greatest function") {
     val df = runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
       "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  test("Test least function") {
+  test("least function") {
     val df = runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
       "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
   }
 
   // Test "SELECT ..." without a from clause.
-  test("Test isnull function") {
-    val df = runQueryAndCompare("SELECT isnull(1)") { _ => }
+  test("isnull function") {
+    runQueryAndCompare("SELECT isnull(1)") { _ => }
   }
 
-  // VeloxRuntimeError, wait to fix
-  ignore("Test df.count()") {
+  test("df.count()") {
     val df = runQueryAndCompare("select * from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
-  test("test_union_all two tables") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      val df = runQueryAndCompare(
-        """
-          |select count(orderkey) from (
-          | select l_orderkey as orderkey from lineitem
-          | union all
-          | select o_orderkey as orderkey from orders
-          |);
-          |""".stripMargin) { _ => }
-      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
-    }
+  test("union_all two tables") {
+    runQueryAndCompare(
+      """
+        |select count(orderkey) from (
+        | select l_orderkey as orderkey from lineitem
+        | union all
+        | select o_orderkey as orderkey from orders
+        |);
+        |""".stripMargin) { df => {
+      getExecutedPlan(df).exists(plan =>
+        plan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+    }}
   }
 
-  test("test_union_all three tables") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      val df = runQueryAndCompare(
-        """
-          |select count(orderkey) from (
-          | select l_orderkey as orderkey from lineitem
-          | union all
-          | select o_orderkey as orderkey from orders
-          | union all
-          | (select o_orderkey as orderkey from orders limit 100)
-          |);
-          |""".stripMargin) { _ => }
-      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
-    }
+  test("union_all three tables") {
+    val df = runQueryAndCompare(
+      """
+        |select count(orderkey) from (
+        | select l_orderkey as orderkey from lineitem
+        | union all
+        | select o_orderkey as orderkey from orders
+        | union all
+        | (select o_orderkey as orderkey from orders limit 100)
+        |);
+        |""".stripMargin) { df => {
+      getExecutedPlan(df).exists(plan =>
+        plan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+    }}
   }
 
-  test("test_union two tables") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+  test("union two tables") {
       val df = runQueryAndCompare(
         """
           |select count(orderkey) from (
@@ -350,41 +348,37 @@ class TestOperator extends WholeStageTransformerSuite {
           | union
           | select o_orderkey as orderkey from orders
           |);
-          |""".stripMargin) {
-        _ =>
+          |""".stripMargin) { df => {
+          getExecutedPlan(df).exists(plan =>
+            plan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+        }
       }
-      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
-    }
   }
 
   test("test 'select global/local limit'") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select * from (
-          | select * from lineitem limit 10
-          |) where l_suppkey != 0 limit 100;
-          |""".stripMargin) {
-        checkOperatorMatch[LimitTransformer]
-      }
+    runQueryAndCompare(
+      """
+        |select * from (
+        | select * from lineitem limit 10
+        |) where l_suppkey != 0 limit 100;
+        |""".stripMargin) {
+      checkOperatorMatch[LimitTransformer]
     }
   }
 
   test("stddev_samp") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select stddev_samp(l_quantity) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select l_orderkey, stddev_samp(l_quantity) from lineitem
-          |group by l_orderkey;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
+    runQueryAndCompare(
+      """
+        |select stddev_samp(l_quantity) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |select l_orderkey, stddev_samp(l_quantity) from lineitem
+        |group by l_orderkey;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
   }
 
@@ -398,75 +392,67 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("stddev_pop") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select stddev_pop(l_quantity) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select l_orderkey, stddev_pop(l_quantity) from lineitem
-          |group by l_orderkey;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
+    runQueryAndCompare(
+      """
+        |select stddev_pop(l_quantity) from lineitem;
+      |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |select l_orderkey, stddev_pop(l_quantity) from lineitem
+        |group by l_orderkey;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
   }
 
   test("var_samp") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select var_samp(l_quantity) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select l_orderkey, var_samp(l_quantity) from lineitem
-          |group by l_orderkey;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
+    runQueryAndCompare(
+      """
+        |select var_samp(l_quantity) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |select l_orderkey, var_samp(l_quantity) from lineitem
+        |group by l_orderkey;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
   }
 
   test("var_pop") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select var_pop(l_quantity) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select l_orderkey, var_pop(l_quantity) from lineitem
-          |group by l_orderkey;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
+    runQueryAndCompare(
+      """
+        |select var_pop(l_quantity) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |select l_orderkey, var_pop(l_quantity) from lineitem
+        |group by l_orderkey;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
   }
 
   test("bit_and and bit_or") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select bit_and(l_linenumber) from lineitem
-          |group by l_orderkey;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select bit_or(l_linenumber) from lineitem
-          |group by l_orderkey;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
+    runQueryAndCompare(
+      """
+        |select bit_and(l_linenumber) from lineitem
+        |group by l_orderkey;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |select bit_or(l_linenumber) from lineitem
+        |group by l_orderkey;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
   }
 }
