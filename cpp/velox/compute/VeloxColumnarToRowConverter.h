@@ -18,7 +18,6 @@
 #pragma once
 
 #include <arrow/memory_pool.h>
-#include <arrow/record_batch.h>
 #include <arrow/type.h>
 
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
