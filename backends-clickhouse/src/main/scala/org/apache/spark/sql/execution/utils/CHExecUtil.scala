@@ -183,7 +183,7 @@ object CHExecUtil {
       } else {
         val options = new IteratorOptions
         options.setExpr("")
-        options.setBufferSize(8192)
+        options.setBufferSize(GlutenConfig.getConf.shuffleSplitDefaultSize)
         newPartitioning match {
           case HashPartitioning(exprs, n) =>
             rdd.mapPartitionsWithIndexInternal(
