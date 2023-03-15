@@ -494,7 +494,8 @@ case class ColumnarOverrideRules(session: SparkSession)
         case _ => false
       }
       val traceElements = Thread.currentThread.getStackTrace
-      assert(traceElements.length > 13, "More than 13 stack trace elements are expected!")
+      assert(traceElements.length > aqeStackTraceIndex,
+        s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
       // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
       // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
       // columnar rule will be applied in adaptive execution context. This part of code
