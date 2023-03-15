@@ -502,7 +502,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   // This is an empirical value, may need to be changed for supporting other versions of spark.
   private val aqeStackTraceIndex = 13
 
-  val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
+  val wholeStageFallbackThreshold = session.sparkContext.getConf.getInt(
+    "spark.gluten.sql.columnar.wholeStage.fallback.threshold", defaultValue = -1)
   private var originalPlan: SparkPlan = _
   private var fallbacks = 0
   // Do not create rules in class initialization as we should access SQLConf
