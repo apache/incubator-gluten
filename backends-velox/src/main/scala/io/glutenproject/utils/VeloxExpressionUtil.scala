@@ -38,7 +38,6 @@ object VeloxExpressionUtil {
     RAND -> Set(EMPTY_TYPE),
     // to be removed when Velox support compatible type
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
-    DATE_DIFF -> Set(EMPTY_TYPE),
     FROM_UNIXTIME -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(EMPTY_TYPE),
     UNIX_TIMESTAMP -> Set(EMPTY_TYPE),
