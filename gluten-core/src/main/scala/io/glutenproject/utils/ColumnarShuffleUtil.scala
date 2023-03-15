@@ -19,34 +19,9 @@ package io.glutenproject.utils
 
 import io.glutenproject.execution.CoalesceBatchesExec
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
-import org.apache.spark.sql.execution.exchange.{Exchange, ShuffleExchangeExec}
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.execution.exchange.{ShuffleExchangeExec}
 
-/**
- * Mostly ported from spark source code for checking whether a plan supports adaptive.
- * See InsertAdaptiveSparkPlan#supportAdaptive in vanilla spark.
- * Since spark-3.2, AQE can work for DPP, so no need to exclude DPP plan in the check.
- * This part of code may need update for supporting higher versions of spark.
- */
-object AdaptiveSparkPlanUtil {
-
-  def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
-
-  def supportAdaptive(plan: SparkPlan): Boolean = {
-    SQLConf.get.adaptiveExecutionEnabled &&
-        (sanityCheck(plan) &&
-            !plan.logicalLink.exists(_.isStreaming) &&
-            plan.children.forall(supportAdaptive))
-  }
-
-  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {
-    // Only QueryStage will have Exchange as Leaf Plan
-    val isLeafPlanExchange = plan match {
-      case _: Exchange => true
-      case _ => false
-    }
-    isLeafPlanExchange || supportAdaptive(plan)
-  }
+object ColumnarShuffleUtil {
 
   /**
    * Generate a columnar plan for shuffle exchange.
@@ -59,8 +34,8 @@ object AdaptiveSparkPlanUtil {
   def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
                                  child: SparkPlan,
                                  removeHashColumn: Boolean = false,
-                                 supportAdaptive: Boolean): SparkPlan = {
-    if (supportAdaptive) {
+                                 isAdaptiveContextOrLeafPlanExchange: Boolean): SparkPlan = {
+    if (isAdaptiveContextOrLeafPlanExchange) {
       ColumnarShuffleExchangeExec(
         plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn)
     } else {
