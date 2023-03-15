@@ -37,5 +37,5 @@ spark.executor.extraClassPath
 For example:
 ```shell script
 spark.driver.extraClassPath        /home/ubuntu/spark/jars/jars_ext/aws-java-sdk-bundle-1.11.271.jar:/home/ubuntu/gluten_jars/<gluten-jar>
-spark.driver.extraClassPath        /home/ubuntu/spark/jars/jars_ext/aws-java-sdk-bundle-1.11.271.jar:/home/ubuntu/gluten_jars/<gluten-jar>
+spark.executor.extraClassPath        /home/ubuntu/spark/jars/jars_ext/aws-java-sdk-bundle-1.11.271.jar:/home/ubuntu/gluten_jars/<gluten-jar>
 ```
