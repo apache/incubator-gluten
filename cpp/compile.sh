@@ -35,7 +35,7 @@ do
         BUILD_VELOX_BACKEND=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --build_test=*)
+        --build_tests=*)
         BUILD_TESTS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;

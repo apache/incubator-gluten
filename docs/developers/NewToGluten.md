@@ -54,7 +54,7 @@ If you need to debug cpp code, please compile the backend code and gluten cpp co
 ## compile velox
 ./build_velox.sh --build_type=Debug
 ## compile arrow with tests required library
-./build_arrow_for_velox.sh --build_test=ON
+./build_arrow_for_velox.sh --build_tests=ON
 ## compile gluten cpp with benchmark and tests to debug
 cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Debug ..
 ```
