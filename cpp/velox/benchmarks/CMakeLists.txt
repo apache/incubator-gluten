@@ -30,3 +30,4 @@ add_velox_benchmark(query_benchmark QueryBenchmark.cc)
 add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
 
 add_velox_benchmark(columnar_to_row_benchmark ColumnarToRowBenchmark.cc)
+

@@ -85,6 +85,7 @@ cmake -G Ninja \
         -DARROW_WITH_ZLIB=ON \
         -DARROW_JSON=$WITH_JSON \
         -DARROW_PARQUET=ON \
+        -DARROW_ORC=ON \
         -DARROW_WITH_ZSTD=ON \
         -DARROW_BUILD_SHARED=ON \
         -DARROW_BOOST_USE_SHARED=OFF \
