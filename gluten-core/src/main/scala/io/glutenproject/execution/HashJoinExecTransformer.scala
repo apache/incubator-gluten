@@ -22,15 +22,16 @@ import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
+import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.substrait.{JoinParams, SubstraitContext}
-import io.glutenproject.vectorized.Metrics.SingleMetric
-import io.glutenproject.vectorized.OperatorMetrics
+
 import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -39,8 +40,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.types.{ArrayType, BooleanType, DataType, MapType, StructType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.{lang, util}
@@ -97,12 +97,6 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
   }
 }
 
-trait HashJoinMetricsUpdater extends MetricsUpdater {
-  def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
-                        singleMetrics: SingleMetric,
-                        joinParams: JoinParams): Unit
-}
-
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
@@ -112,232 +106,8 @@ trait HashJoinLikeExecTransformer
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
 
-  override lazy val metrics = Map(
-    "hashBuildInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash build input rows"),
-    "hashBuildOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash build output rows"),
-    "hashBuildOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash build output vectors"),
-    "hashBuildOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of hash build output bytes"),
-    "hashBuildCpuCount" -> SQLMetrics.createMetric(
-      sparkContext, "hash build cpu wall time count"),
-    "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime of hash build"),
-    "hashBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "hash build peak memory bytes"),
-    "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash build memory allocations"),
-    "hashBuildSpilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "total bytes written for spilling of hash build"),
-    "hashBuildSpilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "total rows written for spilling of hash build"),
-    "hashBuildSpilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled partitions of hash build"),
-    "hashBuildSpilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled files of hash build"),
-
-    "hashProbeInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe input rows"),
-    "hashProbeOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe output rows"),
-    "hashProbeOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe output vectors"),
-    "hashProbeOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of hash probe output bytes"),
-    "hashProbeCpuCount" -> SQLMetrics.createMetric(
-      sparkContext, "hash probe cpu wall time count"),
-    "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime of hash probe"),
-    "hashProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "hash probe peak memory bytes"),
-    "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe memory allocations"),
-    "hashProbeSpilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "total bytes written for spilling of hash probe"),
-    "hashProbeSpilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "total rows written for spilling of hash probe"),
-    "hashProbeSpilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled partitions of hash probe"),
-    "hashProbeSpilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled files of hash probe"),
-    "hashProbeReplacedWithDynamicFilterRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe replaced with dynamic filter rows"),
-    "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
-      sparkContext, "number of hash probe dynamic filters produced"),
-
-    "streamCpuCount" -> SQLMetrics.createMetric(
-      sparkContext, "stream input cpu wall time count"),
-    "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime of stream input"),
-    "streamVeloxToArrow" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime of velox2arrow converter"),
-
-    "streamPreProjectionCpuCount" -> SQLMetrics.createMetric(
-      sparkContext, "stream preProject cpu wall time count"),
-    "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime of stream preProjection"),
-
-    "buildCpuCount" -> SQLMetrics.createMetric(
-      sparkContext, "build input cpu wall time count"),
-    "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime to build input"),
-
-    "buildPreProjectionCpuCount" -> SQLMetrics.createMetric(
-      sparkContext, "preProject cpu wall time count"),
-    "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime to build preProjection"),
-
-    "postProjectionCpuCount" -> SQLMetrics.createMetric(
-      sparkContext, "postProject cpu wall time count"),
-    "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime of postProjection"),
-    "postProjectionOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection output rows"),
-    "postProjectionOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection output vectors"),
-
-    "finalOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of final output rows"),
-    "finalOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of final output vectors"))
-
-  object MetricsUpdaterImpl extends HashJoinMetricsUpdater {
-    val hashBuildInputRows: SQLMetric = longMetric("hashBuildInputRows")
-    val hashBuildOutputRows: SQLMetric = longMetric("hashBuildOutputRows")
-    val hashBuildOutputVectors: SQLMetric = longMetric("hashBuildOutputVectors")
-    val hashBuildOutputBytes: SQLMetric = longMetric("hashBuildOutputBytes")
-    val hashBuildCpuCount: SQLMetric = longMetric("hashBuildCpuCount")
-    val hashBuildWallNanos: SQLMetric = longMetric("hashBuildWallNanos")
-    val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
-    val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
-    val hashBuildSpilledBytes: SQLMetric = longMetric("hashBuildSpilledBytes")
-    val hashBuildSpilledRows: SQLMetric = longMetric("hashBuildSpilledRows")
-    val hashBuildSpilledPartitions: SQLMetric = longMetric("hashBuildSpilledPartitions")
-    val hashBuildSpilledFiles: SQLMetric = longMetric("hashBuildSpilledFiles")
-
-    val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
-    val hashProbeOutputRows: SQLMetric = longMetric("hashProbeOutputRows")
-    val hashProbeOutputVectors: SQLMetric = longMetric("hashProbeOutputVectors")
-    val hashProbeOutputBytes: SQLMetric = longMetric("hashProbeOutputBytes")
-    val hashProbeCpuCount: SQLMetric = longMetric("hashProbeCpuCount")
-    val hashProbeWallNanos: SQLMetric = longMetric("hashProbeWallNanos")
-    val hashProbePeakMemoryBytes: SQLMetric = longMetric("hashProbePeakMemoryBytes")
-    val hashProbeNumMemoryAllocations: SQLMetric = longMetric("hashProbeNumMemoryAllocations")
-    val hashProbeSpilledBytes: SQLMetric = longMetric("hashProbeSpilledBytes")
-    val hashProbeSpilledRows: SQLMetric = longMetric("hashProbeSpilledRows")
-    val hashProbeSpilledPartitions: SQLMetric = longMetric("hashProbeSpilledPartitions")
-    val hashProbeSpilledFiles: SQLMetric = longMetric("hashProbeSpilledFiles")
-
-    // The number of rows which were passed through without any processing
-    // after filter was pushed down.
-    val hashProbeReplacedWithDynamicFilterRows: SQLMetric =
-    longMetric("hashProbeReplacedWithDynamicFilterRows")
-
-    // The number of dynamic filters this join generated for push down.
-    val hashProbeDynamicFiltersProduced: SQLMetric =
-      longMetric("hashProbeDynamicFiltersProduced")
-
-    val streamCpuCount: SQLMetric = longMetric("streamCpuCount")
-    val streamWallNanos: SQLMetric = longMetric("streamWallNanos")
-    val streamVeloxToArrow: SQLMetric = longMetric("streamVeloxToArrow")
-
-    val streamPreProjectionCpuCount: SQLMetric = longMetric("streamPreProjectionCpuCount")
-    val streamPreProjectionWallNanos: SQLMetric = longMetric("streamPreProjectionWallNanos")
-
-    val buildCpuCount: SQLMetric = longMetric("buildCpuCount")
-    val buildWallNanos: SQLMetric = longMetric("buildWallNanos")
-
-    val buildPreProjectionCpuCount: SQLMetric = longMetric("buildPreProjectionCpuCount")
-    val buildPreProjectionWallNanos: SQLMetric = longMetric("buildPreProjectionWallNanos")
-
-    val postProjectionCpuCount: SQLMetric = longMetric("postProjectionCpuCount")
-    val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
-    val postProjectionOutputRows: SQLMetric = longMetric("postProjectionOutputRows")
-    val postProjectionOutputVectors: SQLMetric = longMetric("postProjectionOutputVectors")
-
-    val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
-    val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
-
-    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-      throw new UnsupportedOperationException(s"updateNativeMetrics is not supported for join.")
-    }
-
-    override def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
-                          singleMetrics: SingleMetric,
-                          joinParams: JoinParams): Unit = {
-      var idx = 0
-      if (joinParams.postProjectionNeeded) {
-        val postProjectMetrics = joinMetrics.get(idx)
-        postProjectionCpuCount += postProjectMetrics.cpuCount
-        postProjectionWallNanos += postProjectMetrics.wallNanos
-        postProjectionOutputRows += postProjectMetrics.outputRows
-        postProjectionOutputVectors += postProjectMetrics.outputVectors
-        idx += 1
-      }
-
-      // HashProbe
-      val hashProbeMetrics = joinMetrics.get(idx)
-      hashProbeInputRows += hashProbeMetrics.inputRows
-      hashProbeOutputRows += hashProbeMetrics.outputRows
-      hashProbeOutputVectors += hashProbeMetrics.outputVectors
-      hashProbeOutputBytes += hashProbeMetrics.outputBytes
-      hashProbeCpuCount += hashProbeMetrics.cpuCount
-      hashProbeWallNanos += hashProbeMetrics.wallNanos
-      hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
-      hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
-      hashProbeSpilledBytes += hashProbeMetrics.spilledBytes
-      hashProbeSpilledRows += hashProbeMetrics.spilledRows
-      hashProbeSpilledPartitions += hashProbeMetrics.spilledPartitions
-      hashProbeSpilledFiles += hashProbeMetrics.spilledFiles
-      hashProbeReplacedWithDynamicFilterRows += hashProbeMetrics.numReplacedWithDynamicFilterRows
-      hashProbeDynamicFiltersProduced += hashProbeMetrics.numDynamicFiltersProduced
-      idx += 1
-
-      // HashBuild
-      val hashBuildMetrics = joinMetrics.get(idx)
-      hashBuildInputRows += hashBuildMetrics.inputRows
-      hashBuildOutputRows += hashBuildMetrics.outputRows
-      hashBuildOutputVectors += hashBuildMetrics.outputVectors
-      hashBuildOutputBytes += hashBuildMetrics.outputBytes
-      hashBuildCpuCount += hashBuildMetrics.cpuCount
-      hashBuildWallNanos += hashBuildMetrics.wallNanos
-      hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
-      hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
-      hashBuildSpilledBytes += hashProbeMetrics.spilledBytes
-      hashBuildSpilledRows += hashProbeMetrics.spilledRows
-      hashBuildSpilledPartitions += hashProbeMetrics.spilledPartitions
-      hashBuildSpilledFiles += hashProbeMetrics.spilledFiles
-      idx += 1
-
-      if (joinParams.buildPreProjectionNeeded) {
-        buildPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-        buildPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-        idx += 1
-      }
-
-      if (joinParams.isBuildReadRel) {
-        buildCpuCount += joinMetrics.get(idx).cpuCount
-        buildWallNanos += joinMetrics.get(idx).wallNanos
-        idx += 1
-      }
-
-      if (joinParams.streamPreProjectionNeeded) {
-        streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-        streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-        idx += 1
-      }
-
-      if (joinParams.isStreamedReadRel) {
-        val streamMetrics = joinMetrics.get(idx)
-        streamCpuCount += streamMetrics.cpuCount
-        streamWallNanos += streamMetrics.wallNanos
-        streamVeloxToArrow += singleMetrics.veloxToArrow
-        idx += 1
-      }
-    }
-  }
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetrics(sparkContext)
 
   // Whether the left and right side should be exchanged.
   protected lazy val exchangeTable: Boolean = joinBuildSide match {
@@ -406,7 +176,8 @@ trait HashJoinLikeExecTransformer
       JoinRel.JoinType.UNRECOGNIZED
   }
 
-  override def metricsUpdater(): HashJoinMetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetricsUpdater(metrics)
 
   override def outputPartitioning: Partitioning = joinBuildSide match {
     case BuildLeft =>

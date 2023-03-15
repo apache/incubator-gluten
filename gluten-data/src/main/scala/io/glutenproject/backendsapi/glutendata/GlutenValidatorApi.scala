@@ -17,18 +17,18 @@
 
 package io.glutenproject.backendsapi.glutendata
 
-import io.glutenproject.backendsapi.IValidatorApi
+import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.execution.RowToColumnConverter
 import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.GlutenExpressionUtil
 import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructType
 
-abstract class GlutenValidatorApi extends IValidatorApi {
+abstract class GlutenValidatorApi extends ValidatorApi {
 
   /**
    * Validate target expression within an input blacklist. Return false if target expression

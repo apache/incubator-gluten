@@ -17,23 +17,22 @@
 
 package io.glutenproject.backendsapi.glutendata
 
-import java.util
-import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.backendsapi.IIteratorApi
+import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.GlutenImplicitClass.{coalesce, ArrowColumnarBatchRetainer}
 import io.glutenproject.vectorized._
+
 import org.apache.arrow.vector.types.pojo.Schema
+
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
@@ -43,15 +42,19 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
+import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskMemoryResources
 
 import java.net.URLDecoder
+import java.util
+import java.util.concurrent.TimeUnit
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
-abstract class GlutenIteratorApi extends IIteratorApi with Logging {
+abstract class GlutenIteratorApi extends IteratorApi with Logging {
 
   /**
    * Generate native row partition.
@@ -219,7 +222,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
                                      updateInputMetrics: (InputMetricsWrapper) => Unit,
-                                     updateNativeMetrics: Metrics => Unit,
+                                     updateNativeMetrics: IMetrics => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
@@ -273,7 +276,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
                                      outputAttributes: Seq[Attribute],
                                      rootNode: PlanNode,
                                      pipelineTime: SQLMetric,
-                                     updateNativeMetrics: Metrics => Unit,
+                                     updateNativeMetrics: IMetrics => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch])
   : Iterator[ColumnarBatch] = {
 

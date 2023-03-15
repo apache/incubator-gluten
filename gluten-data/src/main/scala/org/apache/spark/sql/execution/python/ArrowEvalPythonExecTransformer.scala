@@ -19,9 +19,11 @@ package org.apache.spark.sql.execution.python
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.execution.{MetricsUpdater, NoopMetricsUpdater, TransformContext, TransformSupport}
+import io.glutenproject.execution.{TransformContext, TransformSupport}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
+
 import org.apache.spark.TaskContext
 import org.apache.spark.api.python.ChainedPythonFunctions
 import org.apache.spark.rdd.RDD
@@ -135,5 +137,5 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }

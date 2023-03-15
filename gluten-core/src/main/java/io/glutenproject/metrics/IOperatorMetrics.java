@@ -14,11 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.metrics;
 
-package io.glutenproject.backendsapi
-
-import org.apache.spark.SparkConf
-
-trait IInitializerApi {
-  def initialize(conf: SparkConf): Unit = {}
+public interface IOperatorMetrics {
 }

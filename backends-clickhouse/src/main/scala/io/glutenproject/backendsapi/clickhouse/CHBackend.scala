@@ -23,7 +23,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Expression, Lag, Lead, NamedExpression, Rank, RowNumber, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructField
@@ -32,11 +32,14 @@ import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
-  override def initializerApi(): IInitializerApi = new CHInitializerApi
-  override def iteratorApi(): IIteratorApi = new CHIteratorApi
-  override def sparkPlanExecApi(): ISparkPlanExecApi = new CHSparkPlanExecApi
-  override def transformerApi(): ITransformerApi = new CHTransformerApi
-  override def validatorApi(): IValidatorApi = new CHValidatorApi
+  override def initializerApi(): InitializerApi = new CHInitializerApi
+  override def iteratorApi(): IteratorApi = new CHIteratorApi
+  override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
+  override def transformerApi(): TransformerApi = new CHTransformerApi
+  override def validatorApi(): ValidatorApi = new CHValidatorApi
+
+  override def metricsApi(): MetricsApi = new CHMetricsApi
+
   override def settings(): BackendSettings = CHBackendSettings
 }
 

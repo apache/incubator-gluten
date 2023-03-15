@@ -21,9 +21,10 @@ import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
 import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
+import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.vectorized.{GeneralOutIterator, Metrics, NativeExpressionEvaluator}
+
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
@@ -33,7 +34,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait IIteratorApi {
+trait IteratorApi {
 
   /**
    * Generate native row partition.
@@ -75,7 +76,7 @@ trait IIteratorApi {
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
                             updateInputMetrics: (InputMetricsWrapper) => Unit,
-                            updateNativeMetrics: Metrics => Unit,
+                            updateNativeMetrics: IMetrics => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch]
 
@@ -92,7 +93,7 @@ trait IIteratorApi {
                             outputAttributes: Seq[Attribute],
                             rootNode: PlanNode,
                             pipelineTime: SQLMetric,
-                            updateNativeMetrics: Metrics => Unit,
+                            updateNativeMetrics: IMetrics => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch])
   : Iterator[ColumnarBatch]
   // scalastyle:on argcount

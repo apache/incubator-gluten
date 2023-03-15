@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.metrics;
 
-public class Metrics {
+public class Metrics implements IMetrics {
   public long[] inputRows;
   public long[] inputVectors;
   public long[] inputBytes;
