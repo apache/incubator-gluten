@@ -14,7 +14,7 @@ ENABLE_QAT=OFF
 for arg in "$@"
 do
     case $arg in
-        --build_test=*)
+        --build_tests=*)
         BUILD_TESTS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;

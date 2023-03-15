@@ -524,7 +524,7 @@ my_spark_sql=$SPARK_HOME/bin/spark-sql
 ch_lib=$LOCAL_PATH_OF_LIBCH
 
 # The location of gluten jar package on local
-gluten_jar=$LOCAL_PATH_OF_GLUTEN/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+gluten_jar=$LOCAL_PATH_OF_GLUTEN/<gluten-jar>
 
 
 # spark.gluten.sql.columnar.libpath is set to a relative path ./libch.so, since it is dispatched
