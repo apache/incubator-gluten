@@ -73,7 +73,7 @@ cd $GLUTEN_DIR/ep/build-arrow/src
 ./get_arrow.sh --enable_ep_cache=$ENABLE_EP_CACHE
 
 if [ $ENABLE_EP_CACHE == 'OFF' ] || [ ! -f $GLUTEN_DIR/ep/build-arrow/build/arrow-commit.cache ]; then
-  ./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
+  ./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
                            --enable_qat=$ENABLE_QAT --enable_ep_cache=$ENABLE_EP_CACHE
 fi
 

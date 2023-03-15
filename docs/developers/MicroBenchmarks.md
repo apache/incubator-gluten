@@ -18,7 +18,7 @@ The commands below help to generate example input files:
 ```shell
 cd /path_to_gluten/ep/build-arrow/src
 ./get_arrow.sh
-./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
+./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON
 
 cd /path_to_gluten/ep/build-velox/src
 # get velox and compile

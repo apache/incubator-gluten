@@ -98,7 +98,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 ```
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
-Once building successfully, the Jar file will be generated in the directory: package/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.2.2, and package/target/gluten-spark3.3_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.3.1.
+Once building successfully, the Jar file will be generated in the directory: package/target/<gluten-jar> for Spark 3.2.2/Spark 3.3.1.
 
 ## 2.1 Specify velox home directory
 
@@ -460,7 +460,7 @@ var gluten_root = "/PATH/TO/GLUTEN"
 Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
 ```shell script
-export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/gluten-spark3.2_2.12-1.0.0-snapshot-jar-with-dependencies.jar 
+export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
