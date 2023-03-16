@@ -575,6 +575,12 @@ case class ColumnarOverrideRules(session: SparkSession)
       plan match {
         case _: ColumnarToRowExec =>
           fallbacks = fallbacks + 1
+        // Possible fallback in the beginning.
+        case batchScan: BatchScanExec if !batchScan.isInstanceOf[TransformSupport] =>
+          fallbacks = fallbacks + 1
+        // Possible fallback in the beginning.
+        case fileScan: FileSourceScanExec if !fileScan.isInstanceOf[TransformSupport] =>
+          fallbacks = fallbacks + 1
         case _ =>
       }
       plan.children.map(p => checkColumnarToRow(p))
