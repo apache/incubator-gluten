@@ -13,8 +13,9 @@ Run in docker:
 sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-*
 sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*
 
-dnf install -y epel-release dnf-plugins-core
-yum install dnf-plugins-coreyum config-manager --set-enabled powertools
+dnf install -y epel-release
+yum install dnf-plugins-core
+yum config-manager --set-enabled powertools
 dnf --enablerepo=powertools install -y ninja-build
 dnf --enablerepo=powertools install -y libdwarf-devel
 dnf install -y --setopt=install_weak_deps=False ccache gcc-toolset-9 git wget which libevent-devel \
