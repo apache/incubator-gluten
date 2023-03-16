@@ -289,8 +289,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 }
 
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
-  std::cerr << "JNI_OnUnload" << std::endl;
-
   result_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
   shuffle_splitter_holder_.Clear();
