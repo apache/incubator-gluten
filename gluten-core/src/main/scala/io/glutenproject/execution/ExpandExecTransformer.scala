@@ -115,30 +115,31 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
               originalInputAttributes
             )
 
-          if (groupExprNode.isInstanceOf[AttributeReferenceTransformer]) {
-            val attr_ref_transform = groupExprNode.asInstanceOf[AttributeReferenceTransformer]
-            /*
-             * There is a special case, E.g,
-             *  select x, y, count(x) from t group by x, y with rollup.
-             * The input header for this operator is: x_0, x_1, y, but the reference to x in
-             * grouping sets is also 0 (refer to x_0) which may be 1 which would cause some
-             * problems. We fix it here.
-             */
-            if (attr_ref_transform.ordinal < aggSize) {
-              var index = originalInputAttributes.length - 1
-              breakable {
-                while (index >= 0) {
-                  if (originalInputAttributes(index).exprId.equals(attr_ref_transform.exprId)) {
-                    groupExprNode = AttributeReferenceTransformer(attr_ref_transform.name,
-                      index, attr_ref_transform.dataType, attr_ref_transform.nullable,
-                      attr_ref_transform.exprId, attr_ref_transform.qualifier,
-                      attr_ref_transform.metadata)
-                    break
+          groupExprNode match {
+            case attrRefTransform: AttributeReferenceTransformer =>
+              /*
+               * There is a special case, E.g,
+               *  select x, y, count(x) from t group by x, y with rollup.
+               * The input header for this operator is: x_0, x_1, y, but the reference to x in
+               * grouping sets is also 0 (refer to x_0) which may be 1 which would cause some
+               * problems. We fix it here.
+               */
+              if (attrRefTransform.ordinal < aggSize) {
+                var index = originalInputAttributes.length - 1
+                breakable {
+                  while (index >= 0) {
+                    if (originalInputAttributes(index).exprId.equals(attrRefTransform.exprId)) {
+                      groupExprNode = AttributeReferenceTransformer(attrRefTransform.name,
+                        index, attrRefTransform.dataType, attrRefTransform.nullable,
+                        attrRefTransform.exprId, attrRefTransform.qualifier,
+                        attrRefTransform.metadata)
+                      break
+                    }
+                    index -= 1
                   }
-                  index -= 1
                 }
               }
-            }
+            case _ =>
           }
           val transformedNode = groupExprNode.doTransform(args)
           groupExprNodes.add(transformedNode)

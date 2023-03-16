@@ -18,20 +18,18 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import java.io.File
 
+import java.io.File
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.ArrowWritableColumnVector
-
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.{GenericInternalRow, UnsafeArrayData, UnsafeMapData}
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util.GenericArrayData
 import org.apache.spark.sql.execution.GlutenColumnarToRowExec
 import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
-import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, LongType, MapType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, MapType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnarMap}
 import org.apache.spark.unsafe.types.CalendarInterval
-import org.apache.spark.unsafe.Platform
 
 class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -200,19 +198,85 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Date type") {
-    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    // Validation: BatchScan, Project, Aggregate, Sort.
     runQueryAndCompare("select int, date from type1 " +
-      " group by grouping sets(int, date) sort by date, int limit 1") { _ => }
+      " group by grouping sets(int, date) sort by date, int limit 1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[ProjectExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[GlutenHashAggregateExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[SortExecTransformer]).isDefined))
+    }}
 
-    // Validation: BroadHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
-    runQueryAndCompare("select type1.date from type1," +
-      " type2 where type1.date = type2.date") { _ => }
+    // Validation: Expand, Filter.
+    runQueryAndCompare("select date, string, sum(int) from type1 where date > date '1990-01-09' " +
+      "group by rollup(date, string) order by date, string") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[ExpandExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[GlutenFilterExecTransformer]).isDefined))
+    }}
 
-    // Validation: ShuffledHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
-    runQueryAndCompare("select type1.date from type1," +
-      " type2 where type1.date = type2.date") { _ => }
+    // Validation: Union.
+    runQueryAndCompare(
+      """
+        |select count(d) from (
+        | select date as d from type1
+        | union all
+        | select date as d from type1
+        |);
+        |""".stripMargin) { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[UnionExecTransformer]).isDefined))
+    }}
+
+    // Validation: Limit.
+    runQueryAndCompare(
+      """
+        |select date, int from (
+        | select date, int from type1 limit 100
+        |) where int != 0 limit 10;
+        |""".stripMargin) {
+      checkOperatorMatch[LimitTransformer]
+    }
+
+    // Validation: Window.
+    runQueryAndCompare(
+      "select row_number() over (partition by date order by date) from type1 order by int, date") {
+      checkOperatorMatch[WindowExecTransformer]
+    }
+
+    // Validation: BroadHashJoin.
+    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "10M") {
+      runQueryAndCompare("select type1.date from type1," +
+        " type2 where type1.date = type2.date") {
+        checkOperatorMatch[GlutenBroadcastHashJoinExecTransformer]
+      }
+    }
+
+    // Validation: ShuffledHashJoin.
+    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
+      runQueryAndCompare("select type1.date from type1," +
+        " type2 where type1.date = type2.date") {
+        checkOperatorMatch[GlutenShuffledHashJoinExecTransformer]
+      }
+    }
+
+    // Validation: SortMergeJoin.
+    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
+      withSQLConf("spark.gluten.sql.columnar.forceshuffledhashjoin" -> "false") {
+        runQueryAndCompare("select type1.date from type1," +
+          " type2 where type1.date = type2.date") {
+          checkOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+    }
   }
 
   test("Byte type") {

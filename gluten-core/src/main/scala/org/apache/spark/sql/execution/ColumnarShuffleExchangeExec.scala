@@ -35,9 +35,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import scala.concurrent.Future
 
 case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitioning,
-                                     child: SparkPlan,
-                                     shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
-                                          removeHashColumn: Boolean = false)
+                                       child: SparkPlan,
+                                       shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
+                                       removeHashColumn: Boolean = false)
   extends ShuffleExchangeLike {
 
   private[sql] lazy val writeMetrics =
