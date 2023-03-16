@@ -62,9 +62,7 @@ public class JniLibLoader {
 
   static {
     GlutenShutdownManager.addHookForLibUnloading(() -> {
-      List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
-      Collections.reverse(loaded); // use reversed order to unload
-      loaded.forEach(JniLibLoader::unloadFromPath);
+      forceUnloadAll();
       return BoxedUnit.UNIT;
     });
   }
@@ -75,6 +73,12 @@ public class JniLibLoader {
 
   JniLibLoader(String workDir) {
     this.workDir = workDir;
+  }
+
+  public static synchronized void forceUnloadAll() {
+      List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
+      Collections.reverse(loaded); // use reversed order to unload
+      loaded.forEach(JniLibLoader::unloadFromPath);
   }
 
   private static synchronized void loadFromPath0(String libPath, boolean requireUnload) {
@@ -123,7 +127,7 @@ public class JniLibLoader {
 
   public static synchronized void unloadFromPath(String libPath) {
     if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
-      throw new IllegalStateException("Library not exist: " + libPath);
+      return;
     }
 
     REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
@@ -144,8 +148,14 @@ public class JniLibLoader {
         for (int k = 0; k < fs.length; k++) {
           if (fs[k].getName().equals("name")) {
             fs[k].setAccessible(true);
+
             String verbosePath = fs[k].get(object).toString();
-            if (verbosePath.endsWith(libPath)) {
+            File verboseFile = new File(verbosePath);
+            String verboseFileName = verboseFile.getName();
+            File libFile = new File(libPath);
+            String libFileName = libFile.getName();
+
+            if (verboseFileName.equals(libFileName)) {
               Method finalize = object.getClass().getDeclaredMethod("finalize");
               finalize.setAccessible(true);
               finalize.invoke(object);
