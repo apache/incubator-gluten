@@ -57,7 +57,9 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
           validation = true)
       } catch {
         case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          logValidateFailure(
+            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}",
+            e)
           return false
       }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
