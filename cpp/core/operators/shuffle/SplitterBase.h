@@ -24,9 +24,9 @@ namespace gluten {
 class SplitterBase {
  public:
   /**
-   * Spill for fixed size of partition data
+   * Evict fixed size of partition data from memory
    */
-  virtual arrow::Status SpillFixedSize(int64_t size, int64_t* actual) = 0;
+  virtual arrow::Status EvictFixedSize(int64_t size, int64_t* actual) = 0;
 
   virtual arrow::Status Split(ColumnarBatch* cb) = 0;
 
@@ -36,16 +36,16 @@ class SplitterBase {
     return total_bytes_written_;
   }
 
-  int64_t TotalBytesSpilled() const {
-    return total_bytes_spilled_;
+  int64_t TotalBytesEvicted() const {
+    return total_bytes_evicted_;
   }
 
   int64_t TotalWriteTime() const {
     return total_write_time_;
   }
 
-  int64_t TotalSpillTime() const {
-    return total_spill_time_;
+  int64_t TotalEvictTime() const {
+    return total_evict_time_;
   }
 
   int64_t TotalCompressTime() const {
@@ -70,9 +70,9 @@ class SplitterBase {
   SplitOptions options_;
 
   int64_t total_bytes_written_ = 0;
-  int64_t total_bytes_spilled_ = 0;
+  int64_t total_bytes_evicted_ = 0;
   int64_t total_write_time_ = 0;
-  int64_t total_spill_time_ = 0;
+  int64_t total_evict_time_ = 0;
   int64_t total_compress_time_ = 0;
   int64_t peak_memory_allocated_ = 0;
 

@@ -17,6 +17,7 @@
 
 package io.glutenproject.backendsapi.glutendata
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
@@ -24,11 +25,11 @@ import io.glutenproject.execution.GlutenColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, CelebornColumnarBatchSerializer, GlutenColumnarBatchSerializer}
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{CelebornShuffleWriterWrapper, GenCelebornShuffleWriterParameters, GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.GlutenShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
@@ -180,6 +181,22 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
+   * Generate CelebornColumnarShuffleWriter for ColumnarShuffleManager.
+   *
+   * @return
+   */
+  override def genCelebornColumnarShuffleWriter[K, V](
+  parameters: GenCelebornShuffleWriterParameters[K, V])
+  : CelebornShuffleWriterWrapper[K, V] = {
+    if (parameters.writerMode == "HASH") {
+      GlutenShuffleUtil.genCelebornHashBasedColumnarShuffleWriter(parameters)
+    } else {
+      throw new SparkException(
+        s"Unrecognized shuffle write mode : ${parameters.writerMode}")
+    }
+  }
+
+  /**
    * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.
    *
    * @return
@@ -189,7 +206,11 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     dataSize: SQLMetric): Serializer = {
-    new GlutenColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+    if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
+      new CelebornColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+    } else {
+      new GlutenColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+    }
   }
 
   /**

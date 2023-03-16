@@ -25,6 +25,7 @@
 
 #include <random>
 
+#include "jni/JniCommon.h"
 #include "memory/ColumnarBatch.h"
 #include "operators/shuffle/SplitterBase.h"
 #include "operators/shuffle/type.h"
@@ -74,9 +75,9 @@ class Splitter : public SplitterBase {
   arrow::Status SetCompressType(arrow::Compression::type compressed_type);
 
   /**
-   * Spill for fixed size of partition data
+   * Evict for fixed size of partition data from memory
    */
-  arrow::Status SpillFixedSize(int64_t size, int64_t* actual);
+  arrow::Status EvictFixedSize(int64_t size, int64_t* actual);
 
   /**
    * Spill the largest partition buffer
@@ -102,7 +103,7 @@ class Splitter : public SplitterBase {
 
   virtual arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) = 0;
 
-  arrow::Status DoSplit(const arrow::RecordBatch& rb);
+  virtual arrow::Status DoSplit(const arrow::RecordBatch& rb);
 
   row_offset_type CalculateSplitBatchSize(const arrow::RecordBatch& rb);
 

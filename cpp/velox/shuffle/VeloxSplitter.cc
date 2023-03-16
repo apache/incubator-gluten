@@ -233,7 +233,7 @@ arrow::Status VeloxSplitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
+      total_bytes_evicted_ += writer->bytes_spilled;
       total_compress_time_ += writer->compress_time;
     } else {
       partition_lengths_[pid] = 0;
@@ -1164,7 +1164,7 @@ arrow::Status VeloxSplitter::CacheRecordBatch(uint32_t partition_id, const arrow
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSplitter::SpillFixedSize(int64_t size, int64_t* actual) {
+arrow::Status VeloxSplitter::EvictFixedSize(int64_t size, int64_t* actual) {
   int64_t current_spilled = 0L;
   auto try_count = 0;
   while (current_spilled < size && try_count < 5) {
@@ -1207,7 +1207,7 @@ arrow::Status VeloxSplitter::SpillPartition(uint32_t partition_id) {
   if (partition_writer_[partition_id] == nullptr) {
     partition_writer_[partition_id] = std::make_shared<PartitionWriter>(this, partition_id);
   }
-  TIME_NANO_OR_RAISE(total_spill_time_, partition_writer_[partition_id]->Spill());
+  TIME_NANO_OR_RAISE(total_evict_time_, partition_writer_[partition_id]->Spill());
 
   // reset validity buffer after spill
   std::for_each(
@@ -1316,7 +1316,7 @@ arrow::Status VeloxSinglePartSplitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
+      total_bytes_evicted_ += writer->bytes_spilled;
       total_compress_time_ += writer->compress_time;
     } else {
       partition_lengths_[pid] = 0;
