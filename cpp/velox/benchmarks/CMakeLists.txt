@@ -19,8 +19,6 @@ find_arrow_lib(${PARQUET_LIB_NAME})
 
 function(add_velox_benchmark BM_EXEC BM_FILE)
   add_executable(${BM_EXEC} ${BM_FILE} BenchmarkUtils.cc)
-  set_target_properties(${BM_EXEC} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   target_include_directories(${BM_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(${BM_EXEC} gflags_shared Arrow::parquet velox benchmark::benchmark)
 endfunction()
@@ -30,3 +28,5 @@ add_velox_benchmark(query_benchmark QueryBenchmark.cc)
 
 # Generic benchmark
 add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
+
+add_velox_benchmark(columnar_to_row_benchmark ColumnarToRowBenchmark.cc)

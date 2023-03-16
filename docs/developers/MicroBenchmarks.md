@@ -18,7 +18,7 @@ The commands below help to generate example input files:
 ```shell
 cd /path_to_gluten/ep/build-arrow/src
 ./get_arrow.sh
-./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
+./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON
 
 cd /path_to_gluten/ep/build-velox/src
 # get velox and compile
@@ -27,14 +27,17 @@ cd /path_to_gluten/ep/build-velox/src
 
 # set BUILD_TESTS and BUILD_BENCHMARKS = ON in gluten cpp compile shell
 cd /path_to_gluten/cpp
-./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON ..
+make -j
 
 # Build gluten. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3
 cd /path_to_gluten
 mvn clean package -Pspark-3.2 -Pbackends-velox
 
 mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am \
--DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
+-DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
 ```
 
 The generated example files are placed in gluten/backends-velox:
@@ -52,7 +55,7 @@ gluten/backends-velox/generated-native-benchmark/
 
 Run micro benchmark with the generated files as input. You need to specify the **absolute** path to the input files:
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example.json \
 /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet \
@@ -99,7 +102,11 @@ InputFromBatchVector/iterations:1/process_time/real_time/threads:1   41304520 ns
 Build the gluten debug version.
 
 ```shell
-cd /path_to_gluten/cpp/compile.sh --build_velox_backend=ON --build_benchmarks=ON --build_type=relWithDebInfo
+cd /path_to_gluten/cpp/
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+make -j
 ```
 Run the query by spark-shell, and get the Stage Id from spark UI.
 Get the substrait plan from console output.
@@ -139,7 +146,7 @@ The first arg is the json query file path, the following args are file iterators
 Run benchmark.
 
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /plan/to/plan.json \
 /tmp/new_save/generate.parquet \
@@ -151,7 +158,7 @@ For some complex queries, stageId may cannot represent the substrait plan input,
 In this example, only one partition input with partition id 2, taskId is 36, iterator length is 2.
 
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /plan/to/complex_plan.json \
 /tmp/save/input_36_0_2.parquet /tmp/save/input_36_1_2.parquet \
@@ -163,7 +170,7 @@ cd /path/to/gluten/cpp/velox/benchmarks
 You can also save the output to a parquet file to analyze.
 
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /plan/to/plan.json \
 /tmp/save/input_1.parquet /tmp/save/input_2.parquet \

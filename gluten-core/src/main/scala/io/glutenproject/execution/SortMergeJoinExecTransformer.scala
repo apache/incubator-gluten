@@ -19,20 +19,23 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.StringValue
+
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+
 import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.JavaConverters._
@@ -54,28 +57,10 @@ case class SortMergeJoinExecTransformer(
   extends BinaryExecNode
     with TransformSupport {
 
-  override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-    "prepareTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to prepare left list"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to process"),
-    "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to merge join"),
-    "totaltime_sortmergejoin" -> SQLMetrics
-      .createTimingMetric(sparkContext, "totaltime_sortmergejoin"))
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetrics(sparkContext)
+
   val sparkConf = sparkContext.getConf
-
-  object MetricsUpdaterImpl extends MetricsUpdater {
-    val numOutputRows = longMetric("numOutputRows")
-    val numOutputBatches = longMetric("numOutputBatches")
-    val joinTime = longMetric("joinTime")
-    val prepareTime = longMetric("prepareTime")
-    val totaltime_sortmegejoin = longMetric("totaltime_sortmergejoin")
-
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      numOutputBatches += outNumBatches
-      numOutputRows += outNumRows
-    }
-  }
 
   val resultSchema = this.schema
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
@@ -227,7 +212,8 @@ case class SortMergeJoinExecTransformer(
       this
   }
 
-  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
   override def getChild: SparkPlan = streamedPlan
 

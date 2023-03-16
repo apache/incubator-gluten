@@ -21,12 +21,8 @@
 #include "memory/HbwAllocator.h"
 #include "memory/MemoryAllocator.h"
 
-class TestHbwAllocator final : public ::testing::Test {
+class TestHbwAllocator : public ::testing::Test {
  protected:
-  static void SetUpTestSuite() {
-    setenv("MEMKIND_HBW_NODES", "0", 1);
-  }
-
   void CheckBytesAndFree(void*& buf, int64_t size) {
     ASSERT_NE(buf, nullptr);
     ASSERT_EQ(allocator->GetBytes(), size);
@@ -35,15 +31,47 @@ class TestHbwAllocator final : public ::testing::Test {
     buf = nullptr;
   }
 
-  std::shared_ptr<gluten::MemoryAllocator> allocator = gluten::DefaultMemoryAllocator();
+  std::shared_ptr<gluten::MemoryAllocator> allocator;
 };
 
-TEST_F(TestHbwAllocator, TestHbwEnabled) {
+class TestHbwAllocatorEnabled : public TestHbwAllocator {
+ protected:
+  static void SetUpTestSuite() {
+    setenv("MEMKIND_HBW_NODES", "0", 1);
+  }
+
+  TestHbwAllocatorEnabled() {
+    allocator = gluten::DefaultMemoryAllocator();
+  }
+};
+
+class TestHbwAllocatorDisabled : public TestHbwAllocator {
+ protected:
+  static void SetUpTestSuite() {
+    unsetenv("MEMKIND_HBW_NODES");
+  }
+
+  TestHbwAllocatorDisabled() {
+    allocator = gluten::DefaultMemoryAllocator();
+  }
+};
+
+TEST_F(TestHbwAllocatorEnabled, TestHbwEnabled) {
   auto ptr = std::dynamic_pointer_cast<gluten::HbwMemoryAllocator>(allocator);
   ASSERT_NE(ptr, nullptr);
 }
 
-TEST_F(TestHbwAllocator, Test) {
+TEST_F(TestHbwAllocatorDisabled, TestHbwDisabled) {
+  unsetenv("MEMKIND_HBW_NODES");
+  allocator = gluten::DefaultMemoryAllocator();
+  auto ptr = std::dynamic_pointer_cast<gluten::StdMemoryAllocator>(allocator);
+  ASSERT_NE(ptr, nullptr);
+}
+
+TEST_F(TestHbwAllocatorEnabled, TestAllocateHbm) {
+  setenv("MEMKIND_HBW_NODES", "0", 1);
+  allocator = gluten::DefaultMemoryAllocator();
+
   const size_t size = 1024 * 1024; // 1M of data
   void* buf = nullptr;
 

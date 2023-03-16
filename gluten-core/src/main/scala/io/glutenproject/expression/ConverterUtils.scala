@@ -139,6 +139,8 @@ object ConverterUtils extends Logging {
         val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue())
         (MapType(keyType, valueType, valueContainsNull),
           isNullable(substraitType.getMap.getNullability))
+      case Type.KindCase.NOTHING =>
+        (NullType, true)
       case unsupported =>
         throw new UnsupportedOperationException(s"Type $unsupported not supported.")
     }
@@ -184,6 +186,8 @@ object ConverterUtils extends Logging {
           fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
         }
         TypeBuilder.makeStruct(nullable, fieldNodes)
+      case n: NullType =>
+        TypeBuilder.makeNothing()
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }
@@ -319,6 +323,10 @@ object ConverterUtils extends Logging {
           typedFuncName.concat("struct")
         case MapType(_, _, _) =>
           typedFuncName.concat("map")
+        case CharType(_) =>
+          typedFuncName.concat("fchar")
+        case NullType =>
+          typedFuncName.concat("nothing")
         case other =>
           throw new UnsupportedOperationException(s"Type $other not supported.")
       }
@@ -352,6 +360,7 @@ object ConverterUtils extends Logging {
           case "OrcScan" => ReadFileFormat.OrcReadFormat
           case "ParquetScan" => ReadFileFormat.ParquetReadFormat
           case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+          case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
           case _ => ReadFileFormat.UnknownFormat
         }
       case f: FileSourceScanExecTransformer =>
@@ -359,18 +368,13 @@ object ConverterUtils extends Logging {
           case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
           case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
           case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
+          case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
           case _ => ReadFileFormat.UnknownFormat
         }
-      case other =>
-        throw new UnsupportedOperationException(s"$other not supported.")
+      case _ => ReadFileFormat.UnknownFormat
     }
   }
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
-
-  // Other
-  final val ROW_CONSTRUCTOR = "row_constructor"
-  final val ROW_NUMBER = "row_number"
-  final val RANK = "rank"
 }

@@ -26,6 +26,7 @@ import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Final, Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.expressions.aggregate.CollectList
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
@@ -104,7 +105,7 @@ case class CHHashAggregateExecTransformer(
       // Prepare the input schema.
       // Notes: Currently, ClickHouse backend uses the output attributes of
       // aggregateResultAttributes as Shuffle output,
-      // which is different from the Velox and Gazelle.
+      // which is different from Velox backend.
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       // When the child is file scan operator
@@ -146,6 +147,26 @@ case class CHHashAggregateExecTransformer(
                     .asInstanceOf[AggregateExpression]
                     .aggregateFunction
                     .asInstanceOf[Average]
+                    .child
+                    .dataType
+                } else {
+                  attr.dataType
+                }
+              typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
+            } else if (colName.toLowerCase(Locale.ROOT).startsWith("collect_list#")) {
+              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
+              val originalType =
+                if (
+                  originalExpr.isDefined &&
+                  originalExpr.get
+                    .asInstanceOf[AggregateExpression]
+                    .aggregateFunction
+                    .isInstanceOf[CollectList]
+                ) {
+                  originalExpr.get
+                    .asInstanceOf[AggregateExpression]
+                    .aggregateFunction
+                    .asInstanceOf[CollectList]
                     .child
                     .dataType
                 } else {
@@ -227,8 +248,18 @@ case class CHHashAggregateExecTransformer(
       }
     }
 
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
+        if (aggExpr.filter.isDefined) {
+          val exprNode = ExpressionConverter
+            .replaceWithExpressionTransformer(aggExpr.filter.get, child.output)
+            .doTransform(args)
+          aggFilterList.add(exprNode)
+        } else {
+          aggFilterList.add(null)
+        }
+
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodeList = new util.ArrayList[ExpressionNode]()
         val childrenNodes = aggExpr.mode match {
@@ -276,7 +307,13 @@ case class CHHashAggregateExecTransformer(
         aggregateFunctionList.add(aggFunctionNode)
       })
     if (!validation) {
-      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, context, operatorId)
+      RelBuilder.makeAggregateRel(
+        input,
+        groupingList,
+        aggregateFunctionList,
+        aggFilterList,
+        context,
+        operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -289,6 +326,7 @@ case class CHHashAggregateExecTransformer(
         input,
         groupingList,
         aggregateFunctionList,
+        aggFilterList,
         extensionNode,
         context,
         operatorId)

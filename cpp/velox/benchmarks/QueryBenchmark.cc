@@ -20,6 +20,8 @@
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
 
+using namespace facebook;
+
 auto BM = [](::benchmark::State& state,
              const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile,
@@ -32,7 +34,7 @@ auto BM = [](::benchmark::State& state,
   }
   auto plan = std::move(maybePlan).ValueOrDie();
 
-  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
+  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
   for (const auto& datasetPath : datasetPaths) {
     scanInfos.emplace_back(getFileInfos(datasetPath, fileFormat));

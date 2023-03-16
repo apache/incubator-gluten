@@ -17,98 +17,18 @@
 
 #pragma once
 
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <folly/executors/IOThreadPoolExecutor.h>
+
 #include "VeloxColumnarToRowConverter.h"
+#include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "memory/VeloxColumnarBatch.h"
-#include "substrait/plan.pb.h"
-#include "velox/connectors/hive/FileHandle.h"
-#include "velox/connectors/hive/HiveConnector.h"
-#include "velox/connectors/hive/HiveConnectorSplit.h"
-#ifdef VELOX_ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
-#endif
-#ifdef VELOX_ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
-#endif
-#include "velox/core/PlanNode.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "velox/substrait/SubstraitToVeloxPlan.h"
+#include "operators/shuffle/SplitterBase.h"
 
 namespace gluten {
-
-std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx(
-    facebook::velox::memory::MemoryPool* memoryPool);
-
-class VeloxInitializer {
- public:
-  VeloxInitializer(std::unordered_map<std::string, std::string> conf) {
-    Init(conf);
-  }
-
-  void Init(std::unordered_map<std::string, std::string> conf);
-};
-
-class WholeStageResIter {
- public:
-  WholeStageResIter(
-      std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
-      std::shared_ptr<const facebook::velox::core::PlanNode> planNode,
-      const std::unordered_map<std::string, std::string>& confMap)
-      : planNode_(planNode), pool_(pool), confMap_(confMap) {
-    getOrderedNodeIds(planNode_, orderedNodeIds_);
-  }
-
-  virtual ~WholeStageResIter() = default;
-
-  arrow::Result<std::shared_ptr<VeloxColumnarBatch>> Next();
-
-  std::shared_ptr<Metrics> GetMetrics(int64_t exportNanos) {
-    collectMetrics();
-    metrics_->veloxToArrow = exportNanos;
-    return metrics_;
-  }
-
-  facebook::velox::memory::MemoryPool* getPool() const;
-
-  /// Set the Spark confs to Velox query context.
-  void setConfToQueryContext(const std::shared_ptr<facebook::velox::core::QueryCtx>& queryCtx);
-
-  std::shared_ptr<facebook::velox::exec::Task> task_;
-
-  std::function<void(facebook::velox::exec::Task*)> addSplits_;
-
-  std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
-
- private:
-  /// Get all the children plan node ids with postorder traversal.
-  void getOrderedNodeIds(
-      const std::shared_ptr<const facebook::velox::core::PlanNode>&,
-      std::vector<facebook::velox::core::PlanNodeId>& nodeIds);
-
-  /// Collect Velox metrics.
-  void collectMetrics();
-
-  /// Return a certain type of runtime metric. Supported metric types are: sum, count, min, max.
-  int64_t runtimeMetric(
-      const std::string& metricType,
-      const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
-      const std::string& metricId) const;
-
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
-
-  std::shared_ptr<Metrics> metrics_ = nullptr;
-  int64_t metricVeloxToArrowNanos_ = 0;
-
-  /// All the children plan node ids with postorder traversal.
-  std::vector<facebook::velox::core::PlanNodeId> orderedNodeIds_;
-
-  /// Node ids should be ommited in metrics.
-  std::unordered_set<facebook::velox::core::PlanNodeId> omittedNodeIds_;
-
-  /// A map of custome configs.
-  std::unordered_map<std::string, std::string> confMap_;
-};
-
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxBackend final : public Backend {
  public:
@@ -116,16 +36,24 @@ class VeloxBackend final : public Backend {
 
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {}) override;
+      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
+      std::unordered_map<std::string, std::string> sessionConf = {}) override;
 
   // Used by unit test and benchmark.
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      std::unordered_map<std::string, std::string> sessionConf = {});
 
   arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
+
+  std::shared_ptr<SplitterBase> makeSplitter(
+      const std::string& partitioning_name,
+      int num_partitions,
+      SplitOptions options,
+      const std::string& batchType) override;
 
   /// Separate the scan ids and stream ids, and get the scan infos.
   void getInfoAndIds(
@@ -137,7 +65,7 @@ class VeloxBackend final : public Backend {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
   std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
-    auto iter = static_cast<WholeStageResIter*>(raw_iter);
+    auto iter = static_cast<WholeStageResultIterator*>(raw_iter);
     return iter->GetMetrics(exportNanos);
   }
 
@@ -171,11 +99,6 @@ class VeloxBackend final : public Backend {
   std::string nextPlanNodeId();
 
   void cacheOutputSchema(const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode);
-
-  /* Result Iterator */
-  class WholeStageResIterFirstStage;
-
-  class WholeStageResIterMiddleStage;
 
   int planNodeId_ = 0;
 

@@ -19,10 +19,12 @@ package io.glutenproject.vectorized;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.util.internal.PlatformDependent;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 
 /**
  * This implementation is targeted to optimize against Spark's
@@ -43,21 +45,16 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
   }
 
   private final InputStream in;
-  private final long baseAddress;
-  private final int initReaderIndex;
-  private int readerIndex;
-  private int readableBytes;
 
+  private ByteBuf byteBuf;
+
+  private int readBytesCount = 0;
 
   public LowCopyNettyJniByteInputStream(InputStream in) {
     this.in = in; // to prevent underlying netty buffer from being collected by GC
     final InputStream unwrapped = JniByteInputStreams.unwrapSparkInputStream(in);
     try {
-      final ByteBuf byteBuf = (ByteBuf) FIELD_ByteBufInputStream_buffer.get(unwrapped);
-      baseAddress = byteBuf.memoryAddress();
-      initReaderIndex = byteBuf.readerIndex();
-      readerIndex = initReaderIndex;
-      readableBytes = byteBuf.readableBytes();
+      this.byteBuf = (ByteBuf) FIELD_ByteBufInputStream_buffer.get(unwrapped);
     } catch (IllegalAccessException e) {
       throw new RuntimeException(e);
     }
@@ -65,17 +62,17 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 
   @Override
   public long read(long destAddress, long maxSize) {
-    long bytesToRead = Math.min(maxSize, readableBytes);
-    if (bytesToRead == 0) {
+    long bytesToRead = Math.min(maxSize, this.byteBuf.readableBytes());
+    int bytesToRead32 = Math.toIntExact(bytesToRead);
+    if (bytesToRead32 == 0) {
       return 0;
     }
-    memCopy(baseAddress + readerIndex, destAddress, bytesToRead);
-    readerIndex += bytesToRead;
-    readableBytes -= bytesToRead;
-    return bytesToRead;
+    ByteBuffer direct = PlatformDependent.directBuffer(destAddress, bytesToRead32);
+    // read data directly from ByteBuf to native address
+    this.byteBuf.readBytes(direct);
+    readBytesCount += direct.position();
+    return direct.position();
   }
-
-  public native void memCopy(long srcAddress, long destAddress, long size);
 
   public static boolean isSupported(InputStream in) {
     if (!(in instanceof ByteBufInputStream)) {
@@ -84,7 +81,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
     ByteBufInputStream bbin = (ByteBufInputStream) in;
     try {
       final ByteBuf byteBuf = (ByteBuf) FIELD_ByteBufInputStream_buffer.get(bbin);
-      if (!byteBuf.hasMemoryAddress()) {
+      if (!byteBuf.isDirect()) {
         return false;
       }
       return true;
@@ -95,7 +92,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 
   @Override
   public long tell() {
-    return readerIndex - initReaderIndex;
+    return readBytesCount;
   }
 
   @Override

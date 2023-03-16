@@ -16,15 +16,19 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.backendsapi.IValidatorApi
+import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
+import org.apache.spark.sql.delta.DeltaLogFileIndex
+import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
-class CHValidatorApi extends IValidatorApi {
+class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new CHNativeExpressionEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)
@@ -86,5 +90,32 @@ class CHValidatorApi extends IValidatorApi {
         }
     }
     true
+  }
+
+  /** Validate against a whole Spark plan, before being interpreted by Gluten. */
+  override def doSparkPlanValidate(plan: SparkPlan): Boolean = {
+    // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
+    // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
+    // For example:
+    //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
+    //   import spark.implicits._
+    //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+    //   df.summary().show(100, false)
+
+    def includedDeltaOperator(scanExec: FileSourceScanExec): Boolean = {
+      scanExec.relation.location.isInstanceOf[DeltaLogFileIndex]
+    }
+
+    val includedUnsupportedPlans = collect(plan) {
+      // case s: SerializeFromObjectExec => true
+      // case d: DeserializeToObjectExec => true
+      // case o: ObjectHashAggregateExec => true
+      case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
+      case f: FileSourceScanExec if includedDeltaOperator(f) => true
+      case v2CommandExec: V2CommandExec => true
+      case commandResultExec: CommandResultExec => true
+    }
+
+    !includedUnsupportedPlans.contains(true)
   }
 }

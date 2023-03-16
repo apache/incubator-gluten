@@ -17,27 +17,29 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.TransformHint
+import io.glutenproject.extension.columnar.TRANSFORM_UNSUPPORTED
 import io.glutenproject.extension.columnar.TransformHints.TAG
-import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
+import io.glutenproject.utils.LogicalPlanSelector
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan, Project, SHUFFLE_MERGE}
-import org.apache.spark.sql.execution.{joins, JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.{JoinSelectionShim, SparkPlan, joins}
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions, Strategy}
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
-    extensions.injectPlannerStrategy(_ => JoinSelectionOverrides)
+    extensions.injectPlannerStrategy(JoinSelectionOverrides)
   }
 }
 
-object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
+case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
+  JoinSelectionHelper with SQLConfHelper {
 
   private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
     case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
@@ -68,8 +70,8 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     } else {
       // non equal condition
       // Generate BHJ here, avoid to do match in `JoinSelection` again.
-      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, true, conf)
-        .orElse(getBroadcastBuildSide(left, right, joinType, hint, false, conf))
+      val isHintEmpty = hint.leftHint.isEmpty && hint.rightHint.isEmpty
+      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, !isHintEmpty, conf)
       if (buildSide.isDefined) {
         return Seq(
           joins.BroadcastHashJoinExec(
@@ -149,17 +151,17 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
   def existsMultiJoins(plan: LogicalPlan, count: Int = 0): Boolean = {
     plan match {
       case plan: Join =>
-        if ((count + 1) >= GlutenConfig.getSessionConf.logicalJoinOptimizationThrottle) return true
+        if ((count + 1) >= GlutenConfig.getConf.logicalJoinOptimizationThrottle) return true
         plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
       case plan: Project =>
-        if ((count + 1) >= GlutenConfig.getSessionConf.logicalJoinOptimizationThrottle) return true
+        if ((count + 1) >= GlutenConfig.getConf.logicalJoinOptimizationThrottle) return true
         plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
       case other => false
     }
   }
 
   def tagNotTransformable(plan: LogicalPlan): LogicalPlan = {
-    plan.setTagValue(TAG, TransformHint.TRANSFORM_UNSUPPORTED)
+    plan.setTagValue(TAG, TRANSFORM_UNSUPPORTED())
     plan
   }
 
@@ -174,9 +176,10 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     }.size > 0
   }
 
-  override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+  override def apply(plan: LogicalPlan): Seq[SparkPlan] = LogicalPlanSelector.maybeNil(
+    session, plan) {
     // Ignore forceShuffledHashJoin if exist multi continuous joins
-    if (GlutenConfig.getSessionConf.enableLogicalJoinOptimize &&
+    if (GlutenConfig.getConf.enableLogicalJoinOptimize &&
       existsMultiJoins(plan) && existLeftOuterJoin(plan)) {
       tagNotTransformableRecursive(plan)
     }
@@ -192,7 +195,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
           left,
           right,
           hint,
-          GlutenConfig.getSessionConf.forceShuffledHashJoin)
+          GlutenConfig.getConf.forceShuffledHashJoin)
       case _ => Nil
     }
   }

@@ -59,7 +59,7 @@ case class GlutenHashAggregateExecTransformer(
     for (expr <- aggregateExpressions) {
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
-        case Average(_, _) | StddevSamp(_, _) =>
+        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           expr.mode match {
             case Partial =>
               return true
@@ -103,7 +103,7 @@ case class GlutenHashAggregateExecTransformer(
           // Select count from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
           colIdx += 1
-        case _: StddevSamp =>
+        case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           // Select count from Velox struct with count casted from LongType into DoubleType.
           expressionNodes.add(ExpressionBuilder
             .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
@@ -119,11 +119,11 @@ case class GlutenHashAggregateExecTransformer(
       }
     }
     if (!validation) {
-      RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId)
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId, groupingExpressions.size + aggregateExpressions.size)
     } else {
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
-      RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId, groupingExpressions.size + aggregateExpressions.size)
     }
   }
 
@@ -139,7 +139,7 @@ case class GlutenHashAggregateExecTransformer(
         // Use struct type to represent Velox Row(DOUBLE, BIGINT).
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-      case _: StddevSamp =>
+      case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
@@ -158,7 +158,7 @@ case class GlutenHashAggregateExecTransformer(
     aggregateMode: AggregateMode,
     aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
     aggregateFunction match {
-      case Average(_, _) | StddevSamp(_, _) =>
+      case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         aggregateMode match {
           case Partial =>
             assert(childrenNodeList.size() == 1, "Partial stage expects one child node.")
@@ -200,7 +200,7 @@ case class GlutenHashAggregateExecTransformer(
     aggregateExpressions.foreach(expression => {
       val aggregateFunction = expression.aggregateFunction
       aggregateFunction match {
-        case Average(_, _) | StddevSamp(_, _) =>
+        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           expression.mode match {
             case Partial =>
               typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
@@ -239,7 +239,7 @@ case class GlutenHashAggregateExecTransformer(
                                   rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
-      ConverterUtils.ROW_CONSTRUCTOR,
+      ExpressionMappings.ROW_CONSTRUCTOR,
       rowConstructAttributes.map(attr => attr.dataType),
       FunctionConfig.NON)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
@@ -289,7 +289,7 @@ case class GlutenHashAggregateExecTransformer(
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
-        case StddevSamp(_, _) =>
+        case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           aggregateExpression.mode match {
             case Final =>
               assert(functionInputAttributes.size == 3,
@@ -334,8 +334,9 @@ case class GlutenHashAggregateExecTransformer(
     }
 
     // Create a project rel.
+    val emitStartIndex = originalInputAttributes.size
     val projectRel = if (!validation) {
-      RelBuilder.makeProjectRel(inputRel, exprNodes, context, operatorId)
+      RelBuilder.makeProjectRel(inputRel, exprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -344,7 +345,7 @@ case class GlutenHashAggregateExecTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId, emitStartIndex)
     }
 
     // Create aggregation rel.
@@ -355,18 +356,26 @@ case class GlutenHashAggregateExecTransformer(
       colIdx += 1
     })
 
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        throw new UnsupportedOperationException("Filter in final aggregation is not supported.")
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
+      }
+
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
-        case Average(_, _) | StddevSamp(_, _) =>
+        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
         case _ =>
-          aggregateFunc.children.toList.map(_ => {
+          aggregateFunc.inputAggBufferAttributes.toList.map(_ => {
             childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
             colIdx += 1
             aggExpr
@@ -375,7 +384,7 @@ case class GlutenHashAggregateExecTransformer(
       addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
     })
     RelBuilder.makeAggregateRel(
-      projectRel, groupingList, aggregateFunctionList, context, operatorId)
+      projectRel, groupingList, aggregateFunctionList, aggFilterList, context, operatorId)
   }
 
   /**
@@ -425,7 +434,7 @@ case class GlutenHashAggregateExecTransformer(
     resRel
   }
 
-  override def isStreaming: Boolean = false
+  def isStreaming: Boolean = false
 
   def numShufflePartitions: Option[Int] = Some(0)
 

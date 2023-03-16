@@ -39,29 +39,32 @@ You can generate the example files by the following steps:
 ```
 cd gluten_home/ep/build-arrow/src
 ./get_arrow.sh
-./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
+./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON
 ```
 
 2. get and build Velox
 ```
 cd gluten_home/ep/build-velox/src
 ./get_velox.sh
-./build_velox.sh
+./build_velox.sh --build_type=Debug
 ```
 
 3. compile the CPP
 ```
 cd gluten_home/cpp
-./compile.sh --build_type=debug --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Debug ..
+make -j
 ```
-- Compiling with `--build_type=debug` is good for debugging.
-- When `compile.sh` is executed, the executable file `generic_benchmark` will be generated under the directory of `gluten_home/cpp/velox/benchmarks/`.
+- Compiling with `--build_type=Debug` is good for debugging.
+- The executable file `generic_benchmark` will be generated under the directory of `gluten_home/cpp/build/velox/benchmarks/`.
 
 4. build Gluten and generate the example files
 ```
 cd gluten_home
 mvn clean package -Pspark-3.2 -Pbackends-velox
-mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
+mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
 ```
 - After the above operations, the examples files are generated under `gluten_home/backends-velox`
 - You can check it by the command `tree gluten_home/backends-velox/generated-native-benchmark/`
@@ -78,9 +81,9 @@ gluten_home/backends-velox/generated-native-benchmark/
     └── _SUCCESS
 ```
 
-4. now, run benchmarks with GDB
+5. now, run benchmarks with GDB
 ```
-cd gluten_home/cpp/velox/benchmarks/
+cd gluten_home/cpp/build/velox/benchmarks/
 gdb generic_benchmark
 ```
 - When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run with command `r`,
@@ -90,15 +93,15 @@ gdb generic_benchmark
 - Actually, you can debug `generic_benchmark` with any gdb commands as debugging normal C++ program, because the `generic_benchmark` is a pure C++
   executable file in fact.
 
-5. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
+6. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
 [gdb-tui](https://sourceware.org/gdb/current/onlinedocs/gdb/TUI.html#TUI)
 
-6. you can start `generic_benchmark` with specific JSON plan and input files
+7. you can start `generic_benchmark` with specific JSON plan and input files
 - If you omit them, the `example.json, example_lineitem + example_orders` under the directory of `gluten_home/backends-velox/generated-native-benchmark`
   will be used as default.
 - You can also edit the file `example.json` to custom the Substrait plan or specify the inputs files placed in the other directory.
 
-5. get more detail information about benchmarks from [MicroBenchmarks.md](https://github.com/oap-project/gluten/blob/main/docs/developers/MicroBenchmarks.md)
+8. get more detail information about benchmarks from [MicroBenchmarks.md](https://github.com/oap-project/gluten/blob/main/docs/developers/MicroBenchmarks.md)
 
 ## 2 How to debug Java/Scala
 wait to add
@@ -107,7 +110,7 @@ wait to add
 wait to complete
 ```
 cd the_directory_of_core_file_generated
-gdb gluten_home/cpp/build/releases/libspark_columnar_jni.so 'core-Executor task l-2000883-1671542526'
+gdb gluten_home/cpp/build/releases/libgluten.so 'core-Executor task l-2000883-1671542526'
 
 ```
 - the `core-Executor task l-2000883-1671542526` represents the core file name.

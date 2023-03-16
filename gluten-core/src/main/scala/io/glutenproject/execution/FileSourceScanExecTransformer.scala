@@ -18,16 +18,16 @@
 package io.glutenproject.execution
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
-
 import scala.collection.mutable.HashMap
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.vectorized.OperatorMetrics
+import io.glutenproject.metrics.MetricsUpdater
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLExecution, ScalarSubquery, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, ScalarSubquery, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
@@ -55,31 +55,9 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     disableBucketedScan)
     with BasicScanExecTransformer {
 
-  override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_filescan"),
-    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "total scan time"),
-    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
-    "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
-    "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
-    "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
-    "pruningTime" ->
-      SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"),
-    "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
-      sparkContext, "number of dynamic filters accepted"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")
-  ) ++ staticMetrics
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance
+    .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetrics
 
   /** SQL metrics generated only for scans using dynamic partition pruning. */
   private lazy val staticMetrics = if (partitionFilters.exists(FileSourceScanExecTransformer
@@ -88,47 +66,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read"))
   } else {
     Map.empty[String, SQLMetric]
-  }
-
-  object MetricsUpdaterImpl extends MetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
-    val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
-    val rawInputRows: SQLMetric = longMetric("rawInputRows")
-    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-    val outputRows: SQLMetric = longMetric("outputRows")
-    val outputVectors: SQLMetric = longMetric("outputVectors")
-    val outputBytes: SQLMetric = longMetric("outputBytes")
-    val count: SQLMetric = longMetric("count")
-    val wallNanos: SQLMetric = longMetric("wallNanos")
-    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
-
-    // Number of dynamic filters received.
-    val numDynamicFiltersAccepted: SQLMetric = longMetric("numDynamicFiltersAccepted")
-
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      outputVectors += outNumBatches
-      outputRows += outNumRows
-    }
-
-    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-      if (operatorMetrics != null) {
-        inputRows += operatorMetrics.inputRows
-        inputVectors += operatorMetrics.inputVectors
-        inputBytes += operatorMetrics.inputBytes
-        rawInputRows += operatorMetrics.rawInputRows
-        rawInputBytes += operatorMetrics.rawInputBytes
-        outputRows += operatorMetrics.outputRows
-        outputVectors += operatorMetrics.outputVectors
-        outputBytes += operatorMetrics.outputBytes
-        count += operatorMetrics.count
-        wallNanos += operatorMetrics.wallNanos
-        peakMemoryBytes += operatorMetrics.peakMemoryBytes
-        numMemoryAllocations += operatorMetrics.numMemoryAllocations
-        numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
-      }
-    }
   }
 
   override lazy val supportsColumnar: Boolean = {
@@ -152,6 +89,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       relation, dynamicallySelectedPartitions)
 
   override def getPartitionSchemas: StructType = relation.partitionSchema
+
+  override def getInputFilePaths: Seq[String] = relation.location.inputFiles.toSeq
 
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecTransformer =>
@@ -180,7 +119,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   override def doValidate(): Boolean = {
-    if (BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(relation.fileFormat)) {
+    // Bucketing table has `bucketId` in filename, should apply this in backends
+    if (!bucketedScan) {
       super.doValidate()
     } else {
       false
@@ -191,7 +131,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     doExecuteColumnarInternal()
   }
 
-  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genFileSourceScanTransformerMetricsUpdater(metrics)
 
   // The codes below are copied from FileSourceScanExec in Spark,
   // all of them are private.
@@ -281,6 +222,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     selected
   }
 
+  override val nodeNamePrefix: String = "NativeFile"
 }
 
 object FileSourceScanExecTransformer {

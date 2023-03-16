@@ -25,13 +25,15 @@
 
 #include <random>
 
+#include "jni/JniCommon.h"
+#include "memory/ColumnarBatch.h"
+#include "operators/shuffle/SplitterBase.h"
 #include "operators/shuffle/type.h"
 #include "operators/shuffle/utils.h"
 #include "substrait/algebra.pb.h"
 
 namespace gluten {
-
-class Splitter {
+class Splitter : public SplitterBase {
  protected:
   struct BinaryBuff {
     BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c, uint64_t f)
@@ -46,15 +48,8 @@ class Splitter {
   };
 
  public:
-  static arrow::Result<std::shared_ptr<Splitter>> Make(
-      const std::string& short_name,
-      std::shared_ptr<arrow::Schema> schema,
-      int num_partitions,
-      SplitOptions options = SplitOptions::Defaults());
-
-  virtual const std::shared_ptr<arrow::Schema>& input_schema() const {
-    return schema_;
-  }
+  static arrow::Result<std::shared_ptr<Splitter>>
+  Make(const std::string& short_name, int num_partitions, SplitOptions options = SplitOptions::Defaults());
 
   typedef uint32_t row_offset_type;
 
@@ -63,19 +58,14 @@ class Splitter {
    * partition id. The largest partition buffer will be spilled if memory
    * allocation failure occurs.
    */
-  virtual arrow::Status Split(const arrow::RecordBatch&);
-
-  /**
-   * Compute the compresse size of record batch.
-   */
-  virtual int64_t CompressedSize(const arrow::RecordBatch&);
+  virtual arrow::Status Split(ColumnarBatch* cb);
 
   /**
    * For each partition, merge spilled file into shuffle data file and write any
    * cached record batch to shuffle data file. Close all resources and collect
    * metrics.
    */
-  arrow::Status Stop();
+  virtual arrow::Status Stop();
 
   /**
    * Spill specified partition
@@ -85,43 +75,15 @@ class Splitter {
   arrow::Status SetCompressType(arrow::Compression::type compressed_type);
 
   /**
-   * Spill for fixed size of partition data
+   * Evict for fixed size of partition data from memory
    */
-  arrow::Status SpillFixedSize(int64_t size, int64_t* actual);
+  arrow::Status EvictFixedSize(int64_t size, int64_t* actual);
 
   /**
    * Spill the largest partition buffer
    * @return partition id. If no partition to spill, return -1
    */
   arrow::Result<int32_t> SpillLargestPartition(int64_t* size);
-
-  int64_t TotalBytesWritten() const {
-    return total_bytes_written_;
-  }
-
-  int64_t TotalBytesSpilled() const {
-    return total_bytes_spilled_;
-  }
-
-  int64_t TotalWriteTime() const {
-    return total_write_time_;
-  }
-
-  int64_t TotalSpillTime() const {
-    return total_spill_time_;
-  }
-
-  int64_t TotalCompressTime() const {
-    return total_compress_time_;
-  }
-
-  const std::vector<int64_t>& PartitionLengths() const {
-    return partition_lengths_;
-  }
-
-  const std::vector<int64_t>& RawPartitionLengths() const {
-    return raw_partition_lengths_;
-  }
 
   int64_t RawPartitionBytes() const {
     return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
@@ -133,14 +95,15 @@ class Splitter {
   }
 
  protected:
-  Splitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : num_partitions_(num_partitions), options_(std::move(options)), schema_(std::move(schema)) {}
+  Splitter(int32_t num_partitions, SplitOptions options) : SplitterBase(num_partitions, options) {}
 
   virtual arrow::Status Init();
 
+  arrow::Status InitColumnType();
+
   virtual arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) = 0;
 
-  arrow::Status DoSplit(const arrow::RecordBatch& rb);
+  virtual arrow::Status DoSplit(const arrow::RecordBatch& rb);
 
   row_offset_type CalculateSplitBatchSize(const arrow::RecordBatch& rb);
 
@@ -190,7 +153,9 @@ class Splitter {
   // buffer can hold all data according to partition id. If not, call this
   // method and allocate new buffers. Spill will happen if OOM.
   // 2. Stop the splitter. The record batch will be written to disk immediately.
-  arrow::Status CacheRecordBatch(int32_t partition_id, bool reset_buffers);
+  arrow::Status CreateRecordBatchFromBuffer(int32_t partition_id, bool reset_buffers);
+
+  arrow::Status CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch);
 
   // Allocate new partition buffer/builder.
   // If successful, will point partition buffer/builder to new ones, otherwise
@@ -206,12 +171,8 @@ class Splitter {
 
   class PartitionWriter;
 
-  int32_t num_partitions_;
-
   // Check whether support AVX512 instructions
   bool support_avx512_;
-  // options
-  SplitOptions options_;
   // partid
   std::vector<int32_t> partition_buffer_size_;
   // partid, value is reducer batch's offset, output rb rownum < 64k
@@ -275,16 +236,6 @@ class Splitter {
   // write options for tiny batches
   arrow::ipc::IpcWriteOptions tiny_bach_write_options_;
 
-  int64_t total_bytes_written_ = 0;
-  int64_t total_bytes_spilled_ = 0;
-  int64_t total_write_time_ = 0;
-  int64_t total_spill_time_ = 0;
-  int64_t total_compress_time_ = 0;
-  int64_t peak_memory_allocated_ = 0;
-
-  std::vector<int64_t> partition_lengths_;
-  std::vector<int64_t> raw_partition_lengths_;
-
   std::vector<std::shared_ptr<arrow::DataType>> column_type_id_;
 
   // configured local dirs for spilled file
@@ -300,60 +251,54 @@ class Splitter {
 
 class RoundRobinSplitter final : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<RoundRobinSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<RoundRobinSplitter>> Create(int32_t num_partitions, SplitOptions options);
 
  private:
-  RoundRobinSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
+  RoundRobinSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   int32_t pid_selection_ = 0;
 };
 
-class HashSplitter final : public Splitter {
+class SinglePartSplitter final : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<HashSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
-
-  const std::shared_ptr<arrow::Schema>& input_schema() const override {
-    return input_schema_;
-  }
+  static arrow::Result<std::shared_ptr<SinglePartSplitter>> Create(int32_t num_partitions, SplitOptions options);
 
  private:
-  HashSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
+  SinglePartSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
-  arrow::Status Split(const arrow::RecordBatch& rb) override;
+  arrow::Status Split(ColumnarBatch* cb) override;
 
   arrow::Status Init() override;
 
-  std::shared_ptr<arrow::Schema> input_schema_;
+  arrow::Status Stop() override;
+};
+
+class HashSplitter final : public Splitter {
+ public:
+  static arrow::Result<std::shared_ptr<HashSplitter>> Create(int32_t num_partitions, SplitOptions options);
+
+ private:
+  HashSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
+
+  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
+
+  arrow::Status Split(ColumnarBatch* cb) override;
 };
 
 class FallbackRangeSplitter final : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>> Create(int32_t num_partitions, SplitOptions options);
 
-  arrow::Status Split(const arrow::RecordBatch& rb) override;
-
-  const std::shared_ptr<arrow::Schema>& input_schema() const override {
-    return input_schema_;
-  }
+  arrow::Status Split(ColumnarBatch* cb) override;
 
  private:
-  FallbackRangeSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
-
-  arrow::Status Init() override;
+  FallbackRangeSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
-
-  std::shared_ptr<arrow::Schema> input_schema_;
 };
 
 } // namespace gluten

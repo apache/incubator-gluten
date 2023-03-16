@@ -31,24 +31,30 @@ public class AggregateRelNode implements RelNode, Serializable {
   private final RelNode input;
   private final ArrayList<ExpressionNode> groupings = new ArrayList<>();
   private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes = new ArrayList<>();
+
+  private final ArrayList<ExpressionNode> filters = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
 
   AggregateRelNode(RelNode input,
                    ArrayList<ExpressionNode> groupings,
-                   ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
+                   ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+                   ArrayList<ExpressionNode> filters) {
     this.input = input;
     this.groupings.addAll(groupings);
     this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
+    this.filters.addAll(filters);
     this.extensionNode = null;
   }
 
   AggregateRelNode(RelNode input,
                    ArrayList<ExpressionNode> groupings,
                    ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+                   ArrayList<ExpressionNode> filters,
                    AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.groupings.addAll(groupings);
     this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
+    this.filters.addAll(filters);
     this.extensionNode = extensionNode;
   }
 
@@ -67,11 +73,16 @@ public class AggregateRelNode implements RelNode, Serializable {
     aggBuilder.setCommon(relCommonBuilder.build());
     aggBuilder.addGroupings(groupingBuilder.build());
 
-    for (AggregateFunctionNode aggregateFunctionNode : aggregateFunctionNodes) {
+    for (int i = 0; i < aggregateFunctionNodes.size(); i ++) {
       AggregateRel.Measure.Builder measureBuilder = AggregateRel.Measure.newBuilder();
-      measureBuilder.setMeasure(aggregateFunctionNode.toProtobuf());
+      measureBuilder.setMeasure(aggregateFunctionNodes.get(i).toProtobuf());
+      // Set the filter expression if valid.
+      if (this.filters.get(i) != null) {
+        measureBuilder.setFilter(this.filters.get(i).toProtobuf());
+      }
       aggBuilder.addMeasures(measureBuilder.build());
     }
+
     if (input != null) {
       aggBuilder.setInput(input.toProtobuf());
     }

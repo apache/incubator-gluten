@@ -7,13 +7,14 @@ BUILD_TYPE=release
 NPROC=$(nproc --ignore=2)
 TARGET_BUILD_COMMIT=""
 ARROW_REPO=https://github.com/oap-project/arrow.git
-ARROW_BRANCH=backend_velox_main
+ARROW_BRANCH=arrow-11.0.0-gluten
 ARROW_HOME=
+ENABLE_QAT=OFF
 
 for arg in "$@"
 do
     case $arg in
-        --build_test=*)
+        --build_tests=*)
         BUILD_TESTS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
@@ -23,6 +24,10 @@ do
         ;;
         --arrow_home=*)
         ARROW_HOME=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_qat=*)
+        ENABLE_QAT=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -45,6 +50,7 @@ echo "CMAKE Arguments:"
 echo "BUILD_TESTS=${BUILD_TESTS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "ARROW_HOME=${ARROW_HOME}"
+echo "ENABLE_QAT=${ENABLE_QAT}"
 
 if [ -d $ARROW_INSTALL_DIR ]; then
     rm -rf $ARROW_INSTALL_DIR
@@ -57,15 +63,16 @@ if [ $BUILD_TESTS == ON ]; then
   WITH_JSON=ON
 fi
 pushd $ARROW_SOURCE_DIR
-TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
-mkdir -p java/build
-pushd java/build
-cmake \
-    -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR/lib \
-    ..
-cmake --build . --target install
-popd
 
+git apply --reverse --check $CURRENT_DIR/memorypool.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
+# apply patch for custom codec
+if [ $ENABLE_QAT == ON ]; then
+  git apply --reverse --check $CURRENT_DIR/custom-codec.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
+fi
+
+TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
+
+# Arrow CPP libraries
 mkdir -p cpp/build
 pushd cpp/build
 cmake -G Ninja \
@@ -81,7 +88,7 @@ cmake -G Ninja \
         -DARROW_WITH_ZSTD=ON \
         -DARROW_BUILD_SHARED=ON \
         -DARROW_BOOST_USE_SHARED=OFF \
-        -DARROW_JNI=ON \
+        -DARROW_JAVA_JNI_ENABLE_DEFAULT=OFF \
         -DARROW_JEMALLOC=ON \
         -DARROW_SIMD_LEVEL=AVX2 \
         -DARROW_RUNTIME_SIMD_LEVEL=MAX \
@@ -94,9 +101,16 @@ cmake -G Ninja \
 cmake --build . --target install
 popd
 
-cd java
-mvn clean install -P arrow-jni -pl c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
+# Arrow C Data Interface CPP libraries
+pushd java
+mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR -N
+popd
+
+# Arrow Java libraries
+pushd java
+mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
     -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
+popd
 
 echo "Successfully built Arrow from Source !!!"
 echo $TARGET_BUILD_COMMIT > "${ARROW_HOME}/arrow-commit.cache"

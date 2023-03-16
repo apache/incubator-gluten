@@ -18,8 +18,11 @@
 #include "ArrowColumnarToRowConverter.h"
 
 #include <arrow/array/array_decimal.h>
+#include <arrow/status.h>
 #include <arrow/util/decimal.h>
+#if defined(__x86_64__)
 #include <immintrin.h>
+#endif
 
 namespace gluten {
 
@@ -27,8 +30,10 @@ uint32_t x_7[8] __attribute__((aligned(32))) = {0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x
 uint32_t x_8[8] __attribute__((aligned(32))) = {0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8};
 
 arrow::Status ArrowColumnarToRowConverter::Init() {
+  support_avx512_ = false;
+#if defined(__x86_64__)
   support_avx512_ = __builtin_cpu_supports("avx512bw");
-  // std::cout << "support_avx512_:" << support_avx512_ << std::endl;
+#endif
 
   num_rows_ = rb_->num_rows();
   num_cols_ = rb_->num_columns();
@@ -136,7 +141,7 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
     bool support_avx512) {
 #ifdef __AVX512BW__
   if (ARROW_PREDICT_TRUE(support_avx512)) {
-    __m256i fill_0_8x;
+    __m256i fill_0_8x = {0LL};
     fill_0_8x = _mm256_xor_si256(fill_0_8x, fill_0_8x);
     for (auto j = row_start; j < row_start + batch_rows; j++) {
       auto rowlength = offsets[j + 1] - offsets[j];
@@ -253,7 +258,11 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
           auto dataptr = dataptrs[col_index][1];
           auto mask = (1L << (typewidth[col_index])) - 1;
           (void)mask; // suppress warning
+#if defined(__x86_64__)
           auto shift = _tzcnt_u32(typewidth[col_index]);
+#else
+          auto shift = __builtin_ctz((uint32_t)typewidth[col_index]);
+#endif
           auto buffer_address_tmp = buffer_address + field_offset;
           for (auto j = row_start; j < row_start + batch_rows; j++) {
             if (nullvec[col_index] || (!array->IsNull(j))) {
@@ -334,7 +343,7 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
   int32_t i = 0;
 #define BATCH_ROW_NUM 16
   for (; i + BATCH_ROW_NUM < num_rows_; i += BATCH_ROW_NUM) {
-    FillBuffer(
+    RETURN_NOT_OK(FillBuffer(
         i,
         BATCH_ROW_NUM,
         dataptrs,
@@ -348,11 +357,11 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
         typevec,
         typewidth,
         arrays,
-        support_avx512_);
+        support_avx512_));
   }
 
   for (; i < num_rows_; i++) {
-    FillBuffer(
+    RETURN_NOT_OK(FillBuffer(
         i,
         1,
         dataptrs,
@@ -366,7 +375,7 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
         typevec,
         typewidth,
         arrays,
-        support_avx512_);
+        support_avx512_));
   }
 
   return arrow::Status::OK();

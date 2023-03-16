@@ -64,6 +64,14 @@ public class ArrowColumnarBatches {
     }
   }
 
+  public static void close(ColumnarBatch input) {
+    ColumnarBatchJniWrapper.INSTANCE.close(GlutenColumnarBatches.getNativeHandle(input));
+  }
+
+  public static long getBytes(ColumnarBatch input) {
+    return ColumnarBatchJniWrapper.INSTANCE.getBytes(GlutenColumnarBatches.getNativeHandle(input));
+  }
+
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
     if (!GlutenColumnarBatches.isIntermediateColumnarBatch(input)) {
       throw new IllegalArgumentException("input is not intermediate Gluten columnar input. " +
@@ -169,6 +177,10 @@ public class ArrowColumnarBatches {
    * will take place if loading is required, which means when the input batch is not loaded yet.
    */
   public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
+    if (batch.numCols() == 0) {
+      // No need to load batch if no column.
+      return batch;
+    }
     if (isArrowColumnarBatch(batch)) {
       return batch;
     }

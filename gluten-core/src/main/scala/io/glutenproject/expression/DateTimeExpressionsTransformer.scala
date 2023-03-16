@@ -18,6 +18,8 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
@@ -60,22 +62,26 @@ class DateDiffTransformer(substraitExprName: String, endDate: ExpressionTransfor
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // In Spark: datediff(endDate, startDate)
-    // In CH: date_diff('day', startDate, endDate)
     val endDateNode = endDate.doTransform(args)
     val startDateNode = startDate.doTransform(args)
-    val unitNode = ExpressionBuilder.makeStringLiteral("day")
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       substraitExprName, Seq(StringType, original.startDate.dataType,
       original.endDate.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressionNodes = Lists.newArrayList(
-      unitNode, startDateNode, endDateNode)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    val expressionNodes = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+      // In CH backend, datediff params are ('day', startDate, endDate).
+      Lists.newArrayList(
+        ExpressionBuilder.makeStringLiteral("day"), startDateNode, endDateNode)
+    } else {
+      // In the others, datediff params are (startDate, endDate).
+      Lists.newArrayList(startDateNode, endDateNode)
+    }
+    ExpressionBuilder.makeScalarFunction(
+      functionId, expressionNodes, ConverterUtils.getTypeNode(original.dataType, original.nullable))
   }
 }
 
@@ -86,14 +92,7 @@ class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransfor
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val secNode = sec.doTransform(args)
-    var formatNode = format.doTransform(args)
-
-    // Only when format = 'yyyy-MM-dd HH:mm:ss' can we transfrom the expr to substrait.
-    if (!formatNode.isInstanceOf[StringLiteralNode] ||
-      formatNode.asInstanceOf[StringLiteralNode].getValue != "yyyy-MM-dd HH:mm:ss") {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-    formatNode = ExpressionBuilder.makeStringLiteral("%Y-%m-%d %R:%S")
+    val formatNode = format.doTransform(args)
 
     val dataTypes = if (timeZoneId != None) {
       Seq(original.sec.dataType, original.format.dataType, StringType)
@@ -112,7 +111,6 @@ class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransfor
     }
 
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -173,6 +171,7 @@ object DateTimeExpressionsTransformer {
 
   val EXTRACT_DATE_FIELD_MAPPING: Map[Class[_], String] = Map(
     scala.reflect.classTag[Year].runtimeClass -> "YEAR",
+    scala.reflect.classTag[YearOfWeek].runtimeClass -> "YEAR_OF_WEEK",
     scala.reflect.classTag[Quarter].runtimeClass -> "QUARTER",
     scala.reflect.classTag[Month].runtimeClass -> "MONTH",
     scala.reflect.classTag[WeekOfYear].runtimeClass -> "WEEK_OF_YEAR",
@@ -180,6 +179,8 @@ object DateTimeExpressionsTransformer {
     scala.reflect.classTag[DayOfWeek].runtimeClass -> "DAY_OF_WEEK",
     scala.reflect.classTag[DayOfMonth].runtimeClass -> "DAY",
     scala.reflect.classTag[DayOfYear].runtimeClass -> "DAY_OF_YEAR",
+    scala.reflect.classTag[Hour].runtimeClass -> "HOUR",
+    scala.reflect.classTag[Minute].runtimeClass -> "MINUTE",
     scala.reflect.classTag[Second].runtimeClass -> "SECOND"
   )
 }

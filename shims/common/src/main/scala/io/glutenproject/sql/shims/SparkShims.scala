@@ -18,14 +18,21 @@ package io.glutenproject.sql.shims
 
 import io.glutenproject.expression.Sig
 
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
 
 sealed abstract class ShimDescriptor
 
 case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
   override def toString(): String = s"$major.$minor.$patch"
+
+  def toMajorMinorVersion: String = s"$major.$minor"
 }
 
 trait SparkShims {
@@ -35,9 +42,13 @@ trait SparkShims {
   // https://github.com/apache/spark/pull/32875
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
 
-  protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
-
-  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
-
   def expressionMappings: Seq[Sig]
+
+  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec])
+
+  def generateFileScanRDD(
+      sparkSession: SparkSession,
+      readFunction: (PartitionedFile) => Iterator[InternalRow],
+      filePartitions: Seq[FilePartition],
+      fileSourceScanExec: FileSourceScanExec): FileScanRDD
 }

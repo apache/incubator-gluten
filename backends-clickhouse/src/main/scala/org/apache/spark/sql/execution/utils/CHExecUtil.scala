@@ -18,8 +18,7 @@ package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.{BlockNativeConverter, BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
-import io.glutenproject.vectorized.{BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
+import io.glutenproject.vectorized._
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
 import org.apache.spark.ShuffleDependency
@@ -41,10 +40,7 @@ import org.apache.spark.util.MutablePair
 
 import io.substrait.proto.Type
 
-import java.util
-
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 object CHExecUtil {
 
@@ -110,27 +106,29 @@ object CHExecUtil {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      dataSize: SQLMetric,
-      bytesSpilled: SQLMetric,
-      numInputRows: SQLMetric,
-      computePidTime: SQLMetric,
-      splitTime: SQLMetric,
-      spillTime: SQLMetric,
-      compressTime: SQLMetric,
-      prepareTime: SQLMetric,
-      inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     val nativePartitioning: NativePartitioning = newPartitioning match {
-      case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte])
+      case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte], null)
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, Array.empty[Byte])
+        new NativePartitioning("rr", n, Array.empty[Byte], null)
       case HashPartitioning(exprs, n) =>
+        val outputsIndex =
+          outputAttributes.map(attr => ConverterUtils.genColumnNameWithExprId(attr))
+        val fieldsIndex = new Array[String](exprs.length)
         val fields = exprs.zipWithIndex.map {
           case (expr, i) =>
             val attr = ConverterUtils.getAttrFromExpr(expr)
-            ConverterUtils.genColumnNameWithExprId(attr)
+            val field = ConverterUtils.genColumnNameWithExprId(attr)
+            fieldsIndex(i) = outputsIndex.indexOf(field).toString
+            field
         }
-        new NativePartitioning("hash", n, null, fields.mkString(",").getBytes)
+
+        new NativePartitioning(
+          "hash",
+          n,
+          fieldsIndex.mkString(",").getBytes,
+          fields.mkString(",").getBytes)
       case RangePartitioning(sortingExpressions, numPartitions) =>
         val rddForSampling = buildRangePartitionSampleRDD(
           rdd,
@@ -320,15 +318,7 @@ object CHExecUtil {
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
-        dataSize = dataSize,
-        bytesSpilled = bytesSpilled,
-        numInputRows = numInputRows,
-        computePidTime = computePidTime,
-        splitTime = splitTime,
-        spillTime = spillTime,
-        compressTime = compressTime,
-        prepareTime = prepareTime,
-        inputBatches = inputBatches
+        metrics = metrics
       )
 
     dependency

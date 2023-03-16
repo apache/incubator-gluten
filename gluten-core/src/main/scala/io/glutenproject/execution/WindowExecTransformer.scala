@@ -19,25 +19,27 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.OperatorMetrics
 import io.glutenproject.utils.BindReferencesUtil
+
 import io.substrait.proto.SortField
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Expression, NamedExpression, Rank, RowNumber, SortOrder, SpecifiedWindowFrame, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -48,54 +50,11 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                                  orderSpec: Seq[SortOrder],
                                  child: SparkPlan) extends WindowExecBase with TransformSupport {
 
-  override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_window"),
-    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"))
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetrics(sparkContext)
 
-  object MetricsUpdaterImpl extends MetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
-    val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
-    val rawInputRows: SQLMetric = longMetric("rawInputRows")
-    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-    val outputRows: SQLMetric = longMetric("outputRows")
-    val outputVectors: SQLMetric = longMetric("outputVectors")
-    val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuCount: SQLMetric = longMetric("count")
-    val wallNanos: SQLMetric = longMetric("wallNanos")
-    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
-
-    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-      if (operatorMetrics != null) {
-        inputRows += operatorMetrics.inputRows
-        inputVectors += operatorMetrics.inputVectors
-        inputBytes += operatorMetrics.inputBytes
-        rawInputRows += operatorMetrics.rawInputRows
-        rawInputBytes += operatorMetrics.rawInputBytes
-        outputRows += operatorMetrics.outputRows
-        outputVectors += operatorMetrics.outputVectors
-        outputBytes += operatorMetrics.outputBytes
-        cpuCount += operatorMetrics.count
-        wallNanos += operatorMetrics.wallNanos
-        peakMemoryBytes += operatorMetrics.peakMemoryBytes
-        numMemoryAllocations += operatorMetrics.numMemoryAllocations
-      }
-    }
-  }
-
-  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetricsUpdater(metrics)
 
   override def supportsColumnar: Boolean = true
 
@@ -152,8 +111,11 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
   }
 
   override def getChild: SparkPlan = child
@@ -174,13 +136,14 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         val columnName = aliasExpr.name
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
-          case rowNumber: RowNumber =>
-            val frame = rowNumber.frame.asInstanceOf[SpecifiedWindowFrame]
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
+            val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
+            val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, rowNumber).toInt,
+              WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
               new util.ArrayList[ExpressionNode](),
               columnName,
-              ConverterUtils.getTypeNode(rowNumber.dataType, rowNumber.nullable),
+              ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
               frame.upper.sql,
               frame.lower.sql,
               frame.frameType.sql)
@@ -189,7 +152,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
             val frame = wExpression.windowSpec.
                       frameSpecification.asInstanceOf[SpecifiedWindowFrame]
             val aggregateFunc = aggExpression.aggregateFunction
-
             val substraitAggFuncName =
               ExpressionMappings.aggregate_functions_map.get(aggregateFunc.getClass)
             // Check whether each backend supports this aggregate function
@@ -198,18 +160,12 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
             }
 
-            var outputMap: Map[Expression, Int] = Map()
-            output.zipWithIndex.foreach { case (attr, index) =>
-              outputMap += (attr.canonicalized -> index)
-            }
-
             val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            val childrenNodes = aggregateFunc.children.toList.map(expr => {
-              ExpressionBuilder.makeSelection(outputMap(expr.canonicalized))
-            })
-            for (node <- childrenNodes) {
-              childrenNodeList.add(node)
-            }
+            aggregateFunc.children.foreach(
+              expr => childrenNodeList.add(
+                ExpressionConverter.replaceWithExpressionTransformer(expr,
+                  originalInputAttributes).doTransform(args))
+            )
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
@@ -220,13 +176,24 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               frame.lower.sql,
               frame.frameType.sql)
             windowExpressions.add(windowFunctionNode)
-          case rank: Rank =>
-            val frame = rank.frame.asInstanceOf[SpecifiedWindowFrame]
+          case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
+            val offset_wf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
+            val frame = offset_wf.frame.asInstanceOf[SpecifiedWindowFrame]
+            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              offset_wf.input,
+              attributeSeq = originalInputAttributes).doTransform(args))
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              offset_wf.offset,
+              attributeSeq = originalInputAttributes).doTransform(args))
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              offset_wf.default,
+              attributeSeq = originalInputAttributes).doTransform(args))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, rank).toInt,
-              new util.ArrayList[ExpressionNode](),
+              WindowFunctionsBuilder.create(args, offset_wf).toInt,
+              childrenNodeList,
               columnName,
-              ConverterUtils.getTypeNode(rank.dataType, rank.nullable),
+              ConverterUtils.getTypeNode(offset_wf.dataType, offset_wf.nullable),
               frame.upper.sql,
               frame.lower.sql,
               frame.frameType.sql)
@@ -298,7 +265,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
   }
 
   override def doValidate(): Boolean = {
-    if (!BackendsApiManager.getSettings.supportWindowExec()) {
+    if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
+      logDebug(s"Not support window function")
       return false
     }
     val substraitContext = new SubstraitContext

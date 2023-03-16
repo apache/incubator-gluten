@@ -28,6 +28,7 @@
 #include <thread>
 
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxInitializer.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(write_file, "", "Write the output to parquet file, file absolute path");
@@ -35,6 +36,7 @@ DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 0, "The number of iterations to run this benchmark");
 
+using namespace facebook;
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
 
@@ -45,12 +47,12 @@ std::string getExampleFilePath(const std::string& fileName) {
   if (path.is_absolute()) {
     return fileName;
   }
-  return ::facebook::velox::test::getDataFilePath("cpp/velox/benchmarks", "data/" + fileName);
+  return velox::test::getDataFilePath("cpp/velox/benchmarks", "data/" + fileName);
 }
 
 arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
   std::string currentPath = fs::current_path().c_str();
-  auto generatedFilePath = currentPath + "/../../../backends-velox/generated-native-benchmark/";
+  auto generatedFilePath = currentPath + "/../../../../backends-velox/generated-native-benchmark/";
   fs::directory_entry filePath{generatedFilePath + fileName};
   if (filePath.exists()) {
     if (filePath.is_regular_file() && filePath.path().extension().native() == ".json") {
@@ -85,17 +87,17 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string&
   return maybePlan;
 }
 
-std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
+std::shared_ptr<velox::substrait::SplitInfo> getFileInfos(
     const std::string& datasetPath,
     const std::string& fileFormat) {
-  auto scanInfo = std::make_shared<facebook::velox::substrait::SplitInfo>();
+  auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
 
   // Set format to scan info.
-  auto format = facebook::velox::dwio::common::FileFormat::UNKNOWN;
+  auto format = velox::dwio::common::FileFormat::UNKNOWN;
   if (fileFormat.compare("orc") == 0) {
-    format = facebook::velox::dwio::common::FileFormat::ORC;
+    format = velox::dwio::common::FileFormat::ORC;
   } else if (fileFormat.compare("parquet") == 0) {
-    format = facebook::velox::dwio::common::FileFormat::PARQUET;
+    format = velox::dwio::common::FileFormat::PARQUET;
   }
   scanInfo->format = format;
 

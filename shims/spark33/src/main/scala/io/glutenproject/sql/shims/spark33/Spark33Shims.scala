@@ -19,11 +19,16 @@ package io.glutenproject.sql.shims.spark33
 import io.glutenproject.expression.Sig
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.sql.catalyst.expressions.{DynamicPruningSubquery, Expression, SplitPart}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.expressions.{Expression, SplitPart}
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.exchange.Exchange
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
+import org.apache.spark.sql.types.StructType
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -34,21 +39,28 @@ class Spark33Shims extends SparkShims {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {
-    // TODO migrate dynamic-partition-pruning onto adaptive execution.
-    // Only QueryStage will have Exchange as Leaf Plan
-    val isLeafPlanExchange = plan match {
-      case _: Exchange => true
-      case _ => false
-    }
-    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled &&
-      (sanityCheck(plan) &&
-        !plan.logicalLink.exists(_.isStreaming) &&
-        !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
-        plan.children.forall(supportAdaptiveWithExchangeConsidered)))
-  }
-
   override def expressionMappings: Seq[Sig] = Seq(
     Sig[SplitPart]("split_part")
   )
+
+  override def convertPartitionTransforms(
+      partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
+    CatalogUtil.convertPartitionTransforms(partitions)
+  }
+
+  override def generateFileScanRDD(
+      sparkSession: SparkSession,
+      readFunction: PartitionedFile => Iterator[InternalRow],
+      filePartitions: Seq[FilePartition],
+      fileSourceScanExec: FileSourceScanExec): FileScanRDD = {
+    new FileScanRDD(
+      sparkSession,
+      readFunction,
+      filePartitions,
+      new StructType(
+        fileSourceScanExec.requiredSchema.fields ++
+          fileSourceScanExec.relation.partitionSchema.fields),
+      fileSourceScanExec.metadataColumns
+    )
+  }
 }

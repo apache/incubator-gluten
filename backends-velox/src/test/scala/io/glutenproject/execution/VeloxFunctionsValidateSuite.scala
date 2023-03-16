@@ -18,11 +18,11 @@
 package io.glutenproject.execution
 
 import java.nio.file.Files
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.functions.{col, expr}
 
 import scala.collection.JavaConverters._
 
@@ -34,13 +34,15 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
 
   private var parquetPath: String = _
 
+  import testImplicits._
+
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
@@ -231,6 +233,44 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   test("Test shiftright function") {
     val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("date_add") {
+    withTempPath { path =>
+      Seq(
+        (java.sql.Date.valueOf("2022-03-11"), 1: Integer),
+        (java.sql.Date.valueOf("2022-03-12"), 2: Integer),
+        (java.sql.Date.valueOf("2022-03-13"), 3: Integer),
+        (java.sql.Date.valueOf("2022-03-14"), 4: Integer),
+        (java.sql.Date.valueOf("2022-03-15"), 5: Integer),
+        (java.sql.Date.valueOf("2022-03-16"), 6: Integer))
+        .toDF("a", "b").write.parquet(path.getCanonicalPath)
+
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+      runQueryAndCompare("SELECT date_add(a, b) from view") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  test("date_diff") {
+    withTempPath { path =>
+      Seq(
+        (java.sql.Date.valueOf("2022-03-11"), java.sql.Date.valueOf("2022-02-11")),
+        (java.sql.Date.valueOf("2022-03-12"), java.sql.Date.valueOf("2022-01-12")),
+        (java.sql.Date.valueOf("2022-09-13"), java.sql.Date.valueOf("2022-05-12")),
+        (java.sql.Date.valueOf("2022-07-14"), java.sql.Date.valueOf("2022-03-12")),
+        (java.sql.Date.valueOf("2022-06-15"), java.sql.Date.valueOf("2022-01-12")),
+        (java.sql.Date.valueOf("2022-05-16"), java.sql.Date.valueOf("2022-06-12")))
+        .toDF("a", "b").write.parquet(path.getCanonicalPath)
+
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+      runQueryAndCompare("SELECT datediff(a, b) from view") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 }

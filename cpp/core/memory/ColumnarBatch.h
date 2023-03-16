@@ -43,10 +43,13 @@ class ColumnarBatch {
 
   virtual std::string GetType() const = 0;
 
+  virtual int64_t GetBytes() = 0;
+
   virtual std::shared_ptr<ArrowArray> exportArrowArray() = 0;
 
   virtual std::shared_ptr<ArrowSchema> exportArrowSchema() = 0;
 
+  // FIXME: No need to have this virtual function
   virtual void saveToFile(std::shared_ptr<ArrowWriter> writer) = 0;
 
   virtual int64_t getExportNanos() const {
@@ -70,6 +73,10 @@ class ArrowColumnarBatch final : public ColumnarBatch {
     return "arrow";
   }
 
+  int64_t GetBytes() override {
+    throw gluten::GlutenException("Not implemented GetBytes for ArrowColumnarBatch");
+  }
+
   std::shared_ptr<ArrowSchema> exportArrowSchema() override {
     auto c_schema = std::make_shared<ArrowSchema>();
     GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*batch_->schema(), c_schema.get()));
@@ -83,8 +90,8 @@ class ArrowColumnarBatch final : public ColumnarBatch {
   }
 
   void saveToFile(std::shared_ptr<ArrowWriter> writer) override {
-    writer->initWriter(*(batch_->schema().get()));
-    writer->writeInBatches(batch_);
+    GLUTEN_THROW_NOT_OK(writer->initWriter(*(batch_->schema().get())));
+    GLUTEN_THROW_NOT_OK(writer->writeInBatches(batch_));
   }
 
  private:
@@ -108,6 +115,14 @@ class ArrowCStructColumnarBatch final : public ColumnarBatch {
     return "arrow_array";
   }
 
+  int64_t GetBytes() override {
+    int64_t bytes = cArray_->n_buffers;
+    for (int64_t i = 0; i < cArray_->n_children; ++i) {
+      bytes += cArray_->children[i]->n_buffers;
+    }
+    return bytes;
+  }
+
   std::shared_ptr<ArrowSchema> exportArrowSchema() override {
     return cSchema_;
   }
@@ -118,8 +133,8 @@ class ArrowCStructColumnarBatch final : public ColumnarBatch {
 
   void saveToFile(std::shared_ptr<ArrowWriter> writer) override {
     GLUTEN_ASSIGN_OR_THROW(auto rb, arrow::ImportRecordBatch(cArray_.get(), cSchema_.get()));
-    writer->initWriter(*(rb->schema().get()));
-    writer->writeInBatches(rb);
+    GLUTEN_THROW_NOT_OK(writer->initWriter(*(rb->schema().get())));
+    GLUTEN_THROW_NOT_OK(writer->writeInBatches(rb));
 
     arrow::Status status = arrow::ExportRecordBatch(*rb, cArray_.get(), cSchema_.get());
     if (!status.ok()) {

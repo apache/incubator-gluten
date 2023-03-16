@@ -40,13 +40,8 @@ import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   extends BroadcastExchangeLike {
-  override lazy val metrics = Map(
-    "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of Rows"),
-    "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_broadcastExchange"),
-    "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
-    "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast")
-  )
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genColumnarBroadcastExchangeMetrics(sparkContext)
 
   @transient
   lazy val promise = Promise[broadcast.Broadcast[Any]]()
@@ -66,21 +61,24 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
           runId.toString,
           s"broadcast exchange (runId $runId)",
           interruptOnCancel = true)
+        val beforeCollect = System.nanoTime()
 
+        // this created relation ignore HashedRelationBroadcastMode isNullAware, because we cannot
+        // get child output rows, then compare the hash key is null, if not null, compare the
+        // isNullAware, so gluten will not generate HashedRelationWithAllNullKeys or
+        // EmptyHashedRelation, this difference will cause performance regression in some cases
         val relation = BackendsApiManager.getSparkPlanExecApiInstance.createBroadcastRelation(
           mode,
           child,
           longMetric("numOutputRows"),
           longMetric("dataSize"))
-        val beforeCollect = System.nanoTime()
         val beforeBroadcast = System.nanoTime()
+
         longMetric("collectTime") += NANOSECONDS.toMillis(beforeBroadcast - beforeCollect)
 
         // Broadcast the relation
         val broadcasted = sparkContext.broadcast(relation.asInstanceOf[Any])
         longMetric("broadcastTime") += NANOSECONDS.toMillis(System.nanoTime() - beforeBroadcast)
-        longMetric("totalTime").merge(longMetric("collectTime"))
-        longMetric("totalTime").merge(longMetric("broadcastTime"))
 
         // Update driver metrics
         val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)

@@ -17,20 +17,40 @@
 
 package io.glutenproject.vectorized;
 
+import org.apache.spark.storage.CHShuffleReadStreamFactory;
+
 import java.io.InputStream;
 
 public class CHStreamReader implements AutoCloseable {
-  private final InputStream inputStream;
+  private final ShuffleInputStream inputStream;
   private long nativeShuffleReader;
   private boolean compressed;
+  private int bufferSize;
 
-  public CHStreamReader(InputStream inputStream, boolean compressed) {
-    this.inputStream = inputStream;
-    this.compressed = compressed;
-    nativeShuffleReader = createNativeShuffleReader(this.inputStream, this.compressed);
+  public CHStreamReader(
+      InputStream inputStream,
+      int bufferSize) {
+    this(inputStream, false, false, bufferSize);
   }
 
-  private static native long createNativeShuffleReader(InputStream inputStream, boolean compressed);
+  public CHStreamReader(
+      InputStream inputStream,
+      boolean forceCompress,
+      boolean isCustomizedShuffleCodec,
+      int bufferSize) {
+    this.bufferSize = bufferSize;
+    this.inputStream =
+        CHShuffleReadStreamFactory
+            .create(inputStream, forceCompress, isCustomizedShuffleCodec, bufferSize);
+    this.compressed = this.inputStream.isCompressed();
+    nativeShuffleReader =
+        createNativeShuffleReader(this.inputStream, this.compressed, this.bufferSize);
+  }
+
+  private static native long createNativeShuffleReader(
+      ShuffleInputStream inputStream,
+      boolean compressed,
+      int bufferSize);
 
   private native long nativeNext(long nativeShuffleReader);
 

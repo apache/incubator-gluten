@@ -48,6 +48,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil;
+import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
 import org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataType;
@@ -99,10 +100,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       int capacity, StructType schema) {
     String timeZoneId = SparkSchemaUtil.getLocalTimezoneID();
     Schema arrowSchema = SparkArrowUtil.toArrowSchema(schema, timeZoneId);
-    VectorSchemaRoot new_root =
+    VectorSchemaRoot newRoot =
         VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());
 
-    List<FieldVector> fieldVectors = new_root.getFieldVectors();
+    List<FieldVector> fieldVectors = newRoot.getFieldVectors();
     ArrowWritableColumnVector[] vectors =
         new ArrowWritableColumnVector[fieldVectors.size()];
     for (int i = 0; i < fieldVectors.size(); i++) {
@@ -244,7 +245,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     } else if (vector instanceof MapVector) {
       MapVector mapVector = (MapVector) vector;
       accessor = new MapAccessor(mapVector);
-      childColumns = new ArrowWritableColumnVector[2];
+      reallocateChildColumns(2);
       final StructVector structVector = (StructVector) mapVector.getDataVector();
       final FieldVector keyChild = structVector.getChild(MapVector.KEY_NAME);
       final FieldVector valueChild = structVector.getChild(MapVector.VALUE_NAME);
@@ -255,14 +256,14 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     } else if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
       accessor = new ArrayAccessor(listVector);
-      childColumns = new ArrowWritableColumnVector[1];
+      reallocateChildColumns(1);
       childColumns[0] = new ArrowWritableColumnVector(
           listVector.getDataVector(), 0, listVector.size(), false);
     } else if (vector instanceof StructVector) {
       StructVector structVector = (StructVector) vector;
       accessor = new StructAccessor(structVector);
 
-      childColumns = new ArrowWritableColumnVector[structVector.size()];
+      reallocateChildColumns(structVector.size());
       for (int i = 0; i < childColumns.length; ++i) {
         childColumns[i] = new ArrowWritableColumnVector(structVector.getVectorById(i),
             i, structVector.size(), false);
@@ -273,6 +274,19 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     } else {
       throw new UnsupportedOperationException("Unsupported vector " + vector.getMinorType());
     }
+  }
+
+  // The child columns may already be created in super class's constructor
+  //  org.apache.spark.sql.execution.vectorized
+  //    .WritableColumnVector#WritableColumnVector(int, DataType).
+  //  So we close them then create new ones.
+  private void reallocateChildColumns(int width) {
+    if (childColumns != null) {
+      for (WritableColumnVector column : childColumns) {
+        column.close();
+      }
+    }
+    childColumns = new ArrowWritableColumnVector[width];
   }
 
   private ArrowVectorWriter createVectorWriter(ValueVector vector) {
@@ -355,14 +369,6 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     closed = true;
     vectorCount.getAndDecrement();
     super.close();
-    // TODO: close Arrow Allocated Memory
-    if (childColumns != null) {
-      for (int i = 0; i < childColumns.length; i++) {
-        childColumns[i].close();
-        childColumns[i] = null;
-      }
-      childColumns = null;
-    }
     vector.close();
     if (dictionaryVector != null) {
       dictionaryVector.close();
@@ -1145,10 +1151,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
   private static class ArrayAccessor extends ArrowVectorAccessor {
     private final ListVector accessor;
+    private final ArrowColumnVector elements;
 
     ArrayAccessor(ListVector vector) {
       super(vector);
       this.accessor = vector;
+      this.elements = new ArrowColumnVector(vector.getDataVector());
     }
 
     @Override
@@ -1173,6 +1181,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     public int getArrayOffset(int rowId) {
       int index = rowId * ListVector.OFFSET_WIDTH;
       return accessor.getOffsetBuffer().getInt(index);
+    }
+
+    @Override
+    final ColumnarArray getArray(int rowId) {
+      return new ColumnarArray(elements, getArrayOffset(rowId), getArrayLength(rowId));
     }
 
     @Override

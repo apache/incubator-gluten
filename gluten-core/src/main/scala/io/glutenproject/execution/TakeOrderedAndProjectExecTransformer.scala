@@ -16,15 +16,14 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.extension.TransformPreOverrides
+import io.glutenproject.utils.ColumnarShuffleUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarInputAdapter,
-  SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarInputAdapter, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -33,8 +32,9 @@ case class TakeOrderedAndProjectExecTransformer (
                                                 limit: Int,
                                                 sortOrder: Seq[SortOrder],
                                                 projectList: Seq[NamedExpression],
-                                                child: SparkPlan) extends
-  UnaryExecNode{
+                                                child: SparkPlan,
+                                                isAdaptiveContextOrLeafPlanExchange: Boolean)
+    extends UnaryExecNode{
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
   override def supportsColumnar: Boolean = true
@@ -86,10 +86,9 @@ case class TakeOrderedAndProjectExecTransformer (
       } else {
         val sortStagePlan = WholeStageTransformerExec(limitExecPlan)(
           codegenStageCounter.incrementAndGet())
-        val overrider = TransformPreOverrides()
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
-        val transformedShuffleExec = overrider.genColumnarShuffleExchange(shuffleExec,
-          sortStagePlan)
+        val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(shuffleExec,
+          sortStagePlan, false, isAdaptiveContextOrLeafPlanExchange)
 
         val globalSortExecPlan = SortExecTransformer(sortOrder, false,
           new ColumnarInputAdapter(transformedShuffleExec))

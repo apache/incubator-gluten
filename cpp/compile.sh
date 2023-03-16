@@ -1,15 +1,15 @@
 #!/bin/bash
-
+# deprecated, replaced by cmake command
 set -exu
 
 BUILD_TYPE=release
-BUILD_GAZELLE_CPP_BACKEND=OFF
 BUILD_VELOX_BACKEND=OFF
 BUILD_TESTS=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=ON
-ENABLE_HBM=OFF
 BUILD_PROTOBUF=OFF
+ENABLE_QAT=OFF
+ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 NPROC=$(nproc --ignore=2)
@@ -31,15 +31,11 @@ do
         BUILD_TYPE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --build_gazelle_cpp_backend=*)
-        BUILD_GAZELLE_CPP_BACKEND=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
         --build_velox_backend=*)
         BUILD_VELOX_BACKEND=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --build_test=*)
+        --build_tests=*)
         BUILD_TESTS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
@@ -49,6 +45,10 @@ do
         ;;
         --build_jemalloc=*)
         BUILD_JEMALLOC=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_qat=*)
+        ENABLE_QAT=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hbm=*)
@@ -90,7 +90,6 @@ echo "CMAKE Arguments:"
 echo "ARROW_ROOT=${ARROW_ROOT}"
 echo "VELOX_HOME=${VELOX_HOME}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
-echo "BUILD_GAZELLE_CPP_BACKEND=${BUILD_GAZELLE_CPP_BACKEND}"
 echo "BUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND}"
 echo "BUILD_TESTS=${BUILD_TESTS}"
 echo "BUILD_BENCHMARKS=${BUILD_BENCHMARKS}"
@@ -109,13 +108,13 @@ cmake .. \
   -DBUILD_TESTS=${BUILD_TESTS} \
   -DARROW_ROOT=${ARROW_ROOT} \
   -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
-  -DBUILD_GAZELLE_CPP_BACKEND=${BUILD_GAZELLE_CPP_BACKEND} \
   -DBUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND} \
   -DVELOX_HOME=${VELOX_HOME} \
   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
   -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS} \
-  -DENABLE_HBM=${ENABLE_HBM} \
   -DBUILD_PROTOBUF=${BUILD_PROTOBUF} \
+  -DENABLE_QAT=${ENABLE_QAT} \
+  -DENABLE_HBM=${ENABLE_HBM} \
   -DVELOX_ENABLE_S3=${ENABLE_S3} \
   -DVELOX_ENABLE_HDFS=${ENABLE_HDFS}
 make -j$NPROC

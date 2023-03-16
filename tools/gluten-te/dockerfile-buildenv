@@ -1,4 +1,6 @@
-FROM ubuntu:20.04 AS gluten-buildenv
+ARG OS_IMAGE
+
+FROM $OS_IMAGE AS gluten-buildenv
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-c"]
@@ -47,9 +49,22 @@ RUN cat /root/.m2/settings.xml
 # Update, then install essentials
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev
 
+# install HBM dependencies
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
+
 # Install OpenJDK 8 and Maven
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk;
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y maven;
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven
+
+# Setup SSH server
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
+RUN systemctl disable ssh
+RUN ssh-keygen -A
+RUN mkdir -p /run/sshd
+RUN echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config.d/override.conf
+RUN echo 'X11Forwarding yes' >> /etc/ssh/sshd_config.d/override.conf
+RUN echo 'X11UseLocalhost no' >> /etc/ssh/sshd_config.d/override.conf
+RUN echo -e "123\n123" | passwd
 
 ARG TIMEZONE
 RUN test -n "$TIMEZONE" || (echo "TIMEZONE not set" && false)
@@ -65,3 +80,12 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
 ENV LANG en_US.UTF-8  
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8
+
+# Install Spark 3.2.2
+RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
+RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
+
+# Prepare entry command
+
+COPY buildenv-cmd/cmd.sh /root/.cmd.sh
+CMD [ "bash", "/root/.cmd.sh" ]

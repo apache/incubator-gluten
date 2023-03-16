@@ -21,8 +21,6 @@ import java.io.File
 
 import scala.io.Source
 
-import org.junit.Ignore
-
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.SparkConf
 
@@ -46,7 +44,7 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
       .set("spark.sql.files.maxPartitionBytes", "4g")
       .set("spark.sql.shuffle.partitions", "256")
       .set("spark.memory.offHeap.size", "200g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "10M")
       .set("spark.driver.maxResultSize", "4g")
       .set("spark.sql.sources.useV1SourceList", "avro")

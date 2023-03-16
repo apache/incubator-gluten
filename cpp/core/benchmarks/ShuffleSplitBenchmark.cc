@@ -30,6 +30,7 @@
 
 #include <chrono>
 
+#include "memory/ColumnarBatch.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/macros.h"
 
@@ -55,6 +56,13 @@ using gluten::Splitter;
 
 namespace gluten {
 
+std::shared_ptr<ColumnarBatch> RecordBatchToColumnarBatch(std::shared_ptr<arrow::RecordBatch> rb) {
+  std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
+  std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
+  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*rb, cArray.get(), cSchema.get()));
+  return std::make_shared<ArrowCStructColumnarBatch>(std::move(cSchema), std::move(cArray));
+}
+
 #define ALIGNMENT 2 * 1024 * 1024
 
 const int batch_buffer_size = 32768;
@@ -64,7 +72,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool() {}
 
-  Status Allocate(int64_t size, uint8_t** out) override {
+  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
     RETURN_NOT_OK(pool_->Allocate(size, out));
     stats_.UpdateAllocatedBytes(size);
     // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
@@ -72,7 +80,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+  Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
     // auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
@@ -83,7 +91,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  void Free(uint8_t* buffer, int64_t size) override {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
     pool_->Free(buffer, size);
     stats_.UpdateAllocatedBytes(-size);
     // std::cout << "Free: size = " << size << " addr = " << std::hex <<
@@ -116,7 +124,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 
   ~LargePageMemoryPool() override = default;
 
-  Status Allocate(int64_t size, uint8_t** out) override {
+  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
 #ifdef ENABLELARGEPAGE
     if (size < 2 * 1024 * 1024) {
       return pool_->Allocate(size, out);
@@ -132,7 +140,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 #endif
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+  Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
     return pool_->Reallocate(old_size, new_size, ptr);
 #ifdef ENABLELARGEPAGE
     if (new_size < 2 * 1024 * 1024) {
@@ -147,7 +155,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 #endif
   }
 
-  void Free(uint8_t* buffer, int64_t size) override {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
 #ifdef ENABLELARGEPAGE
     if (size < 2 * 1024 * 1024) {
       pool_->Free(buffer, size);
@@ -241,7 +249,7 @@ class BenchmarkShuffleSplit {
     auto total_time = (end_time - start_time).count();
 
     auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
-    fs->DeleteFile(splitter->DataFile());
+    GLUTEN_THROW_NOT_OK(fs->DeleteFile(splitter->DataFile()));
 
     state.SetBytesProcessed(int64_t(splitter->RawPartitionBytes()));
 
@@ -261,24 +269,24 @@ class BenchmarkShuffleSplit {
         benchmark::Counter(split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["bytes_spilled"] = benchmark::Counter(
-        splitter->TotalBytesSpilled(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        splitter->TotalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_written"] = benchmark::Counter(
         splitter->TotalBytesWritten(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_raw"] = benchmark::Counter(
         splitter->RawPartitionBytes(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_spilled"] = benchmark::Counter(
-        splitter->TotalBytesSpilled(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        splitter->TotalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] =
         benchmark::Counter(elapse_read, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] = benchmark::Counter(
         splitter->TotalWriteTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["spill_time"] = benchmark::Counter(
-        splitter->TotalSpillTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        splitter->TotalEvictTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["compress_time"] = benchmark::Counter(
         splitter->TotalCompressTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
-    split_time = split_time - splitter->TotalSpillTime() - splitter->TotalCompressTime() - splitter->TotalWriteTime();
+    split_time = split_time - splitter->TotalEvictTime() - splitter->TotalCompressTime() - splitter->TotalWriteTime();
 
     state.counters["split_time"] =
         benchmark::Counter(split_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
@@ -357,7 +365,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << local_schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", local_schema, num_partitions, options));
+    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", num_partitions, options));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -386,7 +394,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
           batches.begin(),
           batches.end(),
           [&splitter, &split_time, &options](std::shared_ptr<arrow::RecordBatch>& record_batch) {
-            TIME_NANO_OR_THROW(split_time, splitter->Split(*record_batch));
+            TIME_NANO_OR_THROW(split_time, splitter->Split(RecordBatchToColumnarBatch(record_batch).get()));
           });
       // std::cout << " split done memory allocated = " <<
       // options.memory_pool->bytes_allocated() << std::endl;
@@ -413,7 +421,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     if (state.thread_index() == 0)
       std::cout << schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", schema, num_partitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", num_partitions, std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -430,7 +438,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
       while (record_batch) {
         num_batches += 1;
         num_rows += record_batch->num_rows();
-        TIME_NANO_OR_THROW(split_time, splitter->Split(*record_batch));
+        TIME_NANO_OR_THROW(split_time, splitter->Split(RecordBatchToColumnarBatch(record_batch).get()));
         TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       }
     }

@@ -18,16 +18,25 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
 
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.spark.sql.catalyst.expressions.{NamedExpression}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.types.StructField
+
 
 trait BackendSettings {
-  def supportFileFormatRead: FileFormat => Boolean = _ => false
+  def supportFileFormatRead(format: ReadFileFormat,
+                            fields: Array[StructField],
+                            partTable: Boolean,
+                            paths: Seq[String]): Boolean = false
   def supportExpandExec(): Boolean = false
+  def needProjectExpandOutput: Boolean = false
   def supportSortExec(): Boolean = false
-  def supportWindowExec(): Boolean = false
+  def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
+    false
+  }
   def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getSessionConf.enableColumnarShuffle
+    GlutenConfig.getConf.enableColumnarShuffle
   }
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     case _: InnerLike | RightOuter | FullOuter => true
@@ -37,6 +46,7 @@ trait BackendSettings {
     case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
     case _ => false
   }
+  def supportStructType(): Boolean = false
   def fallbackOnEmptySchema(): Boolean = false
   def disableVanillaColumnarReaders(): Boolean = false
   def recreateJoinExecOnFallback(): Boolean = false

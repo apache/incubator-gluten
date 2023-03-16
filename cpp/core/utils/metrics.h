@@ -32,18 +32,25 @@ struct Metrics {
   long* outputBytes;
 
   // CpuWallTiming.
-  long* count;
+  long* cpuCount;
   long* wallNanos;
   long veloxToArrow;
 
   long* peakMemoryBytes;
   long* numMemoryAllocations;
 
+  // Spill
+  long* spilledBytes;
+  long* spilledRows;
+  long* spilledPartitions;
+  long* spilledFiles;
+
   // Runtime metrics.
   long* numDynamicFiltersProduced;
   long* numDynamicFiltersAccepted;
   long* numReplacedWithDynamicFilterRows;
   long* flushRowCount;
+  long* scanTime;
 
   Metrics(int size) : numMetrics(size) {
     inputRows = new long[numMetrics]();
@@ -54,14 +61,19 @@ struct Metrics {
     outputRows = new long[numMetrics]();
     outputVectors = new long[numMetrics]();
     outputBytes = new long[numMetrics]();
-    count = new long[numMetrics]();
+    cpuCount = new long[numMetrics]();
     wallNanos = new long[numMetrics]();
     peakMemoryBytes = new long[numMetrics]();
     numMemoryAllocations = new long[numMetrics]();
+    spilledBytes = new long[numMetrics]();
+    spilledRows = new long[numMetrics]();
+    spilledFiles = new long[numMetrics]();
+    spilledPartitions = new long[numMetrics]();
     numDynamicFiltersProduced = new long[numMetrics]();
     numDynamicFiltersAccepted = new long[numMetrics]();
     numReplacedWithDynamicFilterRows = new long[numMetrics]();
     flushRowCount = new long[numMetrics]();
+    scanTime = new long[numMetrics]();
   }
 
   Metrics(const Metrics&) = delete;
@@ -78,14 +90,19 @@ struct Metrics {
     delete[] outputRows;
     delete[] outputVectors;
     delete[] outputBytes;
-    delete[] count;
+    delete[] cpuCount;
     delete[] wallNanos;
     delete[] peakMemoryBytes;
     delete[] numMemoryAllocations;
+    delete[] spilledBytes;
+    delete[] spilledRows;
+    delete[] spilledFiles;
+    delete[] spilledPartitions;
     delete[] numDynamicFiltersProduced;
     delete[] numDynamicFiltersAccepted;
     delete[] numReplacedWithDynamicFilterRows;
     delete[] flushRowCount;
+    delete[] scanTime;
   }
 };
 

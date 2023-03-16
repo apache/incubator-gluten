@@ -24,43 +24,54 @@ if(POLICY CMP0126)
   cmake_policy(SET CMP0126 NEW)
 endif()
 
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
 if(NOT DEFINED CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE
       Release
-      CACHE STRING "Choose the type of build.")
+      CACHE STRING "Choose the type of build to Release.")
 endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
-project(spark_columnar_plugin)
+project(gluten)
 
+option(BUILD_VELOX_BACKEND, "Build velox backend" OFF)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
-option(BUILD_GAZELLE_CPP_BACKEND "Build the gazelle-cpp libraries" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
+option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(VELOX_ENABLE_S3 "Enable S3" OFF)
 option(VELOX_ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 
+if (NOT BUILD_VELOX_BACKEND)
+  message(STATUS "Not select any backend, build velox backend default")
+  set(BUILD_VELOX_BACKEND ON)
+endif()
+
+if (NOT DEFINED ARROW_ROOT)
+  set(ARROW_ROOT ${CMAKE_SOURCE_DIR}/../ep/build-arrow/build/arrow_install)
+endif()
+
 #
 # Compiler flags
 #
-string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
 
-if (${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
+if (${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
 # keep this original logic
   add_definitions(-DGLUTEN_PRINT_DEBUG)
   message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
-elseif (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
+elseif (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   add_definitions(-DGLUTEN_PRINT_DEBUG)
   message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
-# set CMAKE_BUILD_TYPE to Debug according to the CMake tutorial
-  set(CMAKE_BUILD_TYPE Debug)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
   message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
 else ()
@@ -82,8 +93,6 @@ add_compile_options(-Wno-error=unused-but-set-variable)
 # Dependencies
 #
 
-option(BUILD_ARROW "Build Arrow from Source" ON)
-option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
 
 include(ConfigArrow)
 
@@ -97,6 +106,7 @@ find_package(JNI REQUIRED)
 if(BUILD_TESTS)
   include(GoogleTest)
   enable_testing()
+  find_package(glog REQUIRED)
 endif()
 
 function(ADD_TEST_CASE TEST_NAME)
@@ -121,7 +131,7 @@ function(ADD_TEST_CASE TEST_NAME)
   endif()
 
   add_executable(${TEST_NAME} ${SOURCES})
-  target_link_libraries(${TEST_NAME} spark_columnar_jni gtest gtest_main Threads::Threads)
+  target_link_libraries(${TEST_NAME} gluten gtest gtest_main Threads::Threads glog::glog)
   target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)
@@ -152,10 +162,6 @@ endif()
 #
 
 add_subdirectory(core)
-
-if(BUILD_GAZELLE_CPP_BACKEND)
-  add_subdirectory(gazelle-cpp)
-endif()
 
 if(BUILD_VELOX_BACKEND)
   add_subdirectory(velox)

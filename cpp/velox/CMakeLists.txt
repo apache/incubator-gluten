@@ -26,7 +26,9 @@ include(CheckCXXCompilerFlag)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 
 set(SYSTEM_LIB_PATH "/usr/lib" CACHE PATH "System Lib dir")
@@ -35,16 +37,14 @@ set(SYSTEM_LIB_MULTIARCH_PATH "/usr/lib/x86_64-linux-gnu" CACHE PATH "System Lib
 set(SYSTEM_LOCAL_LIB_PATH "/usr/local/lib" CACHE PATH "System Local Lib dir")
 set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 dir")
 
-if(NOT DEFINED VELOX_HOME)
-  message(FATAL_ERROR "VELOX_HOME must be set to the source directory of Velox")
-else()
-  message(STATUS "VELOX_HOME: ${VELOX_HOME}")
+if (NOT DEFINED VELOX_HOME)
+  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)
+  message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
-string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
 
 # User can specify VELOX_BUILD_PATH, if Velox are built elsewhere.
 if(NOT DEFINED VELOX_BUILD_PATH)
-  if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/debug" CACHE PATH "Velox build directory.")
   else()
     set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/release" CACHE PATH "Velox build directory.")
@@ -66,6 +66,7 @@ endfunction()
 
 macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
+  add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
   add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
 
   add_velox_dependency(functions::prestosql::window "${VELOX_COMPONENTS_PATH}/functions/prestosql/window/libvelox_window.a")
@@ -101,12 +102,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_reader.a")
   add_velox_dependency(parquet::reader::native "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_native_parquet_reader.a")
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
-
-  if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
-    add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthriftd.a")
-  else()
-    add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
-  endif()
+  add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
 
   add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
   add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
@@ -140,7 +136,9 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
-
+  if(BUILD_TESTS)
+    add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
+  endif()
 endmacro()
 
 macro(find_libhdfs3)
@@ -162,8 +160,11 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
+    shuffle/VeloxSplitter.cc
     jni/JniWrapper.cc
     compute/VeloxBackend.cc
+    compute/VeloxInitializer.cc
+    compute/WholeStageResultIterator.cc
     compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxColumnarToRowConverter.cc
@@ -191,9 +192,13 @@ set_target_properties(velox PROPERTIES
 find_package(Folly REQUIRED CONFIG)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
 
-target_link_libraries(velox PUBLIC spark_columnar_jni)
+target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
+
+if(BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
 
 if(VELOX_ENABLE_HDFS)
   add_definitions(-DVELOX_ENABLE_HDFS)
@@ -205,10 +210,6 @@ endif()
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
-endif()
-
-if(BUILD_TESTS)
-  add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
 endif()
 
 if(VELOX_ENABLE_S3)

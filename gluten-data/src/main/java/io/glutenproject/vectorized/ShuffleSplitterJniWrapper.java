@@ -17,12 +17,9 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
-import io.glutenproject.utils.GlutenArrowAbiUtil;
-import io.glutenproject.utils.GlutenArrowUtil;
-import org.apache.arrow.c.ArrowSchema;
-
 import java.io.IOException;
+
+import org.apache.spark.shuffle.utils.CelebornPartitionPusher;
 
 public class ShuffleSplitterJniWrapper {
 
@@ -44,23 +41,42 @@ public class ShuffleSplitterJniWrapper {
    */
   public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
                    int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
-                   String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema) {
-    try (ArrowSchema schema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())) {
-      GlutenArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(),
-          GlutenArrowUtil.getSchemaFromBytesBuf(part.getSchema()), schema);
-      return nativeMake(part.getShortName(), part.getNumPartitions(), schema.memoryAddress(),
+                   String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema,
+                   long handle) {
+      return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
-          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema, handle);
   }
 
-  public native long nativeMake(String shortName, int numPartitions, long cSchema,
+  /**
+   * Construct celeborn native splitter for shuffled RecordBatch over
+   *
+   * @param part contains the partitioning parameter needed by native splitter
+   * @param bufferSize size of native buffers hold by each partition writer
+   * @param codec compression codec
+   * @param memoryPoolId
+   * @return native splitter instance id if created successfully.
+   */
+  public long makeForCeleborn(NativePartitioning part, long offheapPerTask,
+                              int bufferSize, String codec, int batchCompressThreshold,
+                              int pushBufferMaxSize, CelebornPartitionPusher pusher,
+                              long memoryPoolId, long handle, long taskAttemptId) {
+      return nativeMakeForCeleborn(part.getShortName(), part.getNumPartitions(),
+          offheapPerTask, bufferSize, codec, batchCompressThreshold,
+          pushBufferMaxSize, pusher, memoryPoolId, handle, taskAttemptId);
+  }
+
+  public native long nativeMake(String shortName, int numPartitions,
                                 long offheapPerTask, int bufferSize,
                                 String codec, int batchCompressThreshold, String dataFile,
                                 int subDirsPerLocalDir, String localDirs, boolean preferSpill,
-                                long memoryPoolId, boolean writeSchema);
+                                long memoryPoolId, boolean writeSchema, long handle);
+
+  public native long nativeMakeForCeleborn(String shortName, int numPartitions,
+                                           long offheapPerTask, int bufferSize,
+                                           String codec, int batchCompressThreshold,
+                                           int pushBufferMaxSize, CelebornPartitionPusher pusher,
+                                           long memoryPoolId, long handle, long taskAttemptId);
 
   /**
    * Spill partition data to disk.
@@ -76,18 +92,30 @@ public class ShuffleSplitterJniWrapper {
       long splitterId, long size, boolean callBySelf) throws RuntimeException;
 
   /**
+   * Push partition data to celeborn server.
+   *
+   * @param splitterId splitter instance id
+   * @param size expected size to push (in bytes)
+   * @param callBySelf whether the caller is the shuffle splitter itself, true
+   * when running out of off-heap memory due to allocations from
+   * the evaluator itself
+   * @return actual pushed size
+   */
+  public native long nativePush(
+          long splitterId, long size, boolean callBySelf) throws RuntimeException;
+
+  /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
    * split according to the first column as partition id. During splitting, the data in native
    * buffers will be write to disk when the buffers are full.
    *
    * @param splitterId splitter instance id
    * @param numRows Rows per batch
-   * @param cArray Addresses of ArrowArray
-   * record batch in the first partition.
-   * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
+   * @param handler handler of Velox Vector
+   * @return batch bytes.
    */
   public native long split(
-      long splitterId, int numRows, long cArray) throws IOException;
+      long splitterId, int numRows, long handler) throws IOException;
 
   /**
    * Write the data remained in the buffers hold by native splitter to each partition's temporary

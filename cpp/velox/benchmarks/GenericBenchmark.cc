@@ -70,7 +70,7 @@ auto BM_Generic = [](::benchmark::State& state,
     ArrowWriter writer{FLAGS_write_file};
     state.PauseTiming();
     if (!FLAGS_write_file.empty()) {
-      writer.initWriter(*(outputSchema.get()));
+      GLUTEN_THROW_NOT_OK(writer.initWriter(*(outputSchema.get())));
     }
     state.ResumeTiming();
     while (resultIter->HasNext()) {
@@ -85,13 +85,13 @@ auto BM_Generic = [](::benchmark::State& state,
         std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
       }
       if (!FLAGS_write_file.empty()) {
-        writer.writeInBatches(maybeBatch.ValueOrDie());
+        GLUTEN_THROW_NOT_OK(writer.writeInBatches(maybeBatch.ValueOrDie()));
       }
       state.ResumeTiming();
     }
     state.PauseTiming();
     if (!FLAGS_write_file.empty()) {
-      writer.closeWriter();
+      GLUTEN_THROW_NOT_OK(writer.closeWriter());
     }
     state.ResumeTiming();
 
@@ -100,10 +100,10 @@ auto BM_Generic = [](::benchmark::State& state,
           return sum + iter->GetCollectBatchTime();
         });
 
-    auto* rawIter = static_cast<gluten::WholeStageResIter*>(resultIter->GetRaw());
+    auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->GetRaw());
     const auto& task = rawIter->task_;
     const auto& planNode = rawIter->planNode_;
-    auto statsStr = ::facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
+    auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
     std::cout << statsStr << std::endl;
   }
 

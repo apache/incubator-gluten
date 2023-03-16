@@ -23,28 +23,28 @@ package io.glutenproject.vectorized;
 public class SplitResult {
   private final long totalComputePidTime;
   private final long totalWriteTime;
-  private final long totalSpillTime;
-  private final long totalCompressTime; // overlaps with totalSpillTime and totalWriteTime
+  private final long totalEvictTime;
+  private final long totalCompressTime; // overlaps with totalEvictTime and totalWriteTime
   private final long totalBytesWritten;
-  private final long totalBytesSpilled;
+  private final long totalBytesEvicted;
   private final long[] partitionLengths;
   private final long[] rawPartitionLengths;
 
   public SplitResult(
       long totalComputePidTime,
       long totalWriteTime,
-      long totalSpillTime,
+      long totalEvictTime,
       long totalCompressTime,
       long totalBytesWritten,
-      long totalBytesSpilled,
+      long totalBytesEvicted,
       long[] partitionLengths,
       long[] rawPartitionLengths) {
     this.totalComputePidTime = totalComputePidTime;
     this.totalWriteTime = totalWriteTime;
-    this.totalSpillTime = totalSpillTime;
+    this.totalEvictTime = totalEvictTime;
     this.totalCompressTime = totalCompressTime;
     this.totalBytesWritten = totalBytesWritten;
-    this.totalBytesSpilled = totalBytesSpilled;
+    this.totalBytesEvicted = totalBytesEvicted;
     this.partitionLengths = partitionLengths;
     this.rawPartitionLengths = rawPartitionLengths;
   }
@@ -58,7 +58,7 @@ public class SplitResult {
   }
 
   public long getTotalSpillTime() {
-    return totalSpillTime;
+    return totalEvictTime;
   }
 
   public long getTotalCompressTime() {
@@ -70,7 +70,11 @@ public class SplitResult {
   }
 
   public long getTotalBytesSpilled() {
-    return totalBytesSpilled;
+    return totalBytesEvicted;
+  }
+
+  public long getTotalPushTime() {
+    return totalBytesEvicted;
   }
 
   public long[] getPartitionLengths() {

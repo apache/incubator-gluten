@@ -17,6 +17,7 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}
@@ -35,8 +36,7 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = {
-    if (numPartitions == 1) SinglePartition
-    else UnknownPartitioning(numPartitions)
+    if (numPartitions == 1) SinglePartition else UnknownPartitioning(numPartitions)
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
@@ -47,8 +47,11 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
   }
 
   override def getChild: SparkPlan = {
@@ -72,13 +75,12 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   override protected def withNewChildInternal(newChild: SparkPlan): CoalesceExecTransformer =
     copy(child = newChild)
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }
 
 object CoalesceExecTransformer {
-  class EmptyRDDWithPartitions(
-                                @transient private val sc: SparkContext,
-                                numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
+  class EmptyRDDWithPartitions(@transient private val sc: SparkContext,
+                               numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
 
     override def getPartitions: Array[Partition] =
       Array.tabulate(numPartitions)(i => EmptyPartition(i))

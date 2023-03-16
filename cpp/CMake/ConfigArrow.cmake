@@ -15,14 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-if (${BUILD_VELOX_BACKEND} STREQUAL "ON" AND ${BUILD_GAZELLE_CPP_BACKEND} STREQUAL "ON")
-  message(FATAL_ERROR "BUILD_VELOX_BACKEND and BUILD_GAZELLE_CPP_BACKEND cannot both be ON!")
-endif()
-
-if(${BUILD_VELOX_BACKEND} STREQUAL "ON")
-  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1000")
-  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1000.0.0")
+if(BUILD_VELOX_BACKEND)
+  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1100")
+  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1100.0.0")
 else()
   set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
   set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.800.0.0")
@@ -56,7 +51,6 @@ endfunction()
 
 message(STATUS "Use existing ARROW libraries")
 
-set(ARROW_ROOT "/usr/local" CACHE PATH "Arrow Root dir")
 set(ARROW_LIB_DIR "${ARROW_ROOT}/lib")
 set(ARROW_LIB64_DIR "${ARROW_ROOT}/lib64")
 set(ARROW_INCLUDE_DIR "${ARROW_ROOT}/include")
@@ -67,7 +61,7 @@ message(STATUS "Set Arrow Include Directory in ${ARROW_INCLUDE_DIR}")
 if(EXISTS ${ARROW_INCLUDE_DIR}/arrow)
   set(ARROW_INCLUDE_SRC_DIR ${ARROW_INCLUDE_DIR})
 else()
-  message(FATAL_ERROR "Arrow headers not found in ARROW_ROOT.")
+  message(FATAL_ERROR "Arrow headers not found in ${ARROW_ROOT}.")
 endif()
 
 # Copy arrow headers

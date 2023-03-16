@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.benchmarks
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.UTSystemParameters
 import io.glutenproject.vectorized.JniLibLoader
 
@@ -26,10 +27,10 @@ import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarShuffleExchangeAdaptor, FileSourceScanExec, WholeStageCodegenExec}
+import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarShuffleExchangeExec, FileSourceScanExec, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.benchmarks.utils.FakeFileOutputStream
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -91,7 +92,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
       .setIfMissing("spark.executor.memory", memorySize)
       .setIfMissing("spark.sql.files.maxPartitionBytes", "1G")
       .setIfMissing("spark.sql.files.openCostInBytes", "1073741824")
-      .setIfMissing("spark.gluten.sql.columnar.coalesce.batches", "true")
+      .setIfMissing("spark.gluten.sql.columnar.coalesce.batches", "false")
       .setIfMissing("spark.shuffle.manager", "sort")
       .setIfMissing("spark.io.compression.codec", "SNAPPY")
 
@@ -171,7 +172,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     //                     +- *(4) FilterExecTransformer
     //                        +- *(4) FileScan parquet
     //
-    // There are three `WholeStageTransformerExec`, two `ColumnarShuffleExchangeAdaptor`
+    // There are three `WholeStageTransformerExec`, two `ColumnarShuffleExchangeExec`
     // and one `FileSourceScanExecTransformer`.
     val executedPlan = allStages.queryExecution.executedPlan
 
@@ -250,14 +251,14 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
         resultRDD.collect()
     }
 
-    // Get all `ColumnarShuffleExchangeAdaptor` and run the second one.
+    // Get all `ColumnarShuffleExchangeExec` and run the second one.
     val shuffleStage = executedPlan.collect {
-      case shuffle: ColumnarShuffleExchangeAdaptor => shuffle
+      case shuffle: ColumnarShuffleExchangeExec => shuffle
     }(1)
 
     chAllStagesBenchmark.addCase(s"Shuffle Split Stage", executedCnt) {
       _ =>
-        val shuffleSplit = ColumnarShuffleExchangeAdaptor(
+        val shuffleSplit = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
           removeHashColumn = shuffleStage.removeHashColumn)
@@ -271,7 +272,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
 
     chAllStagesBenchmark.addCase(s"Shuffle Write Stage ( Fake output to file )", executedCnt) {
       _ =>
-        val shuffleWrite = ColumnarShuffleExchangeAdaptor(
+        val shuffleWrite = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
           removeHashColumn = shuffleStage.removeHashColumn)
@@ -297,7 +298,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
 
     chAllStagesBenchmark.addCase(s"Shuffle Read Stage", executedCnt) {
       _ =>
-        val shuffleRead = ColumnarShuffleExchangeAdaptor(
+        val shuffleRead = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
           removeHashColumn = shuffleStage.removeHashColumn)
@@ -321,7 +322,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
       // Get the file partitions for generating the `FileScanRDD`
       val filePartitions = fileScan.getFlattenPartitions
         .map(_.asInstanceOf[FilePartition])
-      spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+      spark.conf.set("spark.gluten.enabled", "false")
       val sparkExecutedPlan = allStages.queryExecution.executedPlan
 
       // Get the `FileSourceScanExec`
@@ -340,8 +341,10 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
           hadoopConf = relation.sparkSession.sessionState.newHadoopConfWithOptions(relation.options)
         )
 
-      val newFileScanRDD = new FileScanRDD(spark, readFile, filePartitions)
-        .asInstanceOf[RDD[ColumnarBatch]]
+      val newFileScanRDD =
+        SparkShimLoader.getSparkShims
+          .generateFileScanRDD(spark, readFile, filePartitions, sparkFileScan)
+          .asInstanceOf[RDD[ColumnarBatch]]
 
       // Get the total row count
       val rowCnt = newFileScanRDD

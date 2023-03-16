@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -50,9 +52,8 @@ case class ColumnarSubqueryBroadcastExec(name: String,
     Seq(AttributeReference(name, key.dataType, key.nullable)())
   }
 
-  override lazy val metrics = Map(
-    "dataSize" -> SQLMetrics.createMetric(sparkContext, "data size (bytes)"),
-    "collectTime" -> SQLMetrics.createMetric(sparkContext, "time to collect (ms)"))
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genColumnarSubqueryBroadcastMetrics(sparkContext)
 
   override def doCanonicalize(): SparkPlan = {
     val keys = buildKeys.map(k => QueryPlan.normalizeExpressions(k, child.output))

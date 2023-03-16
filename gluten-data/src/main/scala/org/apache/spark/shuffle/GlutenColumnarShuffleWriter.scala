@@ -19,29 +19,22 @@ package org.apache.spark.shuffle
 
 import java.io.IOException
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
-
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.GlutenConfig
-import io.glutenproject.utils.{GlutenArrowAbiUtil, GlutenArrowUtil}
 import io.glutenproject.vectorized._
-import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Utils;
+import org.apache.spark.util.Utils
 
-class GlutenColumnarShuffleWriter[K, V](
-  shuffleBlockResolver: IndexShuffleBlockResolver,
-  handle: BaseShuffleHandle[K, V, V],
-  mapId: Long,
-  writeMetrics: ShuffleWriteMetricsReporter)
+class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
+                                        handle: BaseShuffleHandle[K, V, V],
+                                        mapId: Long,
+                                        writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
     with Logging {
 
@@ -62,14 +55,23 @@ class GlutenColumnarShuffleWriter[K, V](
 
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum;
+  private val offheapPerTask = offheapSize / executorNum
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
-  private val customizedCompressionCodec =
-    GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+  private val customizedCompressionCodec = {
+    val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+    val enableQat = conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false) &&
+      GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC.contains(codec)
+    if (enableQat) {
+      GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
+    } else {
+      codec
+    }
+  }
+
   private val batchCompressThreshold =
-    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
+    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
 
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
 
@@ -85,97 +87,80 @@ class GlutenColumnarShuffleWriter[K, V](
 
   private var rawPartitionLengths: Array[Long] = _
 
-  private var firstRecordBatch: Boolean = true
-
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
-    val splitterJniWrapper: ShuffleSplitterJniWrapper =
-      jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper]
-
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId,
-        partitionLengths, Array[Long](), null)
+      shuffleBlockResolver.writeMetadataFileAndCommit(
+        dep.shuffleId,
+        mapId,
+        partitionLengths,
+        Array[Long](),
+        null)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }
 
     val dataTmp = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
-    if (nativeSplitter == 0) {
-      nativeSplitter = splitterJniWrapper.make(
-        dep.nativePartitioning,
-        offheapPerTask,
-        nativeBufferSize,
-        customizedCompressionCodec,
-        batchCompressThreshold,
-        dataTmp.getAbsolutePath,
-        blockManager.subDirsPerLocalDir,
-        localDirs,
-        preferSpill,
-        NativeMemoryAllocators.createSpillable(
-          new Spiller() {
-            override def spill(size: Long, trigger: MemoryConsumer): Long = {
-              if (nativeSplitter == 0) {
-                throw new IllegalStateException("Fatal: spill() called before a shuffle splitter " +
-                  "evaluator is created. This behavior should be optimized by moving memory " +
-                  "allocations from make() to split()")
-              }
-              // fixme pass true when being called by self
-              return splitterJniWrapper.nativeSpill(nativeSplitter, size, false)
-            }
-          }).getNativeInstanceId,
-        writeSchema)
-    }
 
-    var schema: Schema = null
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val startTimeForPrepare = System.nanoTime()
-        val allocator = ArrowBufferAllocators.contextInstance()
-        val cArray = ArrowArray.allocateNew(allocator)
-        // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
-        // RecordBatch to ArrowArray without Schema, may optimize later
-        val rb = GlutenArrowUtil.createArrowRecordBatch(cb)
-        dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
-
-        if (firstRecordBatch) {
-          schema = GlutenArrowUtil.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
-          firstRecordBatch = false
+        val handle = GlutenColumnarBatches.getNativeHandle(cb)
+        if (nativeSplitter == 0) {
+          nativeSplitter = jniWrapper.make(
+            dep.nativePartitioning,
+            offheapPerTask,
+            nativeBufferSize,
+            customizedCompressionCodec,
+            batchCompressThreshold,
+            dataTmp.getAbsolutePath,
+            blockManager.subDirsPerLocalDir,
+            localDirs,
+            preferSpill,
+            NativeMemoryAllocators.createSpillable(
+              new Spiller() {
+                override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                  if (nativeSplitter == 0) {
+                    throw new IllegalStateException(
+                      "Fatal: spill() called before a shuffle splitter " +
+                      "evaluator is created. This behavior should be optimized by moving memory " +
+                      "allocations from make() to split()")
+                  }
+                  logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+                  // fixme pass true when being called by self
+                  val spilled = jniWrapper.nativeSpill(nativeSplitter, size, false)
+                  logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+                  spilled
+                }
+              }).getNativeInstanceId,
+            writeSchema,
+            handle)
         }
-        try {
-          GlutenArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
-            null, cArray)
-        } finally {
-          GlutenArrowUtil.releaseArrowRecordBatch(rb)
-        }
-
         val startTime = System.nanoTime()
-
-        dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
-
-        splitterJniWrapper
-          .split(nativeSplitter, cb.numRows, cArray.memoryAddress())
-        dep.splitTime.add(System.nanoTime() - startTime)
-        dep.numInputRows.add(cb.numRows)
-        dep.inputBatches.add(1)
+        val bytes = jniWrapper.split(nativeSplitter, cb.numRows, handle)
+        dep.metrics("dataSize").add(bytes)
+        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        dep.metrics("numInputRows").add(cb.numRows)
+        dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(cb.numRows())
-        cArray.close()
       }
     }
 
     val startTime = System.nanoTime()
-    splitResult = splitterJniWrapper.stop(nativeSplitter)
+    if (nativeSplitter != 0) {
+      splitResult = jniWrapper.stop(nativeSplitter)
+    }
 
-    dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+    dep.metrics("splitTime").add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
       splitResult.getTotalWriteTime -
       splitResult.getTotalCompressTime)
-    dep.spillTime.add(splitResult.getTotalSpillTime)
-    dep.compressTime.add(splitResult.getTotalCompressTime)
-    dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
+    dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
+    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+    dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
@@ -194,11 +179,11 @@ class GlutenColumnarShuffleWriter[K, V](
       }
     }
 
-    // fixme workaround: to store uncompressed sizes on the rhs of (maybe) compressed sizes
-    val unionPartitionLengths = ArrayBuffer[Long]()
-    unionPartitionLengths ++= partitionLengths
-    unionPartitionLengths ++= rawPartitionLengths
-    mapStatus = MapStatus(blockManager.shuffleServerId, unionPartitionLengths.toArray, mapId)
+    // The partitionLength is much more than vanilla spark partitionLengths,
+    // almost 3 times than vanilla spark partitionLengths
+    // This value is sensitive in rules such as AQE rule OptimizeSkewedJoin DynamicJoinSelection
+    // May affect the final plan
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
   }
 
   @throws[IOException]
@@ -207,7 +192,7 @@ class GlutenColumnarShuffleWriter[K, V](
   }
 
   def closeSplitter(): Unit = {
-    jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper].close(nativeSplitter)
+    jniWrapper.close(nativeSplitter)
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {
