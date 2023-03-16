@@ -575,14 +575,11 @@ case class ColumnarOverrideRules(session: SparkSession)
       plan match {
         // Spark's VectorizedReader is disabled in Gluten as of now.
         // So ColumnarToRowExec comes from fallback.
-        // TODO: need code changes if spark's VectorizedReader is enabled.
+        // TODO: need to add guard logic if spark's VectorizedReader is enabled.
         case _: ColumnarToRowExec =>
           fallbacks = fallbacks + 1
-        // Possible fallback in the beginning.
-        case batchScan: BatchScanExec if !batchScan.isInstanceOf[TransformSupport] =>
-          fallbacks = fallbacks + 1
-        // Possible fallback in the beginning.
-        case fileScan: FileSourceScanExec if !fileScan.isInstanceOf[TransformSupport] =>
+        // Possible fallback for leaf node.
+        case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[TransformSupport] =>
           fallbacks = fallbacks + 1
         case _ =>
       }
@@ -600,7 +597,7 @@ case class ColumnarOverrideRules(session: SparkSession)
    * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
    * Inserts an transition to columnar formatted data.
    */
-  private def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
+  def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
     if (!plan.supportsColumnar) {
       // The tree feels kind of backwards
       // Columnar Processing will start here, so transition from row to columnar
@@ -616,7 +613,7 @@ case class ColumnarOverrideRules(session: SparkSession)
    * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
    * Inserts RowToColumnarExecs and ColumnarToRowExecs where needed.
    */
-  private def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+  def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
     if (outputsColumnar) {
       insertRowToColumnar(plan)
     } else if (plan.supportsColumnar) {
@@ -628,6 +625,11 @@ case class ColumnarOverrideRules(session: SparkSession)
     } else {
       plan
     }
+  }
+
+  // Just for test use.
+  def enableAdaptiveContext: Unit = {
+    isAdaptiveContext = true
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
