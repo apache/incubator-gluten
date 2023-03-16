@@ -93,7 +93,7 @@ If you have Ultimate intellij, you can try to debug remotely.
 
 - Make sure you have compiled gluten.
 - Load the gluten by File->Open, select <gluten_home/pom.xml>.
-- Activate your profiles such as <backends-velox>, and reload Maven Project, you will find all your need modules have been activated.
+- Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
 - Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
 
 # Debug cpp code with Visual Studio Code
@@ -329,14 +329,10 @@ ps ux | grep TestOperator
 Execute gdb command to debug:
 ```bash
 gdb attach <pid>
-or
-gdb -p <pid>
 ```
 
 ```bash
 gdb attach 1375551
-or
-gdb -p 1375551
 wait to attach....
 (gdb) b <velox_home>/velox/substrait/SubstraitToVeloxPlan.cpp:577
 (gdb) c
