@@ -222,6 +222,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     selected
   }
 
+  override val nodeNamePrefix: String = "NativeFile"
 }
 
 object FileSourceScanExecTransformer {

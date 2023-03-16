@@ -129,7 +129,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       maxFields: Int,
       printNodeId: Boolean,
       indent: Int = 0): Unit = {
-    val prefix = if (printNodeId) "* " else s"*($transformStageId) "
+    val prefix = if (printNodeId) "^ " else s"^($transformStageId) "
     child.generateTreeString(
       depth,
       lastChildren,
