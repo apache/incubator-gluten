@@ -16,7 +16,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.glutenproject</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>0.5.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -50,6 +50,8 @@
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>${spark32.scala}</scala.version>
     <spark.version>${spark32.version}</spark.version>
+    <spark.major.version>3</spark.major.version>
+    <celeborn.version>0.2.1-SNAPSHOT</celeborn.version>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
     <arrow.version>11.0.0-gluten</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
@@ -111,6 +113,7 @@
       </activation>
       <properties>
         <scala.version>${spark32.scala}</scala.version>
+        <spark.major.version>3</spark.major.version>
         <spark.version>${spark32.version}</spark.version>
         <delta.version>${delta20.version}</delta.version>
         <delta.binary.version>20</delta.binary.version>
@@ -121,6 +124,7 @@
       <id>spark-3.3</id>
       <properties>
         <scala.version>${spark33.scala}</scala.version>
+        <spark.major.version>3</spark.major.version>
         <spark.version>${spark33.version}</spark.version>
         <delta.version>${delta22.version}</delta.version>
         <delta.binary.version>22</delta.binary.version>
@@ -204,6 +208,11 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.apache.celeborn</groupId>
+        <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
+        <version>${celeborn.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>
@@ -687,6 +696,18 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>versions-maven-plugin</artifactId>
+        <version>2.15.0</version>
+      </plugin>
     </plugins>
   </build>
+  <repositories>
+    <repository>
+      <id>apache</id>
+      <name>celeborn snapshots</name>
+      <url>https://repository.apache.org/content/repositories/snapshots/</url>
+    </repository>
+  </repositories>
 </project>

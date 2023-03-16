@@ -19,7 +19,9 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
-import org.apache.spark.sql.types.Decimal
+import org.apache.spark.sql.types.{Decimal, DecimalType, StructType}
+
+import scala.collection.Seq
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -335,18 +337,56 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     TestUtils.compareAnswers(result, expectedResult)
   }
 
-  ignore("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
+  test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
     val df = spark.sql(
       """
-        |SELECT cast(1.11 as decimal(20, 3)) FROM lineitem
+        |SELECT
+        |cast(1.11 as decimal(20, 3)),
+        |cast(1.123456789 as decimal(20,9)),
+        |cast(123456789.123456789 as decimal(30,9)),
+        |cast(1.12345678901234567890123456789 as decimal(38,29)),
+        |cast(123456789.123456789012345678901234567 as decimal(38,27)),
+        |cast(123456789.123456789012345678901234567 as decimal(38,28)) + 0.1,
+        |array(cast(123456789.123456789012345678901234567 as decimal(38,27)))
+        |FROM lineitem
         |WHERE l_shipdate <= date'1998-09-02' - interval 1 day limit 1
         |""".stripMargin
     )
 
     val result = df.collect()
-    assert(result.size == 1)
-    val expectedResult = Seq(Row(new java.math.BigDecimal("1.110")))
+    assert(result.length == 1)
+    val expectedResult = Seq(
+      Row(
+        new java.math.BigDecimal("1.110"),
+        new java.math.BigDecimal("1.123456789"),
+        new java.math.BigDecimal("123456789.123456789"),
+        new java.math.BigDecimal("1.12345678901234567890123456789"),
+        new java.math.BigDecimal("123456789.123456789012345678901234567"),
+        new java.math.BigDecimal("123456789.223456789012345678901234567"),
+        Seq(new java.math.BigDecimal("123456789.123456789012345678901234567"))
+      ))
     TestUtils.compareAnswers(result, expectedResult)
+  }
+
+  test("test decimal128") {
+    val struct = Row(new java.math.BigDecimal("123456789.123456789012345678901234567"))
+    val data = sparkContext.parallelize(
+      Seq(
+        Row(new java.math.BigDecimal("123456789.123456789012345678901234566"), struct)
+      ))
+
+    val schema = new StructType()
+      .add("a", DecimalType(38, 27))
+      .add(
+        "b",
+        new StructType()
+          .add("b1", DecimalType(38, 27)))
+
+    val df2 = spark.createDataFrame(data, schema)
+    TestUtils.compareAnswers(df2.select("b").collect(), Seq(Row(struct)))
+    TestUtils.compareAnswers(
+      df2.select("a").collect(),
+      Seq(Row(new java.math.BigDecimal("123456789.123456789012345678901234566"))))
   }
 
   ignore("TPCH Q21") {

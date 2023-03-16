@@ -107,21 +107,21 @@ class CHColumnarShuffleWriter[K, V](
         val block = col.getBlockAddress
         splitterJniWrapper
           .split(nativeSplitter, cb.numRows, block)
-        dep.splitTime.add(System.nanoTime() - startTime)
-        dep.numInputRows.add(cb.numRows)
-        dep.inputBatches.add(1)
+        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        dep.metrics("numInputRows").add(cb.numRows)
+        dep.metrics("inputBatches").add(1)
         writeMetrics.incRecordsWritten(cb.numRows)
       }
     }
     val startTime = System.nanoTime()
     splitResult = splitterJniWrapper.stop(nativeSplitter)
 
-    dep.splitTime.add(System.nanoTime() - startTime)
-    dep.spillTime.add(splitResult.getTotalSpillTime)
-    dep.compressTime.add(splitResult.getTotalCompressTime)
-    dep.computePidTime.add(splitResult.getTotalComputePidTime)
-    dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
-    dep.dataSize.add(splitResult.getTotalBytesWritten)
+    dep.metrics("splitTime").add(System.nanoTime() - startTime)
+    dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
+    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+    dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
+    dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
+    dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime)
 

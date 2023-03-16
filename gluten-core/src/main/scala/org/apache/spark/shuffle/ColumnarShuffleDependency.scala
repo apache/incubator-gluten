@@ -43,11 +43,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
  *                               (also known as map-side combine)
  * @param shuffleWriterProcessor the processor to control the write behavior in ShuffleMapTask
  * @param nativePartitioning     hold partitioning parameters needed by native splitter
- * @param dataSize               for shuffle data size tracking
- * @param bytesSpilled           for shuffle spill size tracking
- * @param computePidTime partition id computation time metric
- * @param splitTime              native split time metric
- * @param inputBatches            number input batches
+ * @param metrics                the metrics for the columnar shuffle
  */
 class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
             @transient private val _rdd: RDD[_ <: Product2[K, V]],
@@ -58,14 +54,7 @@ class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
             override val mapSideCombine: Boolean = false,
             override val shuffleWriterProcessor: ShuffleWriteProcessor = new ShuffleWriteProcessor,
             val nativePartitioning: NativePartitioning,
-            val dataSize: SQLMetric,
-            val bytesSpilled: SQLMetric,
-            val numInputRows: SQLMetric,
-            val computePidTime: SQLMetric,
-            val splitTime: SQLMetric,
-            val spillTime: SQLMetric,
-            val compressTime: SQLMetric,
-            val inputBatches: SQLMetric)
+            val metrics: Map[String, SQLMetric])
   extends ShuffleDependency[K, V, C](
     _rdd,
     partitioner,

@@ -80,7 +80,7 @@ arrow::Status Equals(const T& expected, const T& actual) {
       actual.schema()->ToString());
 }
 
-void MakeInputBatch(
+inline void MakeInputBatch(
     std::vector<std::string> input_data,
     std::shared_ptr<arrow::Schema> sch,
     std::shared_ptr<arrow::RecordBatch>* input_batch) {

@@ -26,6 +26,9 @@ import java.io.File
 import scala.io.Source
 import scala.reflect.ClassTag
 
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+
 abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSparkSession {
 
   protected val backend: String
@@ -136,14 +139,56 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     result
   }
 
-  def checkLengthAndPlan(df: DataFrame, len: Int = 100) {
+  def checkLengthAndPlan(df: DataFrame, len: Int = 100): Unit = {
     assert(df.collect().length == len)
-    assert(df.queryExecution.executedPlan
-      .find(_.isInstanceOf[TransformSupport]).isDefined)
+    val executedPlan = getExecutedPlan(df)
+    assert(executedPlan.exists(plan => plan.find(_.isInstanceOf[TransformSupport]).isDefined))
   }
 
-  def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]) {
-    assert(df.queryExecution.executedPlan.find(_.getClass == tag.runtimeClass).isDefined)
+  /**
+   * Get all the children plan of plans.
+   * @param plans: the input plans.
+   * @param children: all the children plans of the input plans.
+   * @return
+   */
+  def getChildrenPlan(plans: Seq[SparkPlan], children: Seq[SparkPlan]): Seq[SparkPlan] = {
+    if (plans.isEmpty) {
+      return children
+    }
+    var newChildren = children
+    plans.foreach {
+      case stage: ShuffleQueryStageExec =>
+        newChildren = getChildrenPlan(Seq(stage.plan), newChildren)
+      case plan =>
+        newChildren = getChildrenPlan(plan.children, newChildren) :+ plan
+    }
+    newChildren
+  }
+
+  /**
+   * Get the executed plan of a data frame.
+   * @param df: dataframe.
+   * @return A sequence of executed plans.
+   */
+  def getExecutedPlan(df: DataFrame): Seq[SparkPlan] = {
+    df.queryExecution.executedPlan match {
+      case exec: AdaptiveSparkPlanExec =>
+        getChildrenPlan(Seq(exec.executedPlan), Seq())
+      case plan =>
+        getChildrenPlan(Seq(plan), Seq())
+    }
+  }
+
+  /**
+   * Check whether the executed plan of a dataframe contains the expected plan.
+   * @param df: the input dataframe.
+   * @param tag: class of the expected plan.
+   * @tparam T: type of the expected plan.
+   */
+  def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(executedPlan.exists(
+      plan => plan.find(child => child.getClass == tag.runtimeClass).isDefined))
   }
 
   /**
@@ -154,7 +199,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       sqlStr: String,
       compareResult: Boolean = true,
       customCheck: DataFrame => Unit): DataFrame = {
-    var expected: Seq[Row] = null;
+    var expected: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
       expected = df.collect()
@@ -163,6 +208,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     if (compareResult) {
       checkAnswer(df, expected)
     }
+    print(df.queryExecution.executedPlan)
     customCheck(df)
     df
   }

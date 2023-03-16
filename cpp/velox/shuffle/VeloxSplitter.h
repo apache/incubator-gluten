@@ -7,9 +7,7 @@
 
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
-#include "velox/vector/DecodedVector.h"
 #include "velox/vector/FlatVector.h"
-#include "velox/vector/tests/utils/VectorMaker.h"
 
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/localfs.h>
@@ -31,7 +29,6 @@
 #include "operators/shuffle/type.h"
 #include "operators/shuffle/utils.h"
 
-#include "memory/VeloxMemoryPool.h"
 #include "utils/Print.h"
 
 namespace gluten {
@@ -108,7 +105,7 @@ class VeloxSplitter : public SplitterBase {
 
   virtual arrow::Status Stop();
 
-  arrow::Status SpillFixedSize(int64_t size, int64_t* actual);
+  arrow::Status EvictFixedSize(int64_t size, int64_t* actual);
 
   int64_t RawPartitionBytes() const {
     return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
@@ -213,18 +210,14 @@ class VeloxSplitter : public SplitterBase {
 
   arrow::Status SplitFixedWidthValueBuffer(const facebook::velox::RowVector& rv);
 
-  arrow::Status SplitBoolType(const facebook::velox::VectorPtr& src, const std::vector<uint8_t*>& dst_addrs);
+  arrow::Status SplitBoolType(const uint8_t* src_addr, const std::vector<uint8_t*>& dst_addrs);
 
   arrow::Status SplitValidityBuffer(const facebook::velox::RowVector& rv);
 
   arrow::Status SplitBinaryArray(const facebook::velox::RowVector& rv);
 
   template <typename T>
-  arrow::Status SplitFixedType(const facebook::velox::VectorPtr& src, const std::vector<uint8_t*>& dst_addrs) {
-    decoded_vector_.decode(*src);
-    auto data = decoded_vector_.data<T>();
-    auto indices = decoded_vector_.indices();
-
+  arrow::Status SplitFixedType(const uint8_t* src_addr, const std::vector<uint8_t*>& dst_addrs) {
     std::transform(
         dst_addrs.begin(),
         dst_addrs.end(),
@@ -238,14 +231,16 @@ class VeloxSplitter : public SplitterBase {
       auto end = partition_2_row_offset_[pid + 1];
       for (; pos < end; ++pos) {
         auto row_id = row_offset_2_row_id_[pos];
-        *dst_pid_base++ = data[indices[row_id]]; // copy
+        *dst_pid_base++ = reinterpret_cast<const T*>(src_addr)[row_id]; // copy
       }
     }
     return arrow::Status::OK();
   }
 
-  arrow::Status
-  SplitBinaryType(uint32_t binary_idx, const facebook::velox::VectorPtr& src, std::vector<BinaryBuff>& dst);
+  arrow::Status SplitBinaryType(
+      uint32_t binary_idx,
+      const facebook::velox::FlatVector<facebook::velox::StringView>& src,
+      std::vector<BinaryBuff>& dst);
 
   arrow::Status SplitListArray(const facebook::velox::RowVector& rv);
 
@@ -346,9 +341,6 @@ class VeloxSplitter : public SplitterBase {
 
   // shared by all partition writers
   std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
-
-  facebook::velox::DecodedVector decoded_vector_;
-  facebook::velox::test::VectorMaker vector_maker_{GetDefaultWrappedVeloxMemoryPool()};
 }; // class VeloxSplitter
 
 class VeloxRoundRobinSplitter final : public VeloxSplitter {

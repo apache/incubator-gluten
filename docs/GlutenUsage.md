@@ -46,7 +46,7 @@ To build different backends, there are 3 parameters can be set via `-P` for mvn.
 
 ### Gluten jar for deployment
 
-The gluten jar's name pattern is `gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar`.
+The gluten jar's name pattern is `gluten-<backend_type>-bundle-spark<sparkbundle.version>_<scala.binary.version>-<os.detected.release>_<os.detected.release.version>-<project.version>.jar`.
 
 | Spark Version | sparkbundle.version | scala.binary.version |
 | ---------- | ----------- | ------------- |

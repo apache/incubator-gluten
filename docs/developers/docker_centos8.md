@@ -13,10 +13,14 @@ Run in docker:
 sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-*
 sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*
 
-dnf install -y epel-release dnf-plugins-core
-dnf install -y --setopt=install_weak_deps=False ninja-build ninja-build ccache gcc-toolset-9 git wget which libevent-devel \
+dnf install -y epel-release sudo
+yum install dnf-plugins-core
+yum config-manager --set-enabled powertools
+dnf --enablerepo=powertools install -y ninja-build
+dnf --enablerepo=powertools install -y libdwarf-devel
+dnf install -y --setopt=install_weak_deps=False ccache gcc-toolset-9 git wget which libevent-devel \
   openssl-devel re2-devel libzstd-devel lz4-devel double-conversion-devel \
-  libdwarf-devel curl-devel cmake libicu-devel
+  curl-devel cmake libicu-devel
 
 source /opt/rh/gcc-toolset-9/enable || exit 1
 

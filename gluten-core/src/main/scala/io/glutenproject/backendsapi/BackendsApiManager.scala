@@ -25,11 +25,12 @@ object BackendsApiManager {
 
   private case class Wrapper(
       glutenBackendName: String,
-      initializerApiInstance: IInitializerApi,
-      iteratorApiInstance: IIteratorApi,
-      sparkPlanExecApiInstance: ISparkPlanExecApi,
-      transformerApiInstance: ITransformerApi,
-      validatorApiInstance: IValidatorApi,
+      initializerApiInstance: InitializerApi,
+      iteratorApiInstance: IteratorApi,
+      sparkPlanExecApiInstance: SparkPlanExecApi,
+      transformerApiInstance: TransformerApi,
+      validatorApiInstance: ValidatorApi,
+      metricsApi: MetricsApi,
       settings: BackendSettings)
 
   private lazy val manager: Wrapper = initializeInternal()
@@ -54,6 +55,7 @@ object BackendsApiManager {
       backend.sparkPlanExecApi(),
       backend.transformerApi(),
       backend.validatorApi(),
+      backend.metricsApi(),
       backend.settings())
   }
 
@@ -69,24 +71,28 @@ object BackendsApiManager {
     manager.glutenBackendName
   }
 
-  def getInitializerApiInstance: IInitializerApi = {
+  def getInitializerApiInstance: InitializerApi = {
     manager.initializerApiInstance
   }
 
-  def getIteratorApiInstance: IIteratorApi = {
+  def getIteratorApiInstance: IteratorApi = {
     manager.iteratorApiInstance
   }
 
-  def getSparkPlanExecApiInstance: ISparkPlanExecApi = {
+  def getSparkPlanExecApiInstance: SparkPlanExecApi = {
     manager.sparkPlanExecApiInstance
   }
 
-  def getTransformerApiInstance: ITransformerApi = {
+  def getTransformerApiInstance: TransformerApi = {
     manager.transformerApiInstance
   }
 
-  def getValidatorApiInstance: IValidatorApi = {
+  def getValidatorApiInstance: ValidatorApi = {
     manager.validatorApiInstance
+  }
+
+  def getMetricsApiInstance: MetricsApi = {
+    manager.metricsApi
   }
 
   def getSettings: BackendSettings = {
