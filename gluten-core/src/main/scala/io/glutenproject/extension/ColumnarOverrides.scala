@@ -504,7 +504,6 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
   private var originalPlan: SparkPlan = _
-  private var fallbacks = 0
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
@@ -567,20 +566,19 @@ case class ColumnarOverrideRules(session: SparkSession)
       overridden
     }
 
-  def checkColumnarToRow(plan: SparkPlan): Unit = {
-    plan match {
-      case _: ColumnarToRowExec =>
-        fallbacks = fallbacks + 1
-      case _ =>
-    }
-    plan.children.map(plan => checkColumnarToRow(plan))
-  }
-
   def fallbackWholeStage(plan: SparkPlan): Boolean = {
     if (wholeStageFallbackThreshold == -1) {
       return false
     }
-    fallbacks = 0
+    var fallbacks = 0
+    def checkColumnarToRow(plan: SparkPlan): Unit = {
+      plan match {
+        case _: ColumnarToRowExec =>
+          fallbacks = fallbacks + 1
+        case _ =>
+      }
+      plan.children.map(p => checkColumnarToRow(p))
+    }
     checkColumnarToRow(plan)
     if (fallbacks >= wholeStageFallbackThreshold) {
       true
