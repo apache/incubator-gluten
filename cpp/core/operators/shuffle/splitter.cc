@@ -662,20 +662,20 @@ arrow::Status Splitter::AllocateNew(int32_t partition_id, int32_t new_size) {
   int32_t retry = 0;
   while (status.IsOutOfMemory() && retry < 3) {
     // retry allocate
-    std::cout << status.ToString() << std::endl
+    LOG(INFO) << status.ToString() << std::endl
               << std::to_string(++retry) << " retry to allocate new buffer for partition "
               << std::to_string(partition_id) << std::endl;
     int64_t spilled_size;
     ARROW_ASSIGN_OR_RAISE(auto partition_to_spill, SpillLargestPartition(&spilled_size));
     if (partition_to_spill == -1) {
-      std::cout << "Failed to allocate new buffer for partition " << std::to_string(partition_id)
+      LOG(INFO) << "Failed to allocate new buffer for partition " << std::to_string(partition_id)
                 << ". No partition buffer to spill." << std::endl;
       return status;
     }
     status = AllocatePartitionBuffers(partition_id, new_size);
   }
   if (status.IsOutOfMemory()) {
-    std::cout << "Failed to allocate new buffer for partition " << std::to_string(partition_id) << ". Out of memory."
+    LOG(INFO) << "Failed to allocate new buffer for partition " << std::to_string(partition_id) << ". Out of memory."
               << std::endl;
   }
   return status;
@@ -1175,9 +1175,8 @@ arrow::Status Splitter::SplitBinaryType(
         dst_addrs[pid].value_capacity = capacity;
         dst_value_base = dst_addrs[pid].valueptr + value_offset - strlength;
         LOG(INFO) << "Split value buffer resized colid = " << binary_idx << " dst_start " << dst_offset_base[x]
-                  << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity
-                  << " new size = " << capacity << " row = " << partition_buffer_idx_base_[pid]
-                  << " strlen = " << strlength << std::endl;
+              << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity << " new size = " << capacity
+              << " row = " << partition_buffer_idx_base_[pid] << " strlen = " << strlength << std::endl;
       }
       auto value_src_ptr = src_addr + src_offset_addr[src_offset];
 #ifdef __AVX512BW__
