@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.{GlutenRowToArrowColumnarExec, TransformSupport}
+import io.glutenproject.execution.{TransformSupport}
 import io.glutenproject.extension.ColumnarOverrideRules
 import io.glutenproject.metrics.MetricsUpdater
 import org.apache.spark.rdd.RDD
@@ -55,9 +55,6 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
         UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
       val planWithTransition = rule.insertTransitions(planAfterPreOverride, false)
       val outputPlan = rule.postColumnarTransitions(planWithTransition)
-//      val expectedPlan = UnaryOp2(GlutenColumnarToRowExec(UnaryOp1Transformer(
-//        GlutenRowToArrowColumnarExec(UnaryOp2(GlutenColumnarToRowExec(
-//            UnaryOp1Transformer(GlutenRowToArrowColumnarExec(LeafOp()))))))))
       // Expect to get the plan with columnar rule applied.
       assert(outputPlan != originalPlan)
     }
@@ -76,16 +73,14 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
         UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
       val planWithTransition = rule.insertTransitions(planAfterPreOverride, false)
       val outputPlan = rule.postColumnarTransitions(planWithTransition)
-      val expectedPlan = originalPlan
       // Expect to fall back the entire plan.
-      assert(outputPlan == expectedPlan)
+      assert(outputPlan == originalPlan)
     }
   }
 
   test("Don't Fall back the whole plan if NOT meeting the configured threshold (" +
       "leaf node is transformable)") {
-    withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3"),
-      ("spark.sql.codegen.wholeStage", "false")) {
+    withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
       rule.preColumnarTransitions(originalPlan)
@@ -96,9 +91,6 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
       UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
       val planWithTransition = rule.insertTransitions(planAfterPreOverride, false)
       val outputPlan = rule.postColumnarTransitions(planWithTransition)
-//      val expectedPlan = UnaryOp2(GlutenColumnarToRowExec(UnaryOp1Transformer(
-//        GlutenRowToArrowColumnarExec(UnaryOp2(GlutenColumnarToRowExec(
-//          UnaryOp1Transformer(LeafOpTransformer())))))))
       // Expect to get the plan with columnar rule applied.
       assert(outputPlan != originalPlan)
     }
@@ -127,7 +119,7 @@ case class UnaryOp2(child: SparkPlan, override val supportsColumnar: Boolean = f
     copy(child = newChild)
 }
 
-// For replacing LeafOp
+// For replacing LeafOp.
 case class LeafOpTransformer(override val supportsColumnar: Boolean = true) extends LeafExecNode
     with TransformSupport {
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] =
