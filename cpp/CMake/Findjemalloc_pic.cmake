@@ -29,10 +29,17 @@ endmacro()
 # Building Jemalloc
 macro(build_jemalloc)
   message(STATUS "Building Jemalloc from Source")
-  set (JEMALLOC_SOURCE_URL
-       "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_BUILD_VERSION}/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
-       "https://github.com/ursa-labs/thirdparty/releases/download/latest/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
-  )
+
+  if(DEFINED ENV{GLUTEN_JEMALLOC_URL})
+    set(JEMALLOC_SOURCE_URL "$ENV{GLUTEN_JEMALLOC_URL}")
+  else()
+    set(JEMALLOC_BUILD_VERSION "5.2.1")
+    set(JEMALLOC_SOURCE_URL
+            "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_BUILD_VERSION}/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
+            "https://github.com/ursa-labs/thirdparty/releases/download/latest/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
+            )
+  endif()
+
   set(JEMALLOC_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-install")
   set(JEMALLOC_LIB_DIR "${JEMALLOC_PREFIX}/lib")
   set(JEMALLOC_INCLUDE_DIR "${JEMALLOC_PREFIX}/include")
