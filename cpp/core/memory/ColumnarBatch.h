@@ -77,6 +77,10 @@ class ArrowColumnarBatch final : public ColumnarBatch {
     throw gluten::GlutenException("Not implemented GetBytes for ArrowColumnarBatch");
   }
 
+  arrow::RecordBatch* GetRecordBatch() const {
+    return batch_.get();
+  }
+
   std::shared_ptr<ArrowSchema> exportArrowSchema() override {
     auto c_schema = std::make_shared<ArrowSchema>();
     GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*batch_->schema(), c_schema.get()));

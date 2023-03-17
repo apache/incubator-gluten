@@ -25,11 +25,15 @@
 
 #include <chrono>
 
+#include "BatchStreamIterator.h"
+#include "BatchVectorIterator.h"
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
 #include "utils/exception.h"
 
 #include <thread>
+
+using namespace gluten;
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
@@ -55,14 +59,12 @@ auto BM_Generic = [](::benchmark::State& state,
     auto backend = gluten::CreateBackend();
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
     std::transform(input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
-    std::vector<BatchIteratorWrapper*> inputItersRaw;
+    std::vector<BatchIterator*> inputItersRaw;
     std::transform(
         inputIters.begin(),
         inputIters.end(),
         std::back_inserter(inputItersRaw),
-        [](std::shared_ptr<gluten::ResultIterator> iter) {
-          return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
-        });
+        [](std::shared_ptr<gluten::ResultIterator> iter) { return static_cast<BatchIterator*>(iter->GetRaw()); });
 
     backend->ParsePlan(plan->data(), plan->size());
     auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
@@ -96,7 +98,7 @@ auto BM_Generic = [](::benchmark::State& state,
     state.ResumeTiming();
 
     collectBatchTime +=
-        std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIteratorWrapper* iter) {
+        std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIterator* iter) {
           return sum + iter->GetCollectBatchTime();
         });
 
@@ -115,6 +117,62 @@ auto BM_Generic = [](::benchmark::State& state,
   state.counters["elapsed_time"] =
       benchmark::Counter(duration, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 };
+
+arrow::Status CreateOrcFile(const std::string& parquetFile, const std::string& orcFile) {
+  ParquetBatchStreamIterator parquetIterator(parquetFile);
+
+  std::shared_ptr<arrow::io::FileOutputStream> outputStream;
+
+  ARROW_ASSIGN_OR_RAISE(outputStream, arrow::io::FileOutputStream::Open(orcFile));
+
+  auto writerOptions = arrow::adapters::orc::WriteOptions();
+  auto maybeWriter = arrow::adapters::orc::ORCFileWriter::Open(outputStream.get(), writerOptions);
+  GLUTEN_THROW_NOT_OK(maybeWriter);
+  auto& writer = *maybeWriter;
+
+  while (true) {
+    // 1. read from Parquet
+    auto columnarBatch = parquetIterator.Next();
+    GLUTEN_THROW_NOT_OK(columnarBatch);
+
+    auto& cb = *columnarBatch;
+    if (!cb) {
+      break;
+    }
+
+    auto arrowColumnarBatch = std::dynamic_pointer_cast<gluten::ArrowColumnarBatch>(cb);
+    auto recordBatch = arrowColumnarBatch->GetRecordBatch();
+
+    // 2. write to Orc
+    if (!(writer->Write(*recordBatch)).ok()) {
+      return arrow::Status::IOError("Write failed");
+    }
+  }
+
+  if (!(writer->Close()).ok()) {
+    return arrow::Status::IOError("Close failed");
+  }
+
+  return arrow::Status::OK();
+}
+
+std::vector<std::string> outputFiles = {"example_orders.orc", "example_lineitem.orc"};
+
+void OrcTestBegin() {
+  std::vector<std::string> inputFiles(2);
+  GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
+  GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
+
+  for (auto i = 0; i != inputFiles.size(); ++i) {
+    GLUTEN_THROW_NOT_OK(CreateOrcFile(inputFiles[i], outputFiles[i]));
+  }
+}
+
+void OrcTestEnd() {
+  for (auto& x : outputFiles) {
+    std::filesystem::remove(x);
+  }
+}
 
 int main(int argc, char** argv) {
   InitVeloxBackend();
@@ -165,11 +223,28 @@ int main(int argc, char** argv) {
     }                                                                                                \
   } while (0)
 
-  GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);
-  GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
+#if 0
+  std::cout << "FLAGS_threads:" << FLAGS_threads << std::endl;
+  std::cout << "FLAGS_iterations:" << FLAGS_iterations << std::endl;
+  std::cout << "FLAGS_cpu:" << FLAGS_cpu << std::endl;
+  std::cout << "FLAGS_print_result:" << FLAGS_print_result << std::endl;
+  std::cout << "FLAGS_write_file:" << FLAGS_write_file << std::endl;
+#endif
+
+  GENERIC_BENCHMARK("ParquetInputFromBatchVector", getParquetInputFromBatchVector);
+  GENERIC_BENCHMARK("ParquetInputFromBatchStream", getParquetInputFromBatchStream);
+
+  OrcTestBegin();
+
+  inputFiles = outputFiles;
+
+  GENERIC_BENCHMARK("OrcInputFromBatchVector", getOrcInputFromBatchVector);
+  GENERIC_BENCHMARK("OrcInputFromBatchStream", getOrcInputFromBatchStream);
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
+
+  OrcTestEnd();
 
   return 0;
 }
