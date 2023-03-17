@@ -44,7 +44,7 @@ RUN cat /root/.m2/settings.xml
 RUN sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* 
 RUN sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*
 RUN dnf install -y epel-release sudo
-RUN yum install dnf-plugins-core
+RUN yum install -y dnf-plugins-core
 RUN yum config-manager --set-enabled powertools
 RUN dnf --enablerepo=powertools install -y ninja-build
 RUN dnf --enablerepo=powertools install -y libdwarf-devel
