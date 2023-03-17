@@ -42,10 +42,11 @@ public class ShuffleSplitterJniWrapper {
   public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
                    int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
                    String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema,
-                   long handle) {
+                   long handle, long taskAttemptId) {
       return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
-          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema, handle);
+          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId,
+          writeSchema, handle, taskAttemptId);
   }
 
   /**
@@ -70,7 +71,8 @@ public class ShuffleSplitterJniWrapper {
                                 long offheapPerTask, int bufferSize,
                                 String codec, int batchCompressThreshold, String dataFile,
                                 int subDirsPerLocalDir, String localDirs, boolean preferSpill,
-                                long memoryPoolId, boolean writeSchema, long handle);
+                                long memoryPoolId, boolean writeSchema,
+                                long handle, long taskAttemptId);
 
   public native long nativeMakeForCeleborn(String shortName, int numPartitions,
                                            long offheapPerTask, int bufferSize,

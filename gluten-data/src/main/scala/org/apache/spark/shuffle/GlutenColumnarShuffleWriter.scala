@@ -87,6 +87,8 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private var rawPartitionLengths: Array[Long] = _
 
+  private val taskContext: TaskContext = TaskContext.get()
+
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
@@ -137,7 +139,8 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
                 }
               }).getNativeInstanceId,
             writeSchema,
-            handle)
+            handle,
+            taskContext.taskAttemptId())
         }
         val startTime = System.nanoTime()
         val bytes = jniWrapper.split(nativeSplitter, cb.numRows, handle)
