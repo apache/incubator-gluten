@@ -29,8 +29,9 @@ object CHExpressionUtil {
   final val MAP_TYPE = "map"
   final val STRUCT_TYPE = "struct"
   final val DATE_TYPE = "date"
+  final val STRING_TYPE = "string"
 
-  final val CH_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
+  final val CH_EXPR_BLACKLIST_TYPE_EXISTS: Map[String, Set[String]] = Map(
     REGEXP_EXTRACT_ALL -> Set(EMPTY_TYPE),
     REGEXP_EXTRACT -> Set(EMPTY_TYPE),
     LOCATE -> Set(EMPTY_TYPE),
@@ -42,6 +43,12 @@ object CHExpressionUtil {
     TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
     UNIX_TIMESTAMP -> Set(DATE_TYPE),
     MIGHT_CONTAIN -> Set(EMPTY_TYPE)
+  )
+
+  final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map(
+    LTRIM -> Seq(STRING_TYPE, STRING_TYPE),
+    RTRIM -> Seq(STRING_TYPE, STRING_TYPE),
+    TRIM -> Seq(STRING_TYPE, STRING_TYPE)
   )
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
