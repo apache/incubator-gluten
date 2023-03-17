@@ -53,7 +53,7 @@ jobs:
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=ubuntu:20.04 \
-          tools/gluten-te/cbash.sh sleep 14400
+          tools/gluten-te/ubuntu/cbash.sh sleep 14400
       - name: Setup maven cache
         run: |
           docker cp ~/.m2/repository velox-backend-ubuntu2004-test-$GITHUB_RUN_ID:/root/.m2/
@@ -141,7 +141,7 @@ jobs:
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=ubuntu:22.04 \
-          tools/gluten-te/cbash.sh sleep 14400
+          tools/gluten-te/ubuntu/cbash.sh sleep 14400
       - name: Setup maven cache
         run: |
           docker cp ~/.m2/repository velox-backend-ubuntu2204-test-$GITHUB_RUN_ID:/root/.m2/
@@ -179,7 +179,7 @@ jobs:
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=centos:8 \
-          tools/gluten-te/cbash.sh sleep 14400
+          tools/gluten-te/centos/cbash.sh sleep 14400
       - name: Setup maven cache
         run: |
           docker cp ~/.m2/repository velox-backend-centos8-test-$GITHUB_RUN_ID:/root/.m2/

@@ -15,7 +15,7 @@ export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
 export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
 
 cd gluten/
-tools/gluten-te/examples/buildhere-veloxbe/run.sh
+tools/gluten-te/ubuntu/examples/buildhere-veloxbe/run.sh
 ```
 
 # Getting Started (TPC, Velox backend)
@@ -32,7 +32,7 @@ cd gluten/gluten-te
 
 # Configurations
 
-See the [config file](https://github.com/oap-project/gluten/blob/main/tools/gluten-te/defaults.conf). You can modify the file to configure gluten-te, or pass env variables during running the scripts.
+See the [config file](https://github.com/oap-project/gluten/blob/main/tools/gluten-te/ubuntu/defaults.conf). You can modify the file to configure gluten-te, or pass env variables during running the scripts.
 
 # Example Usages
 

@@ -12,7 +12,6 @@ ARG HTTP_PROXY_PORT
 ENV http_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
 ENV https_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
 
-RUN touch /etc/apt/apt.conf
 RUN if [ -n "$HTTP_PROXY_HOST" ]; then echo "Acquire::http::Proxy \"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT\";" >> /etc/apt/apt.conf; fi
 RUN if [ -n "$HTTP_PROXY_HOST" ]; then echo "Acquire::https::Proxy \"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT\";" >> /etc/apt/apt.conf; fi
 
