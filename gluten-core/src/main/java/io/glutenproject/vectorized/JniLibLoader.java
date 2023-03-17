@@ -127,7 +127,7 @@ public class JniLibLoader {
 
   public static synchronized void unloadFromPath(String libPath) {
     if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
-		  LOG.warn("Library {} was not loaded or alreay unloaded:", libPath);
+      LOG.warn("Library {} was not loaded or alreay unloaded:", libPath);
       return;
     }
 
