@@ -50,12 +50,24 @@ case class WholestageTransformContext(
     root: PlanNode,
     substraitContext: SubstraitContext = null)
 
-trait TransformSupport extends SparkPlan {
+trait TransformSupport extends SparkPlan with LogLevelUtil {
+
+  lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
+  lazy val printStackOnValidateFailure = GlutenConfig.getConf.printStackOnValidateFailure
 
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
   def doValidate(): Boolean = false
+
+  def logValidateFailure(msg: => String, e: Throwable): Unit = {
+    if (printStackOnValidateFailure) {
+      logOnLevel(validateFailureLogLevel, msg, e)
+    } else {
+      logOnLevel(validateFailureLogLevel, msg)
+    }
+
+  }
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.

@@ -93,7 +93,7 @@ case class LimitTransformer(child: SparkPlan,
       getRelNode(context, operatorId, offset, count, child.output, null, true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 
