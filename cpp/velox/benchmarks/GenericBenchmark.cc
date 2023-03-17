@@ -142,7 +142,7 @@ arrow::Status CreateOrcFile(const std::string& parquetFile, const std::string& o
 
     auto arrowColumnarBatch = std::dynamic_pointer_cast<gluten::ArrowColumnarBatch>(cb);
     auto recordBatch = arrowColumnarBatch->GetRecordBatch();
-    
+
     // 2. write to Orc
     if (!(writer->Write(*recordBatch)).ok()) {
       return arrow::Status::IOError("Write failed");
