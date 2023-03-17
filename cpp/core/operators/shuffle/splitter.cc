@@ -1175,8 +1175,9 @@ arrow::Status Splitter::SplitBinaryType(
         dst_addrs[pid].value_capacity = capacity;
         dst_value_base = dst_addrs[pid].valueptr + value_offset - strlength;
         LOG(INFO) << "Split value buffer resized colid = " << binary_idx << " dst_start " << dst_offset_base[x]
-              << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity << " new size = " << capacity
-              << " row = " << partition_buffer_idx_base_[pid] << " strlen = " << strlength << std::endl;
+                  << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity
+                  << " new size = " << capacity << " row = " << partition_buffer_idx_base_[pid]
+                  << " strlen = " << strlength << std::endl;
       }
       auto value_src_ptr = src_addr + src_offset_addr[src_offset];
 #ifdef __AVX512BW__
