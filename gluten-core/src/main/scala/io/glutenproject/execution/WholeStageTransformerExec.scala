@@ -86,7 +86,7 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
       s"This operator doesn't support doTransform with SubstraitContext.")
   }
 
-  def metricsUpdater(): MetricsUpdater =
+  def metricsUpdater(): MetricsUpdater
 
   def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
     plan match {
