@@ -23,7 +23,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
@@ -42,6 +41,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import java.util.ArrayList
 import com.google.protobuf.Any
 import com.google.common.collect.Lists
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
@@ -53,7 +53,7 @@ case class GenerateExecTransformer(
   generatorOutput: Seq[Attribute],
   child: SparkPlan)
   extends UnaryExecNode
-  with TransformSupport {
+  with TransformSupport with GlutenPlan {
 
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
 

@@ -19,7 +19,6 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.metrics.MetricsUpdater
@@ -27,13 +26,12 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.utils.BindReferencesUtil
-
 import io.substrait.proto.SortField
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -49,7 +47,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
                                global: Boolean,
                                child: SparkPlan,
                                testSpillFrequency: Int = 0)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode with TransformSupport with GlutenPlan {
 
   override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetrics(sparkContext)

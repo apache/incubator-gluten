@@ -22,6 +22,7 @@ import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
@@ -46,6 +47,7 @@ import scala.collection.JavaConverters._
 abstract class FilterExecBaseTransformer(val cond: Expression,
                                          val input: SparkPlan) extends UnaryExecNode
   with TransformSupport
+  with GlutenPlan
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -231,6 +233,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
 case class ProjectExecTransformer(projectList: Seq[NamedExpression],
                                   child: SparkPlan) extends UnaryExecNode
   with TransformSupport
+  with GlutenPlan
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -381,7 +384,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 }
 
 // An alternatives for UnionExec.
-case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
+case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
