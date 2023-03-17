@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.TransformSupport
 import org.apache.spark.{SparkException, broadcast}
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.rdd.RDD
@@ -33,12 +32,13 @@ import org.apache.spark.util.SparkFatalException
 
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, TimeoutException}
+
 import scala.concurrent.Promise
 import scala.concurrent.duration.NANOSECONDS
 import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
-  extends BroadcastExchangeLike with TransformSupport {
+  extends BroadcastExchangeLike {
   override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarBroadcastExchangeMetrics(sparkContext)
 
@@ -125,7 +125,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
   }
 
-  override def doValidate(): Boolean = mode match {
+  def doValidate(): Boolean = mode match {
     case _: HashedRelationBroadcastMode =>
       true
     case _ =>

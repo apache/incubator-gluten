@@ -50,9 +50,6 @@ case class WholestageTransformContext(
     root: PlanNode,
     substraitContext: SubstraitContext = null)
 
-/**
- * Every gluten OP should extend this trait.
- */
 trait TransformSupport extends SparkPlan with LogLevelUtil {
 
   lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
@@ -78,18 +75,18 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
    * @note
    *   Right now we support up to two RDDs
    */
-  def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = throw new UnsupportedOperationException()
+  def columnarInputRDDs: Seq[RDD[ColumnarBatch]]
 
-  def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = throw new UnsupportedOperationException()
+  def getBuildPlans: Seq[(SparkPlan, SparkPlan)]
 
-  def getStreamedLeafPlan: SparkPlan = throw new UnsupportedOperationException()
+  def getStreamedLeafPlan: SparkPlan
 
   def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
       s"This operator doesn't support doTransform with SubstraitContext.")
   }
 
-  def metricsUpdater(): MetricsUpdater = throw new UnsupportedOperationException()
+  def metricsUpdater(): MetricsUpdater =
 
   def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
     plan match {

@@ -381,7 +381,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 }
 
 // An alternatives for UnionExec.
-case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with TransformSupport {
+case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
@@ -423,7 +423,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  override def doValidate(): Boolean = {
+  def doValidate(): Boolean = {
     BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)
   }
 }

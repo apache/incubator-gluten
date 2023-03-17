@@ -34,7 +34,7 @@ case class TakeOrderedAndProjectExecTransformer (
                                                 projectList: Seq[NamedExpression],
                                                 child: SparkPlan,
                                                 isAdaptiveContextOrLeafPlanExchange: Boolean)
-    extends UnaryExecNode with TransformSupport {
+    extends UnaryExecNode {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
   override def supportsColumnar: Boolean = true
