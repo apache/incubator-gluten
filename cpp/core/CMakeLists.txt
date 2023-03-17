@@ -34,7 +34,6 @@ set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
-set(JEMALLOC_BUILD_VERSION "5.2.1")
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
@@ -56,9 +55,16 @@ endif(CCACHE_FOUND)
 # Building Protobuf
 macro(build_protobuf)
   message(STATUS "Building Protocol Buffers from Source")
-  set (PROTOBUF_SOURCE_URL
-       "https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz"
-  )
+
+  if(DEFINED ENV{GLUTEN_PROTOBUF_URL})
+    set(PROTOBUF_SOURCE_URL "$ENV{GLUTEN_PROTOBUF_URL}")
+  else()
+    set(PROTOBUF_BUILD_VERSION "21.4")
+    set (PROTOBUF_SOURCE_URL
+            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_BUILD_VERSION}/protobuf-all-${PROTOBUF_BUILD_VERSION}.tar.gz")
+  endif()
+  set(PROTOBUF_BUILD_SHA256_CHECKSUM "6c5e1b0788afba4569aeebb2cfe205cb154aa01deacaba0cd26442f3b761a836")
+
   set(PROTOBUF_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/protobuf_ep-install")
   set(PROTOBUF_INCLUDE_DIR "${PROTOBUF_PREFIX}/include")
   set(
@@ -94,8 +100,8 @@ macro(build_protobuf)
                       BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
-                      URL_MD5 802d3c1d31d1c295de18f8f6b4a488ef
                       URL ${PROTOBUF_SOURCE_URL}
+                      URL_HASH "SHA256=${PROTOBUF_BUILD_SHA256_CHECKSUM}"
   )
 
   file(MAKE_DIRECTORY "${PROTOBUF_INCLUDE_DIR}")
