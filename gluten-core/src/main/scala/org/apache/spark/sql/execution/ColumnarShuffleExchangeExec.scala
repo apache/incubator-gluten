@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution.TransformSupport
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -38,7 +39,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
                                        child: SparkPlan,
                                        shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
                                        removeHashColumn: Boolean = false)
-  extends ShuffleExchangeLike {
+  extends ShuffleExchangeLike with TransformSupport {
 
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
@@ -101,7 +102,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
-  def doValidate(): Boolean = {
+  override def doValidate(): Boolean = {
     BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
       outputPartitioning, child.output)
   }
