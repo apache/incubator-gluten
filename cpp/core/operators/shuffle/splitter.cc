@@ -29,6 +29,7 @@
 #include <arm_neon.h>
 #endif
 
+#include <glog/logging.h>
 #include "compute/ProtobufUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
@@ -1173,7 +1174,7 @@ arrow::Status Splitter::SplitBinaryType(
         dst_addrs[pid].valueptr = value_buffer->mutable_data();
         dst_addrs[pid].value_capacity = capacity;
         dst_value_base = dst_addrs[pid].valueptr + value_offset - strlength;
-        std::cout << "Split value buffer resized colid = " << binary_idx << " dst_start " << dst_offset_base[x]
+        LOG(INFO) << "Split value buffer resized colid = " << binary_idx << " dst_start " << dst_offset_base[x]
                   << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity
                   << " new size = " << capacity << " row = " << partition_buffer_idx_base_[pid]
                   << " strlen = " << strlength << std::endl;
