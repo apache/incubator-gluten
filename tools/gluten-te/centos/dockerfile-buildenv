@@ -57,8 +57,12 @@ RUN export PATH="$PATH:/usr/lib/jvm/java-1.8.0-openjdk/bin"; echo $PATH
 RUN wget https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz && \
     tar -xvf apache-maven-3.6.3-bin.tar.gz && \
     mv apache-maven-3.6.3 /usr/lib/maven
+    
+RUN dnf -y install gcc-toolset-9-gcc gcc-toolset-9-gcc-c++
 RUN export PATH="$PATH:/usr/lib/maven/bin"; echo $PATH
 RUN echo "source /opt/rh/gcc-toolset-9/enable" >> /etc/bashrc
+SHELL ["/bin/bash", "--login", "-c"]
+RUN gcc --version
 
 # Install Spark 3.2.2
 RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
