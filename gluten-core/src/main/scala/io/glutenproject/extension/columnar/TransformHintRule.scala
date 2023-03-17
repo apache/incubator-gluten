@@ -23,6 +23,8 @@ import io.glutenproject.execution._
 import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.aggregate.Count
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -217,14 +219,15 @@ case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan]
 case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
     case p =>
-      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
-        if (p.output.isEmpty) {
-          // Some backends are not eligible to offload zero-column plan so far
-          TransformHints.tagNotTransformable(p)
-        }
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema(p)) {
         if (p.children.exists(_.output.isEmpty)) {
-          // Some backends are also not eligible to offload plan within zero-column input so far
+          // Some backends are not eligible to offload plan with zero-column input.
+          // If any child have empty output, mark the plan and that child as UNSUPPORTED.
+          logWarning(s"May fallback ${p.getClass.toString} and its children because" +
+            s"at least one of its children has empty output.")
           TransformHints.tagNotTransformable(p)
+          p.children.foreach(child =>
+            if (child.output.isEmpty) TransformHints.tagNotTransformable(child))
         }
       }
       p

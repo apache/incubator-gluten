@@ -21,10 +21,13 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, NamedExpression, PercentRank, Rank, RowNumber}
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count}
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, MapType, StructField, StructType}
 
 import scala.util.control.Breaks.{break, breakable}
 
@@ -138,7 +141,30 @@ object VeloxBackendSettings extends BackendSettings {
   }
 
   override def disableVanillaColumnarReaders(): Boolean = true
-  override def fallbackOnEmptySchema(): Boolean = true
+
+  /**
+   * Check whether plan is Count(1).
+   * @param plan: The Spark plan to check.
+   * @return Whether plan is an Aggregation of Count(1).
+   */
+  private def isCount1(plan: SparkPlan): Boolean = {
+    plan match {
+      case exec: HashAggregateExec if exec.aggregateExpressions.forall(expression =>
+        expression.aggregateFunction.isInstanceOf[Count] &&
+          expression.aggregateFunction.asInstanceOf[Count].children.forall(child =>
+            child.isInstanceOf[Literal] && child.asInstanceOf[Literal].value == 1)) =>
+        true
+      case _ =>
+        false
+    }
+  }
+  override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
+    // Count(1) is a special case to handle. Do not fallback it and its children in the first place.
+    !isCount1(plan)
+  }
+
+  override def fallbackAggregateWithChild(): Boolean = true
+
   override def recreateJoinExecOnFallback(): Boolean = true
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
 

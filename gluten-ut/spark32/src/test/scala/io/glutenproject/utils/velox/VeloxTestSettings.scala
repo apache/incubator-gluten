@@ -311,6 +311,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "without partition data column - select one deep nested complex field after outer join")
     .exclude("Spark vectorized reader - " +
       "with partition data column - select one deep nested complex field after outer join")
+    // Vectorized reading.
+    .exclude("Spark vectorized reader - without partition data column - " +
+      "select only expressions without references")
+    .exclude("Spark vectorized reader - with partition data column - " +
+      "select only expressions without references")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
