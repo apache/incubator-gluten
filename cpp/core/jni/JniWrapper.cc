@@ -571,13 +571,12 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(JNIEn
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowToColumnar(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowToColumnar(
     JNIEnv* env,
     jobject,
     jlong cSchema,
     jlongArray row_length,
     jlong memory_address,
-    jlong cArray,
     long allocId) {
   JNI_METHOD_START
   if (row_length == nullptr) {
@@ -599,9 +598,13 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWr
   auto converter =
       std::make_shared<gluten::RowToColumnarConverter>(schema, num_rows, in_row_length, address, pool.get());
   auto rb = converter->convert();
-  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*rb, reinterpret_cast<struct ArrowArray*>(cArray)));
+  std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
+  std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
+  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*rb, cArray.get(), cSchema.get()));
+  auto cb = std::make_shared<ArrowCStructColumnarBatch>(std::move(cSchema), std::move(cArray));
   env->ReleaseLongArrayElements(row_length, in_row_length, JNI_ABORT);
-  JNI_METHOD_END()
+  return gluten_columnarbatch_holder_.Insert(cb);
+  JNI_METHOD_END(-1)
 }
 
 JNIEXPORT jstring JNICALL
