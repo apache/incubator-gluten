@@ -19,7 +19,6 @@
 #include <malloc.h>
 #include <filesystem>
 
-#include <glog/logging.h>
 #include "compute/Backend.h"
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
@@ -749,7 +748,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
   if (thread == NULL) {
-    LOG(INFO) << "Thread.currentThread() return NULL" << std::endl;
+    std::cerr << "Thread.currentThread() return NULL" << std::endl;
   } else {
     jmethodID mid_getid = GetMethodIDOrError(env, cls, "getId", "()J");
     jlong sid = env->CallLongMethod(thread, mid_getid);
@@ -760,7 +759,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
   jmethodID get_tc_mid = env->GetStaticMethodID(tc_cls, "get", "()Lorg/apache/spark/TaskContext;");
   jobject tc_obj = env->CallStaticObjectMethod(tc_cls, get_tc_mid);
   if (tc_obj == NULL) {
-    LOG(INFO) << "TaskContext.get() return NULL" << std::endl;
+    std::cerr << "TaskContext.get() return NULL" << std::endl;
   } else {
     jmethodID get_tsk_attmpt_mid = GetMethodIDOrError(env, tc_cls, "taskAttemptId", "()J");
     jlong attmpt_id = env->CallLongMethod(tc_obj, get_tsk_attmpt_mid);
