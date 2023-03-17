@@ -95,8 +95,6 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
 
-  override def getChild: SparkPlan = child
-
   def doTransform(context: SubstraitContext): TransformContext
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -294,8 +292,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
 
-  override def getChild: SparkPlan = child
-
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
@@ -385,7 +381,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 }
 
 // An alternatives for UnionExec.
-case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
+case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with TransformSupport {
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
@@ -427,7 +423,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  def doValidate(): Boolean = {
+  override def doValidate(): Boolean = {
     BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)
   }
 }

@@ -54,10 +54,6 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
       this
   }
 
-  override def getChild: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
-  }
-
   override def doValidate(): Boolean = false
 
   override def doTransform(context: SubstraitContext): TransformContext = {

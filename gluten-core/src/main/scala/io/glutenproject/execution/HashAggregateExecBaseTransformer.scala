@@ -108,8 +108,6 @@ abstract class HashAggregateExecBaseTransformer(
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetricsUpdater(metrics)
 
-  override def getChild: SparkPlan = child
-
   override def verboseString(maxFields: Int): String = toString(verbose = true, maxFields)
 
   private def toString(verbose: Boolean, maxFields: Int): String = {

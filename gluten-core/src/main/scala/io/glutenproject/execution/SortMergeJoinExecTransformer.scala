@@ -215,8 +215,6 @@ case class SortMergeJoinExecTransformer(
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
-  override def getChild: SparkPlan = streamedPlan
-
   def genJoinParametersBuilder(): com.google.protobuf.Any.Builder = {
     val (isSMJ, isNullAwareAntiJoin) = (0, 0)
     // Start with "JoinParameters:"

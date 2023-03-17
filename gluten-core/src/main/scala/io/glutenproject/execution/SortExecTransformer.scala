@@ -70,8 +70,6 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
 
-  override def getChild: SparkPlan = child
-
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
       c.columnarInputRDDs

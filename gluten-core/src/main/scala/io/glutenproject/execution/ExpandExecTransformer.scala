@@ -80,8 +80,6 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       this
   }
 
-  override def getChild: SparkPlan = child
-
   def getRelNode(context: SubstraitContext,
                  projections: Seq[Seq[Expression]],
                  groupExpression: Seq[NamedExpression],

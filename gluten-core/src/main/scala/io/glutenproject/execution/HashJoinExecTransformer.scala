@@ -216,8 +216,6 @@ trait HashJoinLikeExecTransformer
       this
   }
 
-  override def getChild: SparkPlan = streamedPlan
-
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.

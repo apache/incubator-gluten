@@ -50,6 +50,9 @@ case class WholestageTransformContext(
     root: PlanNode,
     substraitContext: SubstraitContext = null)
 
+/**
+ * Every gluten OP should extend this trait.
+ */
 trait TransformSupport extends SparkPlan with LogLevelUtil {
 
   lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
@@ -75,20 +78,18 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
    * @note
    *   Right now we support up to two RDDs
    */
-  def columnarInputRDDs: Seq[RDD[ColumnarBatch]]
+  def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = throw new UnsupportedOperationException()
 
-  def getBuildPlans: Seq[(SparkPlan, SparkPlan)]
+  def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = throw new UnsupportedOperationException()
 
-  def getStreamedLeafPlan: SparkPlan
-
-  def getChild: SparkPlan
+  def getStreamedLeafPlan: SparkPlan = throw new UnsupportedOperationException()
 
   def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
       s"This operator doesn't support doTransform with SubstraitContext.")
   }
 
-  def metricsUpdater(): MetricsUpdater
+  def metricsUpdater(): MetricsUpdater = throw new UnsupportedOperationException()
 
   def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
     plan match {
@@ -165,8 +166,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     child.asInstanceOf[TransformSupport].getBuildPlans
   }
 
-  override def getChild: SparkPlan = child
-
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException("Row based execution is not supported")
   }
@@ -193,31 +192,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       childCtx.outputAttributes,
       planNode,
       substraitContext)
-  }
-
-  @deprecated
-  def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
-    var currentOp = child
-    while (
-      currentOp.isInstanceOf[TransformSupport] &&
-      !currentOp.isInstanceOf[BasicScanExecTransformer] &&
-      currentOp.asInstanceOf[TransformSupport].getChild != null
-    ) {
-      currentOp = currentOp.asInstanceOf[TransformSupport].getChild
-    }
-    if (
-      currentOp != null &&
-      currentOp.isInstanceOf[BasicScanExecTransformer]
-    ) {
-      currentOp match {
-        case op: BatchScanExecTransformer =>
-          Some(currentOp.asInstanceOf[BatchScanExecTransformer])
-        case op: FileSourceScanExecTransformer =>
-          Some(currentOp.asInstanceOf[FileSourceScanExecTransformer])
-      }
-    } else {
-      None
-    }
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformerExec */

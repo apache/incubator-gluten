@@ -118,8 +118,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
       this
   }
 
-  override def getChild: SparkPlan = child
-
   def getRelNode(context: SubstraitContext,
                  windowExpression: Seq[NamedExpression],
                  partitionSpec: Seq[Expression],

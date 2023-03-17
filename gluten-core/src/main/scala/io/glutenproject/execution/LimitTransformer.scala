@@ -48,8 +48,6 @@ case class LimitTransformer(child: SparkPlan,
 
   override def output: Seq[Attribute] = child.output
 
-  override def getChild: SparkPlan = child
-
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
       c.columnarInputRDDs

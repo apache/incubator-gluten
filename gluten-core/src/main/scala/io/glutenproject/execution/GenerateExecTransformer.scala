@@ -86,8 +86,6 @@ case class GenerateExecTransformer(
       this
   }
 
-  override def getChild: SparkPlan = child
-
   override def supportsColumnar: Boolean = true
 
   override def doValidate(): Boolean = {
