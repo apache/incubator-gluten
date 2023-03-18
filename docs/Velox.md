@@ -298,6 +298,32 @@ If you are using instance credentials you do not have to set the access key or s
 
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
+## 2.6 Celeborn support
+
+Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
+
+First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
+
+Currently to use Celeborn following configurations are required in spark-defaults.conf
+```
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.CelebornShuffleManager
+
+# celeborn master
+spark.celeborn.master.endpoints clb-master:9097
+
+# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication
+# If you have only one worker, this setting must be false 
+spark.celeborn.push.replicate.enabled true
+
+spark.celeborn.shuffle.writer hash
+spark.shuffle.service.enabled false
+spark.sql.adaptive.localShuffleReader.enabled false
+
+# If you want to use dynamic resource allocation,
+# please refer to this URL (https://github.com/apache/incubator-celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
+spark.dynamicAllocation.enabled false
+```
+
 # 3 Coverage
 Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [The Operators and Functions Support Progress](https://github.com/oap-project/gluten/blob/main/docs/SupportProgress.md).
 
