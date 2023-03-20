@@ -696,7 +696,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     jboolean prefer_spill,
     jlong allocator_id,
     jboolean write_schema,
-    jlong firstBatchHandle) {
+    jlong firstBatchHandle,
+    jlong taskAttemptId) {
   JNI_METHOD_START
   if (partitioning_name_jstr == NULL) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
@@ -758,16 +759,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     splitOptions.thread_id = (int64_t)sid;
   }
 
-  jclass tc_cls = env->FindClass("org/apache/spark/TaskContext");
-  jmethodID get_tc_mid = env->GetStaticMethodID(tc_cls, "get", "()Lorg/apache/spark/TaskContext;");
-  jobject tc_obj = env->CallStaticObjectMethod(tc_cls, get_tc_mid);
-  if (tc_obj == NULL) {
-    std::cerr << "TaskContext.get() return NULL" << std::endl;
-  } else {
-    jmethodID get_tsk_attmpt_mid = GetMethodIDOrError(env, tc_cls, "taskAttemptId", "()J");
-    jlong attmpt_id = env->CallLongMethod(tc_obj, get_tsk_attmpt_mid);
-    splitOptions.task_attempt_id = (int64_t)attmpt_id;
-  }
+  splitOptions.task_attempt_id = (int64_t)taskAttemptId;
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
   auto backend = gluten::CreateBackend();
