@@ -19,17 +19,15 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.StringValue
-
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.GlutenConfig
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import io.substrait.proto.JoinRel
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -39,7 +37,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.JavaConverters._
-
 import java.{lang, util}
 
 /**
@@ -54,8 +51,7 @@ case class SortMergeJoinExecTransformer(
                                          right: SparkPlan,
                                          isSkewJoin: Boolean = false,
                                          projectList: Seq[NamedExpression] = null)
-  extends BinaryExecNode
-    with TransformSupport {
+  extends BinaryExecNode with TransformSupport with GlutenPlan {
 
   override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetrics(sparkContext)
@@ -215,8 +211,6 @@ case class SortMergeJoinExecTransformer(
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
-  override def getChild: SparkPlan = streamedPlan
-
   def genJoinParametersBuilder(): com.google.protobuf.Any.Builder = {
     val (isSMJ, isNullAwareAntiJoin) = (0, 0)
     // Start with "JoinParameters:"
@@ -276,7 +270,8 @@ case class SortMergeJoinExecTransformer(
         bufferedPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        logValidateFailure(s"Validation failed for ${this.getClass.toString}" +
+            s" due to ${e.getMessage}", e)
         return false
     }
     // Then, validate the generated plan in native engine.

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.utils.ColumnarShuffleUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -34,7 +35,7 @@ case class TakeOrderedAndProjectExecTransformer (
                                                 projectList: Seq[NamedExpression],
                                                 child: SparkPlan,
                                                 isAdaptiveContextOrLeafPlanExchange: Boolean)
-    extends UnaryExecNode{
+    extends UnaryExecNode with GlutenPlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
   override def supportsColumnar: Boolean = true

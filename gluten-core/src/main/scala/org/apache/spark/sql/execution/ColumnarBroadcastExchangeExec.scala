@@ -17,8 +17,8 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-
-import org.apache.spark.{broadcast, SparkException}
+import io.glutenproject.extension.GlutenPlan
+import org.apache.spark.{SparkException, broadcast}
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,14 +32,13 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
 
 import java.util.UUID
-import java.util.concurrent.{TimeoutException, TimeUnit}
-
+import java.util.concurrent.{TimeUnit, TimeoutException}
 import scala.concurrent.Promise
 import scala.concurrent.duration.NANOSECONDS
 import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
-  extends BroadcastExchangeLike {
+  extends BroadcastExchangeLike with GlutenPlan {
   override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarBroadcastExchangeMetrics(sparkContext)
 

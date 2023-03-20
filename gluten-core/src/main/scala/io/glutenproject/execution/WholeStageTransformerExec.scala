@@ -21,13 +21,13 @@ import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -81,8 +81,6 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
 
   def getStreamedLeafPlan: SparkPlan
 
-  def getChild: SparkPlan
-
   def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
       s"This operator doesn't support doTransform with SubstraitContext.")
@@ -101,7 +99,7 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
 }
 
 case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode with TransformSupport with LogLevelUtil {
+  extends UnaryExecNode with TransformSupport with GlutenPlan with LogLevelUtil {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
@@ -165,8 +163,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     child.asInstanceOf[TransformSupport].getBuildPlans
   }
 
-  override def getChild: SparkPlan = child
-
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException("Row based execution is not supported")
   }
@@ -193,31 +189,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       childCtx.outputAttributes,
       planNode,
       substraitContext)
-  }
-
-  @deprecated
-  def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
-    var currentOp = child
-    while (
-      currentOp.isInstanceOf[TransformSupport] &&
-      !currentOp.isInstanceOf[BasicScanExecTransformer] &&
-      currentOp.asInstanceOf[TransformSupport].getChild != null
-    ) {
-      currentOp = currentOp.asInstanceOf[TransformSupport].getChild
-    }
-    if (
-      currentOp != null &&
-      currentOp.isInstanceOf[BasicScanExecTransformer]
-    ) {
-      currentOp match {
-        case op: BatchScanExecTransformer =>
-          Some(currentOp.asInstanceOf[BatchScanExecTransformer])
-        case op: FileSourceScanExecTransformer =>
-          Some(currentOp.asInstanceOf[FileSourceScanExecTransformer])
-      }
-    } else {
-      None
-    }
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformerExec */

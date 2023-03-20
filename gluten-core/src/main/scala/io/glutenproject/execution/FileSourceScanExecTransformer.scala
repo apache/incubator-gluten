@@ -114,10 +114,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     this
   }
 
-  override def getChild: SparkPlan = {
-    null
-  }
-
   override def doValidate(): Boolean = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
     if (!bucketedScan) {

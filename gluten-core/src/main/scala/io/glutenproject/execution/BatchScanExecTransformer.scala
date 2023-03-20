@@ -91,10 +91,6 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     this
   }
 
-  override def getChild: SparkPlan = {
-    null
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
 

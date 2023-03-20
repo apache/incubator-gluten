@@ -22,6 +22,7 @@ import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
@@ -29,9 +30,7 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import io.substrait.proto.JoinRel
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -101,7 +100,7 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
 trait HashJoinLikeExecTransformer
-  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin {
+  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin with GlutenPlan {
 
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
@@ -215,8 +214,6 @@ trait HashJoinLikeExecTransformer
     case _ =>
       this
   }
-
-  override def getChild: SparkPlan = streamedPlan
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
