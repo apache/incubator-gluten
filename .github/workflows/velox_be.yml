@@ -197,6 +197,8 @@ jobs:
       - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
+          source /opt/rh/gcc-toolset-9/enable && \
+          gcc --version && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DVELOX_ENABLE_S3=ON -DVELOX_ENABLE_HDFS=ON .. && make -j'
       - name: Build for Spark 3.2.0
