@@ -37,7 +37,7 @@ auto BM = [](::benchmark::State& state,
   std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
   for (const auto& datasetPath : datasetPaths) {
-    scanInfos.emplace_back(getFileInfos(datasetPath, fileFormat));
+    scanInfos.emplace_back(getSplitInfos(datasetPath, fileFormat));
   }
 
   for (auto _ : state) {

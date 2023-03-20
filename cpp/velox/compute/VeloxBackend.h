@@ -55,15 +55,6 @@ class VeloxBackend final : public Backend {
       SplitOptions options,
       const std::string& batchType) override;
 
-  /// Separate the scan ids and stream ids, and get the scan infos.
-  void getInfoAndIds(
-      std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>>
-          splitInfoMap,
-      std::unordered_set<facebook::velox::core::PlanNodeId> leafPlanNodeIds,
-      std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
-      std::vector<facebook::velox::core::PlanNodeId>& scanIds,
-      std::vector<facebook::velox::core::PlanNodeId>& streamIds);
-
   std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResultIterator*>(raw_iter);
     return iter->GetMetrics(exportNanos);
@@ -94,7 +85,7 @@ class VeloxBackend final : public Backend {
 
   void setInputPlanNode(const ::substrait::RelRoot& sroot);
 
-  std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlanNode(const ::substrait::Plan& splan);
+  void toVeloxPlan();
 
   std::string nextPlanNodeId();
 
@@ -111,8 +102,8 @@ class VeloxBackend final : public Backend {
       std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(GetDefaultWrappedVeloxMemoryPool());
 
   // Cache for tests/benchmark purpose.
-  std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
-  std::shared_ptr<arrow::Schema> output_schema_;
+  std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+  std::shared_ptr<arrow::Schema> outputSchema_;
 };
 
 } // namespace gluten

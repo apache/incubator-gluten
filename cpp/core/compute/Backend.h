@@ -59,11 +59,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
       std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
     }
 #endif
-    return ParseProtobuf(data, size, &plan_);
-  }
-
-  const ::substrait::Plan& GetPlan() const {
-    return plan_;
+    return ParseProtobuf(data, size, &substraitPlan_);
   }
 
   /// This function is used to create certain converter from the format used by
@@ -100,7 +96,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
  protected:
-  ::substrait::Plan plan_;
+  ::substrait::Plan substraitPlan_;
   // static conf map
   std::unordered_map<std::string, std::string> confMap_;
 };

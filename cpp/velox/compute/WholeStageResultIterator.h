@@ -15,10 +15,10 @@ class WholeStageResultIterator {
  public:
   WholeStageResultIterator(
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
-      std::shared_ptr<const facebook::velox::core::PlanNode> planNode,
+      const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
       const std::unordered_map<std::string, std::string>& confMap)
-      : planNode_(planNode), confMap_(confMap), pool_(pool) {
-    getOrderedNodeIds(planNode_, orderedNodeIds_);
+      : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+    getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
   }
 
   virtual ~WholeStageResultIterator() {
@@ -49,7 +49,7 @@ class WholeStageResultIterator {
 
   std::function<void(facebook::velox::exec::Task*)> addSplits_;
 
-  std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
+  std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
 
  protected:
   /// A map of custom configs.
