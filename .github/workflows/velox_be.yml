@@ -189,7 +189,7 @@ jobs:
           source /opt/rh/gcc-toolset-9/enable && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON && \
+          ./build_arrow_for_velox.sh && \
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -198,7 +198,7 @@ jobs:
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
           source /opt/rh/gcc-toolset-9/enable && \
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
+          mkdir build && cd build && cmake .. && make -j'
       - name: Build for Spark 3.2.0
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
