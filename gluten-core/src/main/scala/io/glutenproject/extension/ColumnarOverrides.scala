@@ -635,6 +635,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
       if (isAdaptiveContext && fallbackWholeStage(plan)) {
+        logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
         insertTransitions(originalPlan, false)
       } else {
         logOnLevel(
