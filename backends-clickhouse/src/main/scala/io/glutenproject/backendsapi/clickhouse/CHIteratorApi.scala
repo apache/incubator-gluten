@@ -123,10 +123,19 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           val beforeConcat = System.nanoTime
           operator.mergeBlock(c)
 
-          while (!operator.isFull && iter.hasNext) {
-            val cb = iter.next();
-            numInputBatches += 1;
-            operator.mergeBlock(cb)
+          concatTime += System.nanoTime() - beforeConcat
+          var hasNext = true;
+          while (!operator.isFull && hasNext) {
+            val beforeNext = System.nanoTime
+            hasNext = iter.hasNext
+            if (hasNext) {
+              val cb = iter.next();
+              collectTime += System.nanoTime - beforeNext
+              numInputBatches += 1;
+              val beforeConcat = System.nanoTime
+              operator.mergeBlock(cb)
+              concatTime += System.nanoTime() - beforeConcat
+            }
           }
           val res = operator.release().toColumnarBatch
           CHNativeBlock
@@ -135,7 +144,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
               block => {
                 numOutputRows += block.numRows();
                 numOutputBatches += 1;
-                concatTime += System.nanoTime() - beforeConcat
               })
           res
         }
