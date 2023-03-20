@@ -31,9 +31,9 @@ jobs:
     strategy:
       matrix:
         path:
-          - check: 'gluten/cpp/core'
+          - check: 'cpp/core'
             exclude: ''
-          - check: 'gluten/cpp/velox'
+          - check: 'cpp/velox'
             exclude: ''
     steps:
       - uses: actions/checkout@v2
