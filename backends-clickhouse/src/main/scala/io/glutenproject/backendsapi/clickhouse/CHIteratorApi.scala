@@ -28,7 +28,8 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized._
 
-import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
@@ -36,6 +37,7 @@ import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -317,5 +319,32 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       numOutputRows,
       numOutputBatches,
       scanTime)
+  }
+
+  /** Compute for BroadcastBuildSideRDD */
+  override def genBroadcastBuildSideIterator(
+      split: Partition,
+      context: TaskContext,
+      broadcasted: Broadcast[BuildSideRelation],
+      broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
+    if (
+      !CHBroadcastBuildSideRDD.buildSideRelationCache
+        .containsKey(broadCastContext.buildHashTableId)
+    ) {
+      CHBroadcastBuildSideRDD.buildSideRelationCache.synchronized {
+        if (
+          !CHBroadcastBuildSideRDD.buildSideRelationCache
+            .containsKey(broadCastContext.buildHashTableId)
+        ) {
+          // Build the BHJ build table
+          broadcasted.value.asReadOnlyCopy(broadCastContext)
+          CHBroadcastBuildSideRDD.buildSideRelationCache.put(
+            broadCastContext.buildHashTableId,
+            1L
+          )
+        }
+      }
+    }
+    genCloseableColumnBatchIterator(Iterator.empty)
   }
 }

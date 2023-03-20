@@ -41,8 +41,7 @@ case class BroadcastBuildSideRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
-    BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(
-      relation.deserialized)
+    BackendsApiManager.getIteratorApiInstance
+      .genBroadcastBuildSideIterator(split, context, broadcasted, broadCastContext)
   }
 }
