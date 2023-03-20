@@ -17,9 +17,12 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
+  import testImplicits._
 
   override def testNameBlackList: Seq[String] = Seq(
     // Below tests are to verify operators, just skip.
