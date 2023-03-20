@@ -18,18 +18,18 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, BroadCastHashJoinContext, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
 import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-
-import org.apache.spark.{SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{broadcast, Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -118,4 +118,13 @@ trait IteratorApi {
                                       spiller: Spiller,
                                       taskMemoryMetrics: TaskMemoryMetrics
                                      ): NativeMemoryAllocatorManager
+
+  /**
+   * Compute for BroadcastBuildSideRDD
+   */
+  def genBroadcastBuildSideIterator(split: Partition,
+                                    context: TaskContext,
+                                    broadcasted: broadcast.Broadcast[BuildSideRelation],
+                                    broadCastContext: BroadCastHashJoinContext
+                                   ): Iterator[ColumnarBatch]
 }
