@@ -186,6 +186,8 @@ jobs:
       - name: Build Gluten Velox-backend third party
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
+          source /opt/rh/gcc-toolset-9/enable && \
+          gcc --version && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON && \
