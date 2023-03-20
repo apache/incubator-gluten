@@ -573,13 +573,10 @@ case class ColumnarOverrideRules(session: SparkSession)
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
       plan match {
-        // Spark's VectorizedReader is disabled in Gluten as of now.
-        // So ColumnarToRowExec comes from fallback.
-        // TODO: need to add guard logic if spark's VectorizedReader is enabled.
-        case _: ColumnarToRowExec =>
+        case ColumnarToRowExec(_: GlutenPlan) =>
           fallbacks = fallbacks + 1
         // Possible fallback for leaf node.
-        case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[TransformSupport] =>
+        case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
           fallbacks = fallbacks + 1
         case _ =>
       }

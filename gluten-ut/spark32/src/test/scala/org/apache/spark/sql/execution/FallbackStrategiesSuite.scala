@@ -17,14 +17,11 @@
 
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.{TransformSupport}
-import io.glutenproject.extension.ColumnarOverrideRules
-import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.extension.{ColumnarOverrideRules, GlutenPlan}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.GlutenSQLTestsTrait
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
@@ -121,14 +118,7 @@ case class UnaryOp2(child: SparkPlan, override val supportsColumnar: Boolean = f
 
 // For replacing LeafOp.
 case class LeafOpTransformer(override val supportsColumnar: Boolean = true) extends LeafExecNode
-    with TransformSupport {
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] =
-    throw new UnsupportedOperationException()
-  override def getStreamedLeafPlan: SparkPlan = throw new UnsupportedOperationException()
-  override def getChild: SparkPlan = throw new UnsupportedOperationException()
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] =
-    throw new UnsupportedOperationException()
-  override def metricsUpdater(): MetricsUpdater = throw new UnsupportedOperationException()
+    with GlutenPlan {
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override def output: Seq[Attribute] = Seq.empty
 }
@@ -136,14 +126,7 @@ case class LeafOpTransformer(override val supportsColumnar: Boolean = true) exte
 // For replacing UnaryOp1.
 case class UnaryOp1Transformer(override val child: SparkPlan,
                                override val supportsColumnar: Boolean = true)
-    extends UnaryExecNode with TransformSupport {
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] =
-    throw new UnsupportedOperationException()
-  override def getStreamedLeafPlan: SparkPlan = throw new UnsupportedOperationException()
-  override def getChild: SparkPlan = child
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] =
-    throw new UnsupportedOperationException()
-  override def metricsUpdater(): MetricsUpdater = throw new UnsupportedOperationException()
+    extends UnaryExecNode with GlutenPlan {
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override def output: Seq[Attribute] = child.output
   override protected def withNewChildInternal(newChild: SparkPlan): UnaryOp1Transformer =
