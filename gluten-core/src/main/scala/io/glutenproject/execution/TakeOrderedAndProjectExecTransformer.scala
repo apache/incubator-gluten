@@ -34,7 +34,7 @@ case class TakeOrderedAndProjectExecTransformer (
                                                 sortOrder: Seq[SortOrder],
                                                 projectList: Seq[NamedExpression],
                                                 child: SparkPlan,
-                                                isAdaptiveContextOrLeafPlanExchange: Boolean)
+                                                isAdaptiveContextOrTopParentExchange: Boolean)
     extends UnaryExecNode with GlutenPlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
@@ -89,7 +89,7 @@ case class TakeOrderedAndProjectExecTransformer (
           codegenStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
         val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(shuffleExec,
-          sortStagePlan, false, isAdaptiveContextOrLeafPlanExchange)
+          sortStagePlan, false, isAdaptiveContextOrTopParentExchange)
 
         val globalSortExecPlan = SortExecTransformer(sortOrder, false,
           new ColumnarInputAdapter(transformedShuffleExec))
