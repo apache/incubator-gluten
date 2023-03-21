@@ -28,6 +28,9 @@
 #include "velox/row/UnsafeRowSerializer.h"
 #include "velox/vector/arrow/Bridge.h"
 
+#if defined(__x86_64__)
+#include <immintrin.h>
+#endif
 using namespace facebook;
 
 namespace gluten {
@@ -166,6 +169,7 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
             // Write the offset and size.
             memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offset_and_size, sizeof(int64_t));
             buffer_cursor_[row_idx] += length;
+            _mm_prefetch(&offsets_[row_idx], _MM_HINT_T1);
           }
         }
         break;
