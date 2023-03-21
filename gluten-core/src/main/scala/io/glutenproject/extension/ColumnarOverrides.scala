@@ -567,7 +567,7 @@ case class ColumnarOverrideRules(session: SparkSession)
     }
 
   def fallbackWholeStage(plan: SparkPlan): Boolean = {
-    if (wholeStageFallbackThreshold == -1) {
+    if (wholeStageFallbackThreshold < 0) {
       return false
     }
     var fallbacks = 0
@@ -586,11 +586,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       plan.children.map(p => countFallback(p))
     }
     countFallback(plan)
-    if (fallbacks >= wholeStageFallbackThreshold) {
-      true
-    } else {
-      false
-    }
+    fallbacks >= wholeStageFallbackThreshold
   }
 
   /**
