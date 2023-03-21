@@ -573,6 +573,9 @@ case class ColumnarOverrideRules(session: SparkSession)
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
       plan match {
+        // Another stage.
+        case _: QueryStageExec =>
+          return
         case ColumnarToRowExec(_: GlutenPlan) =>
           fallbacks = fallbacks + 1
         // Possible fallback for leaf node.
