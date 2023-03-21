@@ -164,6 +164,14 @@ jobs:
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -DskipTests -Dspark33.version=3.3.0'
+      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.3
+        run: |
+          docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean package -Pspark-3.3 \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 --skip-data-gen \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1 --skip-data-gen'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -199,11 +207,11 @@ jobs:
           source /opt/rh/gcc-toolset-9/enable && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake .. && make -j'
-      - name: Build for Spark 3.2.0
+      - name: Build for Spark 3.2.2
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.0'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.2'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
