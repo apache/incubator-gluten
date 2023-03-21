@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution
+package org.apache.spark.sql.execution
 
+import io.glutenproject.execution.{GlutenRowToColumnarExec, SparkRowIterator}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 
@@ -24,7 +25,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.TimeUnit.NANOSECONDS

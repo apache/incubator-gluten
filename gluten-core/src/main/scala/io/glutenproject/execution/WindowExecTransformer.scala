@@ -49,7 +49,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                                  child: SparkPlan)
     extends WindowExecBase with TransformSupport with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater =
@@ -276,7 +277,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         orderSpec, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 

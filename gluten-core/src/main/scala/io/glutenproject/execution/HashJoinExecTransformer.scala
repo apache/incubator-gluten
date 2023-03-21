@@ -105,7 +105,8 @@ trait HashJoinLikeExecTransformer
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetrics(sparkContext)
 
   // Whether the left and right side should be exchanged.
@@ -234,7 +235,8 @@ trait HashJoinLikeExecTransformer
         buildPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
     // Then, validate the generated plan in native engine.
@@ -287,6 +289,14 @@ trait HashJoinLikeExecTransformer
     }
     if (JoinUtils.preProjectionNeeded(buildKeyExprs)) {
       joinParams.buildPreProjectionNeeded = true
+    }
+
+    if (!condition.isEmpty) {
+      joinParams.isWithCondition = true
+    }
+
+    if (this.isInstanceOf[BroadcastHashJoinExecTransformer]) {
+      joinParams.isBHJ = true
     }
 
     val joinRel = JoinUtils.createJoinRel(

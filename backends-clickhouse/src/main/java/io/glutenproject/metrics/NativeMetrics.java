@@ -16,13 +16,22 @@
  */
 package io.glutenproject.metrics;
 
-import java.util.Map;
+import java.util.HashMap;
 
 public class NativeMetrics implements IMetrics {
 
-  public Map<String, Long> metrics;
+  public HashMap<String, Long> metrics;
 
-  public NativeMetrics(Map<String, Long> metrics) {
+  public NativeMetrics(HashMap<String, Long> metrics) {
     this.metrics = metrics;
+  }
+
+  /**
+   * TODO: Get the operator metrics by the operator name
+   * @param operatorName
+   * @return
+   */
+  public OperatorMetrics getOperatorMetric(String operatorName, int currMetricIdx) {
+    return new OperatorMetrics(this.metrics, currMetricIdx);
   }
 }

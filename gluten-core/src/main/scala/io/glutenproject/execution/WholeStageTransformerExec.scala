@@ -103,7 +103,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
   val sparkConf = sparkContext.getConf

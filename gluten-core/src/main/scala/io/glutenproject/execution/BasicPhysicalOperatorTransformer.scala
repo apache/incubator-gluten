@@ -52,7 +52,8 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
   with AliasAwareOutputPartitioning
   with Logging {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
@@ -238,7 +239,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   with AliasAwareOutputPartitioning
   with Logging {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
@@ -254,7 +256,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         substraitContext, projectList, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
     // Then, validate the generated plan in native engine.

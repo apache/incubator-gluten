@@ -35,7 +35,8 @@ case class ColumnarInMemoryTableScanExec(
                                           @transient relation: InMemoryRelation)
   extends LeafExecNode with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarInMemoryTableMetrics(sparkContext)
 
   // Accumulators used for testing purposes

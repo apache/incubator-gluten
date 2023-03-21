@@ -39,7 +39,8 @@ case class CustomExpandExec(
                        child: SparkPlan)
   extends UnaryExecNode with CodegenSupport {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genCustomExpandMetrics(sparkContext)
 
   // The GroupExpressions can output data with arbitrary partitioning, so set it
