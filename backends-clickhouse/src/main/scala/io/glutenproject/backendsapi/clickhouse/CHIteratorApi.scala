@@ -344,19 +344,22 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     if (
       !CHBroadcastBuildSideRDD.buildSideRelationCache
-        .containsKey(broadCastContext.buildHashTableId)
+        .contains(broadCastContext.buildHashTableId)
     ) {
       CHBroadcastBuildSideRDD.buildSideRelationCache.synchronized {
         if (
           !CHBroadcastBuildSideRDD.buildSideRelationCache
-            .containsKey(broadCastContext.buildHashTableId)
+            .contains(broadCastContext.buildHashTableId)
         ) {
           // Build the BHJ build table
           broadcasted.value.asReadOnlyCopy(broadCastContext)
-          CHBroadcastBuildSideRDD.buildSideRelationCache.put(
-            broadCastContext.buildHashTableId,
-            1L
+          CHBroadcastBuildSideRDD.buildSideRelationCache.add(
+            broadCastContext.buildHashTableId
           )
+          // remove the oldest build hash table id
+          while (CHBroadcastBuildSideRDD.buildSideRelationCache.size() > 64) {
+            CHBroadcastBuildSideRDD.buildSideRelationCache.poll()
+          }
         }
       }
     }

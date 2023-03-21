@@ -16,14 +16,10 @@
  */
 package io.glutenproject.execution
 
-import java.util
+import java.util.concurrent.ConcurrentLinkedQueue
 
 object CHBroadcastBuildSideRDD {
 
   // Use for controling to build bhj hash table once.
-  val buildSideRelationCache = new util.LinkedHashMap[String, Long]() {
-    override def removeEldestEntry(eldest: util.Map.Entry[String, Long]): Boolean = {
-      size() > 100;
-    }
-  }
+  val buildSideRelationCache = new ConcurrentLinkedQueue[String]()
 }
