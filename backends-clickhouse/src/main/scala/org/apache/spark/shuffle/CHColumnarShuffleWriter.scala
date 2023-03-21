@@ -41,6 +41,7 @@ class CHColumnarShuffleWriter[K, V](
 
   private val blockManager = SparkEnv.get.blockManager
   private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
+  private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum;
@@ -90,11 +91,13 @@ class CHColumnarShuffleWriter[K, V](
     if (nativeSplitter == 0) {
       nativeSplitter = splitterJniWrapper.make(
         dep.nativePartitioning,
+        dep.shuffleId,
         mapId,
         splitSize,
         customizedCompressCodec,
         dataTmp.getAbsolutePath,
-        localDirs)
+        localDirs,
+        subDirsPerLocalDir)
     }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
