@@ -24,17 +24,17 @@ import java.io.Serializable;
 import com.google.protobuf.ByteString;
 
 public class BinaryLiteralNode implements ExpressionNode, Serializable {
-  private final byte[] value;
+  private final ByteString value;
 
   public BinaryLiteralNode(byte[] value) {
-    this.value = value;
+    this.value = ByteString.copyFrom(value);
   }
 
   @Override
   public Expression toProtobuf() {
     Expression.Literal.Builder binaryBuilder =
         Expression.Literal.newBuilder();
-    binaryBuilder.setBinary(ByteString.copyFrom(value));
+    binaryBuilder.setBinary(value);
 
     Expression.Builder builder = Expression.newBuilder();
     builder.setLiteral(binaryBuilder.build());

@@ -27,10 +27,15 @@ public class BinaryStructNode implements ExpressionNode, Serializable {
   // first is index, second is value
   private final byte[][] values;
   private final StructType type;
+  private final ByteString[] byteStrings;
 
   public BinaryStructNode(byte[][] values, StructType type) {
     this.values = values;
     this.type = type;
+    this.byteStrings = new ByteString[values.length];
+    for (int i = 0; i < values.length; i++) {
+      byteStrings[i] = ByteString.copyFrom(values[i]);
+    }
   }
 
   public ExpressionNode getFieldLiteral(int index) {
@@ -42,10 +47,10 @@ public class BinaryStructNode implements ExpressionNode, Serializable {
   public Expression toProtobuf() {
     Expression.Literal.Struct.Builder structBuilder = Expression.Literal.Struct.newBuilder();
     Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
-    for (byte[] value : values) {
+    for (ByteString byteString : byteStrings) {
       // TODO, here we copy the binary literal, if it is long such as BloomFilter binary,
       //  it will cost much time
-      literalBuilder.setBinary(ByteString.copyFrom(value));
+      literalBuilder.setBinary(byteString);
       structBuilder.addFields(literalBuilder);
     }
     literalBuilder.setStruct(structBuilder.build());
