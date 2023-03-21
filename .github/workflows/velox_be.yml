@@ -153,7 +153,7 @@ jobs:
           ./build_arrow_for_velox.sh && \
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
-          ./build_velox.sh'
+          ./build_velox.sh --enable_hdfs=ON --enable_s3=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
