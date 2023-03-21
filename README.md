@@ -143,8 +143,9 @@ rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
 
 #
-<img src="./docs/image/intel_logo.jpg" width="200"> <img src="./docs/image/kyligence_logo.png" width="200">
-<img src="./docs/image/bigo_logo.png" width="200">   <img src="./docs/image/meituan_logo.png" width="200">
+
+<img src="./docs/image/intel_logo.jpg" width="200"> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<img src="./docs/image/kyligence_logo.png" width="500"><br>
+<img src="./docs/image/bigo_logo.png" width="200"> &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; <img src="./docs/image/meituan_logo.png" width="200">
 
 #
 
