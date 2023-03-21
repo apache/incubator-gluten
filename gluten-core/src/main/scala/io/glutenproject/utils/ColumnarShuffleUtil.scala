@@ -34,8 +34,8 @@ object ColumnarShuffleUtil {
   def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
                                  child: SparkPlan,
                                  removeHashColumn: Boolean = false,
-                                 isAdaptiveContextOrLeafPlanExchange: Boolean): SparkPlan = {
-    if (isAdaptiveContextOrLeafPlanExchange) {
+                                 isAdaptiveContextOrTopParentExchange: Boolean): SparkPlan = {
+    if (isAdaptiveContextOrTopParentExchange) {
       ColumnarShuffleExchangeExec(
         plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn)
     } else {
