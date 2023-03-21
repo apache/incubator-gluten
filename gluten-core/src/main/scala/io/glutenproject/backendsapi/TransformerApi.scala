@@ -23,6 +23,9 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.SparkConf
+
+import java.util
 
 trait TransformerApi {
 
@@ -50,4 +53,11 @@ trait TransformerApi {
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
 
+  /**
+   * Post process native config
+   * For example, for ClickHouse backend, sync 'spark.executor.cores' to
+   * 'spark.gluten.sql.columnar.backend.ch.runtime_conf.max_threads'
+   */
+  def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
+    backendPrefix: String): Unit = {}
 }

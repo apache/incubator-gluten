@@ -33,6 +33,8 @@ import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDi
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.types.StructField
 
+import java.util
+
 class CHTransformerApi extends TransformerApi with Logging {
 
   /**
@@ -95,5 +97,11 @@ class CHTransformerApi extends TransformerApi with Logging {
       // Generate FilePartition for Parquet
       CHInputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
     }
+  }
+
+  override def postProcessNativeConfig(
+      nativeConfMap: util.Map[String, String],
+      backendPrefix: String): Unit = {
+    /// TODO: IMPLEMENT POST PROCESS FOR CLICKHOUSE BACKEND
   }
 }

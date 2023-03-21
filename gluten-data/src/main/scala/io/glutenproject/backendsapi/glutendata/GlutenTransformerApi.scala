@@ -77,4 +77,9 @@ abstract class GlutenTransformerApi extends TransformerApi with Logging {
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
   }
+
+  def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
+    backendPrefix: String): Unit = {
+    /// TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
+  }
 }
