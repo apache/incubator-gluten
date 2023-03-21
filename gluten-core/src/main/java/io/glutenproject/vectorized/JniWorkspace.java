@@ -34,7 +34,7 @@ public class JniWorkspace {
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
       GlutenShutdownManager.addHookForTempDirRemoval(() -> {
         try {
-          FileUtils.deleteDirectory(created.toFile());
+          FileUtils.forceDelete(created.toFile());
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
