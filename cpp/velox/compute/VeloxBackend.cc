@@ -239,7 +239,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
-  
+
   toVeloxPlan();
 
   // Scan node can be required.
