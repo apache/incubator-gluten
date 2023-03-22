@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/zhztheplayer/velox.git
+VELOX_BRANCH=wip-fix-boost-checksum
 ENABLE_EP_CACHE=OFF
 
 for arg in "$@"
