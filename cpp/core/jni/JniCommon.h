@@ -377,7 +377,13 @@ static inline void CheckException(JNIEnv* env) {
         env->GetStaticMethodID(describer_class, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
     std::string description =
         JStringToCString(env, (jstring)env->CallStaticObjectMethod(describer_class, describe_method, t));
-    throw gluten::GlutenException("Error during calling Java code from native code: " + description);
+    // Avoid C++ terminate when speculation kills a job.
+    // TODO: Find a better way rather than skip the exception.
+    if (description.find("ClosedByInterruptException") == std::string::npos) {
+      throw gluten::GlutenException("Error during calling Java code from native code: " + description);
+    } else {
+        std::cerr << "Error during calling Java code from native code: " << description << std::endl;
+    }
   }
 }
 
