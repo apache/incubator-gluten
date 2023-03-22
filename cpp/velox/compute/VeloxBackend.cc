@@ -305,7 +305,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   auto ctxPool = veloxPool->addChild("ctx_root");
   ctxPool->setMemoryUsageTracker(memUsageTracker_->addChild());
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp", confMap_);
+      ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp/test-spill", confMap_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 

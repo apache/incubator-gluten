@@ -70,7 +70,7 @@ TEST(TestExecBackend, CreateBackend) {
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->GetResultIterator(DefaultMemoryAllocator().get(), "/tmp", {}, {});
+  auto iter = backend->GetResultIterator(DefaultMemoryAllocator().get(), "/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->HasNext());
   auto next = iter->Next();
   ASSERT_NE(next, nullptr);
