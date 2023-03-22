@@ -94,7 +94,7 @@ void WholeStageResultIterator::collectMetrics() {
       if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
 #ifdef GLUTEN_PRINT_DEBUG
         std::cout << "Not found node id: " << nodeId << std::endl;
-        std::cout << "Plan Node: " << std::endl << planNode_->toString(true, true) << std::endl;
+        std::cout << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
 #endif
         throw std::runtime_error("Node id cannot be found in plan status.");
       }

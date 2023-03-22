@@ -79,7 +79,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string&
 /// Get the file paths, starts, lengths from a directory.
 /// Use fileFormat to specify the format to read, eg., orc, parquet.
 /// Return a split info.
-std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
+std::shared_ptr<facebook::velox::substrait::SplitInfo> getSplitInfos(
     const std::string& datasetPath,
     const std::string& fileFormat);
 
