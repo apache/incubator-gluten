@@ -110,6 +110,23 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+      <artifactId>maven-clean-plugin</artifactId>
+      <version>3.2.0</version>
+      <configuration>
+        <excludeDefaultDirectories>true</excludeDefaultDirectories>
+        <filesets>
+          <fileset>
+            <directory>target</directory>
+            <excludes>
+              <exclude>*3.2*</exclude>
+              <exclude>*3.3*</exclude>
+            </excludes>
+            <followSymlinks>false</followSymlinks>
+          </fileset>
+        </filesets>
+      </configuration>
+    </plugin>
 
     </plugins>
   </build>
