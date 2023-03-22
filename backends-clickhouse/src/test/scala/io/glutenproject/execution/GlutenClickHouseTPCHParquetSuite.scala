@@ -269,7 +269,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9, compareResult = false) { df => }
+    runTPCHQuery(9) { df => }
   }
 
   test("TPCH Q10") {
@@ -277,7 +277,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11, compareResult = false) { df => }
+    runTPCHQuery(11) { df => }
   }
 
   test("TPCH Q12") {
