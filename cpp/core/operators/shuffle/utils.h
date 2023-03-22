@@ -160,10 +160,4 @@ static inline int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array)
       });
 }
 
-static inline uint64_t round_to_line(uint64_t n, uint64_t round) {
-  auto reminder = n & (round - 1);
-  n += (round - reminder) & ((reminder == 0) - 1);
-  return n;
-}
-
 } // namespace gluten

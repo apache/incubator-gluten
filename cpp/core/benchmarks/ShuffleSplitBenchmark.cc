@@ -76,10 +76,10 @@ class LargeMemoryPool : public arrow::MemoryPool {
 
   Status Allocate(int64_t size, uint8_t** out) override {
     // make sure the size is cache line size aligned
-    size = round_to_line(size, 64);
+    size = ROUND_TO_LINE(size, 64);
 
     uint64_t alloc_size = size > LARGE_BUFFER_SIZE ? size : LARGE_BUFFER_SIZE;
-    alloc_size = round_to_line(alloc_size, huge_page_size);
+    alloc_size = ROUND_TO_LINE(alloc_size, huge_page_size);
     // std::cout << " allocated " << size << std::endl;
     auto its = std::find_if(buffers_.begin(), buffers_.end(), [size](BufferAllocated& buf) {
       return buf.allocated + size < buf.alloc_size;
@@ -121,7 +121,7 @@ class LargeMemoryPool : public arrow::MemoryPool {
 
   void Free(uint8_t* buffer, int64_t size) override {
     // make sure the size is cache line size aligned
-    size = round_to_line(size, 64);
+    size = ROUND_TO_LINE(size, 64);
 
     auto its = std::find_if(buffers_.begin(), buffers_.end(), [buffer](BufferAllocated& buf) {
       return buffer >= buf.start_addr && buffer < buf.start_addr + buf.alloc_size;

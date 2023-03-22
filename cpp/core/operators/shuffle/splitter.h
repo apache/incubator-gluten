@@ -303,6 +303,7 @@ class Splitter {
 
   // save spilled file names
   std::vector<std::string> spill_file_names_;
+  std::vector<std::vector<uint32_t>> spill_pid_map;
 };
 
 class RoundRobinSplitter final : public Splitter {

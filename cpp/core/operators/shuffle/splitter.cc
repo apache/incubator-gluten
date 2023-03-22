@@ -94,26 +94,25 @@ class Splitter::PartitionWriter {
  public:
   PartitionWriter(Splitter* splitter, int32_t partition_id) : splitter_(splitter), partition_id_(partition_id) {}
 
+  // it's called when prefer_spill=1
   arrow::Status Spill() {
 #ifndef SKIPWRITE
     if (spilled_file_.size() == 0) {
-      SpillFile spill_file = {"", nullptr, 0, 0};
+      SpillFile spill_file = {"", nullptr, 0, 0, nullptr, 0};
       ARROW_ASSIGN_OR_RAISE(spill_file.spilled_file_name, CreateTempShuffleFile(splitter_->NextSpilledFileDir()));
-      std::cout << " before create spill file " << spill_file.spilled_file_name << std::endl;
       ARROW_ASSIGN_OR_RAISE(
           spill_file.spilled_file_os, arrow::io::FileOutputStream::Open(spill_file.spilled_file_name, true));
       spilled_file_.push_back(spill_file);
-      std::cout << " create spill file " << spill_file.spilled_file_name << std::endl;
     }
 #endif
     RETURN_NOT_OK(WriteRecordBatchPayload());
     ClearCache();
     return arrow::Status::OK();
   }
-
+  // It's called when prefer_spill=0
   arrow::Status Spill(std::string file_name, std::shared_ptr<arrow::io::FileOutputStream> spill_os) {
     ARROW_ASSIGN_OR_RAISE(uint64_t start_pos, spill_os->Tell());
-    spilled_file_.push_back({file_name, spill_os, start_pos, 0});
+    spilled_file_.push_back({file_name, spill_os, start_pos, 0, nullptr, 0});
     SpillFile& spill_file = spilled_file_.back();
 
     RETURN_NOT_OK(WriteRecordBatchPayload());
@@ -124,6 +123,8 @@ class Splitter::PartitionWriter {
         std::shared_ptr<arrow::Buffer> pad,
         arrow::AllocateResizableBuffer(pad_length, splitter_->options_.memory_pool.get()));
     spill_os->Write(pad);
+    // flush the content, benefit?
+    // spill_os->Flush();
 
     ClearCache();
     return arrow::Status::OK();
@@ -173,18 +174,23 @@ class Splitter::PartitionWriter {
       uint64_t length = sf.length + offset_in_page;
       length = length + 4096 - (length & (4096 - 1));
 
-      auto fd = open(sf.spilled_file_name.c_str(), O_RDONLY);
-      if (fd == -1)
-        return arrow::Status::IOError("File open failed");
-
-      uint8_t* addr = static_cast<uint8_t*>(mmap(NULL, length, PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd, start_pos));
-      if (addr == MAP_FAILED) {
-        close(fd);
-        return arrow::Status::IOError("File map failed");
-      }
-      uint8_t* addr_ahead = static_cast<uint8_t*>(mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, start_pos + length));
-      if (addr_ahead != MAP_FAILED) {
-        posix_fadvise(fd, start_pos + length, length, POSIX_FADV_WILLNEED);
+      uint8_t* addr;
+      int fd;
+      // not yet mapped
+      if (sf.mapped_addr == nullptr) {
+        fd = open(sf.spilled_file_name.c_str(), O_RDONLY);
+        if (fd == -1)
+          return arrow::Status::IOError("File open failed");
+        // populate the page on open since we will read it immediately
+        addr = static_cast<uint8_t*>(mmap(NULL, length, PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd, start_pos));
+        if (addr == MAP_FAILED) {
+          close(fd);
+          return arrow::Status::IOError("File map failed");
+        }
+      } else {
+        // already mapped by splitter
+        addr = sf.mapped_addr + sf.start_pos;
+        fd = sf.fd;
       }
 
       RETURN_NOT_OK(splitter_->data_file_os_->Write(addr + offset_in_page, sf.length));
@@ -197,7 +203,6 @@ class Splitter::PartitionWriter {
       if (1 == splitter_->options_.prefer_spill) {
         auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
         RETURN_NOT_OK(fs->DeleteFile(sf.spilled_file_name));
-        std::cout << " delete spill file " << sf.spilled_file_name << std::endl;
       }
 
       bytes_spilled += sf.length;
@@ -257,9 +262,16 @@ class Splitter::PartitionWriter {
 
   struct SpillFile {
     std::string spilled_file_name;
+    // cache the output stream,
+    // if spill is enabled, the output stream is reused for every spill
+    // if spill is disabled, the output stream is used once for this eviction, then closed
     std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os;
     uint64_t start_pos;
     uint64_t length;
+    // for merge, file is mmaped once before merge, to boost perf
+    uint8_t* mapped_addr;
+    // for merge, file is opened once for merge, to boost perf
+    int fd;
   };
 
   std::vector<SpillFile> spilled_file_;
@@ -412,7 +424,7 @@ arrow::Status Splitter::Init() {
 arrow::Status Splitter::AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
   // if size is already larger than buffer pool size, allocate it directly
   // make size 64byte aligned
-  size = round_to_line(size, 64);
+  size = ROUND_TO_LINE(size, 64);
 
   if (size > SPLIT_BUFFER_SIZE) {
     ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, options_.large_memory_pool.get()));
@@ -470,6 +482,10 @@ arrow::Status Splitter::Stop() {
         data_file_os_, arrow::io::BufferedOutputStream::Create(16384, options_.memory_pool.get(), fout));
   } else {
     data_file_os_ = fout;
+  }
+
+  for (auto spill_file : spill_file_names_) {
+    
   }
 
   // stop PartitionWriter and collect metrics
@@ -839,18 +855,29 @@ arrow::Status Splitter::SpillFixedSize(int64_t size, int64_t* actual) {
       current_spilled += single_call_spilled;
     }
   } else {
-    // spill all partitions into the same file
-    ARROW_ASSIGN_OR_RAISE(std::string spilled_file_name, CreateTempShuffleFile(NextSpilledFileDir()));
-    spill_file_names_.push_back(spilled_file_name);
-    std::cout << " spill all partitions to " << spilled_file_name << std::endl;
-    ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os,
-        arrow::io::FileOutputStream::Open(spilled_file_name, true));
+    // spill all partitions into the same file in each local dir
+    std::vector<std::string> spill_dirs;
+    std::vector<std::shared_ptr<arrow::io::FileOutputStream>> spill_dir_oses;
+    int32_t localdirnum = configured_dirs_.size();
+    for (auto diridx = 0; diridx < localdirnum; diridx++) {
+      ARROW_ASSIGN_OR_RAISE(std::string spilled_file_name, CreateTempShuffleFile(NextSpilledFileDir()));
+      spill_dirs.push_back(spilled_file_name);
+      spill_file_names_.push_back(spilled_file_name);
+      std::cout << " spill all partitions to " << spilled_file_name << std::endl;
+      ARROW_ASSIGN_OR_RAISE(
+          std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os,
+          arrow::io::FileOutputStream::Open(spilled_file_name, true));
+      spill_dir_oses.push_back(spilled_file_os);
+    }
+    int32_t diridx = 0;
     for (int32_t pid = 0; pid < num_partitions_; pid++) {
-      TIME_NANO_OR_RAISE(total_spill_time_, partition_writer_[pid]->Spill(spilled_file_name, spilled_file_os));
+      TIME_NANO_OR_RAISE(total_spill_time_, partition_writer_[pid]->Spill(spill_dirs[diridx], spill_dir_oses[diridx]));
+      diridx = diridx == localdirnum ? 0 : diridx + 1;
       current_spilled += partition_cached_recordbatch_size_[pid];
     }
-    RETURN_NOT_OK(spilled_file_os->Close());
+    for (auto diridx = 0; diridx < localdirnum; diridx++) {
+      RETURN_NOT_OK(spill_dir_oses[diridx]->Close());
+    }
   }
   *actual = current_spilled;
   return arrow::Status::OK();
@@ -1404,6 +1431,7 @@ arrow::Status Splitter::AppendList(
   return arrow::Status::OK();
 }
 
+// get next local dir
 std::string Splitter::NextSpilledFileDir() {
   auto spilled_file_dir =
       GetSpilledShuffleFileDir(configured_dirs_[dir_selection_], sub_dir_selection_[dir_selection_]);
