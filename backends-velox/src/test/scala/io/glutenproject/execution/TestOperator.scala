@@ -30,6 +30,8 @@ class TestOperator extends WholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
+  import testImplicits._
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
@@ -453,6 +455,17 @@ class TestOperator extends WholeStageTransformerSuite {
         |group by l_orderkey;
         |""".stripMargin) {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+  }
+
+  test("bool scan") {
+    withTempPath { path =>
+      Seq(true, false, true, true, false, false)
+        .toDF("a").write.parquet(path.getCanonicalPath)
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+      runQueryAndCompare("SELECT a from view") {
+        checkOperatorMatch[BatchScanExecTransformer]
+      }
     }
   }
 }
