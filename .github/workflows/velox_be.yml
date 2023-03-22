@@ -53,7 +53,7 @@ jobs:
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=ubuntu:20.04 \
-          tools/gluten-te/cbash.sh sleep 14400
+          tools/gluten-te/ubuntu/cbash.sh sleep 14400
       - name: Setup maven cache
         run: |
           docker cp ~/.m2/repository velox-backend-ubuntu2004-test-$GITHUB_RUN_ID:/root/.m2/
@@ -141,7 +141,7 @@ jobs:
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=ubuntu:22.04 \
-          tools/gluten-te/cbash.sh sleep 14400
+          tools/gluten-te/ubuntu/cbash.sh sleep 14400
       - name: Setup maven cache
         run: |
           docker cp ~/.m2/repository velox-backend-ubuntu2204-test-$GITHUB_RUN_ID:/root/.m2/
@@ -150,7 +150,7 @@ jobs:
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON && \
+          ./build_arrow_for_velox.sh && \
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
           ./build_velox.sh --enable_hdfs=ON --enable_s3=ON'
@@ -158,13 +158,69 @@ jobs:
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DVELOX_ENABLE_S3=ON -DVELOX_ENABLE_HDFS=ON .. && make -j'
-      - name: Build for Spark 3.3.0
+          mkdir build && cd build && cmake -DVELOX_ENABLE_S3=ON -DVELOX_ENABLE_HDFS=ON .. && make -j'
+      - name: Build for Spark 3.2.2
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -DskipTests -Dspark33.version=3.3.0'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.2'
+      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
+        run: |
+          docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean package -Pspark-3.2 \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
           docker stop velox-backend-ubuntu2204-test-$GITHUB_RUN_ID || true
+  
+  velox-backend-centos8-test:
+    runs-on: velox-self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup docker container
+        run: |
+          EXTRA_DOCKER_OPTIONS="--name velox-backend-centos8-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
+          NON_INTERACTIVE=ON \
+          MOUNT_MAVEN_CACHE=OFF \
+          OS_IMAGE=centos:8 \
+          tools/gluten-te/centos/cbash.sh sleep 14400
+      - name: Setup maven cache
+        run: |
+          docker cp ~/.m2/repository velox-backend-centos8-test-$GITHUB_RUN_ID:/root/.m2/
+      - name: Build Gluten Velox-backend third party
+        run: |
+          docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
+          source /opt/rh/gcc-toolset-9/enable && \
+          cd /opt/gluten/ep/build-arrow/src && \
+          ./get_arrow.sh  && \
+          ./build_arrow_for_velox.sh && \
+          cd /opt/gluten/ep/build-velox/src
+          ./get_velox.sh && \
+          ./build_velox.sh'
+      - name: Build Gluten CPP library
+        run: |
+          docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
+          source /opt/rh/gcc-toolset-9/enable && \
+          cd /opt/gluten/cpp && \
+          mkdir build && cd build && cmake .. && make -j'
+      - name: Build for Spark 3.2.2
+        run: |
+          docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.2'
+      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
+        run: |
+          docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean package -Pspark-3.2 \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
+      - name: Exit docker container
+        if: ${{ always() }}
+        run: |
+          docker stop velox-backend-centos8-test-$GITHUB_RUN_ID || true
