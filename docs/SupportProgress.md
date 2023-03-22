@@ -2,7 +2,7 @@
 Gluten is still in active development. Here is a list of supported operators and functions.
 
 ## Velox backend
-Since the same function may have different semantics between Presto and Spark, Velox implement the functions in Presto category, if we note a different sematics from Spark, then the function is implemented in Spark category. So Gluten firstly will use Velox's spark category, if a function isn't imlemented there then refer to Presto category.
+Since the same function may have different semantics between Presto and Spark, Velox implement the functions in Presto category, if we note a different sematics from Spark, then the function is implemented in Spark category. So Gluten firstly will use Velox's spark category, if a function isn't implemented there then refer to Presto category.
 
 The total supported functions' number for [Spark3.3 is 387](https://spark.apache.org/docs/latest/api/sql/) and for [Velox is 204](https://facebookincubator.github.io/velox/functions/coverage.html). 
 Gluten supported frequently used 94, in which offloaded 62 is implemented in velox/spark and 32 in velox/presto, shown as below picture.
