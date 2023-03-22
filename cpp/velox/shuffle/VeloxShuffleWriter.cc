@@ -333,7 +333,10 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     const uint8_t* srcAddr = (const uint8_t*)column->valuesAsVoid();
     const auto& dstAddrs = partitionFixedWidthValueAddrs_[col];
 
-    switch (arrow::bit_width(arrowColumnTypes_[colIdx]->id())) {
+    switch (arrow::bit_width(arrowColumnTypes_[col_idx]->id())) {
+      case 1: // arrow::BooleanType::type_id:
+        RETURN_NOT_OK(SplitBoolType(srcAddr, dstAddrs));
+        break;
       case 8:
         RETURN_NOT_OK(splitFixedType<uint8_t>(srcAddr, dstAddrs));
         break;
@@ -475,9 +478,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
               "Column type " + schema_->field(colIdx)->type()->ToString() + " is not supported.");
         }
 #endif
-        break;
-      case 1: // arrow::BooleanType::type_id:
-        RETURN_NOT_OK(splitBoolType(srcAddr, dstAddrs));
         break;
       default:
         return arrow::Status::Invalid(
