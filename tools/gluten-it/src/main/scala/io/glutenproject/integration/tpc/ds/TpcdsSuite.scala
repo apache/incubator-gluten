@@ -16,6 +16,7 @@ class TpcdsSuite(
   val enableUi: Boolean,
   val enableHsUi: Boolean,
   val hsUiPort: Int,
+  val enableCeleborn: Boolean,
   val cpus: Int,
   val offHeapSize: String,
   val disableAqe: Boolean,
@@ -24,9 +25,9 @@ class TpcdsSuite(
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(
   actions, testConf, baselineConf, fixedWidthAsDouble,
-  logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort, cpus,
-  offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions,
-  minimumScanPartitions) {
+  logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
+  enableCeleborn, cpus, offHeapSize, disableAqe, disableBhj, disableWscg,
+  shufflePartitions, minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
