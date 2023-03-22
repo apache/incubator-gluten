@@ -16,6 +16,7 @@
  */
 #include <filesystem>
 
+#include "OrcReaderFactory.h"
 #include "VeloxInitializer.h"
 
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -127,6 +128,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
   registerConnector(hiveConnector);
   velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
   velox::dwrf::registerDwrfReaderFactory();
+  registerOrcReaderFactory();
   // Register Velox functions
   registerAllFunctions();
 }
