@@ -2,7 +2,7 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # 1 Prerequisite
 
-Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
+Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04/Ubuntu22.04/Centos8</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
 common OS and conda env deployment.
 
 Gluten builds with Spark3.2.x and Spark3.3.3 now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
@@ -107,7 +107,7 @@ You can also clone the Velox source from [OAP/velox](https://github.com/oap-proj
 ```shell script
 step 1: recompile velox, set velox_home in build_velox.sh
 cd /path_to_gluten/ep/build_velox/src
-./build_velox.sh  --velox_home=/your_specified_velox_path  --build_velox_backend=ON
+./build_velox.sh  --velox_home=/your_specified_velox_path
 
 step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
