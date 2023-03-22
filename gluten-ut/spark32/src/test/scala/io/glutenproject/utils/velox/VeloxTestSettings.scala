@@ -539,4 +539,5 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenMetadataCacheSuite]
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+  enableSuite[FallbackStrategiesSuite]
 }

@@ -198,6 +198,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableNativeBloomFilter: Boolean =
     conf.getConfString("spark.gluten.sql.native.bloomFilter", "true").toBoolean
 
+  // The threshold for whether whole stage will fall back in AQE supported case by counting the
+  // number of ColumnarToRow & vanilla leaf node.
+  def wholeStageFallbackThreshold: Int =
+    conf.getConfString("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "-1").toInt
+
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.gluten.sql.columnar.numaBinding", "false").toBoolean
