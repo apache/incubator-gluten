@@ -53,7 +53,6 @@ object VeloxBackendSettings extends BackendSettings {
     def validateTypes: Boolean = {
       // Collect unsupported types.
       fields.map(_.dataType).collect {
-        case _: BooleanType =>
         case _: ByteType =>
         case _: ArrayType =>
         case _: MapType =>
