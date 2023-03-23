@@ -21,9 +21,9 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "RegistrationAllFunctions.h"
-#include "VeloxBridge.h"
 #include "config/GlutenConfig.h"
 #include "velox/common/file/FileSystems.h"
+#include "velox/serializers/PrestoSerializer.h"
 #ifdef VELOX_ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #endif
@@ -129,6 +129,10 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
   velox::dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   registerAllFunctions();
+  if (!facebook::velox::isRegisteredVectorSerde()) {
+    // serde, for spill
+    facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
+  }
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {

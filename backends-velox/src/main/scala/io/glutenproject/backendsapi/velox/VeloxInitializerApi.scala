@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.InitializerApi
 import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
 import org.apache.commons.lang3.StringUtils
+import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkConf
 
@@ -46,6 +47,7 @@ class VeloxInitializerApi extends InitializerApi {
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
     val initKernel = new GlutenNativeExpressionEvaluator()
+    conf.setAll(GlutenConfig.createGeneratedConf(conf).asScala)
     initKernel.initNative(conf)
   }
 }

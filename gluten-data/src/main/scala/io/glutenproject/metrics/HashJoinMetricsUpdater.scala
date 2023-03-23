@@ -125,10 +125,10 @@ class HashJoinMetricsUpdaterImpl(
     hashBuildWallNanos += hashBuildMetrics.wallNanos
     hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
     hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
-    hashBuildSpilledBytes += hashProbeMetrics.spilledBytes
-    hashBuildSpilledRows += hashProbeMetrics.spilledRows
-    hashBuildSpilledPartitions += hashProbeMetrics.spilledPartitions
-    hashBuildSpilledFiles += hashProbeMetrics.spilledFiles
+    hashBuildSpilledBytes += hashBuildMetrics.spilledBytes
+    hashBuildSpilledRows += hashBuildMetrics.spilledRows
+    hashBuildSpilledPartitions += hashBuildMetrics.spilledPartitions
+    hashBuildSpilledFiles += hashBuildMetrics.spilledFiles
     idx += 1
 
     if (joinParams.buildPreProjectionNeeded) {

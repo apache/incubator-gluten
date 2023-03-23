@@ -32,6 +32,7 @@ import io.substrait.proto.Plan;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.util.SparkResourcesUtil;
 
 import java.io.IOException;
 import java.util.List;
@@ -68,7 +69,7 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
     return PlanBuilder.makePlan(extensionNode);
   }
 
-  // Used by WholeStageTransfrom to create the native computing pipeline and
+  // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
@@ -79,6 +80,7 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
             iterList.toArray(new GeneralInIterator[0]), TaskContext.get().stageId(),
             TaskContext.getPartitionId(), TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
+            SparkResourcesUtil.getGlutenLocalDirRoundRobin(),
             buildNativeConfNode(GlutenConfig.getNativeSessionConf()).toProtobuf().toByteArray());
     return createOutIterator(handle, outAttrs);
   }

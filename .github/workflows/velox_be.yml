@@ -63,7 +63,7 @@ jobs:
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON && \
-          cd /opt/gluten/ep/build-velox/src
+          cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
       - name: Build Gluten CPP library
@@ -151,7 +151,7 @@ jobs:
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh && \
-          cd /opt/gluten/ep/build-velox/src
+          cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh --enable_hdfs=ON --enable_s3=ON'
       - name: Build Gluten CPP library
@@ -198,7 +198,7 @@ jobs:
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh && \
-          cd /opt/gluten/ep/build-velox/src
+          cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
       - name: Build Gluten CPP library

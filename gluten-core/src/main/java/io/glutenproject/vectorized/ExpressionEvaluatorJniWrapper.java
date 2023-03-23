@@ -49,40 +49,21 @@ public class ExpressionEvaluatorJniWrapper {
    * @param allocatorId allocator id
    * @return iterator instance id
    */
-  public native long nativeCreateKernelWithIterator(long allocatorId,
-                                                    byte[] wsPlan,
-                                                    GeneralInIterator[] batchItr,
-                                                    int stageId,
-                                                    int partitionId,
-                                                    long taskId,
-                                                    boolean saveInputToFile,
-                                                    byte[] confPlan
-  ) throws RuntimeException;
+  public native long nativeCreateKernelWithIterator(
+      long allocatorId,
+      byte[] wsPlan,
+      GeneralInIterator[] batchItr,
+      int stageId,
+      int partitionId,
+      long taskId,
+      boolean saveInputToFile,
+      String localDir,
+      byte[] confPlan) throws RuntimeException;
 
   /**
    * Create a native compute kernel and return a row iterator.
    */
   native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
-
-  /**
-   * Set native env variables NATIVE_TMP_DIR
-   *
-   * @param path tmp path for native codes, use java.io.tmpdir
-   */
-  native void nativeSetJavaTmpDir(String path);
-
-  /**
-   * Set native env variables NATIVE_BATCH_SIZE
-   *
-   * @param batch_size numRows of one batch, use
-   *                   spark.sql.execution.arrow.maxRecordsPerBatch
-   */
-  native void nativeSetBatchSize(int batch_size);
-
-  /**
-   * Set native env variables NATIVESQL_METRICS_TIME
-   */
-  native void nativeSetMetricsTime(boolean is_enable);
 
   /**
    * Closes the projector referenced by nativeHandler.

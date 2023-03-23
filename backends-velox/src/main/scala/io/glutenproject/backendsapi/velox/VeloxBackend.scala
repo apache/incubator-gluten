@@ -21,13 +21,12 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
-
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, MapType, StructField, StructType}
+import org.apache.spark.sql.types._
 
 import scala.util.control.Breaks.{break, breakable}
 

@@ -13,8 +13,8 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
-const std::string kSparkOffHeapSizeKey = "spark.memory.offHeap.size";
+const std::string kSparkBatchSize = "spark.sql.execution.arrow.maxRecordsPerBatch";
+const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
@@ -24,21 +24,19 @@ const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
 
-std::shared_ptr<velox::core::QueryCtx> createNewVeloxQueryCtx(
-    std::shared_ptr<velox::Config> connectorConfig,
-    velox::memory::MemoryPool* memoryPool) {
-  std::shared_ptr<velox::memory::MemoryPool> ctxRoot = memoryPool->addChild("ctx_root");
-  ctxRoot->setMemoryUsageTracker(velox::memory::MemoryUsageTracker::create());
+std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
-  connectorConfigs[kHiveConnectorId] = connectorConfig;
+  connectorConfigs[kHiveConnectorId] = createConnectorConfig();
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
       std::make_shared<velox::core::MemConfig>(),
       connectorConfigs,
       VeloxInitializer::getAsyncDataCache(),
-      std::move(ctxRoot),
+      pool_,
       nullptr,
       "");
+  // Set customized confs to query context.
+  setConfToQueryContext(ctx);
   return ctx;
 }
 
@@ -173,28 +171,37 @@ int64_t WholeStageResultIterator::runtimeMetric(
 void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox::core::QueryCtx>& queryCtx) {
   std::unordered_map<std::string, std::string> configs = {};
   // Find batch size from Spark confs. If found, set it to Velox query context.
-  auto got = confMap_.find(kSparkBatchSizeKey);
+  auto got = confMap_.find(kSparkBatchSize);
   if (got != confMap_.end()) {
     configs[velox::core::QueryConfig::kPreferredOutputBatchSize] = got->second;
   }
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
-  got = confMap_.find(kSparkOffHeapSizeKey);
+  // FIXME this uses process-wise off-heap memory which is not for task
+  got = confMap_.find(kSparkOffHeapMemory);
   if (got != confMap_.end()) {
     try {
       // Set the max memory of partial aggregation as 3/4 of offheap size.
       auto maxMemory = (long)(0.75 * std::stol(got->second));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
     } catch (const std::invalid_argument&) {
-      throw std::runtime_error("Invalid offheap size.");
+      throw std::runtime_error("Invalid off-heap memory size.");
     }
   }
   // To align with Spark's behavior, set casting to int to be truncating.
   configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
   configs[velox::core::QueryConfig::kSpillEnabled] = std::to_string(true);
+  configs[velox::core::QueryConfig::kAggregationSpillEnabled] = std::to_string(true);
+  configs[velox::core::QueryConfig::kJoinSpillEnabled] = std::to_string(true);
+  configs[velox::core::QueryConfig::kOrderBySpillEnabled] = std::to_string(true);
+  configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
+      std::to_string(0); // spill only when input doesn't fit
+  configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] = std::to_string(0); // spill only when input doesn't fit
+  configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
+      std::to_string(0); // spill only when input doesn't fit
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
-std::shared_ptr<velox::Config> WholeStageResultIterator::getConnectorConfig() {
+std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
   auto got = confMap_.find(kCaseSensitive);
   if (got != confMap_.end()) {
@@ -209,6 +216,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     const std::vector<velox::core::PlanNodeId>& scanNodeIds,
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
     const std::vector<velox::core::PlanNodeId>& streamIds,
+    const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap)
     : WholeStageResultIterator(pool, planNode, confMap),
       scanNodeIds_(scanNodeIds),
@@ -249,16 +257,15 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
 
   // Set task parameters.
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1};
-  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getConnectorConfig(), getPool());
+  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
-  // Set customized confs to query context.
-  setConfToQueryContext(queryCtx);
   task_ = std::make_shared<velox::exec::Task>(
       fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
 
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
+  task_->setSpillDirectory(spillDir);
   addSplits_ = [&](velox::exec::Task* task) {
     if (noMoreSplits_) {
       return;
@@ -287,7 +294,7 @@ WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::st
     std::string prePart = str.substr(0, pos);
     std::string latterPart = str.substr(pos + 1);
     // Extract the partition column.
-    pos = prePart.find_last_of("/");
+    pos = prePart.find_last_of('/');
     std::string partitionColumn;
     if (pos == std::string::npos) {
       partitionColumn = prePart;
@@ -295,7 +302,7 @@ WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::st
       partitionColumn = prePart.substr(pos + 1);
     }
     // Extract the partition value.
-    pos = latterPart.find("/");
+    pos = latterPart.find('/');
     if (pos == std::string::npos) {
       throw std::runtime_error("No value found for partition key: " + partitionColumn + " in path: " + filePath);
     }
@@ -320,12 +327,11 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& streamIds,
+    const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap)
     : WholeStageResultIterator(pool, planNode, confMap), streamIds_(streamIds) {
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1};
-  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getConnectorConfig(), getPool());
-  // Set customized confs to query context.
-  setConfToQueryContext(queryCtx);
+  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = std::make_shared<velox::exec::Task>(
       fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
@@ -333,6 +339,7 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
+  task_->setSpillDirectory(spillDir);
   addSplits_ = [&](velox::exec::Task* task) {
     if (noMoreSplits_) {
       return;

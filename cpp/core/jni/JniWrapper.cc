@@ -312,32 +312,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(byte_array_class);
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
-    JNIEnv* env,
-    jobject obj,
-    jstring pathObj) {
-  JNI_METHOD_START
-  jboolean ifCopy;
-  auto path = env->GetStringUTFChars(pathObj, &ifCopy);
-  setenv("NATIVESQL_TMP_DIR", path, 1);
-  env->ReleaseStringUTFChars(pathObj, path);
-  JNI_METHOD_END()
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetBatchSize(
-    JNIEnv* env,
-    jobject obj,
-    jint batch_size) {
-  setenv("NATIVESQL_BATCH_SIZE", std::to_string(batch_size).c_str(), 1);
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsTime(
-    JNIEnv* env,
-    jobject obj,
-    jboolean is_enable) {
-  setenv("NATIVESQL_METRICS_TIME", (is_enable ? "true" : "false"), 1);
-}
-
 JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
     JNIEnv* env,
     jobject obj,
@@ -347,10 +321,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     jint stage_id,
     jint partition_id,
     jlong task_id,
-    jboolean saveInput,
-    jbyteArray confArr) {
+    jboolean save_input,
+    jstring local_dir,
+    jbyteArray conf_arr) {
   JNI_METHOD_START
   arrow::Status msg;
+
+  auto local_dir_str = JStringToCString(env, local_dir);
 
   auto plan_data = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(plan_arr, 0));
   auto plan_size = env->GetArrayLength(plan_arr);
@@ -365,14 +342,14 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     gluten::JniThrow("Failed to parse plan.");
   }
 
-  auto confs = getConfMap(env, confArr);
+  auto confs = getConfMap(env, conf_arr);
 
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<ResultIterator>> input_iters;
   for (int idx = 0; idx < iters_len; idx++) {
     std::shared_ptr<ArrowWriter> writer = nullptr;
-    if (saveInput) {
+    if (save_input) {
       auto dir = confs[kGlutenSaveDir];
       std::filesystem::path f{dir};
       if (!std::filesystem::exists(f)) {
@@ -388,7 +365,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     input_iters.push_back(std::move(result_iter));
   }
 
-  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, input_iters, confs);
+  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, local_dir_str, input_iters, confs);
   return result_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
 }
@@ -702,14 +679,12 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     jobject celeborn_partition_pusher,
     jstring shuffle_writer_type_jstr) {
   JNI_METHOD_START
-  if (partitioning_name_jstr == NULL) {
+  if (partitioning_name_jstr == nullptr) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
     return 0;
   }
 
-  auto partitioning_name_c = env->GetStringUTFChars(partitioning_name_jstr, JNI_FALSE);
-  auto partitioning_name = std::string(partitioning_name_c);
-  env->ReleaseStringUTFChars(partitioning_name_jstr, partitioning_name_c);
+  auto partitioning_name = JStringToCString(env, partitioning_name_jstr);
 
   auto splitOptions = SplitOptions::Defaults();
   splitOptions.buffered_write = true;
