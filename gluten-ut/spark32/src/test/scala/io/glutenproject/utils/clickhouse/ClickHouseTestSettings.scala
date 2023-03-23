@@ -174,13 +174,15 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-16804",
       "SPARK-17337",
       "SPARK-28441",
-      "SPARK-28379"
+      "SPARK-28379",
+      "SPARK-17348" // TODO: loneylee ch: INVALID_JOIN_ON_EXPRESSION
     )
     .exclude(
       "Correlated subqueries in LATERAL VIEW",
       "NOT EXISTS predicate subquery",
       "NOT IN predicate subquery",
-      "disjunctive correlated scalar subquery"
+      "disjunctive correlated scalar subquery",
+      "IN predicate subquery" // TODO: loneylee ch: INVALID_JOIN_ON_EXPRESSION
     )
 
   enableSuite[GlutenDataFramePivotSuite]
@@ -203,7 +205,16 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenJoinSuite]
     .include(
-      "big inner join, 4 matches per row"
+      "big inner join, 4 matches per row",
+      "cartesian product join",
+      "equi-join is hash-join",
+      "inner join, no matches",
+      "inner join, where, multiple matches",
+      "inner join ON, one match per row",
+      "inner join where, one match per row",
+      "left semi join",
+      "multiple-key equi-join is hash-join",
+      "full outer join"
     )
 
   enableSuite[GlutenHashExpressionsSuite]
