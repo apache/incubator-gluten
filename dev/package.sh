@@ -6,7 +6,7 @@ LINUX_OS=$(. /etc/os-release && echo ${ID})
 VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 
 # compile gluten jar
-./builddeps-veloxbe.sh --build_test=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
+$GLUTEN_DIR/dev//builddeps-veloxbe.sh --build_test=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
@@ -16,6 +16,10 @@ function process_setup_ubuntu_2004 {
   cp /usr/local/lib/{libprotobuf.so.32,libhdfs3.so.1} $THIRDPARTY_LIB/
 }
 
+function process_setup_ubuntu_2204 {
+  cp /usr/lib/x86_64-linux-gnu/{libre2.so.9,libboost_context.so.1.74.0,libboost_regex.so.1.74.0,libdouble-conversion.so.3,libglog.so.0,libgflags.so.2.2,libevent-2.1.so.7,libsnappy.so.1,libunwind.so.8,libcurl.so.4,libxml2.so.2,libgsasl.so.7,libicui18n.so.70,libicuuc.so.70,libnghttp2.so.14,libldap-2.5.so.0,libcurl.so.4,libgsasl.so.7,libgsasl.so.7,liblber-2.5.so.0,libntlm.so.0,librtmp.so.1,libsasl2.so.2,libssh.so.4} $THIRDPARTY_LIB/
+  cp /usr/local/lib/{libhdfs3.so.1,libprotobuf.so.32} $THIRDPARTY_LIB/
+}
 if [ "$LINUX_OS" == "ubuntu" ]; then
   if [ "$VERSION" == "20.04" ]; then
     process_setup_ubuntu_2004

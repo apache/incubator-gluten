@@ -26,10 +26,12 @@ import scala.sys.process._
 import org.apache.spark.SparkConf
 
 class VeloxInitializerApi extends InitializerApi {
-  def loadLibFromJarUbuntu2204(load: JniLibLoader) : Unit = {
-
+  def loadLibFromJarUbuntu2204(loader: JniLibLoader) : Unit = {
+    loader.newTransaction()
+      .loadAndCreateLink("libre2.so.9", "libre2.so", false)
+      .commit()
   }
-  def loadLibFromJarUbuntu2004(load: JniLibLoader) : Unit = {
+  def loadLibFromJarUbuntu2004(loader: JniLibLoader) : Unit = {
     loader.newTransaction()
       .loadAndCreateLink("libroken.so.18", "libroken.so", false)
       .loadAndCreateLink("libasn1.so.8", "libasn1.so", false)
@@ -87,7 +89,7 @@ class VeloxInitializerApi extends InitializerApi {
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_LIB_FROM_JARS, false)) {
+    if (GlutenConfig.getConf.loadLibFromJars) {
       loadLibFromJar(loader)
     }
     loader.newTransaction()
