@@ -669,6 +669,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |position(l_returnflag, null),
         |position(l_returnflag, l_shipinstruct, null),
         |position(l_returnflag, l_shipinstruct, 0),
+        |position(l_returnflag, null, 0),
+        |position(null, l_shipinstruct, 0),
+        |position(null, null, 0),
         |position(l_returnflag, null, null),
         |position(null, l_shipinstruct, null),
         |position(null, null, null)
