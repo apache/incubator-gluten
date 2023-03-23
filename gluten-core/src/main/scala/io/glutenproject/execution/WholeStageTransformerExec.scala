@@ -158,8 +158,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
   }
 
-  // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed
-  // to make whole stage transformer clearly plotted in UI, like whole stage codegen.
+  // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
+  // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
+  // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {

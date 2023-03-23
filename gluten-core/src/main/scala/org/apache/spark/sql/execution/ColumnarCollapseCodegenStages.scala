@@ -134,7 +134,7 @@ case class ColumnarCollapseCodegenStages(
   }
 
   /**
-   * Inserts an InputAdapter on top of those that do not support codegen.
+   * Inserts an InputAdapter on top of those that do not support transform.
    */
   private def insertInputAdapter(plan: SparkPlan): SparkPlan = {
     plan match {

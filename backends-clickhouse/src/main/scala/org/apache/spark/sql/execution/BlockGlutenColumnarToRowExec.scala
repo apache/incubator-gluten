@@ -36,8 +36,6 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
   extends GlutenColumnarToRowExecBase(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"
 
-  override def supportCodegen: Boolean = false
-
   override def buildCheck(): Unit = {
     val schema = child.schema
     for (field <- schema.fields) {
@@ -78,20 +76,11 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
       longMetric("convertTime"))
   }
 
-  override def inputRDDs(): Seq[RDD[InternalRow]] = {
-    // Hack because of type erasure
-    Seq(child.executeColumnar().asInstanceOf[RDD[InternalRow]])
-  }
-
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def output: Seq[Attribute] = child.output
-
-  protected def doProduce(ctx: CodegenContext): String = {
-    throw new RuntimeException("Codegen is not supported!")
-  }
 
   protected def withNewChildInternal(newChild: SparkPlan): BlockGlutenColumnarToRowExec =
     copy(child = newChild)
