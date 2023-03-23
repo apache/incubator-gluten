@@ -27,6 +27,8 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
+import java.util;
+
 abstract class GlutenTransformerApi extends TransformerApi with Logging {
 
   /**
