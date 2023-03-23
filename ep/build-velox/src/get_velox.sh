@@ -13,6 +13,7 @@ BUILD_PROTOBUF=ON
 ENABLE_S3=OFF
 
 LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
+LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
 
 for arg in "$@"; do
   case $arg in
@@ -99,6 +100,28 @@ function process_setup_centos8 {
   fi
 }
 
+function process_setup_centos7 {
+      # make this function Reentrantly
+      git checkout scripts/setup-centos7.sh
+
+      # cmake 3 and ninja should be installed
+      sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
+      sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
+
+      # install gtest
+      sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
+
+      if [ $ENABLE_HDFS = "ON" ]; then
+        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
+      fi
+      if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
+        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
+      fi
+      if [ $ENABLE_S3 == "ON" ]; then
+        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
+      fi
+}
+
 echo "Preparing Velox source code..."
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_PROTOBUF=${BUILD_PROTOBUF}"
@@ -135,8 +158,18 @@ sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" in
 sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
 if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
   process_setup_ubuntu
-else # Assume CentOS
-  process_setup_centos8
+elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
+  case "$LINUX_VERSION_ID" in
+    8) process_setup_centos8 ;;
+    7) process_setup_centos7 ;;
+    *)
+      echo "Unsupport centos version: $LINUX_VERSION_ID"
+      exit 1
+    ;;
+  esac
+else
+  echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+  exit 1
 fi
 
 echo "Velox-get finished."

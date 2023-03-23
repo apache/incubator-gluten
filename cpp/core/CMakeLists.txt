@@ -98,7 +98,7 @@ macro(build_protobuf)
   set(PROTOBUF_BUILD_COMMAND ${MAKE} ${MAKE_BUILD_ARGS})
   ExternalProject_Add(protobuf_ep
                       PREFIX protobuf_ep
-                      CONFIGURE_COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
+                      CONFIGURE_COMMAND ./autogen.sh COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
                       BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
