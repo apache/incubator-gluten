@@ -27,6 +27,8 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
+import java.util;
+
 abstract class GlutenTransformerApi extends TransformerApi with Logging {
 
   /**
@@ -76,5 +78,10 @@ abstract class GlutenTransformerApi extends TransformerApi with Logging {
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+  }
+
+  override def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
+    backendPrefix: String): Unit = {
+    /// TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
   }
 }

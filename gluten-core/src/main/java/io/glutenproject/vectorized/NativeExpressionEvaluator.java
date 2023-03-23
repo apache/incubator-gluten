@@ -53,8 +53,13 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
 
   // Used to initialize the native computing.
   public void initNative(SparkConf conf) {
-    jniWrapper.nativeInitNative(buildNativeConfNode(GlutenConfig.getNativeStaticConf(conf,
-        BackendsApiManager.getSettings().getBackendConfigPrefix())).toProtobuf().toByteArray());
+    String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
+    Map<String, String> nativeConfMap = GlutenConfig.getNativeStaticConf(conf, prefix);
+
+    // Get the customer config from SparkConf for each backend
+    BackendsApiManager.getTransformerApiInstance().postProcessNativeConfig(nativeConfMap, prefix);
+
+    jniWrapper.nativeInitNative(buildNativeConfNode(nativeConfMap).toProtobuf().toByteArray());
   }
 
   // Used to validate the Substrait plan in native compute engine.
