@@ -53,12 +53,20 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val scanExec = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
+          case hashAggExec: HashAggregateExecBaseTransformer => hashAggExec
         }
-        assert(scanExec.size == 1)
+        assert(scanExec.size == 3)
 
-        assert(scanExec(0).metrics("numFiles").value === 1)
-        assert(scanExec(0).metrics("pruningTime").value === -1)
-        assert(scanExec(0).metrics("filesSize").value === 17777735)
+        assert(scanExec(2).metrics("numFiles").value === 1)
+        assert(scanExec(2).metrics("pruningTime").value === -1)
+        assert(scanExec(2).metrics("filesSize").value === 17777735)
+
+        assert(scanExec(1).metrics("outputRows").value === 4)
+        assert(scanExec(1).metrics("outputVectors").value === 1)
+
+        // Execute Sort operator, it will read the data twice.
+        assert(scanExec(0).metrics("outputRows").value === 8)
+        assert(scanExec(0).metrics("outputVectors").value === 2)
     }
   }
 
@@ -69,12 +77,20 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val scanExec = collect(df.queryExecution.executedPlan) {
             case scanExec: BasicScanExecTransformer => scanExec
+            case hashAggExec: HashAggregateExecBaseTransformer => hashAggExec
           }
-          assert(scanExec.size == 1)
+          assert(scanExec.size == 3)
 
-          assert(scanExec(0).metrics("numFiles").value === 1)
-          assert(scanExec(0).metrics("pruningTime").value === -1)
-          assert(scanExec(0).metrics("filesSize").value === 17777735)
+          assert(scanExec(2).metrics("numFiles").value === 1)
+          assert(scanExec(2).metrics("pruningTime").value === -1)
+          assert(scanExec(2).metrics("filesSize").value === 17777735)
+
+          assert(scanExec(1).metrics("outputRows").value === 4)
+          assert(scanExec(1).metrics("outputVectors").value === 1)
+
+          // Execute Sort operator, it will read the data twice.
+          assert(scanExec(0).metrics("outputRows").value === 8)
+          assert(scanExec(0).metrics("outputVectors").value === 2)
       }
     }
   }
