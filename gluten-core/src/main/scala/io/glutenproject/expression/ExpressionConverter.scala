@@ -246,6 +246,12 @@ object ExpressionConverter extends Logging {
           replaceWithExpressionTransformer(t.srcExpr, attributeSeq),
           replaceWithExpressionTransformer(t.matchingExpr, attributeSeq),
           replaceWithExpressionTransformer(t.replaceExpr, attributeSeq), t)
+      case locate: StringLocate =>
+        StringLocateTransformer(substraitExprName,
+          replaceWithExpressionTransformer(locate.substr, attributeSeq),
+          replaceWithExpressionTransformer(locate.str, attributeSeq),
+          replaceWithExpressionTransformer(locate.start, attributeSeq),
+          locate)
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName, l)
       case u: UnaryExpression =>
