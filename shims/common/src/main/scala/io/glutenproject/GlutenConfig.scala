@@ -263,8 +263,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.benchmark_task.partitionId", "-1").toInt
   def taskId: Long = conf.getConfString("spark.gluten.sql.benchmark_task.taskId", "-1").toLong
 
-  def loadLibFromJars: Boolean =
-    conf.getConfString("spark.gluten.loadLibFromJar", "false").toBoolean
 }
 
 object GlutenConfig {
@@ -333,6 +331,10 @@ object GlutenConfig {
   val GLUTEN_TIMEZONE = "spark.gluten.timezone"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
 
+  // whether load DLL from jars
+  val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
+  val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
+  
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {

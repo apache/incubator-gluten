@@ -41,7 +41,7 @@ class VeloxInitializerApi extends InitializerApi {
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    if (GlutenConfig.getConf.loadLibFromJars) {
+    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR, GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)) {
       loadLibFromJar(loader)
     }
     loader.newTransaction()
