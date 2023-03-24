@@ -116,6 +116,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           val beforeNext = System.nanoTime
           val hasNext = iter.hasNext
           collectTime += System.nanoTime - beforeNext
+          if (!hasNext) operator.close();
           hasNext
         }
 
