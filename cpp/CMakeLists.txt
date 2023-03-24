@@ -84,6 +84,7 @@ add_compile_options(-Wall)
 add_compile_options(-Wno-sign-compare)
 add_compile_options(-Wno-comment)
 
+add_compile_options(-Werror)
 add_compile_options(-Wno-error=parentheses)
 add_compile_options(-Wno-error=unused-function)
 add_compile_options(-Wno-error=unused-variable)
