@@ -352,16 +352,8 @@ spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
  --conf spark.gluten.sql.columnar.backend.lib=velox \
- --jars https://github.com/oap/gluten/releases/tag/gluten-velox-bundle-spark3.3_2.12-ubuntu_22.04-0.5.0-SNAPSHOT.jar,https://github.com/oap/gluten/releases/tag/gluten-thirdparty-lib-ubuntu20.04.jar
+ --jars https://github.com/oap/gluten/releases/tag/gluten-velox-bundle-spark3.3_2.12-ubuntu_22.04-0.5.0-SNAPSHOT.jar,https://github.com/oap/gluten/releases/tag/gluten-thirdparty-lib-ubuntu-22.04.jar
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
- --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
- --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
- --num-executors 6 \
- --executor-cores 6 \
- --driver-memory 20g \
- --executor-memory 25g \
- --conf spark.executor.memoryOverhead=5g \
- --conf spark.driver.maxResultSize=32g \
  --conf spark.gluten.loadLibFromJar=true
 ```
