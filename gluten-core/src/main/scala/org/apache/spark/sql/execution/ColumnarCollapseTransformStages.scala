@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
- * InputAdapter is used to hide a SparkPlan from a subtree that supports codegen.
+ * InputAdapter is used to hide a SparkPlan from a subtree that supports transform.
  */
 class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
 
@@ -68,13 +68,15 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
 }
 
 /**
- * Find the chained plans that support codegen, collapse them together as WholeStageCodegen.
+ * Implemented by referring to spark's CollapseCodegenStages.
  *
- * The `codegenStageCounter` generates ID for codegen stages within a query plan.
+ * Find the chained plans that support transform, collapse them together as WholeStageTransformer.
+ *
+ * The `transformStageCounter` generates ID for transform stages within a query plan.
  * It does not affect equality, nor does it participate in destructuring pattern matching
- * of WholeStageCodegenExec.
+ * of WholeStageTransformerExec.
  *
- * This ID is used to help differentiate between codegen stages. It is included as a part
+ * This ID is used to help differentiate between transform stages. It is included as a part
  * of the explain output for physical plans, e.g.
  *
  * == Physical Plan ==
@@ -90,26 +92,26 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  * +- *(3) Filter isnotnull((id#6L % 2))
  * +- *(3) Range (0, 5, step=1, splits=8)
  *
- * where the ID makes it obvious that not all adjacent codegen'd plan operators are of the
- * same codegen stage.
+ * where the ID makes it obvious that not all adjacent transformed plan operators are of the
+ * same transform stage.
  *
- * The codegen stage ID is also optionally included in the name of the generated classes as
+ * The transform stage ID is also optionally included in the name of the generated classes as
  * a suffix, so that it's easier to associate a generated class back to the physical operator.
  * This is controlled by SQLConf: spark.sql.codegen.useIdInClassName
  *
  * The ID is also included in various log messages.
  *
- * Within a query, a codegen stage in a plan starts counting from 1, in "insertion order".
- * WholeStageCodegenExec operators are inserted into a plan in depth-first post-order.
- * See CollapseCodegenStages.insertWholeStageCodegen for the definition of insertion order.
+ * Within a query, a transform stage in a plan starts counting from 1, in "insertion order".
+ * WholeStageTransformerExec operators are inserted into a plan in depth-first post-order.
+ * See CollapseTransformStages.insertWholeStageTransform for the definition of insertion order.
  *
- * 0 is reserved as a special ID value to indicate a temporary WholeStageCodegenExec object
- * is created, e.g. for special fallback handling when an existing WholeStageCodegenExec
+ * 0 is reserved as a special ID value to indicate a temporary WholeStageTransformerExec object
+ * is created, e.g. for special fallback handling when an existing WholeStageTransformerExec
  * failed to generate/compile code.
  */
-case class ColumnarCollapseCodegenStages(
-    glutenConfig: GlutenConfig,
-    codegenStageCounter: AtomicInteger = ColumnarCollapseCodegenStages.codegenStageCounter)
+case class ColumnarCollapseTransformStages(glutenConfig: GlutenConfig,
+                                           transformStageCounter: AtomicInteger =
+                                           ColumnarCollapseTransformStages.transformStageCounter)
     extends Rule[SparkPlan] {
 
   def separateScanRDD: Boolean =
@@ -149,13 +151,13 @@ case class ColumnarCollapseCodegenStages(
     plan match {
       case t if supportTransform(t) =>
         WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
-          codegenStageCounter.incrementAndGet())
+          transformStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }
   }
 }
 
-object ColumnarCollapseCodegenStages {
-  val codegenStageCounter = new AtomicInteger(0)
+object ColumnarCollapseTransformStages {
+  val transformStageCounter = new AtomicInteger(0)
 }
