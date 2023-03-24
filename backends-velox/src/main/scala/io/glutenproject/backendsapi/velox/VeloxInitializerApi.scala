@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.InitializerApi
 import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
+import io.glutenproject.utils.{VeloxDllLoaderUbuntu2004,VeloxDllLoaderUbuntu2204,VeloxDllLoader}
 import org.apache.commons.lang3.StringUtils
 import scala.collection.JavaConverters._
 import scala.sys.process._
@@ -28,12 +29,13 @@ import org.apache.spark.SparkConf
 class VeloxInitializerApi extends InitializerApi {
   def loadLibFromJar(load: JniLibLoader): Unit = {
       val system = "cat /etc/os-release".!!
-      val veloxDllLoader = if (system.contains("Ubuntu") && system.contains("20.04")) {
-        new VeloxDllLoaderUbuntu2004
+      if (system.contains("Ubuntu") && system.contains("20.04")) {
+        val loader = new VeloxDllLoaderUbuntu2004
+        loader.loadLib(load)
       } else if (system.contains("Ubuntu") && system.contains("22.04")) {
-        new VeloxDllLoaderUbuntu2204
+        val loader = new VeloxDllLoaderUbuntu2204
+        loader.loadLib(load)
       }
-      veloxDllLoader.loadLib(load)
   }
 
   override def initialize(conf: SparkConf): Unit = {

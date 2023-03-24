@@ -263,7 +263,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.benchmark_task.partitionId", "-1").toInt
   def taskId: Long = conf.getConfString("spark.gluten.sql.benchmark_task.taskId", "-1").toLong
 
-  def loadLibFromJars: Boolean = conf.getConfString("spark.gluten.loadLibFromJar", "false").toBoolean
+  def loadLibFromJars: Boolean =
+    conf.getConfString("spark.gluten.loadLibFromJar", "false").toBoolean
 }
 
 object GlutenConfig {

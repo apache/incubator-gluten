@@ -1,5 +1,9 @@
+package io.glutenproject.utils
+
+import io.glutenproject.vectorized.JniLibLoader
+
 class VeloxDllLoaderUbuntu2204 extends VeloxDllLoader {
-  def loadLib(loader: JniLibLoader) : Unit = {
+  override def loadLib(loader: JniLibLoader) : Unit = {
     loader.newTransaction()
       .loadAndCreateLink("libboost_context.so.1.74.0", "libboost_context.so", false)
       .loadAndCreateLink("libicudata.so.70", "libicudata.so", false)
@@ -29,3 +33,4 @@ class VeloxDllLoaderUbuntu2204 extends VeloxDllLoader {
       .commit()
   }
 }
+
