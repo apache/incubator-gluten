@@ -485,8 +485,7 @@ The used TPC-H queries are the original ones, and can be accessed from [TPC-H qu
 
 Some other versions of TPC-DS and TPC-H queries are also provided, but are **not** recommended for testing, including:
 - the original TPC-DS queries: [TPC-DS queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original) (Decimal is not fully supported).
-- the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../backends-velox/workload/tpcds/tpcds.queries.updated) (outdated).
-- the modified TPC-H queries with "Date-to-String" conversion from [TPC-H modified queries](../backends-velox/workload/tpch/tpch.queries.updated) (outdated).
+- the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../tools/gluten-it/src/main/resources/tpcds-queries-nodecimal-nodate) (outdated).
 
 ## 6.2 Submit the Spark SQL job
 
