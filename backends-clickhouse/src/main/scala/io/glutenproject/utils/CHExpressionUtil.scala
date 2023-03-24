@@ -29,32 +29,31 @@ object CHExpressionUtil {
   final val MAP_TYPE = "map"
   final val STRUCT_TYPE = "struct"
   final val DATE_TYPE = "date"
+  final val STRING_TYPE = "string"
 
-  final val CH_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
-    REGEXP_EXTRACT -> Set(EMPTY_TYPE),
+  final val CH_EXPR_BLACKLIST_TYPE_EXISTS: Map[String, Set[String]] = Map(
     REGEXP_EXTRACT_ALL -> Set(EMPTY_TYPE),
-    LOCATE -> Set(EMPTY_TYPE),
-    LPAD -> Set(EMPTY_TYPE),
-    RPAD -> Set(EMPTY_TYPE),
-    REVERSE -> Set(EMPTY_TYPE),
+    REGEXP_EXTRACT -> Set(EMPTY_TYPE),
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
-    MURMUR3HASH -> Set(EMPTY_TYPE),
-    MD5 -> Set(EMPTY_TYPE),
     SHA1 -> Set(EMPTY_TYPE),
+    SHA2 -> Set(EMPTY_TYPE),
     CRC32 -> Set(EMPTY_TYPE),
-    XXHASH64 -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
     UNIX_TIMESTAMP -> Set(DATE_TYPE),
-    // CH arrayJoin function doesn't support map type argument yet.
-    // Wait for https://github.com/ClickHouse/ClickHouse/pull/43239
-    EXPLODE -> Set(MAP_TYPE),
     MIGHT_CONTAIN -> Set(EMPTY_TYPE)
   )
 
+  final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map(
+    LTRIM -> Seq(STRING_TYPE, STRING_TYPE),
+    RTRIM -> Seq(STRING_TYPE, STRING_TYPE),
+    TRIM -> Seq(STRING_TYPE, STRING_TYPE)
+  )
+
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
-    STDDEV_SAMP -> Set(EMPTY_TYPE),
-    COLLECT_LIST -> Set(EMPTY_TYPE),
+    STDDEV -> Set(EMPTY_TYPE),
+    VAR_SAMP -> Set(EMPTY_TYPE),
+    VAR_POP -> Set(EMPTY_TYPE),
     BLOOM_FILTER_AGG -> Set(EMPTY_TYPE)
   )
 }

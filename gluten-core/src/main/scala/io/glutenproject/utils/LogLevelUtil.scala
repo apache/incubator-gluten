@@ -29,4 +29,14 @@ trait LogLevelUtil { self: Logging =>
       case "ERROR" => logError(msg)
       case _ => logDebug(msg)
     }
+
+  protected def logOnLevel(level: String, msg: => String, e: Throwable): Unit =
+    level match {
+      case "TRACE" => logTrace(msg, e)
+      case "DEBUG" => logDebug(msg, e)
+      case "INFO" => logInfo(msg, e)
+      case "WARN" => logWarning(msg, e)
+      case "ERROR" => logError(msg, e)
+      case _ => logDebug(msg, e)
+    }
 }

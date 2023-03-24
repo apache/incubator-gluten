@@ -32,7 +32,7 @@ struct Metrics {
   long* outputBytes;
 
   // CpuWallTiming.
-  long* cpuNanos;
+  long* cpuCount;
   long* wallNanos;
   long veloxToArrow;
 
@@ -61,7 +61,7 @@ struct Metrics {
     outputRows = new long[numMetrics]();
     outputVectors = new long[numMetrics]();
     outputBytes = new long[numMetrics]();
-    cpuNanos = new long[numMetrics]();
+    cpuCount = new long[numMetrics]();
     wallNanos = new long[numMetrics]();
     peakMemoryBytes = new long[numMetrics]();
     numMemoryAllocations = new long[numMetrics]();
@@ -90,7 +90,7 @@ struct Metrics {
     delete[] outputRows;
     delete[] outputVectors;
     delete[] outputBytes;
-    delete[] cpuNanos;
+    delete[] cpuCount;
     delete[] wallNanos;
     delete[] peakMemoryBytes;
     delete[] numMemoryAllocations;

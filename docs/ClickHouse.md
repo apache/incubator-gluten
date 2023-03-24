@@ -1,7 +1,7 @@
 ## ClickHouse Backend
 
 ClickHouse is a column-oriented database management system (DBMS) for online analytical processing of queries (OLAP), which supports best in the industry query performance, while significantly reducing storage requirements through its innovative use of columnar storage and compression.
-We port ClickHouse ( based on version **22.3** ) as a library, called 'libch.so', and Gluten loads this library through JNI as the native engine. In this way, we don't need to deploy a standalone ClickHouse Cluster, Spark uses Gluten as SparkPlugin to read and write ClickHouse MergeTree data.
+We port ClickHouse ( based on version **23.1** ) as a library, called 'libch.so', and Gluten loads this library through JNI as the native engine. In this way, we don't need to deploy a standalone ClickHouse Cluster, Spark uses Gluten as SparkPlugin to read and write ClickHouse MergeTree data.
 
 ### Architecture
 
@@ -24,7 +24,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 #### Prerequisites
 
 - GCC 9.0 or higher version
-```
+    ```
     sudo apt install gcc-9 g++-9 gcc-10 g++-10 gcc-11 g++-11
 
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
@@ -33,30 +33,25 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
     sudo update-alternatives --config gcc  # then choose the right version
     gcc --version  # check the version of the gcc
+    ```
 
-```
+- Clang 15.0 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
 
-- Clang 12.0 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
-
-    Install Clang 12.0 by apt manually.
-```
-    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-
-    sudo vi /etc/apt/sources.list
-
-    ### add these sources into sources.list
-    # for 12
-    deb http://apt.llvm.org/focal/ llvm-toolchain-focal main
-    deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal main
-
-    sudo apt update
-    sudo apt install -y clang-12 lldb-12 lld-12 clang-12-doc llvm-12-doc llvm-12-examples clang-tools-12 libclang-12-dev clang-format-12 libfuzzer-12-dev libc++-12-dev libc++abi-12-dev libllvm-12-ocaml-dev
-
-    sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 100 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-12
-
-    sudo update-alternatives --config clang  # choose the clang-12
-    clang --version  # check the version of the clang
-```
+    Install the latest clang.
+    On Ubuntu/Debian you can use the automatic installation script.
+    ```shell
+    sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+    ```
+    Note: in case of troubles, you can also use this:
+    ```shell
+    sudo apt-get install software-properties-common
+    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    ```
+    Use the latest clang for Builds( In this example we use version 15 that is the latest as of Feb 2023. )
+    ```shell
+    export CC=clang-15
+    export CXX=clang++-15
+    ```
 - cmake 3.20 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
 - ninja-build 1.8.2
 - Java 8
@@ -81,7 +76,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 ```
 - Open ClickHouse backend code in CLion
 - Configure the ClickHouse backend project
-    - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-12 as C Compiler, clang++-12 as C++ Compiler:
+    - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-15 as C Compiler, clang++-15 as C++ Compiler:
 
         ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-1.png)
 
@@ -90,9 +85,9 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
         ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-2.png)
 
         And then add these options into CMake options:
-```
-            -G "Unix Makefiles" -D WERROR=OFF -D ENABLE_PROTOBUF=1 -D ENABLE_JEMALLOC=1 -D ENABLE_BUILD_PATH_MAPPING=OFF
-```
+    ```
+    -G "Unix Makefiles" -D WERROR=OFF -D ENABLE_PROTOBUF=1 -D ENABLE_JEMALLOC=1 -D ENABLE_BUILD_PATH_MAPPING=OFF
+    ```
 - Build 'ch' target with Debug mode or Release mode:
 
     ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-3.png)
@@ -250,7 +245,7 @@ bin/beeline -u jdbc:hive2://localhost:10000/ -n root
     SELECT
         sum(l_extendedprice * l_discount) AS revenue
     FROM
-        lineitem_ch
+        lineitem
     WHERE
         l_shipdate >= date'1994-01-01'
         AND l_shipdate < date'1994-01-01' + interval 1 year
@@ -529,7 +524,7 @@ my_spark_sql=$SPARK_HOME/bin/spark-sql
 ch_lib=$LOCAL_PATH_OF_LIBCH
 
 # The location of gluten jar package on local
-gluten_jar=$LOCAL_PATH_OF_GLUTEN/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+gluten_jar=$LOCAL_PATH_OF_GLUTEN/<gluten-jar>
 
 
 # spark.gluten.sql.columnar.libpath is set to a relative path ./libch.so, since it is dispatched

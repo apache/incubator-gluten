@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(spark_columnar_jni)
+project(gluten)
 
 include(ExternalProject)
 include(FindPkgConfig)
@@ -34,7 +34,6 @@ set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
-set(JEMALLOC_BUILD_VERSION "5.2.1")
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
@@ -56,9 +55,16 @@ endif(CCACHE_FOUND)
 # Building Protobuf
 macro(build_protobuf)
   message(STATUS "Building Protocol Buffers from Source")
-  set (PROTOBUF_SOURCE_URL
-       "https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz"
-  )
+
+  if(DEFINED ENV{GLUTEN_PROTOBUF_URL})
+    set(PROTOBUF_SOURCE_URL "$ENV{GLUTEN_PROTOBUF_URL}")
+  else()
+    set(PROTOBUF_BUILD_VERSION "21.4")
+    set (PROTOBUF_SOURCE_URL
+            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_BUILD_VERSION}/protobuf-all-${PROTOBUF_BUILD_VERSION}.tar.gz")
+  endif()
+  set(PROTOBUF_BUILD_SHA256_CHECKSUM "6c5e1b0788afba4569aeebb2cfe205cb154aa01deacaba0cd26442f3b761a836")
+
   set(PROTOBUF_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/protobuf_ep-install")
   set(PROTOBUF_INCLUDE_DIR "${PROTOBUF_PREFIX}/include")
   set(
@@ -94,8 +100,8 @@ macro(build_protobuf)
                       BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
-                      URL_MD5 802d3c1d31d1c295de18f8f6b4a488ef
                       URL ${PROTOBUF_SOURCE_URL}
+                      URL_HASH "SHA256=${PROTOBUF_BUILD_SHA256_CHECKSUM}"
   )
 
   file(MAKE_DIRECTORY "${PROTOBUF_INCLUDE_DIR}")
@@ -177,14 +183,16 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/ProtobufUtils.cc
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
+        operators/r2c/RowToArrowColumnarConverter.cc
         operators/shuffle/reader.cc
         operators/shuffle/splitter.cc
+        operators/shuffle/CelebornSplitter.cc
         operators/writer/ArrowWriter.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
-add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
-add_dependencies(spark_columnar_jni jni_proto)
+add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
+add_dependencies(gluten jni_proto)
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
   execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libstdc++fs.a
@@ -193,10 +201,10 @@ if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
     OUTPUT_STRIP_TRAILING_WHITESPACE)
   if (LIBSTDCXXFS_STATIC_RESULT EQUAL 0 AND EXISTS "${LIBSTDCXXFS_STATIC_PATH}")
     message(STATUS "libstdc++fs.a found at: ${LIBSTDCXXFS_STATIC_PATH}")
-    target_link_libraries(spark_columnar_jni PRIVATE ${LIBSTDCXXFS_STATIC_PATH})
+    target_link_libraries(gluten PRIVATE ${LIBSTDCXXFS_STATIC_PATH})
   else()
     find_library(LIBSTDCXXFS stdc++fs REQUIRED)
-    target_link_libraries(spark_columnar_jni PUBLIC ${LIBSTDCXXFS})
+    target_link_libraries(gluten PUBLIC ${LIBSTDCXXFS})
   endif()
 endif()
 
@@ -205,31 +213,28 @@ find_arrow_lib(${PARQUET_LIB_NAME})
 
 if(ENABLE_HBM)
   include(BuildMemkind)
-  target_sources(spark_columnar_jni PRIVATE memory/HbwAllocator.cc)
-  target_link_libraries(spark_columnar_jni PRIVATE memkind::memkind)
+  target_sources(gluten PRIVATE memory/HbwAllocator.cc)
+  target_link_libraries(gluten PRIVATE memkind::memkind)
   add_definitions(-DGLUTEN_ENABLE_HBM)
-  if(BUILD_TESTS)
-    add_test_case(hbw_allocator_test SOURCES tests/HbwAllocatorTest.cc)
-  endif()
 endif()
 
 if(ENABLE_QAT)
   include(BuildQATzip)
-  target_include_directories(spark_columnar_jni PUBLIC ${QATZIP_INCLUDE_DIR})
-  target_sources(spark_columnar_jni PRIVATE utils/qat_util.cc)
-  target_link_libraries(spark_columnar_jni PUBLIC qatzip::qatzip)
+  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR})
+  target_sources(gluten PRIVATE utils/qat_util.cc)
+  target_link_libraries(gluten PUBLIC qatzip::qatzip)
   add_definitions(-DGLUTEN_ENABLE_QAT)
 endif()
 
 if(BUILD_PROTOBUF)
   build_protobuf()
   message(STATUS "Building ProtoBuf from Source: ${BUILD_PROTOBUF}")
-  target_link_libraries(spark_columnar_jni
+  target_link_libraries(gluten
                         LINK_PRIVATE protobuf::libprotobuf)
 else()
   find_protobuf()
   message(STATUS "Use existing ProtoBuf libraries: ${PROTOBUF_LIBRARY}")
-  target_link_libraries(spark_columnar_jni
+  target_link_libraries(gluten
                         LINK_PUBLIC ${PROTOBUF_LIBRARY})
 endif()
 
@@ -245,8 +250,8 @@ add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
                    VERBATIM)
 add_custom_target(jni_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)
-target_include_directories(spark_columnar_jni PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
-set_target_properties(spark_columnar_jni PROPERTIES
+target_include_directories(gluten PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
+set_target_properties(gluten PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
 )
 
@@ -261,8 +266,7 @@ else() #
 endif()
 
 if(BUILD_TESTS)
-  add_test_case(exec_backend_test SOURCES compute/BackendTest.cc)
-  add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
+  add_subdirectory(tests)
 endif()
 
 if(BUILD_BENCHMARKS)
@@ -276,10 +280,10 @@ else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-target_link_libraries(spark_columnar_jni
+target_link_libraries(gluten
     PUBLIC Arrow::arrow Arrow::parquet)
 
-install(TARGETS spark_columnar_jni
+install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
         DESTINATION ${LIBHDFS3_DESTINATION})

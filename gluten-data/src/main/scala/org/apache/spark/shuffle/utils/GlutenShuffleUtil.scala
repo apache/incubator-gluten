@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.utils
 
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, GlutenColumnarShuffleWriter}
+import org.apache.spark.shuffle.{CelebornHashBasedColumnarShuffleWriter, CelebornShuffleWriterWrapper, GenCelebornShuffleWriterParameters, GenShuffleWriterParameters, GlutenColumnarShuffleWriter, GlutenShuffleWriterWrapper}
 
 object GlutenShuffleUtil {
 
@@ -27,6 +27,16 @@ object GlutenShuffleUtil {
       parameters.shuffleBlockResolver,
       parameters.columnarShuffleHandle,
       parameters.mapId,
+      parameters.metrics))
+  }
+
+  def genCelebornHashBasedColumnarShuffleWriter[K, V](
+    parameters: GenCelebornShuffleWriterParameters[K, V]): CelebornShuffleWriterWrapper[K, V] = {
+    CelebornShuffleWriterWrapper(new CelebornHashBasedColumnarShuffleWriter[K, V](
+      parameters.shuffleHandle,
+      parameters.context,
+      parameters.conf,
+      parameters.client,
       parameters.metrics))
   }
 }

@@ -1,8 +1,11 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
+import org.apache.commons.io.FileUtils;
+import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.runtime.BoxedUnit;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,11 +27,19 @@ public class JniWorkspace {
     try {
       LOG.info("Creating JNI workspace in root directory {}", rootDir);
       Path root = Paths.get(rootDir);
-      Path created = Files.createTempDirectory(root, "spark_columnar_plugin_");
+      Path created = Files.createTempDirectory(root, "gluten_");
       this.workDir = created.toAbsolutePath().toString();
       this.jniLibLoader = new JniLibLoader(workDir);
       this.jniResourceHelper = new JniResourceHelper(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
+      GlutenShutdownManager.addHookForTempDirRemoval(() -> {
+        try {
+          FileUtils.forceDelete(created.toFile());
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+        return BoxedUnit.UNIT;
+      });
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

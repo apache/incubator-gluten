@@ -80,7 +80,7 @@ arrow::Status Equals(const T& expected, const T& actual) {
       actual.schema()->ToString());
 }
 
-void MakeInputBatch(
+inline void MakeInputBatch(
     std::vector<std::string> input_data,
     std::shared_ptr<arrow::Schema> sch,
     std::shared_ptr<arrow::RecordBatch>* input_batch) {
@@ -88,7 +88,7 @@ void MakeInputBatch(
   std::vector<std::shared_ptr<arrow::Array>> array_list;
   int length = -1;
   int i = 0;
-  for (auto data : input_data) {
+  for (auto& data : input_data) {
     std::shared_ptr<arrow::Array> a0;
     ARROW_ASSIGN_OR_THROW(a0, arrow::ipc::internal::json::ArrayFromJSON(sch->field(i++)->type(), data.c_str()));
     if (length == -1) {
@@ -99,5 +99,4 @@ void MakeInputBatch(
   }
 
   *input_batch = arrow::RecordBatch::Make(sch, length, array_list);
-  return;
 }

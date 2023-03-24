@@ -17,13 +17,14 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSeq, AttributeSet, BindReferences, Expression, NamedExpression, UnsafeProjection}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, JavaCode, VariableValue}
+import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution.{CodegenSupport, SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.internal.SQLConf
 
 // When offload to velox GroupIdNode, it need the grouping sets and aggregate sets.
@@ -38,8 +39,9 @@ case class CustomExpandExec(
                        child: SparkPlan)
   extends UnaryExecNode with CodegenSupport {
 
-  override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genCustomExpandMetrics(sparkContext)
 
   // The GroupExpressions can output data with arbitrary partitioning, so set it
   // as UNKNOWN partitioning

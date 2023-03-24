@@ -17,19 +17,18 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{CodegenSupport, ColumnarToRowTransition, SparkPlan}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 abstract class GlutenColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTransition
   with CodegenSupport {
 
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert")
-  )
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genColumnarToRowMetrics(sparkContext)
 
   def doValidate(): Boolean = {
     try {

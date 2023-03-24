@@ -323,6 +323,8 @@ object ConverterUtils extends Logging {
           typedFuncName.concat("struct")
         case MapType(_, _, _) =>
           typedFuncName.concat("map")
+        case CharType(_) =>
+          typedFuncName.concat("fchar")
         case NullType =>
           typedFuncName.concat("nothing")
         case other =>
@@ -358,6 +360,7 @@ object ConverterUtils extends Logging {
           case "OrcScan" => ReadFileFormat.OrcReadFormat
           case "ParquetScan" => ReadFileFormat.ParquetReadFormat
           case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+          case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
           case _ => ReadFileFormat.UnknownFormat
         }
       case f: FileSourceScanExecTransformer =>
@@ -365,6 +368,7 @@ object ConverterUtils extends Logging {
           case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
           case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
           case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
+          case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
           case _ => ReadFileFormat.UnknownFormat
         }
       case _ => ReadFileFormat.UnknownFormat
@@ -373,9 +377,4 @@ object ConverterUtils extends Logging {
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
-
-  // Other
-  final val ROW_CONSTRUCTOR = "row_constructor"
-  final val ROW_NUMBER = "row_number"
-  final val RANK = "rank"
 }

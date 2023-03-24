@@ -20,6 +20,16 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 
 import java.io.File
+import io.glutenproject.utils.GlutenArrowUtil
+import io.glutenproject.vectorized.ArrowWritableColumnVector
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.catalyst.util.GenericArrayData
+import org.apache.spark.sql.execution.GlutenColumnarToRowExec
+import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
+import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, MapType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnarMap}
+import org.apache.spark.unsafe.types.CalendarInterval
 
 class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -51,7 +61,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "10M")
       .set("spark.sql.sources.useV1SourceList", "avro")
   }
@@ -188,19 +198,85 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Date type") {
-    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    // Validation: BatchScan, Project, Aggregate, Sort.
     runQueryAndCompare("select int, date from type1 " +
-      " group by grouping sets(int, date) sort by date, int limit 1") { _ => }
+      " group by grouping sets(int, date) sort by date, int limit 1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[ProjectExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[GlutenHashAggregateExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[SortExecTransformer]).isDefined))
+    }}
 
-    // Validation: BroadHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
-    runQueryAndCompare("select type1.date from type1," +
-      " type2 where type1.date = type2.date") { _ => }
+    // Validation: Expand, Filter.
+    runQueryAndCompare("select date, string, sum(int) from type1 where date > date '1990-01-09' " +
+      "group by rollup(date, string) order by date, string") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[ExpandExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[GlutenFilterExecTransformer]).isDefined))
+    }}
 
-    // Validation: ShuffledHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
-    runQueryAndCompare("select type1.date from type1," +
-      " type2 where type1.date = type2.date") { _ => }
+    // Validation: Union.
+    runQueryAndCompare(
+      """
+        |select count(d) from (
+        | select date as d from type1
+        | union all
+        | select date as d from type1
+        |);
+        |""".stripMargin) { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[UnionExecTransformer]).isDefined))
+    }}
+
+    // Validation: Limit.
+    runQueryAndCompare(
+      """
+        |select date, int from (
+        | select date, int from type1 limit 100
+        |) where int != 0 limit 10;
+        |""".stripMargin) {
+      checkOperatorMatch[LimitTransformer]
+    }
+
+    // Validation: Window.
+    runQueryAndCompare(
+      "select row_number() over (partition by date order by date) from type1 order by int, date") {
+      checkOperatorMatch[WindowExecTransformer]
+    }
+
+    // Validation: BroadHashJoin.
+    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "10M") {
+      runQueryAndCompare("select type1.date from type1," +
+        " type2 where type1.date = type2.date") {
+        checkOperatorMatch[GlutenBroadcastHashJoinExecTransformer]
+      }
+    }
+
+    // Validation: ShuffledHashJoin.
+    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
+      runQueryAndCompare("select type1.date from type1," +
+        " type2 where type1.date = type2.date") {
+        checkOperatorMatch[GlutenShuffledHashJoinExecTransformer]
+      }
+    }
+
+    // Validation: SortMergeJoin.
+    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
+      withSQLConf("spark.gluten.sql.columnar.forceshuffledhashjoin" -> "false") {
+        runQueryAndCompare("select type1.date from type1," +
+          " type2 where type1.date = type2.date") {
+          checkOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+    }
   }
 
   test("Byte type") {
@@ -303,5 +379,148 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
     runQueryAndCompare("select type1.struct.struct_1 from type1," +
       " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
+  }
+
+  test("RowToArrow and VeloxToRow") {
+    withSQLConf("spark.gluten.sql.columnar.batchscan" -> "false") {
+      runQueryAndCompare("select count(short, bool, byte, int, long, float, double, " +
+        "string, binary, date) from type1") { _ => }
+    }
+  }
+
+  test("RowToArrow native") {
+    withSQLConf("spark.gluten.sql.columnar.batchscan" -> "false") {
+      runQueryAndCompare("select count(short, bool, byte, int, long, float, double, " +
+        "string, binary) from type1") { _ => }
+    }
+  }
+
+  // Some type cannot read by velox, so we cannot test it
+  test("RowToArrow decimal type") {
+    val schema = StructType(Seq(
+      StructField("Cc", DecimalType(10, 2))
+    ))
+    val row = new GenericInternalRow(1)
+    row(0) = new Decimal().set(BigDecimal("100.92"))
+    val converters = new RowToColumnConverter(schema)
+    val vectors: Seq[WritableColumnVector] =
+      ArrowWritableColumnVector.allocateColumns(1, schema)
+    converters.convert(row, vectors.toArray)
+
+    assert(vectors.head.getDecimal(0, 10, 2).toString()
+      .equals("100.92"))
+  }
+
+  test("RowToArrow timestamp type") {
+    val schema = StructType(Seq(
+      StructField("Cc", TimestampType)
+    ))
+    val row = new GenericInternalRow(1)
+    row(0) = 5L
+    val converters = new RowToColumnConverter(schema)
+    val vectors: Seq[WritableColumnVector] =
+      ArrowWritableColumnVector.allocateColumns(1, schema)
+    converters.convert(row, vectors.toArray)
+
+    assert(vectors.head.getLong(0) == 5)
+  }
+
+
+  test("RowToArrow calender type") {
+    val schema = StructType(Seq(
+      StructField("Cc", CalendarIntervalType)
+    ))
+    val row = new GenericInternalRow(1)
+    row(0) = new CalendarInterval(12, 1, 0)
+    assertThrows[UnsupportedOperationException](
+      ArrowWritableColumnVector.allocateColumns(1, schema))
+  }
+
+  test("RowToArrow array type") {
+    val schema = StructType(Seq(
+      StructField("Cc", ArrayType(IntegerType))
+    ))
+    val row = new GenericInternalRow(1)
+    row(0) = new GenericArrayData(Seq(5, 6))
+    val converters = new RowToColumnConverter(schema)
+    val vectors: Seq[WritableColumnVector] =
+      ArrowWritableColumnVector.allocateColumns(1, schema)
+    converters.convert(row, vectors.toArray)
+    val result = vectors.head.getArray(0)
+    assert(result.getInt(0) == 5 && result.getInt(1) == 6)
+
+    vectors.foreach(
+      _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(1))
+    GlutenArrowUtil.createArrowRecordBatch(new ColumnarBatch(vectors.toArray, 1))
+  }
+
+  test("RowToArrow map type") {
+    val schema = StructType(Seq(
+      StructField("Cc", MapType(IntegerType, BooleanType))
+    ))
+    val row = new GenericInternalRow(1)
+    val keys = new OnHeapColumnVector(1, IntegerType)
+    val values = new OnHeapColumnVector(1, BooleanType)
+    keys.putInt(0, 1)
+    values.putBoolean(0, true)
+
+    val columnarMap = new ColumnarMap(keys, values, 0, 1)
+    row(0) = columnarMap
+    val converters = new RowToColumnConverter(schema)
+    val vectors: Seq[WritableColumnVector] =
+      ArrowWritableColumnVector.allocateColumns(1, schema)
+    converters.convert(row, vectors.toArray)
+    val result = vectors.head.getMap(0)
+    assert(result.keyArray.getInt(0) == 1 && result.valueArray().getBoolean(0))
+  }
+
+  test("RowToArrow struct type") {
+    val schema = StructType(Seq(
+      StructField("Cc", StructType(Seq(
+        StructField("int", IntegerType)
+      )))
+    ))
+    val row = new GenericInternalRow(1)
+    row(0) = 5
+    val structRow = new GenericInternalRow(1)
+    structRow(0) = row
+    val converters = new RowToColumnConverter(schema)
+    val vectors: Seq[WritableColumnVector] =
+      ArrowWritableColumnVector.allocateColumns(1, schema)
+    converters.convert(structRow, vectors.toArray)
+    val result = vectors.head.getStruct(0)
+    assert(result.getInt(0) == 5)
+  }
+
+  test("ArrowToRow native") {
+    withSQLConf("spark.gluten.sql.columnar.batchscan" -> "false") {
+      val sqlStr = "select short, bool, byte, int, long, float, double, string, binary, date " +
+        "from type1 limit 1"
+      val df = spark.sql(sqlStr)
+      var expected: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        val df = spark.sql(sqlStr)
+        expected = df.collect()
+      }
+      checkAnswer(df.repartition(10), expected)
+      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[GlutenColumnarToRowExec]).isDefined)
+    }
+  }
+
+
+  test("ArrowToVelox") {
+    withSQLConf("spark.gluten.sql.columnar.batchscan" -> "false",
+              "spark.sql.shuffle.partitions" -> "5") {
+      val sqlStr = "select short, bool, byte, int, long, float, double, string, binary " +
+        "from type1"
+      val df = spark.sql(sqlStr)
+      var expected: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        val df = spark.sql(sqlStr)
+        expected = df.collect()
+      }
+      checkAnswer(df.repartition(20), expected)
+      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[GlutenColumnarToRowExec]).isDefined)
+    }
   }
 }

@@ -1,12 +1,12 @@
 ### Build parameters
 
-#### Parameters for buildbundle-veloxbe.sh
+#### Parameters for builddeps-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=Release`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | build_type | Gluten build type(for arrow/velox/cpp), CMAKE_BUILD_TYPE  | Release |
-| build_test | build test code in cpp folder and arrow | OFF |
+| build_tests | build test code in cpp folder and arrow | OFF |
 | build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
 | build_jemalloc   | build with jemalloc | ON |
 | build_protobuf | build protobuf lib    | ON|
@@ -16,14 +16,6 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_hdfs | build with hdfs lib      | OFF|
 | enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
 
-#### Parameters for build_arrow_for_gazelle.sh
-Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
-
-| Parameters | Description | Default value |
-| ---------- | ----------- | ------------- |
-| arrow_home | Arrow build path                   | GLUTEN_DIR/ep/build-arrow/build|
-| build_type | ARROW build type, CMAKE_BUILD_TYPE | Release|
-
 #### Parameters for build_arrow_for_velox.sh
 Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 
@@ -31,7 +23,7 @@ Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 | ---------- | ----------- | ------------- |
 | arrow_home | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
 | build_type | ARROW build type, CMAKE_BUILD_TYPE        | Release|
-| build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
+| build_tests | Build arrow with -DARROW_JSON=ON          | OFF           |
 
 #### Parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
@@ -50,12 +42,11 @@ To build different backends, there are 3 parameters can be set via `-P` for mvn.
 | Parameters               | Description                                                                                      | Activation state by default |
 |--------------------------|--------------------------------------------------------------------------------------------------|-----------------------------|
 | backends-velox           | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                  | disabled                    |
-| backends-gazelle         | Add -Pbackends-gazelle in maven command to compile the JVM part of Gazelle backend.              | disabled                    |
 | backends-clickhouse      | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.        | disabled                    |
 
 ### Gluten jar for deployment
 
-The gluten jar's name pattern is `gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar`.
+The gluten jar's name pattern is `gluten-<backend_type>-bundle-spark<sparkbundle.version>_<scala.binary.version>-<os.detected.release>_<os.detected.release.version>-<project.version>.jar`.
 
 | Spark Version | sparkbundle.version | scala.binary.version |
 | ---------- | ----------- | ------------- |

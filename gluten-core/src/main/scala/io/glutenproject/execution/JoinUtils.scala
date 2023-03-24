@@ -93,7 +93,8 @@ object JoinUtils {
           (selectOrigins ++ appendedKeys.map(_._1)).asJava),
         createExtensionNode(inputNodeOutput, validation),
         substraitContext,
-        operatorId)
+        operatorId,
+        inputNodeOutput.size)
 
       // Compute index for join keys in join outputs.
       val offset = joinOutput.size - inputNodeOutput.size + selectOrigins.size
@@ -251,15 +252,20 @@ object JoinUtils {
       }
     }
 
+    val directJoinOutputs = if (exchangeTable) {
+        getDirectJoinOutputSeq(joinType, buildOutput, streamedOutput)
+    } else {
+        getDirectJoinOutputSeq(joinType, streamedOutput, buildOutput)
+    }
     RelBuilder.makeProjectRel(
       joinRel,
       new java.util.ArrayList[ExpressionNode](resultProjection.asJava),
       createExtensionNode(
-        if (exchangeTable) getDirectJoinOutputSeq(joinType, buildOutput, streamedOutput)
-        else getDirectJoinOutputSeq(joinType, streamedOutput, buildOutput),
+        directJoinOutputs,
         validation),
       substraitContext,
-      operatorId)
+      operatorId,
+      directJoinOutputs.size)
   }
 
   def createTransformContext(exchangeTable: Boolean,

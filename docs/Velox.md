@@ -2,7 +2,7 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # 1 Prerequisite
 
-Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
+Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04/Ubuntu22.04/Centos8</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
 common OS and conda env deployment.
 
 Gluten builds with Spark3.2.x and Spark3.3.3 now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
@@ -38,7 +38,7 @@ git clone https://github.com/oap-project/gluten.git
 # 2 Build Gluten with Velox Backend
 
 It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
-[Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference.
+[Gluten Usage](./GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
 <b>For x86_64 build:</b>
 ```shell script
@@ -98,7 +98,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 ```
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
-Once building successfully, the Jar file will be generated in the directory: package/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.2.2, and package/target/gluten-spark3.3_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.3.1.
+Once building successfully, the Jar file will be generated in the directory: package/target/<gluten-jar> for Spark 3.2.2/Spark 3.3.1.
 
 ## 2.1 Specify velox home directory
 
@@ -107,7 +107,7 @@ You can also clone the Velox source from [OAP/velox](https://github.com/oap-proj
 ```shell script
 step 1: recompile velox, set velox_home in build_velox.sh
 cd /path_to_gluten/ep/build_velox/src
-./build_velox.sh  --velox_home=/your_specified_velox_path  --build_velox_backend=ON
+./build_velox.sh  --velox_home=/your_specified_velox_path
 
 step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
@@ -298,6 +298,32 @@ If you are using instance credentials you do not have to set the access key or s
 
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
+## 2.6 Celeborn support
+
+Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
+
+First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
+
+Currently to use Celeborn following configurations are required in spark-defaults.conf
+```
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.CelebornShuffleManager
+
+# celeborn master
+spark.celeborn.master.endpoints clb-master:9097
+
+# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication
+# If you have only one worker, this setting must be false 
+spark.celeborn.push.replicate.enabled true
+
+spark.celeborn.shuffle.writer hash
+spark.shuffle.service.enabled false
+spark.sql.adaptive.localShuffleReader.enabled false
+
+# If you want to use dynamic resource allocation,
+# please refer to this URL (https://github.com/apache/incubator-celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
+spark.dynamicAllocation.enabled false
+```
+
 # 3 Coverage
 Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [The Operators and Functions Support Progress](https://github.com/oap-project/gluten/blob/main/docs/SupportProgress.md).
 
@@ -460,7 +486,7 @@ var gluten_root = "/PATH/TO/GLUTEN"
 Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
 ```shell script
-export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/gluten-spark3.2_2.12-1.0.0-snapshot-jar-with-dependencies.jar 
+export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \

@@ -90,8 +90,8 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||
       (JavaUtils.byteStringAsBytes(
         conf.get("spark.memory.offHeap.size").toString) / 1024 / 1024).toInt <= 0) {
-      throw new IllegalArgumentException(s"Must set the 'spark.memory.offHeap.enabled' to true" +
-        s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
+      throw new IllegalArgumentException(s"Must set 'spark.memory.offHeap.enabled' to true" +
+        s" and set off heap memory size by option 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
     BackendsApiManager.initialize()

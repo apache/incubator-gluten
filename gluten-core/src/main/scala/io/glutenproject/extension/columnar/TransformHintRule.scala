@@ -23,6 +23,8 @@ import io.glutenproject.execution._
 import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.aggregate.Count
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -118,7 +120,7 @@ case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
 
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
-    if (GlutenConfig.getSessionConf.enableAnsiMode) {
+    if (GlutenConfig.getConf.enableAnsiMode) {
       plan.foreach(TransformHints.tagNotTransformable)
     }
     plan
@@ -126,7 +128,7 @@ case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
 }
 
 case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
-  lazy val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  lazy val columnarConf: GlutenConfig = GlutenConfig.getConf
   lazy val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
   lazy val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
 
@@ -217,14 +219,15 @@ case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan]
 case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
     case p =>
-      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
-        if (p.output.isEmpty) {
-          // Some backends are not eligible to offload zero-column plan so far
-          TransformHints.tagNotTransformable(p)
-        }
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema(p)) {
         if (p.children.exists(_.output.isEmpty)) {
-          // Some backends are also not eligible to offload plan within zero-column input so far
+          // Some backends are not eligible to offload plan with zero-column input.
+          // If any child have empty output, mark the plan and that child as UNSUPPORTED.
+          logWarning(s"May fallback ${p.getClass.toString} and its children because" +
+            s"at least one of its children has empty output.")
           TransformHints.tagNotTransformable(p)
+          p.children.foreach(child =>
+            if (child.output.isEmpty) TransformHints.tagNotTransformable(child))
         }
       }
       p
@@ -236,28 +239,36 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
 case class AddTransformHintRule() extends Rule[SparkPlan] {
-  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  val columnarConf: GlutenConfig = GlutenConfig.getConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
   val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
-  val enableColumnarShuffle: Boolean = BackendsApiManager.getSettings.supportColumnarShuffleExec()
-  val enableColumnarSort: Boolean = columnarConf.enableColumnarSort
-  val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow
-  val enableColumnarSortMergeJoin: Boolean = columnarConf.enableColumnarSortMergeJoin
+  val scanOnly: Boolean = columnarConf.enableScanOnly
+  val enableColumnarShuffle: Boolean =
+    !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
+  val enableColumnarSort: Boolean = !scanOnly && columnarConf.enableColumnarSort
+  val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
+  val enableColumnarSortMergeJoin: Boolean = !scanOnly && columnarConf.enableColumnarSortMergeJoin
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
   val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
-  val enableColumnarProject: Boolean = columnarConf.enableColumnarProject
+  val enableColumnarProject: Boolean = !scanOnly && columnarConf.enableColumnarProject
   val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
-  val enableColumnarHashAgg: Boolean = columnarConf.enableColumnarHashAgg
-  val enableColumnarUnion: Boolean = columnarConf.enableColumnarUnion
-  val enableColumnarExpand: Boolean = columnarConf.enableColumnarExpand
-  val enableColumnarShuffledHashJoin: Boolean = columnarConf.enableColumnarShuffledHashJoin
-  val enableColumnarBroadcastExchange: Boolean =
+  val enableColumnarHashAgg: Boolean = !scanOnly && columnarConf.enableColumnarHashAgg
+  val enableColumnarUnion: Boolean = !scanOnly && columnarConf.enableColumnarUnion
+  val enableColumnarExpand: Boolean = !scanOnly && columnarConf.enableColumnarExpand
+  val enableColumnarShuffledHashJoin: Boolean =
+    !scanOnly && columnarConf.enableColumnarShuffledHashJoin
+  val enableColumnarBroadcastExchange: Boolean = !scanOnly &&
     columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
-  val enableColumnarBroadcastJoin: Boolean =
+  val enableColumnarBroadcastJoin: Boolean = !scanOnly &&
     columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
-  val enableColumnarArrowUDF: Boolean = columnarConf.enableColumnarArrowUDF
-  val enableColumnarLimit: Boolean = columnarConf.enableColumnarLimit
-  val enableColumnarGenerate: Boolean = columnarConf.enableColumnarGenerate
+  val enableColumnarArrowUDF: Boolean = !scanOnly && columnarConf.enableColumnarArrowUDF
+  val enableColumnarLimit: Boolean = !scanOnly && columnarConf.enableColumnarLimit
+  val enableColumnarGenerate: Boolean = !scanOnly && columnarConf.enableColumnarGenerate
+  val enableColumnarCoalesce: Boolean = !scanOnly && columnarConf.enableColumnarCoalesce
+  val enableTakeOrderedAndProject: Boolean =
+    !scanOnly && columnarConf.enableTakeOrderedAndProject &&
+      enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
+
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
   }
@@ -326,7 +337,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: FilterExec =>
-          if (!enableColumnarFilter) {
+          val childIsScan = plan.child.isInstanceOf[FileSourceScanExec] ||
+            plan.child.isInstanceOf[BatchScanExec]
+          // When scanOnly is enabled, filter after scan will be offloaded.
+          if ((!scanOnly && !enableColumnarFilter) || (scanOnly && !childIsScan)) {
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -390,7 +404,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarShuffle) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = new ColumnarShuffleExchangeExec(
+            val transformer = ColumnarShuffleExchangeExec(
               plan.outputPartitioning,
               plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
@@ -526,8 +540,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: CoalesceExec =>
-          val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
-          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          if (!enableColumnarCoalesce) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
         case plan: GlobalLimitExec =>
           if (!enableColumnarLimit) {
             TransformHints.tagNotTransformable(plan)
@@ -550,12 +568,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.outer, plan.generatorOutput, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-
         case _: AQEShuffleReadExec =>
           TransformHints.tagTransformable(plan)
         case plan: TakeOrderedAndProjectExec =>
-          if (!enableColumnarSort || !enableColumnarLimit || !enableColumnarShuffle ||
-            !enableColumnarProject) {
+          if (!enableTakeOrderedAndProject) {
             TransformHints.tagNotTransformable(plan)
           } else {
             var tagged = false

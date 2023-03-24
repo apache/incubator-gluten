@@ -22,11 +22,17 @@ macro(build_benchmark)
   if(CMAKE_VERSION VERSION_LESS 3.6)
     message(FATAL_ERROR "Building gbenchmark from source requires at least CMake 3.6")
   endif()
-  set(GBENCHMARK_BUILD_VERSION "v1.6.0")
+
+  if(DEFINED ENV{GLUTEN_GBENCHMARK_URL})
+    set(GBENCHMARK_SOURCE_URL "$ENV{GLUTEN_GBENCHMARK_URL}")
+  else()
+    set(GBENCHMARK_BUILD_VERSION "v1.6.0")
+    set(GBENCHMARK_SOURCE_URL
+            "https://github.com/google/benchmark/archive/refs/tags/${GBENCHMARK_BUILD_VERSION}.tar.gz"
+            "https://github.com/ursa-labs/thirdparty/releases/download/latest/gbenchmark-${GBENCHMARK_BUILD_VERSION}.tar.gz")
+  endif()
   set(GBENCHMARK_BUILD_SHA256_CHECKSUM "1f71c72ce08d2c1310011ea6436b31e39ccab8c2db94186d26657d41747c85d6")
-  set(GBENCHMARK_SOURCE_URL
-      "https://github.com/google/benchmark/archive/refs/tags/${GBENCHMARK_BUILD_VERSION}.tar.gz"
-      "https://github.com/ursa-labs/thirdparty/releases/download/latest/gbenchmark-${GBENCHMARK_BUILD_VERSION}.tar.gz")
+
 
   set(GBENCHMARK_PREFIX
       "${CMAKE_CURRENT_BINARY_DIR}/gbenchmark_ep/src/gbenchmark_ep-install")
@@ -44,7 +50,7 @@ macro(build_benchmark)
       -DCMAKE_CXX_FLAGS="-fPIC"
       -DCMAKE_BUILD_TYPE=Release)
 
-  externalproject_add(gbenchmark_ep
+  ExternalProject_Add(gbenchmark_ep
       URL ${GBENCHMARK_SOURCE_URL}
       URL_HASH "SHA256=${GBENCHMARK_BUILD_SHA256_CHECKSUM}"
       BUILD_BYPRODUCTS "${GBENCHMARK_STATIC_LIB}"

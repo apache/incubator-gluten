@@ -1,5 +1,7 @@
 #include "VeloxSplitter.h"
 #include "VeloxSplitterPartitionWriter.h"
+#include "memory/VeloxColumnarBatch.h"
+#include "memory/VeloxMemoryPool.h"
 #include "velox/vector/arrow/Bridge.h"
 
 #include "utils/compression.h"
@@ -18,12 +20,62 @@
 
 using namespace facebook;
 
+namespace gluten {
+
 #ifndef SPLIT_BUFFER_SIZE
 // by default, allocate 8M block, 2M page size
 #define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
 #endif
 
-namespace gluten {
+// macro to rotate left an 8-bit value 'x' given the shift 's' is a 32-bit integer
+// (x is left shifted by 's' modulo 8) OR (x right shifted by (8 - 's' modulo 8))
+#if !defined(__x86_64__)
+#define rotateLeft(x, s) (x << (s - ((s >> 3) << 3)) | x >> (8 - (s - ((s >> 3) << 3))))
+#endif
+
+// on x86 machines, _MM_HINT_T0,T1,T2 are defined as 1, 2, 3
+// equivalent mapping to __builtin_prefetch hints is 3, 2, 1
+#if defined(__x86_64__)
+#define PREFETCHT0(ptr) _mm_prefetch(ptr, _MM_HINT_T0)
+#define PREFETCHT1(ptr) _mm_prefetch(ptr, _MM_HINT_T1)
+#define PREFETCHT2(ptr) _mm_prefetch(ptr, _MM_HINT_T2)
+#else
+#define PREFETCHT0(ptr) __builtin_prefetch(ptr, 0, 3)
+#define PREFETCHT1(ptr) __builtin_prefetch(ptr, 0, 2)
+#define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
+#endif
+// #define SKIPWRITE
+
+#if defined(__x86_64__)
+template <typename T>
+std::string __m128i_toString(const __m128i var) {
+  std::stringstream sstr;
+  T values[16 / sizeof(T)];
+  std::memcpy(values, &var, sizeof(values)); // See discussion below
+  if (sizeof(T) == 1) {
+    for (unsigned int i = 0; i < sizeof(__m128i); i++) { // C++11: Range for also possible
+      sstr << std::hex << (int)values[i] << " " << std::dec;
+    }
+  } else {
+    for (unsigned int i = 0; i < sizeof(__m128i) / sizeof(T); i++) {
+      sstr << std::hex << values[i] << " " << std::dec;
+    }
+  }
+  return sstr.str();
+}
+#endif
+
+namespace {
+
+bool VectorHasNull(const velox::VectorPtr& vp) {
+  const auto& nulls = vp->nulls();
+  if (!nulls) {
+    return false;
+  }
+  return vp->countNulls(nulls, vp->size()) != 0;
+}
+
+} // namespace
 
 // VeloxSplitter
 arrow::Result<std::shared_ptr<VeloxSplitter>>
@@ -39,10 +91,12 @@ VeloxSplitter::Make(const std::string& name, uint32_t num_partitions, SplitOptio
     splitter = VeloxSplitter::Create<VeloxSinglePartSplitter>(num_partitions, options);
   }
 
-  if (splitter) {
-    return splitter->Init();
+  if (!splitter) {
+    return arrow::Status::NotImplemented("Partitioning " + name + " not supported yet.");
+  } else {
+    RETURN_NOT_OK(splitter->Init());
+    return splitter;
   }
-  return arrow::Status::NotImplemented("Partitioning " + name + " not supported yet.");
 }
 
 arrow::Status VeloxSplitter::Init() {
@@ -57,9 +111,6 @@ arrow::Status VeloxSplitter::Init() {
 
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
-
-  // moved to InitColumnTypes()
-  // ARROW_ASSIGN_OR_RAISE(column_type_id_, ToSplitterTypeId(schema_->fields()));
 
   partition_writer_.resize(num_partitions_);
 
@@ -78,8 +129,6 @@ arrow::Status VeloxSplitter::Init() {
   raw_partition_lengths_.resize(num_partitions_);
 
   partition_2_row_offset_.resize(num_partitions_ + 1);
-
-  // column related statements are moved to InitColumnTypes()
 
   ARROW_ASSIGN_OR_RAISE(configured_dirs_, GetConfiguredLocalDirs());
   sub_dir_selection_.assign(configured_dirs_.size(), 0);
@@ -114,7 +163,6 @@ arrow::Status VeloxSplitter::InitIpcWriteOptions() {
 
 arrow::Status VeloxSplitter::InitPartitions(const velox::RowVector& rv) {
   auto simple_column_count = simple_column_indices_.size();
-  assert(simple_column_count > 0);
 
   partition_validity_addrs_.resize(simple_column_count);
   std::for_each(partition_validity_addrs_.begin(), partition_validity_addrs_.end(), [this](std::vector<uint8_t*>& v) {
@@ -150,7 +198,9 @@ arrow::Status VeloxSplitter::SetCompressType(arrow::Compression::type compressed
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSplitter::Split(const velox::RowVector& rv) {
+arrow::Status VeloxSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
   RETURN_NOT_OK(InitFromRowVector(rv));
   RETURN_NOT_OK(Partition(rv));
   RETURN_NOT_OK(DoSplit(rv));
@@ -183,7 +233,7 @@ arrow::Status VeloxSplitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
+      total_bytes_evicted_ += writer->bytes_spilled;
       total_compress_time_ += writer->compress_time;
     } else {
       partition_lengths_[pid] = 0;
@@ -216,6 +266,8 @@ arrow::Status VeloxSplitter::CreatePartition2Row(uint32_t row_num) {
     row_offset_2_row_id_[partition_2_row_offset_copy[pid]++] = row;
   }
 
+  PrintPartition2Row();
+
   return arrow::Status::OK();
 }
 
@@ -225,12 +277,13 @@ arrow::Status VeloxSplitter::UpdateInputHasNull(const velox::RowVector& rv) {
     // once input_has_null_ is set to true, we didn't reset it after spill
     if (!input_has_null_[col]) {
       auto col_idx = simple_column_indices_[col];
-      auto nullcount = rv.childAt(col_idx)->getNullCount();
-      if (nullcount.has_value() && nullcount.value() > 0) {
+      if (VectorHasNull(rv.childAt(col_idx))) {
         input_has_null_[col] = true;
       }
     }
   }
+
+  PrintInputHasNull();
 
   return arrow::Status::OK();
 }
@@ -299,12 +352,16 @@ arrow::Status VeloxSplitter::DoSplit(const velox::RowVector& rv) {
     }
   }
 
+  PrintPartitionBuffer();
+
   RETURN_NOT_OK(SplitRowVector(rv));
 
   // update partition buffer base after split
   for (auto pid = 0; pid < num_partitions_; ++pid) {
     partition_buffer_idx_base_[pid] += partition_2_row_count_[pid];
   }
+
+  PrintPartitionBuffer();
 
   return arrow::Status::OK();
 }
@@ -454,7 +511,7 @@ arrow::Status VeloxSplitter::SplitBoolType(const uint8_t* src_addr, const std::v
       uint32_t dst_idx_byte = dst_offset_in_byte;
       uint8_t dst = dstaddr[dst_offset >> 3];
       if (pid + 1 < num_partitions_) {
-        // PREFETCHT1((&dstaddr[partition_buffer_idx_base_[pid + 1] >> 3]));
+        PREFETCHT1((&dstaddr[partition_buffer_idx_base_[pid + 1] >> 3]));
       }
       for (; r < size && dst_idx_byte > 0; r++, dst_idx_byte--) {
         auto src_offset = row_offset_2_row_id_[r]; /*16k*/
@@ -536,11 +593,8 @@ arrow::Status VeloxSplitter::SplitValidityBuffer(const velox::RowVector& rv) {
   for (size_t col = 0; col < simple_column_indices_.size(); ++col) {
     auto col_idx = simple_column_indices_[col];
     auto column = rv.childAt(col_idx);
-    auto null_count = column->getNullCount().value_or(0);
-
-    auto& dst_addrs = partition_validity_addrs_[col];
-
-    if (null_count > 0) {
+    if (VectorHasNull(column)) {
+      auto& dst_addrs = partition_validity_addrs_[col];
       for (auto pid = 0; pid < num_partitions_; ++pid) {
         if (partition_2_row_count_[pid] > 0 && dst_addrs[pid] == nullptr) {
           // init bitmap if it's null, initialize the buffer as true
@@ -554,9 +608,10 @@ arrow::Status VeloxSplitter::SplitValidityBuffer(const velox::RowVector& rv) {
         }
       }
 
-      const uint8_t* src_addr = (const uint8_t*)(column->rawNulls());
-
+      auto src_addr = (const uint8_t*)(column->mutableRawNulls());
       RETURN_NOT_OK(SplitBoolType(src_addr, dst_addrs));
+    } else {
+      VsPrintLF(col_idx, " column hasn't null");
     }
   }
   return arrow::Status::OK();
@@ -571,6 +626,7 @@ arrow::Status VeloxSplitter::SplitBinaryType(
   for (auto pid = 0; pid < num_partitions_; ++pid) {
     auto& binary_buf = dst[pid];
 
+    // use 32bit offset
     using offset_type = arrow::BinaryType::offset_type;
     auto dst_offset_base = (offset_type*)(binary_buf.offset_ptr) + partition_buffer_idx_base_[pid];
 
@@ -592,6 +648,7 @@ arrow::Status VeloxSplitter::SplitBinaryType(
 
       if (value_offset >= capacity) {
         auto old_capacity = capacity;
+        (void)old_capacity; // suppress warning
         capacity = capacity + std::max((capacity >> multiply), (uint64_t)string_len);
         multiply = std::min(3, multiply + 1);
 
@@ -604,10 +661,13 @@ arrow::Status VeloxSplitter::SplitBinaryType(
         binary_buf.value_capacity = capacity;
         dst_value_ptr = binary_buf.value_ptr + value_offset - string_len;
 
-        std::cout << "Split value buffer resized col_idx = " << binary_idx << " dst_start " << dst_offset_base[x]
-                  << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity
-                  << " new size = " << capacity << " row = " << partition_buffer_idx_base_[pid]
-                  << " strlen = " << string_len << std::endl;
+        VsPrintSplit("Split value buffer resized col_idx", binary_idx);
+        VsPrintSplit(" dst_start", dst_offset_base[x]);
+        VsPrintSplit(" dst_end", dst_offset_base[x + 1]);
+        VsPrintSplit(" old size", old_capacity);
+        VsPrintSplit(" new size", capacity);
+        VsPrintSplit(" row", partition_buffer_idx_base_[pid]);
+        VsPrintSplitLF(" string len", string_len);
       }
 
       // 2. copy value
@@ -622,12 +682,29 @@ arrow::Status VeloxSplitter::SplitBinaryType(
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSplitter::SplitListArray(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxSplitter::SplitListArray(const velox::RowVector& rv) {
+  for (size_t i = 0; i < complex_column_indices_.size(); ++i) {
+    auto col_idx = complex_column_indices_[i];
+    auto column = rv.childAt(col_idx);
+
+    // TODO: rethink the cost of `exportToArrow+ImportArray`
+    ArrowArray arrowArray;
+    velox::exportToArrow(column, arrowArray);
+
+    auto result = arrow::ImportArray(&arrowArray, arrow_column_types_[col_idx]);
+    RETURN_NOT_OK(result);
+
+    auto num_rows = rv.size();
+    for (auto row = 0; row < num_rows; ++row) {
+      auto partition = row_2_partition_[row];
+      RETURN_NOT_OK(partition_list_builders_[i][partition]->AppendArraySlice(*((*result)->data().get()), row, 1));
+    }
+  }
+
   return arrow::Status::OK();
 }
 
 arrow::Status VeloxSplitter::SplitBinaryArray(const velox::RowVector& rv) {
-  // TODO
   for (auto col = fixed_width_column_count_; col < simple_column_indices_.size(); ++col) {
     auto binary_idx = col - fixed_width_column_count_;
     auto& dst_addrs = partition_binary_addrs_[binary_idx];
@@ -635,43 +712,26 @@ arrow::Status VeloxSplitter::SplitBinaryArray(const velox::RowVector& rv) {
     auto column = rv.childAt(col_idx);
     auto type_kind = column->typeKind();
     if (type_kind == velox::TypeKind::VARCHAR || type_kind == velox::TypeKind::VARBINARY) {
-      auto string_column = rv.asFlatVector<velox::StringView>();
+      auto string_column = column->asFlatVector<velox::StringView>();
+      assert(string_column);
       RETURN_NOT_OK(SplitBinaryType(binary_idx, *string_column, dst_addrs));
     } else {
+      VsPrintLF("INVALID TYPE: neither VARCHAR nor VARBINARY!");
       assert(false);
     }
   }
-
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSplitter::TransferSchema(const velox::RowVector& rv, std::shared_ptr<arrow::Schema>& input_schema) {
-  if (rv.childrenSize() == 0) {
-    return arrow::Status::Invalid("has not child.");
-  }
-
-  if (!rv.childAt(0)->type()->isInteger()) {
-    return arrow::Status::Invalid("RowVector field 0 should be integer");
-  }
-
+arrow::Status VeloxSplitter::VeloxType2ArrowSchema(const velox::TypePtr& type) {
   auto out = std::make_shared<ArrowSchema>();
-  // need this following loop?
-  // Make sure to load lazy vector if not loaded already.
-  for (auto& child : rv.children()) {
-    child->loadedVector();
-  }
-
-  // TODO: need recheck
-  auto rvp = velox::RowVector::createEmpty(rv.type(), rv.pool());
+  auto rvp = velox::RowVector::createEmpty(type, GetDefaultWrappedVeloxMemoryPool());
 
   // get ArrowSchema from velox::RowVector
   velox::exportToArrow(rvp, *out);
 
   // convert ArrowSchema to arrow::Schema
-  ARROW_ASSIGN_OR_RAISE(input_schema, arrow::ImportSchema(out.get()));
-
-  // remove the first column，then schema_'s column is one less than input_schema_'s
-  ARROW_ASSIGN_OR_RAISE(schema_, input_schema->RemoveField(0));
+  ARROW_ASSIGN_OR_RAISE(schema_, arrow::ImportSchema(out.get()));
 
   return arrow::Status::OK();
 }
@@ -682,6 +742,8 @@ arrow::Status VeloxSplitter::InitColumnTypes(const velox::RowVector& rv) {
       velox_column_types_.push_back(rv.childAt(i)->type());
     }
   }
+
+  VsPrintSplitLF("schema_", schema_->ToString());
 
   // get arrow_column_types_ from schema
   ARROW_ASSIGN_OR_RAISE(arrow_column_types_, ToSplitterTypeId(schema_->fields()));
@@ -713,7 +775,7 @@ arrow::Status VeloxSplitter::InitColumnTypes(const velox::RowVector& rv) {
   simple_column_indices_.insert(
       simple_column_indices_.end(), binary_column_indices_.begin(), binary_column_indices_.end());
 
-  assert(!simple_column_indices_.empty());
+  PrintColumnsInfo();
 
   binary_array_empirical_size_.resize(binary_column_indices_.size(), 0);
 
@@ -774,17 +836,24 @@ uint32_t VeloxSplitter::CalculatePartitionBufferSize(const velox::RowVector& rv)
     }
   }
 
+  VS_PRINT_VECTOR_MAPPING(binary_array_empirical_size_);
+
   size_per_row = std::accumulate(binary_array_empirical_size_.begin(), binary_array_empirical_size_.end(), 0);
 
   for (size_t col = 0; col < simple_column_indices_.size(); ++col) {
     auto col_idx = simple_column_indices_[col];
-    size_per_row += arrow::bit_width(arrow_column_types_[col_idx]->id()) >> 3;
+    // `bool(1) >> 3` gets 0, so +7
+    size_per_row += ((arrow::bit_width(arrow_column_types_[col_idx]->id()) + 7) >> 3);
   }
+
+  VS_PRINTLF(size_per_row);
 
   uint64_t prealloc_row_cnt = options_.offheap_per_task > 0 && size_per_row > 0
       ? options_.offheap_per_task / size_per_row / num_partitions_ >> 2
       : options_.buffer_size;
   prealloc_row_cnt = std::min(prealloc_row_cnt, (uint64_t)options_.buffer_size);
+
+  VS_PRINTLF(prealloc_row_cnt);
 
   return prealloc_row_cnt;
 }
@@ -1095,7 +1164,7 @@ arrow::Status VeloxSplitter::CacheRecordBatch(uint32_t partition_id, const arrow
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSplitter::SpillFixedSize(int64_t size, int64_t* actual) {
+arrow::Status VeloxSplitter::EvictFixedSize(int64_t size, int64_t* actual) {
   int64_t current_spilled = 0L;
   auto try_count = 0;
   while (current_spilled < size && try_count < 5) {
@@ -1138,7 +1207,7 @@ arrow::Status VeloxSplitter::SpillPartition(uint32_t partition_id) {
   if (partition_writer_[partition_id] == nullptr) {
     partition_writer_[partition_id] = std::make_shared<PartitionWriter>(this, partition_id);
   }
-  TIME_NANO_OR_RAISE(total_spill_time_, partition_writer_[partition_id]->Spill());
+  TIME_NANO_OR_RAISE(total_evict_time_, partition_writer_[partition_id]->Spill());
 
   // reset validity buffer after spill
   std::for_each(
@@ -1154,6 +1223,12 @@ arrow::Status VeloxSplitter::SpillPartition(uint32_t partition_id) {
 }
 
 // VeloxRoundRobinSplitter
+arrow::Status VeloxRoundRobinSplitter::InitColumnTypes(const velox::RowVector& rv) {
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+
+  return VeloxSplitter::InitColumnTypes(rv);
+}
+
 arrow::Status VeloxRoundRobinSplitter::Partition(const velox::RowVector& rv) {
   std::fill(std::begin(partition_2_row_count_), std::end(partition_2_row_count_), 0);
   row_2_partition_.resize(rv.size());
@@ -1191,13 +1266,30 @@ arrow::Status VeloxSinglePartSplitter::Init() {
   return arrow::Status::OK();
 }
 
+arrow::Status VeloxSinglePartSplitter::InitColumnTypes(const velox::RowVector& rv) {
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+  return VeloxSplitter::InitColumnTypes(rv);
+}
+
 arrow::Status VeloxSinglePartSplitter::Partition(const velox::RowVector& rv) {
+  // nothing is need do here
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSinglePartSplitter::Split(const velox::RowVector& rv) {
-  // TODO
-  // CacheRecordBatch(0, rv);
+arrow::Status VeloxSinglePartSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto vp = veloxColumnBatch->getFlattenedRowVector();
+  RETURN_NOT_OK(InitFromRowVector(*vp));
+  // 1. convert RowVector to RecordBatch
+  ArrowArray arrowArray;
+  velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool());
+
+  auto result = arrow::ImportRecordBatch(&arrowArray, schema_);
+  RETURN_NOT_OK(result);
+
+  // 2. call CacheRecordBatch with RecordBatch
+  RETURN_NOT_OK(CacheRecordBatch(0, *(*result)));
+
   return arrow::Status::OK();
 }
 
@@ -1224,7 +1316,7 @@ arrow::Status VeloxSinglePartSplitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
+      total_bytes_evicted_ += writer->bytes_spilled;
       total_compress_time_ += writer->compress_time;
     } else {
       partition_lengths_[pid] = 0;
@@ -1239,13 +1331,6 @@ arrow::Status VeloxSinglePartSplitter::Stop() {
 }
 
 // VeloxHashSplitter
-arrow::Status VeloxHashSplitter::Init() {
-  // this logic is moved to InitColumnTypes()
-  // input_schema_ = std::move(schema_);
-  // ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
-  return VeloxSplitter::Init();
-}
-
 arrow::Status VeloxHashSplitter::Partition(const velox::RowVector& rv) {
   if (rv.childrenSize() == 0) {
     return arrow::Status::Invalid("RowVector missing partition id column.");
@@ -1269,16 +1354,34 @@ arrow::Status VeloxHashSplitter::Partition(const velox::RowVector& rv) {
 
   auto raw_values = pid_flat_vector->rawValues();
   for (auto i = 0; i < num_rows; ++i) {
-    uint32_t pid = raw_values[i] % num_partitions_;
+    auto pid = raw_values[i] % num_partitions_;
+#if defined(__x86_64__)
+    // force to generate ASM
+    __asm__(
+        "lea (%[num_partitions],%[pid],1),%[tmp]\n"
+        "test %[pid],%[pid]\n"
+        "cmovs %[tmp],%[pid]\n"
+        : [pid] "+r"(pid)
+        : [num_partitions] "r"(num_partitions_), [tmp] "r"(0));
+#else
+    if (pid < 0) {
+      pid += num_partitions_;
+    }
+#endif
     row_2_partition_[i] = pid;
     partition_2_row_count_[pid]++;
   }
+
+  PrintPartition();
 
   return arrow::Status::OK();
 }
 
 arrow::Status VeloxHashSplitter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(TransferSchema(rv, input_schema_));
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+
+  // remove the first column
+  ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
 
   // skip the first column
   for (size_t i = 1; i < rv.childrenSize(); ++i) {
@@ -1288,7 +1391,9 @@ arrow::Status VeloxHashSplitter::InitColumnTypes(const velox::RowVector& rv) {
   return VeloxSplitter::InitColumnTypes(rv);
 }
 
-arrow::Status VeloxHashSplitter::Split(const velox::RowVector& rv) {
+arrow::Status VeloxHashSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
   RETURN_NOT_OK(InitFromRowVector(rv));
   RETURN_NOT_OK(Partition(rv));
   auto stripped_rv = GetStrippedRowVector(rv);
@@ -1297,15 +1402,11 @@ arrow::Status VeloxHashSplitter::Split(const velox::RowVector& rv) {
 }
 
 // VeloxFallbackRangeSplitter
-arrow::Status VeloxFallbackRangeSplitter::Init() {
-  // this logic is moved to InitColumnTypes()
-  // input_schema_ = std::move(schema_);
-  // ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
-  return arrow::Status::OK();
-}
-
 arrow::Status VeloxFallbackRangeSplitter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(TransferSchema(rv, input_schema_));
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+
+  // remove the first column
+  ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
 
   // skip the first column
   for (size_t i = 1; i < rv.childrenSize(); ++i) {
@@ -1349,7 +1450,9 @@ arrow::Status VeloxFallbackRangeSplitter::Partition(const velox::RowVector& rv) 
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxFallbackRangeSplitter::Split(const velox::RowVector& rv) {
+arrow::Status VeloxFallbackRangeSplitter::Split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
   RETURN_NOT_OK(InitFromRowVector(rv));
   RETURN_NOT_OK(Partition(rv));
   auto stripped_rv = GetStrippedRowVector(rv);

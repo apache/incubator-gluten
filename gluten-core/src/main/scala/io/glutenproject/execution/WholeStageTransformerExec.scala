@@ -17,28 +17,27 @@
 
 package io.glutenproject.execution
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
-import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitContext}
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
-import io.glutenproject.vectorized._
-
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 case class TransformContext(
     inputAttributes: Seq[Attribute],
@@ -51,31 +50,24 @@ case class WholestageTransformContext(
     root: PlanNode,
     substraitContext: SubstraitContext = null)
 
-/**
- * A minimized controller for updating operator's metrics, which means it never
- * persists the SparkPlan instance of the operator then the serialized RDD's size
- * can be therefore minimized.
- *
- * TODO place it to some other where since it's used not only by whole stage facilities
- */
-trait MetricsUpdater extends Serializable {
-  def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {}
-  def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {}
-}
+trait TransformSupport extends SparkPlan with LogLevelUtil {
 
-/**
- * A tree to walk down the operators' MetricsUpdater instances.
- */
-final case class MetricsUpdaterTree(updater: MetricsUpdater, children: Seq[MetricsUpdaterTree])
-
-object NoopMetricsUpdater extends MetricsUpdater
-
-trait TransformSupport extends SparkPlan {
+  lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
+  lazy val printStackOnValidateFailure = GlutenConfig.getConf.printStackOnValidateFailure
 
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
   def doValidate(): Boolean = false
+
+  def logValidateFailure(msg: => String, e: Throwable): Unit = {
+    if (printStackOnValidateFailure) {
+      logOnLevel(validateFailureLogLevel, msg, e)
+    } else {
+      logOnLevel(validateFailureLogLevel, msg)
+    }
+
+  }
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
@@ -88,8 +80,6 @@ trait TransformSupport extends SparkPlan {
   def getBuildPlans: Seq[(SparkPlan, SparkPlan)]
 
   def getStreamedLeafPlan: SparkPlan
-
-  def getChild: SparkPlan
 
   def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
@@ -109,15 +99,17 @@ trait TransformSupport extends SparkPlan {
 }
 
 case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode with TransformSupport with LogLevelUtil {
+  extends UnaryExecNode with TransformSupport with GlutenPlan with LogLevelUtil {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
-  override lazy val metrics = Map(
-    "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
+
   val sparkConf = sparkContext.getConf
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val substraitPlanLogLevel = GlutenConfig.getSessionConf.substraitPlanLogLevel
+  val substraitPlanLogLevel = GlutenConfig.getConf.substraitPlanLogLevel
 
   private var planJson: String = ""
 
@@ -148,7 +140,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       maxFields: Int,
       printNodeId: Boolean,
       indent: Int = 0): Unit = {
-    val prefix = if (printNodeId) "* " else s"*($transformStageId) "
+    val prefix = if (printNodeId) "^ " else s"^($transformStageId) "
     child.generateTreeString(
       depth,
       lastChildren,
@@ -171,8 +163,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
     child.asInstanceOf[TransformSupport].getBuildPlans
   }
-
-  override def getChild: SparkPlan = child
 
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException("Row based execution is not supported")
@@ -200,31 +190,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       childCtx.outputAttributes,
       planNode,
       substraitContext)
-  }
-
-  @deprecated
-  def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
-    var currentOp = child
-    while (
-      currentOp.isInstanceOf[TransformSupport] &&
-      !currentOp.isInstanceOf[BasicScanExecTransformer] &&
-      currentOp.asInstanceOf[TransformSupport].getChild != null
-    ) {
-      currentOp = currentOp.asInstanceOf[TransformSupport].getChild
-    }
-    if (
-      currentOp != null &&
-      currentOp.isInstanceOf[BasicScanExecTransformer]
-    ) {
-      currentOp match {
-        case op: BatchScanExecTransformer =>
-          Some(currentOp.asInstanceOf[BatchScanExecTransformer])
-        case op: FileSourceScanExecTransformer =>
-          Some(currentOp.asInstanceOf[FileSourceScanExecTransformer])
-      }
-    } else {
-      None
-    }
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformerExec */
@@ -299,20 +264,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         substraitPlanLogLevel,
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
 
-      val metricsUpdatingFunction: Metrics => Unit =
-        updateNativeMetrics(
-          wsCxt.substraitContext.registeredRelMap,
-          wsCxt.substraitContext.registeredJoinParams,
-          wsCxt.substraitContext.registeredAggregationParams)
-
       new GlutenWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartitions,
         wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
-        metricsUpdater().updateOutputMetrics,
-        metricsUpdatingFunction
+        leafMetricsUpdater().updateInputMetrics,
+        BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
+          child,
+          wsCxt.substraitContext.registeredRelMap,
+          wsCxt.substraitContext.registeredJoinParams,
+          wsCxt.substraitContext.registeredAggregationParams
+        )
       )
     } else {
 
@@ -331,12 +295,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         substraitPlanLogLevel,
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
 
-      val metricsUpdatingFunction: Metrics => Unit =
-        updateNativeMetrics(
-          resCtx.substraitContext.registeredRelMap,
-          resCtx.substraitContext.registeredJoinParams,
-          resCtx.substraitContext.registeredAggregationParams)
-
       new WholeStageZippedPartitionsRDD(
         sparkContext,
         genFinalNewRDDsForBroadcast(inputRDDs),
@@ -345,8 +303,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         resCtx,
         pipelineTime,
         buildRelationBatchHolder,
-        metricsUpdater().updateOutputMetrics,
-        metricsUpdatingFunction)
+        BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
+          child,
+          resCtx.substraitContext.registeredRelMap,
+          resCtx.substraitContext.registeredJoinParams,
+          resCtx.substraitContext.registeredAggregationParams
+        )
+      )
     }
   }
 
@@ -357,45 +320,15 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   override def metricsUpdater(): MetricsUpdater = {
     child match {
       case transformer: TransformSupport => transformer.metricsUpdater()
-      case _ => NoopMetricsUpdater
+      case _ => new NoopMetricsUpdater
     }
   }
 
-  /**
-   * Update metrics fetched from certain iterator to transformers.
-   * @param metrics
-   *   the metrics recorded by transformer's operators
-   * @param relMap
-   *   the map between operator index and its rels
-   * @param joinParamsMap
-   *   the map between operator index and join parameters
-   * @param aggParamsMap
-   *   the map between operator index and aggregation parameters
-   */
-  def updateNativeMetrics(
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams])
-  : Metrics => Unit = {
-    def treeifyMetricsUpdaters(plan: SparkPlan): MetricsUpdaterTree = {
-      plan match {
-        case j: HashJoinLikeExecTransformer =>
-          MetricsUpdaterTree(j.metricsUpdater(),
-            Seq(treeifyMetricsUpdaters(j.buildPlan), treeifyMetricsUpdaters(j.streamedPlan)))
-        case t: TransformSupport =>
-          MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
-        case _ =>
-          MetricsUpdaterTree(NoopMetricsUpdater, Seq())
-      }
+  def leafMetricsUpdater(): MetricsUpdater = {
+    getStreamedLeafPlan match {
+      case transformer: TransformSupport => transformer.metricsUpdater()
+      case _ => new NoopMetricsUpdater
     }
-    val mut: MetricsUpdaterTree = treeifyMetricsUpdaters(child)
-
-    WholeStageTransformerExec.updateTransformerMetrics(
-      mut,
-      relMap,
-      new java.lang.Long(relMap.size() - 1),
-      joinParamsMap,
-      aggParamsMap)
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
@@ -443,209 +376,4 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformerExec =
     copy(child = newChild)(transformStageId)
-}
-
-object WholeStageTransformerExec extends Logging {
-
-  /**
-   * Merge several suites of metrics together.
-   * @param operatorMetrics:
-   *   a list of metrics to merge
-   * @return
-   *   the merged metrics
-   */
-  private def mergeMetrics(
-      operatorMetrics: java.util.ArrayList[OperatorMetrics]): OperatorMetrics = {
-    if (operatorMetrics.size() == 0) {
-      return null
-    }
-
-    // We are accessing the metrics from end to start. So the input metrics are got from the
-    // last suite of metrics, and the output metrics are got from the first suite.
-    val inputRows = operatorMetrics.get(operatorMetrics.size() - 1).inputRows
-    val inputVectors = operatorMetrics.get(operatorMetrics.size() - 1).inputVectors
-    val inputBytes = operatorMetrics.get(operatorMetrics.size() - 1).inputBytes
-    val rawInputRows = operatorMetrics.get(operatorMetrics.size() - 1).rawInputRows
-    val rawInputBytes = operatorMetrics.get(operatorMetrics.size() - 1).rawInputBytes
-
-    val outputRows = operatorMetrics.get(0).outputRows
-    val outputVectors = operatorMetrics.get(0).outputVectors
-    val outputBytes = operatorMetrics.get(0).outputBytes
-
-    var cpuNanos: Long = 0
-    var wallNanos: Long = 0
-    var peakMemoryBytes: Long = 0
-    var numMemoryAllocations: Long = 0
-    var spilledBytes: Long = 0
-    var spilledRows: Long = 0
-    var spilledPartitions: Long = 0
-    var spilledFiles: Long = 0
-    var numDynamicFiltersProduced: Long = 0
-    var numDynamicFiltersAccepted: Long = 0
-    var numReplacedWithDynamicFilterRows: Long = 0
-    var flushRowCount: Long = 0
-    var scanTime: Long = 0
-
-    val metricsIterator = operatorMetrics.iterator()
-    while (metricsIterator.hasNext) {
-      val metrics = metricsIterator.next()
-      cpuNanos += metrics.cpuNanos
-      wallNanos += metrics.wallNanos
-      peakMemoryBytes = peakMemoryBytes.max(metrics.peakMemoryBytes)
-      numMemoryAllocations += metrics.numMemoryAllocations
-      spilledBytes += metrics.spilledBytes
-      spilledRows += metrics.spilledRows
-      spilledPartitions += metrics.spilledPartitions
-      spilledFiles += metrics.spilledFiles
-      numDynamicFiltersProduced += metrics.numDynamicFiltersProduced
-      numDynamicFiltersAccepted += metrics.numDynamicFiltersAccepted
-      numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
-      flushRowCount += metrics.flushRowCount
-      scanTime += metrics.scanTime
-    }
-
-    new OperatorMetrics(
-      inputRows,
-      inputVectors,
-      inputBytes,
-      rawInputRows,
-      rawInputBytes,
-      outputRows,
-      outputVectors,
-      outputBytes,
-      cpuNanos,
-      wallNanos,
-      peakMemoryBytes,
-      numMemoryAllocations,
-      spilledBytes,
-      spilledRows,
-      spilledPartitions,
-      spilledFiles,
-      numDynamicFiltersProduced,
-      numDynamicFiltersAccepted,
-      numReplacedWithDynamicFilterRows,
-      flushRowCount,
-      scanTime
-    )
-  }
-
-  /**
-   * @return
-   *   operator index and metrics index
-   */
-  def updateTransformerMetricsInternal(
-      mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
-      metrics: Metrics,
-      metricsIdx: Int,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): (java.lang.Long, Int) = {
-    val operatorMetrics = new java.util.ArrayList[OperatorMetrics]()
-    var curMetricsIdx = metricsIdx
-    relMap
-      .get(operatorIdx)
-      .forEach(
-        _ => {
-          operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
-          curMetricsIdx -= 1
-        })
-
-    mutNode.updater match {
-      case ju: HashJoinMetricsUpdater =>
-        // JoinRel outputs two suites of metrics respectively for hash build and hash probe.
-        // Therefore, fetch one more suite of metrics here.
-        operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
-        curMetricsIdx -= 1
-        ju.updateJoinMetrics(
-          operatorMetrics,
-          metrics.getSingleMetrics,
-          joinParamsMap.get(operatorIdx))
-      case hau: HashAggregateMetricsUpdater =>
-        hau.updateAggregationMetrics(operatorMetrics, aggParamsMap.get(operatorIdx))
-      case lu: LimitMetricsUpdater =>
-        // Limit over Sort is converted to TopN node in Velox, so there is only one suite of metrics
-        // for the two transformers. We do not update metrics for limit and leave it for sort.
-        if (!mutNode.children.head.updater.isInstanceOf[SortMetricsUpdater]) {
-          val opMetrics: OperatorMetrics = mergeMetrics(operatorMetrics)
-          lu.updateNativeMetrics(opMetrics)
-        }
-      case u =>
-        val opMetrics: OperatorMetrics = mergeMetrics(operatorMetrics)
-        u.updateNativeMetrics(opMetrics)
-    }
-
-    var newOperatorIdx: java.lang.Long = operatorIdx - 1
-    var newMetricsIdx: Int = if (mutNode.updater.isInstanceOf[LimitMetricsUpdater] &&
-      mutNode.children.head.updater.isInstanceOf[SortMetricsUpdater]) {
-      // This suite of metrics is not consumed.
-      metricsIdx
-    } else {
-      curMetricsIdx
-    }
-
-    mutNode.children.foreach { child =>
-      if (child.updater ne NoopMetricsUpdater) {
-        val result = updateTransformerMetricsInternal(
-          child,
-          relMap,
-          newOperatorIdx,
-          metrics,
-          newMetricsIdx,
-          joinParamsMap,
-          aggParamsMap)
-        newOperatorIdx = result._1
-        newMetricsIdx = result._2
-      }
-    }
-
-    (newOperatorIdx, newMetricsIdx)
-  }
-
-  /**
-   * A recursive function updating the metrics of one transformer and its child.
-   * @param mut
-   *   the metrics updater tree built from the original plan
-   * @param relMap
-   *   the map between operator index and its rels
-   * @param operatorIdx
-   *   the index of operator
-   * @param metrics
-   *   the metrics fetched from native
-   * @param metricsIdx
-   *   the index of metrics
-   * @param joinParamsMap
-   *   the map between operator index and join parameters
-   * @param aggParamsMap
-   *   the map between operator index and aggregation parameters
-   */
-  def updateTransformerMetrics(
-      mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams])
-  : Metrics => Unit = { metrics =>
-    try {
-      val numNativeMetrics = metrics.inputRows.length
-      if (numNativeMetrics == 0) {
-        ()
-      } else if (mutNode.updater eq NoopMetricsUpdater) {
-        ()
-      } else {
-        updateTransformerMetricsInternal(
-          mutNode,
-          relMap,
-          operatorIdx,
-          metrics,
-          numNativeMetrics - 1,
-          joinParamsMap,
-          aggParamsMap)
-      }
-    } catch {
-      case e: Throwable =>
-        logWarning(s"Updating native metrics failed due to ${e.getCause}.")
-        ()
-    }
-  }
 }

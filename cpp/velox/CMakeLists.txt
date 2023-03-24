@@ -136,7 +136,9 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
-
+  if(BUILD_TESTS)
+    add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
+  endif()
 endmacro()
 
 macro(find_libhdfs3)
@@ -161,6 +163,7 @@ set(VELOX_SRCS
     shuffle/VeloxSplitter.cc
     jni/JniWrapper.cc
     compute/VeloxBackend.cc
+    compute/VeloxInitializer.cc
     compute/WholeStageResultIterator.cc
     compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc
@@ -199,12 +202,12 @@ include_directories(${FOLLY_INCLUDE_DIR})
 include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(${Protobuf_INCLUDE_DIR})
 
-target_link_libraries(velox PUBLIC spark_columnar_jni)
+target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
 
 if(BUILD_TESTS)
-  add_test_case(velox_splitter_test SOURCES tests/VeloxSplitterTest.cc EXTRA_LINK_LIBS velox)
+  add_subdirectory(tests)
 endif()
 
 if(VELOX_ENABLE_HDFS)

@@ -49,7 +49,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
@@ -173,6 +173,17 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
+  test("sha2") {
+    Seq(-1, 0, 1, 224, 256, 384, 512).foreach { bitLength =>
+      runQueryAndCompare(s"select l_orderkey, sha2(l_comment, $bitLength) " +
+        s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    }
+    runQueryAndCompare(s"select l_orderkey, sha2($NULL_STR_COL, 256) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, sha2(l_comment, $NULL_STR_COL) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
   test("crc32") {
     runQueryAndCompare(s"select l_orderkey, crc32(l_comment) " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
@@ -216,34 +227,32 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   test("trim") {
-    runQueryAndCompare(s"select l_orderkey, trim('    SparkSQL   ') " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, trim($NULL_STR_COL) " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, trim(l_comment) " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-  }
-
-  ignore("ltrim/rtrim(trimStr, str)") {
-    runQueryAndCompare(s"select l_orderkey, ltrim('SparkSQL   ', 'Spark') " +
+    runQueryAndCompare(s"select l_orderkey, trim('. abcdefg', l_comment) " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, ltrim('    SparkSQL   ', 'Spark') " +
+    runQueryAndCompare(s"select l_orderkey, trim($NULL_STR_COL), " +
+      s"trim($NULL_STR_COL, l_comment), trim('. abcdefg', $NULL_STR_COL) " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  test("ltrim/rtrim(str)") {
-    runQueryAndCompare(s"select l_orderkey, ltrim('    SparkSQL   ') " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, ltrim($NULL_STR_COL) " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  test("ltrim") {
     runQueryAndCompare(s"select l_orderkey, ltrim(l_comment) " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, ltrim('. abcdefg', l_comment) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, ltrim($NULL_STR_COL), " +
+      s"ltrim($NULL_STR_COL, l_comment), ltrim('. abcdefg', $NULL_STR_COL) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
 
-    runQueryAndCompare(s"select l_orderkey, rtrim('    SparkSQL   ') " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, rtrim($NULL_STR_COL) " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  test("rtrim") {
     runQueryAndCompare(s"select l_orderkey, rtrim(l_comment) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, rtrim('. abcdefg', l_comment) " +
+      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, rtrim($NULL_STR_COL), " +
+      s"rtrim($NULL_STR_COL, l_comment), rtrim('. abcdefg', $NULL_STR_COL) " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
@@ -278,7 +287,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, like(l_comment, 'a_%b') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, like('l_comment', 'a\\__b') " +
+    runQueryAndCompare(s"select l_orderkey, like(l_comment, 'a\\__b') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, like(l_comment, 'abc_') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
@@ -342,7 +351,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   test("regexp_extract_all") {
-    runQueryAndCompare(s"select l_orderkey, regexp_extract_all('l_comment', '([a-z])', 1) " +
+    runQueryAndCompare(s"select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
       s"from $LINEITEM_TABLE limit 5") { checkOperatorMatch[ProjectExecTransformer] }
     // fall back because of unsupported cast(array)
     runQueryAndCompare(s"select l_orderkey, l_comment, " +

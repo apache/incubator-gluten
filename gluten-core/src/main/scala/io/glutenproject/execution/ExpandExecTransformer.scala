@@ -19,23 +19,23 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.OperatorMetrics
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.BindReferencesUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
@@ -45,58 +45,16 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
                                  groupExpression: Seq[NamedExpression],
                                  output: Seq[Attribute],
                                  child: SparkPlan)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode with TransformSupport with GlutenPlan {
 
-  override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
-    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"))
-
-  object MetricsUpdaterImpl extends MetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
-    val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
-    val rawInputRows: SQLMetric = longMetric("rawInputRows")
-    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-    val outputRows: SQLMetric = longMetric("outputRows")
-    val outputVectors: SQLMetric = longMetric("outputVectors")
-    val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuNanos: SQLMetric = longMetric("cpuNanos")
-    val wallNanos: SQLMetric = longMetric("wallNanos")
-    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
-
-    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-      if (operatorMetrics != null) {
-        inputRows += operatorMetrics.inputRows
-        inputVectors += operatorMetrics.inputVectors
-        inputBytes += operatorMetrics.inputBytes
-        rawInputRows += operatorMetrics.rawInputRows
-        rawInputBytes += operatorMetrics.rawInputBytes
-        outputRows += operatorMetrics.outputRows
-        outputVectors += operatorMetrics.outputVectors
-        outputBytes += operatorMetrics.outputBytes
-        cpuNanos += operatorMetrics.cpuNanos
-        wallNanos += operatorMetrics.wallNanos
-        peakMemoryBytes += operatorMetrics.peakMemoryBytes
-        numMemoryAllocations += operatorMetrics.numMemoryAllocations
-      }
-    }
-  }
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genExpandTransformerMetrics(sparkContext)
 
   val originalInputAttributes: Seq[Attribute] = child.output
 
-  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
 
   // The GroupExpressions can output data with arbitrary partitioning, so set it
   // as UNKNOWN partitioning
@@ -115,11 +73,12 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
   }
-
-  override def getChild: SparkPlan = child
 
   def getRelNode(context: SubstraitContext,
                  projections: Seq[Seq[Expression]],
@@ -154,30 +113,31 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
               originalInputAttributes
             )
 
-          if (groupExprNode.isInstanceOf[AttributeReferenceTransformer]) {
-            val attr_ref_transform = groupExprNode.asInstanceOf[AttributeReferenceTransformer]
-            /*
-             * There is a special case, E.g,
-             *  select x, y, count(x) from t group by x, y with rollup.
-             * The input header for this operator is: x_0, x_1, y, but the reference to x in
-             * grouping sets is also 0 (refer to x_0) which may be 1 which would cause some
-             * problems. We fix it here.
-             */
-            if (attr_ref_transform.ordinal < aggSize) {
-              var index = originalInputAttributes.length - 1
-              breakable {
-                while (index >= 0) {
-                  if (originalInputAttributes(index).exprId.equals(attr_ref_transform.exprId)) {
-                    groupExprNode = AttributeReferenceTransformer(attr_ref_transform.name,
-                      index, attr_ref_transform.dataType, attr_ref_transform.nullable,
-                      attr_ref_transform.exprId, attr_ref_transform.qualifier,
-                      attr_ref_transform.metadata)
-                    break
+          groupExprNode match {
+            case attrRefTransform: AttributeReferenceTransformer =>
+              /*
+               * There is a special case, E.g,
+               *  select x, y, count(x) from t group by x, y with rollup.
+               * The input header for this operator is: x_0, x_1, y, but the reference to x in
+               * grouping sets is also 0 (refer to x_0) which may be 1 which would cause some
+               * problems. We fix it here.
+               */
+              if (attrRefTransform.ordinal < aggSize) {
+                var index = originalInputAttributes.length - 1
+                breakable {
+                  while (index >= 0) {
+                    if (originalInputAttributes(index).exprId.equals(attrRefTransform.exprId)) {
+                      groupExprNode = AttributeReferenceTransformer(attrRefTransform.name,
+                        index, attrRefTransform.dataType, attrRefTransform.nullable,
+                        attrRefTransform.exprId, attrRefTransform.qualifier,
+                        attrRefTransform.metadata)
+                      break
+                    }
+                    index -= 1
                   }
-                  index -= 1
                 }
               }
-            }
+            case _ =>
           }
           val transformedNode = groupExprNode.doTransform(args)
           groupExprNodes.add(transformedNode)
@@ -225,8 +185,9 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
 
       // Pass the reordered index agg + groupingsets + GID
+      val emitStartIndex = originalInputAttributes.size + 1
       if (!validation) {
-        RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId)
+        RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId, emitStartIndex)
       } else {
         // Use a extension node to send the input types through Substrait plan for a validation.
         val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -237,7 +198,8 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
         val extensionNode = ExtensionBuilder.makeAdvancedExtension(
           Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-        RelBuilder.makeProjectRel(expandRel, selectNodes, extensionNode, context, operatorId)
+        RelBuilder.makeProjectRel(
+          expandRel, selectNodes, extensionNode, context, operatorId, emitStartIndex)
       }
     } else {
       expandRel
@@ -270,7 +232,8 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 

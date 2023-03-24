@@ -17,8 +17,8 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-
-import org.apache.spark.{broadcast, SparkException}
+import io.glutenproject.extension.GlutenPlan
+import org.apache.spark.{SparkException, broadcast}
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,20 +32,17 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
 
 import java.util.UUID
-import java.util.concurrent.{TimeoutException, TimeUnit}
-
+import java.util.concurrent.{TimeUnit, TimeoutException}
 import scala.concurrent.Promise
 import scala.concurrent.duration.NANOSECONDS
 import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
-  extends BroadcastExchangeLike {
-  override lazy val metrics = Map(
-    "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
-    "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast")
-  )
+  extends BroadcastExchangeLike with GlutenPlan {
+
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genColumnarBroadcastExchangeMetrics(sparkContext)
 
   @transient
   lazy val promise = Promise[broadcast.Broadcast[Any]]()

@@ -141,10 +141,6 @@ object BackendTestSettings {
     case GlutenConfig.GLUTEN_VELOX_BACKEND =>
       Class.forName("io.glutenproject.utils.velox.VeloxTestSettings").newInstance()
         .asInstanceOf[BackendTestSettings]
-    case GlutenConfig.GLUTEN_GAZELLE_BACKEND =>
-      // FIXME here we reuse Velox backend's code
-      Class.forName("io.glutenproject.utils.VeloxTestSettings").newInstance()
-        .asInstanceOf[BackendTestSettings]
      // scalastyle:on classforname
     case other =>
       throw new IllegalStateException(other)

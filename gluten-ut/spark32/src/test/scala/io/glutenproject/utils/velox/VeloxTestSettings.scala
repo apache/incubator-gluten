@@ -186,9 +186,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOuterJoinSuite]
   enableSuite[GlutenInnerJoinSuite]
   enableSuite[GlutenExchangeSuite]
-    // ColumnarShuffleExchangeAdaptor does not support doExecute() method
+    // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
-    // ColumnarShuffleExchangeAdaptor does not support SORT_BEFORE_REPARTITION
+    // ColumnarShuffleExchangeExec does not support SORT_BEFORE_REPARTITION
     .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
@@ -311,6 +311,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "without partition data column - select one deep nested complex field after outer join")
     .exclude("Spark vectorized reader - " +
       "with partition data column - select one deep nested complex field after outer join")
+    // Vectorized reading.
+    .exclude("Spark vectorized reader - without partition data column - " +
+      "select only expressions without references")
+    .exclude("Spark vectorized reader - with partition data column - " +
+      "select only expressions without references")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
@@ -427,6 +432,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
+    // Unsupported compression codec.
     .exclude("write and read - file source parquet - codec: lz4")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
@@ -508,9 +514,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
   enableSuite[GlutenConfigBehaviorSuite]
+    // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
+    .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
-    .exclude("roundtrip to_csv -> from_csv")
   enableSuite[GlutenCTEHintSuite]
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
@@ -525,10 +532,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSerializationSuite]
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
+      // Rewrite with NaN test cases excluded.
     .exclude("cases when literal is max")
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenMetadataCacheSuite]
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+  enableSuite[FallbackStrategiesSuite]
 }

@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
+import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
@@ -29,11 +29,13 @@ import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
-import org.apache.spark.sql.types.{ArrayType, StructField}
+import org.apache.spark.sql.types.StructField
 
-class CHTransformerApi extends ITransformerApi with Logging {
+import java.util
+
+class CHTransformerApi extends TransformerApi with Logging {
 
   /**
    * Do validate for ColumnarShuffleExchangeExec. For ClickHouse backend, it will return true
@@ -65,7 +67,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
             })
           .exists(_ == false))
       case RangePartitioning(orderings, _) =>
-        GlutenConfig.getSessionConf.enableColumnarSort &&
+        GlutenConfig.getConf.enableColumnarSort &&
         RangePartitionerBoundsGenerator.supportedOrderings(orderings)
       case _ => true
     }
@@ -77,8 +79,12 @@ class CHTransformerApi extends ITransformerApi with Logging {
    * @return
    *   true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(fileFormat: ReadFileFormat, fields: Array[StructField]): Boolean =
-    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields)
+  def supportsReadFileFormat(
+      fileFormat: ReadFileFormat,
+      fields: Array[StructField],
+      partTable: Boolean,
+      paths: Seq[String]): Boolean =
+    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields, partTable, paths)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
@@ -91,5 +97,11 @@ class CHTransformerApi extends ITransformerApi with Logging {
       // Generate FilePartition for Parquet
       CHInputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
     }
+  }
+
+  override def postProcessNativeConfig(
+      nativeConfMap: util.Map[String, String],
+      backendPrefix: String): Unit = {
+    /// TODO: IMPLEMENT POST PROCESS FOR CLICKHOUSE BACKEND
   }
 }

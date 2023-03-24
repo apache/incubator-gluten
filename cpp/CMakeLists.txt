@@ -37,13 +37,12 @@ endif()
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
-project(spark_columnar_plugin)
+project(gluten)
 
 option(BUILD_VELOX_BACKEND, "Build velox backend" OFF)
-option(BUILD_GAZELLE_CPP_BACKEND "Build the gazelle-cpp libraries" OFF)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
-option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
+option(BUILD_PROTOBUF "Build Protobuf from Source" OFF)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
@@ -53,7 +52,7 @@ option(VELOX_ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 
-if (NOT BUILD_VELOX_BACKEND AND NOT BUILD_GAZELLE_CPP_BACKEND)
+if (NOT BUILD_VELOX_BACKEND)
   message(STATUS "Not select any backend, build velox backend default")
   set(BUILD_VELOX_BACKEND ON)
 endif()
@@ -132,7 +131,7 @@ function(ADD_TEST_CASE TEST_NAME)
   endif()
 
   add_executable(${TEST_NAME} ${SOURCES})
-  target_link_libraries(${TEST_NAME} spark_columnar_jni gtest gtest_main Threads::Threads glog::glog)
+  target_link_libraries(${TEST_NAME} gluten gtest gtest_main Threads::Threads glog::glog)
   target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)
@@ -163,10 +162,6 @@ endif()
 #
 
 add_subdirectory(core)
-
-if(BUILD_GAZELLE_CPP_BACKEND)
-  add_subdirectory(gazelle-cpp)
-endif()
 
 if(BUILD_VELOX_BACKEND)
   add_subdirectory(velox)

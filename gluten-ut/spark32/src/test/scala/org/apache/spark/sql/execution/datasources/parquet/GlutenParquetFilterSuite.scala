@@ -301,7 +301,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
   }
 }
 
-class GlutenParquetV1FilterSuite extends ParquetV1FilterSuite with GlutenSQLTestsBaseTrait {
+class GlutenParquetV1FilterSuite extends GltuenParquetFilterSuite with GlutenSQLTestsBaseTrait {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =
     super
@@ -379,7 +379,7 @@ class GlutenParquetV1FilterSuite extends ParquetV1FilterSuite with GlutenSQLTest
   }
 }
 
-class GlutenParquetV2FilterSuite extends ParquetV2FilterSuite with GlutenSQLTestsBaseTrait {
+class GlutenParquetV2FilterSuite extends GltuenParquetFilterSuite with GlutenSQLTestsBaseTrait {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =
     super
@@ -456,18 +456,6 @@ class GlutenParquetV2FilterSuite extends ParquetV2FilterSuite with GlutenSQLTest
         readParquetFile(file.getCanonicalPath) { df => runTest(df, colName, resultFun) }
       }
     }
-  }
-
-  private def checkFilterPredicate
-  (predicate: Predicate, filterClass: Class[_ <: FilterPredicate], expected: Seq[Row])
-  (implicit df: DataFrame): Unit = {
-    checkFilterPredicate(df, predicate, filterClass, checkAnswer(_, _: Seq[Row]), expected)
-  }
-
-  private def checkFilterPredicate[T]
-  (predicate: Predicate, filterClass: Class[_ <: FilterPredicate], expected: T)
-  (implicit df: DataFrame): Unit = {
-    checkFilterPredicate(predicate, filterClass, Seq(Row(expected)))(df)
   }
 
   test(GlutenTestConstants.GLUTEN_TEST + "filter pushdown - date") {

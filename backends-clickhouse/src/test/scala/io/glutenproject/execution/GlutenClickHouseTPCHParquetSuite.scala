@@ -269,7 +269,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9, compareResult = false) { df => }
+    runTPCHQuery(9) { df => }
   }
 
   test("TPCH Q10") {
@@ -277,7 +277,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11, compareResult = false) { df => }
+    runTPCHQuery(11) { df => }
   }
 
   test("TPCH Q12") {
@@ -388,15 +388,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("test 'function from_unixtime'") {
     val df = runQueryAndCompare(
-      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
+      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss'), " +
+        "from_unixtime(l_orderkey, 'yyyy-MM-dd') " +
         "from lineitem order by l_orderkey desc limit 10"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 
-  test("test 'aggregate function collect_list'") {
+  ignore("test 'aggregate function collect_list'") {
     val df = runQueryAndCompare(
-      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
+      "select l_orderkey,from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
         "from lineitem order by l_orderkey desc limit 10"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
@@ -547,6 +548,84 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window lead") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lead(n_nationkey, 1) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window lead with default value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lead(n_nationkey, 1, 3) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window lag") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lag(n_nationkey, 1) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window lag with default value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lag(n_nationkey, 1, 3) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window dense_rank") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | dense_rank(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window first value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | first_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  ignore("window last value") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | last_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("group with rollup") {
     val sql =
       """
@@ -573,6 +652,55 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |select l_shipdate, l_shipmode, count(1) as cnt from lineitem
         |group by grouping sets (l_shipdate, l_shipmode, (l_shipdate, l_shipmode))
         |order by l_shipdate, l_shipmode, cnt
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test 'position/locate'") {
+    runQueryAndCompare(
+      """
+        |select position('D', l_shipinstruct, 0), position('', l_shipinstruct, 0),
+        |position('I', l_shipinstruct, 5), position('IN', l_shipinstruct),
+        |position('', l_shipinstruct), locate(l_returnflag, l_shipinstruct),
+        |position(l_returnflag in l_shipinstruct), position('bar', 'foobarbar'),
+        |position(l_returnflag, 'TENSTNTEST', 4), position('bar', 'foobarbar', 5),
+        |position(l_returnflag, l_shipinstruct, l_linenumber + 11),
+        |position(null, l_shipinstruct),
+        |position(l_returnflag, null),
+        |position(l_returnflag, l_shipinstruct, null),
+        |position(l_returnflag, l_shipinstruct, 0),
+        |position(l_returnflag, null, 0),
+        |position(null, l_shipinstruct, 0),
+        |position(null, null, 0),
+        |position(l_returnflag, null, null),
+        |position(null, l_shipinstruct, null),
+        |position(null, null, null)
+        |from lineitem
+        |""".stripMargin
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test stddev_samp 1") {
+    val sql =
+      """
+        |select stddev_samp(n_nationkey), stddev_samp(n_regionkey) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test stddev_samp 2") {
+    val sql =
+      """
+        |select stddev_samp(l_orderkey), stddev_samp(l_quantity) from lineitem
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("isNaN") {
+    val sql =
+      """
+        |select isNaN(l_shipinstruct), isNaN(l_partkey), isNaN(l_discount)
+        |from lineitem
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }

@@ -127,7 +127,6 @@ class Splitter::PartitionWriter {
   // metrics
   int64_t bytes_spilled = 0;
   int64_t partition_length = 0;
-  int64_t compress_time = 0;
 
  private:
   arrow::Status EnsureOpened() {
@@ -352,14 +351,16 @@ arrow::Status Splitter::SetCompressType(arrow::Compression::type compressed_type
   return arrow::Status::OK();
 }
 
-arrow::Status Splitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status Splitter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
   if (schema_ == nullptr) {
-    schema_ = rb.schema();
+    schema_ = rb->schema();
     RETURN_NOT_OK(InitColumnType());
   }
-  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
-  RETURN_NOT_OK(DoSplit(rb));
+  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
+  RETURN_NOT_OK(DoSplit(*rb));
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
 }
@@ -389,8 +390,7 @@ arrow::Status Splitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
-      total_compress_time_ += writer->compress_time;
+      total_bytes_evicted_ += writer->bytes_spilled;
     } else {
       partition_lengths_[pid] = 0;
     }
@@ -430,20 +430,22 @@ arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, const arrow::Reco
   int64_t raw_size = batch_nbytes(batch);
   raw_partition_lengths_[partition_id] += raw_size;
   auto payload = std::make_shared<arrow::ipc::IpcPayload>();
+  int64_t batch_compress_time = 0;
 #ifndef SKIPCOMPRESS
   if (batch.num_rows() <= (uint32_t)options_.batch_compress_threshold) {
     TIME_NANO_OR_RAISE(
-        total_compress_time_, arrow::ipc::GetRecordBatchPayload(batch, tiny_bach_write_options_, payload.get()));
+        batch_compress_time, arrow::ipc::GetRecordBatchPayload(batch, tiny_bach_write_options_, payload.get()));
   } else {
     TIME_NANO_OR_RAISE(
-        total_compress_time_, arrow::ipc::GetRecordBatchPayload(batch, options_.ipc_write_options, payload.get()));
+        batch_compress_time, arrow::ipc::GetRecordBatchPayload(batch, options_.ipc_write_options, payload.get()));
   }
 #else
   // for test reason
   TIME_NANO_OR_RAISE(
-      total_compress_time_, arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
+      batch_compress_time, arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
 #endif
 
+  total_compress_time_ += batch_compress_time;
   partition_cached_recordbatch_size_[partition_id] += payload->body_length;
   partition_cached_recordbatch_[partition_id].push_back(std::move(payload));
   partition_buffer_idx_base_[partition_id] = 0;
@@ -659,27 +661,27 @@ arrow::Status Splitter::AllocateNew(int32_t partition_id, int32_t new_size) {
   int32_t retry = 0;
   while (status.IsOutOfMemory() && retry < 3) {
     // retry allocate
-    std::cout << status.ToString() << std::endl
+    std::cerr << status.ToString() << std::endl
               << std::to_string(++retry) << " retry to allocate new buffer for partition "
               << std::to_string(partition_id) << std::endl;
     int64_t spilled_size;
     ARROW_ASSIGN_OR_RAISE(auto partition_to_spill, SpillLargestPartition(&spilled_size));
     if (partition_to_spill == -1) {
-      std::cout << "Failed to allocate new buffer for partition " << std::to_string(partition_id)
+      std::cerr << "Failed to allocate new buffer for partition " << std::to_string(partition_id)
                 << ". No partition buffer to spill." << std::endl;
       return status;
     }
     status = AllocatePartitionBuffers(partition_id, new_size);
   }
   if (status.IsOutOfMemory()) {
-    std::cout << "Failed to allocate new buffer for partition " << std::to_string(partition_id) << ". Out of memory."
+    std::cerr << "Failed to allocate new buffer for partition " << std::to_string(partition_id) << ". Out of memory."
               << std::endl;
   }
   return status;
 }
 
 // call from memory management
-arrow::Status Splitter::SpillFixedSize(int64_t size, int64_t* actual) {
+arrow::Status Splitter::EvictFixedSize(int64_t size, int64_t* actual) {
   int64_t current_spilled = 0L;
   int32_t try_count = 0;
   while (current_spilled < size && try_count < 5) {
@@ -699,7 +701,7 @@ arrow::Status Splitter::SpillPartition(int32_t partition_id) {
   if (partition_writer_[partition_id] == nullptr) {
     partition_writer_[partition_id] = std::make_shared<PartitionWriter>(this, partition_id);
   }
-  TIME_NANO_OR_RAISE(total_spill_time_, partition_writer_[partition_id]->Spill());
+  TIME_NANO_OR_RAISE(total_evict_time_, partition_writer_[partition_id]->Spill());
 
   // reset validity buffer after spill
   std::for_each(
@@ -771,11 +773,14 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(const arrow::RecordB
       }
     }
   }
+
   size_per_row = std::accumulate(binary_array_empirical_size_.begin(), binary_array_empirical_size_.end(), 0);
 
   for (size_t col = 0; col < array_idx_.size(); ++col) {
     auto col_idx = array_idx_[col];
-    size_per_row += arrow::bit_width(column_type_id_[col_idx]->id()) >> 3;
+    auto type_id = column_type_id_[col_idx]->id();
+    // why +7? to fit column bool
+    size_per_row += ((arrow::bit_width(type_id) + 7) >> 3);
   }
 
   int64_t prealloc_row_cnt = options_.offheap_per_task > 0 && size_per_row > 0
@@ -1168,7 +1173,7 @@ arrow::Status Splitter::SplitBinaryType(
         dst_addrs[pid].valueptr = value_buffer->mutable_data();
         dst_addrs[pid].value_capacity = capacity;
         dst_value_base = dst_addrs[pid].valueptr + value_offset - strlength;
-        std::cout << "Split value buffer resized colid = " << binary_idx << " dst_start " << dst_offset_base[x]
+        std::cerr << "Split value buffer resized colid = " << binary_idx << " dst_start " << dst_offset_base[x]
                   << " dst_end " << dst_offset_base[x + 1] << " old size = " << old_capacity
                   << " new size = " << capacity << " row = " << partition_buffer_idx_base_[pid]
                   << " strlen = " << strlength << std::endl;
@@ -1347,14 +1352,15 @@ arrow::Status SinglePartSplitter::Init() {
   return arrow::Status::OK();
 }
 
-arrow::Status SinglePartSplitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status SinglePartSplitter::Split(ColumnarBatch* batch) {
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
   EVAL_START("split", options_.thread_id)
   if (schema_ == nullptr) {
-    schema_ = rb.schema();
+    schema_ = rb->schema();
     RETURN_NOT_OK(InitColumnType());
   }
-  RETURN_NOT_OK(CacheRecordBatch(0, rb));
-
+  RETURN_NOT_OK(CacheRecordBatch(0, *rb));
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
 }
@@ -1384,8 +1390,7 @@ arrow::Status SinglePartSplitter::Stop() {
       TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
       partition_lengths_[pid] = writer->partition_length;
       total_bytes_written_ += writer->partition_length;
-      total_bytes_spilled_ += writer->bytes_spilled;
-      total_compress_time_ += writer->compress_time;
+      total_bytes_evicted_ += writer->bytes_spilled;
     } else {
       partition_lengths_[pid] = 0;
     }
@@ -1446,10 +1451,12 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
   return arrow::Status::OK();
 }
 
-arrow::Status HashSplitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status HashSplitter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
-  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
-  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
+  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
+  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb->RemoveColumn(0));
   if (schema_ == nullptr) {
     schema_ = remove_pid->schema();
     RETURN_NOT_OK(InitColumnType());
@@ -1470,10 +1477,12 @@ arrow::Result<std::shared_ptr<FallbackRangeSplitter>> FallbackRangeSplitter::Cre
   return res;
 }
 
-arrow::Status FallbackRangeSplitter::Split(const arrow::RecordBatch& rb) {
+arrow::Status FallbackRangeSplitter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
-  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
-  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  ARROW_ASSIGN_OR_RAISE(
+      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
+  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
+  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb->RemoveColumn(0));
   if (schema_ == nullptr) {
     schema_ = remove_pid->schema();
     RETURN_NOT_OK(InitColumnType());

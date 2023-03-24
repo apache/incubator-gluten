@@ -18,7 +18,11 @@ package org.apache.spark.util
 
 object GlutenShutdownManager {
 
-  def registerUnloadLibShutdownHook(hook: () => Unit): AnyRef = {
-    ShutdownHookManager.addShutdownHook(hook)
+  def addHookForLibUnloading(hook: () => Unit): AnyRef = {
+    ShutdownHookManager.addShutdownHook(ShutdownHookManager.SPARK_CONTEXT_SHUTDOWN_PRIORITY)(hook)
+  }
+
+  def addHookForTempDirRemoval(hook: () => Unit): AnyRef = {
+    ShutdownHookManager.addShutdownHook(ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY)(hook)
   }
 }

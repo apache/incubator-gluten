@@ -17,8 +17,9 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
-
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -28,15 +29,14 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode with TransformSupport with GlutenPlan {
 
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = {
-    if (numPartitions == 1) SinglePartition
-    else UnknownPartitioning(numPartitions)
+    if (numPartitions == 1) SinglePartition else UnknownPartitioning(numPartitions)
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
@@ -47,12 +47,11 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
-  }
-
-  override def getChild: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
   }
 
   override def doValidate(): Boolean = false
@@ -72,13 +71,12 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   override protected def withNewChildInternal(newChild: SparkPlan): CoalesceExecTransformer =
     copy(child = newChild)
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }
 
 object CoalesceExecTransformer {
-  class EmptyRDDWithPartitions(
-                                @transient private val sc: SparkContext,
-                                numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
+  class EmptyRDDWithPartitions(@transient private val sc: SparkContext,
+                               numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
 
     override def getPartitions: Array[Partition] =
       Array.tabulate(numPartitions)(i => EmptyPartition(i))

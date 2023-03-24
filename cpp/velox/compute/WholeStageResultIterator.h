@@ -15,13 +15,18 @@ class WholeStageResultIterator {
  public:
   WholeStageResultIterator(
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
-      std::shared_ptr<const facebook::velox::core::PlanNode> planNode,
+      const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
       const std::unordered_map<std::string, std::string>& confMap)
-      : planNode_(planNode), confMap_(confMap), pool_(pool) {
-    getOrderedNodeIds(planNode_, orderedNodeIds_);
+      : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+    getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
   }
 
-  virtual ~WholeStageResultIterator() = default;
+  virtual ~WholeStageResultIterator() {
+    if (task_->isRunning()) {
+      // calling .wait() may take no effect in single thread execution mode
+      task_->requestCancel().wait();
+    }
+  };
 
   arrow::Result<std::shared_ptr<VeloxColumnarBatch>> Next();
 
@@ -35,22 +40,24 @@ class WholeStageResultIterator {
     return pool_.get();
   }
 
-  /// Set the Spark confs to Velox query context.
-  void setConfToQueryContext(const std::shared_ptr<facebook::velox::core::QueryCtx>& queryCtx);
-
-  std::shared_ptr<facebook::velox::Config> getConnectorConfig();
+  std::shared_ptr<facebook::velox::Config> createConnectorConfig();
 
   std::shared_ptr<facebook::velox::exec::Task> task_;
 
   std::function<void(facebook::velox::exec::Task*)> addSplits_;
 
-  std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
+  std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
 
  protected:
-  /// A map of custome configs.
+  /// A map of custom configs.
   std::unordered_map<std::string, std::string> confMap_;
 
+  std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx();
+
  private:
+  /// Set the Spark confs to Velox query context.
+  void setConfToQueryContext(const std::shared_ptr<facebook::velox::core::QueryCtx>& queryCtx);
+
   /// Get all the children plan node ids with postorder traversal.
   void getOrderedNodeIds(
       const std::shared_ptr<const facebook::velox::core::PlanNode>&,
@@ -85,6 +92,7 @@ class WholeStageResultIteratorFirstStage final : public WholeStageResultIterator
       const std::vector<facebook::velox::core::PlanNodeId>& scanNodeIds,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
+      const std::string spillDir,
       const std::unordered_map<std::string, std::string>& confMap);
 
  private:
@@ -106,6 +114,7 @@ class WholeStageResultIteratorMiddleStage final : public WholeStageResultIterato
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
+      const std::string spillDir,
       const std::unordered_map<std::string, std::string>& confMap);
 
  private:

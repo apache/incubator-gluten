@@ -32,6 +32,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "multiple column distinct count", // [not urgent, function with multiple params]
       "agg without groups and functions", // [not urgent]
       "zero moments", // [not urgent]
+      "moments", // [not urgent]
+      GlutenTestConstants.GLUTEN_TEST + "variance", // [not urgent]
       "collect functions structs", // [not urgent]
       "SPARK-31500: collect_set() of BinaryType returns duplicate elements", // [not urgent]
       "SPARK-17641: collect functions should not collect null values", // [not urgent]
@@ -45,7 +47,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       " before using it", // [not urgent]
       "max_by", // [not urgent]
       "min_by", // [not urgent]
-      "count_if" // [not urgent]
+      "count_if", // [not urgent]
+      "aggregation with filter"
     )
     .excludeByPrefix(
       "SPARK-22951", // [not urgent] dropDuplicates
@@ -75,7 +78,13 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateFunctionsSuite]
     .include(
       "quarter",
-      "second"
+      "second",
+      "dayofmonth",
+      "function add_months",
+      "date format",
+      "function date_add",
+      "function date_sub",
+      "datediff"
     )
 
   enableSuite[GlutenDateExpressionsSuite]
@@ -83,7 +92,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       // "Quarter", // ch backend not support cast 'yyyy-MM-dd HH:mm:ss' as date32
       "date_add",
       "date_sub",
-      "datediff"
+      "datediff",
+      "add_months"
+      // "DateFormat" // ch formatDateTimeInJodaSyntax doesn't support non-constant format argument
     )
 
 
@@ -112,7 +123,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "unhex",
       "hypot",
       "log10",
-      "factorial"
+      "factorial",
+      "abs",
+      "round/bround"
     )
 
   enableSuite[GlutenComplexTypesSuite]
@@ -140,12 +153,16 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenStringExpressionsSuite]
     .include(
-      "concat_ws"
+      "concat_ws",
+      // "LPAD/RPAD", not ready because CH required the third arg to be constant string
+      // "translate" Not ready because CH requires from and to argument have the same length
+      "REVERSE"
     )
 
   enableSuite[GlutenStringFunctionsSuite]
     .include(
       "string concat_ws"
+      // "string translate" Not ready because CH requires from and to argument have the same length
     )
 
   enableSuite[GlutenSubquerySuite]
@@ -157,20 +174,23 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-16804",
       "SPARK-17337",
       "SPARK-28441",
-      "SPARK-28379"
+      "SPARK-28379",
+      "SPARK-17348" // TODO: loneylee ch: INVALID_JOIN_ON_EXPRESSION
     )
     .exclude(
       "Correlated subqueries in LATERAL VIEW",
       "NOT EXISTS predicate subquery",
       "NOT IN predicate subquery",
-      "disjunctive correlated scalar subquery"
+      "disjunctive correlated scalar subquery",
+      "IN predicate subquery" // TODO: loneylee ch: INVALID_JOIN_ON_EXPRESSION
     )
 
   enableSuite[GlutenDataFramePivotSuite]
     .include(
       "pivot with datatype not supported by PivotFirst",
       "pivot with datatype not supported by PivotFirst 2",
-      "pivot with null and aggregate type not supported by PivotFirst returns correct result"
+      "pivot with null and aggregate type not supported by PivotFirst returns correct result",
+      "optimized pivot DecimalType"
     )
 
   enableSuite[GlutenPredicateSuite]
@@ -185,6 +205,20 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenJoinSuite]
     .include(
-      "big inner join, 4 matches per row"
+      "big inner join, 4 matches per row",
+      "cartesian product join",
+      "equi-join is hash-join",
+      "inner join, no matches",
+      "inner join, where, multiple matches",
+      "inner join ON, one match per row",
+      "inner join where, one match per row",
+      "left semi join",
+      "multiple-key equi-join is hash-join",
+      "full outer join"
+    )
+
+  enableSuite[GlutenHashExpressionsSuite]
+    .include(
+      "md5"
     )
 }

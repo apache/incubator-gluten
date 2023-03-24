@@ -27,11 +27,13 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 
 class String2TrimExpressionTransformer(
     substraitExprName: String,
+    trimStr: Option[ExpressionTransformer],
     srcStr: ExpressionTransformer,
     original: Expression)
     extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val trimStrNode = trimStr.map(_.doTransform(args))
     val srcStrNode = srcStr.doTransform(args)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName =
@@ -40,7 +42,9 @@ class String2TrimExpressionTransformer(
         original.children.map(_.dataType),
         FunctionConfig.REQ)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressNodes = Lists.newArrayList(srcStrNode)
+    val expressNodes = Lists.newArrayList[ExpressionNode]()
+    trimStrNode.foreach(expressNodes.add)
+    expressNodes.add(srcStrNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }

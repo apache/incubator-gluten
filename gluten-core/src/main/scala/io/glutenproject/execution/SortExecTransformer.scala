@@ -19,13 +19,14 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.OperatorMetrics
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -36,88 +37,24 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
-trait SortMetricsUpdater extends MetricsUpdater {
-  def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit
-}
-
 case class SortExecTransformer(sortOrder: Seq[SortOrder],
                                global: Boolean,
                                child: SparkPlan,
                                testSpillFrequency: Int = 0)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode with TransformSupport with GlutenPlan {
 
-  override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
-    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"),
-    "spilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "total bytes written for spilling"),
-    "spilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "total rows written for spilling"),
-    "spilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled partitions"),
-    "spilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "total spilled files")
-  )
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genSortTransformerMetrics(sparkContext)
 
-  object MetricsUpdaterImpl extends SortMetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
-    val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
-    val rawInputRows: SQLMetric = longMetric("rawInputRows")
-    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-    val outputRows: SQLMetric = longMetric("outputRows")
-    val outputVectors: SQLMetric = longMetric("outputVectors")
-    val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuNanos: SQLMetric = longMetric("cpuNanos")
-    val wallNanos: SQLMetric = longMetric("wallNanos")
-    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
-    val spilledBytes: SQLMetric = longMetric("spilledBytes")
-    val spilledRows: SQLMetric = longMetric("spilledRows")
-    val spilledPartitions: SQLMetric = longMetric("spilledPartitions")
-    val spilledFiles: SQLMetric = longMetric("spilledFiles")
-
-    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-      if (operatorMetrics != null) {
-        inputRows += operatorMetrics.inputRows
-        inputVectors += operatorMetrics.inputVectors
-        inputBytes += operatorMetrics.inputBytes
-        rawInputRows += operatorMetrics.rawInputRows
-        rawInputBytes += operatorMetrics.rawInputBytes
-        outputRows += operatorMetrics.outputRows
-        outputVectors += operatorMetrics.outputVectors
-        outputBytes += operatorMetrics.outputBytes
-        cpuNanos += operatorMetrics.cpuNanos
-        wallNanos += operatorMetrics.wallNanos
-        peakMemoryBytes += operatorMetrics.peakMemoryBytes
-        numMemoryAllocations += operatorMetrics.numMemoryAllocations
-        spilledBytes += operatorMetrics.spilledBytes
-        spilledRows += operatorMetrics.spilledRows
-        spilledPartitions += operatorMetrics.spilledPartitions
-        spilledFiles += operatorMetrics.spilledFiles
-      }
-    }
-  }
-
-  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genSortTransformerMetricsUpdater(metrics)
 
   val sparkConf = sparkContext.getConf
 
@@ -131,8 +68,6 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
-
-  override def getChild: SparkPlan = child
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
@@ -191,8 +126,9 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     })
 
     // Add a Project Rel both original columns and the sorting columns
+    val emitStartIndex = originalInputAttributes.size
     val inputRel = if (!validation) {
-      RelBuilder.makeProjectRel(input, projectExpressions, context, operatorId)
+      RelBuilder.makeProjectRel(input, projectExpressions, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -207,7 +143,8 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(input, projectExpressions, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(
+        input, projectExpressions, extensionNode, context, operatorId, emitStartIndex)
     }
 
     val sortRel = if (!validation) {
@@ -234,8 +171,10 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
     // Add a Project Rel to remove the sorting columns
     if (!validation) {
-      RelBuilder.makeProjectRel(sortRel, new java.util.ArrayList[ExpressionNode](
-        selectOrigins.asJava), context, operatorId)
+      RelBuilder.makeProjectRel(
+        sortRel,
+        new java.util.ArrayList[ExpressionNode](selectOrigins.asJava),
+        context, operatorId, originalInputAttributes.size + sortFieldList.size)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -246,8 +185,9 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(sortRel, new java.util.ArrayList[ExpressionNode](
-        selectOrigins.asJava), extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(
+        sortRel, new java.util.ArrayList[ExpressionNode](selectOrigins.asJava),
+        extensionNode, context, operatorId, originalInputAttributes.size + sortFieldList.size)
     }
   }
 
@@ -316,7 +256,8 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         substraitContext, sortOrder, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 
