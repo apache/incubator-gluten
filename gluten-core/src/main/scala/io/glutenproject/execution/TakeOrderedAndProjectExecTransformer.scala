@@ -69,7 +69,7 @@ case class TakeOrderedAndProjectExecTransformer (
     if (childRDDPartsNum == 0) {
       sparkContext.parallelize(Seq.empty, 1)
     } else {
-      // The child should have been replaced by ColumnarCollapseCodegenStages.
+      // The child should have been replaced by ColumnarCollapseTransformStages.
       val limitExecPlan = child match {
         case wholeStage: WholeStageTransformerExec =>
           // remove this WholeStageTransformerExec, put the new sort, limit and project
