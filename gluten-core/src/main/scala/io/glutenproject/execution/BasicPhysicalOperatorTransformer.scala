@@ -21,7 +21,7 @@ import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer, TransformerState}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
@@ -164,12 +164,15 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     val operatorId = substraitContext.nextOperatorId
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
+      TransformerState.enterValidation
       getRelNode(
         substraitContext, condition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
+    } finally {
+      TransformerState.finishValidation
     }
 
     // For now arrow backend only support scan + filter pattern
