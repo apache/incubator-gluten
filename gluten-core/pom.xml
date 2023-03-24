@@ -23,35 +23,13 @@
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
   </properties>
 
-  <profiles>
-    <profile>
-      <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>spark-3.3</id>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark33</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
-
   <dependencies>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>${shims-spark-artifactId}</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
