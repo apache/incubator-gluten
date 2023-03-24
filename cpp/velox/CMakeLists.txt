@@ -194,13 +194,10 @@ set_target_properties(velox PROPERTIES
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
-find_package(GTest REQUIRED)
-find_package(Protobuf REQUIRED)
 
-include_directories(${LIBGFLAGS_INCLUDE_DIR})
-include_directories(${FOLLY_INCLUDE_DIR})
-include_directories(${GTEST_INCLUDE_DIRS})
-include_directories(${Protobuf_INCLUDE_DIR})
+target_include_directories(velox PUBLIC
+        ${GTEST_INCLUDE_DIRS}
+        ${PROTOBUF_INCLUDE})
 
 target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()
