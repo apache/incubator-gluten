@@ -240,8 +240,6 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
         // by the ExchangeCoordinator.
         val finalPlan = join.queryExecution.executedPlan
             .asInstanceOf[AdaptiveSparkPlanExec].executedPlan
-        print("$$$$$$")
-        print(join.queryExecution.executedPlan)
         val shuffleReads = finalPlan.collect {
           case r@CoalescedShuffleRead() => r
           // Added for gluten.
