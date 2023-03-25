@@ -216,7 +216,7 @@ trait HashJoinLikeExecTransformer
       this
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {

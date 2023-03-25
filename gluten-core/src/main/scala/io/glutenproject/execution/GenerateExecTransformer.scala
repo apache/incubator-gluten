@@ -88,7 +88,7 @@ case class GenerateExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     if (BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
       return false
     }

@@ -67,8 +67,6 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
-  def doValidate(): Boolean
-
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
@@ -155,7 +153,7 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecBaseTransformer(condition, child) {
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     if (condition == null) {
       // The computing of this Filter is not needed.
       return true
@@ -164,15 +162,12 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     val operatorId = substraitContext.nextOperatorId
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      TransformerState.enterValidation
       getRelNode(
         substraitContext, condition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
-    } finally {
-      TransformerState.finishValidation
     }
 
     // For now arrow backend only support scan + filter pattern
@@ -250,7 +245,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId

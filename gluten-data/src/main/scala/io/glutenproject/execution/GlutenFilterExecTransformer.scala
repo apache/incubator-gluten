@@ -35,7 +35,7 @@ case class GlutenFilterExecTransformer(condition: Expression,
                                       child: SparkPlan)
   extends FilterExecBaseTransformer(condition, child) with TransformSupport {
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val leftCondition = getLeftCondition
     if (leftCondition == null) {
       // All the filters can be pushed down and the computing of this Filter

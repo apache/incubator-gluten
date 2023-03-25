@@ -1,11 +1,11 @@
 package io.glutenproject.expression
 
 object TransformerState {
-  private lazy val validationState = new ThreadLocal[Boolean] {
-    override def initialValue: Boolean = false
+  private lazy val validationState = new ThreadLocal[Integer] {
+    override def initialValue: Integer = 0
   }
-  def underValidationState: Boolean = validationState.get()
+  def underValidationState: Boolean = validationState.get() > 0
 
-  def enterValidation = validationState.set(true)
-  def finishValidation = validationState.set(false)
+  def enterValidation = validationState.set(validationState.get() + 1)
+  def finishValidation = validationState.set(validationState.get() - 1)
 }
