@@ -137,7 +137,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
                  | LOCATION '$regionData'
                  |""".stripMargin)
 
-    val ordersData = tablesPath + "/order"
+    val ordersData = tablesPath + "/orders"
     spark.sql(s"DROP TABLE IF EXISTS orders")
     spark.sql(s"""
                  | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
@@ -291,7 +291,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
                  | LOCATION '$regionData'
                  |""".stripMargin)
 
-    val ordersData = tablesPath + "/order"
+    val ordersData = tablesPath + "/orders"
     spark.sql(s"DROP TABLE IF EXISTS orders")
     spark.sql(s"""
                  | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
@@ -429,7 +429,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
                  | USING PARQUET LOCATION '$regionData'
                  |""".stripMargin)
 
-    val ordersData = parquetTablePath + "/order"
+    val ordersData = parquetTablePath + "/orders"
     spark.sql(s"DROP TABLE IF EXISTS orders")
     spark.sql(s"""
                  | CREATE TABLE IF NOT EXISTS orders (
