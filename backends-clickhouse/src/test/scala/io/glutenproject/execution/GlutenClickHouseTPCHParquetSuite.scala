@@ -705,9 +705,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-
   test("add c2r and r2c between file scan and its parents") {
-    // https://github.com/oap-project/gluten/issues/1218
     withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
       val sql =
         """
