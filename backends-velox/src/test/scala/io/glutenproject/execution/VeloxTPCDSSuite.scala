@@ -28,7 +28,7 @@ import org.apache.spark.SparkConf
 class VeloxTPCDSSuite extends WholeStageTransformerSuite {
 
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = sys.env("SPARK_TPCDS_DATA")
+  override protected val resourcePath: String = "/tmp/tpcds-generated"
   override protected val fileFormat: String = "parquet"
 
   protected var queryTables: Map[String, DataFrame] = _
