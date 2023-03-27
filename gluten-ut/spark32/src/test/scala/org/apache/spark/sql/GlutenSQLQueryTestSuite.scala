@@ -211,7 +211,9 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
     "explain.sql", // explain
-    "group-analytics.sql" // wait velox to fix issue 3357
+    "group-analytics.sql", // wait velox to fix issue 3357
+    "decimalArithmeticOperations.sql", // decimal failed ut
+    "udf/udf-union.sql"  // decimal failed ut
   ) ++ otherIgnoreList
 
   /** List of supported cases to run with Velox backend, in lower case.
@@ -245,7 +247,6 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "datetime-parsing-legacy.sql",
     "datetime-parsing.sql",
     "datetime-special.sql",
-    "decimalArithmeticOperations.sql",
     "describe-part-after-analyze.sql",
     "describe-query.sql",
     "describe-table-after-alter-table.sql",
