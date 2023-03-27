@@ -705,6 +705,20 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+
+  test("add c2r and r2c between file scan and its parents") {
+    // https://github.com/oap-project/gluten/issues/1218
+    withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
+      val sql =
+        """
+          |select a.s_suppkey, sum(a.s_acctbal) from supplier a left join supplier b on a.s_suppkey=b.s_suppkey
+          |group by a.s_suppkey
+          |order by a.s_suppkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
