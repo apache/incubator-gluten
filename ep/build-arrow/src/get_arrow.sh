@@ -7,26 +7,25 @@ ARROW_REPO=https://github.com/oap-project/arrow.git
 ARROW_BRANCH=arrow-11.0.0-gluten
 ENABLE_QAT=OFF
 
-for arg in "$@"
-do
-    case $arg in
-        --arrow_repo=*)
-        ARROW_REPO=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --arrow_branch=*)
-        ARROW_BRANCH=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_qat=*)
-        ENABLE_QAT=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-	      *)
-	      OTHER_ARGUMENTS+=("$1")
-        shift # Remove generic argument from processing
-        ;;
-    esac
+for arg in "$@"; do
+  case $arg in
+  --arrow_repo=*)
+    ARROW_REPO=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --arrow_branch=*)
+    ARROW_BRANCH=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_qat=*)
+    ENABLE_QAT=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  *)
+    OTHER_ARGUMENTS+=("$1")
+    shift # Remove generic argument from processing
+    ;;
+  esac
 done
 
 function checkout_code {
@@ -36,7 +35,7 @@ function checkout_code {
     cd $ARROW_SOURCE_DIR
     git init .
     TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
-    EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true`
+    EXISTS=$(git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true)
     if [ -z "$EXISTS" ]; then
       git fetch $ARROW_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
     fi
@@ -52,15 +51,18 @@ function checkout_code {
 echo "Preparing Arrow source code..."
 echo "ENABLE_QAT=${ENABLE_QAT}"
 
-CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+CURRENT_DIR=$(
+  cd "$(dirname "$BASH_SOURCE")"
+  pwd
+)
 
 checkout_code
 
 # apply patches
-git apply --reverse --check $CURRENT_DIR/memorypool.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
+git apply --reverse --check $CURRENT_DIR/memorypool.patch >/dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
 # apply patch for custom codec
 if [ $ENABLE_QAT == ON ]; then
-  git apply --reverse --check $CURRENT_DIR/custom-codec.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
+  git apply --reverse --check $CURRENT_DIR/custom-codec.patch >/dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
 fi
 
 echo "Arrow-get finished."
