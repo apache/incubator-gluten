@@ -51,7 +51,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     // 2. salt some null values randomly
     val saltedTablesPath = tablesPath + "-salted"
     withSQLConf(vanillaSparkConfs(): _*) {
-      Seq("customer", "lineitem", "nation", "order", "part", "partsupp", "region", "supplier")
+      Seq("customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier")
         .map(
           tableName => {
             val originTablePath = tablesPath + "/" + tableName
@@ -132,7 +132,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
                  | USING PARQUET LOCATION '$regionData'
                  |""".stripMargin)
 
-    val ordersData = saltedTablesPath + "/order"
+    val ordersData = saltedTablesPath + "/orders"
     spark.sql(s"DROP TABLE IF EXISTS orders")
     spark.sql(s"""
                  | CREATE TABLE IF NOT EXISTS orders (

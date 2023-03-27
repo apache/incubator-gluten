@@ -42,7 +42,6 @@ object GenTPCHTableScripts {
     val nationTbl = "nation"
     val regionTbl = "region"
     val ordersTbl = "orders"
-    val ordersPath = "order"
     val partTbl = "part"
     val partsuppTbl = "partsupp"
     val supplierTbl = "supplier"
@@ -79,7 +78,7 @@ object GenTPCHTableScripts {
       s"""
          |CREATE TABLE IF NOT EXISTS $tablePrefix$ordersTbl$tableSuffix
          | USING PARQUET
-         | LOCATION 'file://${dataPathRoot + "/" + ordersPath}'
+         | LOCATION 'file://${dataPathRoot + "/" + ordersTbl}'
          | CLUSTERED BY (o_orderkey) SORTED BY (o_orderkey, o_orderdate) INTO 24 BUCKETS
          | AS SELECT /*+ REPARTITION(2) */ * FROM $sourceDbName.${ordersTbl}100
          |""".stripMargin
@@ -211,7 +210,6 @@ object GenTPCHTableScripts {
     val nationTbl = "nation"
     val regionTbl = "region"
     val ordersTbl = "orders"
-    val ordersPath = "order"
     val partTbl = "part"
     val partsuppTbl = "partsupp"
     val supplierTbl = "supplier"
@@ -321,7 +319,7 @@ object GenTPCHTableScripts {
               | USING clickhouse
               | TBLPROPERTIES (engine='MergeTree'
               |                )
-              | LOCATION 'file://${dataPathRoot + "/" + ordersPath}';
+              | LOCATION 'file://${dataPathRoot + "/" + ordersTbl}';
               |""".stripMargin
 
     // part
@@ -396,7 +394,6 @@ object GenTPCHTableScripts {
     val nationTbl = "nation"
     val regionTbl = "region"
     val ordersTbl = "orders"
-    val ordersPath = "order"
     val partTbl = "part"
     val partsuppTbl = "partsupp"
     val supplierTbl = "supplier"
@@ -491,7 +488,7 @@ object GenTPCHTableScripts {
               | o_clerk         string,
               | o_shippriority  bigint,
               | o_comment       string)
-              | USING PARQUET LOCATION 'file://${dataPathRoot + "/" + ordersPath}';
+              | USING PARQUET LOCATION 'file://${dataPathRoot + "/" + ordersTbl}';
               |""".stripMargin
 
     // part
@@ -561,7 +558,6 @@ object GenTPCHTableScripts {
     val regionTbl = "region"
     val regionParts = ""
     val ordersTbl = "orders"
-    val ordersPath = "order"
     val ordersParts = "/*+ REPARTITION(180) */"
     val partTbl = "part"
     val partParts = "/*+ REPARTITION(40) */"
@@ -697,7 +693,7 @@ object GenTPCHTableScripts {
               | o_comment       string)
               | USING csv
               | OPTIONS (
-              |  path '${csvPathRoot + "/" + ordersPath + "/"}',
+              |  path '${csvPathRoot + "/" + ordersTbl + "/"}',
               |  header false,
               |  sep '|'
               | );
@@ -706,7 +702,7 @@ object GenTPCHTableScripts {
     res += s"""
               |CREATE TABLE IF NOT EXISTS $tablePrefix$ordersTbl$tableSuffix
               | STORED AS PARQUET
-              | LOCATION '${parquetPathRoot + "/" + ordersPath}'
+              | LOCATION '${parquetPathRoot + "/" + ordersTbl}'
               | AS SELECT $ordersParts * FROM ${ordersTbl}_csv;
               |""".stripMargin
 
