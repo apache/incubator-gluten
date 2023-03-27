@@ -185,7 +185,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
 
       // Pass the reordered index agg + groupingsets + GID
-      val emitStartIndex = originalInputAttributes.size + 1
+      val emitStartIndex = projections(0).size
       if (!validation) {
         RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId, emitStartIndex)
       } else {
@@ -217,7 +217,8 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     // FIXME.
     // There is a bad case in `Gluten null count` in GlutenDataFrameAggregateSuite, but there may
     // be also other cases which we don't meet.
-    if (child.output.size + 1 != projections.head.size) {
+    if (child.output.size + 1 != projections.head.size &&
+      !BackendsApiManager.getSettings.needProjectExpandOutput) {
       logWarning(s"Not a supported expand node for grouping sets.")
       return false
     }
