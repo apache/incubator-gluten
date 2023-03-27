@@ -52,7 +52,8 @@ private class CHColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShuffleManager
+  private lazy val isUseColumnarShufflemanager =
+    GlutenConfig.getConf.isUseColumnarShuffleManager
   private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
@@ -103,7 +104,6 @@ private class CHColumnarBatchSerializerInstance(
             nativeBlock = reader.next()
           }
           val numRows = nativeBlock.numRows()
-          logDebug(s"Read ColumnarBatch of $numRows rows")
 
           numBatchesTotal += 1
           numRowsTotal += numRows

@@ -23,7 +23,11 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
-
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.expression.ExpressionTransformer
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelNode
@@ -33,15 +37,12 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.expression.ExpressionTransformer
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.GlutenConfig
 
 import java.util.ArrayList
 import com.google.protobuf.Any
 import com.google.common.collect.Lists
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
 // For clickhouse backend, it will transform Spark explode lateral view to CH array join.
@@ -52,7 +53,7 @@ case class GenerateExecTransformer(
   generatorOutput: Seq[Attribute],
   child: SparkPlan)
   extends UnaryExecNode
-  with TransformSupport {
+  with TransformSupport with GlutenPlan {
 
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
 
@@ -85,8 +86,6 @@ case class GenerateExecTransformer(
       this
   }
 
-  override def getChild: SparkPlan = child
-
   override def supportsColumnar: Boolean = true
 
   override def doValidate(): Boolean = {
@@ -116,7 +115,8 @@ case class GenerateExecTransformer(
       getRelNode(context, operatorId, child.output, null, generatorNode, childOutputNodes, true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 
@@ -186,5 +186,5 @@ case class GenerateExecTransformer(
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }

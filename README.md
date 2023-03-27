@@ -41,11 +41,11 @@ You may click below links for more related information.
 
 # 2 Architecture
 
-The overview chart is like below. Spark physical plan is transformed to substrait plan. Substrait is to create a well defined cross-language specification for data compute operations. More details can be found from https://substrait.io/. Then substrait plan is passed to native through JNI call. In native the operator chain should be built and start to run. We use Spark3.0's columnar API as the data interface, so the native library should return Columnar Batch to Spark. We may need to wrap the columnar batch for each native backend. Gazelle engine's c++ code use Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
+The overview chart is like below. Spark physical plan is transformed to substrait plan. Substrait is to create a well defined cross-language specification for data compute operations. More details can be found from https://substrait.io/. Then substrait plan is passed to native through JNI call. In native the operator chain should be built and start to run. We use Spark3.0's columnar API as the data interface, so the native library should return Columnar Batch to Spark. We may need to wrap the columnar batch for each native backend. Gluten's c++ code use Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
 <p align="center">
 <img src="https://user-images.githubusercontent.com/47296334/199617207-1140698a-4d53-462d-9bc7-303d14be060b.png" width="800">
 </p>
-There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. We also implemented a basic backend using Arrow Computer Engine which is for reference only. Gluten can also be easily extended to any accelerator libraries as backend.
+There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. Gluten can also be easily extended to any accelerator libraries as backend.
 
 There are several key component in Gluten:
 * Query plan conversion which convert Spark's physical plan into substrait plan in each stage.
@@ -59,7 +59,8 @@ There are several key component in Gluten:
 
 Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details
 
-```export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/gluten-spark3.2_2.12-1.0.0-snapshot-jar-with-dependencies.jar 
+```
+export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 spark-shell 
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
@@ -82,17 +83,15 @@ If you would like to build and try Gluten with **Velox** backend, please follow 
 
 If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
-## 3.3 Build and Install Gluten with Arrow backend
-
-If you would like to build and try Gluten with **Arrow** backend, please follow the steps in [Build with Arrow Backend](./docs/ArrowBackend.md). Arrow backend only support parquet scan and parquet write now. All other operators are fallback to Vanilla Spark.
-
 ## 3.4 Build script parameters
 
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
 ## 3.5 Jar conflicts
 
-Several libraries Gluten used is newer than Spark's, including protobuf (Both Velox and CK backend), flatbuffers (Velox backend), and arrow-* (Velox backend). These libraries are compiled from source and packed into Gluten.jars. Jvm should search them from Gluten.jar firstly and load them. But for some reason jvm loads the jars from spark_home/jars which causes conflict. You may use below commands to remove the jars from spark_home/jars. We are still investigating the root cause. Welcome to share if you have good solution.
+With the latest version of Gluten, there should not be any jar conflict anymore. If you still get hit with such issues, please following the below instructions.
+
+The potentially conflicting libraries include protobuf (Both Velox and CK backend), flatbuffers (Velox backend), and arrow-* (Velox backend). These libraries are compiled from source and packed into Gluten.jars. Jvm should search them from Gluten.jar firstly and load them. But for some reason jvm loads the jars from spark_home/jars which causes conflict. You may use below commands to remove the jars from spark_home/jars. We are still investigating the root cause. Welcome to share if you have good solution.
 
 ```
 rm -rf $SPARK_HOME/jars/protobuf-*
@@ -117,7 +116,7 @@ Feel free to submit any bugs, issues or enhancement requirements to github issue
 
 Unfortunately we haven't organized the documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under development now, and some designs may change. Feel free to talk with us and share other design and ideas.
 
-CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code, this work is still in progess, so propose a new modification PR without any hesitation if you have good ideas. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
+CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code, this work is still in progress, so propose a new modification PR without any hesitation if you have good ideas. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
 
 # 5 Performance
 
@@ -138,8 +137,22 @@ Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
 
 # 7 Contact
 
+Gluten was initiated by Intel and Kyligence in 2022. Several companies such as Intel, Kyligence, BIGO, Meituan and others, are actively participating in the development of Gluten. If you are interested in Gluten project, please contact below email address for further discussion.
+
 rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
+
+#
+
+<img src="./docs/image/intel_logo.jpg" width="200"> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<img src="./docs/image/kyligence_logo.png" width="500"><br>
+<img src="./docs/image/bigo_logo.png" width="200"> &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; <img src="./docs/image/meituan_logo.png" width="200">
+
+#
+
+Intel, the Intel logo, Arc, Intel Atom, Intel Core, Iris, OpenVINO, the OpenVINO logo, Pentium, VTune, and Xeon are trademarks of Intel Corporation or its subsidiaries.
+* Other names and brands may be claimed as the property of others.
+
+(C) Intel Corporation
 
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.

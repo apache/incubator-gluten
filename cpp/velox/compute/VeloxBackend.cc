@@ -18,164 +18,41 @@
 
 #include "VeloxBackend.h"
 
-#include <folly/executors/IOThreadPoolExecutor.h>
-
 #include "ArrowTypeUtils.h"
-#include "RegistrationAllFunctions.h"
 #include "VeloxBridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
+#include "operators/shuffle/CelebornSplitter.h"
+#include "operators/shuffle/splitter.h"
+#include "shuffle/VeloxSplitter.h"
 #include "velox/common/file/FileSystems.h"
-#ifdef VELOX_ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
-#endif
-#ifdef VELOX_ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
-#endif
-#include "velox/common/memory/MmapAllocator.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "velox/exec/Operator.h"
-#include "velox/vector/arrow/Bridge.h"
 
-using namespace facebook::velox;
-using namespace facebook::velox::exec;
-using namespace facebook::velox::connector;
-using namespace facebook::velox::dwio::common;
-using namespace facebook::velox::parquet;
+using namespace facebook;
 
 namespace gluten {
 
-// The Init will be called per executor.
-void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
-  // Setup and register.
-  filesystems::registerLocalFileSystem();
+namespace {
+const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
+}
 
-  // TODO(yuan): move to seperate func initcache()
-  auto key = conf.find(kVeloxCacheEnabled);
-  if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
-    uint64_t cacheSize = std::stol(kVeloxCacheSizeDefault);
-    int32_t cacheShards = std::stoi(kVeloxCacheShardsDefault);
-    int32_t ioTHreads = std::stoi(kVeloxCacheIOThreadsDefault);
-    std::string cachePathPrefix = kVeloxCachePathDefault;
-    for (auto& [k, v] : conf) {
-      if (k == kVeloxCacheSize)
-        cacheSize = std::stol(v);
-      if (k == kVeloxCacheShards)
-        cacheShards = std::stoi(v);
-      if (k == kVeloxCachePath)
-        cachePathPrefix = v;
-      if (k == kVeloxCacheIOThreads)
-        ioTHreads = std::stoi(v);
-    }
-    std::string cachePath = cachePathPrefix + "/cache." + genUuid() + ".";
-    cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
-    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioTHreads);
-    auto ssd = std::make_unique<cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
-
-    std::error_code ec;
-    const std::filesystem::space_info si = std::filesystem::space(cachePathPrefix, ec);
-    if (si.available < cacheSize) {
-      VELOX_FAIL(
-          "not enough space for cache in " + cachePath + " cacha size: " + std::to_string(cacheSize) +
-          "free space: " + std::to_string(si.available));
-    }
-
-    memory::MmapAllocator::Options options;
-    // TODO(yuan): should try to parse the offheap memory size here:
-    uint64_t memoryBytes = 200L << 30;
-    options.capacity = memoryBytes;
-
-    auto allocator = std::make_shared<memory::MmapAllocator>(options);
-    mappedMemory_ = std::make_shared<cache::AsyncDataCache>(allocator, memoryBytes, std::move(ssd));
-
-    // register as default instance, will be used in parquet reader
-    memory::MemoryAllocator::setDefaultInstance(mappedMemory_.get());
-    VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
-    LOG(INFO) << "STARTUP: Using AsyncDataCache"
-              << ", cache prefix: " << cachePath << ", cache size: " << cacheSize << ", cache shards: " << cacheShards
-              << ", cache IO threads: " << ioTHreads;
-  }
-
-  std::unordered_map<std::string, std::string> configurationValues;
-
-#ifdef VELOX_ENABLE_HDFS
-  filesystems::registerHdfsFileSystem();
-  std::unordered_map<std::string, std::string> hdfsConfig({});
-
-  std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
-  const char* envHdfsUri = std::getenv("VELOX_HDFS");
-  if (envHdfsUri != nullptr) {
-    hdfsUri = std::string(envHdfsUri);
-  }
-
-  auto hdfsHostWithPort = hdfsUri.substr(hdfsUri.find(':') + 3);
-  std::size_t pos = hdfsHostWithPort.find(':');
-  if (pos != std::string::npos) {
-    auto hdfsPort = hdfsHostWithPort.substr(pos + 1);
-    auto hdfsHost = hdfsHostWithPort.substr(0, pos);
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
+VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
+  // mem tracker
+  int64_t maxMemory;
+  auto got = confMap_.find(kSparkOffHeapMemory);
+  if (got == confMap_.end()) {
+    // not found
+    maxMemory = facebook::velox::memory::kMaxMemory;
   } else {
-    // For HDFS HA mode. In this case, hive.hdfs.host should be the nameservice, we can
-    // get it from HDFS uri, and hive.hdfs.port should be an empty string, and the HDFS HA
-    // configurations should be taken from the LIBHDFS3_CONF file.
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHostWithPort}, {"hive.hdfs.port", ""}});
+    maxMemory = (long)(0.75 * std::stol(got->second));
   }
-  configurationValues.merge(hdfsConfig);
-#endif
-
-#ifdef VELOX_ENABLE_S3
-  filesystems::registerS3FileSystem();
-
-  std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
-  std::string awsSecretKey = conf["spark.hadoop.fs.s3a.secret.key"];
-  std::string awsEndpoint = conf["spark.hadoop.fs.s3a.endpoint"];
-  std::string sslEnabled = conf["spark.hadoop.fs.s3a.connection.ssl.enabled"];
-  std::string pathStyleAccess = conf["spark.hadoop.fs.s3a.path.style.access"];
-  std::string useInstanceCredentials = conf["spark.hadoop.fs.s3a.use.instance.credentials"];
-
-  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
-  if (envAwsAccessKey != nullptr) {
-    awsAccessKey = std::string(envAwsAccessKey);
+  try {
+    // 1/2 of offheap size.
+    memUsageTracker_ = velox::memory::MemoryUsageTracker::create(maxMemory);
+  } catch (const std::invalid_argument&) {
+    throw std::runtime_error("Invalid off-heap memory size: " + std::to_string(maxMemory));
   }
-  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
-  if (envAwsSecretKey != nullptr) {
-    awsSecretKey = std::string(envAwsSecretKey);
-  }
-  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
-  if (envAwsEndpoint != nullptr) {
-    awsEndpoint = std::string(envAwsEndpoint);
-  }
-
-  std::unordered_map<std::string, std::string> S3Config({});
-  if (useInstanceCredentials == "true") {
-    S3Config.insert({
-        {"hive.s3.use-instance-credentials", useInstanceCredentials},
-    });
-  } else {
-    S3Config.insert({
-        {"hive.s3.aws-access-key", awsAccessKey},
-        {"hive.s3.aws-secret-key", awsSecretKey},
-        {"hive.s3.endpoint", awsEndpoint},
-        {"hive.s3.ssl.enabled", sslEnabled},
-        {"hive.s3.path-style-access", pathStyleAccess},
-    });
-  }
-  configurationValues.merge(S3Config);
-#endif
-
-  auto properties = std::make_shared<const core::MemConfig>(configurationValues);
-  auto hiveConnector = getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
-                           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
-
-  registerConnector(hiveConnector);
-  facebook::velox::parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
-  dwrf::registerDwrfReaderFactory();
-  // Register Velox functions
-  registerAllFunctions();
 }
 
 void VeloxBackend::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
@@ -259,7 +136,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
 
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
-  std::vector<std::shared_ptr<facebook::velox::substrait::SubstraitParser::SubstraitType>> subTypeList;
+  std::vector<std::shared_ptr<velox::substrait::SubstraitParser::SubstraitType>> subTypeList;
   if (sread.has_base_schema()) {
     const auto& baseSchema = sread.base_schema();
     // Input names is not used. Instead, new input/output names will be created
@@ -288,13 +165,12 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   auto arrowStream = std::make_shared<ArrowArrayStream>(veloxArrayStream);
 
   // Create Velox ArrowStream node.
-  std::vector<TypePtr> veloxTypeList;
+  std::vector<velox::TypePtr> veloxTypeList;
   for (auto subType : subTypeList) {
-    veloxTypeList.push_back(facebook::velox::substrait::toVeloxType(subType->type));
+    veloxTypeList.push_back(velox::substrait::toVeloxType(subType->type));
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto arrowStreamNode = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(), outputType, arrowStream, GetDefaultWrappedVeloxMemoryPool());
+  auto arrowStreamNode = std::make_shared<velox::core::ArrowStreamNode>(nextPlanNodeId(), outputType, arrowStream);
   subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
 }
 
@@ -331,9 +207,9 @@ void VeloxBackend::setInputPlanNode(const ::substrait::RelRoot& sroot) {
   }
 }
 
-std::shared_ptr<const core::PlanNode> VeloxBackend::getVeloxPlanNode(const ::substrait::Plan& splan) {
+void VeloxBackend::toVeloxPlan() {
   // In fact, only one RelRoot is expected here.
-  for (auto& srel : splan.relations()) {
+  for (auto& srel : substraitPlan_.relations()) {
     if (srel.has_root()) {
       setInputPlanNode(srel.root());
     }
@@ -341,11 +217,10 @@ std::shared_ptr<const core::PlanNode> VeloxBackend::getVeloxPlanNode(const ::sub
       setInputPlanNode(srel.rel());
     }
   }
-  auto planNode = subVeloxPlanConverter_->toVeloxPlan(splan);
+  veloxPlan_ = subVeloxPlanConverter_->toVeloxPlan(substraitPlan_);
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Plan Node: " << std::endl << planNode->toString(true, true) << std::endl;
+  std::cout << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
 #endif
-  return planNode;
 }
 
 std::string VeloxBackend::nextPlanNodeId() {
@@ -354,20 +229,21 @@ std::string VeloxBackend::nextPlanNodeId() {
   return id;
 }
 
-void VeloxBackend::getInfoAndIds(
-    std::unordered_map<core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>> splitInfoMap,
-    std::unordered_set<core::PlanNodeId> leafPlanNodeIds,
-    std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
-    std::vector<core::PlanNodeId>& scanIds,
-    std::vector<core::PlanNodeId>& streamIds) {
+static void getInfoAndIds(
+    const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<velox::substrait::SplitInfo>>& splitInfoMap,
+    const std::unordered_set<velox::core::PlanNodeId>& leafPlanNodeIds,
+    std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
+    std::vector<velox::core::PlanNodeId>& scanIds,
+    std::vector<velox::core::PlanNodeId>& streamIds) {
   if (splitInfoMap.size() == 0) {
     throw std::runtime_error("At least one data source info is required. Can be scan or stream info.");
   }
   for (const auto& leafPlanNodeId : leafPlanNodeIds) {
-    if (splitInfoMap.find(leafPlanNodeId) == splitInfoMap.end()) {
+    auto it = splitInfoMap.find(leafPlanNodeId);
+    if (it == splitInfoMap.end()) {
       throw std::runtime_error("Could not find leafPlanNodeId.");
     }
-    auto splitInfo = splitInfoMap[leafPlanNodeId];
+    auto splitInfo = it->second;
     if (splitInfo->isStream) {
       streamIds.emplace_back(leafPlanNodeId);
     } else {
@@ -379,52 +255,57 @@ void VeloxBackend::getInfoAndIds(
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
+    std::string spill_dir,
     std::vector<std::shared_ptr<ResultIterator>> inputs,
     std::unordered_map<std::string, std::string> sessionConf) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
-  planNode_ = getVeloxPlanNode(plan_);
+
+  toVeloxPlan();
 
   // Scan node can be required.
-  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
-  std::vector<core::PlanNodeId> scanIds;
-  std::vector<core::PlanNodeId> streamIds;
+  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  std::vector<velox::core::PlanNodeId> scanIds;
+  std::vector<velox::core::PlanNodeId> streamIds;
 
   // Separate the scan ids and stream ids, and get the scan infos.
-  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
+  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+  auto ctxPool = veloxPool->addChild("ctx_root");
+  ctxPool->setMemoryUsageTracker(memUsageTracker_->addChild());
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
-        std::make_unique<WholeStageResultIteratorMiddleStage>(veloxPool, planNode_, streamIds, sessionConf);
+        std::make_unique<WholeStageResultIteratorMiddleStage>(ctxPool, veloxPlan_, streamIds, spill_dir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        veloxPool, planNode_, scanIds, scanInfos, streamIds, sessionConf);
+        ctxPool, veloxPlan_, scanIds, scanInfos, streamIds, spill_dir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& setScanInfos,
+    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos,
     std::unordered_map<std::string, std::string> sessionConf) {
-  planNode_ = getVeloxPlanNode(plan_);
+  toVeloxPlan();
 
   // In test, use setScanInfos to replace the one got from Substrait.
-  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
-  std::vector<core::PlanNodeId> scanIds;
-  std::vector<core::PlanNodeId> streamIds;
+  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  std::vector<velox::core::PlanNodeId> scanIds;
+  std::vector<velox::core::PlanNodeId> streamIds;
 
   // Separate the scan ids and stream ids, and get the scan infos.
-  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
+  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-
+  auto ctxPool = veloxPool->addChild("ctx_root");
+  ctxPool->setMemoryUsageTracker(memUsageTracker_->addChild());
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
+      ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp/test-spill", confMap_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
@@ -441,17 +322,39 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   }
 }
 
-std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
-  if (output_schema_ == nullptr) {
-    cacheOutputSchema(planNode_);
+std::shared_ptr<SplitterBase> VeloxBackend::makeSplitter(
+    const std::string& partitioning_name,
+    int num_partitions,
+    SplitOptions options,
+    const std::string& batchType) {
+  if (options.is_celeborn) {
+    GLUTEN_ASSIGN_OR_THROW(
+        auto splitter, CelebornSplitter::Make(partitioning_name, num_partitions, std::move(options)));
+    return splitter;
+  } else if (batchType == "velox") {
+    GLUTEN_ASSIGN_OR_THROW(auto splitter, VeloxSplitter::Make(partitioning_name, num_partitions, std::move(options)));
+    return splitter;
+  } else {
+    GLUTEN_ASSIGN_OR_THROW(auto splitter, Splitter::Make(partitioning_name, num_partitions, std::move(options)));
+    return splitter;
   }
-  return output_schema_;
 }
 
-void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const core::PlanNode>& planNode) {
+std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
+  if (outputSchema_ == nullptr) {
+    cacheOutputSchema(veloxPlan_);
+  }
+  return outputSchema_;
+}
+
+std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> VeloxBackend::getMemoryUsageTracker() {
+  return memUsageTracker_;
+}
+
+void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const velox::core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
-  exportToArrow(BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool()), arrowSchema);
-  GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
+  exportToArrow(velox::BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool()), arrowSchema);
+  GLUTEN_ASSIGN_OR_THROW(outputSchema_, arrow::ImportSchema(&arrowSchema));
 }
 
 } // namespace gluten

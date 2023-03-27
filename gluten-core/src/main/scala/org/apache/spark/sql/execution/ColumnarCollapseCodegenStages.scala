@@ -112,18 +112,11 @@ case class ColumnarCollapseCodegenStages(
     codegenStageCounter: AtomicInteger = ColumnarCollapseCodegenStages.codegenStageCounter)
     extends Rule[SparkPlan] {
 
-  def columnarWholeStageEnabled: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
-
   def separateScanRDD: Boolean =
     BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage()
 
   def apply(plan: SparkPlan): SparkPlan = {
-    if (columnarWholeStageEnabled) {
-      insertWholeStageTransformer(plan)
-    } else {
-      plan
-    }
+    insertWholeStageTransformer(plan)
   }
 
   /**

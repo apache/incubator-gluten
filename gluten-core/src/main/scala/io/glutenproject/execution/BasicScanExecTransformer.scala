@@ -21,11 +21,11 @@ import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
@@ -34,7 +34,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait BasicScanExecTransformer extends TransformSupport {
+trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
 
   def filterExprs(): Seq[Expression]
 
@@ -77,15 +77,10 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   override def doValidate(): Boolean = {
-    // Fallback to vanilla spark when the input path
-    // does not contain the partition info.
-    if (getPartitionSchemas.nonEmpty &&
-      !getInputFilePaths.forall(_.contains("="))) {
-      return false
-    }
     val fileFormat = ConverterUtils.getFileFormat(this)
-    if (!BackendsApiManager
-      .getTransformerApiInstance.supportsReadFileFormat(fileFormat, schema.fields)) {
+    if (!BackendsApiManager.getTransformerApiInstance
+      .supportsReadFileFormat(
+        fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
       logDebug(
         s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
       return false

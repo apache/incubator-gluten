@@ -65,16 +65,26 @@ public class RelBuilder {
                                        SubstraitContext context,
                                        Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ProjectRelNode(input, expressionNodes);
+    return new ProjectRelNode(input, expressionNodes, -1);
+  }
+
+  public static RelNode makeProjectRel(RelNode input,
+                                       ArrayList<ExpressionNode> expressionNodes,
+                                       SubstraitContext context,
+                                       Long operatorId,
+                                       int emitStartIndex) {
+    context.registerRelToOperator(operatorId);
+    return new ProjectRelNode(input, expressionNodes, emitStartIndex);
   }
 
   public static RelNode makeProjectRel(RelNode input,
                                        ArrayList<ExpressionNode> expressionNodes,
                                        AdvancedExtensionNode extensionNode,
                                        SubstraitContext context,
-                                       Long operatorId) {
+                                       Long operatorId,
+                                       int emitStartIndex) {
     context.registerRelToOperator(operatorId);
-    return new ProjectRelNode(input, expressionNodes, extensionNode);
+    return new ProjectRelNode(input, expressionNodes, extensionNode, emitStartIndex);
   }
 
   public static RelNode makeAggregateRel(RelNode input,

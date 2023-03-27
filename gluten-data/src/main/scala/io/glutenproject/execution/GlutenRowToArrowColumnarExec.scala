@@ -17,23 +17,30 @@
 
 package io.glutenproject.execution
 
-import java.util.concurrent.TimeUnit._
+import scala.collection.mutable.ListBuffer
+
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.utils.GlutenArrowAbiUtil
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, SpecializedGetters, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtil.UnsafeItr
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.broadcast
+import org.apache.spark.{broadcast, TaskContext}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.utils.SparkArrowUtil
-
 import io.glutenproject.vectorized._
+import org.apache.arrow.c.{ArrowArray, ArrowSchema}
+import org.apache.arrow.memory.ArrowBuf
+
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.unsafe.Platform
 
 class RowToColumnConverter(schema: StructType) extends Serializable {
   private val converters = schema.fields.map {
@@ -263,47 +270,141 @@ object RowToColumnConverter {
 case class GlutenRowToArrowColumnarExec(child: SparkPlan)
   extends GlutenRowToColumnarExec(child = child) with UnaryExecNode {
 
+  private def typeCheckNative(): Boolean = {
+    for (field <- schema.fields) {
+      field.dataType match {
+        case _: BooleanType =>
+        case _: ByteType =>
+        case _: ShortType =>
+        case _: IntegerType =>
+        case _: LongType =>
+        case _: FloatType =>
+        case _: DoubleType =>
+        case _: StringType =>
+        case _: BinaryType =>
+        case _: DecimalType =>
+        case _ => return false
+      }
+    }
+    true
+  }
+
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")
-    val processTime = longMetric("processTime")
+    val convertTime = longMetric("convertTime")
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     val numRows = conf.columnBatchSize
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
-    val localSchema = this.schema
+    val localSchema = schema
+    val useNative = typeCheckNative()
     child.execute().mapPartitions { rowIterator =>
+      val converter = new RowToColumnConverter(localSchema)
+      val arrowSchema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
+      val jniWrapper = new NativeRowToColumnarJniWrapper()
       if (rowIterator.hasNext) {
-        val res = new Iterator[ColumnarBatch] {
-          private val converters = new RowToColumnConverter(localSchema)
-          private var last_cb: ColumnarBatch = null
-          private var elapse: Long = 0
+        val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
 
           override def hasNext: Boolean = {
             rowIterator.hasNext
           }
 
-          override def next(): ColumnarBatch = {
+          def nativeConvert(row: UnsafeRow): ColumnarBatch = {
+            val allocator = ArrowBufferAllocators.contextInstance()
+            var arrowBuf: ArrowBuf = null
+            TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+              // Remind, remove isOpen here
+              if (arrowBuf != null && arrowBuf.refCnt() == 0) {
+                arrowBuf.close()
+              }
+            }
+            val rowLength = new ListBuffer[Long]()
+            var rowCount = 0
+            var offset = 0
+            val sizeInBytes = row.getSizeInBytes
+            // allocate buffer based on 1st row, but if first row is very big, this will cause OOM
+            // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
+            // 31760L origins from BaseVariableWidthVector.lastValueAllocationSizeInBytes
+            // experimental value
+            val estimatedBufSize = Math.max(
+              Math.min(sizeInBytes.toDouble * numRows * 1.2, 31760L * numRows),
+              sizeInBytes.toDouble * 10)
+            arrowBuf = allocator.buffer(estimatedBufSize.toLong)
+            Platform.copyMemory(row.getBaseObject, row.getBaseOffset,
+              null, arrowBuf.memoryAddress() + offset, sizeInBytes)
+            offset += sizeInBytes
+            rowLength += sizeInBytes.toLong
+            rowCount += 1
+
+            while (rowCount < numRows && rowIterator.hasNext) {
+              val row = rowIterator.next()
+              val unsafeRow = row.asInstanceOf[UnsafeRow]
+              val sizeInBytes = unsafeRow.getSizeInBytes
+              if ((offset + sizeInBytes) > arrowBuf.capacity()) {
+                val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
+                tmpBuf.setBytes(0, arrowBuf, 0, offset)
+                arrowBuf.close()
+                arrowBuf = tmpBuf
+              }
+              Platform.copyMemory(unsafeRow.getBaseObject, unsafeRow.getBaseOffset,
+                null, arrowBuf.memoryAddress() + offset, sizeInBytes)
+              offset += sizeInBytes
+              rowLength += sizeInBytes.toLong
+              rowCount += 1
+            }
+            numInputRows += rowCount
+            val cSchema = ArrowSchema.allocateNew(allocator)
+            try {
+              GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+              val handle = jniWrapper.nativeConvertRowToColumnar(
+                cSchema.memoryAddress(), rowLength.toArray,
+                arrowBuf.memoryAddress(),
+                NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+              GlutenColumnarBatches.create(handle)
+            } finally {
+              arrowBuf.close()
+              arrowBuf = null
+              cSchema.close()
+            }
+          }
+
+          def javaConvert(row: InternalRow): ColumnarBatch = {
+            logInfo("Not UnsafeRow, fallback to java based r2c")
             val vectors: Seq[WritableColumnVector] =
               ArrowWritableColumnVector.allocateColumns(numRows, schema)
             var rowCount = 0
+
+            converter.convert(row, vectors.toArray)
+            rowCount += 1
+
             while (rowCount < numRows && rowIterator.hasNext) {
               val row = rowIterator.next()
-              val start = System.nanoTime()
-              converters.convert(row, vectors.toArray)
-              elapse += System.nanoTime() - start
+              converter.convert(row, vectors.toArray)
               rowCount += 1
             }
-            vectors.foreach(v => v.asInstanceOf[ArrowWritableColumnVector].setValueCount(rowCount))
-            processTime.set(NANOSECONDS.toMillis(elapse))
+            vectors.foreach(v => v.asInstanceOf[ArrowWritableColumnVector]
+              .setValueCount(rowCount))
             numInputRows += rowCount
+            new ColumnarBatch(vectors.toArray, rowCount)
+          }
+
+          override def next(): ColumnarBatch = {
+            val firstRow = rowIterator.next()
+            val start = System.currentTimeMillis()
+            val cb = firstRow match {
+              case unsafeRow: UnsafeRow if useNative =>
+                nativeConvert(unsafeRow)
+              case _ =>
+                javaConvert(firstRow)
+            }
             numOutputBatches += 1
-            last_cb = new ColumnarBatch(vectors.toArray, rowCount)
-            last_cb
+            convertTime += System.currentTimeMillis() - start
+            cb
           }
         }
-        new UnsafeItr(res)
+        new CloseableColumnBatchIterator(res)
       } else {
         Iterator.empty
       }

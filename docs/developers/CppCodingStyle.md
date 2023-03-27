@@ -25,7 +25,7 @@ Many aspects of C++ coding style will be covered by clang-format, such as spacin
 line width, indentation and ordering (for includes, using directives and etc). 
 
 * Always ensure your code is compatible with clang-format.
-* `tools/formatcppcode.sh` is provided for formating CPP code.
+* `dev/formatcppcode.sh` is provided for formating CPP code.
 
 ## Naming Conventions
 
@@ -39,10 +39,14 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * Use **kPascalCase** for static constant and enumerator.
 
 ## Designs
+
 * No over design.
 * No negation of negation, `isValid` is better than `isNotInvalid`.
 * Avoid corner case, and common case first.
 * Express ideas directly, don't let me think.
+* Make a check for the arguments in the interface between modules, and don't make a check
+	in the inner implementation, use `assert` in the private implementation instead of too
+	much safe check.
 
 ## Source File & Header File
 
@@ -67,8 +71,8 @@ line width, indentation and ordering (for includes, using directives and etc). 
 
 ## Class
 
-* Base class name do not end with Base, use `Backend` instead of `BackendBase`.
-* Ensure one class do one thing, follow the single responsibility principle.
+* Base class name doesn't end with Base, use `Backend` instead of `BackendBase`.
+* Ensure one class does one thing, and follows the single responsibility principle.
 * No big class, No huge class, No too much interfaces.
 * Distinguish interface from implementation, make implementations private.
 * When designing a class hierarchy, distinguish between interface inheritance
@@ -76,19 +80,22 @@ line width, indentation and ordering (for includes, using directives and etc). 
 	* Ensure that public inheritance represent the relation of `is-a`.
 	* Ensure that private inheritance represent the relation of `implements-with`.
 * Don't make a function `virtual` without reason.
+* Ensure the polymorphic base class has a `virtual` deconstructor.
 * Use `override` to make overriding explicit and to make the compiler work.
-* Use	`const` to mark the member function as read-only.
+* Use `const` to mark the member function read-only as far as possible.
 * When you try to define a `copy constructor` or a `operator=` for a class, remember
 	the `Rule of three/five/zero`.
 
 ## Function
 
 * Make functions short and simple.
+* Calling a meaningful function is more readable than writing too many statements
+	in place, but the performance-sensitive code path is an exception.
 * Give the function a good name, how to check whether the function name is good
 	or not.
 	* When you read it loudly, you feel smooth.
 	* The information can be represented by arguments should not be encoded into 
-		the function name. such as. use `get` instead of `getByIndex`.
+		the function name. such as. use `get(size_t index)` instead of `getByIndex`.
 * A function should focus on a single logic operation.
 * A function should do as the name meaning.
 	* do everything converd by the function name
@@ -96,11 +103,12 @@ line width, indentation and ordering (for includes, using directives and etc). 
 
 ## Variable
 
-* Make variables name simple and meaningful.
+* Make variable names simple and meaningful.
 * Don't group all your variables at the top of the scope, it's an outdated habit.
 * Declare variables as close to the usage point as possible.
 
 ## Constant
+
 * Prefer const variables to using preprocessor (`#define`) to define constant values.
 
 ## Macro
@@ -161,6 +169,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
     quite obvious code.
 
 ## References
+
 * [CppCoreGuidelines](https://github.com/fluz/CppCoreGuidelines)
 * [Velox CODING_STYLE](https://github.com/facebookincubator/velox/blob/main/CODING_STYLE.md)
 * Thanks Gluten developers for their wise suggestions and helps.

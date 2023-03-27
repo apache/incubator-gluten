@@ -41,9 +41,8 @@ class CHColumnarShuffleWriter[K, V](
 
   private val blockManager = SparkEnv.get.blockManager
   private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
-  private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
-  private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum;
+  private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
+  private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
   private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
@@ -90,41 +89,40 @@ class CHColumnarShuffleWriter[K, V](
     if (nativeSplitter == 0) {
       nativeSplitter = splitterJniWrapper.make(
         dep.nativePartitioning,
+        dep.shuffleId,
         mapId,
         splitSize,
         customizedCompressCodec,
         dataTmp.getAbsolutePath,
-        localDirs)
+        localDirs,
+        subDirsPerLocalDir)
     }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val startTimeForPrepare = System.nanoTime()
-
         val startTime = System.nanoTime()
         firstRecordBatch = false
-        dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
         val col = cb.column(0).asInstanceOf[CHColumnVector]
         val block = col.getBlockAddress
         splitterJniWrapper
           .split(nativeSplitter, cb.numRows, block)
-        dep.splitTime.add(System.nanoTime() - startTime)
-        dep.numInputRows.add(cb.numRows)
-        dep.inputBatches.add(1)
+        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        dep.metrics("numInputRows").add(cb.numRows)
+        dep.metrics("inputBatches").add(1)
         writeMetrics.incRecordsWritten(cb.numRows)
       }
     }
     val startTime = System.nanoTime()
     splitResult = splitterJniWrapper.stop(nativeSplitter)
 
-    dep.splitTime.add(System.nanoTime() - startTime)
-    dep.spillTime.add(splitResult.getTotalSpillTime)
-    dep.compressTime.add(splitResult.getTotalCompressTime)
-    dep.computePidTime.add(splitResult.getTotalComputePidTime)
-    dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
-    dep.dataSize.add(splitResult.getTotalBytesWritten)
+    dep.metrics("splitTime").add(System.nanoTime() - startTime)
+    dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
+    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+    dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
+    dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
+    dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime)
 

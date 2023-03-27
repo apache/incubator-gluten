@@ -24,6 +24,8 @@
 
 #include <deque>
 
+#include "jni/JniCommon.h"
+
 #include "memory/ArrowMemoryPool.h"
 
 namespace gluten {
@@ -46,12 +48,15 @@ struct ReaderOptions {
 struct SplitOptions {
   int64_t offheap_per_task = 0;
   int32_t buffer_size = kDefaultSplitterBufferSize;
+  int32_t push_buffer_max_size = kDefaultSplitterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
   int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::UNCOMPRESSED;
+
   bool prefer_spill = true;
   bool write_schema = true;
   bool buffered_write = false;
+  bool is_celeborn = false;
 
   std::string data_file;
 
@@ -59,6 +64,8 @@ struct SplitOptions {
   int64_t task_attempt_id = -1;
 
   std::shared_ptr<arrow::MemoryPool> memory_pool = GetDefaultWrappedArrowMemoryPool();
+
+  std::shared_ptr<CelebornClient> celeborn_client;
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 

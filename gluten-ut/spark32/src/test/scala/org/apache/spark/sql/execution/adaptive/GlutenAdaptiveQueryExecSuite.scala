@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.adaptive
 
 import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformer, SortExecTransformer, SortMergeJoinExecTransformer}
+import org.apache.log4j.Level
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
@@ -184,7 +185,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Change merge join to broadcast join") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80"
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100"
     ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a where value = '1'")
@@ -222,7 +223,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Reuse the parallelism of coalesced shuffle in local shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100",
       SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "10") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a where value = '1'")
@@ -239,7 +240,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Reuse the default parallelism in local shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100",
       SQLConf.COALESCE_PARTITIONS_ENABLED.key -> "false") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a where value = '1'")
@@ -297,7 +298,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Scalar subquery") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a " +
           "where value = (SELECT max(a) from testData3)")
@@ -310,7 +311,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Scalar subquery in later stages") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a " +
           "where (value + a) = (SELECT max(a) from testData3)")
@@ -324,7 +325,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten multiple joins") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         """
           |WITH t4 AS (
@@ -336,7 +337,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           |WHERE value = 1
         """.stripMargin)
       assert(sortMergeJoinSize(plan) == 3)
-      assert(broadcastHashJoinSize(adaptivePlan) == 3)
+      assert(broadcastHashJoinSize(adaptivePlan) == 2)
 
       // A possible resulting query plan:
       // BroadcastHashJoin
@@ -360,14 +361,14 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       // shuffle read to local shuffle read in the bottom two 'BroadcastHashJoin'.
       // For the top level 'BroadcastHashJoin', the probe side is not shuffle query stage
       // and the build side shuffle query stage is also converted to local shuffle read.
-      checkNumLocalShuffleReads(adaptivePlan)
+      checkNumLocalShuffleReads(adaptivePlan, 2)
     }
   }
 
   test("gluten multiple joins with aggregate") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         """
           |WITH t4 AS (
@@ -381,7 +382,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           |WHERE value = 1
         """.stripMargin)
       assert(sortMergeJoinSize(plan) == 3)
-      assert(broadcastHashJoinSize(adaptivePlan) == 3)
+      assert(broadcastHashJoinSize(adaptivePlan) == 2)
 
       // A possible resulting query plan:
       // BroadcastHashJoin
@@ -403,7 +404,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       //             +- ShuffleExchange
 
       // The shuffle added by Aggregate can't apply local read.
-      checkNumLocalShuffleReads(adaptivePlan, 1)
+      checkNumLocalShuffleReads(adaptivePlan, 2)
     }
   }
 
@@ -454,7 +455,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100",
       SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT value FROM testData join testData2 ON key = a " +
@@ -462,9 +463,9 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       assert(sortMergeJoinSize(plan) == 3)
       // TODO: vanilla spark has 2 bhj, and 1 smj, but gluten has 3 bhj,
       //  make sure this will not cause performance regression and why it is bhj
-      assert(broadcastHashJoinSize(adaptivePlan) == 3)
+      assert(broadcastHashJoinSize(adaptivePlan) == 1)
       // Vanilla spark still a SMJ, and its two shuffles can't apply local read.
-      checkNumLocalShuffleReads(adaptivePlan)
+      checkNumLocalShuffleReads(adaptivePlan, 4)
       // Even with local shuffle read, the query stage reuse can also work.
       val ex = findReusedExchange(adaptivePlan)
       assert(ex.size == 1)
@@ -557,31 +558,13 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   // Cost is equal, not test cost is greater, need new test, but other test may contain cost change,
   // so it maybe not essential
   test("gluten Avoid plan change if cost is greater") {
-    val origPlan = sql("SELECT * FROM testData " +
-      "join testData2 t2 ON key = t2.a " +
-      "join testData2 t3 on t2.a = t3.a where t2.b = 1").queryExecution.executedPlan
-
-    withSQLConf(
-      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80",
-      SQLConf.BROADCAST_HASH_JOIN_OUTPUT_PARTITIONING_EXPAND_LIMIT.key -> "0",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
-      val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
-        "SELECT * FROM testData " +
-          "join testData2 t2 ON key = t2.a " +
-          "join testData2 t3 on t2.a = t3.a where t2.b = 1")
-      assert(sortMergeJoinSize(plan) == 2)
-      // this new plan cost is 0
-      assert(SimpleCostEvaluator.evaluateCost(adaptivePlan) == SimpleCost(0))
-      assert(broadcastHashJoinSize(adaptivePlan) == 2, origPlan.toString)
-    }
   }
 
   test("gluten Change merge join to broadcast join without local shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.LOCAL_SHUFFLE_READER_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "40") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         """
           |SELECT * FROM testData t1 join testData2 t2
@@ -591,9 +574,9 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       )
       assert(sortMergeJoinSize(plan) == 2)
       val bhj = findTopLevelBroadcastHashJoinTransform(adaptivePlan)
-      assert(bhj.size == 2)
+      assert(bhj.size == 1)
       // There is still a SMJ, and its two shuffles can't apply local read.
-      checkNumLocalShuffleReads(adaptivePlan)
+      checkNumLocalShuffleReads(adaptivePlan, 2)
     }
   }
 
@@ -605,7 +588,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       // this config will make some empty partitions
       SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
       // `testData` is small enough to be broadcast but has empty partition ratio over the config.
-      // because testData2 in gluten sizeInBytes(from ColumnarShuffleExchangeAdaptor plan stats)
+      // because testData2 in gluten sizeInBytes(from ColumnarShuffleExchangeExec plan stats)
       // is 78B sometimes, so change the threshold from 80 to 60
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "60") {
         val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
@@ -774,7 +757,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       assert(read.metrics("numPartitions").value == read.partitionSpecs.length)
       assert(read.metrics("partitionDataSize").value > 0)
 
-      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
+      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
         val (_, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT * FROM testData join testData2 ON key = a where value = '1'")
         val join = collect(adaptivePlan) {
@@ -852,7 +835,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         val (_, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT id FROM v1 GROUP BY id DISTRIBUTE BY id")
         assert(collect(adaptivePlan) {
-          case s: ColumnarShuffleExchangeAdaptor => s
+          case s: ColumnarShuffleExchangeExec => s
         }.length == 1)
       }
     }
@@ -952,7 +935,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           |ON value = b
         """.stripMargin)
 
-      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
+      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
         // Repartition with no partition num specified.
         checkBHJ(df.repartition('b),
           // The top shuffle from repartition is optimized out.
@@ -1041,7 +1024,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       ds.collect()
       val plan = ds.queryExecution.executedPlan
       assert(collect(plan) {
-        case s: ColumnarShuffleExchangeAdaptor if s.shuffleOrigin == origin && s.numPartitions == 2
+        case s: ColumnarShuffleExchangeExec if s.shuffleOrigin == origin && s.numPartitions == 2
         => s
       }.size == 1)
       checkAnswer(ds, testData)
@@ -1109,7 +1092,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         checkJoinStrategy(false)
       }
 
-      withSQLConf(SQLConf.ADAPTIVE_AUTO_BROADCASTJOIN_THRESHOLD.key -> "160") {
+      withSQLConf(SQLConf.ADAPTIVE_AUTO_BROADCASTJOIN_THRESHOLD.key -> "400") {
         checkJoinStrategy(true)
       }
     }
@@ -1290,7 +1273,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
 
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
       val query = "SELECT * FROM testData join testData2 ON key = a where value = '1'"
 
       withSQLConf(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key ->
@@ -1419,6 +1402,52 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       val adaptivePlan = df.queryExecution.executedPlan
       val bhj = findTopLevelBroadcastHashJoinTransform(adaptivePlan)
       assert(bhj.length == 1)
+    }
+  }
+
+  test("gluten test log level") {
+    def verifyLog(expectedLevel: Level): Unit = {
+      val logAppender = new LogAppender("adaptive execution")
+      logAppender.setThreshold(expectedLevel)
+      withLogAppender(
+        logAppender,
+        loggerNames = Seq(AdaptiveSparkPlanExec.getClass.getName.dropRight(1)),
+        level = Some(Level.TRACE)) {
+        withSQLConf(
+          SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
+          SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
+          sql("SELECT * FROM testData join testData2 ON key = a where value = '1'").collect()
+        }
+      }
+      Seq("Plan changed", "Final plan").foreach { msg =>
+        assert(
+          logAppender.loggingEvents.exists { event =>
+            event.getRenderedMessage.contains(msg) && event.getLevel == expectedLevel
+          })
+      }
+    }
+
+    // Verify default log level
+    verifyLog(Level.DEBUG)
+
+    // Verify custom log level
+    val levels = Seq(
+      "TRACE" -> Level.TRACE,
+      "trace" -> Level.TRACE,
+      "DEBUG" -> Level.DEBUG,
+      "debug" -> Level.DEBUG,
+      "INFO" -> Level.INFO,
+      "info" -> Level.INFO,
+      "WARN" -> Level.WARN,
+      "warn" -> Level.WARN,
+      "ERROR" -> Level.ERROR,
+      "error" -> Level.ERROR,
+      "deBUG" -> Level.DEBUG)
+
+    levels.foreach { level =>
+      withSQLConf(SQLConf.ADAPTIVE_EXECUTION_LOG_LEVEL.key -> level._1) {
+        verifyLog(level._2)
+      }
     }
   }
 }

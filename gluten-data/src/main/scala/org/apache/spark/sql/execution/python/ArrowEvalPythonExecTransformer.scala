@@ -19,9 +19,11 @@ package org.apache.spark.sql.execution.python
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.execution.{MetricsUpdater, NoopMetricsUpdater, TransformContext, TransformSupport}
+import io.glutenproject.execution.{TransformContext, TransformSupport}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
+
 import org.apache.spark.TaskContext
 import org.apache.spark.api.python.ChainedPythonFunctions
 import org.apache.spark.rdd.RDD
@@ -37,7 +39,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq[Attribute],
   child: SparkPlan, evalType: Int)
   extends EvalPythonExec with TransformSupport {
-  override lazy val metrics = Map(
+
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
@@ -57,12 +61,11 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
-  }
-
-  override def getChild: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
   }
 
   override def doValidate(): Boolean = false
@@ -132,5 +135,5 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }

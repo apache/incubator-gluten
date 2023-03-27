@@ -12,7 +12,7 @@ val tables = new TPCHTables(spark.sqlContext,
     dbgenDir = dbgenDir,
     scaleFactor = scaleFactor,
     useDoubleForDecimal = true, // true to replace DecimalType with DoubleType
-    useStringForDate = true) // true to replace DateType with StringType
+    useStringForDate = false) // true to replace DateType with StringType
 
 
 tables.genData(

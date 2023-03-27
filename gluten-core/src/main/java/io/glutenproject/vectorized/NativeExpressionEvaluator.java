@@ -32,6 +32,7 @@ import io.substrait.proto.Plan;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.util.SparkResourcesUtil;
 
 import java.io.IOException;
 import java.util.List;
@@ -52,8 +53,13 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
 
   // Used to initialize the native computing.
   public void initNative(SparkConf conf) {
-    jniWrapper.nativeInitNative(buildNativeConfNode(GlutenConfig.getNativeStaticConf(conf,
-        BackendsApiManager.getSettings().getBackendConfigPrefix())).toProtobuf().toByteArray());
+    String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
+    Map<String, String> nativeConfMap = GlutenConfig.getNativeStaticConf(conf, prefix);
+
+    // Get the customer config from SparkConf for each backend
+    BackendsApiManager.getTransformerApiInstance().postProcessNativeConfig(nativeConfMap, prefix);
+
+    jniWrapper.nativeInitNative(buildNativeConfNode(nativeConfMap).toProtobuf().toByteArray());
   }
 
   // Used to validate the Substrait plan in native compute engine.
@@ -68,7 +74,7 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
     return PlanBuilder.makePlan(extensionNode);
   }
 
-  // Used by WholeStageTransfrom to create the native computing pipeline and
+  // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
@@ -79,6 +85,7 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
             iterList.toArray(new GeneralInIterator[0]), TaskContext.get().stageId(),
             TaskContext.getPartitionId(), TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
+            SparkResourcesUtil.getGlutenLocalDirRoundRobin(),
             buildNativeConfNode(GlutenConfig.getNativeSessionConf()).toProtobuf().toByteArray());
     return createOutIterator(handle, outAttrs);
   }

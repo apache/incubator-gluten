@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include <folly/system/ThreadName.h>
 #include <jni.h>
 #include "include/arrow/c/bridge.h"
 
@@ -23,8 +22,8 @@
 #include <jni/JniCommon.h>
 #include <exception>
 #include "compute/DwrfDatasource.h"
-#include "compute/RegistrationAllFunctions.h"
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
@@ -32,7 +31,7 @@
 
 #include <iostream>
 
-using namespace facebook::velox;
+using namespace facebook;
 
 static std::unordered_map<std::string, std::string> sparkConfs_;
 
@@ -63,6 +62,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
     jbyteArray planArray) {
   JNI_METHOD_START
   sparkConfs_ = gluten::getConfMap(env, planArray);
+  // FIXME this is not thread-safe. The function can be called twice
+  //   within Spark local-mode, one from Driver, another from Executor.
   gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs_); });
   static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()
@@ -79,14 +80,14 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   gluten::ParseProtobuf(planData, planSize, &subPlan);
 
   // A query context used for function validation.
-  core::QueryCtx queryCtx;
+  velox::core::QueryCtx queryCtx;
 
   auto pool = gluten::GetDefaultWrappedVeloxMemoryPool();
 
   // An execution context used for function validation.
-  core::ExecCtx execCtx(pool, &queryCtx);
+  velox::core::ExecCtx execCtx(pool, &queryCtx);
 
-  facebook::velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
+  velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
   try {
     return planValidator.validate(subPlan);
   } catch (std::invalid_argument& e) {

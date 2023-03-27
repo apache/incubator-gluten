@@ -19,15 +19,18 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.vectorized.Metrics
+
 import io.substrait.proto.Plan
+
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util._
 
@@ -95,13 +98,13 @@ case class FirstZippedPartitionsPartition(idx: Int, inputPartition: InputPartiti
   def partitions: Seq[Partition] = partitionValues
 }
 
-class GlutenWholeStageColumnarRDD(sc: SparkContext,
+class GlutenWholeStageColumnarRDD(@transient sc: SparkContext,
                                   @transient private val inputPartitions: Seq[InputPartition],
                                   outputAttributes: Seq[Attribute],
                                   var rdds: Seq[RDD[ColumnarBatch]],
                                   pipelineTime: SQLMetric,
-                                  updateOutputMetrics: (Long, Long) => Unit,
-                                  updateNativeMetrics: Metrics => Unit)
+                                  updateInputMetrics: (InputMetricsWrapper) => Unit,
+                                  updateNativeMetrics: IMetrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
@@ -115,7 +118,7 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
         outputAttributes,
         context,
         pipelineTime,
-        updateOutputMetrics,
+        updateInputMetrics,
         updateNativeMetrics)
     } else {
       val partitions = split.asInstanceOf[FirstZippedPartitionsPartition].partitions
@@ -127,7 +130,7 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
         outputAttributes,
         context,
         pipelineTime,
-        updateOutputMetrics,
+        updateInputMetrics,
         updateNativeMetrics,
         inputIterators)
     }

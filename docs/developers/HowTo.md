@@ -15,7 +15,7 @@ transforms Spark plan to Substrait plan, and then send the Substrait plan to the
 
 The Gluten codes consist of two parts: the C++ codes and the Java/Scala codes. 
 1. All C++ codes are placed under the directory of `gluten_home/cpp`, the Java/Scala codes are placed under several directories, such as
-  `gluten_home/gluten-core` `gluten_home/gluten-data` `gluten_home/backends_velox`.
+  `gluten_home/gluten-core` `gluten_home/gluten-data` `gluten_home/backends-velox`.
 2. The Java/Scala codes are responsibility for validating and transforming the execution plan. Source data should also be provided, the source data may
   come from files or other forms such as networks.
 3. The C++ codes take the Substrait plan and the source data as inputs and transform the Substrait plan to the corresponding backend plan. If the backend
@@ -39,7 +39,7 @@ You can generate the example files by the following steps:
 ```
 cd gluten_home/ep/build-arrow/src
 ./get_arrow.sh
-./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
+./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON
 ```
 
 2. get and build Velox
@@ -110,21 +110,21 @@ wait to add
 wait to complete
 ```
 cd the_directory_of_core_file_generated
-gdb gluten_home/cpp/build/releases/libspark_columnar_jni.so 'core-Executor task l-2000883-1671542526'
+gdb gluten_home/cpp/build/releases/libgluten.so 'core-Executor task l-2000883-1671542526'
 
 ```
 - the `core-Executor task l-2000883-1671542526` represents the core file name.
 
 # How to run TPC-H on Velox backend
 
-Now, both Parquet and DWRF format files are supported, related scripts and files are under the directory of `gluten_home/backends_velox/workload/tpch`.
-The file `README.md` under `gluten_home/backends_velox/workload/tpch` offers some useful help but it's still not enough and exact.
+Now, both Parquet and DWRF format files are supported, related scripts and files are under the directory of `gluten_home/backends-velox/workload/tpch`.
+The file `README.md` under `gluten_home/backends-velox/workload/tpch` offers some useful help but it's still not enough and exact.
 
 One way of run TPC-H test is to run unit-test by workflow, you can refer to [unitest](https://github.com/oap-project/gluten/blob/main/.github/workflows/unittests.yml#L90)
 
 Here will explain how to run TPC-H on Velox backend with the Parquet file format.
 1. First step, prepare the datasets, you have two choices.
-  - One way, generate Parquet datasets using the script under `gluten_home/backends_velox/workload/tpch/gen_data/parquet_dataset`, You can get help from the above
+  - One way, generate Parquet datasets using the script under `gluten_home/backends-velox/workload/tpch/gen_data/parquet_dataset`, You can get help from the above
     mentioned `README.md`.
   - The other way, using the small dataset under `gluten_home/backends-velox/src/test/resources/tpch-data-parquet-velox` directly, If you just want to make simple
     TPC-H testing, this dataset is a good choice.

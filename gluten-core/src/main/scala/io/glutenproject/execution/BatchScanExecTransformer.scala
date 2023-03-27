@@ -20,14 +20,14 @@ package io.glutenproject.execution
 import java.util.Objects
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.vectorized.OperatorMetrics
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.metrics.MetricsUpdater
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -36,64 +36,9 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
                                pushdownFilters: Seq[Expression] = Seq())
   extends BatchScanExecShim(output, scan, runtimeFilters) with BasicScanExecTransformer {
 
-  override lazy val metrics = Map(
-    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "wall time"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time"),
-    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
-    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"),
-    "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
-      sparkContext, "number of dynamic filters accepted"))
-
-  object MetricsUpdaterImpl extends MetricsUpdater {
-    val inputRows: SQLMetric = longMetric("inputRows")
-    val inputVectors: SQLMetric = longMetric("inputVectors")
-    val inputBytes: SQLMetric = longMetric("inputBytes")
-    val rawInputRows: SQLMetric = longMetric("rawInputRows")
-    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-    val outputRows: SQLMetric = longMetric("outputRows")
-    val outputVectors: SQLMetric = longMetric("outputVectors")
-    val outputBytes: SQLMetric = longMetric("outputBytes")
-    val cpuNanos: SQLMetric = longMetric("cpuNanos")
-    val wallNanos: SQLMetric = longMetric("wallNanos")
-    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
-
-    // Number of dynamic filters received.
-    val numDynamicFiltersAccepted: SQLMetric = longMetric("numDynamicFiltersAccepted")
-
-    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-      outputVectors += outNumBatches
-      outputRows += outNumRows
-    }
-
-    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-      if (operatorMetrics != null) {
-        inputRows += operatorMetrics.inputRows
-        inputVectors += operatorMetrics.inputVectors
-        inputBytes += operatorMetrics.inputBytes
-        rawInputRows += operatorMetrics.rawInputRows
-        rawInputBytes += operatorMetrics.rawInputBytes
-        outputRows += operatorMetrics.outputRows
-        outputVectors += operatorMetrics.outputVectors
-        outputBytes += operatorMetrics.outputBytes
-        cpuNanos += operatorMetrics.cpuNanos
-        wallNanos += operatorMetrics.wallNanos
-        peakMemoryBytes += operatorMetrics.peakMemoryBytes
-        numMemoryAllocations += operatorMetrics.numMemoryAllocations
-        numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
-      }
-    }
-  }
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetrics(sparkContext)
 
   override def filterExprs(): Seq[Expression] = scan match {
     case fileScan: FileScan =>
@@ -147,11 +92,8 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     this
   }
 
-  override def getChild: SparkPlan = {
-    null
-  }
-
-  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
 
   @transient private lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten

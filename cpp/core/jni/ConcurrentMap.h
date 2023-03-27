@@ -51,7 +51,7 @@ class ConcurrentMap {
     if (it != map_.end()) {
       return it->second;
     }
-    return NULLPTR;
+    return nullptr;
   }
 
   void Clear() {

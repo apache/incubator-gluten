@@ -119,11 +119,11 @@ case class GlutenHashAggregateExecTransformer(
       }
     }
     if (!validation) {
-      RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId)
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId, groupingExpressions.size + aggregateExpressions.size)
     } else {
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
-      RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId, groupingExpressions.size + aggregateExpressions.size)
     }
   }
 
@@ -239,7 +239,7 @@ case class GlutenHashAggregateExecTransformer(
                                   rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
-      ConverterUtils.ROW_CONSTRUCTOR,
+      ExpressionMappings.ROW_CONSTRUCTOR,
       rowConstructAttributes.map(attr => attr.dataType),
       FunctionConfig.NON)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
@@ -334,8 +334,9 @@ case class GlutenHashAggregateExecTransformer(
     }
 
     // Create a project rel.
+    val emitStartIndex = originalInputAttributes.size
     val projectRel = if (!validation) {
-      RelBuilder.makeProjectRel(inputRel, exprNodes, context, operatorId)
+      RelBuilder.makeProjectRel(inputRel, exprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -344,7 +345,7 @@ case class GlutenHashAggregateExecTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId)
+      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId, emitStartIndex)
     }
 
     // Create aggregation rel.
@@ -359,9 +360,10 @@ case class GlutenHashAggregateExecTransformer(
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
       if (aggExpr.filter.isDefined) {
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
-        aggFilterList.add(exprNode)
+        throw new UnsupportedOperationException("Filter in final aggregation is not supported.")
+      } else {
+        // The number of filters should be aligned with that of aggregate functions.
+        aggFilterList.add(null)
       }
 
       val aggregateFunc = aggExpr.aggregateFunction
@@ -382,8 +384,7 @@ case class GlutenHashAggregateExecTransformer(
       addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
     })
     RelBuilder.makeAggregateRel(
-      projectRel, groupingList, aggregateFunctionList, aggFilterList,
-      context, operatorId)
+      projectRel, groupingList, aggregateFunctionList, aggFilterList, context, operatorId)
   }
 
   /**

@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -25,17 +27,18 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarInMemoryTableScanExec(
                                           attributes: Seq[Attribute],
                                           predicates: Seq[Expression],
                                           @transient relation: InMemoryRelation)
-  extends LeafExecNode {
+  extends LeafExecNode with GlutenPlan {
 
-  override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genColumnarInMemoryTableMetrics(sparkContext)
+
   // Accumulators used for testing purposes
   lazy val readPartitions = sparkContext.longAccumulator
   lazy val readBatches = sparkContext.longAccumulator

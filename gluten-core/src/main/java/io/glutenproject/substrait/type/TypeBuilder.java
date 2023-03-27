@@ -39,6 +39,14 @@ public class TypeBuilder {
     return new StringTypeNode(nullable);
   }
 
+  public static TypeNode makeFixedChar(Boolean nullable, int length) {
+    return new FixedCharTypeNode(nullable, length);
+  }
+
+  public static TypeNode makeFixedBinary(Boolean nullable, int length) {
+    return new FixedBinaryTypeNode(nullable, length);
+  }
+
   public static TypeNode makeBinary(Boolean nullable) {
     return new BinaryTypeNode(nullable);
   }

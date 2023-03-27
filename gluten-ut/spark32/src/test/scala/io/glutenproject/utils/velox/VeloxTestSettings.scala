@@ -114,7 +114,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .include("Union/Except/Intersect queries",
       "Subquery de-correlation in Union queries",
       "force apply AQE",
-      "test log level",
       "tree string output",
     "control a plan explain mode in listener vis SQLConf",
     "AQE should set active session during execution",
@@ -187,9 +186,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOuterJoinSuite]
   enableSuite[GlutenInnerJoinSuite]
   enableSuite[GlutenExchangeSuite]
-    // ColumnarShuffleExchangeAdaptor does not support doExecute() method
+    // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
-    // ColumnarShuffleExchangeAdaptor does not support SORT_BEFORE_REPARTITION
+    // ColumnarShuffleExchangeExec does not support SORT_BEFORE_REPARTITION
     .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
@@ -245,7 +244,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
-  // enableSuite[GlutenCoalesceShufflePartitionsSuite]
+  enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite with columnar operators
+    .excludeByPrefix("SPARK-24705")
+    .excludeByPrefix("SPARK-34790")
+    .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenFileScanSuite]
@@ -308,6 +311,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "without partition data column - select one deep nested complex field after outer join")
     .exclude("Spark vectorized reader - " +
       "with partition data column - select one deep nested complex field after outer join")
+    // Vectorized reading.
+    .exclude("Spark vectorized reader - without partition data column - " +
+      "select only expressions without references")
+    .exclude("Spark vectorized reader - with partition data column - " +
+      "select only expressions without references")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
@@ -325,11 +333,53 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetEncodingSuite]
   enableSuite[GlutenParquetFileFormatV1Suite]
   enableSuite[GlutenParquetFileFormatV2Suite]
-  // enableSuite[GlutenParquetV1FilterSuite]
-  // enableSuite[GlutenParquetV2FilterSuite]
+  enableSuite[GlutenParquetV1FilterSuite]
+    // Rewrite.
+    .exclude("Filter applied on merged Parquet schema with new column should work")
+    .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .exclude("filter pushdown - date")
+    // Ignore Spark's filter pushdown check.
+    .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
+    .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
+    .exclude("Filters should be pushed down for Parquet readers at row group level")
+    .exclude("filter pushdown - StringStartsWith")
+    .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
+    .exclude("Support Parquet column index")
+    .exclude("SPARK-34562: Bloom filter push down")
+  enableSuite[GlutenParquetV2FilterSuite]
+    // Rewrite.
+    .exclude("Filter applied on merged Parquet schema with new column should work")
+    .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .exclude("filter pushdown - date")
+    // Ignore Spark's filter pushdown check.
+    .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
+    .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
+    .exclude("Filters should be pushed down for Parquet readers at row group level")
+    .exclude("filter pushdown - StringStartsWith")
+    .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
+    .exclude("Support Parquet column index")
+    .exclude("SPARK-34562: Bloom filter push down")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
-  // enableSuite[GlutenParquetIOSuite]
+  enableSuite[GlutenParquetIOSuite]
+    // Disable Spark's vectorized reading tests.
+    .exclude("Standard mode - fixed-length decimals")
+    .exclude("Legacy mode - fixed-length decimals")
+    .exclude("SPARK-34167: read LongDecimals with precision < 10, VectorizedReader true")
+    .exclude("read dictionary encoded decimals written as FIXED_LEN_BYTE_ARRAY")
+    .exclude("read dictionary encoded decimals written as INT64")
+    .exclude("read dictionary encoded decimals written as INT32")
+    .exclude("SPARK-34817: Read UINT_64 as Decimal from parquet")
+    // Spark plans scan schema as (i16/i32/i64) so the fallback does not take effect.
+    // But Velox reads data based on the schema acquired from file metadata,
+    // while i8 is not supported, so error occurs.
+    .exclude("SPARK-34817: Read UINT_8/UINT_16/UINT_32 from parquet")
+    // Exception.
+    .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
+    // Rewrite to align exception msg.
+    .exclude("SPARK-35640: int as long should throw schema incompatible error")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude(
@@ -382,6 +432,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
+    // Unsupported compression codec.
     .exclude("write and read - file source parquet - codec: lz4")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
@@ -463,9 +514,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
   enableSuite[GlutenConfigBehaviorSuite]
+    // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
+    .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
-    .exclude("roundtrip to_csv -> from_csv")
   enableSuite[GlutenCTEHintSuite]
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
@@ -480,10 +532,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSerializationSuite]
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
+      // Rewrite with NaN test cases excluded.
     .exclude("cases when literal is max")
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenMetadataCacheSuite]
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+  enableSuite[FallbackStrategiesSuite]
 }

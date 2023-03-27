@@ -22,6 +22,8 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
+#include "operators/shuffle/SplitterBase.h"
+#include "operators/shuffle/splitter.h"
 #include "substrait/plan.pb.h"
 
 namespace gluten {
@@ -36,8 +38,9 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
-      std::unordered_map<std::string, std::string> sessionConf = {}) = 0;
+      std::string spillDir,
+      std::vector<std::shared_ptr<ResultIterator>> inputs,
+      std::unordered_map<std::string, std::string> sessionConf) = 0;
 
   bool ParsePlan(const uint8_t* data, int32_t size) {
     return ParsePlan(data, size, -1, -1, -1);
@@ -57,11 +60,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
       std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
     }
 #endif
-    return ParseProtobuf(data, size, &plan_);
-  }
-
-  const ::substrait::Plan& GetPlan() const {
-    return plan_;
+    return ParseProtobuf(data, size, &substraitPlan_);
   }
 
   /// This function is used to create certain converter from the format used by
@@ -80,6 +79,15 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return std::make_shared<ArrowColumnarToRowConverter>(rb, memory_pool);
   }
 
+  virtual std::shared_ptr<SplitterBase> makeSplitter(
+      const std::string& partitioning_name,
+      int num_partitions,
+      SplitOptions options,
+      const std::string& batchType) {
+    GLUTEN_ASSIGN_OR_THROW(auto splitter, Splitter::Make(partitioning_name, num_partitions, std::move(options)));
+    return splitter;
+  }
+
   virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) {
     return nullptr;
   }
@@ -89,7 +97,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
  protected:
-  ::substrait::Plan plan_;
+  ::substrait::Plan substraitPlan_;
   // static conf map
   std::unordered_map<std::string, std::string> confMap_;
 };

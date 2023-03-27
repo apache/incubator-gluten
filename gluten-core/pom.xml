@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>io.glutenproject</groupId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.5.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -52,6 +52,10 @@
   </profiles>
 
   <dependencies>
+    <dependency>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
+    </dependency>
     <!-- Prevent our dummy JAR from being included in Spark distributions or uploaded to YARN -->
     <dependency>
       <groupId>org.apache.spark</groupId>

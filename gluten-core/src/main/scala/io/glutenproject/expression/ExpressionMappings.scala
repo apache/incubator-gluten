@@ -32,12 +32,15 @@ object ExpressionMappings {
   final val COUNT = "count"
   final val MIN = "min"
   final val MAX = "max"
+  final val STDDEV = "stddev"
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
   final val VAR_SAMP = "var_samp"
   final val VAR_POP = "var_pop"
+  final val BIT_AND_AGG = "bitwise_and_agg"
+  final val BIT_OR_AGG = "bitwise_or_agg"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -62,6 +65,7 @@ object ExpressionMappings {
   final val IS_NOT_NULL = "is_not_null"
   final val IS_NULL = "is_null"
   final val NOT = "not"
+  final val IS_NAN = "isnan"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -86,6 +90,8 @@ object ExpressionMappings {
   final val SPLIT = "split"
   final val SUBSTRING = "substring"
   final val CONCAT_WS = "concat_ws"
+  final val REPEAT = "repeat"
+  final val TRANSLATE = "translate"
 
   // SparkSQL Math functions
   final val ABS = "abs"
@@ -142,6 +148,9 @@ object ExpressionMappings {
   final val DATE_DIFF = "datediff"
   final val TO_UNIX_TIMESTAMP = "to_unix_timestamp"
   final val UNIX_TIMESTAMP = "unix_timestamp"
+  final val ADD_MONTHS = "add_months"
+  final val DATE_FORMAT = "date_format"
+  final val TRUNC = "trunc"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -153,18 +162,28 @@ object ExpressionMappings {
   final val MURMUR3HASH = "murmur3hash"
   final val XXHASH64 = "xxhash64"
   final val MD5 = "md5"
+  final val SHA1 = "sha1"
+  final val SHA2 = "sha2"
+  final val CRC32 = "crc32"
 
   // Array functions
   final val SIZE = "size"
   final val CREATE_ARRAY = "array"
   final val GET_ARRAY_ITEM = "get_array_item"
+  final val ELEMENT_AT = "element_at"
+  final val ARRAY_CONTAINS = "array_contains"
+  final val ARRAY_MAX = "array_max"
+  final val ARRAY_MIN = "array_min"
 
   // Map functions
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
+  final val MAP_KEYS = "map_keys"
+  final val MAP_VALUES = "map_values"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"
+  final val NAMED_STRUCT = "named_struct"
 
   // Spark 3.3
   final val SPLIT_PART = "split_part"
@@ -182,10 +201,18 @@ object ExpressionMappings {
   final val EXPLODE = "explode"
   final val CHECK_OVERFLOW = "check_overflow"
   final val PROMOTE_PRECISION = "promote_precision"
+  final val ROW_CONSTRUCTOR = "row_constructor"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
   final val NORMALIZE_NANAND_ZERO = "normalize_nanand_zero"
+
+  // Window functions used by Substrait plan.
+  final val RANK = "rank"
+  final val DENSE_RANK = "dense_rank"
+  final val ROW_NUMBER = "row_number"
+  final val CUME_DIST = "cume_dist"
+  final val PERCENT_RANK = "percent_rank"
 
   /**
    * Mapping Spark scalar expression to Substrait function name
@@ -213,6 +240,7 @@ object ExpressionMappings {
     Sig[IsNotNull](IS_NOT_NULL),
     Sig[IsNull](IS_NULL),
     Sig[Not](NOT),
+    Sig[IsNaN](IS_NAN),
     // SparkSQL String functions
     Sig[Ascii](ASCII),
     Sig[Chr](CHR),
@@ -236,6 +264,8 @@ object ExpressionMappings {
     Sig[StringSplit](SPLIT),
     Sig[Substring](SUBSTRING),
     Sig[ConcatWs](CONCAT_WS),
+    Sig[StringRepeat](REPEAT),
+    Sig[StringTranslate](TRANSLATE),
     // SparkSQL Math functions
     Sig[Abs](ABS),
     Sig[Ceil](CEIL),
@@ -300,6 +330,9 @@ object ExpressionMappings {
     Sig[DateDiff](DATE_DIFF),
     Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),
     Sig[UnixTimestamp](UNIX_TIMESTAMP),
+    Sig[AddMonths](ADD_MONTHS),
+    Sig[DateFormatClass](DATE_FORMAT),
+    Sig[TruncDate](TRUNC),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -309,16 +342,26 @@ object ExpressionMappings {
     Sig[Murmur3Hash](MURMUR3HASH),
     Sig[XxHash64](XXHASH64),
     Sig[Md5](MD5),
+    Sig[Sha1](SHA1),
+    Sig[Sha2](SHA2),
+    Sig[Crc32](CRC32),
     // Array functions
     Sig[Size](SIZE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
     Sig[GetArrayItem](GET_ARRAY_ITEM),
+    Sig[ElementAt](ELEMENT_AT),
+    Sig[ArrayContains](ARRAY_CONTAINS),
+    Sig[ArrayMax](ARRAY_MAX),
+    Sig[ArrayMin](ARRAY_MIN),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
+    Sig[MapKeys](MAP_KEYS),
+    Sig[MapValues](MAP_VALUES),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
+    Sig[CreateNamedStruct](NAMED_STRUCT),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
@@ -348,23 +391,37 @@ object ExpressionMappings {
     Sig[StddevPop](STDDEV_POP),
     Sig[CollectList](COLLECT_LIST),
     Sig[VarianceSamp](VAR_SAMP),
-    Sig[VariancePop](VAR_POP)
+    Sig[VariancePop](VAR_POP),
+    Sig[BitAndAgg](BIT_AND_AGG),
+    Sig[BitOrAgg](BIT_OR_AGG)
+  )
+
+  /**
+   * Mapping Spark window expression to Substrait function name
+   */
+  val WINDOW_SIGS: Seq[Sig] = Seq(
+    Sig[Rank](RANK),
+    Sig[DenseRank](DENSE_RANK),
+    Sig[RowNumber](ROW_NUMBER),
+    Sig[CumeDist](CUME_DIST),
+    Sig[PercentRank](PERCENT_RANK)
   )
 
   // some spark new version class
   def getScalarSigOther: Map[String, String] =
-    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+    if (GlutenConfig.getConf.enableNativeBloomFilter) {
       Map((MIGHT_CONTAIN, MIGHT_CONTAIN))
     } else Map()
 
   def getAggSigOther: Map[String, String] =
-    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+    if (GlutenConfig.getConf.enableNativeBloomFilter) {
       Map((BLOOM_FILTER_AGG, BLOOM_FILTER_AGG))
     } else Map()
 
   lazy val scalar_functions_map: Map[Class[_], String] =
     SCALAR_SIGS.map(s => (s.expClass, s.name)).toMap
-  lazy val aggregate_functions_map: Map[Class[_], String] = {
+  lazy val aggregate_functions_map: Map[Class[_], String] =
     AGGREGATE_SIGS.map(s => (s.expClass, s.name)).toMap
-  }
+  lazy val window_functions_map: Map[Class[_], String] =
+    WINDOW_SIGS.map(s => (s.expClass, s.name)).toMap
 }

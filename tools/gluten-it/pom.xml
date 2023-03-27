@@ -15,7 +15,7 @@
     <spark32.version>3.2.2</spark32.version>
     <spark33.version>3.3.1</spark33.version>
     <scala.binary.version>2.12</scala.binary.version>
-    <gluten.version>1.0.0-SNAPSHOT</gluten.version>
+    <gluten.version>0.5.0-SNAPSHOT</gluten.version>
   </properties>
 
   <profiles>
@@ -79,7 +79,6 @@
       <groupId>io.glutenproject</groupId>
       <artifactId>gluten-package</artifactId>
       <version>${gluten.version}</version>
-      <classifier>jar-with-dependencies</classifier>
     </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>

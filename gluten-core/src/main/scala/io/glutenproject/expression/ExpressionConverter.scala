@@ -32,12 +32,12 @@ object ExpressionConverter extends Logging {
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     // Check whether Gluten supports this expression
     val substraitExprName = ExpressionMappings.scalar_functions_map.getOrElse(expr.getClass,
-      ExpressionMappings.getScalarSigOther(expr.prettyName))
+      ExpressionMappings.getScalarSigOther.getOrElse(expr.prettyName, ""))
     if (substraitExprName.isEmpty) {
       throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
     // Check whether each backend supports this expression
-    if (GlutenConfig.getSessionConf.enableAnsiMode ||
+    if (GlutenConfig.getConf.enableAnsiMode ||
         !BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
@@ -200,29 +200,21 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           n)
       case t: StringTrim =>
-        if (t.trimStr != None) {
-          // todo: to be remove and deal all these three exprs together
-          //  when Velox support this argument
-          throw new UnsupportedOperationException(s"not supported yet.")
-        }
         new String2TrimExpressionTransformer(
           substraitExprName,
+          t.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(t.srcStr, attributeSeq),
           t)
       case l: StringTrimLeft =>
-        if (l.trimStr != None) {
-          throw new UnsupportedOperationException(s"not supported yet.")
-        }
         new String2TrimExpressionTransformer(
           substraitExprName,
+          l.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(l.srcStr, attributeSeq),
           l)
       case r: StringTrimRight =>
-        if (r.trimStr != None) {
-          throw new UnsupportedOperationException(s"not supported yet.")
-        }
         new String2TrimExpressionTransformer(
           substraitExprName,
+          r.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
           r)
       case m: HashExpression[_] =>
@@ -246,7 +238,20 @@ object ExpressionConverter extends Logging {
             replaceWithExpressionTransformer(getStructField.child, attributeSeq),
             getStructField.ordinal,
             getStructField)
-
+      case md5: Md5 =>
+        Md5Transformer(substraitExprName,
+          replaceWithExpressionTransformer(md5.child, attributeSeq), md5)
+      case t: StringTranslate =>
+        StringTranslateTransformer(substraitExprName,
+          replaceWithExpressionTransformer(t.srcExpr, attributeSeq),
+          replaceWithExpressionTransformer(t.matchingExpr, attributeSeq),
+          replaceWithExpressionTransformer(t.replaceExpr, attributeSeq), t)
+      case locate: StringLocate =>
+        StringLocateTransformer(substraitExprName,
+          replaceWithExpressionTransformer(locate.substr, attributeSeq),
+          replaceWithExpressionTransformer(locate.str, attributeSeq),
+          replaceWithExpressionTransformer(locate.start, attributeSeq),
+          locate)
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName, l)
       case u: UnaryExpression =>
@@ -295,6 +300,35 @@ object ExpressionConverter extends Logging {
             q.fourth,
             attributeSeq),
           q)
+      case namedStruct: CreateNamedStruct =>
+        var childrenTransformers = Seq[ExpressionTransformer]()
+        namedStruct.children.foreach(
+          child => childrenTransformers = childrenTransformers :+
+            replaceWithExpressionTransformer(child, attributeSeq)
+        )
+        new NamedStructTransformer(substraitExprName, childrenTransformers, namedStruct)
+      case element_at: ElementAt =>
+        new BinaryArgumentsCollectionOperationTransformer(substraitExprName,
+          left = replaceWithExpressionTransformer(element_at.left, attributeSeq),
+          right = replaceWithExpressionTransformer(element_at.right, attributeSeq),
+          element_at)
+      case arrayContains: ArrayContains =>
+        new BinaryArgumentsCollectionOperationTransformer(substraitExprName,
+          left = replaceWithExpressionTransformer(arrayContains.left, attributeSeq),
+          right = replaceWithExpressionTransformer(arrayContains.right, attributeSeq),
+          arrayContains)
+      case arrayMax: ArrayMax =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(arrayMax.child, attributeSeq), arrayMax)
+      case arrayMin: ArrayMin =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(arrayMin.child, attributeSeq), arrayMin)
+      case mapKeys: MapKeys =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(mapKeys.child, attributeSeq), mapKeys)
+      case mapValues: MapValues =>
+        new UnaryArgumentCollectionOperationTransformer(substraitExprName,
+          replaceWithExpressionTransformer(mapValues.child, attributeSeq), mapValues)
       case expr =>
         logWarning(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
@@ -332,31 +366,36 @@ object ExpressionConverter extends Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    partitionFilters.map {
-      case dynamicPruning: DynamicPruningExpression =>
-        dynamicPruning.transform {
-          // Lookup inside subqueries for duplicate exchanges
-          case in: InSubqueryExec => in.plan match {
-            case _: SubqueryBroadcastExec =>
-              val newIn = in.plan.transform {
-                case exchange: BroadcastExchangeExec =>
-                  convertBroadcastExchangeToColumnar(exchange)
-              }.asInstanceOf[SubqueryBroadcastExec]
-              val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-                newIn.name, newIn.index, newIn.buildKeys, newIn.child)
-              in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
-            case _: ReusedSubqueryExec if in.plan.child.isInstanceOf[SubqueryBroadcastExec] =>
-              val newIn = in.plan.child.transform {
-                case exchange: BroadcastExchangeExec =>
-                  convertBroadcastExchangeToColumnar(exchange)
-              }.asInstanceOf[SubqueryBroadcastExec]
-              val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-                newIn.name, newIn.index, newIn.buildKeys, newIn.child)
-              in.copy(plan = ReusedSubqueryExec(transformSubqueryBroadcast))
-            case _ => in
+    if (GlutenConfig.getConf.enableScanOnly) {
+      // Disable ColumnarSubqueryBroadcast for scan-only execution.
+      partitionFilters
+    } else {
+      partitionFilters.map {
+        case dynamicPruning: DynamicPruningExpression =>
+          dynamicPruning.transform {
+            // Lookup inside subqueries for duplicate exchanges.
+            case in: InSubqueryExec => in.plan match {
+              case _: SubqueryBroadcastExec =>
+                val newIn = in.plan.transform {
+                  case exchange: BroadcastExchangeExec =>
+                    convertBroadcastExchangeToColumnar(exchange)
+                }.asInstanceOf[SubqueryBroadcastExec]
+                val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
+                  newIn.name, newIn.index, newIn.buildKeys, newIn.child)
+                in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
+              case _: ReusedSubqueryExec if in.plan.child.isInstanceOf[SubqueryBroadcastExec] =>
+                val newIn = in.plan.child.transform {
+                  case exchange: BroadcastExchangeExec =>
+                    convertBroadcastExchangeToColumnar(exchange)
+                }.asInstanceOf[SubqueryBroadcastExec]
+                val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
+                  newIn.name, newIn.index, newIn.buildKeys, newIn.child)
+                in.copy(plan = ReusedSubqueryExec(transformSubqueryBroadcast))
+              case _ => in
+            }
           }
-        }
-      case e: Expression => e
+        case e: Expression => e
+      }
     }
   }
 }

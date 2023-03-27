@@ -18,25 +18,19 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-
+import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
+case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode with GlutenPlan {
 
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "collectTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_collectbatch"),
-    "concatTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_coalescebatch"),
-    "avgCoalescedNumRows" -> SQLMetrics
-      .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genCoalesceBatchesMetrics(sparkContext)
 
   override def output: Seq[Attribute] = child.output
 
