@@ -28,7 +28,8 @@ import io.glutenproject.utils.GlutenArrowAbiUtil
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.VectorLoader
+
+import org.apache.celeborn.client.read.RssInputStream
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
@@ -36,7 +37,7 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class GlutenColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
   numOutputRows: SQLMetric)
@@ -72,16 +73,48 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         handle
       }
 
-      private var vectors: Array[ColumnVector] = _
       private var cb: ColumnarBatch = _
-
-      private var schemaHolderId: Long = 0
-      private var vectorLoader: VectorLoader = _
 
       private var numBatchesTotal: Long = _
       private var numRowsTotal: Long = _
 
       private var isClosed: Boolean = false
+
+      private val isEmptyStream: Boolean = in.equals(RssInputStream.empty())
+
+      override def asKeyValueIterator: Iterator[(Any, Any)] = new Iterator[(Any, Any)] {
+        private var gotNext = false
+        private var nextValue: (Any, Any) = _
+        private var finished = false
+
+        def getNext: (Any, Any) = {
+          try {
+            (readKey[Any](), readValue[Any]())
+          } catch {
+            case eof: EOFException =>
+              finished = true
+              null
+          }
+        }
+
+        override def hasNext: Boolean = {
+          if (!isEmptyStream && !finished) {
+            if (!gotNext) {
+              nextValue = getNext
+              gotNext = true
+            }
+          }
+          !isEmptyStream && !finished
+        }
+
+        override def next(): (Any, Any) = {
+          if (!hasNext) {
+            throw new NoSuchElementException("End of stream")
+          }
+          gotNext = false
+          nextValue
+        }
+      }
 
       override def asIterator: Iterator[Any] = {
         // This method is never called by shuffle code.

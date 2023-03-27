@@ -17,7 +17,6 @@
 
 package io.glutenproject.backendsapi.glutendata
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
@@ -25,7 +24,7 @@ import io.glutenproject.execution.GlutenColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, CelebornColumnarBatchSerializer, GlutenColumnarBatchSerializer}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -206,11 +205,7 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     dataSize: SQLMetric): Serializer = {
-    if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
-      new CelebornColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
-    } else {
-      new GlutenColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
-    }
+    new GlutenColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
   }
 
   /**
