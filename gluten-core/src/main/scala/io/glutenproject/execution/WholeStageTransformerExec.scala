@@ -158,6 +158,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
   }
 
+  // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
+  // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
+  // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
@@ -282,7 +285,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       /**
        * the whole stage contains NO BasicScanExecTransformer. this the default case for:
-       *   1. SCAN with clickhouse backend (check ColumnarCollapseCodegenStages#separateScanRDD())
+       *   1. SCAN with clickhouse backend (check ColumnarCollapseTransformStages#separateScanRDD())
        *      2. test case where query plan is constructed from simple dataframes (e.g.
        *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked

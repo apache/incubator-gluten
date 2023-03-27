@@ -196,9 +196,6 @@ abstract class HashAggregateExecBaseTransformer(
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
   override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
 
-  // Members declared in org.apache.spark.sql.execution.CodegenSupport
-  protected def doProduce(ctx: CodegenContext): String = throw new UnsupportedOperationException()
-
   // Members declared in org.apache.spark.sql.execution.SparkPlan
   protected override def doExecute()
   : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] =
