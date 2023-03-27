@@ -27,7 +27,8 @@ class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // don't trigger collect when in validation phase
-    if (TransformerState.underValidationState) {
+    if (TransformerState.underValidationState &&
+      !ExpressionBuilder.valueSensitiveDataType(query.dataType)) {
       return ExpressionBuilder.makeLiteral(null, query.dataType, true)
     }
     // the first column in first row from `query`.
