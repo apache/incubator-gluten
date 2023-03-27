@@ -22,6 +22,11 @@
       <scope>compile</scope>
       <type>test-jar</type>
     </dependency>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>spark-sql-columnar-shims-spark33</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <profiles>
