@@ -29,6 +29,7 @@ for arg in "$@"; do
 done
 
 function checkout_code {
+  TARGET_BUILD_COMMIT=""
   ARROW_SOURCE_DIR="$CURRENT_DIR/../build/arrow_ep"
   if [ -d $ARROW_SOURCE_DIR ]; then
     echo "Arrow source folder $ARROW_SOURCE_DIR already exists..."

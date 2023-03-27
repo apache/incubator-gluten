@@ -152,7 +152,7 @@ jobs:
           ./get_arrow.sh  && \
           ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh && \
+          ./get_velox.sh --enable_hdfs=ON --enable_s3=ON && \
           ./build_velox.sh --enable_hdfs=ON --enable_s3=ON'
       - name: Build Gluten CPP library
         run: |
