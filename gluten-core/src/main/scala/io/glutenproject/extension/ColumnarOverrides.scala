@@ -477,8 +477,22 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
       }
       r.withNewChildren(children)
     case p =>
-      val children = p.children.map(replaceWithTransformerPlan)
-      p.withNewChildren(children)
+      if (p.isInstanceOf[TransformSupport] || p.isInstanceOf[ColumnarBroadcastExchangeExec]) {
+        val children = p.children.map(replaceWithTransformerPlan)
+        val addedChildren = children.map(
+          child =>
+            if (
+              !child.isInstanceOf[TransformSupport] &&
+                child.isInstanceOf[DataSourceScanExec] && child.supportsColumnar
+            ) {
+              BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(
+                ColumnarToRowExec(child))
+            } else child)
+        p.withNewChildren(addedChildren)
+      } else {
+        val children = p.children.map(replaceWithTransformerPlan)
+        p.withNewChildren(children)
+      }
   }
 
   // apply for the physical not final plan
