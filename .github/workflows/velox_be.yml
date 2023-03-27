@@ -62,7 +62,7 @@ jobs:
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow_for_velox.sh --build_tests=ON --build_benchmarks=ON && \
+          ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -150,7 +150,7 @@ jobs:
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow_for_velox.sh && \
+          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh --enable_hdfs=ON --enable_s3=ON'
@@ -197,7 +197,7 @@ jobs:
           source /opt/rh/gcc-toolset-9/enable && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow_for_velox.sh && \
+          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'

@@ -5,7 +5,7 @@ set -exu
 ARROW_REPO=https://github.com/oap-project/arrow.git
 #for velox_backend
 ARROW_BRANCH=arrow-11.0.0-gluten
-ENABLE_EP_CACHE=OFF
+ENABLE_QAT=OFF
 
 for arg in "$@"
 do
@@ -18,8 +18,8 @@ do
         ARROW_BRANCH=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --enable_ep_cache=*)
-        ENABLE_EP_CACHE=("${arg#*=}")
+        --enable_qat=*)
+        ENABLE_QAT=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
 	      *)
@@ -29,32 +29,13 @@ do
     esac
 done
 
-function check_ep_cache {
-  TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
-  echo "Target Arrow commit: $TARGET_BUILD_COMMIT"
-  if [ -f ${ARROW_HOME}/arrow-commit.cache ]; then
-    LAST_BUILT_COMMIT="$(cat ${ARROW_HOME}/arrow-commit.cache)"
-    if [ -n $LAST_BUILT_COMMIT ]; then
-      if [ -z "$TARGET_BUILD_COMMIT" ]
-        then
-          echo "Unable to parse Arrow commit: $TARGET_BUILD_COMMIT."
-          exit 1
-          fi
-          if [ "$TARGET_BUILD_COMMIT" = "$LAST_BUILT_COMMIT" ]; then
-              echo "Arrow build of commit $TARGET_BUILD_COMMIT was cached."
-              exit 0
-          else
-              echo "Found cached commit $LAST_BUILT_COMMIT for Arrow which is different with target commit $TARGET_BUILD_COMMIT."
-          fi
-      fi
-  fi
-}
-
 function checkout_code {
+  ARROW_SOURCE_DIR="$CURRENT_DIR/../build/arrow_ep"
   if [ -d $ARROW_SOURCE_DIR ]; then
     echo "Arrow source folder $ARROW_SOURCE_DIR already exists..."
     cd $ARROW_SOURCE_DIR
     git init .
+    TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
     EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true`
     if [ -z "$EXISTS" ]; then
       git fetch $ARROW_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
@@ -66,25 +47,20 @@ function checkout_code {
     cd $ARROW_SOURCE_DIR
     git checkout $TARGET_BUILD_COMMIT
   fi
-
-  if [ $ENABLE_EP_CACHE == "OFF" ]; then
-    git clean -dfx
-  fi
 }
 
-echo "Arrow-get start..."
+echo "Preparing Arrow source code..."
+echo "ENABLE_QAT=${ENABLE_QAT}"
+
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-mkdir -p "$CURRENT_DIR/../build"
-
-ARROW_HOME="$CURRENT_DIR/../build/"
-ARROW_SOURCE_DIR="$CURRENT_DIR/../build/arrow_ep"
-
-check_ep_cache
-
-if [ -f ${ARROW_HOME}/arrow-commit.cache ]; then
-    rm -f ${ARROW_HOME}/arrow-commit.cache
-fi
 
 checkout_code
+
+# apply patches
+git apply --reverse --check $CURRENT_DIR/memorypool.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
+# apply patch for custom codec
+if [ $ENABLE_QAT == ON ]; then
+  git apply --reverse --check $CURRENT_DIR/custom-codec.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
+fi
 
 echo "Arrow-get finished."

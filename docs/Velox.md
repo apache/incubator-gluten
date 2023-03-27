@@ -69,7 +69,7 @@ cd /path_to_gluten
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./get_arrow.sh
-./build_arrow_for_velox.sh
+./build_arrow.sh
 
 ## fetch velox
 cd /path_to_gluten/ep/build-velox/src/
@@ -131,9 +131,9 @@ Arrow home can be set as the same of Velox. We will soon switch to upstream Arro
 You can also clone the Arrow source from [OAP/Arrow](https://github.com/oap-project/arrow) to some other folder then specify it as below.
 
 ```shell script
-step 1: set ARROW_SOURCE_DIR in build_arrow_for_velox.sh and compile
+step 1: set ARROW_SOURCE_DIR in build_arrow.sh and compile
 cd /path_to_gluten/ep/build-arrow/src/
-./build_arrow_for_velox.sh
+./build_arrow.sh
 
 step 2: set ARROW_ROOT
 cd /path_to_gluten/cpp

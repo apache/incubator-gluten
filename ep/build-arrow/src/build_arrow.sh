@@ -6,10 +6,8 @@ BUILD_TESTS=OFF
 BUILD_TYPE=release
 NPROC=$(nproc --ignore=2)
 TARGET_BUILD_COMMIT=""
-ARROW_REPO=https://github.com/oap-project/arrow.git
-ARROW_BRANCH=arrow-11.0.0-gluten
-ARROW_HOME=
-ENABLE_QAT=OFF
+ARROW_HOME=""
+ENABLE_EP_CACHE=OFF
 
 for arg in "$@"
 do
@@ -26,8 +24,8 @@ do
         ARROW_HOME=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --enable_qat=*)
-        ENABLE_QAT=("${arg#*=}")
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -45,18 +43,11 @@ fi
 ARROW_SOURCE_DIR="${ARROW_HOME}/arrow_ep"
 ARROW_INSTALL_DIR="${ARROW_HOME}/arrow_install"
 
-echo "Building Arrow from Source for Velox..."
+echo "Building Arrow from Source..."
 echo "CMAKE Arguments:"
 echo "BUILD_TESTS=${BUILD_TESTS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "ARROW_HOME=${ARROW_HOME}"
-echo "ENABLE_QAT=${ENABLE_QAT}"
-
-if [ -d $ARROW_INSTALL_DIR ]; then
-    rm -rf $ARROW_INSTALL_DIR
-fi
-
-mkdir -p $ARROW_INSTALL_DIR
 
 WITH_JSON=OFF
 if [ $BUILD_TESTS == ON ]; then
@@ -64,13 +55,34 @@ if [ $BUILD_TESTS == ON ]; then
 fi
 pushd $ARROW_SOURCE_DIR
 
-git apply --reverse --check $CURRENT_DIR/memorypool.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
-# apply patch for custom codec
-if [ $ENABLE_QAT == ON ]; then
-  git apply --reverse --check $CURRENT_DIR/custom-codec.patch > /dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
+TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
+if [ -z "$TARGET_BUILD_COMMIT" ]; then
+  echo "Unable to parse Arrow commit: $TARGET_BUILD_COMMIT."
+  exit 1
+fi
+echo "Target Arrow commit: $TARGET_BUILD_COMMIT"
+
+if [ $ENABLE_EP_CACHE == "ON" ]; then
+  if [ -f ${ARROW_HOME}/arrow-commit.cache ]; then
+    CACHED_BUILT_COMMIT="$(cat ${ARROW_HOME}/arrow-commit.cache)"
+    if [ -n "$CACHED_BUILT_COMMIT" ]; then
+      if [ "$TARGET_BUILD_COMMIT" = "$CACHED_BUILT_COMMIT" ]; then
+          echo "Arrow build of commit $TARGET_BUILD_COMMIT was cached."
+          exit 0
+      else
+          echo "Found cached commit $CACHED_BUILT_COMMIT for Arrow which is different with target commit $TARGET_BUILD_COMMIT."
+      fi
+      fi
+  fi
+else
+  git clean -dfx
+  rm -rf $ARROW_INSTALL_DIR
+  mkdir -p $ARROW_INSTALL_DIR
 fi
 
-TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
+if [ -f ${ARROW_HOME}/arrow-commit.cache ]; then
+    rm -f ${ARROW_HOME}/arrow-commit.cache
+fi
 
 # Arrow CPP libraries
 mkdir -p cpp/build
@@ -113,5 +125,5 @@ mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
     -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
 popd
 
-echo "Successfully built Arrow from Source !!!"
+echo "Successfully built Arrow from Source."
 echo $TARGET_BUILD_COMMIT > "${ARROW_HOME}/arrow-commit.cache"
