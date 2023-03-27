@@ -466,13 +466,25 @@ Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.i
 
 For more Intel® QuickAssist Technology resources go to [Intel® QuickAssist Technology (Intel® QAT)](https://developer.intel.com/quickassist)
 
-# 6 Test TPC-H on Gluten with Velox backend
+# 6 Test TPC-H or TPC-DS on Gluten with Velox backend
 
-In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
+All TPC-H and TPC-DS queries are supported in Gluten Velox backend.  
 
 ## 6.1 Data preparation
 
-Considering current Velox does not fully support Decimal and Date data type, the [datagen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.scala) transforms "Decimal-to-Double" and "Date-to-String". As a result, we need to modify the TPCH queries a bit. You can find the [modified TPC-H queries](../backends-velox/workload/tpch/tpch.queries.updated/).
+Considering current Gluten does not fully support Decimal type, the data generation
+scripts ([TPC-H dategen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
+[TPC-DS dategen script](../backends-velox/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh))
+transform "Decimal-to-Double".
+
+Accordingly, some corresponding changes were made to the used TPC-DS queries to remove decimal-relating clauses,
+and these queries can be accessed from [TPC-DS non-decimal queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal).
+The used TPC-H queries are the original ones, and can be accessed from [TPC-H queries](../gluten-core/src/test/resources/tpch-queries).
+
+Some other versions of TPC-DS and TPC-H queries are also provided, but are **not** recommended for testing, including:
+- the original TPC-DS queries: [TPC-DS queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original) (Decimal is not fully supported).
+- the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../backends-velox/workload/tpcds/tpcds.queries.updated) (outdated).
+- the modified TPC-H queries with "Date-to-String" conversion from [TPC-H modified queries](../backends-velox/workload/tpch/tpch.queries.updated) (outdated).
 
 ## 6.2 Submit the Spark SQL job
 

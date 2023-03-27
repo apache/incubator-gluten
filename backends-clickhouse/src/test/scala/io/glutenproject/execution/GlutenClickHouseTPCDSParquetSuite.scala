@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
   override protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries"
+    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
   override protected val queriesResults: String = rootPath + "tpcds-queries-output"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
