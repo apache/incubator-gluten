@@ -29,13 +29,12 @@ for arg in "$@"; do
 done
 
 function checkout_code {
-  TARGET_BUILD_COMMIT=""
+  TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
   ARROW_SOURCE_DIR="$CURRENT_DIR/../build/arrow_ep"
   if [ -d $ARROW_SOURCE_DIR ]; then
     echo "Arrow source folder $ARROW_SOURCE_DIR already exists..."
     cd $ARROW_SOURCE_DIR
     git init .
-    TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
     EXISTS=$(git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true)
     if [ -z "$EXISTS" ]; then
       git fetch $ARROW_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
