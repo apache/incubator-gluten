@@ -20,6 +20,7 @@ package io.glutenproject.expression
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
+import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
                                 query: ScalarSubquery)
@@ -28,7 +29,7 @@ class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // don't trigger collect when in validation phase
     if (TransformerState.underValidationState &&
-      !ExpressionBuilder.valueSensitiveDataType(query.dataType)) {
+      !valueSensitiveDataType(query.dataType)) {
       return ExpressionBuilder.makeLiteral(null, query.dataType, true)
     }
     // the first column in first row from `query`.
@@ -45,5 +46,17 @@ class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
       null
     }
     ExpressionBuilder.makeLiteral(result, query.dataType, result == null)
+  }
+
+  /**
+   * DataTypes which supported or not depend on actual value
+   *
+   * @param dataType
+   * @return
+   */
+  def valueSensitiveDataType(dataType: DataType): Boolean = {
+    dataType.isInstanceOf[MapType] ||
+      dataType.isInstanceOf[ArrayType] ||
+      dataType.isInstanceOf[StructType]
   }
 }

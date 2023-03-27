@@ -25,12 +25,14 @@ import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.types.UTF8String;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /** Contains helper functions for constructing substrait relations. */
 public class ExpressionBuilder {
-
   private ExpressionBuilder() {}
 
   public static Long newScalarFunction(Map<String, Long> functionMap, String functionName) {
@@ -309,16 +311,5 @@ public class ExpressionBuilder {
       String windowType) {
     return new WindowFunctionNode(functionId, expressionNodes, columnName,
         outputTypeNode, upperBound, lowerBound, windowType);
-  }
-
-  /**
-   * DataTypes which supported or not depend on actual value
-   * @param dataType
-   * @return
-   */
-  public static boolean valueSensitiveDataType(DataType dataType) {
-    return dataType instanceof MapType
-            || dataType instanceof ArrayType
-            || dataType instanceof StructType;
   }
 }
