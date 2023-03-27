@@ -16,7 +16,7 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_hdfs | build with hdfs lib      | OFF|
 | enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
 
-#### Parameters for build_arrow_for_velox.sh
+#### Parameters for build_arrow.sh
 Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
