@@ -146,7 +146,7 @@ macro(find_libhdfs3)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
   find_library(LIBHDFS3_LIBRARY NAMES hdfs3 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
   if (NOT LIBHDFS3_LIBRARY)
-     message(FATAL_ERROR "LIBHDFS3 Library Not Found")
+    message(FATAL_ERROR "LIBHDFS3 Library Not Found")
   else()
     message(STATUS "LIBHDFS3 Library Can Be Found in ${LIBHDFS3_LIBRARY}")
   endif()
@@ -189,8 +189,15 @@ set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
+## If the folly is not builded in system directories, please add
+## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
+## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+
+target_include_directories(velox PUBLIC
+        ${GTEST_INCLUDE_DIRS}
+        ${PROTOBUF_INCLUDE})
 
 target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()
