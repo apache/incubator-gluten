@@ -330,6 +330,10 @@ object GlutenConfig {
   val GLUTEN_TIMEZONE = "spark.gluten.timezone"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
 
+  // Whether load DLL from jars
+  val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
+  val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {

@@ -54,7 +54,7 @@ If you need to debug cpp code, please compile the backend code and gluten cpp co
 ## compile velox
 ./build_velox.sh --build_type=Debug
 ## compile arrow with tests required library
-./build_arrow_for_velox.sh --build_tests=ON
+./build_arrow.sh --build_tests=ON
 ## compile gluten cpp with benchmark and tests to debug
 cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Debug ..
 ```
@@ -342,3 +342,18 @@ wait to attach....
 
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
 Refer to [unittest.yml](https://github.com/oap-project/gluten/blob/main/.github/workflows/unittests.yml)
+
+# Run gluten+velox on clean machine
+
+We can run gluten+velox on clean machine by one command.(Support Ubuntu20.04/Ubuntu22.04). gluten will load dynamic link(DLL)
+from gluten-thirdparty-lib-<osversion>.jar when spark.gluten.loadLibFromJar=true.
+```
+spark-shell --name run_gluten \
+ --master yarn --deploy-mode client \
+ --conf spark.plugins=io.glutenproject.GlutenPlugin \
+ --conf spark.gluten.sql.columnar.backend.lib=velox \
+ --jars https://github.com/oap/gluten/releases/tag/gluten-velox-bundle-spark3.3_2.12-ubuntu_22.04-0.5.0-SNAPSHOT.jar,https://github.com/oap/gluten/releases/tag/gluten-thirdparty-lib-ubuntu-22.04.jar
+ --conf spark.memory.offHeap.enabled=true \
+ --conf spark.memory.offHeap.size=20g \
+ --conf spark.gluten.loadLibFromJar=true
+```

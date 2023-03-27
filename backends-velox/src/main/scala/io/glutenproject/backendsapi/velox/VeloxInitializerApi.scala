@@ -19,16 +19,31 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.InitializerApi
 import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
+import io.glutenproject.utils.{VeloxDllLoaderUbuntu2004,VeloxDllLoaderUbuntu2204,VeloxDllLoader}
 import org.apache.commons.lang3.StringUtils
 import scala.collection.JavaConverters._
+import scala.sys.process._
 
 import org.apache.spark.SparkConf
 
 class VeloxInitializerApi extends InitializerApi {
+  def loadLibFromJar(load: JniLibLoader): Unit = {
+      val system = "cat /etc/os-release".!!
+      if (system.contains("Ubuntu") && system.contains("20.04")) {
+        val loader = new VeloxDllLoaderUbuntu2004
+        loader.loadLib(load)
+      } else if (system.contains("Ubuntu") && system.contains("22.04")) {
+        val loader = new VeloxDllLoaderUbuntu2204
+        loader.loadLib(load)
+      }
+  }
 
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
+    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR, GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)) {
+      loadLibFromJar(loader)
+    }
     loader.newTransaction()
       .loadAndCreateLink("libarrow.so.1100.0.0", "libarrow.so.1100", false)
       .loadAndCreateLink("libparquet.so.1100.0.0", "libparquet.so.1100", false)

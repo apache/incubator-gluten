@@ -542,7 +542,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
     List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
-      List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getConf))
+      List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf))
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
