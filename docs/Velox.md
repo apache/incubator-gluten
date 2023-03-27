@@ -161,6 +161,7 @@ sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1
 To build Gluten with HDFS support, below command is provided:
 ```
 cd /path_to_gluten/ep/build-velox/src
+./get_velox.sh --enable_hdfs=ON
 ./build_velox.sh --enable_hdfs=ON
 
 cd /path_to_gluten/cpp
@@ -268,6 +269,7 @@ Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-
 A new build option for S3(velox_enable_s3) is added. Below command is used to enable this feature
 ```
 cd /path_to_gluten/ep/build-velox/src/
+./get_velox.sh --enable_s3=ON
 ./build_velox.sh --enable_s3=ON
 
 cd /path_to_gluten/cpp
