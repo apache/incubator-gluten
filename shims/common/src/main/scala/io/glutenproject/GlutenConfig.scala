@@ -262,7 +262,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def taskPartitionId: Int =
     conf.getConfString("spark.gluten.sql.benchmark_task.partitionId", "-1").toInt
   def taskId: Long = conf.getConfString("spark.gluten.sql.benchmark_task.taskId", "-1").toLong
-
 }
 
 object GlutenConfig {
