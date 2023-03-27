@@ -31,7 +31,7 @@ class GlutenClickHouseParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/queries"
+    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def createTPCHNullableTables(): Unit = {}
