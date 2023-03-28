@@ -266,7 +266,7 @@ class BenchmarkCompression {
         state);
     auto end_time = std::chrono::steady_clock::now();
     auto total_time = (end_time - start_time).count();
-    std::cout << "Thread " << state.thread_index() << " took " << (1.0 * total_time / 1000000000) << "s" << std::endl;
+    std::cout << "Thread " << state.thread_index() << " took " << (1.0 * total_time / 1e9) << "s" << std::endl;
 
     state.counters["rowgroups"] = benchmark::Counter(
         row_group_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
@@ -303,7 +303,7 @@ class BenchmarkCompression {
         benchmark::Counter(compression_ratio, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     // compress_time is in nanosecond, zoom out to second.
-    auto throughput = 1.0 * uncompressed_size / compress_time * 1000000000 * 8;
+    auto throughput = 1.0 * uncompressed_size / compress_time * 1e9 * 8;
     state.counters["throughput_total"] =
         benchmark::Counter(throughput, benchmark::Counter::kDefaults, benchmark::Counter::OneK::kIs1024);
 
@@ -375,7 +375,7 @@ class BenchmarkCompression_CacheScan_Benchmark final : public BenchmarkCompressi
       }
     } while (record_batch);
 
-    std::cout << "parquet parse done elapsed time " << elapse_read / 1000000 << " ms " << std::endl;
+    std::cout << "parquet parse done elapsed time " << elapse_read / 1e6 << " ms " << std::endl;
     std::cout << "batches = " << num_batches << " rows = " << num_rows << std::endl;
     for (auto _ : state) {
       auto it = batches.begin();
