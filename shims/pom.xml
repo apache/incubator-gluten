@@ -56,8 +56,6 @@
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
-      <properties>
-      </properties>
       <modules>
         <module>common</module>
         <module>spark32</module>
