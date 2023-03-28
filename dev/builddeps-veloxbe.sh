@@ -19,6 +19,7 @@ ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_EP_CACHE=OFF
+ARROW_ENABLE_CUSTOM_CODEC=OFF
 for arg in "$@"
 do
     case $arg in
@@ -40,10 +41,12 @@ do
         ;;
         --enable_qat=*)
         ENABLE_QAT=("${arg#*=}")
+        ARROW_ENABLE_CUSTOM_CODEC=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_iaa=*)
         ENABLE_IAA=("${arg#*=}")
+        ARROW_ENABLE_CUSTOM_CODEC=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hbm=*)
@@ -75,7 +78,7 @@ done
 
 ##install arrow
 cd $GLUTEN_DIR/ep/build-arrow/src
-./get_arrow.sh --enable_qat=$ENABLE_QAT
+./get_arrow.sh --enable_custom_codec=$ARROW_ENABLE_CUSTOM_CODEC
 ./build_arrow.sh --build_type=$BUILD_TYPE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
                          --enable_ep_cache=$ENABLE_EP_CACHE
 

@@ -5,7 +5,7 @@ set -exu
 ARROW_REPO=https://github.com/oap-project/arrow.git
 #for velox_backend
 ARROW_BRANCH=arrow-11.0.0-gluten
-ENABLE_QAT=OFF
+ENABLE_CUSTOM_CODEC=OFF
 
 for arg in "$@"; do
   case $arg in
@@ -17,8 +17,8 @@ for arg in "$@"; do
     ARROW_BRANCH=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --enable_qat=*)
-    ENABLE_QAT=("${arg#*=}")
+  --enable_custom_codec=*)
+    ENABLE_CUSTOM_CODEC=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -49,7 +49,7 @@ function checkout_code {
 }
 
 echo "Preparing Arrow source code..."
-echo "ENABLE_QAT=${ENABLE_QAT}"
+echo "ENABLE_CUSTOM_CODEC=${ENABLE_CUSTOM_CODEC}"
 
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
@@ -61,7 +61,7 @@ checkout_code
 # apply patches
 git apply --reverse --check $CURRENT_DIR/memorypool.patch >/dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
 # apply patch for custom codec
-if [ $ENABLE_QAT == ON ]; then
+if [ $ENABLE_CUSTOM_CODEC == ON ]; then
   git apply --reverse --check $CURRENT_DIR/custom-codec.patch >/dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
 fi
 
