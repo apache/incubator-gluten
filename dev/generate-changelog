@@ -1,0 +1,344 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, Intel CORPORATION.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""A simple changelog generator
+
+This tool takes list of release versions to generate `CHANGELOG.md`.
+The changelog will include all merged PRs w/o `[bot]` postfix,
+and issues that include the labels `bug`, `enhancement`, `performance`,
+minus any issues with the labels `wontfix`, `invalid` or `duplicate`.
+
+For each project there should be an issue subsection for,
+Features: all issues with label `enhancement`
+Performance: all issues with label `performance`
+Bugs fixed: all issues with label `bug`
+
+To deduplicate section, the priority should be `Bugs fixed > Performance > Features`
+
+
+Release version from arguments will be used to map project name.
+Mapping Pattern:
+release -> project: Release {release}
+e.g.
+    0.1 -> project: Release 0.1
+    0.2 -> project: Release 0.2
+
+Dependencies:
+    - requests
+
+Usage:
+    cd gluten/
+
+    # Python 3.x is required, generate changelog for Release 1.1.0 to ./CHANGELOG.md
+    dev/generate-changelog --token=<GITHUB_PERSONAL_ACCESS_TOKEN> --releases=1.1.0    --path=./CHANGELOG.md
+
+"""
+import os
+import sys
+from argparse import ArgumentParser
+from collections import OrderedDict
+from datetime import date
+
+import requests
+
+# Constants
+RELEASE = "Release"
+PULL_REQUESTS = "pullRequests"
+ISSUES = "issues"
+# Subtitles
+INVALID = 'Invalid'
+BUGS_FIXED = 'Bugs Fixed'
+PERFORMANCE = 'Performance'
+FEATURES = 'Features'
+PRS = 'PRs'
+# Labels
+LABEL_WONTFIX, LABEL_INVALID, LABEL_DUPLICATE = 'wontfix', 'invalid', 'duplicate'
+LABEL_BUG = 'bug'
+LABEL_PERFORMANCE = 'performance'
+LABEL_FEATURE = 'enhancement'
+# Queries
+query_pr = """
+query ($after: String) {
+  repository(name: "gluten", owner: "oap-project") {
+    pullRequests(states: [MERGED], first: 100, after: $after) {
+      totalCount
+      nodes {
+        number
+        title
+        state
+        url
+        labels(first: 10) {
+          nodes {
+            name
+          }
+        }
+        projectCards(first: 10) {
+          nodes {
+            project {
+              name
+            }
+            column {
+              name
+            }
+          }
+        }
+        projectItems(first: 10) {
+          nodes {
+            project {
+              title
+            }
+          }
+        }
+        mergedAt
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+"""
+query_issue = """
+query ($after: String) {
+  repository(name: "gluten", owner: "oap-project") {
+    issues(states: [CLOSED], labels: ["enhancement", "performance", "bug"], first: 100, after: $after) {
+      totalCount
+      nodes {
+        number
+        title
+        state
+        url
+        labels(first: 10) {
+          nodes {
+            name
+          }
+        }
+        projectCards(first: 10) {
+          nodes {
+            project {
+              name
+            }
+            column {
+              name
+            }
+          }
+        }
+        projectItems(first: 10) {
+          nodes {
+            project {
+              title
+            }
+          }
+        }
+        closedAt
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+"""
+
+
+def process_changelog(resource_type: str, changelog: dict, releases: set, projects: set, no_project_prs: list,
+                      token: str):
+    if resource_type == PULL_REQUESTS:
+        items = process_pr(releases=releases, token=token)
+        time_field = 'mergedAt'
+    elif resource_type == ISSUES:
+        items = process_issue(token=token)
+        time_field = 'closedAt'
+    else:
+        print(f"[process_changelog] Invalid type: {resource_type}")
+        sys.exit(1)
+
+    for item in items:
+        if len(item['projectItems']['nodes']) == 0:
+            if resource_type == PULL_REQUESTS:
+                if '[bot]' in item['title']:  # skip auto-gen PR, created by our github actions workflows
+                    continue
+                no_project_prs.append(item)
+            continue
+
+        project = item['projectItems']['nodes'][0]['project']['title']
+        if not release_project(project, projects):
+            continue
+
+        if project not in changelog:
+            changelog[project] = {
+                FEATURES: [],
+                PERFORMANCE: [],
+                BUGS_FIXED: [],
+                PRS: [],
+            }
+
+        labels = set()
+        for label in item['labels']['nodes']:
+            labels.add(label['name'])
+        category = rules(labels)
+        if resource_type == ISSUES and category == INVALID:
+            continue
+        if resource_type == PULL_REQUESTS:
+            if '[bot]' in item['title']:  # skip auto-gen PR, created by our github actions workflows
+                continue
+            category = PRS
+
+        changelog[project][category].append({
+            "number": item['number'],
+            "title": item['title'],
+            "url": item['url'],
+            "time": item[time_field],
+        })
+
+
+def process_pr(releases: set, token: str):
+    pr = []
+    pr.extend(fetch(resource_type=PULL_REQUESTS, token=token,
+                    variables={'project': f"{RELEASE} {rel}" for rel in releases}))
+    return pr
+
+
+def process_issue(token: str):
+    return fetch(resource_type=ISSUES, token=token)
+
+
+def fetch(resource_type: str, token: str, variables: dict = None):
+    items = []
+    if resource_type == PULL_REQUESTS:
+        q = query_pr
+    elif resource_type == ISSUES:
+        q = query_issue
+        variables = {}
+    else:
+        return items
+
+    has_next = True
+    while has_next:
+        res = post(query=q, token=token, variable=variables)
+        if res.status_code == 200:
+            d = res.json()
+            has_next = d['data']['repository'][resource_type]["pageInfo"]["hasNextPage"]
+            variables['after'] = d['data']['repository'][resource_type]["pageInfo"]["endCursor"]
+            items.extend(d['data']['repository'][resource_type]['nodes'])
+        else:
+            raise Exception("Query failed to run by returning code of {}. {}".format(res.status_code, q))
+    return items
+
+
+def post(query: str, token: str, variable: dict):
+    return requests.post('https://api.github.com/graphql',
+                         json={'query': query, 'variables': variable},
+                         headers={"Authorization": f"token {token}"})
+
+
+def release_project(project_name: str, projects: set):
+    if project_name in projects:
+        return True
+    return False
+
+
+def rules(labels: set):
+    if LABEL_WONTFIX in labels or LABEL_INVALID in labels or LABEL_DUPLICATE in labels:
+        return INVALID
+    if LABEL_BUG in labels:
+        return BUGS_FIXED
+    if LABEL_PERFORMANCE in labels:
+        return PERFORMANCE
+    if LABEL_FEATURE in labels:
+        return FEATURES
+    return INVALID
+
+
+def form_changelog(path: str, changelog: dict):
+    sorted_dict = OrderedDict(sorted(changelog.items(), reverse=True))
+    subsections = ""
+    for project_name, issues in sorted_dict.items():
+        subsections += f"\n\n## {project_name}"
+        subsections += form_subsection(issues, FEATURES)
+        subsections += form_subsection(issues, PERFORMANCE)
+        subsections += form_subsection(issues, BUGS_FIXED)
+        subsections += form_subsection(issues, PRS)
+    print("Subsection Content =====")
+    print(f" {subsections} ")
+    markdown = f"""# Change log
+Generated on {date.today()}{subsections}
+"""
+    with open(path, "w") as file:
+        file.write(markdown)
+
+
+def form_subsection(issues: dict, subtitle: str):
+    if len(issues[subtitle]) == 0:
+        return ''
+    subsection = f"\n\n### {subtitle}"
+    subsection += "\n|||\n|:---|:---|"
+    for issue in sorted(issues[subtitle], key=lambda x: x['time'], reverse=True):
+        subsection += f"\n|[#{issue['number']}]({issue['url']})|{issue['title']}|"
+    return subsection
+
+
+def print_no_project_pr(no_project_prs: list):
+    if len(no_project_prs) != 0:
+        print("Merged Pull Requests w/o Project:")
+    for pr in no_project_prs:
+        print(f"#{pr['number']} {pr['title']} {pr['url']}")
+
+
+def main(rels: str, path: str, token: str):
+    print('Generating changelog ...')
+
+    try:
+        changelog = {}  # changelog dict
+        releases = {x.strip() for x in rels.split(',')}
+        projects = {f"{RELEASE} {rel}" for rel in releases}
+        no_project_prs = []  # list of merge pr w/o project
+
+        print('Processing issues ...')
+        process_changelog(resource_type=ISSUES, changelog=changelog,
+                          releases=releases, projects=projects,
+                          no_project_prs=no_project_prs, token=token)
+        print('Processing pull requests ...')
+        process_changelog(resource_type=PULL_REQUESTS, changelog=changelog,
+                          releases=releases, projects=projects,
+                          no_project_prs=no_project_prs, token=token)
+        # form doc
+        print('Processing changelog ...')
+        form_changelog(path=path, changelog=changelog)
+    except Exception as e:  # pylint: disable=broad-except
+        print(e)
+        sys.exit(1)
+
+    print('Done.')
+    # post action
+    print_no_project_pr(no_project_prs=no_project_prs)
+
+
+if __name__ == '__main__':
+    parser = ArgumentParser(description="Changelog Generator")
+    parser.add_argument("--releases", help="list of release versions, separated by comma",
+                        default="0.5.0")
+    parser.add_argument("--token", help="github token, will use GITHUB_TOKEN if empty", default='')
+    parser.add_argument("--path", help="path for generated changelog file", default='./CHANGELOG.md')
+    args = parser.parse_args()
+
+    github_token = args.token if args.token else os.environ.get('GITHUB_TOKEN')
+    assert github_token, 'env GITHUB_TOKEN should not be empty'
+
+    main(rels=args.releases, path=args.path, token=github_token)

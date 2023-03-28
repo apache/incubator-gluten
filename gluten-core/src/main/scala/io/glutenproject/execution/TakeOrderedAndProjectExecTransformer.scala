@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, So
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarInputAdapter, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarInputAdapter, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -69,7 +69,7 @@ case class TakeOrderedAndProjectExecTransformer (
     if (childRDDPartsNum == 0) {
       sparkContext.parallelize(Seq.empty, 1)
     } else {
-      // The child should have been replaced by ColumnarCollapseCodegenStages.
+      // The child should have been replaced by ColumnarCollapseTransformStages.
       val limitExecPlan = child match {
         case wholeStage: WholeStageTransformerExec =>
           // remove this WholeStageTransformerExec, put the new sort, limit and project
@@ -81,12 +81,13 @@ case class TakeOrderedAndProjectExecTransformer (
           val sortExecPlan = SortExecTransformer(sortOrder, false, other)
           LimitTransformer(sortExecPlan, 0, limit)
       }
-      val codegenStageCounter: AtomicInteger = ColumnarCollapseCodegenStages.codegenStageCounter
+      val transformStageCounter: AtomicInteger =
+        ColumnarCollapseTransformStages.transformStageCounter
       val finalLimitPlan = if (childRDDPartsNum == 1) {
           limitExecPlan
       } else {
         val sortStagePlan = WholeStageTransformerExec(limitExecPlan)(
-          codegenStageCounter.incrementAndGet())
+          transformStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
         val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(shuffleExec,
           sortStagePlan, false, isAdaptiveContextOrTopParentExchange)
@@ -102,7 +103,7 @@ case class TakeOrderedAndProjectExecTransformer (
         finalLimitPlan
       }
 
-      val finalPlan = WholeStageTransformerExec(projectPlan)(codegenStageCounter.incrementAndGet())
+      val finalPlan = WholeStageTransformerExec(projectPlan)(transformStageCounter.incrementAndGet())
 
       finalPlan.doExecuteColumnar()
     }

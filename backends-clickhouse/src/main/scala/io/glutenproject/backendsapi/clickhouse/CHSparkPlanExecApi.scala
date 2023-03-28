@@ -257,11 +257,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             // TODO: remove this after pushdowning preprojection
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
-              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
           case r2c: RowToCHNativeColumnarExec =>
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
-              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet()
+              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
             )
         }
         (
