@@ -99,6 +99,16 @@ bool ListenableMemoryAllocator::Free(void* p, int64_t size) {
   return succeed;
 }
 
+bool ListenableMemoryAllocator::ReserveBytes(int64_t size) {
+  listener_->AllocationChanged(size);
+  return true;
+}
+
+bool ListenableMemoryAllocator::UnreserveBytes(int64_t size) {
+  listener_->AllocationChanged(-size);
+  return true;
+}
+
 int64_t ListenableMemoryAllocator::GetBytes() const {
   return bytes_;
 }
@@ -144,6 +154,16 @@ bool StdMemoryAllocator::ReallocateAligned(void* p, uint16_t alignment, int64_t 
 
 bool StdMemoryAllocator::Free(void* p, int64_t size) {
   std::free(p);
+  bytes_ -= size;
+  return true;
+}
+
+bool StdMemoryAllocator::ReserveBytes(int64_t size) {
+  bytes_ += size;
+  return true;
+}
+
+bool StdMemoryAllocator::UnreserveBytes(int64_t size) {
   bytes_ -= size;
   return true;
 }
