@@ -35,6 +35,11 @@ public class ExpressionEvaluatorJniWrapper {
    */
   native void nativeInitNative(byte[] subPlan);
 
+	/**
+	 * Call finalizeNative to finalize native computing.
+	 */
+  native void nativeFinalizeNative();
+
   /**
    * Validate the Substrait plan in native compute engine.
    *
