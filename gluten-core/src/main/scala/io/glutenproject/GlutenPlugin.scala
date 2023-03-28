@@ -53,7 +53,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   }
 
   override def shutdown() {
-    // BackendsApiManager.getShutdownApiInstance.shutdown()
+    BackendsApiManager.getShutdownApiInstance.shutdown()
   }
 
   def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
@@ -107,7 +107,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    * For example: close the native engine.
    */
   override def shutdown(): Unit = {
-    // BackendsApiManager.getShutdownApiInstance.shutdown()
+    BackendsApiManager.getShutdownApiInstance.shutdown()
     super.shutdown()
   }
 }

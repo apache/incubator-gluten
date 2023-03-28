@@ -17,10 +17,11 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ShutdownApi
-import io.glutenproject.vectorized.JniLibLoader
+import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
 class CHShutdownApi extends ShutdownApi {
   override def shutdown(): Unit = {
-    JniLibLoader.forceUnloadAll()
+    val kernel = new CHNativeExpressionEvaluator()
+    kernel.finalizeNative()
   }
 }
