@@ -58,6 +58,10 @@ function compile {
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
   make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
+  echo "INSTALL xsimd gtest."
+  cd _build/$COMPILE_TYPE/_deps
+  sudo cmake --install xsimd-build/
+  sudo cmake --install gtest-build/
 }
 
 function check_commit {

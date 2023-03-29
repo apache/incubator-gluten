@@ -35,32 +35,40 @@ namespace {
 //  Removed memory manager.
 class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
  public:
+  using DestructionCallback = std::function<void(MemoryPool*)>;
+
   // Should perhaps make this method private so that we only create node through
   // parent.
   WrappedVeloxMemoryPool(
-      velox::memory::MemoryManager& memoryManager,
+      velox::memory::MemoryManager* memoryManager,
       const std::string& name,
+      Kind kind,
       std::shared_ptr<velox::memory::MemoryPool> parent,
       gluten::MemoryAllocator* gluten_alloc,
+      DestructionCallback destructionCb,
       const Options& options = Options{})
-      : velox::memory::MemoryPool{name, parent, options},
+      : velox::memory::MemoryPool{name, kind, parent, options},
+        memoryUsageTracker_(
+            parent_ == nullptr ? velox::memory::MemoryUsageTracker::create(options.capacity)
+                               : parent->getMemoryUsageTracker()->addChild(kind == MemoryPool::Kind::kLeaf)),
         memoryManager_{memoryManager},
-        localMemoryUsage_{},
-        velox_alloc_{memoryManager_.getAllocator()},
-        gluten_alloc_{gluten_alloc} {}
+        velox_alloc_{&memoryManager_->getAllocator()},
+        gluten_alloc_{gluten_alloc},
+        destructionCb_(std::move(destructionCb)),
+        localMemoryUsage_{} {}
 
-  ~WrappedVeloxMemoryPool() override {
-    if (const auto& tracker = getMemoryUsageTracker()) {
-      // TODO: change to check reserved bytes which including the unused
-      // reservation.
-      auto remainingBytes = tracker->currentBytes();
-      VELOX_CHECK_EQ(
-          0,
-          remainingBytes,
-          "Memory pool should be destroyed only after all allocated memory has been freed. Remaining bytes allocated: {}, cumulative bytes allocated: {}, number of allocations: {}",
-          remainingBytes,
-          tracker->cumulativeBytes(),
-          tracker->numAllocs());
+  ~WrappedVeloxMemoryPool() {
+    const auto remainingBytes = memoryUsageTracker_->currentBytes();
+    VELOX_CHECK_EQ(
+        0,
+        remainingBytes,
+        "Memory pool {} should be destroyed only after all allocated memory has been freed. Remaining bytes allocated: {}, cumulative bytes allocated: {}, number of allocations: {}",
+        name(),
+        remainingBytes,
+        memoryUsageTracker_->cumulativeBytes(),
+        memoryUsageTracker_->numAllocs());
+    if (destructionCb_ != nullptr) {
+      destructionCb_(this);
     }
   }
 
@@ -70,6 +78,8 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   // tree periodically, this is slightly stale and we have to reserve our own
   // overhead.
   void* FOLLY_NULLABLE allocate(int64_t size) override {
+    checkMemoryAllocation();
+
     const auto alignedSize = sizeAlign(size);
     reserve(alignedSize);
     void* buffer;
@@ -84,6 +94,8 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   }
 
   void* FOLLY_NULLABLE allocateZeroFilled(int64_t numEntries, int64_t sizeEach) override {
+    checkMemoryAllocation();
+
     const auto alignedSize = sizeAlign(sizeEach * numEntries);
     reserve(alignedSize);
     void* buffer;
@@ -102,24 +114,35 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
   // No-op for attempts to shrink buffer.
   void* FOLLY_NULLABLE reallocate(void* FOLLY_NULLABLE p, int64_t size, int64_t newSize) override {
+    checkMemoryAllocation();
+
     auto alignedSize = sizeAlign(size);
     auto alignedNewSize = sizeAlign(newSize);
-    int64_t difference = alignedNewSize - alignedSize;
-    reserve(difference);
+    reserve(alignedNewSize);
     void* newP;
-    if (!gluten_alloc_->Reallocate(p, alignedSize, alignedNewSize, &newP)) {
-      VELOX_FAIL("VeloxMemoryAllocatorVariant: Failed to reallocate " + std::to_string(alignedNewSize) + " bytes")
-    }
+    gluten_alloc_->Allocate(alignedNewSize, &newP);
     if (FOLLY_UNLIKELY(newP == nullptr)) {
       free(p, alignedSize);
       release(alignedNewSize);
-      VELOX_MEM_ALLOC_ERROR(
-          fmt::format("{} failed with {} new bytes and {} old bytes from {}", __FUNCTION__, newSize, size, toString()));
+      VELOX_MEM_ALLOC_ERROR(fmt::format(
+          "VeloxMemoryAllocatorVariant {} failed with {} new bytes and {} old bytes from {}",
+          __FUNCTION__,
+          newSize,
+          size,
+          toString()));
     }
+    VELOX_CHECK_NOT_NULL(newP);
+    if (p == nullptr) {
+      return newP;
+    }
+    ::memcpy(newP, p, std::min(size, newSize));
+    free(p, alignedSize);
     return newP;
   }
 
   void free(void* FOLLY_NULLABLE p, int64_t size) override {
+    checkMemoryAllocation();
+
     auto alignedSize = sizeAlign(size);
     if (!gluten_alloc_->Free(p, alignedSize)) {
       VELOX_FAIL("VeloxMemoryAllocatorVariant: Failed to free " + std::to_string(alignedSize) + " bytes")
@@ -131,18 +154,21 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   void allocateNonContiguous(
       velox::memory::MachinePageCount numPages,
       velox::memory::Allocation& out,
-      velox::memory::MachinePageCount minSizeClass) override {
+      velox::memory::MachinePageCount minSizeClass) {
+    checkMemoryAllocation();
     VELOX_CHECK_GT(numPages, 0);
 
-    if (!velox_alloc_.allocateNonContiguous(
+    if (!velox_alloc_->allocateNonContiguous(
             numPages,
             out,
-            [this](int64_t allocBytes, bool preAllocate) {
+            [this](int64_t allocBytes, bool preAlloc) {
               bool succeed =
-                  preAllocate ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
+                  preAlloc ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
               VELOX_CHECK(succeed)
-              if (memoryUsageTracker_ != nullptr) {
-                memoryUsageTracker_->update(preAllocate ? allocBytes : -allocBytes);
+              if (preAlloc) {
+                reserve(allocBytes);
+              } else {
+                release(allocBytes);
               }
             },
             256)) {
@@ -155,29 +181,33 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   }
 
   void freeNonContiguous(velox::memory::Allocation& allocation) override {
-    const int64_t freedBytes = velox_alloc_.freeNonContiguous(allocation);
+    checkMemoryAllocation();
+
+    const int64_t freedBytes = velox_alloc_->freeNonContiguous(allocation);
     VELOX_CHECK(allocation.empty());
-    if (memoryUsageTracker_ != nullptr) {
-      memoryUsageTracker_->update(-freedBytes);
-    }
-    VELOX_CHECK(gluten_alloc_->UnreserveBytes(freedBytes))
+    release(freedBytes);
+    VELOX_CHECK(gluten_alloc_->UnreserveBytes(freedBytes));
   }
 
   velox::memory::MachinePageCount largestSizeClass() const override {
-    return velox_alloc_.largestSizeClass();
+    return velox_alloc_->largestSizeClass();
   }
 
   const std::vector<velox::memory::MachinePageCount>& sizeClasses() const override {
-    return velox_alloc_.sizeClasses();
+    return velox_alloc_->sizeClasses();
   }
 
-  void allocateContiguous(velox::memory::MachinePageCount numPages, velox::memory::ContiguousAllocation& out) override {
+  void allocateContiguous(velox::memory::MachinePageCount numPages, velox::memory::ContiguousAllocation& out) {
+    checkMemoryAllocation();
     VELOX_CHECK_GT(numPages, 0);
-    if (!velox_alloc_.allocateContiguous(numPages, nullptr, out, [this](int64_t allocBytes, bool preAlloc) {
+
+    if (!velox_alloc_->allocateContiguous(numPages, nullptr, out, [this](int64_t allocBytes, bool preAlloc) {
           bool succeed = preAlloc ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
           VELOX_CHECK(succeed)
-          if (memoryUsageTracker_) {
-            memoryUsageTracker_->update(preAlloc ? allocBytes : -allocBytes);
+          if (preAlloc) {
+            reserve(allocBytes);
+          } else {
+            release(allocBytes);
           }
         })) {
       VELOX_CHECK(out.empty());
@@ -188,13 +218,13 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     out.setPool(this);
   }
 
-  void freeContiguous(velox::memory::ContiguousAllocation& allocation) override {
+  void freeContiguous(velox::memory::ContiguousAllocation& allocation) {
+    checkMemoryAllocation();
+
     const int64_t bytesToFree = allocation.size();
-    velox_alloc_.freeContiguous(allocation);
+    velox_alloc_->freeContiguous(allocation);
     VELOX_CHECK(allocation.empty());
-    if (memoryUsageTracker_ != nullptr) {
-      memoryUsageTracker_->update(-bytesToFree);
-    }
+    release(bytesToFree);
     VELOX_CHECK(gluten_alloc_->UnreserveBytes(bytesToFree))
   }
   //////////////////// Memory Management methods /////////////////////
@@ -227,15 +257,6 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     return std::max(getSubtreeMaxBytes(), localMemoryUsage_.getMaxBytes());
   }
 
-  void setMemoryUsageTracker(const std::shared_ptr<velox::memory::MemoryUsageTracker>& tracker) override {
-    const auto currentBytes = getCurrentBytes();
-    if (memoryUsageTracker_) {
-      memoryUsageTracker_->update(-currentBytes);
-    }
-    memoryUsageTracker_ = tracker;
-    memoryUsageTracker_->update(currentBytes);
-  }
-
   const std::shared_ptr<velox::memory::MemoryUsageTracker>& getMemoryUsageTracker() const override {
     return memoryUsageTracker_;
   }
@@ -248,14 +269,15 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     });
     return aggregateBytes;
   }
+
   uint16_t getAlignment() const override {
     return alignment_;
   }
-  std::shared_ptr<velox::memory::MemoryPool> genChild(
-      std::shared_ptr<velox::memory::MemoryPool> parent,
-      const std::string& name) override {
+
+  std::shared_ptr<velox::memory::MemoryPool>
+  genChild(std::shared_ptr<velox::memory::MemoryPool> parent, const std::string& name, Kind kind) override {
     return std::make_shared<WrappedVeloxMemoryPool>(
-        memoryManager_, name, parent, gluten_alloc_, Options{.alignment = alignment_});
+        memoryManager_, name, kind, parent, gluten_alloc_, nullptr, Options{.alignment = alignment_});
   }
 
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the
@@ -284,32 +306,36 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
   // TODO: consider returning bool instead.
   void reserve(int64_t size) override {
-    if (memoryUsageTracker_) {
-      memoryUsageTracker_->update(size);
-    }
+    checkMemoryAllocation();
+
+    memoryUsageTracker_->update(size);
     localMemoryUsage_.incrementCurrentBytes(size);
 
-    bool success = memoryManager_.reserve(size);
+    bool success = memoryManager_->reserve(size);
     if (UNLIKELY(!success)) {
       // NOTE: If we can make the reserve and release a single transaction we
       // would have more accurate aggregates in intermediate states. However, this
       // is low-pri because we can only have inflated aggregates, and be on the
       // more conservative side.
       release(size);
-      VELOX_MEM_MANAGER_CAP_EXCEEDED(memoryManager_.getMemoryQuota());
+      VELOX_MEM_MANAGER_CAP_EXCEEDED(memoryManager_->getMemoryQuota());
     }
   }
 
-  void release(int64_t size) override {
-    memoryManager_.release(size);
+  void release(int64_t size) {
+    checkMemoryAllocation();
+
+    memoryManager_->release(size);
     localMemoryUsage_.incrementCurrentBytes(-size);
-    if (memoryUsageTracker_) {
-      memoryUsageTracker_->update(-size);
-    }
+    memoryUsageTracker_->update(-size);
   }
 
   std::string toString() const override {
-    return fmt::format("Memory Pool[{} {}]", name_, velox::memory::MemoryAllocator::kindString(velox_alloc_.kind()));
+    return fmt::format(
+        "Memory Pool[{} {} {}]",
+        name_,
+        kindString(kind_),
+        velox::memory::MemoryAllocator::kindString(velox_alloc_->kind()));
   }
 
  private:
@@ -330,27 +356,38 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     visitor(subtreeMemoryUsage_);
   }
 
-  int64_t cap_;
-  velox::memory::MemoryManager& memoryManager_;
+  const std::shared_ptr<velox::memory::MemoryUsageTracker> memoryUsageTracker_;
+  velox::memory::MemoryManager* const memoryManager_;
+  velox::memory::MemoryAllocator* const velox_alloc_;
+  gluten::MemoryAllocator* gluten_alloc_;
+  const DestructionCallback destructionCb_;
 
   // Memory allocated attributed to the memory node.
   velox::memory::MemoryUsage localMemoryUsage_;
-  std::shared_ptr<velox::memory::MemoryUsageTracker> memoryUsageTracker_;
   mutable folly::SharedMutex subtreeUsageMutex_;
   velox::memory::MemoryUsage subtreeMemoryUsage_;
-  velox::memory::MemoryAllocator& velox_alloc_;
-  gluten::MemoryAllocator* gluten_alloc_;
 };
 
 std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
   return std::make_shared<WrappedVeloxMemoryPool>(
-      velox::memory::MemoryManager::getInstance(), "wrapped", nullptr, allocator);
+      &velox::memory::MemoryManager::getInstance(),
+      "wrappedRoot",
+      velox::memory::MemoryPool::Kind::kAggregate,
+      nullptr,
+      allocator,
+      nullptr);
 }
 
-velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool() {
-  static WrappedVeloxMemoryPool default_pool(
-      velox::memory::MemoryManager::getInstance(), "root", nullptr, DefaultMemoryAllocator().get());
-  return &default_pool;
+std::shared_ptr<velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool() {
+  static std::shared_ptr<WrappedVeloxMemoryPool> default_pool_root = std::make_shared<WrappedVeloxMemoryPool>(
+      &velox::memory::MemoryManager::getInstance(),
+      "root",
+      velox::memory::MemoryPool::Kind::kAggregate,
+      nullptr,
+      DefaultMemoryAllocator().get(),
+      nullptr);
+  static std::shared_ptr<velox::memory::MemoryPool> default_pool =
+      default_pool_root->addChild("default_pool", velox::memory::MemoryPool::Kind::kLeaf);
+  return default_pool;
 }
-
 } // namespace gluten

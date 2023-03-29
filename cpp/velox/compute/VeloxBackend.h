@@ -103,7 +103,8 @@ class VeloxBackend final : public Backend {
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
 
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
-      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(GetDefaultWrappedVeloxMemoryPool());
+      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
+          GetDefaultWrappedVeloxMemoryPool().get());
 
   // Cache for tests/benchmark purpose.
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
