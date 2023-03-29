@@ -11,7 +11,7 @@ val dsdgenDir = "/PATH/TO/TPCDS_DBGEN" // location of dbgen
 val tables = new TPCDSTables(spark.sqlContext,
     dsdgenDir = dsdgenDir,
     scaleFactor = scaleFactor,
-    useDoubleForDecimal = true, // true to replace DecimalType with DoubleType
+    useDoubleForDecimal = false, // true to replace DecimalType with DoubleType
     useStringForDate = false) // true to replace DateType with StringType
 
 
