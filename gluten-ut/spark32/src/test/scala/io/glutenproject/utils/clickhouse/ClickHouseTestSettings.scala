@@ -221,4 +221,34 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include(
       "md5"
     )
+
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
+    .exclude(
+      "SPARK-34436: DPP support LIKE ANY/ALL expression",
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+    )
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+    .exclude(
+      "avoid reordering broadcast join keys to match input hash partitioning",
+      "SPARK-34436: DPP support LIKE ANY/ALL expression",
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+    )
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
+    .exclude(
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+    )
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+    .exclude(
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+    )
 }

@@ -76,6 +76,46 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     assert(result(0).getDouble(1) == 80037.12727449503)
   }
 
+  test("TPCDS Q3") {
+    runTPCDSQuery(3) { df => }
+  }
+
+  test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
+    val testSql =
+      """
+        |select dt.d_year
+        |       ,sum(ss_ext_sales_price) sum_agg
+        | from  date_dim dt
+        |      ,store_sales
+        | where dt.d_date_sk = store_sales.ss_sold_date_sk
+        |   and dt.d_moy=12
+        | group by dt.d_year
+        | order by dt.d_year
+        |         ,sum_agg desc
+        |  LIMIT 100 ;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      testSql,
+      true,
+      df => {
+        val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(foundDynamicPruningExpr.size == 2)
+        assert(
+          foundDynamicPruningExpr(1)
+            .asInstanceOf[FileSourceScanExecTransformer]
+            .partitionFilters
+            .exists(_.isInstanceOf[DynamicPruningExpression]))
+        assert(
+          foundDynamicPruningExpr(1)
+            .asInstanceOf[FileSourceScanExecTransformer]
+            .selectedPartitions
+            .size == 1823)
+      }
+    )
+  }
+
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery(9) {
