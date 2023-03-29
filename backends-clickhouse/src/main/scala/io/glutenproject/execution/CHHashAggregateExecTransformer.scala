@@ -108,11 +108,14 @@ case class CHHashAggregateExecTransformer(
       // which is different from Velox backend.
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
-      // When the child is file scan operator
+      // 1. When the child is file scan rdd ( in case of separating file scan )
+      // 2. When the child is Union all operator
       val (inputAttrs, outputAttrs) =
         if (
-          child.find(_.isInstanceOf[Exchange]).isEmpty
-          && child.find(_.isInstanceOf[QueryStageExec]).isEmpty
+          (child.find(_.isInstanceOf[Exchange]).isEmpty
+            && child.find(_.isInstanceOf[QueryStageExec]).isEmpty)
+          || (child.isInstanceOf[InputAdapter]
+            && child.asInstanceOf[InputAdapter].child.isInstanceOf[UnionExecTransformer])
         ) {
           for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
