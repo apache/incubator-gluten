@@ -1,4 +1,4 @@
-# Gluten: A Spark Plugin to Offload SQL Engine to Native Library
+# Gluten: Plugin to Double SparkSQL's performance
 *<b>This plugin is still under active development now, and doesn't have a stable release. Welcome to evaluate it. If you encounter any issues or have any suggestions, please submit to our issue list. We'd love to hear your feedback</b>*
 
 # 1 Introduction
