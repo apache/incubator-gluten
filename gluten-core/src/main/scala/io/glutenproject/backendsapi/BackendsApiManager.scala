@@ -26,6 +26,7 @@ object BackendsApiManager {
   private case class Wrapper(
       glutenBackendName: String,
       initializerApiInstance: InitializerApi,
+      shutdownApiInstance: ShutdownApi,
       iteratorApiInstance: IteratorApi,
       sparkPlanExecApiInstance: SparkPlanExecApi,
       transformerApiInstance: TransformerApi,
@@ -51,6 +52,7 @@ object BackendsApiManager {
     Wrapper(
       backend.name(),
       backend.initializerApi(),
+      backend.shutdownApi(),
       backend.iteratorApi(),
       backend.sparkPlanExecApi(),
       backend.transformerApi(),
@@ -73,6 +75,10 @@ object BackendsApiManager {
 
   def getInitializerApiInstance: InitializerApi = {
     manager.initializerApiInstance
+  }
+
+  def getShutdownApiInstance: ShutdownApi = {
+    manager.shutdownApiInstance
   }
 
   def getIteratorApiInstance: IteratorApi = {

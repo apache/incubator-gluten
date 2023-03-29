@@ -14,25 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.backendsapi.clickhouse
 
-package io.glutenproject.backendsapi
+import io.glutenproject.backendsapi.ShutdownApi
+import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
-trait Backend {
-  def name(): String
-
-  def initializerApi(): InitializerApi
-
-  def shutdownApi(): ShutdownApi
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def settings(): BackendSettings
+class CHShutdownApi extends ShutdownApi {
+  override def shutdown(): Unit = {
+    val kernel = new CHNativeExpressionEvaluator()
+    kernel.finalizeNative()
+  }
 }

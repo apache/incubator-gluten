@@ -14,25 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.backendsapi.velox
 
-package io.glutenproject.backendsapi
+import io.glutenproject.backendsapi.ShutdownApi
 
-trait Backend {
-  def name(): String
+class VeloxShutdownApi extends ShutdownApi {
 
-  def initializerApi(): InitializerApi
-
-  def shutdownApi(): ShutdownApi
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def settings(): BackendSettings
+  override def shutdown(): Unit = {
+    /// TODO shutdown implementation in velox to release resources
+  }
 }

@@ -33,6 +33,7 @@ import scala.util.control.Breaks.{break, breakable}
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
   override def initializerApi(): InitializerApi = new CHInitializerApi
+  override def shutdownApi(): ShutdownApi = new CHShutdownApi
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi

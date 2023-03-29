@@ -69,6 +69,11 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
   JNI_METHOD_END()
 }
 
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative(JNIEnv* env){
+    JNI_METHOD_START
+        // TODO Release resources allocated for single executor/driver
+        JNI_METHOD_END()}
+
 JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env,
     jobject obj,

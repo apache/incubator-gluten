@@ -14,25 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
 
-trait Backend {
-  def name(): String
-
-  def initializerApi(): InitializerApi
-
-  def shutdownApi(): ShutdownApi
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def settings(): BackendSettings
+trait ShutdownApi {
+  def shutdown(): Unit = {}
 }

@@ -62,6 +62,10 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
     jniWrapper.nativeInitNative(buildNativeConfNode(nativeConfMap).toProtobuf().toByteArray());
   }
 
+  public void finalizeNative() {
+    jniWrapper.nativeFinalizeNative();
+  }
+
   // Used to validate the Substrait plan in native compute engine.
   public boolean doValidate(byte[] subPlan) {
     return jniWrapper.nativeDoValidate(subPlan);
