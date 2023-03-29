@@ -57,6 +57,7 @@ class QplJobHWPool {
  private:
   QplJobHWPool();
   ~QplJobHWPool();
+  static void InitJobPool();
   bool tryLockJob(uint32_t index);
   void unLockJob(uint32_t index);
 
@@ -67,7 +68,7 @@ class QplJobHWPool {
   }
 
   /// Max jobs in QPL_JOB_POOL
-  static constexpr auto MAX_JOB_NUMBER = 512;
+  static constexpr auto MAX_JOB_NUMBER = 64;
   /// Entire buffer for storing all job objects
   static std::unique_ptr<uint8_t[]> hwJobsBuffer;
   /// Job pool for storing all job object pointers

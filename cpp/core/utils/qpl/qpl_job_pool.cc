@@ -16,6 +16,7 @@
 // under the License.
 
 #include "utils/qpl/qpl_job_pool.h"
+#include "utils/macros.h"
 
 #include <arrow/util/logging.h>
 #include <iostream>
@@ -34,6 +35,27 @@ QplJobHWPool& QplJobHWPool::GetInstance() {
 }
 
 QplJobHWPool::QplJobHWPool() : randomEngine(std::random_device()()), distribution(0, MAX_JOB_NUMBER - 1) {
+  uint64_t initTime = 0;
+  TIME_NANO(initTime, InitJobPool());
+#ifdef GLUTEN_PRINT_DEBUG
+  std::cout << "Init job pool took " << 1.0 * initTime / 1e6 << "ms" << std::endl;
+#endif
+}
+
+QplJobHWPool::~QplJobHWPool() {
+  for (uint32_t i = 0; i < MAX_JOB_NUMBER; ++i) {
+    if (jobPool[i]) {
+      while (!tryLockJob(i))
+        ;
+      qpl_fini_job(jobPool[i]);
+      unLockJob(i);
+      jobPool[i] = nullptr;
+    }
+  }
+  jobPoolReady = false;
+}
+
+void QplJobHWPool::InitJobPool() {
   uint32_t jobSize = 0;
   const char* qpl_version = qpl_get_library_version();
 
@@ -62,19 +84,6 @@ QplJobHWPool::QplJobHWPool() : randomEngine(std::random_device()()), distributio
   jobPoolReady = true;
 }
 
-QplJobHWPool::~QplJobHWPool() {
-  for (uint32_t i = 0; i < MAX_JOB_NUMBER; ++i) {
-    if (jobPool[i]) {
-      while (!tryLockJob(i))
-        ;
-      qpl_fini_job(jobPool[i]);
-      unLockJob(i);
-      jobPool[i] = nullptr;
-    }
-  }
-  jobPoolReady = false;
-}
-
 qpl_job* QplJobHWPool::AcquireJob(uint32_t& jobId) {
   if (!IsJobPoolReady()) {
     return nullptr;
@@ -89,6 +98,9 @@ qpl_job* QplJobHWPool::AcquireJob(uint32_t& jobId) {
     }
   }
   jobId = MAX_JOB_NUMBER - index;
+#ifdef GLUTEN_PRINT_DEBUG
+  std::cout << "Acquired job index " << index << " after " << retry << " retries." << std::endl;
+#endif
   return jobPool[index];
 }
 

@@ -28,24 +28,11 @@ namespace qpl {
 class HardwareCodecDeflateQpl {
  public:
   /// RET_ERROR stands for hardware codec fail,need fallback to software codec.
-  static constexpr int32_t RET_ERROR = -1;
+  static constexpr int64_t RET_ERROR = -1;
 
   explicit HardwareCodecDeflateQpl(qpl_compression_levels compressionLevel) : compressionLevel_(compressionLevel){};
-  ~HardwareCodecDeflateQpl() {
-#ifndef NDEBUG
-    ARROW_CHECK(decomp_async_job_map.empty());
-#else
-    if (!decomp_async_job_map.empty()) {
-      //      LOG_WARNING(log, "Find un-released job when HardwareCodecDeflateQpl destroy");
-      for (auto it : decomp_async_job_map) {
-        QplJobHWPool::GetInstance().ReleaseJob(it.first);
-      }
-      decomp_async_job_map.clear();
-    }
-#endif
-  }
 
-  uint32_t doCompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t dest_size) const {
+  int64_t doCompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t dest_size) const {
     uint32_t job_id;
     qpl_job* jobPtr;
     if (!(jobPtr = QplJobHWPool::GetInstance().AcquireJob(job_id))) {
@@ -76,7 +63,7 @@ class HardwareCodecDeflateQpl {
   }
 
   /// Submit job request to the IAA hardware and then busy waiting till it complete.
-  uint32_t doDecompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t uncompressed_size) {
+  int64_t doDecompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t uncompressed_size) {
     uint32_t job_id = 0;
     qpl_job* jobPtr;
     if (!(jobPtr = QplJobHWPool::GetInstance().AcquireJob(job_id))) {
@@ -108,11 +95,6 @@ class HardwareCodecDeflateQpl {
 
  private:
   qpl_compression_levels compressionLevel_ = qpl_default_level;
-  /// Asynchronous job map for decompression: job ID - job object.
-  /// For each submission, push job ID && job object into this map;
-  /// For flush, pop out job ID && job object from this map. Use job ID to release job lock and use job object to check
-  /// job status till complete.
-  std::map<uint32_t, qpl_job*> decomp_async_job_map;
 };
 
 class SoftwareCodecDeflateQpl final {
@@ -125,7 +107,7 @@ class SoftwareCodecDeflateQpl final {
     }
   }
 
-  uint32_t doCompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t dest_size) {
+  int64_t doCompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t dest_size) {
     qpl_job* jobPtr = getJobCodecPtr();
     // Performing a compression operation
     jobPtr->op = qpl_op_compress;
@@ -145,7 +127,7 @@ class SoftwareCodecDeflateQpl final {
     return jobPtr->total_out;
   }
 
-  uint32_t doDecompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t uncompressed_size) {
+  int64_t doDecompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t uncompressed_size) {
     qpl_job* jobPtr = getJobCodecPtr();
 
     // Performing a decompression operation
