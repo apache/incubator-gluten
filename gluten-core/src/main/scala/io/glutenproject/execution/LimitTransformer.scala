@@ -85,7 +85,7 @@ case class LimitTransformer(child: SparkPlan,
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId
     val relNode = try {

@@ -68,7 +68,7 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
       this
   }
 
-  override def doValidate(): Boolean = false
+  override def doValidateInternal(): Boolean = false
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")

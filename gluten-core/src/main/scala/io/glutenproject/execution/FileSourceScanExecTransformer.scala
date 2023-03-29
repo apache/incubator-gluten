@@ -115,10 +115,10 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     this
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
     if (!bucketedScan) {
-      super.doValidate()
+      super.doValidateInternal()
     } else {
       false
     }

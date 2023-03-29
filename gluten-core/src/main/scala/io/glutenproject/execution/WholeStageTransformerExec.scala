@@ -58,7 +58,16 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
-  def doValidate(): Boolean = false
+  final def doValidate(): Boolean = {
+    try {
+      TransformerState.enterValidation
+      doValidateInternal
+    } finally {
+      TransformerState.finishValidation
+    }
+  }
+
+  def doValidateInternal(): Boolean = false
 
   def logValidateFailure(msg: => String, e: Throwable): Unit = {
     if (printStackOnValidateFailure) {

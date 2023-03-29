@@ -262,7 +262,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     }
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
       logDebug(s"Not support window function")
       return false

@@ -76,7 +76,7 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     )
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val fileFormat = ConverterUtils.getFileFormat(this)
     if (!BackendsApiManager.getTransformerApiInstance
       .supportsReadFileFormat(
