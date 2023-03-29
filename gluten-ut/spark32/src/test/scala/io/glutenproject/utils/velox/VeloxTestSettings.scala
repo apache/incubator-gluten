@@ -407,14 +407,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude(
       "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
-    // decimal failed ut
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude(
       "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
-    // decimal failed ut
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
