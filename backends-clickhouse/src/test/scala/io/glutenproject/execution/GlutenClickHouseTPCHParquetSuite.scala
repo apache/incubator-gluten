@@ -705,6 +705,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("join key with ascii") {
+    val sql =
+      """
+        |select * from
+        |(select l_partkey as `中文` from lineitem where l_partkey='6731') t1
+        |full join
+        |(select l_partkey `中文`, l_shipinstruct from lineitem where l_partkey='6731') t2
+        |on t1.`中文`=t2.`中文`
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
