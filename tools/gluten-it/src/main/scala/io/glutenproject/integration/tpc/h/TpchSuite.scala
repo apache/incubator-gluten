@@ -34,20 +34,12 @@ class TpchSuite(
     scale, cpus, dataWritePath(scale), typeModifiers())
 
   override private[tpc] def queryResource(): String = {
-    if (fixedWidthAsDouble) {
-      "/tpch-queries-noint-nodate"
-    } else {
-      "/tpch-queries"
-    }
+    "/tpch-queries"
   }
 
+
   override protected def typeModifiers(): List[TypeModifier] = {
-    if (fixedWidthAsDouble) {
-      List(Constants.TYPE_MODIFIER_INTEGER_AS_DOUBLE, Constants.TYPE_MODIFIER_LONG_AS_DOUBLE,
-        Constants.TYPE_MODIFIER_DATE_AS_DOUBLE)
-    } else {
-      List()
-    }
+    List()
   }
 
   override private[tpc] def allQueryIds(): Array[String] = TpchSuite.ALL_QUERY_IDS
