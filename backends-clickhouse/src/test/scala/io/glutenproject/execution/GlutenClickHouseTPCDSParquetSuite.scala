@@ -17,9 +17,10 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
-import org.apache.spark.sql.execution.{ReusedSubqueryExec, ScalarSubquery, SubqueryExec}
+import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Not}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
+import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
@@ -124,6 +125,37 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
 
   test("TPCDS Q3") {
     runTPCDSQuery(3) { df => }
+  }
+
+  test(
+    "test fallback operations not supported by ch backend " +
+      "in CHHashJoinExecTransformer && CHBroadcastHashJoinExecTransformer") {
+    val testSql =
+      """
+        |SELECT i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact,
+        | 	sum(ss_ext_sales_price) AS ext_price
+        | FROM date_dim
+        | LEFT JOIN store_sales ON d_date_sk = ss_sold_date_sk
+        | LEFT JOIN item ON ss_item_sk = i_item_sk AND i_manager_id = 7
+        | LEFT JOIN customer ON ss_customer_sk = c_customer_sk
+        | LEFT JOIN customer_address ON c_current_addr_sk = ca_address_sk
+        | LEFT JOIN store ON ss_store_sk = s_store_sk AND substr(ca_zip,1,5) <> substr(s_zip,1,5)
+        | WHERE d_moy = 11
+        |   AND d_year = 1999
+        | GROUP BY i_brand_id, i_brand, i_manufact_id, i_manufact
+        | ORDER BY ext_price DESC, i_brand, i_brand_id, i_manufact_id, i_manufact
+        | LIMIT 100;
+        |""".stripMargin
+
+    val df = spark.sql(testSql)
+    val operateWithCondition = df.queryExecution.executedPlan.collect {
+      case f: BroadcastHashJoinExec if f.condition.get.isInstanceOf[Not] => f
+    }
+    assert(
+      operateWithCondition(0).left
+        .asInstanceOf[InputAdapter]
+        .child
+        .isInstanceOf[BlockGlutenColumnarToRowExec])
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
