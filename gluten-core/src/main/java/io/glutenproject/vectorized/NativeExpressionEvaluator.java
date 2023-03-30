@@ -33,7 +33,6 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.util.SparkDirectoryUtil;
-import org.apache.spark.util.SparkResourcesUtil;
 
 import java.io.IOException;
 import java.util.List;
@@ -92,7 +91,7 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
             TaskContext.getPartitionId(), TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
             SparkDirectoryUtil
-                .getSubDirectory("velox-spill")
+                .namespace("velox-spill")
                 .mkChildDirRoundRobin(UUID.randomUUID().toString())
                 .getAbsolutePath(),
             buildNativeConfNode(GlutenConfig.getNativeSessionConf()).toProtobuf().toByteArray());

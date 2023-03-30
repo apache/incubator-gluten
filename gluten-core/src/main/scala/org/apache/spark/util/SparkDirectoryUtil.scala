@@ -24,6 +24,7 @@ import org.apache.spark.internal.Logging
 
 import java.io.{File, IOException}
 import java.nio.file.Paths
+import scala.runtime.BoxedUnit
 
 /**
  * Manages Gluten's local directories, for storing jars, libs, spill files, or other temporary
@@ -33,6 +34,14 @@ object SparkDirectoryUtil extends Logging {
   private val ROOTS = Utils.getConfiguredLocalDirs(SparkEnv.get.conf).flatMap { rootDir =>
     try {
       val localDir = Utils.createDirectory(rootDir, "gluten")
+      GlutenShutdownManager.addHookForTempDirRemoval(() => {
+        try FileUtils.forceDelete(localDir)
+        catch {
+          case e: Exception =>
+            throw new RuntimeException(e)
+        }
+        BoxedUnit.UNIT
+      })
       logInfo(s"Created local directory at $localDir")
       Some(localDir)
     } catch {
@@ -43,20 +52,20 @@ object SparkDirectoryUtil extends Logging {
     }
   }
 
-  private val FOLDER_MAPPING: java.util.Map[String, SubDirectory] = new java.util.HashMap()
+  private val NAMESPACE_MAPPING: java.util.Map[String, Namespace] = new java.util.HashMap()
 
-  def getSubDirectory(subDirName: String): SubDirectory = synchronized {
-    if (FOLDER_MAPPING.containsKey(subDirName)) {
-      return FOLDER_MAPPING.get(subDirName)
+  def namespace(name: String): Namespace = synchronized {
+    if (NAMESPACE_MAPPING.containsKey(name)) {
+      return NAMESPACE_MAPPING.get(name)
     }
     // or create new
-    val subDir = new SubDirectory(ROOTS, subDirName)
-    FOLDER_MAPPING.put(subDirName, subDir)
-    subDir
+    val namespace = new Namespace(ROOTS, name)
+    NAMESPACE_MAPPING.put(name, namespace)
+    namespace
   }
 }
 
-class SubDirectory(private val parents: Array[File], private val name: String) {
+class Namespace(private val parents: Array[File], private val name: String) {
   private val all = parents.map { root =>
     val path = Paths.get(root.getAbsolutePath)
       .resolve(name)

@@ -18,18 +18,18 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
-
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SparkDirectoryUtil, Utils}
+
+import java.util.UUID
 
 class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
                                         handle: BaseShuffleHandle[K, V, V],
@@ -51,7 +51,11 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private var mapStatus: MapStatus = _
 
-  private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
+  private val localDirs = SparkDirectoryUtil
+    .namespace("shuffle-write")
+    .mapChildDirs(UUID.randomUUID().toString)
+    .map(_.getAbsolutePath)
+    .mkString(",")
 
   private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
 

@@ -18,14 +18,14 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
+import java.util.UUID
 
 class CHColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -40,7 +40,11 @@ class CHColumnarShuffleWriter[K, V](
   private val conf = SparkEnv.get.conf
 
   private val blockManager = SparkEnv.get.blockManager
-  private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
+  private val localDirs = SparkDirectoryUtil
+    .namespace("ch-shuffle-write")
+    .mapChildDirs(UUID.randomUUID().toString)
+    .map(_.getAbsolutePath)
+    .mkString(",")
   private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
   private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
   private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
