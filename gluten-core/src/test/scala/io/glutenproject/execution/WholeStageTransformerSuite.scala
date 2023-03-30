@@ -97,12 +97,24 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
         s match {
           case d if d.dataType == DoubleType =>
             val v1 = row.getDouble(i)
-            val v2 = result(i).toDouble
-            assert(Math.abs(v1 - v2) < 0.00001)
+            // handle null value
+            if (v1 == null) {
+              assert(result(i).equals("null"))
+            } else {
+              assert(!result(i).equals("null"))
+              val v2 = result(i).toDouble
+              assert(Math.abs(v1 - v2) < 0.00001)
+            }
           case _ =>
-            val v1 = row.get(i).toString
-            val v2 = result(i)
-            assert(v1.equals(v2))
+            val v1 = row.get(i)
+            // handle null value
+            if (v1 == null) {
+              assert(result(i).equals("null"))
+            } else {
+              assert(!result(i).equals("null"))
+              val v2 = result(i)
+              assert(v1.toString.equals(v2))
+            }
         }
         i += 1
       })

@@ -210,4 +210,35 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       }
     }
   }
+
+  test("TPCDS Q66") {
+    runTPCDSQuery(66) { df => }
+  }
+
+  test("TPCDS Q76") {
+    runTPCDSQuery(76) { df => }
+  }
+
+  test("Gluten-1234: Fix error when executing hash agg after union all") {
+    val testSql =
+      """
+        |select channel, COUNT(*) sales_cnt, SUM(ext_sales_price) sales_amt FROM (
+        |  SELECT 'store' as channel, ss_ext_sales_price ext_sales_price
+        |  FROM store_sales, item, date_dim
+        |  WHERE ss_addr_sk IS NULL
+        |    AND ss_sold_date_sk=d_date_sk
+        |    AND ss_item_sk=i_item_sk
+        |  UNION ALL
+        |  SELECT 'web' as channel, ws_ext_sales_price ext_sales_price
+        |  FROM web_sales, item, date_dim
+        |  WHERE ws_web_page_sk IS NULL
+        |    AND ws_sold_date_sk=d_date_sk
+        |    AND ws_item_sk=i_item_sk
+        |  ) foo
+        |GROUP BY channel
+        |ORDER BY channel
+        | LIMIT 100 ;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(testSql, true, df => {})
+  }
 }
