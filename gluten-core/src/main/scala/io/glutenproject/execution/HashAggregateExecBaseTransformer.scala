@@ -306,8 +306,10 @@ abstract class HashAggregateExecBaseTransformer(
       aggExpr.mode match {
         case Partial =>
           aggregateFunc.children.foreach(expression => appendIfNotFound(expression))
+        case Complete =>
+          aggregateFunc.children.foreach(expression => appendIfNotFound(expression))
         case other =>
-          throw new UnsupportedOperationException(s"$other not supported.")
+          throw new UnsupportedOperationException(s"getAggRelWithPreProjection $other not supported.")
       }
     })
 

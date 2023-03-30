@@ -264,7 +264,6 @@ case class GlutenHashAggregateExecTransformer(
               modeKeyWord,
               getIntermediateTypeNode(aggregateFunction))
             aggregateNodeList.add(partialNode)
-<<<<<<< HEAD
           case PartialMerge =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
               VeloxAggregateFunctionsBuilder
@@ -272,14 +271,12 @@ case class GlutenHashAggregateExecTransformer(
               childrenNodeList,
               modeKeyWord,
               getIntermediateTypeNode(aggregateFunction))
-=======
           case Complete =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
-              modeToKeyWord(aggregateMode),
+              modeKeyWord,
               ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
->>>>>>> 95dc63d59... Support Complete mode in Hashagg
             aggregateNodeList.add(aggFunctionNode)
           case Final =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
