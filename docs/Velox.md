@@ -474,17 +474,15 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend.
 
 ## 6.1 Data preparation
 
-Considering current Gluten does not fully support Decimal type, the data generation
-scripts ([TPC-H dategen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
-[TPC-DS dategen script](../backends-velox/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh))
-transform "Decimal-to-Double".
+The data generation scripts are [TPC-H dategen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
+[TPC-DS dategen script](../backends-velox/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
 
-Accordingly, some corresponding changes were made to the used TPC-DS queries to remove decimal-relating clauses,
-and these queries can be accessed from [TPC-DS non-decimal queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal).
-The used TPC-H queries are the original ones, and can be accessed from [TPC-H queries](../gluten-core/src/test/resources/tpch-queries).
+The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original)
+and [TPC-H queries](../gluten-core/src/test/resources/tpch-queries).
 
 Some other versions of TPC-DS and TPC-H queries are also provided, but are **not** recommended for testing, including:
-- the original TPC-DS queries: [TPC-DS queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original) (Decimal is not fully supported).
+- the modified TPC-H queries with "Date-to-String" conversions: [TPC-H non-date queries](../tools/gluten-it/src/main/resources/tpch-queries-nodate) (outdated).
+- the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
 - the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../tools/gluten-it/src/main/resources/tpcds-queries-nodecimal-nodate) (outdated).
 
 ## 6.2 Submit the Spark SQL job
