@@ -40,6 +40,9 @@ class MemoryAllocator {
 
   virtual bool Free(void* p, int64_t size) = 0;
 
+  virtual bool ReserveBytes(int64_t size) = 0;
+  virtual bool UnreserveBytes(int64_t size) = 0;
+
   virtual int64_t GetBytes() const = 0;
 };
 
@@ -72,6 +75,10 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
 
   bool Free(void* p, int64_t size) override;
 
+  bool ReserveBytes(int64_t size) override;
+
+  bool UnreserveBytes(int64_t size) override;
+
   int64_t GetBytes() const override;
 
  private:
@@ -93,6 +100,10 @@ class StdMemoryAllocator final : public MemoryAllocator {
   bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
 
   bool Free(void* p, int64_t size) override;
+
+  bool ReserveBytes(int64_t size) override;
+
+  bool UnreserveBytes(int64_t size) override;
 
   int64_t GetBytes() const override;
 
