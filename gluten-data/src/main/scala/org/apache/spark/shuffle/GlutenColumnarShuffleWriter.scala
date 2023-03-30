@@ -53,7 +53,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val localDirs = SparkDirectoryUtil
     .namespace("shuffle-write")
-    .mapChildDirs(UUID.randomUUID().toString)
+    .mkChildDirs(UUID.randomUUID().toString)
     .map(_.getAbsolutePath)
     .mkString(",")
 

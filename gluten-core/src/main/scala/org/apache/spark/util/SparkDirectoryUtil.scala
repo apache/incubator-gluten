@@ -98,7 +98,7 @@ class Namespace(private val parents: Array[File], private val name: String) {
     file
   }
 
-  def mapChildDirs(childDirName: String): Array[File] = {
+  def mkChildDirs(childDirName: String): Array[File] = {
     all.map { subDir =>
       val path = Paths.get(subDir.getAbsolutePath)
         .resolve(childDirName)
