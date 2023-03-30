@@ -108,6 +108,30 @@ public class RelBuilder {
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters, extensionNode);
   }
 
+  public static RelNode makeWriteRel(RelNode input,
+                                     ArrayList<TypeNode> types,
+                                     ArrayList<String> names,
+                                     ArrayList<ColumnTypeNode> columnTypeNodes,
+                                     String writePath,
+                                     AdvancedExtensionNode extensionNode,
+                                     SubstraitContext context,
+                                     Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WriteRelNode(
+        input, types, names, columnTypeNodes, writePath, extensionNode);
+  }
+
+  public static RelNode makeWriteRel(RelNode input,
+                                     ArrayList<TypeNode> types,
+                                     ArrayList<String> names,
+                                     ArrayList<ColumnTypeNode> columnTypeNodes,
+                                     String writePath,
+                                     SubstraitContext context,
+                                     Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WriteRelNode(input, types, names, columnTypeNodes, writePath);
+  }
+
   public static RelNode makeReadRel(ArrayList<TypeNode> types,
                                     ArrayList<String> names,
                                     ExpressionNode filter,

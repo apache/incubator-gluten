@@ -47,6 +47,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarBatchScan: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.batchscan", "true").toBoolean
 
+  def enableColumnarWriteExec: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.write", "true").toBoolean
   // enable or disable columnar filescan
   def enableColumnarFileScan: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.filescan", "true").toBoolean

@@ -141,6 +141,14 @@ void VeloxBackend::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
   }
 }
 
+void VeloxBackend::setInputPlanNode(const ::substrait::WriteRel& swrite) {
+  if (swrite.has_input()) {
+    setInputPlanNode(swrite.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
 void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
   if (iterIdx == -1) {
@@ -209,6 +217,8 @@ void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.fetch());
   } else if (srel.has_window()) {
     setInputPlanNode(srel.window());
+  } else if (srel.has_write()) {
+    setInputPlanNode(srel.write());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }

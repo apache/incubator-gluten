@@ -33,6 +33,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
@@ -247,6 +248,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
   val enableColumnarSortMergeJoin: Boolean = !scanOnly && columnarConf.enableColumnarSortMergeJoin
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
+  val enableColumnarWriteExec: Boolean = columnarConf.enableColumnarWriteExec
   val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
   val enableColumnarProject: Boolean = !scanOnly && columnarConf.enableColumnarProject
   val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
@@ -290,6 +292,13 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     }
     try {
       plan match {
+        case plan: DataWritingCommandExec =>
+          if (!enableColumnarWriteExec) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = DataWritingCommandExecTransformer(plan.cmd, plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) {
             TransformHints.tagNotTransformable(plan)

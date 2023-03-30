@@ -65,6 +65,7 @@ function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
 endfunction()
 
 macro(ADD_VELOX_DEPENDENCIES)
+ 
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
   add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
   add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
@@ -87,6 +88,10 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
+
+  add_velox_dependency(velox::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/libvelox_dwio_parquet_writer.a")
+  add_velox_dependency(arrow::parquet "${VELOX_COMPONENTS_PATH}/../third_party/arrow_ep/install/lib/libparquet.a")
+  add_velox_dependency(arrow "${VELOX_COMPONENTS_PATH}/../third_party/arrow_ep/install/lib/libarrow.a")
   if(VELOX_ENABLE_HDFS)
     add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
   endif()

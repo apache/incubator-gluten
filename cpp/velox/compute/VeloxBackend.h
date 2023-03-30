@@ -66,6 +66,8 @@ class VeloxBackend final : public Backend {
   std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> getMemoryUsageTracker();
 
  private:
+  void setInputPlanNode(const ::substrait::WriteRel& writeRel);
+
   void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
 
   void setInputPlanNode(const ::substrait::ExpandRel& sExpand);

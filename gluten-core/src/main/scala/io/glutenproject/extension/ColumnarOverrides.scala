@@ -41,6 +41,7 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
@@ -244,6 +245,9 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
         }
     }
     plan match {
+      case plan: DataWritingCommandExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        DataWritingCommandExecTransformer(plan.cmd, replaceWithTransformerPlan(plan.child))
       case plan: BatchScanExec =>
         applyScanTransformer(plan)
       case plan: FileSourceScanExec =>
