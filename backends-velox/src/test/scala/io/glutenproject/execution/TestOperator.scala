@@ -198,7 +198,6 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare(
       "select l_suppkey from lineitem " +
         "where l_orderkey < 3 order by l_partkey") { _ => }
-    df.write.format("parquet").save("file:///tmp/write16/")
     checkLengthAndPlan(df, 7)
   }
 
@@ -206,10 +205,16 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare(
       "select l_suppkey from lineitem " +
         "where l_orderkey < 3 order by l_partkey / 2 ") { _ => }
-    df.show()
-    val path = "file:///tmp/parquet-write11"
+    checkLengthAndPlan(df, 7)
+  }
+
+  test("parquet write") {
+    var df = runQueryAndCompare(
+      "select l_suppkey from lineitem " +
+        "where l_orderkey < 3 order by l_partkey / 2 ") { _ => }
+    val path = "file:///tmp/parquet-write-test"
     df.write.parquet(path)
-    spark.read.parquet(path).show()
+    df = spark.read.parquet(path)
     checkLengthAndPlan(df, 7)
   }
 

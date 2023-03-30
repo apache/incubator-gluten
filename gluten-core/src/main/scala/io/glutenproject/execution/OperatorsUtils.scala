@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.protobuf.Any
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
@@ -27,12 +28,52 @@ import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBu
 import io.substrait.proto.JoinRel
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{DataType, StructType}
 
 import java.util
 import scala.collection.JavaConverters._
 
-object JoinUtils {
+object OperatorsUtils {
+  private def normalizeColName(name: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) name else name.toLowerCase()
+  }
+
+  private def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
+    val nameList = new java.util.ArrayList[String]()
+    dataType match {
+      case structType: StructType =>
+        structType.fields.foreach(
+          field => {
+            nameList.add(normalizeColName(field.name))
+            val nestedNames = collectDataTypeNamesDFS(field.dataType)
+            nameList.addAll(nestedNames)
+          }
+        )
+      case _ =>
+    }
+    nameList
+  }
+
+  def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
+    val nameList = new java.util.ArrayList[String]()
+    attributes.foreach(
+      attr => {
+        nameList.add(normalizeColName(attr.name))
+        if (BackendsApiManager.getSettings.supportStructType()) {
+          attr.dataType match {
+            case struct: StructType =>
+              val nestedNames = collectDataTypeNamesDFS(struct)
+              nameList.addAll(nestedNames)
+            case _ =>
+          }
+        }
+      }
+    )
+    nameList
+  }
+
   private def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
     val inputTypeNodes = output.map { attr =>
       ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
@@ -119,7 +160,7 @@ object JoinUtils {
     }
   }
 
-  def createJoinExtensionNode(joinParameters: Any.Builder,
+  def createExtensionNode(joinParameters: Any.Builder,
                               output: Seq[Attribute]): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
@@ -219,7 +260,7 @@ object JoinUtils {
       substraitJoinType,
       joinExpressionNode,
       postJoinFilter.orNull,
-      createJoinExtensionNode(joinParameters, streamedOutput ++ buildOutput),
+      createExtensionNode(joinParameters, streamedOutput ++ buildOutput),
       substraitContext,
       operatorId)
 

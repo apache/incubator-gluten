@@ -30,6 +30,7 @@ trait BackendSettings {
                             fields: Array[StructField],
                             partTable: Boolean,
                             paths: Seq[String]): Boolean = false
+  def supportWriteExec(): Boolean = false
   def supportExpandExec(): Boolean = false
   def needProjectExpandOutput: Boolean = false
   def supportSortExec(): Boolean = false

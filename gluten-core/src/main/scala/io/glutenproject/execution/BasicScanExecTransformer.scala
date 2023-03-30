@@ -104,52 +104,13 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     }
   }
 
-  private def normalizeColName(name: String): String = {
-    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
-    if (caseSensitive) name else name.toLowerCase()
-  }
-
-  private def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
-    val nameList = new java.util.ArrayList[String]()
-    attributes.foreach(
-      attr => {
-        nameList.add(normalizeColName(attr.name))
-        if (BackendsApiManager.getSettings.supportStructType()) {
-          attr.dataType match {
-            case struct: StructType =>
-              val nestedNames = collectDataTypeNamesDFS(struct)
-              nameList.addAll(nestedNames)
-            case _ =>
-          }
-        }
-      }
-    )
-    nameList
-  }
-
-  private def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
-    val nameList = new java.util.ArrayList[String]()
-    dataType match {
-      case structType: StructType =>
-        structType.fields.foreach(
-          field => {
-            nameList.add(normalizeColName(field.name))
-            val nestedNames = collectDataTypeNamesDFS(field.dataType)
-            nameList.addAll(nestedNames)
-          }
-        )
-      case _ =>
-    }
-    nameList
-  }
-
   override def doTransform(context: SubstraitContext): TransformContext = {
     val output = outputAttributes()
     val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
     val partitionSchemas = getPartitionSchemas
     val nameList = new java.util.ArrayList[String]()
     val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
-    nameList.addAll(collectAttributesNamesDFS(output))
+    nameList.addAll(OperatorsUtils.collectAttributesNamesDFS(output))
     for (attr <- output) {
       if (partitionSchemas.exists(_.name.equals(attr.name))) {
         columnTypeNodes.add(new ColumnTypeNode(1))

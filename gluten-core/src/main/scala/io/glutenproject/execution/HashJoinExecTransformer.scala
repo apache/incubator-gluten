@@ -223,7 +223,7 @@ trait HashJoinLikeExecTransformer
       return false
     }
     val relNode = try {
-      JoinUtils.createJoinRel(
+      OperatorsUtils.createJoinRel(
         streamedKeyExprs,
         buildKeyExprs,
         condition,
@@ -284,10 +284,10 @@ trait HashJoinLikeExecTransformer
       substraitContext.registerRelToOperator(operatorId)
     }
 
-    if (JoinUtils.preProjectionNeeded(streamedKeyExprs)) {
+    if (OperatorsUtils.preProjectionNeeded(streamedKeyExprs)) {
       joinParams.streamPreProjectionNeeded = true
     }
-    if (JoinUtils.preProjectionNeeded(buildKeyExprs)) {
+    if (OperatorsUtils.preProjectionNeeded(buildKeyExprs)) {
       joinParams.buildPreProjectionNeeded = true
     }
 
@@ -299,7 +299,7 @@ trait HashJoinLikeExecTransformer
       joinParams.isBHJ = true
     }
 
-    val joinRel = JoinUtils.createJoinRel(
+    val joinRel = OperatorsUtils.createJoinRel(
       streamedKeyExprs,
       buildKeyExprs,
       condition,
@@ -316,7 +316,7 @@ trait HashJoinLikeExecTransformer
 
     substraitContext.registerJoinParam(operatorId, joinParams)
 
-    JoinUtils.createTransformContext(
+    OperatorsUtils.createTransformContext(
       exchangeTable, output, joinRel,
       inputStreamedOutput, inputBuildOutput)
   }

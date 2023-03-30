@@ -76,6 +76,7 @@ object VeloxBackendSettings extends BackendSettings {
     }
   }
 
+  override def supportWriteExec(): Boolean = true
   override def supportExpandExec(): Boolean = true
   override def needProjectExpandOutput: Boolean = true
   override def supportSortExec(): Boolean = true

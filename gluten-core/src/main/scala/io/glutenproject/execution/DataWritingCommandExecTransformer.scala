@@ -18,18 +18,18 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import com.google.protobuf.Any
+import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{ColumnTypeNode, TypeBuilder, TypeNode}
-import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.BindReferencesUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -40,6 +40,7 @@ import org.apache.spark.sql.execution.command.DataWritingCommand
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructType}
 
@@ -70,45 +71,6 @@ case class DataWritingCommandExecTransformer(
       Seq(child.executeColumnar())
   }
 
-  private def normalizeColName(name: String): String = {
-    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
-    if (caseSensitive) name else name.toLowerCase()
-  }
-
-  private def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
-    val nameList = new java.util.ArrayList[String]()
-    dataType match {
-      case structType: StructType =>
-        structType.fields.foreach(
-          field => {
-            nameList.add(normalizeColName(field.name))
-            val nestedNames = collectDataTypeNamesDFS(field.dataType)
-            nameList.addAll(nestedNames)
-          }
-        )
-      case _ =>
-    }
-    nameList
-  }
-
-  private def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
-    val nameList = new java.util.ArrayList[String]()
-    attributes.foreach(
-      attr => {
-        nameList.add(normalizeColName(attr.name))
-        if (BackendsApiManager.getSettings.supportStructType()) {
-          attr.dataType match {
-            case struct: StructType =>
-              val nestedNames = collectDataTypeNamesDFS(struct)
-              nameList.addAll(nestedNames)
-            case _ =>
-          }
-        }
-      }
-    )
-    nameList
-  }
-
 
   def getRelNode(context: SubstraitContext,
                  cmd: DataWritingCommand,
@@ -116,22 +78,33 @@ case class DataWritingCommandExecTransformer(
                  operatorId: Long,
                  input: RelNode,
                  validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val typeNodes = ConverterUtils.getTypeNodeFromAttributes(originalInputAttributes)
     val nameList = new java.util.ArrayList[String]()
     val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
-    nameList.addAll(collectAttributesNamesDFS(originalInputAttributes))
+    nameList.addAll(OperatorsUtils.collectAttributesNamesDFS(originalInputAttributes))
     var writePath = ""
+    var isParquet = false
+    var isDWRF = false
     cmd match {
-      case InsertIntoHadoopFsRelationCommand(outputPath, _, _, _, _, _, _, _, _, _, _, _) =>
+      case InsertIntoHadoopFsRelationCommand(
+      outputPath, _, _, _, _, fileFormat, _, _, _, _, _, _) =>
+        fileFormat.getClass.getSimpleName match {
+          case "ParquetFileFormat" =>
+            isParquet = true
+          case "DwrfFileFormat" =>
+            isDWRF = true
+          case _ =>
+        }
         writePath = outputPath.toString
       case _ =>
     }
 
     if (!validation) {
-
       RelBuilder.makeWriteRel(
-        input, typeNodes, nameList, columnTypeNodes, writePath, context, operatorId)
+        input, typeNodes, nameList, columnTypeNodes, writePath,
+        OperatorsUtils.createExtensionNode(
+          genFormatParametersBuilder(isParquet, isDWRF), originalInputAttributes),
+        context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -146,7 +119,27 @@ case class DataWritingCommandExecTransformer(
     }
   }
 
-   override  def doValidate(): Boolean = {
+  def genFormatParametersBuilder(isPARQUET: Boolean,
+                                 isDWRF: Boolean = false): Any.Builder = {
+    // Start with "FormatParameters:"
+    val formatParametersStr = new StringBuffer("WriteFormatParameters:")
+    // isParquet: 0 for DWRF, 1 for Parquet
+    formatParametersStr.append("isPARQUET=").append(if (isPARQUET) 1 else 0).append("\n")
+      .append("idDWRF=").append(if (isDWRF) 1 else 0).append("\n")
+
+    val message = StringValue
+      .newBuilder()
+      .setValue(formatParametersStr.toString)
+      .build()
+    Any.newBuilder
+      .setValue(message.toByteString)
+      .setTypeUrl("/google.protobuf.StringValue")
+  }
+
+  override def doValidateInternal(): Boolean = {
+    if (!BackendsApiManager.getSettings.supportWriteExec()) {
+      return false
+    }
      val substraitContext = new SubstraitContext
      val operatorId = substraitContext.nextOperatorId
      val relNode = try {

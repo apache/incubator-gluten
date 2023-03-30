@@ -259,7 +259,7 @@ case class SortMergeJoinExecTransformer(
       return false
     }
     val relNode = try {
-      JoinUtils.createJoinRel(
+      OperatorsUtils.createJoinRel(
         streamedKeys,
         bufferedKeys,
         condition,
@@ -319,14 +319,14 @@ case class SortMergeJoinExecTransformer(
       context.registerRelToOperator(operatorId)
     }
 
-    if (JoinUtils.preProjectionNeeded(leftKeys)) {
+    if (OperatorsUtils.preProjectionNeeded(leftKeys)) {
       joinParams.streamPreProjectionNeeded = true
     }
-    if (JoinUtils.preProjectionNeeded(rightKeys)) {
+    if (OperatorsUtils.preProjectionNeeded(rightKeys)) {
       joinParams.buildPreProjectionNeeded = true
     }
 
-    val joinRel = JoinUtils.createJoinRel(
+    val joinRel = OperatorsUtils.createJoinRel(
       streamedKeys,
       bufferedKeys,
       condition,
@@ -343,7 +343,7 @@ case class SortMergeJoinExecTransformer(
 
     context.registerJoinParam(operatorId, joinParams)
 
-    JoinUtils.createTransformContext(
+    OperatorsUtils.createTransformContext(
       false,
       output,
       joinRel,
