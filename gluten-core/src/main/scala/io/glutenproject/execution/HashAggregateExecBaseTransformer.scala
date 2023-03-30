@@ -144,6 +144,7 @@ abstract class HashAggregateExecBaseTransformer(
     val aggParams = new AggregationParams
     val relNode = {
       try {
+        logDebug(s"start to do validate on if Agg relation is supported")
         getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
       } catch {
         case e: Throwable =>
@@ -220,7 +221,7 @@ abstract class HashAggregateExecBaseTransformer(
           break
         }
         expr.mode match {
-          case Partial =>
+          case Partial | Complete =>
             for (aggChild <- expr.aggregateFunction.children) {
               if (!aggChild.isInstanceOf[Attribute] && !aggChild.isInstanceOf[Literal]) {
                 needsProjection = true
@@ -457,7 +458,7 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += aggregateAttributeList(resIndex)
               resIndex += 1
             case other =>
-              throw new UnsupportedOperationException(s"not currently supported: $other.")
+              throw new UnsupportedOperationException(s"avg mode not currently supported: $other.")
           }
         case Sum(_, _) =>
           mode match {
@@ -475,11 +476,14 @@ abstract class HashAggregateExecBaseTransformer(
                 aggregateAttr += attr
                 resIndex += 1
               }
+            case Complete =>
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case Final =>
               aggregateAttr += aggregateAttributeList(resIndex)
               resIndex += 1
             case other =>
-              throw new UnsupportedOperationException(s"not currently supported: $other.")
+              throw new UnsupportedOperationException(s"sum mode not currently supported: $other.")
           }
         case Count(_) =>
           mode match {
@@ -489,11 +493,14 @@ abstract class HashAggregateExecBaseTransformer(
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
               aggregateAttr += attr
               resIndex += 1
+            case Complete =>
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case Final =>
               aggregateAttr += aggregateAttributeList(resIndex)
               resIndex += 1
             case other =>
-              throw new UnsupportedOperationException(s"not currently supported: $other.")
+              throw new UnsupportedOperationException(s"count mode not currently supported: $other.")
           }
         case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg | _: BitXorAgg =>
           mode match {
@@ -508,7 +515,7 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += aggregateAttributeList(resIndex)
               resIndex += 1
             case other =>
-              throw new UnsupportedOperationException(s"not currently supported: $other.")
+              throw new UnsupportedOperationException(s"Min/Max/BitAndAgg/BitOrAgg mode not currently supported: $other.")
           }
         case _: Corr =>
           mode match {
@@ -557,6 +564,8 @@ abstract class HashAggregateExecBaseTransformer(
                 aggregateAttr += attr
               }
               resIndex += 3
+            case PartialMerge =>
+              throw new UnsupportedOperationException("StddevSamp not currently supported: PartialMerge.")
             case Final =>
               aggregateAttr += aggregateAttributeList(resIndex)
               resIndex += 1
@@ -608,8 +617,9 @@ abstract class HashAggregateExecBaseTransformer(
       case Partial => "PARTIAL"
       case PartialMerge => "PARTIAL_MERGE"
       case Final => "FINAL"
+      case Complete => "COMPLETE"
       case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
+        throw new UnsupportedOperationException(s"Agg func mode not currently supported: $other.")
     }
   }
 
@@ -644,6 +654,12 @@ abstract class HashAggregateExecBaseTransformer(
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggExpr.mode match {
         case Partial =>
+          aggregateFunc.children.toList.map(expr => {
+            ExpressionConverter
+              .replaceWithExpressionTransformer(expr, originalInputAttributes)
+              .doTransform(args)
+          })
+        case Complete =>
           aggregateFunc.children.toList.map(expr => {
             ExpressionConverter
               .replaceWithExpressionTransformer(expr, originalInputAttributes)

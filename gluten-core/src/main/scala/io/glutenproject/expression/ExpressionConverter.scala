@@ -290,6 +290,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           BindReferences.bindReference(expr, attributeSeq, allowFailures = true)
         if (bindReference == expr) {
           // This means bind failure.
+          logDebug(s"not able to found the matching attribute in $expr")
           throw new UnsupportedOperationException(s"$expr attribute binding failed.")
         } else {
           val b = bindReference.asInstanceOf[BoundReference]
