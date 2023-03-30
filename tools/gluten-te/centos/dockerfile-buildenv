@@ -63,4 +63,9 @@ RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 ENV PATH="$PATH:/usr/lib/maven/bin"
 ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib
 
+# Velox setup scripts require sudo
+RUN yum -y install sudo \
+    && yum clean all
+RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
 COPY env.sh /env.sh
