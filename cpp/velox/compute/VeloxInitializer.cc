@@ -143,6 +143,7 @@ velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
 }
 
 void VeloxInitializer::InitCache(std::unordered_map<std::string, std::string>& conf) {
+  ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(16);
   auto key = conf.find(kVeloxCacheEnabled);
   if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
     FLAGS_ssd_odirect = true;
