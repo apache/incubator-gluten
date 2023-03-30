@@ -1,12 +1,8 @@
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GlutenConfig;
-import org.apache.commons.io.FileUtils;
-import org.apache.spark.util.GlutenShutdownManager;
 import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.runtime.BoxedUnit;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
