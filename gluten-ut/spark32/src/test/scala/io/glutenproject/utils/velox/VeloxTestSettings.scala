@@ -52,27 +52,20 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    // decimal failed ut
+    // Cast from varchar to decimal.
     .exclude("Fast fail for cast string type to decimal type")
-    .exclude("cast and add")
     .exclude("data type casting")
-    .exclude("cast from date")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
     .exclude("SPARK-28470: Cast should honor nullOnOverflow property")
-    .exclude("casting to fixed-precision decimals")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    // decimal failed ut
+    // Cast from varchar to decimal.
     .exclude("Fast fail for cast string type to decimal type")
-    .exclude("cast and add")
     .exclude("data type casting")
-    .exclude("cast from date")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
-    .exclude("SPARK-28470: Cast should honor nullOnOverflow property")
-    .exclude("casting to fixed-precision decimals")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
     .exclude(
@@ -80,7 +73,6 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     // decimal failed ut
     .exclude("Fast fail for cast string type to decimal type")
-    .exclude("cast and add")
     .exclude("data type casting")
 
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
