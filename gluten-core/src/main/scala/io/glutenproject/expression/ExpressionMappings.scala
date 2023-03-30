@@ -41,6 +41,9 @@ object ExpressionMappings {
   final val VAR_POP = "var_pop"
   final val BIT_AND_AGG = "bitwise_and_agg"
   final val BIT_OR_AGG = "bitwise_or_agg"
+  final val CORR = "corr"
+  final val COVAR_POP = "covar_pop"
+  final val COVAR_SAMP = "covar_samp"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -400,7 +403,10 @@ object ExpressionMappings {
     Sig[VarianceSamp](VAR_SAMP),
     Sig[VariancePop](VAR_POP),
     Sig[BitAndAgg](BIT_AND_AGG),
-    Sig[BitOrAgg](BIT_OR_AGG)
+    Sig[BitOrAgg](BIT_OR_AGG),
+    Sig[Corr](CORR),
+    Sig[CovPopulation](COVAR_POP),
+    Sig[CovSample](COVAR_SAMP)
   )
 
   /**

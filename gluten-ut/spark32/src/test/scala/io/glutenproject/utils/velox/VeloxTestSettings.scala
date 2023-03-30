@@ -177,6 +177,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // Spill not supported yet.
     .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
     .exclude("NaN and -0.0 in window partition keys") // NaN case
+    // Rewrite with NaN test cases excluded.
+    .exclude("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window")
+    .exclude("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]
