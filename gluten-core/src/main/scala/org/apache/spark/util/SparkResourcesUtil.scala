@@ -40,10 +40,10 @@ object SparkResourcesUtil extends Logging {
         sqlConf.getConfString("spark.default.parallelism", "1").toInt
       case yarn if yarn.startsWith("yarn") =>
         val instances = getYarnExecutorNum(sqlConf)
-        val cores = sqlConf.getConfString("spark.executor.cores").toInt
+        val cores = sqlConf.getConfString("spark.executor.cores", "1").toInt
         Math.max(instances * cores, sqlConf.getConfString("spark.default.parallelism", "1").toInt)
       case standalone if standalone.startsWith("spark:") =>
-        Math.max(sqlConf.getConfString("spark.cores.max").toInt,
+        Math.max(sqlConf.getConfString("spark.cores.max", "1").toInt,
           sqlConf.getConfString("spark.default.parallelism", "1").toInt)
     }
   }
@@ -55,10 +55,10 @@ object SparkResourcesUtil extends Logging {
     if (sqlConf.getConfString("spark.dynamicAllocation.enabled", "false").toBoolean) {
       val maxExecutors =
         sqlConf.getConfString("spark.dynamicAllocation.maxExecutors",
-          sqlConf.getConfString("spark.default.parallelism")).toInt
+          sqlConf.getConfString("spark.default.parallelism", "1")).toInt
       maxExecutors
     } else {
-      sqlConf.getConfString("spark.executor.instances").toInt
+      sqlConf.getConfString("spark.executor.instances", "1").toInt
     }
   }
 
