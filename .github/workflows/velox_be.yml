@@ -264,7 +264,7 @@ jobs:
           source /env.sh && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow_for_velox.sh && \
+          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
