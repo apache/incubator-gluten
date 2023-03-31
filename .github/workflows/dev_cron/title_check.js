@@ -21,7 +21,7 @@ function haveISSUESID(title) {
   if (!title) {
     return false;
   }
-  return /^\[Gluten-\d+\]/.test(title);
+  return /^\[GLUTEN-\d+\]/.test(title);
 }
 
 async function commentOpenISSUESIssue(github, context, pullRequestNumber) {
