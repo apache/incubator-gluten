@@ -72,3 +72,6 @@ cpp/**/benchmarks/**/*
 cpp/**/example/**/*
 !cpp/**/example/**/
 !cpp/**/example/**/*.*
+
+# Generated ClickHouse test config
+/cpp-ch/tests/testConfig.h
