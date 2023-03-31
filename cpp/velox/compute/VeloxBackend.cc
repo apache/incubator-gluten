@@ -33,19 +33,15 @@ using namespace facebook;
 
 namespace gluten {
 
-namespace {
-const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
-}
-
 VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
   // mem tracker
   int64_t maxMemory;
-  auto got = confMap_.find(kSparkOffHeapMemory);
+  auto got = confMap_.find(kVeloxMemoryCap);
   if (got == confMap_.end()) {
     // not found
     maxMemory = facebook::velox::memory::kMaxMemory;
   } else {
-    maxMemory = (long)(0.75 * std::stol(got->second));
+    maxMemory = (long)(std::stol(got->second));
   }
   try {
     // 1/2 of offheap size.

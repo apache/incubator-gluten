@@ -222,7 +222,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def offHeapMemorySize: Long =
-    conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
+    conf.getConfString(GlutenConfig.GLUTEN_MEMORY_CAP_KEY, "0").toLong
 
   // velox caching options
   // enable Velox cache, default off
@@ -328,7 +328,9 @@ object GlutenConfig {
 
   // Added back to Spark Conf during driver / executor initialization
   val GLUTEN_TIMEZONE = "spark.gluten.timezone"
-  val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
+  val GLUTEN_MEMORY_CAP_KEY = "spark.gluten.sql.columnar.backend.velox.memoryCap"
+  val GLUTEN_DEFAULT_MEMORY_CAP_RETIO: Double = 0.75
+  val GLUTEN_MEMORY_CAP_RETIO_KEY = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio"
 
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
@@ -366,7 +368,12 @@ object GlutenConfig {
       throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
     }
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
-    generatedMap.put(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
+    val glutenOffheapPercent = conf.getDouble(
+      GlutenConfig.GLUTEN_MEMORY_CAP_RETIO_KEY,
+      GlutenConfig.GLUTEN_DEFAULT_MEMORY_CAP_RETIO)
+    generatedMap.put(
+      GlutenConfig.GLUTEN_MEMORY_CAP_KEY,
+      (offHeapSize * glutenOffheapPercent).toLong.toString)
 
     // return
     generatedMap
@@ -377,7 +384,7 @@ object GlutenConfig {
     val conf = SQLConf.get
     val keys = ImmutableList.of(
       GLUTEN_SAVE_DIR,
-      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
+      GLUTEN_MEMORY_CAP_KEY
     )
     keys.forEach(
       k => {
@@ -407,7 +414,7 @@ object GlutenConfig {
       SPARK_HIVE_EXEC_ORC_COMPRESS,
       // DWRF datasource config end
       GLUTEN_TIMEZONE,
-      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
+      GLUTEN_MEMORY_CAP_KEY
     )
     keys.forEach(
       k => {

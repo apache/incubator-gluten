@@ -14,7 +14,6 @@ namespace gluten {
 
 namespace {
 const std::string kSparkBatchSize = "spark.sql.execution.arrow.maxRecordsPerBatch";
-const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
@@ -177,11 +176,10 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   }
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
-  got = confMap_.find(kSparkOffHeapMemory);
+  got = confMap_.find(kVeloxMemoryCap);
   if (got != confMap_.end()) {
     try {
-      // Set the max memory of partial aggregation as 3/4 of offheap size.
-      auto maxMemory = (long)(0.75 * std::stol(got->second));
+      auto maxMemory = (long)(std::stol(got->second));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
     } catch (const std::invalid_argument&) {
       throw std::runtime_error("Invalid off-heap memory size.");
