@@ -17,18 +17,23 @@
 
 package io.glutenproject.expression
 
+import scala.util.control.Breaks.{break, breakable}
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{GlutenColumnarToRowExecBase, WholeStageTransformerExec}
+import io.glutenproject.substrait.expression.ExpressionBuilder
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
+import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{Decimal, DecimalType}
 
-object ExpressionConverter extends Logging {
+object ExpressionConverter extends SQLConfHelper with Logging {
 
   /**
    * remove the test when child is PromotePrecision and PromotePrecision is Cast(Decimal, Decimal)
@@ -49,10 +54,58 @@ object ExpressionConverter extends Logging {
     }
   }
 
+  // For decimal * 10 case, dec will be Decimal(38, 18), then the result precision is wrong,
+  // so here we will get the real precision and scale of the literal
+  private def getNewPrecisionScale(dec: Decimal): (Integer, Integer) = {
+    val input = dec.abs.toString()
+    val dotIndex = input.indexOf(".")
+    if (dotIndex == -1) {
+      return (input.length, 0)
+    }
+
+    if (dec.toBigDecimal.isValidLong) {
+      return (dotIndex, 0)
+    }
+
+    (dec.precision, dec.scale)
+  }
+
+  // change the precision and scale to literal actual precision and scale, otherwise the result
+  // precision loss
+  private def rescaleLiteral(arithmeticExpr: BinaryArithmetic): BinaryArithmetic = {
+     if (arithmeticExpr.left.isInstanceOf[PromotePrecision]
+       && arithmeticExpr.right.isInstanceOf[Literal]) {
+       val lit = arithmeticExpr.right.asInstanceOf[Literal]
+       lit.value match {
+         case decLit: Decimal =>
+           val (precision, scale) = getNewPrecisionScale(decLit)
+           if (precision != decLit.precision || scale != decLit.scale) {
+             arithmeticExpr.withNewChildren(Seq(arithmeticExpr.left,
+               Cast(lit, DecimalType(precision, scale)))).asInstanceOf[BinaryArithmetic]
+           } else arithmeticExpr
+         case _ => arithmeticExpr
+       }
+     } else if (arithmeticExpr.right.isInstanceOf[PromotePrecision]
+       && arithmeticExpr.left.isInstanceOf[Literal]) {
+       val lit = arithmeticExpr.left.asInstanceOf[Literal]
+       lit.value match {
+         case decLit: Decimal =>
+           val (precision, scale) = getNewPrecisionScale(decLit)
+           if (precision != decLit.precision || scale != decLit.scale) {
+             arithmeticExpr.withNewChildren(Seq(Cast(lit, DecimalType(precision, scale)),
+               arithmeticExpr.right)).asInstanceOf[BinaryArithmetic]
+           } else arithmeticExpr
+         case _ => arithmeticExpr
+       }
+     } else {
+       arithmeticExpr
+     }
+   }
+
   // If casting between DecimalType, unnecessary cast is skipped to avoid data loss,
   // because argument input type of "cast" is actually the res type of "+-*/".
   // Cast will use a wider input type, then calculated a less scale result type than vanilla spark
-  private def needRemoveCast(b: BinaryArithmetic): Boolean = {
+  private def isDecimalArithmetic(b: BinaryArithmetic): Boolean = {
     if (b.left.dataType.isInstanceOf[DecimalType]
       && b.right.dataType.isInstanceOf[DecimalType]) {
       b match {
@@ -60,6 +113,8 @@ object ExpressionConverter extends Logging {
         case _: Multiply => true
         case _: Add => true
         case _: Subtract => true
+        case _: Remainder => true
+        case _: Pmod => true
         case _ => false
       }
     } else false
@@ -299,15 +354,25 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           u)
       case b: BinaryExpression =>
-        val newLeft = b match {
-          case arithmetic: BinaryArithmetic if needRemoveCast(arithmetic) =>
-            removeCastForDecimal(b.left)
-          case _ => b.left
+        val rescaleBinary = b match {
+          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic)
+            && !conf.decimalOperationsAllowPrecisionLoss =>
+            throw new UnsupportedOperationException(
+              s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} false mode")
+          case arith: BinaryArithmetic if isDecimalArithmetic(arith) &&
+            BackendsApiManager.getSettings.rescaleDecimalLiteral() =>
+            rescaleLiteral(arith)
+          case _ => b
         }
-        val newRight = b match {
-          case arithmetic: BinaryArithmetic if needRemoveCast(arithmetic) =>
-            removeCastForDecimal(b.right)
-          case _ => b.right
+        val newLeft = rescaleBinary match {
+          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic) =>
+            removeCastForDecimal(rescaleBinary.left)
+          case _ => rescaleBinary.left
+        }
+        val newRight = rescaleBinary match {
+          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic) =>
+            removeCastForDecimal(rescaleBinary.right)
+          case _ => rescaleBinary.right
         }
 
         BinaryExpressionTransformer(
