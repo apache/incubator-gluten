@@ -329,6 +329,8 @@ object GlutenConfig {
   // Added back to Spark Conf during driver / executor initialization
   val GLUTEN_TIMEZONE = "spark.gluten.timezone"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
+  val GLUTEN_DEFAULT_OFFHEAP_PERCENT: Double = 0.75
+  val GLUTEN_OFFHEAP_PERCENT_KEY = "spark.gluten.memory.offHeap.percent"
 
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
@@ -365,7 +367,10 @@ object GlutenConfig {
       throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
     }
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
-    generatedMap.put(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
+    val glutenOffheapPercent = conf.getDouble(
+      GlutenConfig.GLUTEN_OFFHEAP_PERCENT_KEY, GlutenConfig.GLUTEN_DEFAULT_OFFHEAP_PERCENT)
+    generatedMap.put(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
+      (offHeapSize * glutenOffheapPercent).toLong.toString)
 
     // return
     generatedMap
