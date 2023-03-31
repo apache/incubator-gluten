@@ -176,7 +176,25 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
 
   override protected def afterAll(): Unit = {
     ClickHouseLog.clearCache()
-    super.afterAll()
+
+    try {
+      super.afterAll()
+    } finally {
+      try {
+        if (_spark != null) {
+          try {
+            _spark.sessionState.catalog.reset()
+          } finally {
+            _spark.stop()
+            _spark = null
+          }
+        }
+      } finally {
+        SparkSession.clearActiveSession()
+        SparkSession.clearDefaultSession()
+      }
+    }
+
     FileUtils.forceDelete(new File(basePath))
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null
