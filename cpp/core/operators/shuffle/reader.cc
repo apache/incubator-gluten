@@ -30,6 +30,9 @@ ReaderOptions ReaderOptions::Defaults() {
 Reader::Reader(std::shared_ptr<arrow::io::InputStream> in, std::shared_ptr<arrow::Schema> schema, ReaderOptions options)
     : in_(std::move(in)), options_(std::move(options)), schema_(std::move(schema)) {
   GLUTEN_ASSIGN_OR_THROW(first_message_, arrow::ipc::ReadMessage(in_.get()))
+  if (first_message_ == nullptr) {
+    throw GlutenException("Failed to read message from shuffle.");
+  }
   if (first_message_->type() == arrow::ipc::MessageType::SCHEMA) {
     GLUTEN_ASSIGN_OR_THROW(schema_, arrow::ipc::ReadSchema(*first_message_, nullptr))
     first_message_consumed_ = true;
