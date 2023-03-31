@@ -50,11 +50,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    // decimal failed ut
-    .exclude("cast and add")
-    .exclude("data type casting")
-    .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
-    .exclude("SPARK-28470: Cast should honor nullOnOverflow property")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
     .exclude(
@@ -65,8 +60,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    // decimal failed ut
-    .exclude("data type casting")
 
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude(

@@ -53,6 +53,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
+  // For decimal * 10 case, dec will be Decimal(38, 18), then the result precision is wrong,
+  // so here we will get the real precision and scale of the literal
   private def getNewPrecisionScale(dec: Decimal): (Integer, Integer) = {
     val input = dec.abs.toString()
     val arr = input.toCharArray
@@ -71,6 +73,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     (dotIndex + newScale, newScale)
   }
 
+  // change the precision and scale to literal actual precision and scale, otherwise the result
+  // precision loss
   private def rescaleLiteral(arithmeticExpr: BinaryArithmetic): Unit = {
     if (arithmeticExpr.left.isInstanceOf[PromotePrecision]
       && arithmeticExpr.right.isInstanceOf[Literal]) {
