@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks.{break, breakable}
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
@@ -36,6 +37,7 @@ import org.apache.spark.{broadcast, TaskContext}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.utils.SparkArrowUtil
 import io.glutenproject.vectorized._
+import io.glutenproject.GlutenConfig
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.memory.ArrowBuf
 
@@ -304,11 +306,12 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
       val converter = new RowToColumnConverter(localSchema)
       val arrowSchema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
       val jniWrapper = new NativeRowToColumnarJniWrapper()
+      var lastUnProcessRow: UnsafeRow = null
       if (rowIterator.hasNext) {
         val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
 
           override def hasNext: Boolean = {
-            rowIterator.hasNext
+            rowIterator.hasNext || lastUnProcessRow != null
           }
 
           def nativeConvert(row: UnsafeRow): ColumnarBatch = {
@@ -328,32 +331,36 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
             // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
             // 31760L origins from BaseVariableWidthVector.lastValueAllocationSizeInBytes
             // experimental value
-            val estimatedBufSize = Math.max(
-              Math.min(sizeInBytes.toDouble * numRows * 1.2, 31760L * numRows),
-              sizeInBytes.toDouble * 10)
+            val estimatedBufSize = if (GlutenConfig.getConf.offHeapMemorySize != 0) {
+              Math.min(sizeInBytes.toDouble * numRows,
+                GlutenConfig.getConf.offHeapMemorySize / 4)
+            } else {
+              Math.min(sizeInBytes.toDouble * numRows,
+                GlutenConfig.getConf.nativeRowToColumnDefaultSize)
+            }
             arrowBuf = allocator.buffer(estimatedBufSize.toLong)
             Platform.copyMemory(row.getBaseObject, row.getBaseOffset,
               null, arrowBuf.memoryAddress() + offset, sizeInBytes)
             offset += sizeInBytes
             rowLength += sizeInBytes.toLong
             rowCount += 1
-
-            while (rowCount < numRows && rowIterator.hasNext) {
-              val row = rowIterator.next()
-              val unsafeRow = row.asInstanceOf[UnsafeRow]
-              val sizeInBytes = unsafeRow.getSizeInBytes
-              if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-                val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
-                tmpBuf.setBytes(0, arrowBuf, 0, offset)
-                arrowBuf.close()
-                arrowBuf = tmpBuf
+            lastUnProcessRow = null
+            breakable {
+              while (rowCount < numRows && rowIterator.hasNext) {
+                val row = rowIterator.next().asInstanceOf[UnsafeRow]
+                val sizeInBytes = row.getSizeInBytes
+                if ((offset + sizeInBytes) > arrowBuf.capacity()) {
+                  lastUnProcessRow = row
+                  break
+                }
+                Platform.copyMemory(row.getBaseObject, row.getBaseOffset,
+                  null, arrowBuf.memoryAddress() + offset, sizeInBytes)
+                offset += sizeInBytes
+                rowLength += sizeInBytes.toLong
+                rowCount += 1
               }
-              Platform.copyMemory(unsafeRow.getBaseObject, unsafeRow.getBaseOffset,
-                null, arrowBuf.memoryAddress() + offset, sizeInBytes)
-              offset += sizeInBytes
-              rowLength += sizeInBytes.toLong
-              rowCount += 1
             }
+
             numInputRows += rowCount
             val cSchema = ArrowSchema.allocateNew(allocator)
             try {
@@ -391,7 +398,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
           }
 
           override def next(): ColumnarBatch = {
-            val firstRow = rowIterator.next()
+            val firstRow = if (lastUnProcessRow != null) lastUnProcessRow else rowIterator.next()
             val start = System.currentTimeMillis()
             val cb = firstRow match {
               case unsafeRow: UnsafeRow if useNative =>
