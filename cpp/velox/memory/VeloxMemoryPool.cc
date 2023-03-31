@@ -138,6 +138,9 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
             numPages,
             out,
             [this](int64_t allocBytes, bool preAllocate) {
+              bool succeed =
+                  preAllocate ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
+              VELOX_CHECK(succeed)
               if (memoryUsageTracker_ != nullptr) {
                 memoryUsageTracker_->update(preAllocate ? allocBytes : -allocBytes);
               }
@@ -157,6 +160,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     if (memoryUsageTracker_ != nullptr) {
       memoryUsageTracker_->update(-freedBytes);
     }
+    VELOX_CHECK(gluten_alloc_->UnreserveBytes(freedBytes))
   }
 
   velox::memory::MachinePageCount largestSizeClass() const override {
