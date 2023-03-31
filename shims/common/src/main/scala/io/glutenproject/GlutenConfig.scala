@@ -340,6 +340,7 @@ object GlutenConfig {
     new GlutenConfig(SQLConf.get)
   }
 
+  @deprecated
   def getTempFile: String = synchronized {
     if (ins != null && ins.tmpFile != null) {
       ins.tmpFile
