@@ -18,13 +18,12 @@ package io.glutenproject
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
 
 import java.util
-import java.util.{Locale, TimeZone}
+import java.util.Locale
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -222,28 +221,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def offHeapMemorySize: Long =
-    conf.getConfString(GlutenConfig.GLUTEN_MEMORY_CAP_KEY, "0").toLong
-
-  // velox caching options
-  // enable Velox cache, default off
-  def enableVeloxCache: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "false").toBoolean
-
-  // The folder to store the cache files, better on SSD
-  def veloxCachePath: String =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cachePath", "/tmp")
-
-  // The total cache size
-  def veloxCacheSize: Long =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheSize", "1073741824").toLong
-
-  // The cache shards
-  def veloxCacheShards: Integer =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheShards", "1").toInt
-
-  // The IO threads for cache promoting
-  def veloxIOThreads: Integer =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheIOThreads", "1").toInt
+    conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
 
   def transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
@@ -327,10 +305,7 @@ object GlutenConfig {
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
 
   // Added back to Spark Conf during driver / executor initialization
-  val GLUTEN_TIMEZONE = "spark.gluten.timezone"
-  val GLUTEN_MEMORY_CAP_KEY = "spark.gluten.sql.columnar.backend.velox.memoryCap"
-  val GLUTEN_DEFAULT_MEMORY_CAP_RETIO: Double = 0.75
-  val GLUTEN_MEMORY_CAP_RETIO_KEY = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio"
+  val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
 
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
@@ -351,40 +326,12 @@ object GlutenConfig {
     }
   }
 
-  // These options will be added back to driver's / executor's
-  //   SparkConf during initialization
-  // FIXME this method is currently used only by Velox backends.
-  //   We should somehow backend-ize configurations like this.
-  def createGeneratedConf(conf: SparkConf): util.Map[String, String] = {
-    val generatedMap = new util.HashMap[String, String]()
-
-    // timezone
-    generatedMap.put(
-      GlutenConfig.GLUTEN_TIMEZONE,
-      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
-
-    // off-heap bytes
-    if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
-    }
-    val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
-    val glutenOffheapPercent = conf.getDouble(
-      GlutenConfig.GLUTEN_MEMORY_CAP_RETIO_KEY,
-      GlutenConfig.GLUTEN_DEFAULT_MEMORY_CAP_RETIO)
-    generatedMap.put(
-      GlutenConfig.GLUTEN_MEMORY_CAP_KEY,
-      (offHeapSize * glutenOffheapPercent).toLong.toString)
-
-    // return
-    generatedMap
-  }
-
-  def getNativeSessionConf(): util.Map[String, String] = {
+  // TODO Backend-ize this
+  def getNativeSessionConf(backendPrefix: String): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val conf = SQLConf.get
     val keys = ImmutableList.of(
-      GLUTEN_SAVE_DIR,
-      GLUTEN_MEMORY_CAP_KEY
+      GLUTEN_SAVE_DIR
     )
     keys.forEach(
       k => {
@@ -398,6 +345,12 @@ object GlutenConfig {
       (SQLConf.CASE_SENSITIVE.key, "false")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getConfString(e._1, e._2)))
+
+    // FIXME all configs with BE prefix is considered dynamic and static at the same time
+    //   We'd untangle this logic
+    conf.getAllConfs
+      .filter(_._1.startsWith(backendPrefix))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
     nativeConfMap
@@ -413,8 +366,7 @@ object GlutenConfig {
       SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
       SPARK_HIVE_EXEC_ORC_COMPRESS,
       // DWRF datasource config end
-      GLUTEN_TIMEZONE,
-      GLUTEN_MEMORY_CAP_KEY
+      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {

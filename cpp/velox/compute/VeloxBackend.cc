@@ -33,16 +33,36 @@ using namespace facebook;
 
 namespace gluten {
 
+namespace {
+// Velox configs
+const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
+} // namespace
+
 VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
+  // mem cap ratio
+  float_t memCapRatio;
+  {
+    auto got = confMap_.find(kMemoryCapRatio);
+    if (got == confMap_.end()) {
+      // not found
+      memCapRatio = 0.75;
+    } else {
+      memCapRatio = std::stof(got->second);
+    }
+  }
+
   // mem tracker
   int64_t maxMemory;
-  auto got = confMap_.find(kVeloxMemoryCap);
-  if (got == confMap_.end()) {
-    // not found
-    maxMemory = facebook::velox::memory::kMaxMemory;
-  } else {
-    maxMemory = (long)(std::stol(got->second));
+  {
+    auto got = confMap_.find(kSparkOffHeapMemory);
+    if (got == confMap_.end()) {
+      // not found
+      maxMemory = facebook::velox::memory::kMaxMemory;
+    } else {
+      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+    }
   }
+
   try {
     // 1/2 of offheap size.
     memUsageTracker_ = velox::memory::MemoryUsageTracker::create(maxMemory);

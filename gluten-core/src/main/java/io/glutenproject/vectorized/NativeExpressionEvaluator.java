@@ -94,7 +94,10 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
                 .namespace("velox-spill")
                 .mkChildDirRoundRobin(UUID.randomUUID().toString())
                 .getAbsolutePath(),
-            buildNativeConfNode(GlutenConfig.getNativeSessionConf()).toProtobuf().toByteArray());
+            buildNativeConfNode(
+                GlutenConfig.getNativeSessionConf(
+                    BackendsApiManager.getSettings().getBackendConfigPrefix()
+                )).toProtobuf().toByteArray());
     return createOutIterator(handle, outAttrs);
   }
 

@@ -35,6 +35,7 @@ class VeloxInitializer {
   explicit VeloxInitializer(std::unordered_map<std::string, std::string>& conf) {
     Init(conf);
   }
+
   ~VeloxInitializer() {
     if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
       LOG(INFO) << asyncDataCache_->toString();

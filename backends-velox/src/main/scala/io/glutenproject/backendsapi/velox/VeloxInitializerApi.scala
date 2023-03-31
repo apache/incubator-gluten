@@ -18,13 +18,12 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.InitializerApi
+import io.glutenproject.utils.{VeloxDllLoaderUbuntu2004, VeloxDllLoaderUbuntu2204}
 import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
-import io.glutenproject.utils.{VeloxDllLoaderUbuntu2004,VeloxDllLoaderUbuntu2204,VeloxDllLoader}
 import org.apache.commons.lang3.StringUtils
-import scala.collection.JavaConverters._
-import scala.sys.process._
-
 import org.apache.spark.SparkConf
+
+import scala.sys.process._
 
 class VeloxInitializerApi extends InitializerApi {
   def loadLibFromJar(load: JniLibLoader): Unit = {
@@ -41,7 +40,8 @@ class VeloxInitializerApi extends InitializerApi {
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR, GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)) {
+    if (conf.getBoolean(
+      GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR, GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)) {
       loadLibFromJar(loader)
     }
     loader.newTransaction()
@@ -53,6 +53,10 @@ class VeloxInitializerApi extends InitializerApi {
         .loadAndCreateLink("libqatzip.so.3.0.1", "libqatzip.so.3", false)
         .commit()
     }
+    // Set the system properties.
+    // Use appending policy for children with the same name in a arrow struct vector.
+    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
+
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
       JniLibLoader.loadFromPath(libPath, true)
@@ -61,8 +65,17 @@ class VeloxInitializerApi extends InitializerApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
+
+    // configs
+
+    // off-heap bytes
+    if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
+    }
+    val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
+    conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
+
     val initKernel = new GlutenNativeExpressionEvaluator()
-    conf.setAll(GlutenConfig.createGeneratedConf(conf).asScala)
     initKernel.initNative(conf)
   }
 }
