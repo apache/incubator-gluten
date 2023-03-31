@@ -176,7 +176,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   }
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
-  got = confMap_.find(kSparkOffHeapMemory);
+  got = confMap_.find(kVeloxMemoryCap);
   if (got != confMap_.end()) {
     try {
       auto maxMemory = (long)(std::stol(got->second));

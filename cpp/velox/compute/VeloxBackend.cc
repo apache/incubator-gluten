@@ -36,7 +36,7 @@ namespace gluten {
 VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
   // mem tracker
   int64_t maxMemory;
-  auto got = confMap_.find(kSparkOffHeapMemory);
+  auto got = confMap_.find(kVeloxMemoryCap);
   if (got == confMap_.end()) {
     // not found
     maxMemory = facebook::velox::memory::kMaxMemory;
