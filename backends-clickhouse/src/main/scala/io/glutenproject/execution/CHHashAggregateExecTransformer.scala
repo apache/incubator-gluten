@@ -158,7 +158,7 @@ case class CHHashAggregateExecTransformer(
               typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
             } else if (colName.toLowerCase(Locale.ROOT).startsWith("collect_list#")) {
               val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-              val originalType =
+              val (exprType, nullable) =
                 if (
                   originalExpr.isDefined &&
                   originalExpr.get
@@ -166,16 +166,18 @@ case class CHHashAggregateExecTransformer(
                     .aggregateFunction
                     .isInstanceOf[CollectList]
                 ) {
-                  originalExpr.get
+                  val child = originalExpr.get
                     .asInstanceOf[AggregateExpression]
                     .aggregateFunction
                     .asInstanceOf[CollectList]
                     .child
-                    .dataType
+                  (child.dataType, child.nullable)
                 } else {
-                  attr.dataType
+                  (attr.dataType, attr.nullable)
                 }
-              typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
+              // Be careful with the nullable. We must keep the nullable the same as the column
+              // otherwise it will cause a parsing exception on partial aggregated data.
+              typeList.add(ConverterUtils.getTypeNode(exprType, nullable))
             } else {
               typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
             }
