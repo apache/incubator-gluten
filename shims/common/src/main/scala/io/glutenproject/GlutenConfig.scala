@@ -368,8 +368,10 @@ object GlutenConfig {
     }
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
     val glutenOffheapPercent = conf.getDouble(
-      GlutenConfig.GLUTEN_OFFHEAP_PERCENT_KEY, GlutenConfig.GLUTEN_DEFAULT_OFFHEAP_PERCENT)
-    generatedMap.put(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GlutenConfig.GLUTEN_OFFHEAP_PERCENT_KEY,
+      GlutenConfig.GLUTEN_DEFAULT_OFFHEAP_PERCENT)
+    generatedMap.put(
+      GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       (offHeapSize * glutenOffheapPercent).toLong.toString)
 
     // return
