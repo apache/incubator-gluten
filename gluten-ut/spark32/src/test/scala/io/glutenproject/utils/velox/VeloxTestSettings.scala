@@ -411,8 +411,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     // Rewrite to align exception msg.
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
-    // decimal failed ut
-    .exclude("SPARK-34167: read LongDecimals with precision < 10, VectorizedReader false")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude(
