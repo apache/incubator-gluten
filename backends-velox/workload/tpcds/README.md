@@ -4,7 +4,8 @@
 Parquet format is supported. Here are the steps to generate the testing datasets:
 
 ### Generate the Parquet dataset
-Please refer to the scripts in ./gen_data/parquet_dataset/ directory to generate parquet dataset. Note this script relies on the [spark-sql-perf](https://github.com/databricks/spark-sql-perf) and the [tpcds-kit](https://github.com/databricks/tpcds-kit) package from Databricks.
+Please refer to the scripts in [parquet_dataset](./gen_data/parquet_dataset/) directory to generate parquet dataset.
+Note this script relies on the [spark-sql-perf](https://github.com/databricks/spark-sql-perf) and the [tpcds-kit](https://github.com/databricks/tpcds-kit) package from Databricks.
 
 In tpcds_datagen_parquet.sh, several parameters should be configured according to the system.
 ```
@@ -28,5 +29,5 @@ val dbgenDir = "/PATH/TO/TPCDS_DBGEN" // location of dbgen
 Currently, Gluten with Velox can support Parquet file format and three compression codec including snappy, gzip, zstd.
 
 ## Test Queries
-We provided the test queries in ./tpcds.queries.updated directory, which changed all DATE fields to STRING since DATE type is not well supported in Gluten with Velox backend.
-We also provided a scala code in ./run_tpcds/ directory about how to run TPC-DS queries.
+We provide the test queries in [TPC-DS Queries](../../../gluten-core/src/test/resources/tpcds-queries).
+We also provide a Scala script in [Run TPC-DS](./run_tpcds) directory about how to run TPC-DS queries.

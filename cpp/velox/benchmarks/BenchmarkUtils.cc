@@ -49,7 +49,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string&
   return maybePlan;
 }
 
-std::shared_ptr<velox::substrait::SplitInfo> getFileInfos(
+std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
     const std::string& datasetPath,
     const std::string& fileFormat) {
   auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();

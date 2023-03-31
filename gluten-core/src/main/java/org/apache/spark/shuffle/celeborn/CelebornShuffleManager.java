@@ -128,12 +128,16 @@ public class CelebornShuffleManager implements ShuffleManager {
   public void stop() {
     if (rssShuffleClient != null) {
       rssShuffleClient.shutdown();
+      ShuffleClient.reset();
+      rssShuffleClient = null;
     }
     if (lifecycleManager != null) {
       lifecycleManager.stop();
+      lifecycleManager = null;
     }
     if (columnarShuffleManager() != null) {
       columnarShuffleManager().stop();
+      _columnarShuffleManager = null;
     }
   }
 

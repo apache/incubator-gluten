@@ -45,8 +45,6 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
 
   override def nodeName: String = "GlutenColumnarToRowExec"
 
-  override def supportCodegen: Boolean = false
-
   override def buildCheck(): Unit = {
     val schema = child.schema
     child match {
@@ -89,6 +87,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
             case _: TimestampType =>
             case _: DateType =>
             case _: BinaryType =>
+            case _: DecimalType =>
             case _ =>
               throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
                   s"GlutenColumnarToRowExec/VeloxColumnarToRowConverter")
@@ -111,19 +110,11 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
       numOutputRows, numInputBatches, convertTime)
   }
 
-  override def inputRDDs(): Seq[RDD[InternalRow]] = {
-    Seq(child.executeColumnar().asInstanceOf[RDD[InternalRow]]) // Hack because of type erasure
-  }
-
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-
-  protected def doProduce(ctx: CodegenContext): String = {
-    throw new RuntimeException("Codegen is not supported!")
-  }
 
   protected def withNewChildInternal(newChild: SparkPlan): GlutenColumnarToRowExec =
     copy(child = newChild)

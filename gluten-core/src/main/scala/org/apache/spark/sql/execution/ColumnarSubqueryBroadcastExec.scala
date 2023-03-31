@@ -54,7 +54,8 @@ case class ColumnarSubqueryBroadcastExec(name: String,
     Seq(AttributeReference(name, key.dataType, key.nullable)())
   }
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarSubqueryBroadcastMetrics(sparkContext)
 
   override def doCanonicalize(): SparkPlan = {

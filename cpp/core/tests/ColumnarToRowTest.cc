@@ -77,8 +77,6 @@ TEST_F(ColumnarToRowTest, Int_64) {
 
   uint8_t* address = columnarToRowConverter->GetBufferAddress();
 
-  uint8_t a[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0};
-
   auto length_vec = columnarToRowConverter->GetLengths();
 
   long arr[length_vec.size()];

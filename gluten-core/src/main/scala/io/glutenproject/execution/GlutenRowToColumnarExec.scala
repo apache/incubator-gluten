@@ -46,7 +46,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * would only be to reduce code.
  */
 abstract class GlutenRowToColumnarExec(child: SparkPlan) extends UnaryExecNode {
-  override lazy val metrics =
+
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genRowToColumnarMetrics(sparkContext)
 
   override def output: Seq[Attribute] = child.output

@@ -1,12 +1,12 @@
 ### Build parameters
 
-#### Parameters for buildbundle-veloxbe.sh
+#### Parameters for builddeps-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=Release`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | build_type | Gluten build type(for arrow/velox/cpp), CMAKE_BUILD_TYPE  | Release |
-| build_test | build test code in cpp folder and arrow | OFF |
+| build_tests | build test code in cpp folder and arrow | OFF |
 | build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
 | build_jemalloc   | build with jemalloc | ON |
 | build_protobuf | build protobuf lib    | ON|
@@ -16,14 +16,14 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_hdfs | build with hdfs lib      | OFF|
 | enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
 
-#### Parameters for build_arrow_for_velox.sh
+#### Parameters for build_arrow.sh
 Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | arrow_home | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
 | build_type | ARROW build type, CMAKE_BUILD_TYPE        | Release|
-| build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
+| build_tests | Build arrow with -DARROW_JSON=ON          | OFF           |
 
 #### Parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.

@@ -23,10 +23,23 @@ class BatchScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metri
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     // inputMetrics.bridgeIncBytesRead(metrics("inputBytes").value)
-    inputMetrics.bridgeIncRecordsRead(metrics("inputRows").value)
+    // inputMetrics.bridgeIncRecordsRead(metrics("inputRows").value)
   }
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {}
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      MetricsUtil.updateOperatorMetrics(
+        metrics,
+        BatchScanMetricsUpdater.METRICS_MAP,
+        operatorMetrics)
+    }
   }
+}
+
+object BatchScanMetricsUpdater {
+  val METRICS_MAP = Map(
+    "SubstraitFileSource" -> "scanTime",
+    "MergeTreeInOrder" -> "scanTime"
+  )
 }

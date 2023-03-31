@@ -39,6 +39,12 @@ case class JoinParams() {
 
   // Whether postProjection is needed after Join.
   var postProjectionNeeded = true
+
+  // Whether is BHJ
+  var isBHJ = false
+
+  // Whether the join is with condition
+  var isWithCondition = false
 }
 
 case class AggregationParams() {

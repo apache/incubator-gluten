@@ -312,32 +312,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(byte_array_class);
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
-    JNIEnv* env,
-    jobject obj,
-    jstring pathObj) {
-  JNI_METHOD_START
-  jboolean ifCopy;
-  auto path = env->GetStringUTFChars(pathObj, &ifCopy);
-  setenv("NATIVESQL_TMP_DIR", path, 1);
-  env->ReleaseStringUTFChars(pathObj, path);
-  JNI_METHOD_END()
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetBatchSize(
-    JNIEnv* env,
-    jobject obj,
-    jint batch_size) {
-  setenv("NATIVESQL_BATCH_SIZE", std::to_string(batch_size).c_str(), 1);
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsTime(
-    JNIEnv* env,
-    jobject obj,
-    jboolean is_enable) {
-  setenv("NATIVESQL_METRICS_TIME", (is_enable ? "true" : "false"), 1);
-}
-
 JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
     JNIEnv* env,
     jobject obj,
@@ -347,10 +321,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     jint stage_id,
     jint partition_id,
     jlong task_id,
-    jboolean saveInput,
-    jbyteArray confArr) {
+    jboolean save_input,
+    jstring local_dir,
+    jbyteArray conf_arr) {
   JNI_METHOD_START
   arrow::Status msg;
+
+  auto local_dir_str = JStringToCString(env, local_dir);
 
   auto plan_data = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(plan_arr, 0));
   auto plan_size = env->GetArrayLength(plan_arr);
@@ -365,14 +342,14 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     gluten::JniThrow("Failed to parse plan.");
   }
 
-  auto confs = getConfMap(env, confArr);
+  auto confs = getConfMap(env, conf_arr);
 
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<ResultIterator>> input_iters;
   for (int idx = 0; idx < iters_len; idx++) {
     std::shared_ptr<ArrowWriter> writer = nullptr;
-    if (saveInput) {
+    if (save_input) {
       auto dir = confs[kGlutenSaveDir];
       std::filesystem::path f{dir};
       if (!std::filesystem::exists(f)) {
@@ -388,7 +365,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     input_iters.push_back(std::move(result_iter));
   }
 
-  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, input_iters, confs);
+  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, local_dir_str, input_iters, confs);
   return result_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
 }
@@ -697,35 +674,24 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     jlong allocator_id,
     jboolean write_schema,
     jlong firstBatchHandle,
-    jlong taskAttemptId) {
+    jlong taskAttemptId,
+    jint push_buffer_max_size,
+    jobject celeborn_partition_pusher,
+    jstring shuffle_writer_type_jstr) {
   JNI_METHOD_START
-  if (partitioning_name_jstr == NULL) {
+  if (partitioning_name_jstr == nullptr) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
     return 0;
   }
-  if (data_file_jstr == NULL) {
-    gluten::JniThrow(std::string("Shuffle DataFile can't be null"));
-  }
-  if (local_dirs_jstr == NULL) {
-    gluten::JniThrow(std::string("Shuffle DataFile can't be null"));
-  }
 
-  auto partitioning_name_c = env->GetStringUTFChars(partitioning_name_jstr, JNI_FALSE);
-  auto partitioning_name = std::string(partitioning_name_c);
-  env->ReleaseStringUTFChars(partitioning_name_jstr, partitioning_name_c);
+  auto partitioning_name = JStringToCString(env, partitioning_name_jstr);
 
   auto splitOptions = SplitOptions::Defaults();
-  splitOptions.write_schema = write_schema;
-  splitOptions.prefer_spill = prefer_spill;
   splitOptions.buffered_write = true;
   if (buffer_size > 0) {
     splitOptions.buffer_size = buffer_size;
   }
   splitOptions.offheap_per_task = offheap_per_task;
-
-  if (num_sub_dirs > 0) {
-    splitOptions.num_sub_dirs = num_sub_dirs;
-  }
 
   if (compression_type_jstr != NULL) {
     auto compression_type_result = GetCompressionType(env, compression_type_jstr);
@@ -734,19 +700,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     }
   }
 
-  auto data_file_c = env->GetStringUTFChars(data_file_jstr, JNI_FALSE);
-  splitOptions.data_file = std::string(data_file_c);
-  env->ReleaseStringUTFChars(data_file_jstr, data_file_c);
-
   auto* allocator = reinterpret_cast<MemoryAllocator*>(allocator_id);
   if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
   splitOptions.memory_pool = AsWrappedArrowMemoryPool(allocator);
-
-  auto local_dirs = env->GetStringUTFChars(local_dirs_jstr, JNI_FALSE);
-  setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
-  env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -762,80 +720,44 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
   splitOptions.task_attempt_id = (int64_t)taskAttemptId;
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
-  auto backend = gluten::CreateBackend();
-  auto batch = gluten_columnarbatch_holder_.Lookup(firstBatchHandle);
-  auto splitter = backend->makeSplitter(partitioning_name, num_partitions, std::move(splitOptions), batch->GetType());
-
-  return shuffle_splitter_holder_.Insert(splitter);
-
-  JNI_METHOD_END(-1L)
-}
-
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMakeForCeleborn(
-    JNIEnv* env,
-    jobject,
-    jstring partitioning_name_jstr,
-    jint num_partitions,
-    jlong offheap_per_task,
-    jint buffer_size,
-    jstring compression_type_jstr,
-    jint batch_compress_threshold,
-    jint push_buffer_max_size,
-    jobject celeborn_partition_pusher,
-    jlong allocator_id,
-    jlong firstBatchHandle,
-    jlong taskAttemptId) {
-  JNI_METHOD_START
-  if (partitioning_name_jstr == NULL) {
-    gluten::JniThrow(std::string("Short partitioning name can't be null"));
-    return 0;
-  }
-  auto partitioning_name_c = env->GetStringUTFChars(partitioning_name_jstr, JNI_FALSE);
-  auto partitioning_name = std::string(partitioning_name_c);
-  env->ReleaseStringUTFChars(partitioning_name_jstr, partitioning_name_c);
-  auto splitOptions = SplitOptions::Defaults();
-  splitOptions.buffered_write = true;
-  splitOptions.is_celeborn = true;
-  if (buffer_size > 0) {
-    splitOptions.buffer_size = buffer_size;
-  }
-  if (push_buffer_max_size > 0) {
-    splitOptions.push_buffer_max_size = push_buffer_max_size;
-  }
-  splitOptions.offheap_per_task = offheap_per_task;
-  if (compression_type_jstr != NULL) {
-    auto compression_type_result = GetCompressionType(env, compression_type_jstr);
-    if (compression_type_result.status().ok()) {
-      splitOptions.compression_type = compression_type_result.MoveValueUnsafe();
+  auto shuffle_writer_type_c = env->GetStringUTFChars(shuffle_writer_type_jstr, JNI_FALSE);
+  auto shuffle_writer_type = std::string(shuffle_writer_type_c);
+  env->ReleaseStringUTFChars(shuffle_writer_type_jstr, shuffle_writer_type_c);
+  if (shuffle_writer_type == "gluten") {
+    if (data_file_jstr == NULL) {
+      gluten::JniThrow(std::string("Shuffle DataFile can't be null"));
     }
-  }
+    if (local_dirs_jstr == NULL) {
+      gluten::JniThrow(std::string("Shuffle DataFile can't be null"));
+    }
 
-  auto* allocator = reinterpret_cast<MemoryAllocator*>(allocator_id);
-  if (allocator == nullptr) {
-    gluten::JniThrow("Memory pool does not exist or has been closed");
-  }
-  splitOptions.memory_pool = AsWrappedArrowMemoryPool(allocator);
-  jclass cls = env->FindClass("java/lang/Thread");
-  jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
-  jobject thread = env->CallStaticObjectMethod(cls, mid);
-  if (thread == NULL) {
-    std::cout << "Thread.currentThread() return NULL" << std::endl;
-  } else {
-    jmethodID mid_getid = GetMethodIDOrError(env, cls, "getId", "()J");
-    jlong sid = env->CallLongMethod(thread, mid_getid);
-    splitOptions.thread_id = (int64_t)sid;
-  }
+    splitOptions.write_schema = write_schema;
+    splitOptions.prefer_spill = prefer_spill;
 
-  splitOptions.task_attempt_id = (int64_t)taskAttemptId;
-  splitOptions.batch_compress_threshold = batch_compress_threshold;
-  JavaVM* vm;
-  if (env->GetJavaVM(&vm) != JNI_OK) {
-    gluten::JniThrow("Unable to get JavaVM instance");
-  }
-  std::shared_ptr<CelebornClient> celeborn_client =
-      std::make_shared<CelebornClient>(vm, celeborn_partition_pusher, celeborn_push_partition_data_method);
+    if (num_sub_dirs > 0) {
+      splitOptions.num_sub_dirs = num_sub_dirs;
+    }
 
-  splitOptions.celeborn_client = std::move(celeborn_client);
+    auto data_file_c = env->GetStringUTFChars(data_file_jstr, JNI_FALSE);
+    splitOptions.data_file = std::string(data_file_c);
+    env->ReleaseStringUTFChars(data_file_jstr, data_file_c);
+
+    auto local_dirs = env->GetStringUTFChars(local_dirs_jstr, JNI_FALSE);
+    setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
+    env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
+  } else if (shuffle_writer_type == "celeborn") {
+    splitOptions.is_celeborn = true;
+    if (push_buffer_max_size > 0) {
+      splitOptions.push_buffer_max_size = push_buffer_max_size;
+    }
+    JavaVM* vm;
+    if (env->GetJavaVM(&vm) != JNI_OK) {
+      gluten::JniThrow("Unable to get JavaVM instance");
+    }
+    std::shared_ptr<CelebornClient> celeborn_client =
+        std::make_shared<CelebornClient>(vm, celeborn_partition_pusher, celeborn_push_partition_data_method);
+    splitOptions.celeborn_client = std::move(celeborn_client);
+  }
 
   auto backend = gluten::CreateBackend();
   auto batch = gluten_columnarbatch_holder_.Lookup(firstBatchHandle);

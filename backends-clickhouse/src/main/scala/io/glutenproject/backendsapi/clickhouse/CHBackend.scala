@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, ParquetReadFormat}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{MergeTreeReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
@@ -33,6 +33,7 @@ import scala.util.control.Breaks.{break, breakable}
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
   override def initializerApi(): InitializerApi = new CHInitializerApi
+  override def shutdownApi(): ShutdownApi = new CHShutdownApi
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
@@ -83,8 +84,8 @@ object CHBackendSettings extends BackendSettings with Logging {
     format match {
       case ParquetReadFormat => validateFilePath
       case OrcReadFormat => true
-      // True for CH backend for unknown type.
-      case _ => true
+      case MergeTreeReadFormat => true
+      case _ => false
     }
   }
 

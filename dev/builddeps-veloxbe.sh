@@ -25,7 +25,7 @@ do
         BUILD_TYPE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --build_test=*)
+        --build_tests=*)
         BUILD_TESTS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
@@ -70,22 +70,15 @@ done
 
 ##install arrow
 cd $GLUTEN_DIR/ep/build-arrow/src
-./get_arrow.sh --enable_ep_cache=$ENABLE_EP_CACHE
-
-if [ $ENABLE_EP_CACHE == 'OFF' ] || [ ! -f $GLUTEN_DIR/ep/build-arrow/build/arrow-commit.cache ]; then
-  ./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
-                           --enable_qat=$ENABLE_QAT --enable_ep_cache=$ENABLE_EP_CACHE
-fi
+./get_arrow.sh --enable_qat=$ENABLE_QAT
+./build_arrow.sh --build_type=$BUILD_TYPE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
+                         --enable_ep_cache=$ENABLE_EP_CACHE
 
 ##install velox
 cd $GLUTEN_DIR/ep/build-velox/src
-./get_velox.sh --enable_ep_cache=$ENABLE_EP_CACHE
-
-if [ $ENABLE_EP_CACHE == 'OFF' ] || [ ! -f $GLUTEN_DIR/ep/build-velox/build/velox-commit.cache ]; then
-  ./build_velox.sh --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 \
-                 --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS  --build_type=$BUILD_TYPE \
-                 --enable_ep_cache=$ENABLE_EP_CACHE
-fi
+./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3
+./build_velox.sh --enable_s3=$ENABLE_S3 --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+               --enable_ep_cache=$ENABLE_EP_CACHE
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp

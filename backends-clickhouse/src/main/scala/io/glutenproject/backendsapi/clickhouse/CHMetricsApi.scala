@@ -34,7 +34,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       relMap: util.HashMap[lang.Long, util.ArrayList[lang.Long]],
       joinParamsMap: util.HashMap[lang.Long, JoinParams],
       aggParamsMap: util.HashMap[lang.Long, AggregationParams]): IMetrics => Unit = {
-    imetrics => {}
+    MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
   }
 
   override def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
@@ -42,10 +42,23 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
       "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
       "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
       "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time")
+      "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -55,18 +68,32 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+      "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
       "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
       "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of scan"),
+      "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
       "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
       "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
       "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
       "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
       "pruningTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(
@@ -74,7 +101,20 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genFilterTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of filter")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
   override def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -82,7 +122,20 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genProjectTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of project")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
   override def genProjectTransformerMetricsUpdater(
@@ -95,10 +148,10 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
       "collectTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime to collect batch"),
+        "total time to collect batch"),
       "concatTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime to coalesce batch"),
+        "total time to coalesce batch"),
       "avgCoalescedNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg coalesced batch num rows")
     )
@@ -106,7 +159,20 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def genHashAggregateTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of hash agg")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
   override def genHashAggregateTransformerMetricsUpdater(
@@ -115,7 +181,20 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genExpandTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of expand")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
   override def genExpandTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -142,12 +221,27 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "numOutputRows" -> SQLMetrics
         .createMetric(sparkContext, "number of output rows"),
       "inputBatches" -> SQLMetrics
-        .createMetric(sparkContext, "number of input batches")
+        .createMetric(sparkContext, "number of input batches"),
+      "outputBatches" -> SQLMetrics
+        .createMetric(sparkContext, "number of output batches")
     )
 
   override def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of expand")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
   override def genWindowTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -164,12 +258,25 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     Map(
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
       "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime to convert")
+      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time to convert")
     )
 
   override def genLimitTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of expand")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
   override def genLimitTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -177,7 +284,20 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of expand")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
   override def genSortTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -207,7 +327,24 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genHashJoinTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "totalTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of join")
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "extraNullSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra null source time"),
+      "extraExpressionTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra project time"),
+      "extraSourceFromJavaIterTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra read iter time"),
+      "extraConvertingAggregatedToChunksTransformTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks transform time"),
+      "extraConvertingAggregatedToChunksSourceTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "extra convert chunks source time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "probe time"),
+      "fillingRightJoinSideTime" -> SQLMetrics.createTimingMetric(
+        sparkContext,
+        "filling right join side time"),
+      "conditionTime" -> SQLMetrics.createTimingMetric(sparkContext, "join condition time")
     )
 
   override def genHashJoinTransformerMetricsUpdater(

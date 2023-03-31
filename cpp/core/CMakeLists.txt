@@ -82,6 +82,8 @@ macro(build_protobuf)
   set(
     PROTOBUF_INCLUDE
     "${PROTOBUF_PREFIX}/include"
+    CACHE PATH
+    "Protobuf include path"
     )
   set(PROTOBUF_COMPILER "${PROTOBUF_PREFIX}/bin/protoc")
   set(PROTOBUF_CONFIGURE_ARGS
@@ -121,6 +123,7 @@ macro(find_protobuf)
     message(FATAL_ERROR "Protobuf Library Not Found")
   endif()
   set(PROTOC_BIN ${Protobuf_PROTOC_EXECUTABLE})
+  set(PROTOBUF_INCLUDE "${Protobuf_INCLUDE_DIRS}" CACHE PATH "Protobuf include path")
 endmacro()
 
 if(USE_AVX512)

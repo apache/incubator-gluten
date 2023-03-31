@@ -11,8 +11,8 @@ val dbgenDir = "/PATH/TO/TPCH_DBGEN" // location of dbgen
 val tables = new TPCHTables(spark.sqlContext,
     dbgenDir = dbgenDir,
     scaleFactor = scaleFactor,
-    useDoubleForDecimal = true, // true to replace DecimalType with DoubleType
-    useStringForDate = true) // true to replace DateType with StringType
+    useDoubleForDecimal = false, // true to replace DecimalType with DoubleType
+    useStringForDate = false) // true to replace DateType with StringType
 
 
 tables.genData(

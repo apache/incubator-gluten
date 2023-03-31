@@ -49,7 +49,8 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
                                testSpillFrequency: Int = 0)
   extends UnaryExecNode with TransformSupport with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater =
@@ -243,7 +244,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     }
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
       return false
     }
@@ -255,7 +256,8 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         substraitContext, sortOrder, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 

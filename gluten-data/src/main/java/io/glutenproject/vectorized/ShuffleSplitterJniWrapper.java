@@ -46,7 +46,7 @@ public class ShuffleSplitterJniWrapper {
       return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
           subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId,
-          writeSchema, handle, taskAttemptId);
+          writeSchema, handle, taskAttemptId, 0, null, "gluten");
   }
 
   /**
@@ -62,9 +62,10 @@ public class ShuffleSplitterJniWrapper {
                               int bufferSize, String codec, int batchCompressThreshold,
                               int pushBufferMaxSize, CelebornPartitionPusher pusher,
                               long memoryPoolId, long handle, long taskAttemptId) {
-      return nativeMakeForCeleborn(part.getShortName(), part.getNumPartitions(),
-          offheapPerTask, bufferSize, codec, batchCompressThreshold,
-          pushBufferMaxSize, pusher, memoryPoolId, handle, taskAttemptId);
+      return nativeMake(part.getShortName(), part.getNumPartitions(),
+          offheapPerTask, bufferSize, codec, batchCompressThreshold, null,
+          0, null, false, memoryPoolId,
+          false, handle, taskAttemptId, pushBufferMaxSize, pusher, "celeborn");
   }
 
   public native long nativeMake(String shortName, int numPartitions,
@@ -72,13 +73,8 @@ public class ShuffleSplitterJniWrapper {
                                 String codec, int batchCompressThreshold, String dataFile,
                                 int subDirsPerLocalDir, String localDirs, boolean preferSpill,
                                 long memoryPoolId, boolean writeSchema,
-                                long handle, long taskAttemptId);
-
-  public native long nativeMakeForCeleborn(String shortName, int numPartitions,
-                                           long offheapPerTask, int bufferSize,
-                                           String codec, int batchCompressThreshold,
-                                           int pushBufferMaxSize, CelebornPartitionPusher pusher,
-                                           long memoryPoolId, long handle, long taskAttemptId);
+                                long handle, long taskAttemptId, int pushBufferMaxSize,
+                                CelebornPartitionPusher pusher, String shuffleWriterType);
 
   /**
    * Spill partition data to disk.

@@ -21,6 +21,19 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {}
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      MetricsUtil.updateOperatorMetrics(
+        metrics,
+        HashAggregateMetricsUpdater.METRICS_MAP,
+        operatorMetrics)
+    }
   }
+}
+
+object HashAggregateMetricsUpdater {
+  val METRICS_MAP = Map(
+    "AggregatingTransform" -> "totalTime",
+    "MergingAggregatedTransform" -> "totalTime"
+  )
 }

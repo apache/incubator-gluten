@@ -20,6 +20,7 @@
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
 #include <arrow/type_traits.h>
+#include <arrow/util/decimal.h>
 
 #include "ArrowTypeUtils.h"
 #include "arrow/c/helpers.h"
@@ -170,6 +171,47 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
             memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offset_and_size, sizeof(int64_t));
             buffer_cursor_[row_idx] += length;
             _mm_prefetch(&offsets_[row_idx], _MM_HINT_T1);
+          }
+        }
+        break;
+      }
+      case arrow::Decimal128Type::type_id: {
+        for (auto row_idx = 0; row_idx < num_rows_; row_idx++) {
+          bool flag = vec->isNullAt(row_idx);
+          if (vec->typeKind() == velox::TypeKind::SHORT_DECIMAL) {
+            auto shortDecimal = vec->asFlatVector<velox::UnscaledShortDecimal>()->rawValues();
+            if (!flag) {
+              // Get the long value and write the long value
+              // Refer to the int64_t() method of Decimal128
+              int64_t long_value = shortDecimal[row_idx].unscaledValue();
+              memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &long_value, sizeof(long));
+            } else {
+              SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
+            }
+          } else {
+            auto longDecimal = vec->asFlatVector<velox::UnscaledLongDecimal>()->rawValues();
+            if (flag) {
+              SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
+            } else {
+              int32_t size;
+              velox::int128_t veloxInt128 = longDecimal[row_idx].unscaledValue();
+
+              velox::int128_t orignal_value = veloxInt128;
+              int64_t high = veloxInt128 >> 64;
+              uint64_t lower = (uint64_t)orignal_value;
+
+              auto out = ToByteArray(arrow::Decimal128(high, lower), &size);
+              assert(size <= 16);
+
+              // write the variable value
+              memcpy(buffer_address_ + buffer_cursor_[row_idx] + offsets_[row_idx], &out[0], size);
+              // write the offset and size
+              int64_t offsetAndSize = ((int64_t)buffer_cursor_[row_idx] << 32) | size;
+              memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offsetAndSize, sizeof(int64_t));
+            }
+
+            // Update the cursor of the buffer.
+            buffer_cursor_[row_idx] += 16;
           }
         }
         break;

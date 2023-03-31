@@ -22,6 +22,8 @@ trait Backend {
 
   def initializerApi(): InitializerApi
 
+  def shutdownApi(): ShutdownApi
+
   def iteratorApi(): IteratorApi
 
   def sparkPlanExecApi(): SparkPlanExecApi

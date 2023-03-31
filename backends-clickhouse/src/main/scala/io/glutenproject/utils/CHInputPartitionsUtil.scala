@@ -22,6 +22,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory, PartitionedFile}
+import org.apache.spark.util.SparkResourcesUtil
 
 import scala.collection.mutable.ArrayBuffer
 

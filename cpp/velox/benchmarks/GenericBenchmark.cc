@@ -67,7 +67,8 @@ auto BM_Generic = [](::benchmark::State& state,
         [](std::shared_ptr<gluten::ResultIterator> iter) { return static_cast<BatchIterator*>(iter->GetRaw()); });
 
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
+    auto resultIter = backend->GetResultIterator(
+        gluten::DefaultMemoryAllocator().get(), "/tmp/test-spill", std::move(inputIters), {});
     auto outputSchema = backend->GetOutputSchema();
     ArrowWriter writer{FLAGS_write_file};
     state.PauseTiming();
@@ -104,7 +105,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
     auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->GetRaw());
     const auto& task = rawIter->task_;
-    const auto& planNode = rawIter->planNode_;
+    const auto& planNode = rawIter->veloxPlan_;
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
     std::cout << statsStr << std::endl;
   }

@@ -58,7 +58,16 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
-  def doValidate(): Boolean = false
+  final def doValidate(): Boolean = {
+    try {
+      TransformerState.enterValidation
+      doValidateInternal
+    } finally {
+      TransformerState.finishValidation
+    }
+  }
+
+  def doValidateInternal(): Boolean = false
 
   def logValidateFailure(msg: => String, e: Throwable): Unit = {
     if (printStackOnValidateFailure) {
@@ -103,7 +112,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
   val sparkConf = sparkContext.getConf
@@ -157,6 +167,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
   }
 
+  // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
+  // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
+  // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
@@ -281,7 +294,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       /**
        * the whole stage contains NO BasicScanExecTransformer. this the default case for:
-       *   1. SCAN with clickhouse backend (check ColumnarCollapseCodegenStages#separateScanRDD())
+       *   1. SCAN with clickhouse backend (check ColumnarCollapseTransformStages#separateScanRDD())
        *      2. test case where query plan is constructed from simple dataframes (e.g.
        *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked

@@ -62,7 +62,8 @@ abstract class HashAggregateExecBaseTransformer(
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
       aggregateExpressions.flatMap(_.aggregateFunction.inputAggBufferAttributes)
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetrics(sparkContext)
 
   val sparkConf = sparkContext.getConf
@@ -136,7 +137,7 @@ abstract class HashAggregateExecBaseTransformer(
     }
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
     val aggParams = new AggregationParams
@@ -145,7 +146,8 @@ abstract class HashAggregateExecBaseTransformer(
         getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
       } catch {
         case e: Throwable =>
-          logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+          logValidateFailure(
+            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
           return false
       }
     }
@@ -193,9 +195,6 @@ abstract class HashAggregateExecBaseTransformer(
 
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
   override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
-
-  // Members declared in org.apache.spark.sql.execution.CodegenSupport
-  protected def doProduce(ctx: CodegenContext): String = throw new UnsupportedOperationException()
 
   // Members declared in org.apache.spark.sql.execution.SparkPlan
   protected override def doExecute()
@@ -503,7 +502,7 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case _ @ (Max(_) | Min(_) | BitAndAgg(_) | BitOrAgg(_)) =>
+        case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg =>
           mode match {
             case Partial | PartialMerge =>
               val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
@@ -517,6 +516,44 @@ abstract class HashAggregateExecBaseTransformer(
               res_index += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
+        case _: Corr =>
+          mode match {
+            case Partial | PartialMerge =>
+              val expectedBufferSize = 6
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+              assert(aggBufferAttr.size == expectedBufferSize,
+                s"Aggregate function ${aggregateFunc}" +
+                  s" expects ${expectedBufferSize} buffer attribute.")
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              res_index += expectedBufferSize
+            case Final =>
+              aggregateAttr += aggregateAttributeList(res_index)
+              res_index += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: ${other}.")
+          }
+        case _: CovPopulation | _: CovSample =>
+          mode match {
+            case Partial | PartialMerge =>
+              val expectedBufferSize = 4
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+              assert(aggBufferAttr.size == expectedBufferSize,
+                s"Aggregate function ${aggregateFunc}" +
+                  s" expects ${expectedBufferSize} buffer attribute.")
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              res_index += expectedBufferSize
+            case Final =>
+              aggregateAttr += aggregateAttributeList(res_index)
+              res_index += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: ${other}.")
           }
         case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           mode match {

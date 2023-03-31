@@ -27,7 +27,7 @@ import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarShuffleExchangeExec, FileSourceScanExec, WholeStageCodegenExec}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarShuffleExchangeExec, FileSourceScanExec, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.benchmarks.utils.FakeFileOutputStream
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
@@ -179,7 +179,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     // Get the `FileSourceScanExecTransformer`
     val fileScan = executedPlan.collect { case scan: FileSourceScanExecTransformer => scan }.head
     val scanStage = WholeStageTransformerExec(fileScan)(
-      ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+      ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
     val scanStageRDD = scanStage.executeColumnar()
 
     // Get the total row count
@@ -223,7 +223,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     val projectFilter = executedPlan.collect { case project: ProjectExecTransformer => project }
     if (projectFilter.nonEmpty) {
       val projectFilterStage = WholeStageTransformerExec(projectFilter.head)(
-        ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+        ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
       val projectFilterStageRDD = projectFilterStage.executeColumnar()
 
       chAllStagesBenchmark.addCase(s"Project Stage", executedCnt) {

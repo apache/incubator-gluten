@@ -39,7 +39,9 @@ import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   extends BroadcastExchangeLike with GlutenPlan {
-  override lazy val metrics =
+
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarBroadcastExchangeMetrics(sparkContext)
 
   @transient

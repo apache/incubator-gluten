@@ -21,19 +21,19 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
-
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, MapType, StructField, StructType}
+import org.apache.spark.sql.types._
 
 import scala.util.control.Breaks.{break, breakable}
 
 class VeloxBackend extends Backend {
   override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
   override def initializerApi(): InitializerApi = new VeloxInitializerApi
+  override def shutdownApi(): ShutdownApi = new VeloxShutdownApi
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): TransformerApi = new VeloxTransformerApi
@@ -53,7 +53,6 @@ object VeloxBackendSettings extends BackendSettings {
     def validateTypes: Boolean = {
       // Collect unsupported types.
       fields.map(_.dataType).collect {
-        case _: BooleanType =>
         case _: ByteType =>
         case _: ArrayType =>
         case _: MapType =>

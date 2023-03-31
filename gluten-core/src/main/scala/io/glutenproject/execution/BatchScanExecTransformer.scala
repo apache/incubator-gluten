@@ -36,7 +36,8 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
                                pushdownFilters: Seq[Expression] = Seq())
   extends BatchScanExecShim(output, scan, runtimeFilters) with BasicScanExecTransformer {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetrics(sparkContext)
 
   override def filterExprs(): Seq[Expression] = scan match {

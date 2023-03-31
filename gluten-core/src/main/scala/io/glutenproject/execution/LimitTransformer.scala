@@ -41,7 +41,8 @@ case class LimitTransformer(child: SparkPlan,
                             count: Long)
     extends UnaryExecNode with TransformSupport with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetrics(sparkContext)
 
   override def supportsColumnar: Boolean = true
@@ -84,14 +85,15 @@ case class LimitTransformer(child: SparkPlan,
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId
     val relNode = try {
       getRelNode(context, operatorId, offset, count, child.output, null, true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 
