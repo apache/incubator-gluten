@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/liujiayi771/velox.git
+VELOX_BRANCH=avg-overflow
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
