@@ -332,11 +332,11 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
             // 31760L origins from BaseVariableWidthVector.lastValueAllocationSizeInBytes
             // experimental value
             val estimatedBufSize = if (GlutenConfig.getConf.offHeapMemorySize != 0) {
-              Math.min(sizeInBytes.toDouble * numRows,
-                GlutenConfig.getConf.offHeapMemorySize / 4)
+              Math.max(sizeInBytes, Math.min(sizeInBytes.toDouble * numRows,
+                GlutenConfig.getConf.offHeapMemorySize / 4))
             } else {
-              Math.min(sizeInBytes.toDouble * numRows,
-                GlutenConfig.getConf.nativeRowToColumnDefaultSize)
+              Math.max(sizeInBytes, Math.min(sizeInBytes.toDouble * numRows,
+                GlutenConfig.getConf.nativeRowToColumnDefaultSize))
             }
             arrowBuf = allocator.buffer(estimatedBufSize.toLong)
             Platform.copyMemory(row.getBaseObject, row.getBaseOffset,
