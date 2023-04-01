@@ -115,7 +115,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables",
-      "SPARK-35955: Aggregate avg should not return wrong results for decimal overflow",
       "SPARK-28067: Aggregate sum should not return wrong results for decimal overflow",
       "SPARK-28067: sum of null decimal values",
       "SPARK-28224: Aggregate sum big decimal overflow"
