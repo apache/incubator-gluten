@@ -281,4 +281,13 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
     compareResultsAgainstVanillaSpark(testSql, true, df => {})
   }
+
+  test("Bug-382 collec_list failure") {
+    val sql =
+      """
+        |select cc_call_center_id, collect_list(cc_call_center_sk) from call_center group by cc_call_center_id
+        |order by cc_call_center_id
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
 }
