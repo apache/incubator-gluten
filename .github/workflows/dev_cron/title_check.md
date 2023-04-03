@@ -25,7 +25,7 @@ https://github.com/oap-project/gluten/issues
 
 Then could you also rename ***commit message*** and ***pull request title*** in the following format?
 
-    [Gluten-${ISSUES_ID}] ${detailed message}
+    [GLUTEN-${ISSUES_ID}][COMPONENT]feat/fix: ${detailed message}
 
 See also:
 

@@ -19,7 +19,7 @@ function detectISSUESID(title) {
   if (!title) {
     return null;
   }
-  const matched = /^\[Gluten-\d+\]/.exec(title);
+  const matched = /^\[GLUTEN-\d+\]/.exec(title);
   if (!matched) {
     return null;
   }
