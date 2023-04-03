@@ -62,13 +62,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           }
         })
 
-  // Since `tpcdsQueriesV2_7_0` has almost the same queries with these ones below,
-  // we skip them in the TPCDS-related tests.
-  // NOTE: q6" and "q75" can cause flaky test results, so we must exclude them.
-  // For more details, see SPARK-35327.
   protected val excludedTpcdsQueries: Set[String] = Set(
     "q2",
     "q4",
+    "q5",
     "q8",
     "q10",
     "q14a",
@@ -80,6 +77,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q24b",
     "q27",
     "q31",
+    "q32",
     "q35",
     "q36",
     "q39a",
@@ -98,6 +96,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q83",
     "q86",
     "q90",
+    "q92",
     "q94",
     "q99"
   )

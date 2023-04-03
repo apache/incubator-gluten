@@ -44,6 +44,20 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
       .set("spark.sql.adaptive.enabled", "true")
   }
 
+  tpcdsAllQueries.foreach(
+    sql =>
+      if (!independentTestTpcdsQueries.contains(sql)) {
+        if (excludedTpcdsQueries.contains(sql)) {
+          ignore(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        } else {
+          test(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        }
+      })
+
   test("test reading from partitioned table") {
     val df = spark.sql("""
                          |select count(*)
@@ -74,10 +88,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     val result = spark.sql(testSql).collect()
     assert(result(0).getDouble(0) == 8998.463336886734)
     assert(result(0).getDouble(1) == 80037.12727449503)
-  }
-
-  test("TPCDS Q3") {
-    runTPCDSQuery("q3") { df => }
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
@@ -198,14 +208,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
           assert(reusedExchangeExec.nonEmpty == true)
       }
     }
-  }
-
-  test("TPCDS Q66") {
-    runTPCDSQuery("q66") { df => }
-  }
-
-  test("TPCDS Q76") {
-    runTPCDSQuery("q76") { df => }
   }
 
   test("Gluten-1234: Fix error when executing hash agg after union all") {
