@@ -42,6 +42,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.memory.offHeap.size", "3g")
   }
 
   tpcdsAllQueries.foreach(
