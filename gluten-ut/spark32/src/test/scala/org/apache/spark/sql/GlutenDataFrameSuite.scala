@@ -18,6 +18,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.WholeStageTransformerExec
+
 import org.apache.spark.SparkException
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression}
@@ -27,8 +28,7 @@ import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExcha
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.TestData2
-import org.apache.spark.sql.types.StringType
-
+import org.apache.spark.sql.types.{Decimal, DecimalType, StringType}
 import scala.language.implicitConversions
 import scala.util.Random
 
@@ -332,5 +332,27 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
       case _: ShuffleExchangeExec => atFirstAgg = false
       case _ =>
     }
+  }
+
+  test("gluten SPARK-22271: mean overflows and returns null for some decimal variables") {
+    val d = 0.034567890
+    val df = Seq(d, d, d, d, d, d, d, d, d, d).toDF("DecimalCol")
+    val result = df.select($"DecimalCol" cast DecimalType(38, 33))
+      .select(col("DecimalCol"))
+    val meanRes = result.agg(mean("DecimalCol")).collect()
+    assert(meanRes(0).get(0).toString ===
+      "0.0345678900000000000000000000000000000")
+  }
+
+  // TODO: if df.describe(),
+  //  will throw Cannot grow BufferHolder by size -805304112 because the size is negative
+  test("gluten df describe int") {
+    val d = 3
+    val df = Seq(d, d, d, d, d, d, d, d, d, d).toDF("IntegerCol")
+    df.printSchema()
+    val result = df.describe()
+    result.explain()
+    result.printSchema()
+    result.show()
   }
 }

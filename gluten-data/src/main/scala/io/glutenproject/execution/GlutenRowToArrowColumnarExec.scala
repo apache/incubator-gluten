@@ -351,6 +351,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
                 val sizeInBytes = row.getSizeInBytes
                 if ((offset + sizeInBytes) > arrowBuf.capacity()) {
                   lastUnProcessRow = row
+                  print("has un process row")
                   break
                 }
                 Platform.copyMemory(row.getBaseObject, row.getBaseOffset,

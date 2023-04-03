@@ -203,6 +203,20 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       plan => plan.find(child => child.getClass == tag.runtimeClass).isDefined))
   }
 
+  protected def runDataframeAndCompare(df: DataFrame,
+                                       compareResult: Boolean = true)
+                                      (customCheck: DataFrame => Unit): DataFrame = {
+    var expected: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expected = df.collect()
+    }
+    if (compareResult) {
+      checkAnswer(df, expected)
+    }
+    customCheck(df)
+    df
+  }
+
   /**
    * run a query with native engine as well as vanilla spark
    * then compare the result set for correctness check
