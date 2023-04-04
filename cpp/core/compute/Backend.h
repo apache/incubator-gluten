@@ -38,9 +38,9 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::string spillDir,
-      std::vector<std::shared_ptr<ResultIterator>> inputs,
-      std::unordered_map<std::string, std::string> sessionConf) = 0;
+      const std::string& spillDir,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs,
+      const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
   bool ParsePlan(const uint8_t* data, int32_t size) {
     return ParsePlan(data, size, -1, -1, -1);
@@ -82,7 +82,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   virtual std::shared_ptr<SplitterBase> makeSplitter(
       const std::string& partitioning_name,
       int num_partitions,
-      SplitOptions options,
+      const SplitOptions& options,
       const std::string& batchType) {
     GLUTEN_ASSIGN_OR_THROW(auto splitter, Splitter::Make(partitioning_name, num_partitions, std::move(options)));
     return splitter;

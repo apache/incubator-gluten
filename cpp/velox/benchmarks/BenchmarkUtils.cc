@@ -31,11 +31,15 @@ DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
-std::unordered_map<std::string, std::string> confMap;
+namespace {
+
+std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, "512"}};
+
+} // anonymous namespace
 
 void InitVeloxBackend() {
-  gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(confMap); });
-  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(confMap);
+  gluten::SetBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(bmConfMap); });
+  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(bmConfMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {

@@ -37,15 +37,14 @@ class VeloxBackend final : public Backend {
   // FIXME This is not thread-safe?
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::string spillDir,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
-      std::unordered_map<std::string, std::string> sessionConf = {}) override;
+      const std::string& spillDir,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
+      const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
   // Used by unit test and benchmark.
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
-      std::unordered_map<std::string, std::string> sessionConf = {});
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
 
   arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
@@ -54,7 +53,7 @@ class VeloxBackend final : public Backend {
   std::shared_ptr<SplitterBase> makeSplitter(
       const std::string& partitioning_name,
       int num_partitions,
-      SplitOptions options,
+      const SplitOptions& options,
       const std::string& batchType) override;
 
   std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
