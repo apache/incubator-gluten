@@ -21,6 +21,6 @@ done
 
 mkdir -p ${BUILD_DIR}
 cd ${BUILD_DIR}
-cmake -G Ninja  "-DCMAKE_C_COMPILER=$(command -v clang-12)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-12)" "-DCMAKE_BUILD_TYPE=Release" "-DENABLE_PROTOBUF=1" "-DWERROR=OFF" "-DENABLE_JEMALLOC=0" ${CLICKHOUSE_SRC}
+cmake -G Ninja  "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=Release" "-DENABLE_PROTOBUF=1" "-DWERROR=OFF" "-DENABLE_JEMALLOC=1" ${CLICKHOUSE_SRC}
 
 ninja ch
