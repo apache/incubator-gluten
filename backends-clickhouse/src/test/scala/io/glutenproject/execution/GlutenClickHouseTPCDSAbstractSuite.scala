@@ -93,6 +93,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q71",
     "q77",
     "q78",
+    "q80",
     "q83",
     "q86",
     "q90",
