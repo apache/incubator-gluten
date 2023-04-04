@@ -17,12 +17,9 @@
 
 package io.glutenproject.expression
 
-import scala.util.control.Breaks.{break, breakable}
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{GlutenColumnarToRowExecBase, WholeStageTransformerExec}
-import io.glutenproject.substrait.expression.ExpressionBuilder
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
@@ -31,7 +28,7 @@ import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{Decimal, DecimalType}
+import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, IntegerType, LongType, ShortType}
 
 object ExpressionConverter extends SQLConfHelper with Logging {
 
@@ -48,6 +45,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           case cast: Cast if cast.dataType.isInstanceOf[DecimalType]
             && cast.child.dataType.isInstanceOf[DecimalType] =>
             cast.child
+          case castInt: Cast if castInt.dataType.isInstanceOf[DecimalType] =>
+            castInt.child.dataType match {
+              case IntegerType | LongType | ByteType | ShortType =>
+                precision.withNewChildren(Seq(Cast(castInt.child,
+                  DecimalType(castInt.dataType.asInstanceOf[DecimalType].precision, 0))))
+              case _ => arithmeticExpr
+            }
+
           case _ => arithmeticExpr
         }
       case _ => arithmeticExpr
