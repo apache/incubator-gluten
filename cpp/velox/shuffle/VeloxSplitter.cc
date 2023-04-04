@@ -534,7 +534,7 @@ arrow::Status VeloxSplitter::SplitValidityBuffer(const velox::RowVector& rv) {
       // TODO: is there any better method?
       // because isNullAt() is a virtual function
       auto null_vector =
-          vector_maker_.flatVector<bool>(rv.size(), [&](velox::vector_size_t row) { return !column->isNullAt(row); });
+          flatVector<bool>(rv.size(), [&](velox::vector_size_t row) { return !column->isNullAt(row); });
 #else
       // that's better
       auto null_vector = std::make_shared<velox::FlatVector<bool>>(
@@ -734,7 +734,7 @@ velox::RowVectorPtr VeloxSplitter::GetStrippedRowVector(const velox::RowVector& 
   auto children = rv.children();
   assert(children.size() > 0);
   children.erase(children.begin());
-  return vector_maker_.rowVector(children);
+  return rowVector(children);
 }
 
 uint32_t VeloxSplitter::CalculatePartitionBufferSize(const velox::RowVector& rv) {
@@ -1370,6 +1370,29 @@ arrow::Status VeloxFallbackRangeSplitter::Split(ColumnarBatch* cb) {
   auto stripped_rv = GetStrippedRowVector(*rv);
   RETURN_NOT_OK(DoSplit(*stripped_rv));
   return arrow::Status::OK();
+}
+
+velox::RowVectorPtr VeloxSplitter::rowVector(const std::vector<velox::VectorPtr>& children) {
+  std::vector<std::string> names;
+  for (int32_t i = 0; i < children.size(); ++i) {
+    names.push_back(fmt::format("c{}", i));
+  }
+  return rowVector(std::move(names), children);
+}
+
+velox::RowVectorPtr VeloxSplitter::rowVector(
+    std::vector<std::string> childNames,
+    const std::vector<velox::VectorPtr>& children) {
+  std::vector<std::shared_ptr<const velox::Type>> childTypes;
+  childTypes.resize(children.size());
+  for (int i = 0; i < children.size(); i++) {
+    childTypes[i] = children[i]->type();
+  }
+  auto rowType = ROW(std::move(childNames), std::move(childTypes));
+  const size_t vectorSize = children.empty() ? 0 : children.front()->size();
+
+  return std::make_shared<velox::RowVector>(
+      GetDefaultWrappedVeloxMemoryPool().get(), rowType, velox::BufferPtr(nullptr), vectorSize, children);
 }
 
 } // namespace gluten

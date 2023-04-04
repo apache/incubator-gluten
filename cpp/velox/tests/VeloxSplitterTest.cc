@@ -164,7 +164,7 @@ class VeloxSplitterTest : public ::testing::Test {
   }
 
   void SetUpRowVector() {
-    velox::test::VectorMaker vector_maker{GetDefaultWrappedVeloxMemoryPool()};
+    velox::test::VectorMaker vector_maker{GetDefaultWrappedVeloxMemoryPool().get()};
 
     std::vector<std::string> field_names = {
         "hash_partition_key",

@@ -9,7 +9,6 @@
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/DecodedVector.h"
 #include "velox/vector/FlatVector.h"
-#include "velox/vector/tests/utils/VectorMaker.h"
 
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/localfs.h>
@@ -263,6 +262,29 @@ class VeloxSplitter : public SplitterBase {
 
   arrow::Status SpillPartition(uint32_t partition_id);
 
+  facebook::velox::RowVectorPtr rowVector(const std::vector<facebook::velox::VectorPtr>& children);
+
+  facebook::velox::RowVectorPtr rowVector(
+      std::vector<std::string> childNames,
+      const std::vector<facebook::velox::VectorPtr>& children);
+
+  template <typename T>
+  facebook::velox::FlatVectorPtr<T> flatVector(
+      facebook::velox::vector_size_t size,
+      std::function<T(facebook::velox::vector_size_t /*row*/)> valueAt,
+      std::function<bool(facebook::velox::vector_size_t /*row*/)> isNullAt = nullptr,
+      const facebook::velox::TypePtr& type = facebook::velox::CppToType<T>::create()) {
+    auto flatVector = facebook::velox::BaseVector::create<facebook::velox::FlatVector<T>>(type, size, GetDefaultWrappedVeloxMemoryPool().get());
+    for (facebook::velox::vector_size_t i = 0; i < size; i++) {
+      if (isNullAt && isNullAt(i)) {
+        flatVector->setNull(i, true);
+      } else {
+        flatVector->set(i, valueAt(i));
+      }
+    }
+    return flatVector;
+  }
+
  protected:
   bool support_avx512_ = false;
 
@@ -362,8 +384,6 @@ class VeloxSplitter : public SplitterBase {
   facebook::velox::DecodedVector binary_type_decoded_vector_;
   facebook::velox::DecodedVector partition_decoded_vector_;
   facebook::velox::DecodedVector calc_buf_decoded_vector_;
-
-  facebook::velox::test::VectorMaker vector_maker_{GetDefaultWrappedVeloxMemoryPool()};
 }; // class VeloxSplitter
 
 class VeloxRoundRobinSplitter final : public VeloxSplitter {
