@@ -18,10 +18,11 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.{Decimal, DecimalType, StringType, StructField, StructType}
 import org.apache.spark.sql.Row
-
 import scala.collection.JavaConverters
+
+import org.apache.spark.sql.functions.{avg, col}
 
 class TestOperator extends WholeStageTransformerSuite {
 
@@ -510,5 +511,14 @@ class TestOperator extends WholeStageTransformerSuite {
         checkOperatorMatch[GlutenHashAggregateExecTransformer]
       }
     }
+  }
+
+  test("Cast double to decimal") {
+    val d = 0.034567890
+    val df = Seq(d, d, d, d, d, d, d, d, d, d).toDF("DecimalCol")
+    val result = df.select($"DecimalCol" cast DecimalType(38, 33))
+      .select(col("DecimalCol")).agg(avg($"DecimalCol"))
+    assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
+    checkOperatorMatch[GlutenHashAggregateExecTransformer](result)
   }
 }
