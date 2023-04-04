@@ -16,6 +16,7 @@
  */
 package org.apache.spark.shuffle.utils
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.SortExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
@@ -26,6 +27,8 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.RangePartitioner
 import org.apache.spark.rdd.{PartitionPruningRDD, RDD}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression, SortOrder, UnsafeRow}
+import org.apache.spark.sql.catalyst.plans.physical.RangePartitioning
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -94,7 +97,6 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   /*
    return json structure
    {
-    "projection_plan":"xxxx",
     "ordering":[
       {
        "column_ref":0,
@@ -150,30 +152,6 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     val relNodes = new util.ArrayList[RelNode]()
     relNodes.add(projectRel)
     PlanBuilder.makePlan(context, relNodes, outNames)
-  }
-
-  private def buildProjectionAttributesByOrderings(
-      sortOrders: Seq[SortOrder]): (Seq[NamedExpression], Seq[SortOrder]) = {
-    val projectionAttrs = new util.ArrayList[NamedExpression]()
-    val newSortOrders = new util.ArrayList[SortOrder]()
-    var aliasNo = 0
-    sortOrders.foreach(
-      order => {
-        if (!order.child.isInstanceOf[Attribute]) {
-          val alias = new Alias(order.child, s"sort_col_$aliasNo")()
-          aliasNo += 1
-          projectionAttrs.add(alias)
-          newSortOrders.add(
-            SortOrder(
-              alias.toAttribute,
-              order.direction,
-              order.nullOrdering,
-              order.sameOrderExpressions))
-        } else {
-          newSortOrders.add(order)
-        }
-      })
-    (projectionAttrs.asScala, newSortOrders.asScala)
   }
 
   private def buildOrderingJson(
@@ -246,23 +224,12 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   // Make a json structure that can be passed to native engine
   def getRangeBoundsJsonString(): String = {
     val context = new SubstraitContext()
-    val (sortExpressions, newOrderings) = buildProjectionAttributesByOrderings(ordering)
-    val totalAttributes = new util.ArrayList[Attribute]()
-    inputAttributes.foreach(attr => totalAttributes.add(attr))
-    sortExpressions.foreach(expr => totalAttributes.add(expr.toAttribute))
     val mapper = new ObjectMapper
     val rootNode = mapper.createObjectNode
     val orderingArray = rootNode.putArray("ordering")
-    buildOrderingJson(context, newOrderings, totalAttributes.asScala, mapper, orderingArray)
+    buildOrderingJson(context, ordering, inputAttributes, mapper, orderingArray)
     val boundArray = rootNode.putArray("range_bounds")
     buildRangeBoundsJson(mapper, boundArray);
-    if (sortExpressions.size != 0) {
-      // If there is any expressions in orderings, we build a projection plan and pass
-      // it to backend
-      val projectPlan = buildProjectionPlan(context, sortExpressions).toProtobuf
-      val serializeProjectPlan = Base64.getEncoder().encodeToString(projectPlan.toByteArray)
-      rootNode.put("projection_plan", serializeProjectPlan)
-    }
     mapper.writeValueAsString(rootNode)
   }
 }
@@ -283,7 +250,8 @@ object RangePartitionerBoundsGenerator {
     }
   }
 
-  def supportedOrderings(orderings: Seq[SortOrder]): Boolean = {
+  def supportedOrderings(rangePartitioning: RangePartitioning, child: SparkPlan): Boolean = {
+    val orderings = rangePartitioning.ordering
     var enableRangePartitioning = true
     // TODO. support complex data type in orderings
     breakable {
@@ -292,8 +260,10 @@ object RangePartitionerBoundsGenerator {
           enableRangePartitioning = false
           break
         }
-        // FIXME: there is a weird bug to handle expressions.
-        if (!ordering.child.isInstanceOf[Attribute]) {
+        if (
+          !ordering.child.isInstanceOf[Attribute] && !BackendsApiManager.getSettings
+            .supportShuffleWithProject(rangePartitioning, child)
+        ) {
           enableRangePartitioning = false
           break
         }

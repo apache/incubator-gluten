@@ -178,7 +178,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   // scalastyle:off argcount
   override def genShuffleDependency(
       rdd: RDD[ColumnarBatch],
-      outputAttributes: Seq[Attribute],
+      childOutputAttributes: Seq[Attribute],
+      projectOutputAttributes: Seq[Attribute],
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
@@ -186,7 +187,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
-      outputAttributes,
+      childOutputAttributes,
+      projectOutputAttributes,
       newPartitioning,
       serializer,
       writeMetrics,

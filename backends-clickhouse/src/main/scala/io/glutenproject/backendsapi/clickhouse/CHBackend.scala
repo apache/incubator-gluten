@@ -25,6 +25,9 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{MergeTreeRe
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructField
 
@@ -90,6 +93,19 @@ object CHBackendSettings extends BackendSettings with Logging {
   }
 
   override def utilizeShuffledHashJoinHint(): Boolean = true
+  override def supportShuffleWithProject(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean = {
+    // FIXME: The HashAggregateExec's output is different from backend, cannot use directly.
+    child match {
+      case _: HashAggregateExec =>
+        logInfo(
+          s"Not support shuffleExechangeExec with child of HashAggregateExec, which" +
+            s" has expressions in partitioning")
+        false
+      case _ => true
+    }
+  }
 
   override def supportSortExec(): Boolean = {
     GlutenConfig.getConf.enableColumnarSort

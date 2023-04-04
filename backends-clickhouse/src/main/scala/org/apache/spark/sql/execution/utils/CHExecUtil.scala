@@ -22,14 +22,15 @@ import io.glutenproject.vectorized._
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
 import org.apache.spark.ShuffleDependency
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
-import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition, _}
 import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -42,7 +43,7 @@ import io.substrait.proto.Type
 
 import scala.collection.JavaConverters._
 
-object CHExecUtil {
+object CHExecUtil extends Logging {
 
   def inferSparkDataType(substraitType: Array[Byte]): DataType = {
     val (datatype, nullable) =
@@ -77,7 +78,7 @@ object CHExecUtil {
                       jniWrapper.freeMemory(rowInfo.memoryAddress, rowInfo.totalSize)
                       closed = true
                     }
-                    return result
+                    result
                   }
 
                   override def next: UnsafeRow = {
@@ -99,41 +100,112 @@ object CHExecUtil {
     }
   }
 
+  private def buildPartitionedBlockIterator(
+      cbIter: Iterator[ColumnarBatch],
+      options: IteratorOptions): CloseablePartitionedBlockIterator = {
+    val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
+      val splitIterator = new BlockSplitIterator(
+        cbIter
+          .map(
+            cb =>
+              CHNativeBlock
+                .fromColumnarBatch(cb)
+                .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
+                .blockAddress()
+                .asInstanceOf[java.lang.Long])
+          .asJava,
+        options
+      )
+      override def hasNext: Boolean = splitIterator.hasNext
+      override def next(): Product2[Int, ColumnarBatch] =
+        (splitIterator.nextPartitionId(), splitIterator.next());
+      override def close(): Unit = splitIterator.close();
+    }
+    new CloseablePartitionedBlockIterator(iter)
+  }
+
+  private def buildHashPartitioning(
+      partitoining: HashPartitioning,
+      childOutput: Seq[Attribute],
+      output: Seq[Attribute]): NativePartitioning = {
+    val hashFields = partitoining.expressions.map {
+      case a: Attribute =>
+        BindReferences
+          .bindReference(a, childOutput)
+          .asInstanceOf[BoundReference]
+          .ordinal
+    }
+    val outputFields = if (output != null) {
+      output.map {
+        case a: Attribute =>
+          BindReferences
+            .bindReference(a, childOutput)
+            .asInstanceOf[BoundReference]
+            .ordinal
+      }
+    } else {
+      Seq[Int]()
+    }
+
+    new NativePartitioning(
+      "hash",
+      partitoining.numPartitions,
+      Array.empty[Byte],
+      hashFields.mkString(",").getBytes(),
+      outputFields.mkString(",").getBytes())
+  }
+
+  private def buildPartitioningOptions(nativePartitioning: NativePartitioning): IteratorOptions = {
+    val options = new IteratorOptions
+    options.setBufferSize(GlutenConfig.getConf.shuffleSplitDefaultSize)
+    options.setName(nativePartitioning.getShortName)
+    options.setPartitionNum(nativePartitioning.getNumPartitions)
+    options.setExpr(new String(nativePartitioning.getExprList))
+    options.setRequiredFields(if (nativePartitioning.getRequiredFields != null) {
+      new String(nativePartitioning.getRequiredFields)
+    } else {
+      new String("")
+    })
+    options
+  }
+
   // scalastyle:off argcount
   def genShuffleDependency(
       rdd: RDD[ColumnarBatch],
-      outputAttributes: Seq[Attribute],
+      childOutputAttributes: Seq[Attribute],
+      projectOutputAttributes: Seq[Attribute],
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
+    lazy val requiredFields = if (projectOutputAttributes != null) {
+      val outputFields = projectOutputAttributes.map {
+        case a: Attribute =>
+          BindReferences
+            .bindReference(a, childOutputAttributes)
+            .asInstanceOf[BoundReference]
+            .ordinal
+      }
+      outputFields.mkString(",").getBytes()
+    } else {
+      Array.empty[Byte]
+    }
     val nativePartitioning: NativePartitioning = newPartitioning match {
-      case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte], null)
+      case SinglePartition =>
+        new NativePartitioning("single", 1, Array.empty[Byte], Array.empty[Byte], requiredFields)
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, Array.empty[Byte], null)
-      case HashPartitioning(exprs, n) =>
-        val outputsIndex =
-          outputAttributes.map(attr => ConverterUtils.genColumnNameWithExprId(attr))
-        val fieldsIndex = new Array[String](exprs.length)
-        val fields = exprs.zipWithIndex.map {
-          case (expr, i) =>
-            val attr = ConverterUtils.getAttrFromExpr(expr)
-            val field = ConverterUtils.genColumnNameWithExprId(attr)
-            fieldsIndex(i) = outputsIndex.indexOf(field).toString
-            field
-        }
-
-        new NativePartitioning(
-          "hash",
-          n,
-          fieldsIndex.mkString(",").getBytes,
-          fields.mkString(",").getBytes)
+        new NativePartitioning("rr", n, Array.empty[Byte], Array.empty[Byte], requiredFields)
+      case HashPartitioning(_, _) =>
+        buildHashPartitioning(
+          newPartitioning.asInstanceOf[HashPartitioning],
+          childOutputAttributes,
+          projectOutputAttributes)
       case RangePartitioning(sortingExpressions, numPartitions) =>
         val rddForSampling = buildRangePartitionSampleRDD(
           rdd,
           RangePartitioning(sortingExpressions, numPartitions),
-          outputAttributes)
+          childOutputAttributes)
 
         // we let spark compute the range bounds here, and then pass to CH.
         val orderingAttributes = sortingExpressions.zipWithIndex.map {
@@ -145,9 +217,24 @@ object CHExecUtil {
           numPartitions,
           rddForSampling,
           sortingExpressions,
-          outputAttributes)
+          childOutputAttributes)
         val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
-        new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes())
+        val attributePos = if (projectOutputAttributes != null) {
+          projectOutputAttributes.map(
+            attr =>
+              BindReferences
+                .bindReference(attr, childOutputAttributes)
+                .asInstanceOf[BoundReference]
+                .ordinal)
+        } else {
+          Seq[Int]()
+        }
+        new NativePartitioning(
+          "range",
+          numPartitions,
+          Array.empty[Byte],
+          orderingAndRangeBounds.getBytes(),
+          attributePos.mkString(",").getBytes)
       case p =>
         throw new IllegalStateException(s"Unknow partition type: ${p.getClass.toString}")
     }
@@ -170,145 +257,13 @@ object CHExecUtil {
               isOrderSensitive = isOrderSensitive)
         }
       } else {
-        val options = new IteratorOptions
-        options.setExpr("")
-        options.setBufferSize(GlutenConfig.getConf.shuffleSplitDefaultSize)
-        newPartitioning match {
-          case HashPartitioning(exprs, n) =>
-            rdd.mapPartitionsWithIndexInternal(
-              (_, cbIter) => {
-                options.setPartitionNum(n)
-                val fields = exprs.zipWithIndex.map {
-                  case (expr, i) =>
-                    val attr = ConverterUtils.getAttrFromExpr(expr)
-                    ConverterUtils.genColumnNameWithExprId(attr)
-                }
-                options.setExpr(fields.mkString(","))
-                options.setName("hash")
-                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
-                  val splitIterator = new BlockSplitIterator(
-                    cbIter
-                      .map(
-                        cb =>
-                          CHNativeBlock
-                            .fromColumnarBatch(cb)
-                            .orElseThrow(
-                              () => new IllegalStateException("unsupported columnar batch"))
-                            .blockAddress()
-                            .asInstanceOf[java.lang.Long])
-                      .asJava,
-                    options
-                  )
-
-                  override def hasNext: Boolean = splitIterator.hasNext
-
-                  override def next(): Product2[Int, ColumnarBatch] =
-                    (splitIterator.nextPartitionId(), splitIterator.next());
-
-                  override def close(): Unit = splitIterator.close()
-                }
-                new CloseablePartitionedBlockIterator(iter)
-              },
-              isOrderSensitive = isOrderSensitive
-            )
-          case RoundRobinPartitioning(n) =>
-            rdd.mapPartitionsWithIndexInternal(
-              (_, cbIter) => {
-                options.setPartitionNum(n)
-                options.setName("rr")
-                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
-                  val splitIterator = new BlockSplitIterator(
-                    cbIter
-                      .map(
-                        cb =>
-                          CHNativeBlock
-                            .fromColumnarBatch(cb)
-                            .orElseThrow(
-                              () => new IllegalStateException("unsupported columnar batch"))
-                            .blockAddress()
-                            .asInstanceOf[java.lang.Long])
-                      .asJava,
-                    options
-                  )
-
-                  override def hasNext: Boolean = splitIterator.hasNext
-
-                  override def next(): Product2[Int, ColumnarBatch] =
-                    (splitIterator.nextPartitionId(), splitIterator.next());
-
-                  override def close(): Unit = splitIterator.close()
-                }
-                new CloseablePartitionedBlockIterator(iter)
-              },
-              isOrderSensitive = isOrderSensitive
-            )
-          case SinglePartition =>
-            rdd.mapPartitionsWithIndexInternal(
-              (_, cbIter) => {
-                options.setPartitionNum(1)
-                options.setName("rr")
-                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
-                  val splitIterator = new BlockSplitIterator(
-                    cbIter
-                      .map(
-                        cb =>
-                          CHNativeBlock
-                            .fromColumnarBatch(cb)
-                            .orElseThrow(
-                              () => new IllegalStateException("unsupported columnar batch"))
-                            .blockAddress()
-                            .asInstanceOf[java.lang.Long])
-                      .asJava,
-                    options
-                  )
-
-                  override def hasNext: Boolean = splitIterator.hasNext
-
-                  override def next(): Product2[Int, ColumnarBatch] =
-                    (splitIterator.nextPartitionId(), splitIterator.next());
-
-                  override def close(): Unit = splitIterator.close()
-                }
-                new CloseablePartitionedBlockIterator(iter)
-              },
-              isOrderSensitive = isOrderSensitive
-            )
-          case RangePartitioning(exprs, n) =>
-            rdd.mapPartitionsWithIndexInternal(
-              (_, cbIter) => {
-                options.setPartitionNum(n)
-                options.setName("range")
-                val expr_str = new String(nativePartitioning.getExprList)
-                options.setExpr(expr_str)
-                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
-                  val splitIterator = new BlockSplitIterator(
-                    cbIter
-                      .map(
-                        cb =>
-                          CHNativeBlock
-                            .fromColumnarBatch(cb)
-                            .orElseThrow(
-                              () => new IllegalStateException("unsupported columnar batch"))
-                            .blockAddress()
-                            .asInstanceOf[java.lang.Long])
-                      .asJava,
-                    options
-                  )
-
-                  override def hasNext: Boolean = splitIterator.hasNext
-
-                  override def next(): Product2[Int, ColumnarBatch] =
-                    (splitIterator.nextPartitionId(), splitIterator.next());
-
-                  override def close(): Unit = splitIterator.close()
-                }
-                new CloseablePartitionedBlockIterator(iter)
-              },
-              isOrderSensitive = isOrderSensitive
-            )
-          case _ =>
-            throw new UnsupportedOperationException(s"Unsupport operators.")
-        }
+        val options = buildPartitioningOptions(nativePartitioning)
+        rdd.mapPartitionsWithIndexInternal(
+          (_, cbIter) => {
+            buildPartitionedBlockIterator(cbIter, options)
+          },
+          isOrderSensitive = isOrderSensitive
+        )
       }
 
     val dependency =
