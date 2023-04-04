@@ -105,8 +105,7 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
       velox::dwio::common::getReaderFactory(reader_options.getFileFormat())
           ->createReader(
               std::make_unique<velox::dwio::common::BufferedInput>(
-                  std::make_shared<velox::dwio::common::ReadFileInputStream>(readFile),
-                  *pool_),
+                  std::make_shared<velox::dwio::common::ReadFileInputStream>(readFile), *pool_),
               reader_options);
   return toArrowSchema(reader->rowType());
 }
