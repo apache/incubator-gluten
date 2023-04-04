@@ -1,3 +1,5 @@
+#!/bin/bash
+
 export CLICKHOUSE_SRC=''
 export BUILD_DIR=''
 
