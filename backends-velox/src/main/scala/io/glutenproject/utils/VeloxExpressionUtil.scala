@@ -45,7 +45,8 @@ object VeloxExpressionUtil {
     TRANSLATE -> Set(EMPTY_TYPE),
     ADD_MONTHS -> Set(EMPTY_TYPE),
     DATE_FORMAT -> Set(EMPTY_TYPE),
-    TRUNC -> Set(EMPTY_TYPE)
+    TRUNC -> Set(EMPTY_TYPE),
+    SEQUENCE -> Set(EMPTY_TYPE)
   )
 
   final val VELOX_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(

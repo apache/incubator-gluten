@@ -177,6 +177,7 @@ object ExpressionMappings {
   final val ARRAY_CONTAINS = "array_contains"
   final val ARRAY_MAX = "array_max"
   final val ARRAY_MIN = "array_min"
+  final val SEQUENCE = "sequence"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -361,6 +362,7 @@ object ExpressionMappings {
     Sig[ArrayContains](ARRAY_CONTAINS),
     Sig[ArrayMax](ARRAY_MAX),
     Sig[ArrayMin](ARRAY_MIN),
+    Sig[Sequence](SEQUENCE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),

@@ -705,6 +705,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("test 'sequence'") {
+    runQueryAndCompare(
+      "select sequence(id, id+10), sequence(id+10, id), sequence(id, id+10, 3), " +
+        "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
