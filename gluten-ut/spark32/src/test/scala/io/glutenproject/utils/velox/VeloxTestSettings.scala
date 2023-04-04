@@ -106,10 +106,7 @@ class VeloxTestSettings extends BackendTestSettings {
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
       // decimal failed ut.
-      "SPARK-22271: mean overflows and returns null for some decimal variables",
-      "SPARK-28067: Aggregate sum should not return wrong results for decimal overflow",
-      "SPARK-28067: sum of null decimal values",
-      "SPARK-28224: Aggregate sum big decimal overflow"
+      "SPARK-22271: mean overflows and returns null for some decimal variables"
   )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
