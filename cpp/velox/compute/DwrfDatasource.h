@@ -27,9 +27,6 @@
 #include "operators/c2r/ColumnarToRow.h"
 
 #include "velox/common/file/FileSystems.h"
-#ifdef VELOX_ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsReadFile.h"
-#endif
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
