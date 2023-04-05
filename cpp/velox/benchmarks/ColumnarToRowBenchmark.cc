@@ -94,7 +94,7 @@ class GoogleBenchmarkColumnarToRow {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool().get());
+    return velox::importFromArrowAsViewer(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
   }
 
  protected:
@@ -123,8 +123,8 @@ class GoogleBenchmarkColumnarToRow_CacheScan_Benchmark : public GoogleBenchmarkC
     int64_t init_time = 0;
     int64_t write_time = 0;
     int64_t convert_time = 0;
-    int64_t buffer_size=0;
-    
+    int64_t buffer_size = 0;
+
     std::vector<int> local_column_indices;
     local_column_indices.push_back(0);
     local_column_indices.push_back(1);
@@ -151,13 +151,13 @@ class GoogleBenchmarkColumnarToRow_CacheScan_Benchmark : public GoogleBenchmarkC
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(10));
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(9));
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(8));
-    //ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(7));
-    //ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(6));
-    //ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(5));
-    //ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(4));
-    //ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(3));
-    //ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(2));
-    //ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(1));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(7));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(6));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(5));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(4));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(3));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(2));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(1));
     // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(0));
 
     if (state.thread_index() == 0)
@@ -203,11 +203,10 @@ class GoogleBenchmarkColumnarToRow_CacheScan_Benchmark : public GoogleBenchmarkC
 
     auto arrowPool = GetDefaultWrappedArrowMemoryPool();
     auto veloxPool = AsWrappedVeloxMemoryPool(DefaultMemoryAllocator().get());
-    auto ctxPool = veloxPool->addChild("cache_scan", velox::memory::MemoryPool::Kind::kLeaf);
     for (auto _ : state) {
       for (const auto& vector : vectors) {
         auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(
-            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, ctxPool);
+            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, veloxPool);
         TIME_NANO_OR_THROW(init_time, columnarToRowConverter->Init());
         TIME_NANO_OR_THROW(write_time, columnarToRowConverter->Write());
         buffer_size = columnarToRowConverter->GetOffsets().back();
@@ -257,37 +256,38 @@ class GoogleBenchmarkArrowColumnarToRow_CacheScan_Benchmark : public GoogleBench
     int64_t buffer_size = 0;
 
     std::vector<int> local_column_indices;
-    local_column_indices.push_back(15);
-    local_column_indices.push_back(14);
     local_column_indices.push_back(0);
-    local_column_indices.push_back(13);
-    /*local_column_indices.push_back(1);
+    local_column_indices.push_back(1);
     local_column_indices.push_back(2);
+    local_column_indices.push_back(3);
     local_column_indices.push_back(4);
     local_column_indices.push_back(5);
     local_column_indices.push_back(6);
     local_column_indices.push_back(7);
-*/
+    local_column_indices.push_back(13);
+    local_column_indices.push_back(14);
+    local_column_indices.push_back(15);
+
     // std::vector<int> local_column_indices = column_indices;
 
     std::shared_ptr<arrow::Schema> local_schema;
     local_schema = std::make_shared<arrow::Schema>(*schema.get());
 
-    //          ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(15));
-    //          ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(14));
+    //      ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(15));
+    //      ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(14));
     // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(13));
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(12));
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(11));
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(10));
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(9));
     ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(8));
-    ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(7));
-    ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(6));
-    ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(5));
-    ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(4));
-    ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(3));
-    ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(2));
-    ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(1));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(7));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(6));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(5));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(4));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(3));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(2));
+    // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(1));
     // ARROW_ASSIGN_OR_THROW(local_schema, local_schema->RemoveField(0));
 
     if (state.thread_index() == 0)
@@ -377,7 +377,6 @@ class GoogleBenchmarkColumnarToRow_IterateScan_Benchmark : public GoogleBenchmar
 
     auto arrowPool = GetDefaultWrappedArrowMemoryPool();
     auto veloxPool = AsWrappedVeloxMemoryPool(DefaultMemoryAllocator().get());
-    auto ctxPool = veloxPool->addChild("iterate_scan", velox::memory::MemoryPool::Kind::kLeaf);
     for (auto _ : state) {
       ASSERT_NOT_OK(parquet_reader->GetRecordBatchReader(row_group_indices, column_indices, &record_batch_reader));
       TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
@@ -386,7 +385,7 @@ class GoogleBenchmarkColumnarToRow_IterateScan_Benchmark : public GoogleBenchmar
         num_rows += record_batch->num_rows();
         auto vector = recordBatch2RowVector(*record_batch);
         auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(
-            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, ctxPool);
+            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, veloxPool);
         TIME_NANO_OR_THROW(init_time, columnarToRowConverter->Init());
         TIME_NANO_OR_THROW(write_time, columnarToRowConverter->Write());
         TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));

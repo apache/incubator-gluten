@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <filesystem>
 
 #include "VeloxBackend.h"
-#include <filesystem>
 
 #include "ArrowTypeUtils.h"
 #include "VeloxBridge.h"
@@ -269,7 +269,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-  auto ctxPool = veloxPool->addChild("result_iterator_spill", velox::memory::MemoryPool::Kind::kAggregate);
+  auto ctxPool = veloxPool->addChild("ctx_root");
+  ctxPool->setMemoryUsageTracker(memUsageTracker_->addChild());
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
@@ -297,7 +298,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-  auto ctxPool = veloxPool->addChild("result_iterator", velox::memory::MemoryPool::Kind::kLeaf);
+  auto ctxPool = veloxPool->addChild("ctx_root");
+  ctxPool->setMemoryUsageTracker(memUsageTracker_->addChild());
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
       ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp/test-spill", confMap_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
@@ -310,8 +312,8 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   if (veloxBatch != nullptr) {
     auto arrowPool = AsWrappedArrowMemoryPool(allocator);
     auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-    auto ctxVeloxPool = veloxPool->addChild("columnar_to_row_velox", velox::memory::MemoryPool::Kind::kLeaf);
-    return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, ctxVeloxPool);
+    auto ret = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+    ret->SetBatch(veloxBatch->getFlattenedRowVector());
   } else {
     return Backend::getColumnar2RowConverter(allocator, cb);
   }
@@ -348,8 +350,7 @@ std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> VeloxBackend::getMe
 
 void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const velox::core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
-  exportToArrow(
-      velox::BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool().get()), arrowSchema);
+  exportToArrow(velox::BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(outputSchema_, arrow::ImportSchema(&arrowSchema));
 }
 

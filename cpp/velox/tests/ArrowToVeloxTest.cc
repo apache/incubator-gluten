@@ -38,14 +38,14 @@ velox::VectorPtr RecordBatch2RowVector(const RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool().get());
+  return velox::importFromArrowAsViewer(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
 }
 
 void checkBatchEqual(std::shared_ptr<RecordBatch> input_batch, bool checkMetadata = true) {
   velox::VectorPtr vp = RecordBatch2RowVector(*input_batch);
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
+  velox::exportToArrow(vp, arrowArray);
   velox::exportToArrow(vp, arrowSchema);
   auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
   ASSERT_TRUE(in->Equals(*input_batch, checkMetadata)) << in->ToString() << input_batch->ToString();
@@ -111,7 +111,7 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
     auto shortDecimalFlatVector = makeShortDecimalFlatVector({1000265, -35610, 0}, DECIMAL(10, 3));
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
-    velox::exportToArrow(shortDecimalFlatVector, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
+    velox::exportToArrow(shortDecimalFlatVector, arrowArray);
     velox::exportToArrow(shortDecimalFlatVector, arrowSchema);
   }
 
@@ -129,7 +129,7 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
 
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
-    velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
+    velox::exportToArrow(row, arrowArray);
     velox::exportToArrow(row, arrowSchema);
     //     c0:   [
     //     1000.265,
@@ -156,7 +156,7 @@ TEST_F(ArrowToVeloxTest, timestampV2A) {
   });
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  EXPECT_ANY_THROW(velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get()));
+  EXPECT_ANY_THROW(velox::exportToArrow(row, arrowArray));
   velox::exportToArrow(row, arrowSchema);
 }
 

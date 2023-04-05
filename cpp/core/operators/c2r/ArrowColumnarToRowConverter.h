@@ -23,8 +23,20 @@ namespace gluten {
 
 class ArrowColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
-  ArrowColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb, std::shared_ptr<arrow::MemoryPool> memory_pool)
-      : ColumnarToRowConverter(memory_pool), rb_(rb) {}
+  ArrowColumnarToRowConverter(
+      const std::shared_ptr<arrow::RecordBatch>& rb,
+      std::shared_ptr<arrow::MemoryPool> memory_pool)
+      : rb_(rb), ColumnarToRowConverter(memory_pool) {}
+
+  ArrowColumnarToRowConverter(
+      std::shared_ptr<arrow::MemoryPool> memory_pool)
+      : ColumnarToRowConverter(memory_pool) {}
+
+  arrow::Status Init(const std::shared_ptr<arrow::RecordBatch>& rb)
+  {
+    rb_ = rb;
+    return Init();
+  }
 
   arrow::Status Init() override;
 
@@ -36,16 +48,9 @@ class ArrowColumnarToRowConverter final : public ColumnarToRowConverter {
       int32_t batch_rows,
       std::vector<std::vector<const uint8_t*>>& dataptrs,
       std::vector<uint8_t> nullvec,
-      uint8_t* buffer_address,
-      std::vector<int32_t>& offsets,
-      std::vector<int32_t>& buffer_cursor,
-      int32_t& num_cols,
-      int32_t& num_rows,
-      int32_t& nullBitsetWidthInBytes,
       std::vector<arrow::Type::type>& typevec,
       std::vector<uint8_t>& typewidth,
-      std::vector<std::shared_ptr<arrow::Array>>& arrays,
-      bool support_avx512);
+      std::vector<std::shared_ptr<arrow::Array>>& arrays);
 
   std::shared_ptr<arrow::RecordBatch> rb_;
 };

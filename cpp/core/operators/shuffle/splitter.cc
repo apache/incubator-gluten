@@ -618,7 +618,7 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
       case arrow::ListType::type_id: {
         std::unique_ptr<arrow::ArrayBuilder> array_builder;
         RETURN_NOT_OK(MakeBuilder(options_.memory_pool.get(), column_type_id_[i], &array_builder));
-        assert(array_builder != nullptr);
+        ARROW_CHECK_NE(array_builder, nullptr);
         RETURN_NOT_OK(array_builder->Reserve(new_size));
         partition_list_builders_[list_idx][partition_id] = std::move(array_builder);
         list_idx++;
@@ -793,7 +793,7 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(const arrow::RecordB
 
 arrow::Status Splitter::DoSplit(const arrow::RecordBatch& rb) {
   // buffer is allocated less than 64K
-  // ARROW_CHECK_LE(rb.num_rows(),64*1024);
+  ARROW_CHECK_LE(rb.num_rows(), 64 * 1024);
 
   reducer_offsets_.resize(rb.num_rows());
 
