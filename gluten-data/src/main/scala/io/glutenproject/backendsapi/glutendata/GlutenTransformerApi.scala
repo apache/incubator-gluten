@@ -24,6 +24,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
@@ -37,7 +38,9 @@ abstract class GlutenTransformerApi extends TransformerApi with Logging {
    * @return
    */
   override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
-                                                   outputAttributes: Seq[Attribute]): Boolean = {
+                                                   child: SparkPlan)
+  : Boolean = {
+    val outputAttributes = child.output
     // Complex type is not supported.
     for (attr <- outputAttributes) {
       attr.dataType match {

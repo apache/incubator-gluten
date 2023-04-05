@@ -107,7 +107,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables",
-      "SPARK-35955: Aggregate avg should not return wrong results for decimal overflow",
       "SPARK-28067: Aggregate sum should not return wrong results for decimal overflow",
       "SPARK-28067: sum of null decimal values",
       "SPARK-28224: Aggregate sum big decimal overflow"
@@ -407,14 +406,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude(
       "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
-    // decimal failed ut
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude(
       "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
-    // decimal failed ut
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported

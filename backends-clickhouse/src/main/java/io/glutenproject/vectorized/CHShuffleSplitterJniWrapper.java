@@ -36,7 +36,7 @@ public class CHShuffleSplitterJniWrapper {
         part.getShortName(),
         part.getNumPartitions(),
         part.getExprList(),
-        part.getSchema(),
+        part.getRequiredFields(),
         shuffleId,
         mapId,
         bufferSize,

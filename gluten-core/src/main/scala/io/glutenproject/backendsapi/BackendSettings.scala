@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructField
 
@@ -55,6 +56,12 @@ trait BackendSettings {
   def disableVanillaColumnarReaders(): Boolean = false
   def recreateJoinExecOnFallback(): Boolean = false
   def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
+  /**
+   * A shuffle key may be an expression. We would add a projection for this expression shuffle key
+   * and make it into a new column which the shuffle will refer to. But we need to remove it from
+   * the result columns from the shuffle.
+   */
+  def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
   def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def avoidOverwritingFilterTransformer(): Boolean = false

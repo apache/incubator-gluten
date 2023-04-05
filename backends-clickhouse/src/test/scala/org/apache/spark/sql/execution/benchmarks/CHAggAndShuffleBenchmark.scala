@@ -32,7 +32,7 @@ import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.benchmarks.utils.FakeFileOutputStream
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
+import org.apache.spark.sql.execution.exchange.{ENSURE_REQUIREMENTS, ShuffleExchangeExec}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.ShuffleBlockId
 
@@ -261,7 +261,8 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
         val shuffleSplit = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
-          removeHashColumn = shuffleStage.removeHashColumn)
+          ENSURE_REQUIREMENTS,
+          shuffleStage.child.output)
         val resultRDD = shuffleSplit.columnarShuffleDependency.rdd.mapPartitionsInternal {
           batches =>
             batches.foreach(batch => (batch._1, batch._2.numRows().toLong))
@@ -275,7 +276,8 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
         val shuffleWrite = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
-          removeHashColumn = shuffleStage.removeHashColumn)
+          ENSURE_REQUIREMENTS,
+          shuffleStage.child.output)
         val serializer = shuffleWrite.columnarShuffleDependency.serializer
         val resultRDD = shuffleWrite.columnarShuffleDependency.rdd.mapPartitionsInternal {
           batches =>
@@ -301,7 +303,8 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
         val shuffleRead = ColumnarShuffleExchangeExec(
           shuffleStage.outputPartitioning,
           shuffleStage.child,
-          removeHashColumn = shuffleStage.removeHashColumn)
+          ENSURE_REQUIREMENTS,
+          shuffleStage.child.output)
 
         val resultRDD: RDD[Long] = shuffleRead.executeColumnar().mapPartitionsInternal {
           batches =>

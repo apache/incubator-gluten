@@ -707,7 +707,7 @@ arrow::Status VeloxSplitter::SplitListArray(const velox::RowVector& rv) {
 
     // TODO: rethink the cost of `exportToArrow+ImportArray`
     ArrowArray arrowArray;
-    velox::exportToArrow(column, arrowArray);
+    velox::exportToArrow(column, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
 
     auto result = arrow::ImportArray(&arrowArray, arrow_column_types_[col_idx]);
     RETURN_NOT_OK(result);
@@ -743,7 +743,7 @@ arrow::Status VeloxSplitter::SplitBinaryArray(const velox::RowVector& rv) {
 
 arrow::Status VeloxSplitter::VeloxType2ArrowSchema(const velox::TypePtr& type) {
   auto out = std::make_shared<ArrowSchema>();
-  auto rvp = velox::RowVector::createEmpty(type, GetDefaultWrappedVeloxMemoryPool());
+  auto rvp = velox::RowVector::createEmpty(type, GetDefaultWrappedVeloxMemoryPool().get());
 
   // get ArrowSchema from velox::RowVector
   velox::exportToArrow(rvp, *out);
@@ -1300,7 +1300,7 @@ arrow::Status VeloxSinglePartSplitter::Split(ColumnarBatch* cb) {
   RETURN_NOT_OK(InitFromRowVector(*vp));
   // 1. convert RowVector to RecordBatch
   ArrowArray arrowArray;
-  velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool());
+  velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
 
   auto result = arrow::ImportRecordBatch(&arrowArray, schema_);
   RETURN_NOT_OK(result);

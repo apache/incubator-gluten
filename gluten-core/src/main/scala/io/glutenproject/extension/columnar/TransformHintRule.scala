@@ -404,7 +404,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           } else {
             val transformer = ColumnarShuffleExchangeExec(
               plan.outputPartitioning,
-              plan.child)
+              plan.child,
+              plan.shuffleOrigin,
+              plan.child.output)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ShuffledHashJoinExec =>

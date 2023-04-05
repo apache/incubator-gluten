@@ -27,6 +27,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, RangePartitioning}
+import org.apache.spark.sql.catalyst.expressions.{BindReferences, BoundReference}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
@@ -143,6 +146,74 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
     BackendsApiManager.getSparkPlanExecApiInstance
       .genFilterExecTransformer(plan.condition, newChild)
   }
+  /**
+   * If there are expressions (not field reference) in the partitioning's children, add a projection
+   * before shuffle exchange and make a new partitioning with the old expressions replaced by the
+   * result columns from the projection.
+   * */
+  private def addProjectionForShuffleExchange(plan: ShuffleExchangeExec): (Int, Partitioning,
+    SparkPlan) = {
+    def selectEpxressions(exprs: Seq[Expression], attributes: Seq[Attribute])
+    : (Seq[NamedExpression], Seq[Int]) = {
+      var expressionPos = Seq[Int]()
+      var projectExpressions = Seq[NamedExpression]()
+
+      exprs.foreach(
+        expr => {
+          if (!expr.isInstanceOf[AttributeReference]) {
+            val n = projectExpressions.size
+            val namedExpression = Alias(expr, s"projected_partitioning_value_$n")()
+            projectExpressions = projectExpressions :+ namedExpression
+            expressionPos = expressionPos :+ (attributes.size + n)
+          } else {
+            // the new projected columns are appended at the end
+            expressionPos = expressionPos :+ BindReferences.bindReference(
+              expr, attributes).asInstanceOf[BoundReference].ordinal
+          }
+        }
+      )
+      (projectExpressions, expressionPos)
+    }
+    plan.outputPartitioning match {
+      case HashPartitioning(exprs, numPartitions) =>
+        val (projectExpressions, newExpressionsPosition) = {
+          selectEpxressions(exprs, plan.child.output)
+        }
+        if (projectExpressions.isEmpty) {
+          return (0, plan.outputPartitioning, plan.child)
+        }
+        val project = replaceWithTransformerPlan(AddTransformHintRule().apply(
+          ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        var newExprs = Seq[Expression]()
+        for (i <- 0 to exprs.size - 1) {
+          val pos = newExpressionsPosition(i)
+          newExprs = newExprs :+ project.output(pos)
+        }
+        (projectExpressions.size, HashPartitioning(newExprs, numPartitions), project)
+      case RangePartitioning(orderings, numPartitions) =>
+        val exprs = orderings.map(ordering => ordering.child)
+        val (projectExpressions, newExpressionsPosition) = {
+          selectEpxressions(exprs, plan.child.output)
+        }
+        if (projectExpressions.isEmpty) {
+          return (0, plan.outputPartitioning, plan.child)
+        }
+        val project = replaceWithTransformerPlan(AddTransformHintRule().apply(
+          ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        var newOrderings = Seq[SortOrder]()
+        for (i <- 0 to orderings.size - 1) {
+          val oldOrdering = orderings(i)
+          val pos = newExpressionsPosition(i)
+          val ordering = SortOrder(project.output(pos), oldOrdering.direction, oldOrdering
+            .nullOrdering, oldOrdering.sameOrderExpressions)
+          newOrderings = newOrderings :+ ordering
+        }
+        (projectExpressions.size, RangePartitioning(newOrderings, numPartitions), project)
+      case _ =>
+        // no change for other cases
+        (0, plan.outputPartitioning, plan.child)
+    }
+  }
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
@@ -231,19 +302,39 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
-                  ColumnarShuffleUtil.genColumnarShuffleExchange(
-                    plan, projectChild, removeHashColumn = true,
-                    isAdaptiveContextOrTopParentExchange)
+                  ColumnarShuffleUtil.genColumnarShuffleExchange(plan, projectChild,
+                    isAdaptiveContextOrTopParentExchange, projectChild.output.drop(1))
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
                 ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
-                  isAdaptiveContextOrTopParentExchange = isAdaptiveContextOrTopParentExchange)
+                  isAdaptiveContextOrTopParentExchange = isAdaptiveContextOrTopParentExchange, null)
+            }
+          } else if (BackendsApiManager.getSettings.supportShuffleWithProject(plan
+            .outputPartitioning, plan.child)) {
+            val (projectColumnNumber, newPartitioning, newChild) =
+              addProjectionForShuffleExchange(plan)
+
+            if (projectColumnNumber != 0) {
+              if (newChild.supportsColumnar) {
+                val newPlan = ShuffleExchangeExec(newPartitioning, newChild, plan.shuffleOrigin)
+                // the new projections columns are appended at the end.
+                ColumnarShuffleUtil.genColumnarShuffleExchange(newPlan, newChild,
+                  isAdaptiveContextOrTopParentExchange,
+                  newChild.output.dropRight(projectColumnNumber))
+              } else {
+                // It's the case that partitioning expressions could be offloaded into native.
+                plan.withNewChildren(Seq(child))
+              }
+            }
+            else {
+              ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
+                isAdaptiveContextOrTopParentExchange, null)
             }
           } else {
-            ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
-              isAdaptiveContextOrTopParentExchange = isAdaptiveContextOrTopParentExchange)
+            ColumnarShuffleUtil.genColumnarShuffleExchange(
+              plan, child, isAdaptiveContextOrTopParentExchange, null)
           }
         } else {
           plan.withNewChildren(Seq(child))

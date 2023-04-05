@@ -51,7 +51,7 @@
     <scala.version>${spark32.scala}</scala.version>
     <spark.version>${spark32.version}</spark.version>
     <spark.major.version>3</spark.major.version>
-    <celeborn.version>0.2.1-SNAPSHOT</celeborn.version>
+    <celeborn.version>0.2.1-incubating</celeborn.version>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
     <arrow.version>11.0.0-gluten</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
@@ -706,11 +706,4 @@
       </plugin>
     </plugins>
   </build>
-  <repositories>
-    <repository>
-      <id>apache</id>
-      <name>celeborn snapshots</name>
-      <url>https://repository.apache.org/content/repositories/snapshots/</url>
-    </repository>
-  </repositories>
 </project>

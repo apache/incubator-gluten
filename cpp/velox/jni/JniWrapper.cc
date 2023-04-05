@@ -86,9 +86,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
 
   // A query context used for function validation.
   velox::core::QueryCtx queryCtx;
-
-  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool();
-
+  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
@@ -108,12 +106,12 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jstring file_path,
     jlong c_schema) {
-  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool();
+  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool().get();
   gluten::DwrfDatasource* dwrfDatasource = nullptr;
   if (c_schema == -1) {
     // Only inspect the schema and not write
     dwrfDatasource = new gluten::DwrfDatasource(JStringToCString(env, file_path), nullptr, pool);
-    // dwrfDatasource->Init( );
+    // dwrfDatasource->Init();
   } else {
     auto schema = gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
     dwrfDatasource = new gluten::DwrfDatasource(JStringToCString(env, file_path), schema, pool);

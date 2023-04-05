@@ -254,7 +254,8 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   }
 
   // Set task parameters.
-  velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1};
+  std::unordered_set<velox::core::PlanNodeId> emptySet;
+  velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = std::make_shared<velox::exec::Task>(
@@ -328,7 +329,8 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap)
     : WholeStageResultIterator(pool, planNode, confMap), streamIds_(streamIds) {
-  velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1};
+  std::unordered_set<velox::core::PlanNodeId> emptySet;
+  velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = std::make_shared<velox::exec::Task>(
