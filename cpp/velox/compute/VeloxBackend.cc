@@ -251,9 +251,9 @@ static void getInfoAndIds(
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    std::string spill_dir,
-    std::vector<std::shared_ptr<ResultIterator>> inputs,
-    std::unordered_map<std::string, std::string> sessionConf) {
+    const std::string& spill_dir,
+    const std::vector<std::shared_ptr<ResultIterator>>& inputs,
+    const std::unordered_map<std::string, std::string>& sessionConf) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
@@ -284,8 +284,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos,
-    std::unordered_map<std::string, std::string> sessionConf) {
+    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
   toVeloxPlan();
 
   // In test, use setScanInfos to replace the one got from Substrait.
@@ -320,7 +319,7 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
 std::shared_ptr<SplitterBase> VeloxBackend::makeSplitter(
     const std::string& partitioning_name,
     int num_partitions,
-    SplitOptions options,
+    const SplitOptions& options,
     const std::string& batchType) {
   if (options.is_celeborn) {
     GLUTEN_ASSIGN_OR_THROW(

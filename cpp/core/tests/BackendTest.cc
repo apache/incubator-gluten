@@ -25,9 +25,9 @@ class DummyBackend final : public Backend {
  public:
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::string spillDir,
-      std::vector<std::shared_ptr<ResultIterator>> inputs,
-      std::unordered_map<std::string, std::string> sessionConf) override {
+      const std::string& spillDir,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs,
+      const std::unordered_map<std::string, std::string>& sessionConf) override {
     auto res_iter = std::make_unique<DummyResultIterator>();
     return std::make_shared<ResultIterator>(std::move(res_iter));
   }

@@ -13,7 +13,6 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-const std::string kSparkBatchSize = "spark.sql.execution.arrow.maxRecordsPerBatch";
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
