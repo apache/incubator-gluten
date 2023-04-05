@@ -32,9 +32,7 @@ DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
 namespace {
-
 std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, "512"}};
-
 } // anonymous namespace
 
 void InitVeloxBackend() {
