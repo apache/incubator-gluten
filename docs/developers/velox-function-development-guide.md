@@ -1,6 +1,6 @@
-# Developer Guide for Implementing Spark Built-in Functions in Velox
+# Developer Guide for Implementing Spark Built-in SQL Functions in Velox
 
-In velox, two folders `prestosql` & `sparksql` are holding most functions, respective for `presto` and `spark`. At runtime, gluten will firstly check whether the calling function is registered in `sparksql` and will use
+In velox, two folders `prestosql` & `sparksql` are holding most sql functions, respective for `presto` and `spark`. At runtime, gluten will firstly check whether the calling function is registered in `sparksql` and will use
 it if registered. If not, then check `prestosql` functions and find a matched one for reuse according to function signature. If the required function is lacking in both folders (exceptions are some common functions defined
 outside, like `cast`), we need to implement the missing function in `sparksql` folder. It is possible that a `prestosql` function has some semantic difference with the corresponding spark function, even though they share the
 same name and function signature. If so, we also need to do an implementation in `sparksql` folder, generally based on the original impl. for `prestosql`.
@@ -34,8 +34,6 @@ Functions for complex types have similar implementations.
 See `ArrayAverageFunction` in [velox/functions/prestosql/ArrayFunctions.h](https://github.com/facebookincubator/velox/blob/main/velox/functions/prestosql/ArrayFunctions.h).
 
 ### Reference:
-* Velox’s official developer guide for scalar functions:
-
-  [velox/docs/develop/scalar-functions.rst](https://github.com/facebookincubator/velox/blob/main/velox/docs/develop/scalar-functions.rst)
-
-  [velox/examples/SimpleFunctions.cpp](https://github.com/facebookincubator/velox/blob/main/velox/examples/SimpleFunctions.cpp)
+Velox’s official developer guide:
+  * [velox/docs/develop/scalar-functions.rst](https://github.com/facebookincubator/velox/blob/main/velox/docs/develop/scalar-functions.rst)
+  * [velox/examples/SimpleFunctions.cpp](https://github.com/facebookincubator/velox/blob/main/velox/examples/SimpleFunctions.cpp)
