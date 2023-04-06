@@ -8,6 +8,8 @@ ENABLE_HDFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
+ARROW_HOME=""
+THRIFT_HOME=""
 
 LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
 
@@ -15,6 +17,14 @@ for arg in "$@"; do
   case $arg in
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --arrow_home=*)
+    ARROW_HOME=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --thrift_home=*)
+    THRIFT_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_s3=*)
@@ -53,6 +63,20 @@ function compile {
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
+  fi
+  if [ -n "$ARROW_HOME" ]; then
+    if [ ! -d "$ARROW_HOME" ]; then
+      echo "ARROW_HOME=$ARROW_HOME not found" >&2
+      exit 1
+    fi
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ARROW_HOME=$ARROW_HOME"
+  fi
+  if [ -n "$THRIFT_HOME" ]; then
+    if [ ! -d "$THRIFT_HOME" ]; then
+      echo "THRIFT_HOME=$THRIFT_HOME not found" >&2
+      exit 1
+    fi
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_THRIFT_HOME=$THRIFT_HOME"
   fi
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
@@ -94,10 +118,22 @@ if [ "$VELOX_HOME" == "" ]; then
   VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
 fi
 
+if [ -z "$ARROW_HOME" ]; then
+  ARROW_HOME=$CURRENT_DIR/../../build-arrow/build/arrow_install
+  [ -d "$ARROW_HOME" ] || ARROW_HOME=""
+fi
+
+if [ -z "$THRIFT_HOME" ]; then
+  THRIFT_HOME=$CURRENT_DIR/../../build-arrow/build/arrow_ep/cpp/build/thrift_ep-install
+  [ -d "$THRIFT_HOME" ] || THRIFT_HOME=""
+fi
+
 BUILD_DIR="$CURRENT_DIR/../build"
 echo "Start building Velox..."
 echo "CMAKE Arguments:"
 echo "VELOX_HOME=${VELOX_HOME}"
+echo "ARROW_HOME=${ARROW_HOME}"
+echo "THRIFT_HOME=${THRIFT_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
