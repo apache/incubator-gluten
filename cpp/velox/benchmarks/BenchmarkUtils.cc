@@ -21,6 +21,7 @@
 
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
+#include "config/GlutenConfig.h"
 
 using namespace facebook;
 namespace fs = std::filesystem;

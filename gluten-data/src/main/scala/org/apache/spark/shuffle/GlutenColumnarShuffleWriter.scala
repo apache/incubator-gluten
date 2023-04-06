@@ -57,6 +57,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     .map(_.getAbsolutePath)
     .mkString(",")
 
+  // FIXME GlutenConfig.getConf.offHeapMemorySize is per executor
   private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize

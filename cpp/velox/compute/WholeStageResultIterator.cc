@@ -13,11 +13,24 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
+// Velox configs
+const std::string kSpillEnabled = "spark.gluten.sql.columnar.backend.velox.spillEnabled";
+const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
+const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
+const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
+const std::string kAggregationSpillMemoryThreshold =
+    "spark.gluten.sql.columnar.backend.velox.aggregationSpillMemoryThreshold";
+const std::string kJoinSpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.joinSpillMemoryThreshold";
+const std::string kOrderBySpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.orderBySpillMemoryThreshold";
+
+// metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
 const std::string kFlushRowCount = "flushRowCount";
 const std::string kTotalScanTime = "totalScanTime";
+
+// others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
@@ -166,44 +179,53 @@ int64_t WholeStageResultIterator::runtimeMetric(
   return 0;
 }
 
+std::string WholeStageResultIterator::getConfigValue(
+    const std::string& key,
+    const std::optional<std::string>& fallbackValue) {
+  auto got = confMap_.find(key);
+  if (got == confMap_.end()) {
+    if (fallbackValue == std::nullopt) {
+      throw std::runtime_error("No such config key: " + key);
+    }
+    return fallbackValue.value();
+  }
+  return got->second;
+}
+
 void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox::core::QueryCtx>& queryCtx) {
   std::unordered_map<std::string, std::string> configs = {};
-  // Find batch size from Spark confs. If found, set it to Velox query context.
-  auto got = confMap_.find(kSparkBatchSize);
-  if (got != confMap_.end()) {
-    configs[velox::core::QueryConfig::kPreferredOutputBatchSize] = got->second;
-  }
+  // Find batch size from Spark confs. If found.
+  configs[velox::core::QueryConfig::kPreferredOutputBatchSize] = getConfigValue(kSparkBatchSize, "1024");
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
-  got = confMap_.find(kVeloxMemoryCap);
-  if (got != confMap_.end()) {
-    try {
-      auto maxMemory = (long)(std::stol(got->second));
-      configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
-    } catch (const std::invalid_argument&) {
-      throw std::runtime_error("Invalid off-heap memory size.");
-    }
+  try {
+    // Set the max memory of partial aggregation as 3/4 of offheap size.
+    auto maxMemory =
+        (long)(0.75 * (double)std::stol(getConfigValue(kSparkOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
+    configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
+  } catch (const std::invalid_argument&) {
+    throw std::runtime_error("Invalid off-heap memory size.");
   }
   // To align with Spark's behavior, set casting to int to be truncating.
   configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
-  configs[velox::core::QueryConfig::kSpillEnabled] = std::to_string(true);
-  configs[velox::core::QueryConfig::kAggregationSpillEnabled] = std::to_string(true);
-  configs[velox::core::QueryConfig::kJoinSpillEnabled] = std::to_string(true);
-  configs[velox::core::QueryConfig::kOrderBySpillEnabled] = std::to_string(true);
+
+  // Spill configs
+  configs[velox::core::QueryConfig::kSpillEnabled] = getConfigValue(kSpillEnabled, "true");
+  configs[velox::core::QueryConfig::kAggregationSpillEnabled] = getConfigValue(kAggregationSpillEnabled, "true");
+  configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(kJoinSpillEnabled, "true");
+  configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(kOrderBySpillEnabled, "true");
   configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
-      std::to_string(0); // spill only when input doesn't fit
-  configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] = std::to_string(0); // spill only when input doesn't fit
+      getConfigValue(kAggregationSpillMemoryThreshold, "0"); // spill only when input doesn't fit
+  configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] =
+      getConfigValue(kJoinSpillMemoryThreshold, "0"); // spill only when input doesn't fit
   configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
-      std::to_string(0); // spill only when input doesn't fit
+      getConfigValue(kOrderBySpillMemoryThreshold, "0"); // spill only when input doesn't fit
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
-  auto got = confMap_.find(kCaseSensitive);
-  if (got != confMap_.end()) {
-    configs[velox::connector::hive::HiveConfig::kCaseSensitive] = got->second;
-  }
+  configs[velox::connector::hive::HiveConfig::kCaseSensitive] = getConfigValue(kCaseSensitive, "true");
   return std::make_shared<velox::core::MemConfig>(configs);
 }
 
@@ -305,7 +327,7 @@ WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::st
       throw std::runtime_error("No value found for partition key: " + partitionColumn + " in path: " + filePath);
     }
     std::string partitionValue = latterPart.substr(0, pos);
-    if (!folly::to<bool>(confMap_[kCaseSensitive])) {
+    if (!folly::to<bool>(getConfigValue(kCaseSensitive, "true"))) {
       folly::toLowerAscii(partitionColumn);
     }
     if (partitionValue == kHiveDefaultPartition) {

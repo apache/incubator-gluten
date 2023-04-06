@@ -17,17 +17,18 @@
 
 package io.glutenproject
 
-import java.util
-import java.util.{Collections, Objects}
-import scala.language.implicitConversions
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.{SparkConf, SparkContext}
+
+import java.util
+import java.util.{Collections, Objects}
+import scala.language.implicitConversions
 
 class GlutenPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
@@ -41,9 +42,6 @@ class GlutenPlugin extends SparkPlugin {
 
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
-    // Set the system properties.
-    // Use appending policy for children with the same name in a arrow struct vector.
-    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = pluginContext.conf()
     setPredefinedConfigs(sc, conf)
     // Initialize Backends API
@@ -86,9 +84,6 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    // Set the system properties.
-    // Use appending policy for children with the same name in a arrow struct vector.
-    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = ctx.conf()
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
     if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||

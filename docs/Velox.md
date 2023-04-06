@@ -357,7 +357,24 @@ cd /path_to_gluten
 
 At runtime, `MEMKIND_HBW_NODES` enviroment variable is detected for configuring HBM NUMA nodes. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`. Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.
 
-# 5 Intel® QuickAssist Technology (QAT) support
+# 5 Spill (Experimental)
+
+Velox backend supports spill-to-disk by default.
+
+Using the following configuration options to customize spilling:
+
+| Name                                                                     | Default Value | Description                                                                                                                                     |
+|--------------------------------------------------------------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| spark.gluten.sql.columnar.backend.velox.spillEnabled                     | true          | Whether spill is enabled on Velox backend                                                                                                       |
+| spark.gluten.sql.columnar.backend.velox.memoryCapRatio                   | 0.75          | The overall ratio of total off-heap memory Velox is able to allocate from. If this value is set lower, spill will be triggered more frequently. |
+| spark.gluten.sql.columnar.backend.velox.kAggregationSpillEnabled         | true          | Whether spill is enabled on aggregations                                                                                                        |
+| spark.gluten.sql.columnar.backend.velox.kJoinSpillEnabled                | true          | Whether spill is enabled on joins                                                                                                               |
+| spark.gluten.sql.columnar.backend.velox.kOrderBySpillEnabled             | true          | Whether spill is enabled on sorts                                                                                                               |
+| spark.gluten.sql.columnar.backend.velox.kAggregationSpillMemoryThreshold | 0 (auto)      | Memory limit before spilling to disk for aggregations, per Spark task. Unit: byte                                                               |
+| spark.gluten.sql.columnar.backend.velox.kJoinSpillMemoryThreshold        | 0             | Memory limit before spilling to disk for joins, per Spark task. Unit: byte                                                                      |
+| spark.gluten.sql.columnar.backend.velox.kOrderBySpillMemoryThreshold     | 0             | Memory limit before spilling to disk for sorts, per Spark task. Unit: byte                                                                      |
+
+# 6 Intel® QuickAssist Technology (QAT) support
 
 Gluten supports using Intel® QuickAssist Technology (QAT) for data compression during Spark Shuffle. It benefits from QAT Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
 
@@ -365,7 +382,7 @@ This feature is based on QAT driver library and [QATzip](https://github.com/inte
 
 Gluten will internally build and link to a specific version of QATzip library. Please **uninstall QATzip library** before building Gluten if it's already installed. Additional environment set-up are also required:
 
-## 5.1 Build Gluten with QAT
+## 6.1 Build Gluten with QAT
 
 1. Setup ICP_ROOT environment variable. This environment variable is required during building Gluten and running Spark applicaitons. It's recommended to put it in .bashrc on Driver and Worker node.
 
@@ -401,7 +418,7 @@ cd /path_to_gluten
 ./dev/buildbundle-veloxbe.sh --enable_qat=ON
 ```
 
-## 5.2 Enable QAT with Gzip Compression for shuffle compression
+## 6.2 Enable QAT with Gzip Compression for shuffle compression
 
 1. To enable QAT at run-time, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
 
@@ -448,7 +465,7 @@ There is 8 QAT acceleration device(s) in the system:
 while :; do cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/fw_counters; sleep 1; done
 ```
 
-## 5.3 QAT driver references
+## 6.3 QAT driver references
 
 **Documentation**
 
@@ -468,11 +485,11 @@ Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.i
 
 For more Intel® QuickAssist Technology resources go to [Intel® QuickAssist Technology (Intel® QAT)](https://developer.intel.com/quickassist)
 
-# 6 Test TPC-H or TPC-DS on Gluten with Velox backend
+# 7 Test TPC-H or TPC-DS on Gluten with Velox backend
 
 All TPC-H and TPC-DS queries are supported in Gluten Velox backend.  
 
-## 6.1 Data preparation
+## 7.1 Data preparation
 
 The data generation scripts are [TPC-H dategen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
 [TPC-DS dategen script](../backends-velox/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
@@ -485,7 +502,7 @@ Some other versions of TPC-DS and TPC-H queries are also provided, but are **not
 - the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
 - the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../tools/gluten-it/src/main/resources/tpcds-queries-nodecimal-nodate) (outdated).
 
-## 6.2 Submit the Spark SQL job
+## 7.2 Submit the Spark SQL job
 
 Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
 
@@ -518,12 +535,12 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
 
 Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
 
-## 6.3 Result
+## 7.3 Result
 *wholestagetransformer* indicates that the offload works.
 
 ![TPC-H Q6](./image/TPC-H_Q6_DAG.png)
 
-## 6.4 Performance
+## 7.4 Performance
 
 Below table shows the TPC-H Q1 and Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
 Both Parquet and ORC datasets are sf1024.
@@ -533,6 +550,6 @@ Both Parquet and ORC datasets are sf1024.
 | TPC-H Q6 | 13.6 | 21.6  | 34.9 |
 | TPC-H Q1 | 26.1 | 76.7 | 84.9 |
 
-# 7 External reference setup
+# 8 External reference setup
 
 TO ease your first-hand experience of using Gluten, we have set up an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com.

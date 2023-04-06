@@ -24,6 +24,8 @@ import org.apache.spark.SparkConf
 
 import org.apache.commons.lang3.StringUtils
 
+import java.util.TimeZone
+
 class CHInitializerApi extends InitializerApi {
 
   override def initialize(conf: SparkConf): Unit = {
@@ -34,6 +36,11 @@ class CHInitializerApi extends InitializerApi {
     }
     // Path based load. Ignore all other loadees.
     JniLibLoader.loadFromPath(libPath, true)
+
+    // Add configs
+    conf.set(
+      "spark.gluten.timezone",
+      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
     val initKernel = new CHNativeExpressionEvaluator()
     initKernel.initNative(conf)
   }

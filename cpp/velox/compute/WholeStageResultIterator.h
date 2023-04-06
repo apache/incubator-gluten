@@ -10,7 +10,6 @@
 namespace gluten {
 
 static const std::string kHiveConnectorId = "test-hive";
-static const std::string kSparkBatchSize = "spark.sql.execution.arrow.maxRecordsPerBatch";
 
 class WholeStageResultIterator {
  public:
@@ -50,8 +49,8 @@ class WholeStageResultIterator {
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
 
  protected:
-  /// A map of custom configs.
-  std::unordered_map<std::string, std::string> confMap_;
+  /// Get config value by key.
+  std::string getConfigValue(const std::string& key, const std::optional<std::string>& fallbackValue = std::nullopt);
 
   std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx();
 
@@ -72,6 +71,9 @@ class WholeStageResultIterator {
       const std::string& metricType,
       const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
       const std::string& metricId) const;
+
+  /// A map of custom configs.
+  std::unordered_map<std::string, std::string> confMap_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 

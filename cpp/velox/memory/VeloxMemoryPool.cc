@@ -84,7 +84,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     reserve(alignedSize);
     void* buffer;
     if (!gluten_alloc_->Allocate(alignedSize, &buffer)) {
-      VELOX_FAIL("VeloxMemoryAllocatorVariant: Failed to allocate " + std::to_string(alignedSize) + " bytes")
+      VELOX_FAIL("WrappedVeloxMemoryPool: Failed to allocate " + std::to_string(alignedSize) + " bytes")
     }
     if (FOLLY_UNLIKELY(buffer == nullptr)) {
       release(alignedSize);
@@ -101,8 +101,8 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     void* buffer;
     if (!gluten_alloc_->AllocateZeroFilled(alignedSize, 1, &buffer)) {
       VELOX_FAIL(
-          "VeloxMemoryAllocatorVariant: Failed to allocate (zero filled) " + std::to_string(alignedSize) +
-          " members, " + std::to_string(1) + " bytes for each")
+          "WrappedVeloxMemoryPool: Failed to allocate (zero filled) " + std::to_string(alignedSize) + " members, " +
+          std::to_string(1) + " bytes for each")
     }
     if (FOLLY_UNLIKELY(buffer == nullptr)) {
       release(alignedSize);
@@ -125,7 +125,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       free(p, alignedSize);
       release(alignedNewSize);
       VELOX_MEM_ALLOC_ERROR(fmt::format(
-          "VeloxMemoryAllocatorVariant {} failed with {} new bytes and {} old bytes from {}",
+          "WrappedVeloxMemoryPool {} failed with {} new bytes and {} old bytes from {}",
           __FUNCTION__,
           newSize,
           size,
@@ -145,7 +145,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
     auto alignedSize = sizeAlign(size);
     if (!gluten_alloc_->Free(p, alignedSize)) {
-      VELOX_FAIL("VeloxMemoryAllocatorVariant: Failed to free " + std::to_string(alignedSize) + " bytes")
+      VELOX_FAIL("WrappedVeloxMemoryPool: Failed to free " + std::to_string(alignedSize) + " bytes")
     }
     release(alignedSize);
   }
@@ -154,7 +154,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   void allocateNonContiguous(
       velox::memory::MachinePageCount numPages,
       velox::memory::Allocation& out,
-      velox::memory::MachinePageCount minSizeClass) {
+      velox::memory::MachinePageCount minSizeClass) override {
     checkMemoryAllocation();
     VELOX_CHECK_GT(numPages, 0);
 
@@ -197,7 +197,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     return velox_alloc_->sizeClasses();
   }
 
-  void allocateContiguous(velox::memory::MachinePageCount numPages, velox::memory::ContiguousAllocation& out) {
+  void allocateContiguous(velox::memory::MachinePageCount numPages, velox::memory::ContiguousAllocation& out) override {
     checkMemoryAllocation();
     VELOX_CHECK_GT(numPages, 0);
 
@@ -218,7 +218,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     out.setPool(this);
   }
 
-  void freeContiguous(velox::memory::ContiguousAllocation& allocation) {
+  void freeContiguous(velox::memory::ContiguousAllocation& allocation) override {
     checkMemoryAllocation();
 
     const int64_t bytesToFree = allocation.size();
@@ -322,7 +322,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     }
   }
 
-  void release(int64_t size) {
+  void release(int64_t size) override {
     checkMemoryAllocation();
 
     memoryManager_->release(size);

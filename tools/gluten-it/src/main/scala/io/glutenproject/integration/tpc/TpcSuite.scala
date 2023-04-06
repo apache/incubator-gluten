@@ -39,6 +39,7 @@ abstract class TpcSuite(
   sessionSwitcher.defaultConf().set("spark.sql.shuffle.partitions", s"$shufflePartitions")
   sessionSwitcher.defaultConf().set("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
   sessionSwitcher.defaultConf().set("spark.executor.heartbeatInterval", "3600000")
+  sessionSwitcher.defaultConf().set("spark.executor.metrics.pollingInterval", "1")
   sessionSwitcher.defaultConf().set("spark.network.timeout", "3601s")
   sessionSwitcher.defaultConf().set("spark.sql.broadcastTimeout", "1800")
   sessionSwitcher.defaultConf().set("spark.network.io.preferDirectBufs", "false")
