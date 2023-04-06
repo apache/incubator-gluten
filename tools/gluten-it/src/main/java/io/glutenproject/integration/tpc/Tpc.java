@@ -88,7 +88,7 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
   private boolean genPartitionedData;
 
-  @CommandLine.Option(names = {"--extra-conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --conf=k1=v1 --conf=k2=v2")
+  @CommandLine.Option(names = {"--extra-conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --conf=k1=v1 --conf=k2=v2", defaultValue = "")
   private Map<String, String> extraSparkConf;
 
   public Tpc() {
