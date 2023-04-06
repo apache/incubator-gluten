@@ -1,12 +1,12 @@
 # Developer Guide for Implementing Spark Built-in Functions in Velox
 
-The `prestosql` & `sparksql` are two folders holding velox functions. At runtime, gluten will firstly check whether the calling function is registered in `sparksql` and will use it if registered.
-If not, then check `prestosql` functions and find a matched one on function signature. If the required function is lacking in both folders (exceptions are some common functions, like `cast`),
-we need to implement the missing function in `sparksql` folder. It is possible that a `prestosql` function has some semantic difference with the corresponding spark function, even though they share the same name
-and function signature. If so, we also need to do an implementation in `sparksql` folder, generally based on the original impl. for `prestosql`.
+In velox, two folders `prestosql` & `sparksql` are holding most functions, respective for `presto` and `spark`. At runtime, gluten will firstly check whether the calling function is registered in `sparksql` and will use
+it if registered. If not, then check `prestosql` functions and find a matched one for reuse according to function signature. If the required function is lacking in both folders (exceptions are some common functions defined
+outside, like `cast`), we need to implement the missing function in `sparksql` folder. It is possible that a `prestosql` function has some semantic difference with the corresponding spark function, even though they share the
+same name and function signature. If so, we also need to do an implementation in `sparksql` folder, generally based on the original impl. for `prestosql`.
 
-There are a few spark functions that can behave differently for some special cases, depending on ANSI on or off. Currently, gluten does NOT support ANSI mode. So only ANSI off is considered in implementing spark built-in
-functions in velox.
+There are a few spark functions that can behave differently for some special cases, depending on ANSI on or off. Currently, gluten does NOT support ANSI mode. So only ANSI off needs to be considered in implementing spark
+built-in functions in velox.
 
 Take `BitwiseAndFunction` as example:
 
@@ -31,9 +31,11 @@ registerBinaryIntegral<BitwiseAndFunction>({prefix + "bitwise_and"});
 ```
 
 Functions for complex types have similar implementations. 
-See `ArrayAverageFunction` in `velox/functions/prestosql/ArrayFunctions.h`.
+See `ArrayAverageFunction` in [velox/functions/prestosql/ArrayFunctions.h](https://github.com/facebookincubator/velox/blob/main/velox/functions/prestosql/ArrayFunctions.h).
 
 ### Reference:
-Velox’s official developer guide for scalar functions:
-[velox/docs/develop/scalar-functions.rst](https://github.com/facebookincubator/velox/blob/main/velox/docs/develop/scalar-functions.rst)
-[velox/examples/SimpleFunctions.cpp](https://github.com/facebookincubator/velox/blob/main/velox/examples/SimpleFunctions.cpp)
+* Velox’s official developer guide for scalar functions:
+
+  [velox/docs/develop/scalar-functions.rst](https://github.com/facebookincubator/velox/blob/main/velox/docs/develop/scalar-functions.rst)
+
+  [velox/examples/SimpleFunctions.cpp](https://github.com/facebookincubator/velox/blob/main/velox/examples/SimpleFunctions.cpp)
