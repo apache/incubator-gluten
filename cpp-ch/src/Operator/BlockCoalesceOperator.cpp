@@ -1,4 +1,6 @@
 #include "BlockCoalesceOperator.h"
+#include <Core/Block.h>
+
 namespace local_engine
 {
 void BlockCoalesceOperator::mergeBlock(DB::Block & block)
@@ -9,9 +11,23 @@ bool BlockCoalesceOperator::isFull()
 {
     return block_buffer.size() >= buf_size;
 }
-DB::Block BlockCoalesceOperator::releaseBlock()
+DB::Block* BlockCoalesceOperator::releaseBlock()
 {
-    return block_buffer.releaseColumns();
+    clearCache();
+    cached_block = new DB::Block(block_buffer.releaseColumns());
+    return cached_block;
+}
+BlockCoalesceOperator::~BlockCoalesceOperator()
+{
+    clearCache();
+}
+void BlockCoalesceOperator::clearCache()
+{
+    if (cached_block)
+    {
+        delete cached_block;
+        cached_block = nullptr;
+    }
 }
 }
 

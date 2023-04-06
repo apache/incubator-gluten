@@ -41,7 +41,7 @@ ALWAYS_INLINE static void writeRowToColumns(std::vector<MutableColumnPtr> & colu
         if (spark_row_reader.supportRawData(i))
         {
             const StringRef str_ref{std::move(spark_row_reader.getStringRef(i))};
-            if (str_ref.empty())
+            if (str_ref.data == nullptr)
                 columns[i]->insertData(nullptr, str_ref.size);
             else if (!spark_row_reader.isBigEndianInSparkRow(i))
                 columns[i]->insertData(str_ref.data, str_ref.size);

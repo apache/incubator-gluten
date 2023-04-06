@@ -133,6 +133,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"repeat","repeat"},
     {"position", "positionUTF8Spark"},
     {"locate", "positionUTF8Spark"},
+    {"space","space"},
 
     /// hash functions
     {"hash", "murmurHashSpark3_32"},
@@ -282,7 +283,7 @@ private:
         DB::ActionsDAGPtr & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
         std::vector<String> & required_columns,
-        const std::string & function_name,
+        std::string & function_name,
         const substrait::Expression_ScalarFunction & scalar_function);
     void parseFunctionArgument(
         DB::ActionsDAGPtr & actions_dag,

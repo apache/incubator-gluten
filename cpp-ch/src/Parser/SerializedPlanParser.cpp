@@ -1480,7 +1480,7 @@ void SerializedPlanParser::parseFunctionArguments(
     DB::ActionsDAGPtr & actions_dag,
     ActionsDAG::NodeRawConstPtrs & parsed_args,
     std::vector<String> & required_columns,
-    const std::string & function_name,
+    std::string & function_name,
     const substrait::Expression_ScalarFunction & scalar_function)
 {
     auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
@@ -1632,6 +1632,15 @@ void SerializedPlanParser::parseFunctionArguments(
             start_pos_node = ActionsDAGUtil::convertNodeType(actions_dag, start_pos_node, target_type.getName());
             parsed_args.emplace_back(start_pos_node);
         }
+    }
+    else if (function_name == "space")
+    {
+        // convert space function to repeat
+        const DB::ActionsDAG::Node * repeat_times_node = parseFunctionArgument(actions_dag, required_columns, "repeat", args[0]);
+        const DB::ActionsDAG::Node * space_str_node = add_column(std::make_shared<DataTypeString>(), " ");
+        function_name = "repeat";
+        parsed_args.emplace_back(space_str_node);
+        parsed_args.emplace_back(repeat_times_node);
     }
     else
     {
@@ -2188,9 +2197,19 @@ DB::QueryPlanPtr SerializedPlanParser::parseJoin(substrait::JoinRel join, DB::Qu
     }
     if (!right_table_alias.empty())
     {
-        ActionsDAGPtr project = std::make_shared<ActionsDAG>(right->getCurrentDataStream().header.getNamesAndTypesList());
-        project->addAliases(right_table_alias);
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), project);
+        ActionsDAGPtr rename_dag = std::make_shared<ActionsDAG>(right->getCurrentDataStream().header.getNamesAndTypesList());
+        auto original_right_columns = right->getCurrentDataStream().header;
+        for (const auto & column_alias : right_table_alias)
+        {
+            if (original_right_columns.has(column_alias.first))
+            {
+                auto pos = original_right_columns.getPositionByName(column_alias.first);
+                const auto & alias = rename_dag->addAlias(*rename_dag->getInputs()[pos], column_alias.second);
+                rename_dag->getOutputs()[pos] = &alias;
+            }
+        }
+        rename_dag->projectInput();
+        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), rename_dag);
         project_step->setStepDescription("Right Table Rename");
         right->addStep(std::move(project_step));
     }
@@ -2554,15 +2573,19 @@ void SerializedPlanParser::reorderJoinOutput(QueryPlan & plan, DB::Names cols)
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));
 }
+
 void SerializedPlanParser::removeNullable(std::vector<String> require_columns, ActionsDAGPtr actionsDag)
 {
     for (const auto & item : require_columns)
     {
-        auto function_builder = FunctionFactory::instance().get("assumeNotNull", context);
-        ActionsDAG::NodeRawConstPtrs args;
-        args.emplace_back(&actionsDag->findInOutputs(item));
-        const auto & node = actionsDag->addFunction(function_builder, args, item);
-        actionsDag->addOrReplaceInOutputs(node);
+        const auto * require_node = actionsDag->tryFindInOutputs(item);
+        if (require_node)
+        {
+            auto function_builder = FunctionFactory::instance().get("assumeNotNull", context);
+            ActionsDAG::NodeRawConstPtrs args = {require_node};
+            const auto & node = actionsDag->addFunction(function_builder, args, item);
+            actionsDag->addOrReplaceInOutputs(node);
+        }
     }
 }
 

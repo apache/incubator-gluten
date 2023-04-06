@@ -19,44 +19,60 @@ namespace ErrorCodes
     extern const int LOGICAL_ERROR;
 }
 }
+
 namespace local_engine
 {
-std::vector<DB::IColumn::ColumnIndex> RoundRobinSelectorBuilder::build(DB::Block & block)
+
+PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
 {
-    std::vector<DB::IColumn::ColumnIndex> result;
-    result.resize(block.rows());
+    auto rows = selector.size();
+    std::vector<size_t> partition_row_idx_start_points(partition_num + 1, 0);
+    IColumn::Selector partition_selector(rows, 0);
+    for (size_t i = 0; i < rows; ++i)
+    {
+        partition_row_idx_start_points[selector[i]]++;
+    }
+
+    for (size_t i = 1; i <= partition_num; ++i)
+    {
+        partition_row_idx_start_points[i] += partition_row_idx_start_points[i - 1];
+    }
+    for (size_t i = rows; i-- > 0;)
+    {
+        partition_selector[partition_row_idx_start_points[selector[i]] - 1] = i;
+        partition_row_idx_start_points[selector[i]]--;
+    }
+    return PartitionInfo{.partition_selector = std::move(partition_selector), .partition_start_points = partition_row_idx_start_points,
+                         .partition_num = partition_num};
+}
+
+PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
+{
+    DB::IColumn::Selector result;
+    result.resize_fill(block.rows(), 0);
     for (auto & pid : result)
     {
         pid = pid_selection;
         pid_selection = (pid_selection + 1) % parts_num;
     }
-    return result;
+    return PartitionInfo::fromSelector(std::move(result), parts_num);
 }
 
 HashSelectorBuilder::HashSelectorBuilder(
     UInt32 parts_num_,
-    const std::vector<std::string> & exprs_,
-    const std::vector<std::size_t> & exprs_index_,
+    const std::vector<size_t> & exprs_index_,
     const std::string & hash_function_name_)
-    : parts_num(parts_num_), exprs(exprs_), exprs_index(exprs_index_), hash_function_name(hash_function_name_)
+    : parts_num(parts_num_), exprs_index(exprs_index_), hash_function_name(hash_function_name_)
 {
 }
 
-std::vector<DB::IColumn::ColumnIndex> HashSelectorBuilder::build(DB::Block & block)
+PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 {
     ColumnsWithTypeAndName args;
-    for (size_t i = 0; i < exprs.size(); i++)
+    auto rows = block.rows();
+    for (size_t i = 0; i < exprs_index.size(); i++)
     {
-        auto & name = exprs.at(i);
-        auto * type_and_name = block.findByName(name);
-        if (type_and_name == nullptr)
-        {
-            args.emplace_back(block.getByPosition(exprs_index.at(i)));
-        }
-        else
-        {
-            args.emplace_back(block.getByName(name));
-        }
+        args.emplace_back(block.getByPosition(exprs_index.at(i)));
     }
 
     if (!hash_function) [[unlikely]]
@@ -66,15 +82,24 @@ std::vector<DB::IColumn::ColumnIndex> HashSelectorBuilder::build(DB::Block & blo
 
         hash_function = function->build(args);
     }
-    std::vector<DB::IColumn::ColumnIndex> partition_ids;
+    DB::IColumn::Selector partition_ids;
+    partition_ids.reserve(rows);
     auto result_type = hash_function->getResultType();
-    auto hash_column = hash_function->execute(args, result_type, block.rows(), false);
+    auto hash_column = hash_function->execute(args, result_type, rows, false);
 
     for (size_t i = 0; i < block.rows(); i++)
     {
         partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
     }
-    return partition_ids;
+    if (result_type->isNullable())
+    {
+        for (size_t i = 0; i < rows; ++i)
+        {
+            if (hash_column->isNullAt(i))
+                partition_ids[i] = 0;
+        }
+    }
+    return PartitionInfo::fromSelector(std::move(partition_ids), parts_num);
 }
 
 
@@ -85,50 +110,21 @@ static std::map<int, std::pair<int, int>> direction_map = {
         {4, {-1, -1}}
 };
 
-RangeSelectorBuilder::RangeSelectorBuilder(const std::string & option)
+RangeSelectorBuilder::RangeSelectorBuilder(const std::string & option, const size_t partition_num_)
 {
     Poco::JSON::Parser parser;
     auto info = parser.parse(option).extract<Poco::JSON::Object::Ptr>();
-    if (info->has("projection_plan"))
-    {
-        // for convenient, we use a serialzied protobuf to store the projeciton plan
-        String encoded_str = info->get("projection_plan").convert<std::string>();
-        Poco::MemoryInputStream istr(encoded_str.data(), encoded_str.size());
-        Poco::Base64Decoder decoder(istr);
-        String decoded_str;
-        Poco::StreamCopier::copyToString(decoder, decoded_str);
-        projection_plan_pb = std::make_unique<substrait::Plan>();
-        projection_plan_pb->ParseFromString(decoded_str);
-    }
     auto ordering_infos = info->get("ordering").extract<Poco::JSON::Array::Ptr>();
     initSortInformation(ordering_infos);
     initRangeBlock(info->get("range_bounds").extract<Poco::JSON::Array::Ptr>());
+    partition_num = partition_num_;
 }
 
-std::vector<DB::IColumn::ColumnIndex> RangeSelectorBuilder::build(DB::Block & block)
+PartitionInfo RangeSelectorBuilder::build(DB::Block & block)
 {
-    std::vector<DB::IColumn::ColumnIndex> result;
-    if (projection_plan_pb)
-    {
-        if (!has_init_actions_dag) [[unlikely]]
-            initActionsDAG(block);
-        DB::Block copied_block = block;
-        projection_expression_actions->execute(copied_block, block.rows());
-
-        // need to append the order keys columns to the original block
-        DB::ColumnsWithTypeAndName columns = block.getColumnsWithTypeAndName();
-        for (const auto & projected_col : copied_block.getColumnsWithTypeAndName())
-        {
-            columns.push_back(projected_col);
-        }
-        DB::Block projected_block(columns);
-        computePartitionIdByBinarySearch(projected_block, result);
-    }
-    else
-    {
-        computePartitionIdByBinarySearch(block, result);
-    }
-    return result;
+    DB::IColumn::Selector result;
+    computePartitionIdByBinarySearch(block, result);
+    return PartitionInfo::fromSelector(std::move(result), partition_num);
 }
 
 void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
@@ -253,7 +249,7 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
     has_init_actions_dag = true;
 }
 
-void RangeSelectorBuilder::computePartitionIdByBinarySearch(DB::Block & block, std::vector<DB::IColumn::ColumnIndex> & selector)
+void RangeSelectorBuilder::computePartitionIdByBinarySearch(DB::Block & block, DB::IColumn::Selector & selector)
 {
     Chunks chunks;
     Chunk chunk(block.getColumns(), block.rows());
@@ -351,6 +347,4 @@ int RangeSelectorBuilder::binarySearchBound(
     }
     __builtin_unreachable();
 }
-
-
 }

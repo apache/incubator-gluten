@@ -1,4 +1,5 @@
 #include "NativeSplitter.h"
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <Functions/FunctionFactory.h>
@@ -23,37 +24,54 @@ jmethodID NativeSplitter::iterator_next = nullptr;
 
 void NativeSplitter::split(DB::Block & block)
 {
-    computePartitionId(block);
-    DB::IColumn::Selector selector;
-    selector = DB::IColumn::Selector(block.rows());
-    selector.assign(partition_ids.begin(), partition_ids.end());
-    std::vector<DB::Block> partitions;
-    for (size_t i = 0; i < options.partition_nums; ++i)
-        partitions.emplace_back(block.cloneEmpty());
-    for (size_t col = 0; col < block.columns(); ++col)
+    if (block.rows() == 0)
     {
-        DB::MutableColumns scattered = block.getByPosition(col).column->scatter(options.partition_nums, selector);
-        for (size_t i = 0; i < options.partition_nums; ++i)
-            partitions[i].getByPosition(col).column = std::move(scattered[i]);
+        return;
     }
-
-    for (size_t i = 0; i < options.partition_nums; ++i)
+    if (!output_header.columns()) [[unlikely]]
     {
-        auto buffer = partition_buffer[i];
-        size_t first_cache_count = std::min(partitions[i].rows(), options.buffer_size - buffer->size());
-        if (first_cache_count < partitions[i].rows())
+        if (output_columns_indicies.empty())
         {
-            buffer->add(partitions[i], 0, first_cache_count);
-            output_buffer.emplace(std::pair(i, std::make_unique<Block>(buffer->releaseColumns())));
-            buffer->add(partitions[i], first_cache_count, partitions[i].rows());
+            output_header = block.cloneEmpty();
+            for (size_t i = 0; i < block.columns(); ++i)
+            {
+                output_columns_indicies.push_back(i);
+            }
         }
         else
         {
-            buffer->add(partitions[i], 0, first_cache_count);
+            DB::ColumnsWithTypeAndName cols;
+            for (const auto & index : output_columns_indicies)
+            {
+                cols.push_back(block.getByPosition(index));
+            }
+            output_header = DB::Block(cols);
         }
-        if (buffer->size() >= options.buffer_size)
+    }
+    computePartitionId(block);
+    DB::Block out_block;
+    for (size_t col = 0; col < output_header.columns(); ++col)
+    {
+        out_block.insert(block.getByPosition(output_columns_indicies[col]));
+    }
+    for (size_t col = 0; col < output_header.columns(); ++col)
+    {
+        for (size_t j = 0; j < partition_info.partition_num; ++j)
         {
-            output_buffer.emplace(std::pair(i, std::make_unique<Block>(buffer->releaseColumns())));
+            size_t from = partition_info.partition_start_points[j];
+            size_t length = partition_info.partition_start_points[j + 1] - from;
+            if (length == 0)
+                continue; // no data for this partition continue;
+            partition_buffer[j]->appendSelective(col, out_block, partition_info.partition_selector, from, length);
+        }
+    }
+
+    bool has_active_sender = false;
+    for (size_t i = 0; i < options.partition_nums; ++i)
+    {
+        if (partition_buffer[i]->size() >= options.buffer_size)
+        {
+            output_buffer.emplace(std::pair(i, std::make_unique<Block>(partition_buffer[i]->releaseColumns())));
         }
     }
 }
@@ -62,11 +80,10 @@ NativeSplitter::NativeSplitter(Options options_, jobject input_) : options(optio
 {
     GET_JNIENV(env)
     input = env->NewGlobalRef(input_);
-    partition_ids.reserve(options.buffer_size);
     partition_buffer.reserve(options.partition_nums);
     for (size_t i = 0; i < options.partition_nums; ++i)
     {
-        partition_buffer.emplace_back(std::make_shared<ColumnsBuffer>());
+        partition_buffer.emplace_back(std::make_shared<ColumnsBuffer>(options.buffer_size));
     }
     CLEAN_JNIENV
 }
@@ -167,36 +184,55 @@ HashNativeSplitter::HashNativeSplitter(NativeSplitter::Options options_, jobject
     : NativeSplitter(options_, input)
 {
     Poco::StringTokenizer exprs_list(options_.exprs_buffer, ",");
-    std::vector<std::string> hash_fields;
-    hash_fields.insert(hash_fields.end(), exprs_list.begin(), exprs_list.end());
+    std::vector<size_t> hash_fields;
+    for (auto iter = exprs_list.begin(); iter != exprs_list.end(); ++iter)
+    {
+        hash_fields.push_back(std::stoi(*iter));
+    }
 
-    selector_builder = std::make_unique<HashSelectorBuilder>(options.partition_nums, hash_fields, std::vector<std::size_t>(), "murmurHash3_32");
+    Poco::StringTokenizer output_column_tokenizer(options_.schema_buffer, ",");
+    for (auto iter = output_column_tokenizer.begin(); iter != output_column_tokenizer.end(); ++iter)
+    {
+        output_columns_indicies.push_back(std::stoi(*iter));
+    }
+
+    selector_builder = std::make_unique<HashSelectorBuilder>(options.partition_nums, hash_fields, "cityHash64");
 }
 
 void HashNativeSplitter::computePartitionId(Block & block)
 {
-    partition_ids = selector_builder->build(block);
+    partition_info = selector_builder->build(block);
 }
 
 RoundRobinNativeSplitter::RoundRobinNativeSplitter(NativeSplitter::Options options_, jobject input) : NativeSplitter(options_, input)
 {
+    Poco::StringTokenizer output_column_tokenizer(options_.schema_buffer, ",");
+    for (auto iter = output_column_tokenizer.begin(); iter != output_column_tokenizer.end(); ++iter)
+    {
+        output_columns_indicies.push_back(std::stoi(*iter));
+    }
     selector_builder = std::make_unique<RoundRobinSelectorBuilder>(options_.partition_nums);
 }
 
 void RoundRobinNativeSplitter::computePartitionId(Block & block)
 {
-    partition_ids = selector_builder->build(block);
+    partition_info = selector_builder->build(block);
 }
 
 RangePartitionNativeSplitter::RangePartitionNativeSplitter(NativeSplitter::Options options_, jobject input)
     : NativeSplitter(options_, input)
 {
-    selector_builder = std::make_unique<RangeSelectorBuilder>(options_.exprs_buffer);
+    Poco::StringTokenizer output_column_tokenizer(options_.schema_buffer, ",");
+    for (auto iter = output_column_tokenizer.begin(); iter != output_column_tokenizer.end(); ++iter)
+    {
+        output_columns_indicies.push_back(std::stoi(*iter));
+    }
+    selector_builder = std::make_unique<RangeSelectorBuilder>(options_.exprs_buffer, options_.partition_nums);
 }
 
 void RangePartitionNativeSplitter::computePartitionId(DB::Block & block)
 {
-    partition_ids = selector_builder->build(block);
+    partition_info = selector_builder->build(block);
 }
 
 }

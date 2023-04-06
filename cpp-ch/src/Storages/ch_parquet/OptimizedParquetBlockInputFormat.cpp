@@ -194,17 +194,4 @@ NamesAndTypesList OptimizedParquetSchemaReader::readSchema()
 }
 
 }
-
-#else
-
-namespace DB
-{
-class FormatFactory;
-void registerInputFormatParquet(FormatFactory &)
-{
-}
-
-void registerOptimizedParquetSchemaReader(FormatFactory &) {}
-}
-
 #endif

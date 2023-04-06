@@ -30,7 +30,19 @@ void headBlock(const DB::Block & block, size_t count)
 
             if (column > 0)
                 std::cerr << "\t";
-            std::cerr << toString((*col)[row]);
+            DB::WhichDataType which(type);
+            if (which.isAggregateFunction())
+            {
+                std::cerr << "Nan";
+            }
+            else if (col->isNullAt(row))
+            {
+                std::cerr << "null";
+            }
+            else
+            {
+                std::cerr << toString((*col)[row]);
+            }
         }
         std::cerr << std::endl;
     }

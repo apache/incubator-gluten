@@ -555,10 +555,8 @@ jlong Java_io_glutenproject_vectorized_CHCoalesceOperator_nativeRelease(JNIEnv *
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::BlockCoalesceOperator * instance = reinterpret_cast<local_engine::BlockCoalesceOperator *>(instance_address);
-    auto block = instance->releaseBlock();
-    DB::Block * new_block = new DB::Block();
-    new_block->swap(block);
-    Int64 address = reinterpret_cast<jlong>(new_block);
+    auto * block = instance->releaseBlock();
+    Int64 address = reinterpret_cast<jlong>(block);
     return address;
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -578,7 +576,7 @@ jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nativeMake(
     jstring short_name,
     jint num_partitions,
     jbyteArray expr_list,
-    jbyteArray expr_index_list,
+    jbyteArray out_expr_list,
     jint shuffle_id,
     jlong map_id,
     jint split_size,
@@ -588,26 +586,25 @@ jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nativeMake(
     jint num_sub_dirs)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    std::vector<std::string> expr_vec;
-    std::string exprs;
-    std::string exprs_index;
+    std::string hash_exprs;
+    std::string out_exprs;
     if (expr_list != nullptr)
     {
         int len = env->GetArrayLength(expr_list);
         auto * str = reinterpret_cast<jbyte *>(new char[len]);
         memset(str, 0, len);
         env->GetByteArrayRegion(expr_list, 0, len, str);
-        exprs = std::string(str, str + len);
+        hash_exprs = std::string(str, str + len);
         delete[] str;
     }
 
-    if (expr_index_list != nullptr)
+    if (out_expr_list != nullptr)
     {
-        int len = env->GetArrayLength(expr_index_list);
+        int len = env->GetArrayLength(out_expr_list);
         auto * str = reinterpret_cast<jbyte *>(new char[len]);
         memset(str, 0, len);
-        env->GetByteArrayRegion(expr_index_list, 0, len, str);
-        exprs_index = std::string(str, str + len);
+        env->GetByteArrayRegion(out_expr_list, 0, len, str);
+        out_exprs = std::string(str, str + len);
         delete[] str;
     }
 
@@ -624,8 +621,8 @@ jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nativeMake(
         .shuffle_id = shuffle_id,
         .map_id = static_cast<int>(map_id),
         .partition_nums = static_cast<size_t>(num_partitions),
-        .exprs = exprs,
-        .exprs_index = exprs_index,
+        .hash_exprs = hash_exprs,
+        .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec)};
     local_engine::SplitterHolder * splitter
         = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(jstring2string(env, short_name), options)};
@@ -814,14 +811,19 @@ void Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
 
 // BlockSplitIterator
 jlong Java_io_glutenproject_vectorized_BlockSplitIterator_nativeCreate(
-    JNIEnv * env, jobject, jobject in, jstring name, jstring expr, jint partition_num, jint buffer_size)
+    JNIEnv * env, jobject, jobject in, jstring name, jstring expr, jstring schema, jint partition_num, jint buffer_size)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::NativeSplitter::Options options;
     options.partition_nums = partition_num;
     options.buffer_size = buffer_size;
     auto expr_str = jstring2string(env, expr);
+    std::string schema_str;
+    if (schema) {
+        schema_str = jstring2string(env, schema);
+    }
     options.exprs_buffer.swap(expr_str);
+    options.schema_buffer.swap(schema_str);
     local_engine::NativeSplitter::Holder * splitter = new local_engine::NativeSplitter::Holder{
         .splitter = local_engine::NativeSplitter::create(jstring2string(env, name), options, in)};
     return reinterpret_cast<jlong>(splitter);

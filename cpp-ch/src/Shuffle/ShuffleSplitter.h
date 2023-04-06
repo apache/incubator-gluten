@@ -8,7 +8,6 @@
 #include <Common/PODArray_fwd.h>
 #include <Shuffle/SelectorBuilder.h>
 
-//using namespace DB;
 
 namespace local_engine
 {
@@ -22,8 +21,8 @@ struct SplitOptions
     int shuffle_id;
     int map_id;
     size_t partition_nums;
-    std::string exprs;
-    std::string exprs_index;
+    std::string hash_exprs;
+    std::string out_exprs;
     // std::vector<std::string> exprs;
     std::string compress_method = "zstd";
     int compress_level;
@@ -32,8 +31,9 @@ struct SplitOptions
 class ColumnsBuffer
 {
 public:
-    explicit ColumnsBuffer(size_t prefer_buffer_size = 8192);
+    explicit ColumnsBuffer(size_t prefer_buffer_size = DEFAULT_BLOCK_SIZE);
     void add(DB::Block & columns, int start, int end);
+    void appendSelective(size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length);
     size_t size() const;
     DB::Block releaseColumns();
     DB::Block getHeader();
@@ -76,7 +76,6 @@ public:
 private:
     void init();
     void splitBlockByPartition(DB::Block & block);
-    void buildSelector(size_t row_nums, DB::IColumn::Selector & selector);
     void spillPartition(size_t partition_id);
     std::string getPartitionTempFile(size_t partition_id);
     void mergePartitionFiles();
@@ -84,11 +83,13 @@ private:
 
 protected:
     bool stopped = false;
-    std::vector<DB::IColumn::ColumnIndex> partition_ids;
+    PartitionInfo partition_info;
     std::vector<ColumnsBuffer> partition_buffer;
     std::vector<std::unique_ptr<DB::NativeWriter>> partition_outputs;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_write_buffers;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_cached_write_buffers;
+    std::vector<size_t> output_columns_indicies;
+    DB::Block output_header;
     SplitOptions options;
     SplitResult split_result;
 };
