@@ -56,6 +56,11 @@ class ColumnarBatch {
     return exportNanos_;
   };
 
+  friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch) {
+    return os << "NumColumns: " << std::to_string(columnarBatch.GetNumColumns())
+              << "NumRows: " << std::to_string(columnarBatch.GetNumRows());
+  }
+
  private:
   int32_t numColumns_;
   int32_t numRows_;
