@@ -31,20 +31,18 @@ Usage: gluten-tpc [-hV] [--disable-aqe] [--disable-bhj] [--disable-wscg]
                   [--enable-history] [--enable-ui] [--error-on-memleak]
                   [--explain] [--fixed-width-as-double]
                   [--gen-partitioned-data] [--min-scan-partitions]
-                  [--skip-data-gen] [-b=<preset>]
-                  [--baseline-preset=<baselinePreset>]
+                  [--skip-data-gen] [--baseline-preset=<baselinePreset>]
                   [--benchmark-type=<benchmarkType>] [--cpus=<cpus>]
                   [--history-ui-port=<hsUiPort>] [--iterations=<iterations>]
                   [--log-level=<logLevel>] [--mode=<mode>]
-                  [--off-heap-size=<offHeapSize>] [-s=<scale>]
+                  [--off-heap-size=<offHeapSize>] [-p=<preset>] [-s=<scale>]
                   [--shuffle-partitions=<shufflePartitions>]
                   [--extra-conf=<String=String>]... [--queries=<queries>[,
                   <queries>...]]...
 Gluten integration test using TPC benchmark's data and queries
-  -b, --preset=<preset>    Preset used: vanilla, velox, velox-with-celeborn...
-                             Default: velox
       --baseline-preset=<baselinePreset>
-                           Baseline preset used: vanilla, velox, ...
+                           Baseline preset used: vanilla, velox,
+                             velox-with-celeborn...
                              Default: vanilla
       --benchmark-type=<benchmarkType>
                            TPC benchmark type: h, ds
@@ -84,6 +82,8 @@ Gluten integration test using TPC benchmark's data and queries
       --off-heap-size=<offHeapSize>
                            Off heap memory size per executor
                              Default: 6g
+  -p, --preset=<preset>    Preset used: vanilla, velox, velox-with-celeborn...
+                             Default: velox
       --queries=<queries>[,<queries>...]
                            Set a comma-seperated list of query IDs to run, run
                              all queries if not specified. Example:
