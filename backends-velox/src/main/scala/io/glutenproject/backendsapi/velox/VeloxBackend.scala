@@ -26,6 +26,8 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Li
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.command.DataWritingCommand
+import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.types._
 
 import scala.util.control.Breaks.{break, breakable}
@@ -45,6 +47,20 @@ class VeloxBackend extends Backend {
 }
 
 object VeloxBackendSettings extends BackendSettings {
+  override def supportedFileFormatWrite(cmd: DataWritingCommand): Boolean = {
+    cmd match {
+      case InsertIntoHadoopFsRelationCommand(
+      _, _, _, _, _, fileFormat, _, _, _, _, _, _) =>
+        fileFormat.getClass.getSimpleName match {
+          case "ParquetFileFormat" => true
+          case "DwrfFileFormat" => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
+
   override def supportFileFormatRead(format: ReadFileFormat,
                                      fields: Array[StructField],
                                      partTable: Boolean,

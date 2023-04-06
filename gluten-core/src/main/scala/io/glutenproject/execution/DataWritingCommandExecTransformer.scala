@@ -82,12 +82,15 @@ case class DataWritingCommandExecTransformer(
     val nameList = new java.util.ArrayList[String]()
     val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
     nameList.addAll(OperatorsUtils.collectAttributesNamesDFS(originalInputAttributes))
+
+
+
     var writePath = ""
     var isParquet = false
     var isDWRF = false
     cmd match {
       case InsertIntoHadoopFsRelationCommand(
-      outputPath, _, _, _, _, fileFormat, _, _, _, _, _, _) =>
+      outputPath, _, _, partitionColumns, _, fileFormat, _, _, _, _, _, _) =>
         fileFormat.getClass.getSimpleName match {
           case "ParquetFileFormat" =>
             isParquet = true
@@ -96,6 +99,14 @@ case class DataWritingCommandExecTransformer(
           case _ =>
         }
         writePath = outputPath.toString
+
+        for (attr <- originalInputAttributes) {
+          if (partitionColumns.find(_.equals(attr)).isDefined) {
+            columnTypeNodes.add(new ColumnTypeNode(1))
+          } else {
+            columnTypeNodes.add(new ColumnTypeNode(0))
+          }
+        }
       case _ =>
     }
 
@@ -125,7 +136,7 @@ case class DataWritingCommandExecTransformer(
     val formatParametersStr = new StringBuffer("WriteFormatParameters:")
     // isParquet: 0 for DWRF, 1 for Parquet
     formatParametersStr.append("isPARQUET=").append(if (isPARQUET) 1 else 0).append("\n")
-      .append("idDWRF=").append(if (isDWRF) 1 else 0).append("\n")
+      .append("isDWRF=").append(if (isDWRF) 1 else 0).append("\n")
 
     val message = StringValue
       .newBuilder()
@@ -137,7 +148,10 @@ case class DataWritingCommandExecTransformer(
   }
 
   override def doValidateInternal(): Boolean = {
-    if (!BackendsApiManager.getSettings.supportWriteExec()) {
+    // format only support parquet and dwrf
+
+    if (!BackendsApiManager.getSettings.supportWriteExec() ||
+      !BackendsApiManager.getSettings.supportedFileFormatWrite(cmd)) {
       return false
     }
      val substraitContext = new SubstraitContext
