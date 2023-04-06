@@ -1,8 +1,8 @@
 package io.glutenproject.integration.tpc.h
 
-import io.glutenproject.integration.tpc.{Constants, DataGen, TpcSuite, TypeModifier}
-import io.glutenproject.integration.tpc.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_PATH}
 import io.glutenproject.integration.tpc.action.Action
+import io.glutenproject.integration.tpc.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_PATH}
+import io.glutenproject.integration.tpc.{DataGen, TpcSuite, TypeModifier}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
 
@@ -16,7 +16,6 @@ class TpchSuite(
   val enableUi: Boolean,
   val enableHsUi: Boolean,
   val hsUiPort: Int,
-  val enableCeleborn: Boolean,
   val cpus: Int,
   val offHeapSize: String,
   val disableAqe: Boolean,
@@ -25,7 +24,7 @@ class TpchSuite(
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(actions, testConf, baselineConf,
   fixedWidthAsDouble, logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
-  enableCeleborn, cpus, offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions,
+  cpus, offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions,
   minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH

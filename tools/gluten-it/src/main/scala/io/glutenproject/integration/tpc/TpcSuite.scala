@@ -20,7 +20,6 @@ abstract class TpcSuite(
   private val enableUi: Boolean,
   private val enableHsUi: Boolean,
   private val hsUiPort: Int,
-  private val enableCeleborn: Boolean,
   private val cpus: Int,
   private val offHeapSize: String,
   private val disableAqe: Boolean,
@@ -76,15 +75,6 @@ abstract class TpcSuite(
     sessionSwitcher.defaultConf().set("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().set("spark.sql.files.openCostInBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().set("spark.default.parallelism", "1")
-  }
-
-  if (enableCeleborn) {
-    testConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
-    testConf.set("spark.celeborn.shuffle.writer", "hash")
-    testConf.set("spark.celeborn.push.replicate.enabled", "false")
-    testConf.set("spark.shuffle.service.enabled", "false")
-    testConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
-    testConf.set("spark.dynamicAllocation.enabled", "false")
   }
 
   // register sessions

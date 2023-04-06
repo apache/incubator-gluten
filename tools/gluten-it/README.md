@@ -42,7 +42,7 @@ Usage: gluten-tpc [-hV] [--disable-aqe] [--disable-bhj] [--disable-wscg]
                   <queries>...]]...
 Gluten integration test using TPC benchmark's data and queries
   -b, --backend-type=<backendType>
-                           Backend used: vanilla, velox, ...
+                           Backend used: vanilla, velox, velox-with-celeborn...
                              Default: velox
       --baseline-backend-type=<baselineBackendType>
                            Baseline backend used: vanilla, velox, ...
@@ -79,7 +79,8 @@ Gluten integration test using TPC benchmark's data and queries
                              Default: 2
       --min-scan-partitions
                            Use minimum number of partitions to read data
-      --mode=<mode>        Mode: data-gen-only, queries, queries-compare, spark-shell
+      --mode=<mode>        Mode: data-gen-only, queries, queries-compare,
+                             spark-shell
                              Default: queries-compare
       --off-heap-size=<offHeapSize>
                            Off heap memory size per executor

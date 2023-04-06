@@ -26,7 +26,7 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--mode"}, description = "Mode: data-gen-only, queries, queries-compare, spark-shell", defaultValue = "queries-compare")
   private String mode;
 
-  @CommandLine.Option(names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, ...", defaultValue = "velox")
+  @CommandLine.Option(names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, velox-with-celeborn...", defaultValue = "velox")
   private String backendType;
 
   @CommandLine.Option(names = {"--baseline-backend-type"}, description = "Baseline backend used: vanilla, velox, ...", defaultValue = "vanilla")
@@ -55,9 +55,6 @@ public class Tpc implements Callable<Integer> {
 
   @CommandLine.Option(names = {"--enable-history"}, description = "Start a Spark history server during running", defaultValue = "false")
   private boolean enableHsUi;
-
-  @CommandLine.Option(names = {"--enable-celeborn"}, description = "Enable Celeborn as remote shuffle service during running", defaultValue = "false")
-  private boolean enableCeleborn;
 
   @CommandLine.Option(names = {"--history-ui-port"}, description = "Port that Spark history server UI binds to", defaultValue = "18080")
   private int hsUiPort;
@@ -104,6 +101,9 @@ public class Tpc implements Callable<Integer> {
       case "velox":
         conf = Constants.VELOX_BACKEND_CONF();
         break;
+      case "velox-with-celeborn":
+        conf = Constants.VELOX_WITH_CELEBORN_BACKEND_CONF();
+        break;
       default:
         throw new IllegalArgumentException("Backend type not found: " + backendType);
     }
@@ -141,13 +141,13 @@ public class Tpc implements Callable<Integer> {
       case "h":
         suite = new TpchSuite(actions, testConf, baselineConf,
                 fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
-                enableHsUi, hsUiPort, enableCeleborn, cpus, offHeapSize, disableAqe, disableBhj,
+                enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       case "ds":
         suite = new TpcdsSuite(actions, testConf, baselineConf,
             fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
-            enableHsUi, hsUiPort, enableCeleborn, cpus, offHeapSize, disableAqe, disableBhj,
+            enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       default:
