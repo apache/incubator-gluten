@@ -31,7 +31,7 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"-p", "--preset"}, description = "Preset used: vanilla, velox, velox-with-celeborn...", defaultValue = "velox")
   private String preset;
 
-  @CommandLine.Option(names = {"--baseline-preset"}, description = "Baseline preset used: vanilla, velox, ...", defaultValue = "vanilla")
+  @CommandLine.Option(names = {"--baseline-preset"}, description = "Baseline preset used: vanilla, velox, velox-with-celeborn...", defaultValue = "vanilla")
   private String baselinePreset;
 
   @CommandLine.Option(names = {"-s", "--scale"}, description = "The scale factor of sample TPC-H dataset", defaultValue = "0.1")
