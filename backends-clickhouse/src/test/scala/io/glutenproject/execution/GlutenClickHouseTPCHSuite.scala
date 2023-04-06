@@ -389,6 +389,25 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       Seq(Row(new java.math.BigDecimal("123456789.123456789012345678901234566"))))
   }
 
+  test("test function get_json_object") {
+    val df = spark.sql(
+      """
+        |select
+        | get_json_object('{"hello":"world"}', '$.hello'),
+        | get_json_object('{"hello":["world", "world1"]}', '$.hello'),
+        | get_json_object('{"hello":{"hello1":"world1"}}','$.hello'),
+        | get_json_object('{"hello":"world"}', '$.hello1')
+        | from lineitem
+        | where l_linenumber = 3 and l_orderkey < 3
+        |""".stripMargin
+    )
+    val result = df.collect()
+    assert(result(0).getString(0).equals("world"))
+    assert(result(0).getString(1).equals("[\"world\",\"world1\"]"))
+    assert(result(0).getString(2).equals("{\"hello1\":\"world1\"}"))
+    assert(result(0).isNullAt(3) == true)
+  }
+
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
