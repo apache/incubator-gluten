@@ -10,6 +10,7 @@ import picocli.CommandLine;
 import scala.Predef;
 import scala.collection.JavaConverters;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -40,8 +41,8 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--fixed-width-as-double"}, description = "Generate integer/long/date as double", defaultValue = "false")
   private boolean fixedWidthAsDouble;
 
-  @CommandLine.Option(names = {"--queries"}, description = "Set a comma-seperated list of query IDs to run, run all queries if not specified. Example: --queries=q1,q6", split = ",", defaultValue = "__all__")
-  private String[] queries;
+  @CommandLine.Option(names = {"--queries"}, description = "Set a comma-separated list of query IDs to run, run all queries if not specified. Example: --queries=q1,q6", split = ",")
+  private String[] queries = new String[0];
 
   @CommandLine.Option(names = {"--log-level"}, description = "Set log level: 0 for DEBUG, 1 for INFO, 2 for WARN", defaultValue = "2")
   private int logLevel;
@@ -88,8 +89,8 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
   private boolean genPartitionedData;
 
-  @CommandLine.Option(names = {"--extra-conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --conf=k1=v1 --conf=k2=v2", defaultValue = "")
-  private Map<String, String> extraSparkConf;
+  @CommandLine.Option(names = {"--extra-conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --conf=k1=v1 --conf=k2=v2")
+  private Map<String, String> extraSparkConf = Collections.emptyMap();
 
   public Tpc() {
   }

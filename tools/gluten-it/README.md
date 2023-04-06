@@ -60,6 +60,7 @@ Gluten integration test using TPC benchmark's data and queries
       --extra-conf=<String=String>
                            Extra Spark config entries applying to generated
                              Spark session. E.g. --conf=k1=v1 --conf=k2=v2
+                             Default: {}
       --fixed-width-as-double
                            Generate integer/long/date as double
       --gen-partitioned-data
@@ -85,10 +86,10 @@ Gluten integration test using TPC benchmark's data and queries
   -p, --preset=<preset>    Preset used: vanilla, velox, velox-with-celeborn...
                              Default: velox
       --queries=<queries>[,<queries>...]
-                           Set a comma-seperated list of query IDs to run, run
+                           Set a comma-separated list of query IDs to run, run
                              all queries if not specified. Example:
                              --queries=q1,q6
-                             Default: __all__
+                             Default: []
   -s, --scale=<scale>      The scale factor of sample TPC-H dataset
                              Default: 0.1
       --shuffle-partitions=<shufflePartitions>
