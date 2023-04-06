@@ -159,6 +159,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case e: Explode =>
         new ExplodeTransformer(substraitExprName,
           replaceWithExpressionTransformer(e.child, attributeSeq), e)
+      case p: PosExplode =>
+        new PosExplodeTransformer(substraitExprName,
+          replaceWithExpressionTransformer(p.child, attributeSeq), p, attributeSeq)
       case a: Alias =>
         BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
           substraitExprName,

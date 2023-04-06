@@ -184,6 +184,7 @@ object ExpressionMappings {
   final val GET_MAP_VALUE = "get_map_value"
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
+  final val MAP_FROM_ARRAYS = "map_from_arrays"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"
@@ -370,6 +371,7 @@ object ExpressionMappings {
     Sig[GetMapValue](GET_MAP_VALUE),
     Sig[MapKeys](MAP_KEYS),
     Sig[MapValues](MAP_VALUES),
+    Sig[MapFromArrays](MAP_FROM_ARRAYS),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),

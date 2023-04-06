@@ -92,7 +92,8 @@ class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer
   }
 }
 
-class PosExplodeTransformer(substraitExprName: String, child: ExpressionTransformer, original: PosExplode)
+class PosExplodeTransformer(substraitExprName: String, child: ExpressionTransformer,
+  original: PosExplode, attributeSeq: Seq[Attribute])
   extends ExpressionTransformer
   with Logging {
 
@@ -102,12 +103,13 @@ class PosExplodeTransformer(substraitExprName: String, child: ExpressionTransfor
     // sequence(1, size(array_or_map))
     val startExpr = new Literal(1, IntegerType)
     val stopExpr = new Size(original.child, false)
-    val sequenceExpr = new Sequence(startExpr, stopExpr)
+    val stepExpr = new Literal(1, IntegerType)
+    val sequenceExpr = new Sequence(startExpr, stopExpr, stepExpr)
 
     // map_from_arrays(sequence(1, size(array_or_map)), array_or_map)
     val mapFromArraysExpr = new MapFromArrays(sequenceExpr, original.child)
     val mapFromArraysExprNode =
-      ExpressionConverter.replaceWithExpressionTransformer(mapFromArraysExpr, null)
+      ExpressionConverter.replaceWithExpressionTransformer(mapFromArraysExpr, attributeSeq)
         .doTransform(args)
 
     val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
