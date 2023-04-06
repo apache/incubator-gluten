@@ -53,7 +53,7 @@ done
 
 function compile {
   TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
-  if [ $RUN_SETUP_SCRIPT == "ON" ]; then
+  if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     setup
   fi
 
@@ -72,9 +72,11 @@ function compile {
   echo "COMPILE_OPTION: "$COMPILE_OPTION
   make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   echo "INSTALL xsimd gtest."
-  cd _build/$COMPILE_TYPE/_deps
-  sudo cmake --install xsimd-build/
-  sudo cmake --install gtest-build/
+  if [ -d "_build/$COMPILE_TYPE/_deps" ]; then
+    cd _build/$COMPILE_TYPE/_deps
+    [ ! -d xsimd-build ] || sudo cmake --install xsimd-build/
+    [ ! -d gtest-build ] || sudo cmake --install gtest-build/
+  fi
 }
 
 function check_commit {
@@ -137,6 +139,13 @@ CURRENT_DIR=$(
 )
 if [ "$VELOX_HOME" == "" ]; then
   VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
+fi
+
+ARROW_ROOT=$CURRENT_DIR/../../build-arrow/build/arrow_install
+if [ -d "$ARROW_ROOT" ]; then
+  export CMAKE_PREFIX_PATH="$ARROW_ROOT;${CMAKE_PREFIX_PATH:-}"
+else
+  unset ARROW_ROOT
 fi
 
 BUILD_DIR="$CURRENT_DIR/../build"

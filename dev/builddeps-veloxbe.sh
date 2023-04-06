@@ -20,6 +20,8 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_EP_CACHE=OFF
 ARROW_ENABLE_CUSTOM_CODEC=OFF
+ENABLE_VCPKG=ON
+
 for arg in "$@"
 do
     case $arg in
@@ -69,12 +71,22 @@ do
         ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --enable_vcpkg=*)
+        ENABLE_VCPKG=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
 	      *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
         ;;
     esac
 done
+
+if [ "$ENABLE_VCPKG" = "ON" ]; then
+    # vcpkg will install static depends and init build environment
+    envs="$("$GLUTEN_DIR/dev/vcpkg/init.sh")"
+    eval "$envs"
+fi
 
 ##install arrow
 cd $GLUTEN_DIR/ep/build-arrow/src
@@ -86,7 +98,8 @@ cd $GLUTEN_DIR/ep/build-arrow/src
 cd $GLUTEN_DIR/ep/build-velox/src
 ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3
 ./build_velox.sh --enable_s3=$ENABLE_S3 --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-               --enable_ep_cache=$ENABLE_EP_CACHE --build_benchmarks=$BUILD_BENCHMARKS
+               --enable_ep_cache=$ENABLE_EP_CACHE --build_benchmarks=$BUILD_BENCHMARKS \
+               --skip-setup=$ENABLE_VCPKG
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
@@ -97,5 +110,3 @@ cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
       -DBUILD_TESTS=$BUILD_TESTS -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
       -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS ..
 make -j
-
-

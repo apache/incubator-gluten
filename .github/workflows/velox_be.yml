@@ -60,6 +60,7 @@ jobs:
       - name: Build Gluten Velox-backend third party
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
@@ -69,6 +70,7 @@ jobs:
       - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
       - name: Build for Spark 3.2.0
@@ -123,6 +125,7 @@ jobs:
       - name: Build Gluten Velox-backend third party
         run: |
           docker exec velox-backend-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
@@ -132,6 +135,7 @@ jobs:
       - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake .. && make -j'
       - name: Build for Spark 3.2.0
@@ -197,6 +201,7 @@ jobs:
       - name: Build Gluten Velox-backend third party
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow.sh && \
@@ -206,6 +211,7 @@ jobs:
       - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake -DENABLE_S3=ON -DENABLE_HDFS=ON .. && make -j'
       - name: Build for Spark 3.2.2
@@ -275,6 +281,7 @@ jobs:
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow.sh && \
@@ -285,6 +292,7 @@ jobs:
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake .. && make -j'
       - name: Build for Spark 3.2.2
@@ -324,6 +332,7 @@ jobs:
         run: |
           docker exec velox-backend-centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow.sh && \
@@ -334,6 +343,7 @@ jobs:
         run: |
           docker exec velox-backend-centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake .. && make -j'
       - name: Build for Spark 3.2.2

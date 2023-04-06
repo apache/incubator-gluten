@@ -1,0 +1,4 @@
+/.dockerignore
+/.vcpkg
+/vcpkg_installed
+/README.md

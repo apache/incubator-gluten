@@ -46,7 +46,6 @@ COPY centos-$OS_VERSION-deps.sh /tmp/deps.sh
 RUN /tmp/deps.sh \
   && rm /tmp/deps.sh \
   && yum clean all \
-  && dnf clean all \
   && rm -rf /var/cache/yum
 
 # Install deps from url
@@ -56,9 +55,10 @@ RUN wget https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-
     rm apache-maven-3.6.3-bin.tar.gz && \
     mv apache-maven-3.6.3 /usr/lib/maven
 
-# Install Spark 3.2.2
+# Install Spark 3.2.2 for UT
 RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
-RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
+# FIXME: Tmp skip for testing CI
+# RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 
 ENV PATH="$PATH:/usr/lib/maven/bin"
 ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib
@@ -69,3 +69,10 @@ RUN yum -y install sudo \
 RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 COPY env.sh /env.sh
+
+# Cache vcpkg depends
+COPY ./vcpkg /tmp/vcpkg
+ENV VCPKG_BINARY_SOURCES=files,/var/cache/vcpkg,read
+RUN . /env.sh \
+  && VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES}write /tmp/vcpkg/init.sh \
+  && rm -rf /tmp/vcpkg
