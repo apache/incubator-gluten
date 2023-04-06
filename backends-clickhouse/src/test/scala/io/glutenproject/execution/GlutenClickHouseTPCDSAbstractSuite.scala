@@ -22,19 +22,20 @@ import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
-import org.apache.spark.sql.types.DoubleType
 
 import org.apache.commons.io.FileUtils
 
 import java.io.File
 
-import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
+import scala.language.postfixOps
 
 abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
+  private var _spark: SparkSession = null
 
+  override protected def spark: SparkSession = _spark
   override protected val backend: String = "ch"
   override protected val resourcePath: String = UTSystemParameters.getTpcdsDataPath() + "/"
   override protected val fileFormat: String = "parquet"
@@ -49,6 +50,56 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
+  protected val tpcdsAllQueries: Seq[String] =
+    Range
+      .inclusive(1, 99)
+      .flatMap(
+        queryNum => {
+          if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
+            Seq("q" + "%d".format(queryNum) + "a", "q" + "%d".format(queryNum) + "b")
+          } else {
+            Seq("q" + "%d".format(queryNum))
+          }
+        })
+
+  protected val excludedTpcdsQueries: Set[String] = Set(
+    "q4",
+    "q5",
+    "q8",
+    "q14a",
+    "q14b",
+    "q16",
+    "q17",
+    "q18",
+    "q24a",
+    "q24b",
+    "q27",
+    "q31",
+    "q32",
+    "q36",
+    "q39a",
+    "q39b",
+    "q47",
+    "q49",
+    "q57",
+    "q61",
+    "q64",
+    "q67",
+    "q70",
+    "q71",
+    "q77",
+    "q78",
+    "q80",
+    "q83",
+    "q86",
+    "q90",
+    "q92",
+    "q94",
+    "q99"
+  )
+
+  protected val independentTestTpcdsQueries: Set[String] = Set("q9", "q21")
+
   override def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
@@ -61,6 +112,17 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     super.beforeAll()
     spark.sparkContext.setLogLevel("WARN")
     createTPCDSTables()
+  }
+
+  override protected def initializeSession(): Unit = {
+    if (_spark == null) {
+      _spark = SparkSession
+        .builder()
+        .appName("Gluten-UT-TPC_DS")
+        .master(s"local[8]")
+        .config(sparkConf)
+        .getOrCreate()
+    }
   }
 
   override protected def createTPCHNotNullTables(): Unit = {}
@@ -110,42 +172,52 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
 
   override protected def afterAll(): Unit = {
     ClickHouseLog.clearCache()
-    super.afterAll()
+
+    try {
+      super.afterAll()
+    } finally {
+      try {
+        if (_spark != null) {
+          try {
+            _spark.sessionState.catalog.reset()
+          } finally {
+            _spark.stop()
+            _spark = null
+          }
+        }
+      } finally {
+        SparkSession.clearActiveSession()
+        SparkSession.clearDefaultSession()
+      }
+    }
+
     FileUtils.forceDelete(new File(basePath))
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null
   }
 
   protected def runTPCDSQuery(
-      queryNum: Int,
+      queryNum: String,
       tpcdsQueries: String = tpcdsQueries,
       queriesResults: String = queriesResults,
       compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    val sqlStrArr = new ArrayBuffer[String]()
-    if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
-      var sqlNum = "q" + "%d".format(queryNum) + "-1"
-      sqlStrArr += sqlNum
-      sqlNum = "q" + "%d".format(queryNum) + "-2"
-      sqlStrArr += sqlNum
-    } else {
-      val sqlNum = "q" + "%d".format(queryNum)
-      sqlStrArr += sqlNum
-    }
 
-    for (sqlNum <- sqlStrArr) {
-      val sqlFile = tpcdsQueries + "/" + sqlNum + ".sql"
-      val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-      val df = spark.sql(sqlStr)
-      val result = df.collect()
-      if (compareResult) {
-        val schema = df.schema
-        if (schema.exists(_.dataType == DoubleType)) {
-          compareDoubleResult(sqlNum, result, schema, queriesResults)
-        } else {
-          compareResultStr(sqlNum, result, queriesResults)
-        }
+    val sqlFile = tpcdsQueries + "/" + queryNum + ".sql"
+    val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
+
+    if (compareResult) {
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.read
+          .option("delimiter", "|-|")
+          .option("nullValue", "null")
+          .schema(df.schema)
+          .csv(queriesResults + "/" + queryNum + ".out")
+          .toDF()
+          .collect()
       }
-      customCheck(df)
+      checkAnswer(df, expectedAnswer)
     }
+    customCheck(df)
   }
 }

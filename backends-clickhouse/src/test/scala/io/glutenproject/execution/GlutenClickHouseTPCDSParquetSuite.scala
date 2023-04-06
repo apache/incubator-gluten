@@ -123,7 +123,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
   }
 
   test("TPCDS Q3") {
-    runTPCDSQuery(3) { df => }
+    runTPCDSQuery("q3") { df => }
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
@@ -164,7 +164,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
 
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(9) {
+      runTPCDSQuery("q9") {
         df =>
           var countSubqueryExec = 0
           df.queryExecution.executedPlan.transformAllExpressions {
@@ -182,7 +182,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
 
   test("TPCDS Q21") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
             case f: FileSourceScanExecTransformer =>
@@ -207,7 +207,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "false")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
             case f: FileSourceScanExecTransformer =>
@@ -230,7 +230,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
 
   test("TPCDS Q21 with non-separated scan rdd") {
     withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
             case f: FileSourceScanExecTransformer =>
@@ -252,11 +252,11 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
   }
 
   test("TPCDS Q66") {
-    runTPCDSQuery(66) { df => }
+    runTPCDSQuery("q66") { df => }
   }
 
   test("TPCDS Q76") {
-    runTPCDSQuery(76) { df => }
+    runTPCDSQuery("q76") { df => }
   }
 
   test("Gluten-1234: Fix error when executing hash agg after union all") {
