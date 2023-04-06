@@ -10,6 +10,7 @@ class TpchSuite(
   val actions: Array[Action],
   val testConf: SparkConf,
   val baselineConf: SparkConf,
+  val extraSparkConf: Map[String, String],
   val fixedWidthAsDouble: Boolean,
   val logLevel: Level,
   val errorOnMemLeak: Boolean,
@@ -23,7 +24,7 @@ class TpchSuite(
   val disableWscg: Boolean,
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(actions, testConf, baselineConf,
-  fixedWidthAsDouble, logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
+  extraSparkConf, fixedWidthAsDouble, logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
   cpus, offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions,
   minimumScanPartitions) {
 

@@ -7,6 +7,8 @@ import io.glutenproject.integration.tpc.action.Actions;
 import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
+import scala.Predef;
+import scala.collection.JavaConverters;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -26,11 +28,11 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--mode"}, description = "Mode: data-gen-only, queries, queries-compare, spark-shell", defaultValue = "queries-compare")
   private String mode;
 
-  @CommandLine.Option(names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, velox-with-celeborn...", defaultValue = "velox")
-  private String backendType;
+  @CommandLine.Option(names = {"-p", "--preset"}, description = "Preset used: vanilla, velox, velox-with-celeborn...", defaultValue = "velox")
+  private String preset;
 
-  @CommandLine.Option(names = {"--baseline-backend-type"}, description = "Baseline backend used: vanilla, velox, ...", defaultValue = "vanilla")
-  private String baselineBackendType;
+  @CommandLine.Option(names = {"--baseline-preset"}, description = "Baseline preset used: vanilla, velox, ...", defaultValue = "vanilla")
+  private String baselinePreset;
 
   @CommandLine.Option(names = {"-s", "--scale"}, description = "The scale factor of sample TPC-H dataset", defaultValue = "0.1")
   private double scale;
@@ -86,38 +88,34 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
   private boolean genPartitionedData;
 
-  @CommandLine.Option(names = {"--conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --conf=k1=v1 --conf=k2=v2")
-  private Map<String, String> sparkConf;
+  @CommandLine.Option(names = {"--extra-conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --conf=k1=v1 --conf=k2=v2")
+  private Map<String, String> extraSparkConf;
 
   public Tpc() {
   }
 
-  private SparkConf pickSparkConf(String backendType) {
+  private SparkConf pickSparkConf(String preset) {
     SparkConf conf;
-    switch (backendType) {
+    switch (preset) {
       case "vanilla":
         conf = Constants.VANILLA_CONF();
         break;
       case "velox":
-        conf = Constants.VELOX_BACKEND_CONF();
+        conf = Constants.VELOX_CONF();
         break;
       case "velox-with-celeborn":
-        conf = Constants.VELOX_WITH_CELEBORN_BACKEND_CONF();
+        conf = Constants.VELOX_WITH_CELEBORN_CONF();
         break;
       default:
-        throw new IllegalArgumentException("Backend type not found: " + backendType);
+        throw new IllegalArgumentException("Preset not found: " + preset);
     }
     return conf;
   }
 
   @Override
   public Integer call() throws Exception {
-    final SparkConf baselineConf = pickSparkConf(baselineBackendType);
-    final SparkConf testConf = pickSparkConf(backendType);
-    if (sparkConf != null) {
-      sparkConf.forEach(testConf::set);
-      sparkConf.forEach(baselineConf::set);
-    }
+    final SparkConf baselineConf = pickSparkConf(baselinePreset);
+    final SparkConf testConf = pickSparkConf(preset);
     final Level level;
     switch (logLevel) {
       case 0:
@@ -136,16 +134,21 @@ public class Tpc implements Callable<Integer> {
     final Action[] actions =
         Actions.createActions(mode, skipDataGen, scale, genPartitionedData, queries, explain, iterations);
 
+    scala.collection.immutable.Map<String, String> extraSparkConfScala =
+        JavaConverters.mapAsScalaMapConverter(extraSparkConf).asScala().toMap(
+            Predef.conforms());
+
     final TpcSuite suite;
     switch (benchmarkType) {
       case "h":
         suite = new TpchSuite(actions, testConf, baselineConf,
-                fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
-                enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
+            extraSparkConfScala,
+            fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
+            enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       case "ds":
-        suite = new TpcdsSuite(actions, testConf, baselineConf,
+        suite = new TpcdsSuite(actions, testConf, baselineConf, extraSparkConfScala,
             fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
             enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
