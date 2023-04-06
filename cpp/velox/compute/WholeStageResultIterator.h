@@ -10,7 +10,6 @@
 namespace gluten {
 
 static const std::string kHiveConnectorId = "test-hive";
-static const std::string kSparkBatchSize = "spark.sql.execution.arrow.maxRecordsPerBatch";
 
 class WholeStageResultIterator {
  public:
