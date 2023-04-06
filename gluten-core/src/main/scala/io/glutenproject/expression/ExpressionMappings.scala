@@ -203,6 +203,7 @@ object ExpressionMappings {
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
   final val EXPLODE = "explode"
+  final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
@@ -357,6 +358,7 @@ object ExpressionMappings {
     Sig[Size](SIZE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[PosExplode](POSEXPLODE),
     Sig[GetArrayItem](GET_ARRAY_ITEM),
     Sig[ElementAt](ELEMENT_AT),
     Sig[ArrayContains](ARRAY_CONTAINS),

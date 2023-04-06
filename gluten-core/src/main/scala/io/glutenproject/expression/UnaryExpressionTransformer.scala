@@ -92,6 +92,52 @@ class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer
   }
 }
 
+class PosExplodeTransformer(substraitExprName: String, child: ExpressionTransformer, original: PosExplode)
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode: ExpressionNode = child.doTransform(args)
+
+    // sequence(1, size(array_or_map))
+    val startExpr = new Literal(1, IntegerType)
+    val stopExpr = new Size(original.child, false)
+    val sequenceExpr = new Sequence(startExpr, stopExpr)
+
+    // map_from_arrays(sequence(1, size(array_or_map)), array_or_map)
+    val mapFromArraysExpr = new MapFromArrays(sequenceExpr, original.child)
+    val mapFromArraysExprNode =
+      ExpressionConverter.replaceWithExpressionTransformer(mapFromArraysExpr, null)
+        .doTransform(args)
+
+    val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val funcId = ExpressionBuilder.newScalarFunction(funcMap,
+      ConverterUtils.makeFuncName(ExpressionMappings.POSEXPLODE,
+        Seq(mapFromArraysExpr.dataType), FunctionConfig.OPT))
+    
+    val childType = original.child.dataType
+    childType match {
+      case a: ArrayType =>
+        // Output pos, col when input is array
+        val structType = StructType(Array(
+          StructField("pos", IntegerType, false),
+          StructField("col", a.elementType, a.containsNull)))
+        ExpressionBuilder.makeScalarFunction(funcId, Lists.newArrayList(mapFromArraysExprNode),
+          ConverterUtils.getTypeNode(structType, false))
+      case m: MapType =>
+        // Output pos, key, value when input is map
+        val structType = StructType(Array(
+          StructField("pos", IntegerType, false),
+          StructField("key", m.keyType, false),
+          StructField("value", m.valueType, m.valueContainsNull)))
+        ExpressionBuilder.makeScalarFunction(funcId, Lists.newArrayList(mapFromArraysExprNode),
+          ConverterUtils.getTypeNode(structType, false))
+      case _ =>
+        throw new UnsupportedOperationException(s"posexplode(${childType}) not supported yet.")
+    }
+  }
+}
+
 class PromotePrecisionTransformer(child: ExpressionTransformer, original: PromotePrecision)
   extends ExpressionTransformer
   with Logging {
