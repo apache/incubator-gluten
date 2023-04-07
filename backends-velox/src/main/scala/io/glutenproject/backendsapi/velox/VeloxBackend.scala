@@ -173,4 +173,6 @@ object VeloxBackendSettings extends BackendSettings {
    */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
+
+  override def rescaleDecimalIntegralExpression(): Boolean = true
 }

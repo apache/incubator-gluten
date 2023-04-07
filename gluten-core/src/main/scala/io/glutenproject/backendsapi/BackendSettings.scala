@@ -72,4 +72,6 @@ trait BackendSettings {
    * Get the config prefix for each backend
    */
   def getBackendConfigPrefix(): String
+
+  def rescaleDecimalIntegralExpression(): Boolean = false
 }
