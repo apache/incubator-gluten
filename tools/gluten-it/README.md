@@ -31,28 +31,22 @@ Usage: gluten-tpc [-hV] [--disable-aqe] [--disable-bhj] [--disable-wscg]
                   [--enable-history] [--enable-ui] [--error-on-memleak]
                   [--explain] [--fixed-width-as-double]
                   [--gen-partitioned-data] [--min-scan-partitions]
-                  [--skip-data-gen] [-b=<backendType>]
-                  [--baseline-backend-type=<baselineBackendType>]
+                  [--skip-data-gen] [--baseline-preset=<baselinePreset>]
                   [--benchmark-type=<benchmarkType>] [--cpus=<cpus>]
                   [--history-ui-port=<hsUiPort>] [--iterations=<iterations>]
                   [--log-level=<logLevel>] [--mode=<mode>]
-                  [--off-heap-size=<offHeapSize>] [-s=<scale>]
+                  [--off-heap-size=<offHeapSize>] [-p=<preset>] [-s=<scale>]
                   [--shuffle-partitions=<shufflePartitions>]
-                  [--conf=<String=String>]... [--queries=<queries>[,
+                  [--extra-conf=<String=String>]... [--queries=<queries>[,
                   <queries>...]]...
 Gluten integration test using TPC benchmark's data and queries
-  -b, --backend-type=<backendType>
-                           Backend used: vanilla, velox, ...
-                             Default: velox
-      --baseline-backend-type=<baselineBackendType>
-                           Baseline backend used: vanilla, velox, ...
+      --baseline-preset=<baselinePreset>
+                           Baseline preset used: vanilla, velox,
+                             velox-with-celeborn...
                              Default: vanilla
       --benchmark-type=<benchmarkType>
                            TPC benchmark type: h, ds
                              Default: h
-      --conf=<String=String>
-                           Extra Spark config entries applying to generated
-                             Spark session. E.g. --conf=k1=v1 --conf=k2=v2
       --cpus=<cpus>        Executor cpu number
                              Default: 2
       --disable-aqe        Disable Spark SQL adaptive query execution
@@ -63,6 +57,10 @@ Gluten integration test using TPC benchmark's data and queries
       --error-on-memleak   Fail the test when memory leak is detected by
                              Spark's memory manager
       --explain            Output explain result for queries
+      --extra-conf=<String=String>
+                           Extra Spark config entries applying to generated
+                             Spark session. E.g. --conf=k1=v1 --conf=k2=v2
+                             Default: {}
       --fixed-width-as-double
                            Generate integer/long/date as double
       --gen-partitioned-data
@@ -79,16 +77,19 @@ Gluten integration test using TPC benchmark's data and queries
                              Default: 2
       --min-scan-partitions
                            Use minimum number of partitions to read data
-      --mode=<mode>        Mode: data-gen-only, queries, queries-compare, spark-shell
+      --mode=<mode>        Mode: data-gen-only, queries, queries-compare,
+                             spark-shell
                              Default: queries-compare
       --off-heap-size=<offHeapSize>
                            Off heap memory size per executor
                              Default: 6g
+  -p, --preset=<preset>    Preset used: vanilla, velox, velox-with-celeborn...
+                             Default: velox
       --queries=<queries>[,<queries>...]
-                           Set a comma-seperated list of query IDs to run, run
+                           Set a comma-separated list of query IDs to run, run
                              all queries if not specified. Example:
                              --queries=q1,q6
-                             Default: __all__
+                             Default: []
   -s, --scale=<scale>      The scale factor of sample TPC-H dataset
                              Default: 0.1
       --shuffle-partitions=<shufflePartitions>

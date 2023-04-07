@@ -14,13 +14,13 @@ abstract class TpcSuite(
   private val actions: Array[Action],
   private val testConf: SparkConf,
   private val baselineConf: SparkConf,
+  private val extraSparkConf: Map[String, String],
   private val fixedWidthAsDouble: Boolean,
   private val logLevel: Level,
   private val errorOnMemLeak: Boolean,
   private val enableUi: Boolean,
   private val enableHsUi: Boolean,
   private val hsUiPort: Int,
-  private val enableCeleborn: Boolean,
   private val cpus: Int,
   private val offHeapSize: String,
   private val disableAqe: Boolean,
@@ -78,13 +78,8 @@ abstract class TpcSuite(
     sessionSwitcher.defaultConf().set("spark.default.parallelism", "1")
   }
 
-  if (enableCeleborn) {
-    testConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
-    testConf.set("spark.celeborn.shuffle.writer", "hash")
-    testConf.set("spark.celeborn.push.replicate.enabled", "false")
-    testConf.set("spark.shuffle.service.enabled", "false")
-    testConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
-    testConf.set("spark.dynamicAllocation.enabled", "false")
+  extraSparkConf.toStream.foreach { kv =>
+    sessionSwitcher.defaultConf().set(kv._1, kv._2)
   }
 
   // register sessions
