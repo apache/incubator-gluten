@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import com.google.protobuf.{Any, Empty, StringValue}
+import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.GlutenConfig
@@ -40,20 +40,16 @@ import org.apache.spark.sql.execution.command.{AlterTableAddPartitionCommand, Al
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.io.FileCommitProtocol
-import org.apache.spark.sql.execution.datasources.{FileFormat, FileFormatWriter, FileIndex, InsertIntoHadoopFsRelationCommand, PartitioningUtils}
+import org.apache.spark.sql.execution.datasources.{InsertIntoHadoopFsRelationCommand, PartitioningUtils}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTablePartition}
+import org.apache.spark.sql.catalyst.catalog.{CatalogTable, CatalogTablePartition}
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils.getPartitionPathString
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
 
 import java.util
-import java.util.UUID
-import scala.util.control.Breaks.{break, breakable}
 
 case class DataWritingCommandExecTransformer(
            cmd: DataWritingCommand, child: SparkPlan) extends UnaryExecNode
@@ -156,9 +152,8 @@ case class DataWritingCommandExecTransformer(
   }
 
   override def doValidateInternal(): Boolean = {
-    // format only support parquet and dwrf
-    if (!BackendsApiManager.getSettings.supportWriteExec() ||
-      !BackendsApiManager.getSettings.supportedFileFormatWrite(SQLConf.get, cmd)) {
+    if (!BackendsApiManager.getSettings.supportWriteExec(SQLConf.get,
+      cmd, child.output)) {
       return false
     }
      val substraitContext = new SubstraitContext
