@@ -105,17 +105,37 @@ class PosExplodeTransformer(substraitExprName: String, child: ExpressionTransfor
     val stopExpr = new Size(original.child, false)
     val stepExpr = new Literal(1, IntegerType)
     val sequenceExpr = new Sequence(startExpr, stopExpr, stepExpr)
-
-    // map_from_arrays(sequence(1, size(array_or_map)), array_or_map)
-    val mapFromArraysExpr = new MapFromArrays(sequenceExpr, original.child)
-    val mapFromArraysExprNode =
-      ExpressionConverter.replaceWithExpressionTransformer(mapFromArraysExpr, attributeSeq)
-        .doTransform(args)
+    val sequenceExprNode = ExpressionConverter.replaceWithExpressionTransformer(sequenceExpr,
+      attributeSeq).doTransform(args)
 
     val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+
+    // map_from_arrays(sequence(1, size(array_or_map)), array_or_map)
+    val mapFromArraysFuncId = ExpressionBuilder.newScalarFunction(funcMap,
+      ConverterUtils.makeFuncName(ExpressionMappings.MAP_FROM_ARRAYS,
+        Seq(sequenceExpr.dataType, original.child.dataType), FunctionConfig.OPT))
+    
+    // Notice that in CH mapFromArrays accepts the second arguments as MapType or ArrayType
+    // But in Spark, it accepts ArrayType.
+    val keyType = IntegerType
+    val (valType, valContainsNull) = original.child.dataType match {
+      case a: ArrayType => (a.elementType, a.containsNull)
+      case m: MapType => (
+        StructType(
+          StructField("", m.keyType, false) ::
+          StructField("", m.valueType, m.valueContainsNull) :: Nil), false)
+      case _ => throw new UnsupportedOperationException(
+        s"posexplode(${original.child.dataType}) not supported yet.")
+    }
+    val outputType = MapType(keyType, valType, valContainsNull)
+    val mapFromArraysExprNode = ExpressionBuilder.makeScalarFunction(mapFromArraysFuncId,
+      Lists.newArrayList(sequenceExprNode, childNode),
+      ConverterUtils.getTypeNode(outputType, original.child.nullable))
+
+    // posexplode(map_from_arrays(sequence(1, size(array_or_map)), array_or_map))
     val funcId = ExpressionBuilder.newScalarFunction(funcMap,
       ConverterUtils.makeFuncName(ExpressionMappings.POSEXPLODE,
-        Seq(mapFromArraysExpr.dataType), FunctionConfig.OPT))
+        Seq(outputType), FunctionConfig.OPT))
     
     val childType = original.child.dataType
     childType match {
