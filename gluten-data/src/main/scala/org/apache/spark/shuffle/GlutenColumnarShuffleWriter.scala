@@ -57,8 +57,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     .map(_.getAbsolutePath)
     .mkString(",")
 
-  // FIXME GlutenConfig.getConf.offHeapMemorySize is per executor
-  private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
+  private val offHeapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
@@ -117,7 +116,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         if (nativeSplitter == 0) {
           nativeSplitter = jniWrapper.make(
             dep.nativePartitioning,
-            offheapPerTask,
+            offHeapPerTask,
             nativeBufferSize,
             customizedCompressionCodec,
             batchCompressThreshold,

@@ -71,13 +71,6 @@ class VeloxInitializerApi extends InitializerApi {
 
     // configs
 
-    // off-heap bytes
-    if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
-    }
-    val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
-    conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
-
     val initKernel = new GlutenNativeExpressionEvaluator()
     initKernel.initNative(conf)
   }
