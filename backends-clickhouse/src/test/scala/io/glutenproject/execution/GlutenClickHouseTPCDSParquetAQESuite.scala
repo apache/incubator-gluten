@@ -85,7 +85,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
   }
 
   test("TPCDS Q3") {
-    runTPCDSQuery("q3") { df => }
+    runTPCDSQuery(3) { df => }
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
@@ -126,7 +126,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
 
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery("q9") {
+      runTPCDSQuery(9) {
         df =>
           val subqueryAdaptiveSparkPlan = collectWithSubqueries(df.queryExecution.executedPlan) {
             case a: AdaptiveSparkPlanExec if a.isSubquery => true
@@ -142,7 +142,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
 
   test("TPCDS Q21") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery("q21") {
+      runTPCDSQuery(21) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
@@ -166,7 +166,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "false")) {
-      runTPCDSQuery("q21") {
+      runTPCDSQuery(21) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
@@ -188,7 +188,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
 
   test("TPCDS Q21 with non-separated scan rdd") {
     withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
-      runTPCDSQuery("q21") {
+      runTPCDSQuery(21) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
@@ -209,11 +209,11 @@ class GlutenClickHouseTPCDSParquetAQESuite
   }
 
   test("TPCDS Q66") {
-    runTPCDSQuery("q66") { df => }
+    runTPCDSQuery(66) { df => }
   }
 
   test("TPCDS Q76") {
-    runTPCDSQuery("q76") { df => }
+    runTPCDSQuery(76) { df => }
   }
 
   test("Gluten-1234: Fix error when executing hash agg after union all") {
