@@ -1,4 +1,4 @@
-package org.apache.spark.shuffle.celeborn;
+package org.apache.spark.shuffle.gluten.celeborn;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
@@ -10,6 +10,10 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.shuffle.*;
+import org.apache.spark.shuffle.celeborn.RssShuffleFallbackPolicyRunner;
+import org.apache.spark.shuffle.celeborn.RssShuffleHandle;
+import org.apache.spark.shuffle.celeborn.RssShuffleReader;
+import org.apache.spark.shuffle.celeborn.SparkUtils;
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
 
 import org.slf4j.Logger;
@@ -152,8 +156,7 @@ public class CelebornShuffleManager implements ShuffleManager {
           ShuffleClient.get(
             h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
         if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
-          return CelebornShuffleWriterWrapper
-            .genCelebornColumnarShuffleWriter(ShuffleMode.HASH.toString(),
+          return new CelebornHashBasedColumnarShuffleWriter<>(
             h, context, celebornConf, client, metrics);
         } else {
           throw new UnsupportedOperationException(

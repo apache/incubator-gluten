@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized
+package org.apache.spark.shuffle
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowAbiUtil
+import io.glutenproject.vectorized.{JniByteInputStreams, ShuffleReaderJniWrapper}
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
@@ -36,10 +37,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.io._
 import java.nio.ByteBuffer
+
 import scala.reflect.ClassTag
 
 class CelebornColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
-  numOutputRows: SQLMetric)
+                                      numOutputRows: SQLMetric)
   extends Serializer with Serializable {
 
   /** Creates a new [[SerializerInstance]]. */
@@ -49,8 +51,8 @@ class CelebornColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLM
 }
 
 private class CelebornColumnarBatchSerializerInstance(schema: StructType,
-  readBatchNumRows: SQLMetric,
-  numOutputRows: SQLMetric)
+                                                      readBatchNumRows: SQLMetric,
+                                                      numOutputRows: SQLMetric)
   extends SerializerInstance
     with Logging {
 

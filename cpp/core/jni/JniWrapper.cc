@@ -63,9 +63,6 @@ static jmethodID serialized_arrow_array_iterator_next;
 static jclass native_columnar_to_row_info_class;
 static jmethodID native_columnar_to_row_info_constructor;
 
-jclass celeborn_partition_pusher_class;
-jmethodID celeborn_push_partition_data_method;
-
 jlong default_memory_allocator_id = -1L;
 
 static ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnar_to_row_converter_holder_;
@@ -289,11 +286,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   unreserve_memory_method = GetMethodIDOrError(env, java_reservation_listener_class, "unreserve", "(J)J");
 
   default_memory_allocator_id = reinterpret_cast<jlong>(DefaultMemoryAllocator().get());
-
-  celeborn_partition_pusher_class =
-      CreateGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/utils/CelebornPartitionPusher;");
-  celeborn_push_partition_data_method =
-      GetMethodIDOrError(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[B)I");
 
   return JNI_VERSION;
 }
@@ -762,6 +754,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
     env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
   } else if (shuffle_writer_type == "celeborn") {
+    jclass celeborn_partition_pusher_class =
+        CreateGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
+    jmethodID celeborn_push_partition_data_method =
+        GetMethodIDOrError(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[B)I");
     splitOptions.is_celeborn = true;
     if (push_buffer_max_size > 0) {
       splitOptions.push_buffer_max_size = push_buffer_max_size;
