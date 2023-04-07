@@ -533,7 +533,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
         logDebug(s"ColumnarPostOverrides GlutenColumnarToRowExecBase(${child.getClass})")
         val nativeConversion =
           BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-        if (nativeSupportedPlan(child) && nativeConversion.doValidate()) {
+        if (nativeConversion.doValidate()) {
           nativeConversion
         } else {
           logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
@@ -554,7 +554,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
             val child = replaceWithTransformerPlan(c.child)
             val nativeConversion =
               BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-            if (nativeSupportedPlan(child) && nativeConversion.doValidate()) {
+            if (nativeConversion.doValidate()) {
               nativeConversion
             } else {
               logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
@@ -570,19 +570,6 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
     case p =>
       val children = p.children.map(replaceWithTransformerPlan)
       p.withNewChildren(children)
-  }
-
-  def nativeSupportedPlan(child: SparkPlan): Boolean = {
-    if (child.isInstanceOf[TransformSupport]) {
-      return true
-    }
-    if (!child.supportsColumnar) {
-      return false
-    }
-    if (child.isInstanceOf[FileSourceScanExec] || child.isInstanceOf[BatchScanExec]) {
-      return false
-    }
-    true
   }
 
   // apply for the physical not final plan
