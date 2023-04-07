@@ -109,14 +109,7 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
   // allocate one more cache line to ease avx operations
   if (buffer_ == nullptr || buffer_->capacity() < total_memory_size + 64) {
     ARROW_ASSIGN_OR_RAISE(buffer_, AllocateBuffer(total_memory_size + 64, arrow_pool_.get()));
-#ifdef __AVX512BW__
-    if (ARROW_PREDICT_TRUE(support_avx512_)) {
-      memset(buffer_->mutable_data() + total_memory_size, 0, buffer_->capacity() - total_memory_size);
-    } else
-#endif
-    {
-      memset(buffer_->mutable_data(), 0, buffer_->capacity());
-    }
+    memset(buffer_->mutable_data(), 0, buffer_->capacity());
   }
 
   buffer_address_ = buffer_->mutable_data();

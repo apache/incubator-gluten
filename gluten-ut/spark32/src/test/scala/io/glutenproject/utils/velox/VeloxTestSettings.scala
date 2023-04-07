@@ -548,7 +548,5 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenMetadataCacheSuite]
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
-    // decimal failed uts
-    .exclude("analyze column command - result verification")
   enableSuite[FallbackStrategiesSuite]
 }
