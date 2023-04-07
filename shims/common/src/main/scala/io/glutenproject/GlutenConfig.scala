@@ -230,7 +230,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.substrait.plan.logLevel", "DEBUG")
 
   def validateFailureLogLevel: String =
-    conf.getConfString("spark.gluten.sql.validate.failure.logLevel", "WARN")
+    conf.getConfString("spark.gluten.sql.validate.failure.logLevel", "INFO")
 
   def printStackOnValidateFailure: Boolean =
     conf.getConfString("spark.gluten.sql.validate.failure.printStack", "false").toBoolean
