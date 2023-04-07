@@ -17,9 +17,9 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.MetricsApi
+import io.glutenproject.execution.DataWritingCommandExecTransformer
 import io.glutenproject.metrics._
 import io.glutenproject.substrait.{AggregationParams, JoinParams}
-
 import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
@@ -34,6 +34,14 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
       joinParamsMap: util.HashMap[lang.Long, JoinParams],
       aggParamsMap: util.HashMap[lang.Long, AggregationParams]): IMetrics => Unit = {
     MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
+  }
+
+  override def isFinishedUpdatingFunction(child: SparkPlan): Unit => Unit = {
+    if (child.isInstanceOf[DataWritingCommandExecTransformer]) {
+      val write = child.asInstanceOf[DataWritingCommandExecTransformer]
+      DataWritingCommandExecTransformer.updateMetaInfo(write.session, write.cmd)
+    }
+    (Unit) => ()
   }
 
   override def genBatchScanTransformerMetrics(

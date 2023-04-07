@@ -104,7 +104,8 @@ class GlutenWholeStageColumnarRDD(@transient sc: SparkContext,
                                   var rdds: Seq[RDD[ColumnarBatch]],
                                   pipelineTime: SQLMetric,
                                   updateInputMetrics: (InputMetricsWrapper) => Unit,
-                                  updateNativeMetrics: IMetrics => Unit)
+                                  updateNativeMetrics: IMetrics => Unit,
+                                  updateIsFinished: Unit => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
@@ -119,7 +120,8 @@ class GlutenWholeStageColumnarRDD(@transient sc: SparkContext,
         context,
         pipelineTime,
         updateInputMetrics,
-        updateNativeMetrics)
+        updateNativeMetrics,
+        updateIsFinished)
     } else {
       val partitions = split.asInstanceOf[FirstZippedPartitionsPartition].partitions
       val inputIterators = (rdds zip partitions).map {
@@ -132,6 +134,7 @@ class GlutenWholeStageColumnarRDD(@transient sc: SparkContext,
         pipelineTime,
         updateInputMetrics,
         updateNativeMetrics,
+        updateIsFinished,
         inputIterators)
     }
   }

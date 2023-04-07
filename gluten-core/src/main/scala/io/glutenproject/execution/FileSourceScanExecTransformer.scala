@@ -22,16 +22,17 @@ import scala.collection.mutable.HashMap
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.metrics.MetricsUpdater
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, ScalarSubquery, SparkPlan, SQLExecution}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.command.{AlterTableAddPartitionCommand, AlterTableDropPartitionCommand}
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory, PartitioningUtils}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.SaveMode
 import org.apache.spark.util.collection.BitSet
 
 class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
@@ -92,7 +93,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   override def getPartitionSchemas: StructType = relation.partitionSchema
 
   override def getInputFilePaths: Seq[String] = {
-    relation.location.refresh()
     relation.location.inputFiles.toSeq
   }
 
@@ -128,6 +128,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+
     doExecuteColumnarInternal()
   }
 

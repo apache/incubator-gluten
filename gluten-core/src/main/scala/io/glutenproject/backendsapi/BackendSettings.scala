@@ -24,10 +24,12 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.command.DataWritingCommand
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
 
 
 trait BackendSettings {
-  def supportedFileFormatWrite(cmd: DataWritingCommand): Boolean = false
+  def supportedFileFormatWrite(conf: SQLConf, cmd: DataWritingCommand): Boolean = false
   def supportFileFormatRead(format: ReadFileFormat,
                             fields: Array[StructField],
                             partTable: Boolean,

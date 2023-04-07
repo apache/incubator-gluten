@@ -29,6 +29,8 @@ trait MetricsApi extends Serializable {
     Map(
       "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
 
+  def isFinishedUpdatingFunction (child: SparkPlan): Unit => Unit
+
   def metricsUpdatingFunction(
       child: SparkPlan,
       relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],

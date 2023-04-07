@@ -29,6 +29,11 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.DataWritingCommand
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
+import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
 
 import scala.util.control.Breaks.{break, breakable}
 
@@ -47,15 +52,36 @@ class VeloxBackend extends Backend {
 }
 
 object VeloxBackendSettings extends BackendSettings {
-  override def supportedFileFormatWrite(cmd: DataWritingCommand): Boolean = {
+  override def supportedFileFormatWrite(conf: SQLConf, cmd: DataWritingCommand): Boolean = {
     cmd match {
       case InsertIntoHadoopFsRelationCommand(
-      _, _, _, _, _, fileFormat, _, _, _, _, _, _) =>
+      _, _, _, partitionColumns, _, fileFormat, options, _, mode, _, _, _) =>
+        if (partitionColumns.size > 0) {
+          return false
+
+        }
+        val parameters = CaseInsensitiveMap(options)
+
+        val dynamicPartitionOverwrite: Boolean = {
+          val partitionOverwriteMode = parameters.get("partitionOverwriteMode")
+            // scalastyle:off caselocale
+            .map(mode => PartitionOverwriteMode.withName(mode.toUpperCase))
+            // scalastyle:on caselocale
+            .getOrElse(conf.partitionOverwriteMode)
+          val enableDynamicOverwrite = partitionOverwriteMode == PartitionOverwriteMode.DYNAMIC
+          // This config only makes sense when we are overwriting a partitioned dataset with dynamic
+          // partition columns.
+          enableDynamicOverwrite && mode == SaveMode.Overwrite
+        }
+        if (dynamicPartitionOverwrite) {
+          return false
+        }
         fileFormat.getClass.getSimpleName match {
           case "ParquetFileFormat" => true
           case "DwrfFileFormat" => true
           case _ => false
         }
+
       case _ => false
     }
   }
@@ -70,7 +96,7 @@ object VeloxBackendSettings extends BackendSettings {
       // Collect unsupported types.
       fields.map(_.dataType).collect {
         case _: ByteType =>
-        case _: ArrayType =>
+//        case _: ArrayType =>
         case _: MapType =>
         case _: StructType =>
       }.isEmpty

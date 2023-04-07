@@ -77,6 +77,7 @@ trait IteratorApi {
                             pipelineTime: SQLMetric,
                             updateInputMetrics: (InputMetricsWrapper) => Unit,
                             updateNativeMetrics: IMetrics => Unit,
+                            updateIsFinished: Unit => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch]
 
@@ -94,6 +95,7 @@ trait IteratorApi {
                             rootNode: PlanNode,
                             pipelineTime: SQLMetric,
                             updateNativeMetrics: IMetrics => Unit,
+                            updateIsFinished: Unit => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch])
   : Iterator[ColumnarBatch]
   // scalastyle:on argcount
