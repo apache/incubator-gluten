@@ -220,11 +220,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  // Must provide default value since non-execution operations (e.g.
+  //   org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using
+  //   org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated
   def offHeapMemorySize: Long =
-    conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY).toLong
+    conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
 
   def taskOffHeapMemorySize: Long =
-    conf.getConfString(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY).toLong
+    conf.getConfString(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
 
   // velox caching options
   // enable Velox cache, default off
