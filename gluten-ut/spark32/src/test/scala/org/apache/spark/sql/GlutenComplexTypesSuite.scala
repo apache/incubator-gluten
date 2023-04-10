@@ -29,7 +29,7 @@ class GlutenComplexTypesSuite extends ComplexTypesSuite with GlutenSQLTestsTrait
       "cast(id as FLOAT) as fp32",
       "cast(id as DOUBLE) as fp64",
       "cast(id as DECIMAL(4, 2)) as dec",
-      "cast(cast(id as BYTE) as BINARY) as vbin",
+      "binary(id) as vbin",
       "map_from_arrays(array(id),array(id+2)) as map",
       "array(id, id+1, id+2) as list",
       "struct(cast(id as LONG) as a, cast(id+1 as STRING) as b) as struct"
