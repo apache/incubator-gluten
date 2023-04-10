@@ -39,6 +39,35 @@ void testConvertBatch(std::shared_ptr<RecordBatch> input_batch) {
   JniAssertOkOrThrow(converter->Write(), "Native convert columnar to row: ColumnarToRowConverter write failed");
 }
 
+void testRecordBatchEqual(std::vector<std::shared_ptr<Field>> fields, std::vector<std::string> data) {
+  auto schema = arrow::schema(fields);
+
+  std::shared_ptr<arrow::RecordBatch> input_batch;
+  MakeInputBatch(data, schema, &input_batch);
+
+  std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+
+  int64_t num_rows = input_batch->num_rows();
+
+  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  auto length_vec = columnarToRowConverter->GetLengths();
+
+  long arr[length_vec.size()];
+  for (int i = 0; i < length_vec.size(); i++) {
+    arr[i] = length_vec[i];
+  }
+  long* lengthPtr = arr;
+
+  auto row_to_columnar_converter =
+      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address, arrow::default_memory_pool());
+
+  auto rb = row_to_columnar_converter->convert();
+  ASSERT_TRUE(rb->Equals(*input_batch));
+}
+
 TEST_F(ColumnarToRowTest, decimal) {
   {
     std::vector<std::shared_ptr<Field>> fields = {field("f_decimal128", decimal(10, 2))};
@@ -535,5 +564,21 @@ TEST_F(ColumnarToRowTest, _allTypes_18rows) {
   std::cout << "input_batch->ToString():\n" << input_batch->ToString() << std::endl;
   std::cout << "From rowbuffer to Column, rb->ToString():\n" << rb->ToString() << std::endl;
   ASSERT_TRUE(rb->Equals(*input_batch));
+}
+
+TEST_F(ColumnarToRowTest, tooMuchColumn) {
+  auto f_bool = field("f_bool", arrow::boolean());
+  auto f_int8 = field("f_int8_a", arrow::int8());
+  auto f_int16 = field("f_int16", arrow::int16());
+  auto f_int32 = field("f_int32", arrow::int32());
+  auto f_int64 = field("f_int64", arrow::int64());
+
+  std::vector<std::shared_ptr<Field>> fields;
+  std::vector<std::string> data;
+  for (int i = 0; i < 300; i++) {
+    fields.emplace_back(f_int64);
+    data.emplace_back("[" + std::to_string(i) + "]");
+  }
+  testRecordBatchEqual(fields, data);
 }
 } // namespace gluten
