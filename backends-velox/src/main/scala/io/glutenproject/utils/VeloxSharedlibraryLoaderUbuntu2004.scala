@@ -2,7 +2,7 @@ package io.glutenproject.utils
 
 import io.glutenproject.vectorized.JniLibLoader
 
-class VeloxDllLoaderUbuntu2004 extends VeloxDllLoader {
+class VeloxSharedlibraryLoaderUbuntu2004 extends VeloxSharedlibraryLoader {
   override def loadLib(loader: JniLibLoader) : Unit = {
     loader.newTransaction()
       .loadAndCreateLink("libroken.so.18", "libroken.so", false)

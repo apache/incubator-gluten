@@ -2,7 +2,7 @@ package io.glutenproject.utils
 
 import io.glutenproject.vectorized.JniLibLoader
 
-trait VeloxDllLoader{
+trait VeloxSharedlibraryLoader{
     def loadLib(loader: JniLibLoader) : Unit = {}
 }
 

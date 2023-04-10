@@ -1,4 +1,4 @@
-Here is a docker script we verified to build Gluten+Velox backend on Ubuntu22.04:
+Here is a docker script we verified to build Gluten+Velox backend on Ubuntu22.04/20.04:
 
 Run on host as root user:
 ```
