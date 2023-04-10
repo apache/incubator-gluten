@@ -36,12 +36,11 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
     MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
   }
 
-  override def isFinishedUpdatingFunction(child: SparkPlan): Unit => Unit = {
+  override def writeMetadataUpdatingFunction(child: SparkPlan): Unit = {
     if (child.isInstanceOf[DataWritingCommandExecTransformer]) {
       val write = child.asInstanceOf[DataWritingCommandExecTransformer]
-      DataWritingCommandExecTransformer.updateMetaInfo(write.session, write.cmd)
+      DataWritingCommandExecTransformer.updateMetadataInfo(write.session, write.cmd)
     }
-    (Unit) => ()
   }
 
   override def genBatchScanTransformerMetrics(

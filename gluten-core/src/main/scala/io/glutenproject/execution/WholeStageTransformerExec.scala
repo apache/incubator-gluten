@@ -54,7 +54,6 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
 
   lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
   lazy val printStackOnValidateFailure = GlutenConfig.getConf.printStackOnValidateFailure
-  var isFinished = false
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
@@ -68,8 +67,6 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
   }
 
   def doValidateInternal(): Boolean = false
-
-  def getIsFinished(): Boolean = isFinished
 
   def logValidateFailure(msg: => String, e: Throwable): Unit = {
     if (printStackOnValidateFailure) {
@@ -206,10 +203,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       substraitContext)
   }
 
-  def setIsFinished(): Unit = {
-    isFinished = true
-  }
-
   /** Find all BasicScanExecTransformers in one WholeStageTransformerExec */
   def checkBatchScanExecTransformerChildren(): Seq[BasicScanExecTransformer] = {
     val basicScanExecTransformers = new mutable.ListBuffer[BasicScanExecTransformer]()
@@ -295,7 +288,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           wsCxt.substraitContext.registeredJoinParams,
           wsCxt.substraitContext.registeredAggregationParams
         ),
-        BackendsApiManager.getMetricsApiInstance.isFinishedUpdatingFunction(child)
+        BackendsApiManager.getMetricsApiInstance.writeMetadataUpdatingFunction(child)
       )
     } else {
 
@@ -328,7 +321,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           resCtx.substraitContext.registeredJoinParams,
           resCtx.substraitContext.registeredAggregationParams
         ),
-        BackendsApiManager.getMetricsApiInstance.isFinishedUpdatingFunction(child)
+        BackendsApiManager.getMetricsApiInstance.writeMetadataUpdatingFunction(child)
       )
     }
   }

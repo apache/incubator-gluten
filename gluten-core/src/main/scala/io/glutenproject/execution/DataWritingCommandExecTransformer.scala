@@ -38,7 +38,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{AliasAwareOutputPartitioning, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.command.{AlterTableAddPartitionCommand, AlterTableDropPartitionCommand, CommandUtils, DataWritingCommand}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.sql.execution.datasources.{InsertIntoHadoopFsRelationCommand, PartitioningUtils}
 import org.apache.spark.sql.internal.SQLConf
@@ -49,6 +49,7 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils.getPartitionPa
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
 
+import java.io.IOException
 import java.util
 
 case class DataWritingCommandExecTransformer(
@@ -151,7 +152,46 @@ case class DataWritingCommandExecTransformer(
       .setTypeUrl("/google.protobuf.StringValue")
   }
 
+  /**
+   * Checks if input column names have duplicate identifiers. This throws an exception if
+   * the duplication exists.
+   *
+   * @param columnNames column names to check
+   * @param colType column type name, used in an exception message
+   * @param caseSensitiveAnalysis whether duplication checks should be case sensitive or not
+   */
+  def checkColumnNameDuplication(columnNames: Seq[String],
+                                 colType: String,
+                                 caseSensitiveAnalysis: Boolean): Unit = {
+    // scalastyle:off caselocale
+    val names = if (caseSensitiveAnalysis) columnNames else columnNames.map(_.toLowerCase)
+    // scalastyle:on caselocale
+    if (names.distinct.length != names.length) {
+      val duplicateColumns = names.groupBy(identity).collect {
+        case (x, ys) if ys.length > 1 => s"`$x`"
+      }
+      throw new SparkException(
+        s"Found duplicate column(s) $colType: ${duplicateColumns.toSeq.sorted.mkString(", ")}")
+    }
+  }
+
   override def doValidateInternal(): Boolean = {
+    try {
+      cmd match {
+        case InsertIntoHadoopFsRelationCommand(
+        outputPath, _, _, _, _, _, _, _, _, _, _, outputColumnNames) =>
+          checkColumnNameDuplication(outputColumnNames,
+            s"when inserting into $outputPath",
+            session.sessionState.conf.caseSensitiveAnalysis)
+        case _ =>
+      }
+    } catch {
+      case e: Throwable =>
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        return false
+    }
+
     if (!BackendsApiManager.getSettings.supportWriteExec(SQLConf.get,
       cmd, child.output)) {
       return false
@@ -177,7 +217,6 @@ case class DataWritingCommandExecTransformer(
    }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-
     val childCtx = child match {
       case c: TransformSupport =>
         c.doTransform(context)
@@ -223,6 +262,7 @@ case class DataWritingCommandExecTransformer(
   }
 
   override def metricsUpdater(): MetricsUpdater = {
+    // TODO update the metrics
     null
   }
 
@@ -278,7 +318,8 @@ object DataWritingCommandExecTransformer {
     // first clear the path determined by the static partition keys (e.g. /table/foo=1)
     val staticPrefixPath = qualifiedOutputPath.suffix(staticPartitionPrefix)
     if (fs.exists(staticPrefixPath) && !committer.deleteWithJob(fs, staticPrefixPath, true)) {
-      // throw QueryExecutionErrors.cannotClearOutputDirectoryError(staticPrefixPath)
+      throw new IOException(s"Unable to clear output directory" +
+        s" $staticPrefixPath prior to writing to it")
     }
     // now clear all custom partition locations (e.g. /custom/dir/where/foo=2/bar=4)
     for ((spec, customLoc) <- customPartitionLocations) {
@@ -287,33 +328,17 @@ object DataWritingCommandExecTransformer {
         "Custom partition location did not match static partitioning keys")
       val path = new Path(customLoc)
       if (fs.exists(path) && !committer.deleteWithJob(fs, path, true)) {
-        // throw QueryExecutionErrors.cannotClearPartitionDirectoryError(path)
+        throw new IOException(s"Unable to clear partition" +
+          s" directory $path prior to writing to it")
       }
     }
   }
 
-
-  def updateMetaInfo(sparkSession: SparkSession, cmd: DataWritingCommand): Unit = {
+  def updateMetadataInfo(sparkSession: SparkSession, cmd: DataWritingCommand): Unit = {
     cmd match {
       case InsertIntoHadoopFsRelationCommand(
-      outputPath,
-      staticPartitions,
-      ifPartitionNotExists,
-      partitionColumns,
-      bucketSpec,
-      fileFormat,
-      options,
-      query,
-      mode,
-      catalogTable,
-      fileIndex,
-      outputColumnNames) =>
-//        // Most formats don't do well with duplicate columns, so lets not allow that
-//        checkColumnNameDuplication(
-//          outputColumnNames,
-//          s"when inserting into $outputPath",
-//          sparkSession.sessionState.conf.caseSensitiveAnalysis)
-
+      outputPath, staticPartitions, ifPartitionNotExists, partitionColumns,
+      _, _, options, _, mode, catalogTable, fileIndex, _) =>
         val hadoopConf = sparkSession.sessionState.newHadoopConfWithOptions(options)
         val fs = outputPath.getFileSystem(hadoopConf)
         val qualifiedOutputPath = outputPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
@@ -337,7 +362,9 @@ object DataWritingCommandExecTransformer {
           customPartitionLocations = getCustomPartitionLocations(
             fs, catalogTable.get, qualifiedOutputPath, matchingPartitions)
         }
+
         lazy val parameters = CaseInsensitiveMap(options)
+
         lazy val dynamicPartitionOverwrite: Boolean = {
           val partitionOverwriteMode = parameters.get("partitionOverwriteMode")
             // scalastyle:off caselocale
@@ -364,8 +391,8 @@ object DataWritingCommandExecTransformer {
           val pathExists = fs.exists(qualifiedOutputPath)
           (mode, pathExists) match {
             case (SaveMode.ErrorIfExists, true) =>
+              throw new SparkException(s"path $outputPath already exists.")
               false
-              // throw QueryCompilationErrors.outputPathAlreadyExistsError(qualifiedOutputPath)
             case (SaveMode.Overwrite, true) =>
               if (ifPartitionNotExists && matchingPartitions.nonEmpty) {
                 false
@@ -374,9 +401,12 @@ object DataWritingCommandExecTransformer {
                 true
               } else {
                 deleteMatchingPartitions(
-                  fs, qualifiedOutputPath,
-                  customPartitionLocations, committer,
-                  staticPartitions, partitionColumns)
+                  fs,
+                  qualifiedOutputPath,
+                  customPartitionLocations,
+                  committer,
+                  staticPartitions,
+                  partitionColumns)
                 true
               }
             case (SaveMode.Overwrite, _) | (SaveMode.ErrorIfExists, false) =>
@@ -384,8 +414,8 @@ object DataWritingCommandExecTransformer {
             case (SaveMode.Ignore, exists) =>
               !exists
             case (s, exists) =>
+              new IllegalStateException(s"unsupported save mode $s.toString ($exists)")
               false
-              // throw QueryExecutionErrors.unsupportedSaveModeError(s.toString, exists)
           }
         }
 
@@ -401,8 +431,7 @@ object DataWritingCommandExecTransformer {
                   ifNotExists = true).run(sparkSession)
               }
               // For dynamic partition overwrite,
-              // we never remove partitions but only update existing
-              // ones.
+              // we never remove partitions but only update existing ones.
               if (mode == SaveMode.Overwrite && !dynamicPartitionOverwrite) {
                 val deletedPartitions = initialMatchingPartitions.toSet -- updatedPartitions
                 if (deletedPartitions.nonEmpty) {
@@ -415,9 +444,9 @@ object DataWritingCommandExecTransformer {
             }
           }
 
-          // For dynamic partition overwrite,
-          // FileOutputCommitter's output path is staging path, files
-          // will be renamed from staging path to final output path during commit job
+          // For dynamic partition overwrite, FileOutputCommitter's output path
+          // is staging path, files will be renamed from staging path to
+          // final output path during commit job
           val committerOutputPath = if (dynamicPartitionOverwrite) {
             FileCommitProtocol.getStagingDir(outputPath.toString, jobId)
               .makeQualified(fs.getUri, fs.getWorkingDirectory)
@@ -438,8 +467,8 @@ object DataWritingCommandExecTransformer {
 //              bucketSpec = bucketSpec,
 //              statsTrackers = Seq(basicWriteJobStatsTracker(hadoopConf)),
 //              options = options)
-           val updatedPartitionPaths = Set.empty[String]
-
+          // TODO support partition write
+          val updatedPartitionPaths = Set.empty[String]
           // update metastore partition metadata
           if (updatedPartitionPaths.isEmpty && staticPartitions.nonEmpty
             && partitionColumns.length == staticPartitions.size) {
@@ -460,8 +489,6 @@ object DataWritingCommandExecTransformer {
             CommandUtils.updateTableStats(sparkSession, catalogTable.get)
           }
 
-        } else {
-          println("Skipping insertion into a relation that already exists.")
         }
 
       case _ =>

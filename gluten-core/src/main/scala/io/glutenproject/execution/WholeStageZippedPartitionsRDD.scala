@@ -46,7 +46,7 @@ class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
     pipelineTime: SQLMetric,
     buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch],
     updateNativeMetrics: IMetrics => Unit,
-                                    updateIsFinished: Unit => Unit)
+    updateWriteMetadata: Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
 
   val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
@@ -59,7 +59,7 @@ class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
         resCtx.root,
         pipelineTime,
         updateNativeMetrics,
-        updateIsFinished,
+        updateWriteMetadata,
         buildRelationBatchHolder
       )
   }

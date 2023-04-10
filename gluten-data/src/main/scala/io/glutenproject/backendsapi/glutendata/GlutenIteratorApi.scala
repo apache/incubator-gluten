@@ -223,7 +223,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
                                      pipelineTime: SQLMetric,
                                      updateInputMetrics: (InputMetricsWrapper) => Unit,
                                      updateNativeMetrics: IMetrics => Unit,
-                                     updateIsFinished: Unit => Unit,
+                                     updateWriteMetadata: Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
@@ -244,7 +244,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
         if (!res) {
           updateNativeMetrics(resIter.getMetrics)
           updateInputMetrics(inputMetrics)
-          updateIsFinished()
+          updateWriteMetadata
         }
         res
       }
@@ -279,7 +279,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
                                      rootNode: PlanNode,
                                      pipelineTime: SQLMetric,
                                      updateNativeMetrics: IMetrics => Unit,
-                                     updateIsFinished: Unit => Unit,
+                                     updateWriteMetadata: Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch])
   : Iterator[ColumnarBatch] = {
 
@@ -303,7 +303,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
         val res = nativeResultIterator.hasNext
         if (!res) {
           updateNativeMetrics(nativeResultIterator.getMetrics)
-          updateIsFinished()
+          updateWriteMetadata
         }
         res
       }

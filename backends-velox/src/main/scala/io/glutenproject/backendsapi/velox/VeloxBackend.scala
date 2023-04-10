@@ -100,9 +100,8 @@ object VeloxBackendSettings extends BackendSettings {
     cmd match {
       case InsertIntoHadoopFsRelationCommand(
       _, _, _, partitionColumns, _, fileFormat, options, _, mode, _, _, _) =>
-        if (partitionColumns.size > 0) {
+        if (partitionColumns.nonEmpty) {
           return false
-
         }
         val parameters = CaseInsensitiveMap(options)
 
@@ -125,7 +124,6 @@ object VeloxBackendSettings extends BackendSettings {
           case "DwrfFileFormat" => true
           case _ => false
         }
-
       case _ => false
     }
   }
