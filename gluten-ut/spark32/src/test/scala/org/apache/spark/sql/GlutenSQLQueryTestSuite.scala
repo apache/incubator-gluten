@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution.WholeStageCodegenExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.TimestampTypes
 import org.apache.spark.sql.test.SharedSparkSession
+import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
@@ -124,6 +125,7 @@ import scala.util.Try
  * Therefore, UDF test cases should have single input and output files but executed by three
  * different types of UDFs. See 'udf/udf-inner-join.sql' as an example.
  */
+@ExtendedSQLTest
 class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
     with SQLQueryTestHelper {
 
