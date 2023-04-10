@@ -84,10 +84,8 @@ jobs:
       - name: Build and run unit test for Spark 3.2.2
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
-          wget https://downloads.apache.org/maven/mvnd/1.0-m6/maven-mvnd-1.0-m6-m39-linux-amd64.tar.gz && \
-          tar xvf maven-mvnd-1.0-m6-m39-linux-amd64.tar.gz -C /tmp/ && \
           cd /opt/gluten && \
-          /tmp/maven-mvnd-1.0-m6-m39-linux-amd64/bin/mvnd clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark322"'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark322"'
       - name: Run CPP unit test
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
