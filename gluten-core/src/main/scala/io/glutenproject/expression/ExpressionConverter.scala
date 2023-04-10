@@ -465,7 +465,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           case _ => rescaleBinary.right
         }
         val (newLeft1, newRight1) = b match {
-          case arithmetic: BinaryArithmetic if needRemoveCast(arithmetic) =>
+          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic) =>
             rescaleCastForDecimal(newLeft, newRight)
           case _ => (b.left, b.right)
         }
