@@ -43,9 +43,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "rollup overlapping columns", // wait velox to fix
       "cube overlapping columns", // wait velox to fix
       // incorrect result, distinct NaN case
-      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
-      // decimal failed ut
-      "SPARK-36926: decimal average mistakenly overflow"
+      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate"
     )
 
   enableSuite[GlutenCastSuite]

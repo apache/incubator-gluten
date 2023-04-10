@@ -13,6 +13,7 @@ BUILD_PROTOBUF=ON
 ENABLE_S3=OFF
 
 LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
+LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
 
 for arg in "$@"; do
   case $arg in
@@ -80,23 +81,40 @@ function process_setup_centos8 {
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
 
   # install gtest
-  sed -i '/^cmake_install_deps gflags/i function install_gtest {\n  wget https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz\n  tar -xzf release-1.12.1.tar.gz\n  cd googletest-release-1.12.1\n  mkdir -p build && cd build && cmake -DBUILD_GTEST=ON -DBUILD_GMOCK=ON -DINSTALL_GTEST=ON -DINSTALL_GMOCK=ON -DBUILD_SHARED_LIBS=ON ..\n  make "-j$(nproc)"\n  make install\n  cd ../../ && ldconfig\n}\n' scripts/setup-centos8.sh
-  sed -i '/^cmake_install_deps gflags/i FB_OS_VERSION=v2022.11.14.00\nfunction install_folly {\n  github_checkout facebook/folly "${FB_OS_VERSION}"\n  cmake_install -DBUILD_TESTS=OFF\n}\n' scripts/setup-centos8.sh
   sed -i '/^cmake_install_deps fmt/a \ \ install_gtest' scripts/setup-centos8.sh
   sed -i '/^cmake_install_deps fmt/a \install_folly' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^cmake_install_deps gflags/i function install_libhdfs3 {\n  github_checkout apache/hawq master\n  cd depends/libhdfs3\n sed -i "/FIND_PACKAGE(GoogleTest REQUIRED)/d" ./CMakeLists.txt\n  sed -i "s/dumpversion/dumpfullversion/" ./CMake/Platform.cmake\n sed -i "s/dfs.domain.socket.path\\", \\"\\"/dfs.domain.socket.path\\", \\"\\/var\\/lib\\/hadoop-hdfs\\/dn_socket\\"/g" src/common/SessionConfig.cpp\n sed -i "s/pos < endOfCurBlock/pos \\< endOfCurBlock \\&\\& pos \\- cursor \\<\\= 128 \\* 1024/g" src/client/InputStreamImpl.cpp\n cmake_install\n}\n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \ \ install_libhdfs3' scripts/setup-centos8.sh
   fi
   if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
-    sed -i '/^cmake_install_deps gflags/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  make install\n  cd ../../ && ldconfig\n}\n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \ \ install_protobuf' scripts/setup-centos8.sh
   fi
   if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^cmake_install_deps gflags/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \ \ install_awssdk' scripts/setup-centos8.sh
   fi
+}
+
+function process_setup_centos7 {
+      # make this function Reentrantly
+      git checkout scripts/setup-centos7.sh
+
+      # cmake 3 and ninja should be installed
+      sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
+      sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
+
+      # install gtest
+      sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
+
+      if [ $ENABLE_HDFS = "ON" ]; then
+        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
+      fi
+      if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
+        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
+      fi
+      if [ $ENABLE_S3 == "ON" ]; then
+        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
+      fi
 }
 
 echo "Preparing Velox source code..."
@@ -135,8 +153,18 @@ sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" in
 sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
 if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
   process_setup_ubuntu
-else # Assume CentOS
-  process_setup_centos8
+elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
+  case "$LINUX_VERSION_ID" in
+    8) process_setup_centos8 ;;
+    7) process_setup_centos7 ;;
+    *)
+      echo "Unsupport centos version: $LINUX_VERSION_ID"
+      exit 1
+    ;;
+  esac
+else
+  echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+  exit 1
 fi
 
 echo "Velox-get finished."

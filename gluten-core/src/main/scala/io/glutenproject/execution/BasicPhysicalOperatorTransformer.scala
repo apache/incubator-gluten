@@ -166,7 +166,8 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         substraitContext, condition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 
