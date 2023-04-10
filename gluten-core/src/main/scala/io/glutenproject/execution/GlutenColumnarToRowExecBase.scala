@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.execution.adaptive.ShuffleQueryStageExec
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
 abstract class GlutenColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTransition {
@@ -31,7 +32,9 @@ abstract class GlutenColumnarToRowExecBase(child: SparkPlan) extends ColumnarToR
 
   def doValidate(): Boolean = {
     try {
-      if (!child.isInstanceOf[GlutenPlan]) {
+      if (!child.isInstanceOf[GlutenPlan] &&
+        // columnar shuffle may use spark's sort shuffle manager
+        !child.isInstanceOf[ShuffleQueryStageExec]) {
         return false
       }
       buildCheck()
