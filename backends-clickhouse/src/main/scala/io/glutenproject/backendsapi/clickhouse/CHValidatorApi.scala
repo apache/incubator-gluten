@@ -21,12 +21,15 @@ import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
+
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
   override def doValidate(plan: PlanNode): Boolean = {
@@ -43,44 +46,16 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
    *   true by default
    */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean = {
-    CHExpressionUtil.CH_EXPR_BLACKLIST_TYPE_EXISTS.get(substraitExprName) match {
-      case Some(unsupportedTypeSet) =>
-        if (unsupportedTypeSet.contains(CHExpressionUtil.EMPTY_TYPE)) {
-          return false
-        }
-        if (expr.children.map(_.dataType.typeName).exists(unsupportedTypeSet.contains)) {
-          return false
-        }
+    CHExpressionUtil.CH_BLACKLIST_SCALAR_FUNCTION.get(substraitExprName) match {
+      case Some(validator) =>
+        return validator.doValidate(expr)
       case _ =>
     }
-
-    CHExpressionUtil.CH_EXPR_BLACKLIST_TYPE_MATCH.get(substraitExprName) match {
-      case Some(unsupportedTypeSeq) =>
-        if (expr.children.map(_.dataType.typeName).equals(unsupportedTypeSeq)) {
-          return false
-        }
+    CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.get(substraitExprName) match {
+      case Some(validator) =>
+        return validator.doValidate(expr)
       case _ =>
     }
-
-    if (CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.isEmpty) return true
-    val value = CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.get(substraitExprName)
-    if (value.isEmpty) {
-      return true
-    }
-    val inputTypeNames = value.get
-    inputTypeNames.foreach {
-      inputTypeName =>
-        if (inputTypeName.equals(CHExpressionUtil.EMPTY_TYPE)) {
-          return false
-        } else {
-          for (input <- expr.children) {
-            if (inputTypeName.equals(input.dataType.typeName)) {
-              return false
-            }
-          }
-        }
-    }
-
     true
   }
 
