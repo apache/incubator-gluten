@@ -18,10 +18,9 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.adaptive.ShuffleQueryStageExec
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
 abstract class GlutenColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTransition {

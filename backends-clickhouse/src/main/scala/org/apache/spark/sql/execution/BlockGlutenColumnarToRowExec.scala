@@ -27,7 +27,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.adaptive.ShuffleQueryStageExec
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -40,9 +40,8 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
 
   override def buildCheck(): Unit = {
     if (
-      !child.isInstanceOf[GlutenPlan]
-      // columnar shuffle may use spark's sort shuffle manager
-      && !child.isInstanceOf[ShuffleQueryStageExec]
+      !child.isInstanceOf[GlutenPlan] &&
+      (child.isInstanceOf[FileSourceScanExec] || child.isInstanceOf[BatchScanExec])
     ) {
       throw new UnsupportedOperationException(
         s"$child is not supported in GlutenColumnarToRowExecBase.")
