@@ -17,6 +17,8 @@
 
 #include "VeloxMemoryPool.h"
 
+#include <sstream>
+
 using namespace facebook;
 
 namespace gluten {
@@ -83,13 +85,16 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     const auto alignedSize = sizeAlign(size);
     reserve(alignedSize);
     void* buffer;
-    if (!gluten_alloc_->Allocate(alignedSize, &buffer)) {
-      VELOX_FAIL("WrappedVeloxMemoryPool: Failed to allocate " + std::to_string(alignedSize) + " bytes")
-    }
-    if (FOLLY_UNLIKELY(buffer == nullptr)) {
+    try {
+      if (!gluten_alloc_->Allocate(alignedSize, &buffer)) {
+        VELOX_FAIL("WrappedVeloxMemoryPool: Failed to allocate " + std::to_string(alignedSize) + " bytes")
+      }
+    } catch (std::exception& e) {
       release(alignedSize);
-      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} bytes from {}", __FUNCTION__, alignedSize, toString()));
+      VELOX_MEM_ALLOC_ERROR(
+          fmt::format("{} failed with {} bytes from {}, cause: {}", __FUNCTION__, alignedSize, toString(), e.what()));
     }
+    VELOX_CHECK_NOT_NULL(buffer)
     return buffer;
   }
 
@@ -99,16 +104,24 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     const auto alignedSize = sizeAlign(sizeEach * numEntries);
     reserve(alignedSize);
     void* buffer;
-    if (!gluten_alloc_->AllocateZeroFilled(alignedSize, 1, &buffer)) {
-      VELOX_FAIL(
-          "WrappedVeloxMemoryPool: Failed to allocate (zero filled) " + std::to_string(alignedSize) + " members, " +
-          std::to_string(1) + " bytes for each")
-    }
-    if (FOLLY_UNLIKELY(buffer == nullptr)) {
+    try {
+      bool succeed = gluten_alloc_->AllocateZeroFilled(alignedSize, 1, &buffer);
+      if (!succeed) {
+        VELOX_FAIL(
+            "WrappedVeloxMemoryPool: Failed to allocate (zero filled) " + std::to_string(alignedSize) + " members, " +
+            std::to_string(1) + " bytes for each")
+      }
+    } catch (std::exception& e) {
       release(alignedSize);
       VELOX_MEM_ALLOC_ERROR(fmt::format(
-          "{} failed with {} entries and {} bytes each from {}", __FUNCTION__, numEntries, sizeEach, toString()));
+          "{} failed with {} entries and {} bytes each from {}, cause: {}",
+          __FUNCTION__,
+          numEntries,
+          sizeEach,
+          toString(),
+          e.what()));
     }
+    VELOX_CHECK_NOT_NULL(buffer)
     return buffer;
   }
 
@@ -120,16 +133,19 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     auto alignedNewSize = sizeAlign(newSize);
     reserve(alignedNewSize);
     void* newP;
-    gluten_alloc_->Allocate(alignedNewSize, &newP);
-    if (FOLLY_UNLIKELY(newP == nullptr)) {
+    try {
+      bool succeed = gluten_alloc_->Allocate(alignedNewSize, &newP);
+      VELOX_CHECK(succeed)
+    } catch (std::exception& e) {
       free(p, alignedSize);
       release(alignedNewSize);
       VELOX_MEM_ALLOC_ERROR(fmt::format(
-          "WrappedVeloxMemoryPool {} failed with {} new bytes and {} old bytes from {}",
+          "WrappedVeloxMemoryPool {} failed with {} new bytes and {} old bytes from {}, cause: {}",
           __FUNCTION__,
           newSize,
           size,
-          toString()));
+          toString(),
+          e.what()));
     }
     VELOX_CHECK_NOT_NULL(newP);
     if (p == nullptr) {
@@ -158,22 +174,26 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     checkMemoryAllocation();
     VELOX_CHECK_GT(numPages, 0);
 
-    if (!velox_alloc_->allocateNonContiguous(
-            numPages,
-            out,
-            [this](int64_t allocBytes, bool preAlloc) {
-              bool succeed =
-                  preAlloc ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
-              VELOX_CHECK(succeed)
-              if (preAlloc) {
-                reserve(allocBytes);
-              } else {
-                release(allocBytes);
-              }
-            },
-            256)) {
+    try {
+      bool succeed = velox_alloc_->allocateNonContiguous(
+          numPages,
+          out,
+          [this](int64_t allocBytes, bool preAlloc) {
+            bool succeed =
+                preAlloc ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
+            VELOX_CHECK(succeed)
+            if (preAlloc) {
+              reserve(allocBytes);
+            } else {
+              release(allocBytes);
+            }
+          },
+          256);
+      VELOX_CHECK(succeed)
+    } catch (std::exception& e) {
       VELOX_CHECK(out.empty());
-      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} pages from {}", __FUNCTION__, numPages, toString()));
+      VELOX_MEM_ALLOC_ERROR(
+          fmt::format("{} failed with {} pages from {}, cause: {}", __FUNCTION__, numPages, toString(), e.what()));
     }
     VELOX_CHECK(!out.empty());
     VELOX_CHECK_NULL(out.pool());
@@ -201,17 +221,23 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     checkMemoryAllocation();
     VELOX_CHECK_GT(numPages, 0);
 
-    if (!velox_alloc_->allocateContiguous(numPages, nullptr, out, [this](int64_t allocBytes, bool preAlloc) {
-          bool succeed = preAlloc ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
-          VELOX_CHECK(succeed)
-          if (preAlloc) {
-            reserve(allocBytes);
-          } else {
-            release(allocBytes);
-          }
-        })) {
+    try {
+      bool succeed =
+          velox_alloc_->allocateContiguous(numPages, nullptr, out, [this](int64_t allocBytes, bool preAlloc) {
+            bool succeed =
+                preAlloc ? gluten_alloc_->ReserveBytes(allocBytes) : gluten_alloc_->UnreserveBytes(allocBytes);
+            VELOX_CHECK(succeed)
+            if (preAlloc) {
+              reserve(allocBytes);
+            } else {
+              release(allocBytes);
+            }
+          });
+      VELOX_CHECK(succeed)
+    } catch (std::exception& e) {
       VELOX_CHECK(out.empty());
-      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} pages from {}", __FUNCTION__, numPages, toString()));
+      VELOX_MEM_ALLOC_ERROR(
+          fmt::format("{} failed with {} pages from {}, cause: {}", __FUNCTION__, numPages, toString(), e.what()));
     }
     VELOX_CHECK(!out.empty());
     VELOX_CHECK_NULL(out.pool());
