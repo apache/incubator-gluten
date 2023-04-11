@@ -187,7 +187,12 @@ void VeloxInitializer::InitCache(std::unordered_map<std::string, std::string>& c
     velox::memory::MmapAllocator::Options options;
     options.capacity = memCacheSize;
     auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
-    asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+    if (ssdCacheSize == 0) {
+      LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
+      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, nullptr);
+    } else {
+      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+    }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))
     LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize

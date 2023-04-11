@@ -223,6 +223,35 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def offHeapMemorySize: Long =
     conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
 
+  // velox caching options
+  // enable Velox cache, default off
+  def enableVeloxCache: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "false").toBoolean
+
+  // The memory cache size
+  def veloxMemCacheSize: Long =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.memCacheSize", "1073741824").toLong
+
+  // The folder to store the cache files, better on SSD
+  def veloxSsdCachePath: String =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCachePath", "/tmp")
+
+  // The SSD cache size, will do memory caching only if this value = 0
+  def veloxSsdCacheSize: Long =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheSize", "1073741824").toLong
+
+  // The cache shards
+  def veloxSsdCacheShards: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheShards", "1").toInt
+
+  // The IO threads for cache promoting
+  def veloxSsdCacheIOThreads: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads", "1").toInt
+
+  // The O_DIRECT flag for cache writing
+  def veloxSsdODirectEnabled: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdODirect", "false").toBoolean
+
   def transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
 
