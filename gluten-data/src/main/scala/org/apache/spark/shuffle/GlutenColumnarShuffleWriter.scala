@@ -79,9 +79,9 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
 
-  private val jniWrapper = new ShuffleSplitterJniWrapper
+  private val jniWrapper = new ShuffleWriterJniWrapper
 
-  private var nativeSplitter: Long = 0
+  private var nativeShuffleWriter: Long = 0
 
   private var splitResult: SplitResult = _
 
@@ -113,8 +113,8 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val handle = GlutenColumnarBatches.getNativeHandle(cb)
-        if (nativeSplitter == 0) {
-          nativeSplitter = jniWrapper.make(
+        if (nativeShuffleWriter == 0) {
+          nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
             offHeapPerTask,
             nativeBufferSize,
@@ -127,15 +127,15 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
             NativeMemoryAllocators.createSpillable(
               new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
-                  if (nativeSplitter == 0) {
+                  if (nativeShuffleWriter == 0) {
                     throw new IllegalStateException(
-                      "Fatal: spill() called before a shuffle splitter " +
+                      "Fatal: spill() called before a shuffle shuffle writer " +
                       "evaluator is created. This behavior should be optimized by moving memory " +
                       "allocations from make() to split()")
                   }
                   logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
                   // fixme pass true when being called by self
-                  val spilled = jniWrapper.nativeSpill(nativeSplitter, size, false)
+                  val spilled = jniWrapper.nativeSpill(nativeShuffleWriter, size, false)
                   logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                   spilled
                 }
@@ -145,7 +145,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
             taskContext.taskAttemptId())
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeSplitter, cb.numRows, handle)
+        val bytes = jniWrapper.split(nativeShuffleWriter, cb.numRows, handle)
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
@@ -156,8 +156,8 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     }
 
     val startTime = System.nanoTime()
-    if (nativeSplitter != 0) {
-      splitResult = jniWrapper.stop(nativeSplitter)
+    if (nativeShuffleWriter != 0) {
+      splitResult = jniWrapper.stop(nativeShuffleWriter)
     }
 
     dep.metrics("splitTime").add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
@@ -196,8 +196,8 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     internalWrite(records)
   }
 
-  def closeSplitter(): Unit = {
-    jniWrapper.close(nativeSplitter)
+  def closeShuffleWriter(): Unit = {
+    jniWrapper.close(nativeShuffleWriter)
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {
@@ -212,9 +212,9 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         None
       }
     } finally {
-      if (nativeSplitter != 0) {
-        closeSplitter()
-        nativeSplitter = 0
+      if (nativeShuffleWriter != 0) {
+        closeShuffleWriter()
+        nativeShuffleWriter = 0
       }
     }
   }

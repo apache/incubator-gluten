@@ -109,9 +109,9 @@ static inline arrow::Result<std::string> CreateTempShuffleFile(const std::string
   return file_path;
 }
 
-static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTypeId(
+static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToShuffleWriterTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields) {
-  std::vector<std::shared_ptr<arrow::DataType>> splitter_type_id;
+  std::vector<std::shared_ptr<arrow::DataType>> shuffle_writer_type_id;
   std::pair<std::string, arrow::Type::type> field_type_not_implemented;
   for (auto field : fields) {
     switch (field->type()->id()) {
@@ -142,14 +142,14 @@ static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSpl
       case arrow::LargeListType::type_id:
       case arrow::Decimal128Type::type_id:
       case arrow::NullType::type_id:
-        splitter_type_id.push_back(field->type());
+        shuffle_writer_type_id.push_back(field->type());
         break;
       default:
         RETURN_NOT_OK(arrow::Status::NotImplemented(
             "Field type not implemented in ColumnarShuffle, type is ", field->type()->ToString()));
     }
   }
-  return splitter_type_id;
+  return shuffle_writer_type_id;
 }
 
 static inline int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {

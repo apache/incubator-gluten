@@ -2,9 +2,10 @@
 
 namespace gluten {
 
-class VeloxSplitter::PartitionWriter {
+class VeloxShuffleWriter::PartitionWriter {
  public:
-  PartitionWriter(VeloxSplitter* splitter, uint32_t partition_id) : splitter_(splitter), partition_id_(partition_id) {}
+  PartitionWriter(VeloxShuffleWriter* shuffle_writer, uint32_t partition_id)
+      : shuffle_writer_(shuffle_writer), partition_id_(partition_id) {}
 
   arrow::Status Spill() {
 #ifndef SKIPWRITE
@@ -16,10 +17,10 @@ class VeloxSplitter::PartitionWriter {
   }
 
   arrow::Status WriteCachedRecordBatchAndClose() {
-    const auto& data_file_os = splitter_->data_file_os_;
+    const auto& data_file_os = shuffle_writer_->data_file_os_;
     ARROW_ASSIGN_OR_RAISE(auto before_write, data_file_os->Tell());
 
-    if (splitter_->options_.write_schema) {
+    if (shuffle_writer_->options_.write_schema) {
       RETURN_NOT_OK(WriteSchemaPayload(data_file_os.get()));
     }
 
@@ -27,7 +28,7 @@ class VeloxSplitter::PartitionWriter {
       RETURN_NOT_OK(spilled_file_os_->Close());
       RETURN_NOT_OK(MergeSpilled());
     } else {
-      if (splitter_->partition_cached_recordbatch_size_[partition_id_] == 0) {
+      if (shuffle_writer_->partition_cached_recordbatch_size_[partition_id_] == 0) {
         return arrow::Status::Invalid("Partition writer got empty partition");
       }
     }
@@ -50,7 +51,7 @@ class VeloxSplitter::PartitionWriter {
  private:
   arrow::Status EnsureOpened() {
     if (!spilled_file_opened_) {
-      ARROW_ASSIGN_OR_RAISE(spilled_file_, CreateTempShuffleFile(splitter_->NextSpilledFileDir()));
+      ARROW_ASSIGN_OR_RAISE(spilled_file_, CreateTempShuffleFile(shuffle_writer_->NextSpilledFileDir()));
       ARROW_ASSIGN_OR_RAISE(spilled_file_os_, arrow::io::FileOutputStream::Open(spilled_file_, true));
       spilled_file_opened_ = true;
     }
@@ -63,7 +64,7 @@ class VeloxSplitter::PartitionWriter {
     // copy spilled data blocks
     ARROW_ASSIGN_OR_RAISE(auto nbytes, spilled_file_is_->GetSize());
     ARROW_ASSIGN_OR_RAISE(auto buffer, spilled_file_is_->Read(nbytes));
-    RETURN_NOT_OK(splitter_->data_file_os_->Write(buffer));
+    RETURN_NOT_OK(shuffle_writer_->data_file_os_->Write(buffer));
 
     // close spilled file streams and delete the file
     RETURN_NOT_OK(spilled_file_is_->Close());
@@ -74,17 +75,19 @@ class VeloxSplitter::PartitionWriter {
   }
 
   arrow::Status WriteSchemaPayload(arrow::io::OutputStream* os) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, splitter_->GetSchemaPayload());
+    ARROW_ASSIGN_OR_RAISE(auto payload, shuffle_writer_->GetSchemaPayload());
     int32_t metadata_length = 0; // unused
-    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, splitter_->options_.ipc_write_options, os, &metadata_length));
+    RETURN_NOT_OK(
+        arrow::ipc::WriteIpcPayload(*payload, shuffle_writer_->options_.ipc_write_options, os, &metadata_length));
     return arrow::Status::OK();
   }
 
   arrow::Status WriteRecordBatchPayload(arrow::io::OutputStream* os) {
     int32_t metadata_length = 0; // unused
 #ifndef SKIPWRITE
-    for (auto& payload : splitter_->partition_cached_recordbatch_[partition_id_]) {
-      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, splitter_->options_.ipc_write_options, os, &metadata_length));
+    for (auto& payload : shuffle_writer_->partition_cached_recordbatch_[partition_id_]) {
+      RETURN_NOT_OK(
+          arrow::ipc::WriteIpcPayload(*payload, shuffle_writer_->options_.ipc_write_options, os, &metadata_length));
       payload = nullptr;
     }
 #endif
@@ -100,11 +103,11 @@ class VeloxSplitter::PartitionWriter {
   }
 
   void ClearCache() {
-    splitter_->partition_cached_recordbatch_[partition_id_].clear();
-    splitter_->partition_cached_recordbatch_size_[partition_id_] = 0;
+    shuffle_writer_->partition_cached_recordbatch_[partition_id_].clear();
+    shuffle_writer_->partition_cached_recordbatch_size_[partition_id_] = 0;
   }
 
-  VeloxSplitter* splitter_;
+  VeloxShuffleWriter* shuffle_writer_;
   uint32_t partition_id_;
   std::string spilled_file_;
   std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os_;

@@ -24,9 +24,9 @@
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
-#include "operators/shuffle/CelebornSplitter.h"
-#include "operators/shuffle/splitter.h"
-#include "shuffle/VeloxSplitter.h"
+#include "shuffle/ArrowShuffleWriter.h"
+#include "shuffle/CelebornShuffleWriter.h"
+#include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;
@@ -336,21 +336,23 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   }
 }
 
-std::shared_ptr<SplitterBase> VeloxBackend::makeSplitter(
+std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     const std::string& partitioning_name,
     int num_partitions,
     const SplitOptions& options,
     const std::string& batchType) {
   if (options.is_celeborn) {
     GLUTEN_ASSIGN_OR_THROW(
-        auto splitter, CelebornSplitter::Make(partitioning_name, num_partitions, std::move(options)));
-    return splitter;
+        auto shuffle_writer, CelebornShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+    return shuffle_writer;
   } else if (batchType == "velox") {
-    GLUTEN_ASSIGN_OR_THROW(auto splitter, VeloxSplitter::Make(partitioning_name, num_partitions, std::move(options)));
-    return splitter;
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer, VeloxShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+    return shuffle_writer;
   } else {
-    GLUTEN_ASSIGN_OR_THROW(auto splitter, Splitter::Make(partitioning_name, num_partitions, std::move(options)));
-    return splitter;
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer, ArrowShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+    return shuffle_writer;
   }
 }
 

@@ -30,7 +30,7 @@
 #include <chrono>
 #include <utility>
 
-#include "operators/shuffle/splitter.h"
+#include "shuffle/ArrowShuffleWriter.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
 
@@ -49,9 +49,9 @@ void print_trace(void) {
 
 using arrow::RecordBatchReader;
 using arrow::Status;
+using gluten::ArrowShuffleWriter;
 using gluten::GlutenException;
 using gluten::SplitOptions;
-using gluten::Splitter;
 
 namespace gluten {
 

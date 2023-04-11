@@ -25,18 +25,18 @@
 #include "arrow/result.h"
 
 #include "memory/ColumnarBatch.h"
-#include "operators/shuffle/splitter.h"
-#include "operators/shuffle/type.h"
-#include "operators/shuffle/utils.h"
+#include "shuffle/ShuffleWriter.h"
+#include "shuffle/type.h"
+#include "shuffle/utils.h"
 
 #include "utils/Print.h"
 
 namespace gluten {
 
 // set 1 to open print
-#define VELOX_SPLITTER_PRINT 0
+#define VELOX_SHUFFLE_WRITER_PRINT 0
 
-#if VELOX_SPLITTER_PRINT
+#if VELOX_SHUFFLE_WRITER_PRINT
 
 #define VsPrint Print
 #define VsPrintLF PrintLF
@@ -54,7 +54,7 @@ namespace gluten {
 #define VS_PRINT_VECTOR_2_STRING PRINT_VECTOR_2_STRING
 #define VS_PRINT_VECTOR_MAPPING PRINT_VECTOR_MAPPING
 
-#else // VELOX_SPLITTER_PRINT
+#else // VELOX_SHUFFLE_WRITER_PRINT
 
 #define VsPrint(...)
 #define VsPrintLF(...)
@@ -72,9 +72,9 @@ namespace gluten {
 #define VS_PRINT_VECTOR_2_STRING(v)
 #define VS_PRINT_VECTOR_MAPPING(v)
 
-#endif // end of VELOX_SPLITTER_PRINT
+#endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-class VeloxSplitter : public SplitterBase {
+class VeloxShuffleWriter : public ShuffleWriter {
   enum { VALIDITY_BUFFER_INDEX = 0, OFFSET_BUFFER_INDEX = 1, VALUE_BUFFER_INEDX = 2 };
 
  public:
@@ -93,12 +93,12 @@ class VeloxSplitter : public SplitterBase {
     uint64_t value_offset;
   };
 
-  template <typename SPLITTER>
-  static std::shared_ptr<SPLITTER> Create(uint32_t num_partitions, const SplitOptions& options) {
-    return std::make_shared<SPLITTER>(num_partitions, options);
+  template <typename ShuffleWriter>
+  static std::shared_ptr<ShuffleWriter> Create(uint32_t num_partitions, const SplitOptions& options) {
+    return std::make_shared<ShuffleWriter>(num_partitions, options);
   }
 
-  static arrow::Result<std::shared_ptr<VeloxSplitter>>
+  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>>
   Make(const std::string& name, uint32_t num_partitions, SplitOptions options = SplitOptions::Defaults());
 
   virtual arrow::Status Split(ColumnarBatch* cb);
@@ -150,7 +150,7 @@ class VeloxSplitter : public SplitterBase {
     VS_PRINT_FUNCTION_SPLIT_LINE();
     VS_PRINT_VECTOR_MAPPING(partition_2_row_offset_);
 
-#if VELOX_SPLITTER_PRINT
+#if VELOX_SHUFFLE_WRITER_PRINT
     for (auto pid = 0; pid < num_partitions_; ++pid) {
       auto begin = partition_2_row_offset_[pid];
       auto end = partition_2_row_offset_[pid + 1];
@@ -166,7 +166,7 @@ class VeloxSplitter : public SplitterBase {
   }
 
  protected:
-  VeloxSplitter(uint32_t num_partitions, const SplitOptions& options) : SplitterBase(num_partitions, options) {}
+  VeloxShuffleWriter(uint32_t num_partitions, const SplitOptions& options) : ShuffleWriter(num_partitions, options) {}
 
   virtual arrow::Status Init();
 
@@ -341,24 +341,24 @@ class VeloxSplitter : public SplitterBase {
 
   // shared by all partition writers
   std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
-}; // class VeloxSplitter
+}; // class VeloxShuffleWriter
 
-class VeloxRoundRobinSplitter final : public VeloxSplitter {
+class VeloxRoundRobinShuffleWriter final : public VeloxShuffleWriter {
  public:
-  VeloxRoundRobinSplitter(uint32_t num_partitions, const SplitOptions& options)
-      : VeloxSplitter(num_partitions, std::move(options)) {}
+  VeloxRoundRobinShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
+      : VeloxShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 
   uint32_t pid_selection_ = 0;
-}; // class VeloxRoundRobinSplitter
+}; // class VeloxRoundRobinShuffleWriter
 
-class VeloxSinglePartSplitter final : public VeloxSplitter {
+class VeloxSinglePartShuffleWriter final : public VeloxShuffleWriter {
  public:
-  VeloxSinglePartSplitter(uint32_t num_partitions, const SplitOptions& options)
-      : VeloxSplitter(num_partitions, options) {}
+  VeloxSinglePartShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
+      : VeloxShuffleWriter(num_partitions, options) {}
 
   arrow::Status Init() override;
 
@@ -369,29 +369,30 @@ class VeloxSinglePartSplitter final : public VeloxSplitter {
   arrow::Status Split(ColumnarBatch* cb) override;
 
   arrow::Status Stop() override;
-}; // class VeloxSinglePartSplitter
+}; // class VeloxSinglePartShuffleWriter
 
-class VeloxHashSplitter final : public VeloxSplitter {
+class VeloxHashShuffleWriter final : public VeloxShuffleWriter {
  public:
-  VeloxHashSplitter(uint32_t num_partitions, const SplitOptions& options) : VeloxSplitter(num_partitions, options) {}
+  VeloxHashShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
+      : VeloxShuffleWriter(num_partitions, options) {}
 
   arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Split(ColumnarBatch* cb) override;
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
-}; // class VeloxHashSplitter
+}; // class VeloxHashShuffleWriter
 
-class VeloxFallbackRangeSplitter final : public VeloxSplitter {
+class VeloxFallbackRangeShuffleWriter final : public VeloxShuffleWriter {
  public:
-  VeloxFallbackRangeSplitter(uint32_t num_partitions, const SplitOptions& options)
-      : VeloxSplitter(num_partitions, options) {}
+  VeloxFallbackRangeShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
+      : VeloxShuffleWriter(num_partitions, options) {}
 
   arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Split(ColumnarBatch* cb) override;
 
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
-}; // class VeloxFallbackRangeSplitter
+}; // class VeloxFallbackRangeShuffleWriter
 
 } // namespace gluten

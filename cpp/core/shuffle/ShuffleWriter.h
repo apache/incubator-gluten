@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "operators/shuffle/type.h"
+#include "shuffle/type.h"
 
 namespace gluten {
 
-class SplitterBase {
+class ShuffleWriter {
  public:
   /**
    * Evict fixed size of partition data from memory
@@ -61,9 +61,9 @@ class SplitterBase {
   }
 
  protected:
-  SplitterBase(int32_t num_partitions, SplitOptions options)
+  ShuffleWriter(int32_t num_partitions, SplitOptions options)
       : num_partitions_(num_partitions), options_(std::move(options)) {}
-  virtual ~SplitterBase() = default;
+  virtual ~ShuffleWriter() = default;
 
   int32_t num_partitions_;
   // options

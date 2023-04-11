@@ -30,7 +30,7 @@
 
 namespace gluten {
 
-static constexpr int32_t kDefaultSplitterBufferSize = 4096;
+static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultBatchCompressThreshold = 256;
 
@@ -47,8 +47,8 @@ struct ReaderOptions {
 
 struct SplitOptions {
   int64_t offheap_per_task = 0;
-  int32_t buffer_size = kDefaultSplitterBufferSize;
-  int32_t push_buffer_max_size = kDefaultSplitterBufferSize;
+  int32_t buffer_size = kDefaultShuffleWriterBufferSize;
+  int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
   int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::UNCOMPRESSED;
@@ -73,7 +73,7 @@ struct SplitOptions {
 };
 
 namespace Type {
-/// \brief Data type enumeration for shuffle splitter
+/// \brief Data type enumeration for shuffle writer
 ///
 /// This enumeration maps the types of arrow::Type::type with same length
 /// to identical type

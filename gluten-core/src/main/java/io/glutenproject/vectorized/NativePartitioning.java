@@ -20,7 +20,7 @@ package io.glutenproject.vectorized;
 import java.io.Serializable;
 
 /**
- * POJO to hold partitioning parameters needed by native splitter
+ * POJO to hold partitioning parameters needed by native shuffle writer
  */
 public class NativePartitioning implements Serializable {
 
