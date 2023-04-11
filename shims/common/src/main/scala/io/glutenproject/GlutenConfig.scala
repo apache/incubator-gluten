@@ -170,12 +170,23 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
 
   // By default, the supported codecs are lz4 and zstd.
-  // When spark.gluten.sql.columnar.qat=true, the supported codec is gzip.
-  // When spark.gluten.sql.columnar.iaa=true, the supported codec is gzip.
+  // When spark.gluten.sql.columnar.shuffle.codecBackend=qat, the supported codec is gzip.
+  // When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.
   def columnarShuffleUseCustomizedCompressionCodec: String =
     conf
-      .getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
+      .getConfString("spark.gluten.sql.columnar.shuffle.codec", "lz4")
       .toUpperCase(Locale.ROOT)
+
+  def columnarShuffleCodecBackend: String =
+    conf
+      .getConfString(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
+      .toUpperCase(Locale.ROOT)
+
+  def columnarShuffleEnableQat: Boolean =
+    columnarShuffleCodecBackend == GlutenConfig.GLUTEN_QAT_BACKEND_NAME
+
+  def columnarShuffleEnableIaa: Boolean =
+    columnarShuffleCodecBackend == GlutenConfig.GLUTEN_IAA_BACKEND_NAME
 
   def columnarShuffleBatchCompressThreshold: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
@@ -311,13 +322,14 @@ object GlutenConfig {
   val S3_USE_INSTANCE_CREDENTIALS = "fs.s3a.use.instance.credentials"
   val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = HADOOP_PREFIX + S3_USE_INSTANCE_CREDENTIALS
 
+  // Hardware acceleraters backend
+  val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
   // QAT config
-  val GLUTEN_ENABLE_QAT = "spark.gluten.sql.columnar.qat"
+  val GLUTEN_QAT_BACKEND_NAME = "QAT"
   val GLUTEN_QAT_CODEC_PREFIX = "gluten_qat_"
   val GLUTEN_QAT_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
-
   // IAA config
-  val GLUTEN_ENABLE_IAA = "spark.gluten.sql.columnar.iaa"
+  val GLUTEN_IAA_BACKEND_NAME = "IAA"
   val GLUTEN_IAA_CODEC_PREFIX = "gluten_iaa_"
   val GLUTEN_IAA_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
 

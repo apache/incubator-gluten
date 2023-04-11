@@ -380,9 +380,9 @@ Gluten supports using Intel® QuickAssist Technology (QAT) for data compression 
 
 This feature is based on QAT driver library and [QATzip](https://github.com/intel/QATzip) library. Please manually download QAT driver for your system, and follow its README to build and install on all Driver and Worker node: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
 
-Gluten will internally build and link to a specific version of QATzip library. Please **uninstall QATzip library** before building Gluten if it's already installed. Additional environment set-up are also required:
-
 ## 6.1 Build Gluten with QAT
+
+Gluten will internally build and link to a specific version of QATzip library. Please **uninstall QATzip library** before building Gluten if it's already installed. Additional environment set-up are also required:
 
 1. Setup ICP_ROOT environment variable. This environment variable is required during building Gluten and running Spark applicaitons. It's recommended to put it in .bashrc on Driver and Worker node.
 
@@ -392,7 +392,7 @@ export ICP_ROOT=/path_to_QAT_driver
 2. **This step is required if your application is running as Non-root user**. The users must be added to the 'qat' group after QAT drvier is installed:
 
 ```shell script
-sudo usermod -g qat username # need to relogin
+sudo usermod -aG qat username # need to relogin
 ```
 Change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf. To set 500MB add a line like this in /etc/security/limits.conf:
 
@@ -452,14 +452,14 @@ There is 8 QAT acceleration device(s) in the system:
  qat_dev7 - type: 4xxx,  inst_id: 7,  node_id: 7,  bsf: 0000:f7:00.0,  #accel: 1 #engines: 9 state: up
 ```
 
-2. Extra Gluten configurations are required when starting Spark application
+3. Extra Gluten configurations are required when starting Spark application
 
 ```
---conf spark.gluten.sql.columnar.qat=true
---conf spark.gluten.sql.columnar.shuffle.customizedCompression.codec=gzip
+--conf spark.gluten.sql.columnar.shuffle.codec=gzip
+--conf spark.gluten.sql.columnar.shuffle.codecBackend=qat
 ```
 
-3. You can use below command to check whether QAT is working normally at run-time. The value of fw_counters should continue to increase during shuffle. 
+4. You can use below command to check whether QAT is working normally at run-time. The value of fw_counters should continue to increase during shuffle. 
 
 ```
 while :; do cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/fw_counters; sleep 1; done
@@ -485,11 +485,77 @@ Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.i
 
 For more Intel® QuickAssist Technology resources go to [Intel® QuickAssist Technology (Intel® QAT)](https://developer.intel.com/quickassist)
 
-# 7 Test TPC-H or TPC-DS on Gluten with Velox backend
+# 7 Intel® In-memory Analytics Accelerator (IAA/IAX) support
+
+Similar to Intel® QAT, Gluten supports using Intel® In-memory Analytics Accelerator (IAA, also called IAX) for data compression during Spark Shuffle. It benefits from IAA Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
+
+This feature is based on Intel® [QPL](https://github.com/intel/qpl).
+
+## 7.1 Build Gluten with IAA
+
+Gluten will internally build and link to a specific version of QPL library, but extra environment setup is still required. Please refer to [QPL Installation Guide](https://intel.github.io/qpl/documentation/get_started_docs/installation.html) to install dependencies and configure accelerators.
+
+**This step is required if your application is running as Non-root user**. Create a group for the users who have privilege to use IAA, and grant group iaa read/write access to the IAA Work-Queues.
+
+```shell script
+sudo groupadd iaa
+sudo usermod -aG iaa username # need to relogin
+sudo chgrp -R iaa /dev/iax
+sudo chmod -R g+rw /dev/iax
+```
+ 
+After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
+
+```shell script
+cd /path_to_gluten
+
+## The script builds two jars for spark 3.2.2 and 3.3.1.
+./dev/buildbundle-veloxbe.sh --enable_iaa=ON
+```
+
+## 6.2 Enable IAA with Gzip Compression for shuffle compression
+
+1. To enable QAT at run-time, first make sure you have configured the IAA Work-Queues correctly, and the file permissions of /dev/iax/wqX.0 are correct.
+
+```shell script
+sudo ls -l /dev/iax
+```
+
+The output should be like:
+```
+total 0
+crw-rw---- 1 root iaa 509, 0 Apr  5 18:54 wq1.0
+crw-rw---- 1 root iaa 509, 5 Apr  5 18:54 wq11.0
+crw-rw---- 1 root iaa 509, 6 Apr  5 18:54 wq13.0
+crw-rw---- 1 root iaa 509, 7 Apr  5 18:54 wq15.0
+crw-rw---- 1 root iaa 509, 1 Apr  5 18:54 wq3.0
+crw-rw---- 1 root iaa 509, 2 Apr  5 18:54 wq5.0
+crw-rw---- 1 root iaa 509, 3 Apr  5 18:54 wq7.0
+crw-rw---- 1 root iaa 509, 4 Apr  5 18:54 wq9.0
+```
+
+2. Extra Gluten configurations are required when starting Spark application
+
+```
+--conf spark.gluten.sql.columnar.shuffle.codec=gzip
+--conf spark.gluten.sql.columnar.shuffle.codecBackend=iaa
+```
+
+## 7.3 IAA references
+
+**Intel® IAA Enabling Guide**
+
+Check out the [Intel® In-Memory Analytics Accelerator (Intel® IAA) Enabling Guide](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-iaa-enabling-guide.html)
+
+**Intel® QPL Documentation**
+
+Check out the [Intel® Query Processing Library (Intel® QPL) Documentation](https://intel.github.io/qpl/index.html)
+
+# 8 Test TPC-H or TPC-DS on Gluten with Velox backend
 
 All TPC-H and TPC-DS queries are supported in Gluten Velox backend.  
 
-## 7.1 Data preparation
+## 8.1 Data preparation
 
 The data generation scripts are [TPC-H dategen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
 [TPC-DS dategen script](../backends-velox/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
@@ -502,7 +568,7 @@ Some other versions of TPC-DS and TPC-H queries are also provided, but are **not
 - the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
 - the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../tools/gluten-it/src/main/resources/tpcds-queries-nodecimal-nodate) (outdated).
 
-## 7.2 Submit the Spark SQL job
+## 8.2 Submit the Spark SQL job
 
 Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
 
@@ -535,12 +601,12 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
 
 Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
 
-## 7.3 Result
+## 8.3 Result
 *wholestagetransformer* indicates that the offload works.
 
 ![TPC-H Q6](./image/TPC-H_Q6_DAG.png)
 
-## 7.4 Performance
+## 8.4 Performance
 
 Below table shows the TPC-H Q1 and Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
 Both Parquet and ORC datasets are sf1024.
@@ -550,6 +616,6 @@ Both Parquet and ORC datasets are sf1024.
 | TPC-H Q6 | 13.6 | 21.6  | 34.9 |
 | TPC-H Q1 | 26.1 | 76.7 | 84.9 |
 
-# 8 External reference setup
+# 9 External reference setup
 
 TO ease your first-hand experience of using Gluten, we have set up an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com.

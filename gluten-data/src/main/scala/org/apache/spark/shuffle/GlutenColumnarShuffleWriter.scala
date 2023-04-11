@@ -63,13 +63,9 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-    lazy val enableQat = conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false) &&
-      GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC.contains(codec)
-    lazy val enableIaa = conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_IAA, false) &&
-      GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC.contains(codec)
-    if (enableQat) {
+    if (GlutenConfig.getConf.columnarShuffleEnableQat) {
       GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
-    } else if (enableIaa) {
+    } else if (GlutenConfig.getConf.columnarShuffleEnableIaa) {
       GlutenConfig.GLUTEN_IAA_CODEC_PREFIX + codec
     } else {
       codec
