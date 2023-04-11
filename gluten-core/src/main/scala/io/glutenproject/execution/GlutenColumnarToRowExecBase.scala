@@ -32,11 +32,6 @@ abstract class GlutenColumnarToRowExecBase(child: SparkPlan) extends ColumnarToR
 
   def doValidate(): Boolean = {
     try {
-      if (!child.isInstanceOf[GlutenPlan] &&
-        // columnar shuffle may use spark's sort shuffle manager
-        !child.isInstanceOf[ShuffleQueryStageExec]) {
-        return false
-      }
       buildCheck()
     } catch {
       case _: Throwable =>

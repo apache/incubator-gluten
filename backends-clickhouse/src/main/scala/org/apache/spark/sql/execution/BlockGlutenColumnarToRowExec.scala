@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.GlutenColumnarToRowExecBase
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
@@ -26,6 +27,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.adaptive.ShuffleQueryStageExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -37,6 +39,15 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
   override def nodeName: String = "CHNativeColumnarToRow"
 
   override def buildCheck(): Unit = {
+    if (
+      !child.isInstanceOf[GlutenPlan]
+      // columnar shuffle may use spark's sort shuffle manager
+      && !child.isInstanceOf[ShuffleQueryStageExec]
+    ) {
+      throw new UnsupportedOperationException(
+        s"$child is not supported in GlutenColumnarToRowExecBase.")
+    }
+
     val schema = child.schema
     for (field <- schema.fields) {
       field.dataType match {

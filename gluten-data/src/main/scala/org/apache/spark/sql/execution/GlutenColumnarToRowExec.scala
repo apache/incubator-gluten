@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
 import io.glutenproject.execution.GlutenColumnarToRowExecBase
+import io.glutenproject.execution.LoadArrowData
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
@@ -30,12 +32,12 @@ import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.adaptive.ShuffleQueryStageExec
 import org.apache.spark.sql.types._
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.NANOSECONDS
-
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -46,6 +48,16 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
   override def nodeName: String = "GlutenColumnarToRowExec"
 
   override def buildCheck(): Unit = {
+    if (
+      !child.isInstanceOf[GlutenPlan]
+      // columnar shuffle may use spark's sort shuffle manager
+      && !child.isInstanceOf[ShuffleQueryStageExec]
+      && !child.isInstanceOf[LoadArrowData]
+    ) {
+      throw new UnsupportedOperationException(s"${child} is not supported in " +
+        s"GlutenColumnarToRowExec/ArrowColumnarToRowConverter.")
+    }
+
     val schema = child.schema
     child match {
       // Depending on the input type, VeloxColumnarToRowConverter or ArrowColumnarToRowConverter
