@@ -58,16 +58,21 @@ There are several key component in Gluten:
 # 3 Usage
 
 Gluten is still under active development now. There are two ways to use Gluten. 
-One Way is use released binary jar. Here is the simple example.
+
+# 3.1 Use Prebuilt jar
+
+One Way is use released binary jar. Here is the simple example. we support centos7/8 and ubuntu20.04/22.04 now.
 
 ```
-spark-shell --name run_gluten \
+spark-shell \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
  --conf spark.gluten.sql.columnar.backend.lib=velox \
  --conf spark.gluten.loadLibFromJar=true \
  --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
 ```
+
+# 3.2 Custom Build
 
 Another way is build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details.
 
