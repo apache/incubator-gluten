@@ -352,8 +352,9 @@ spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
  --conf spark.gluten.sql.columnar.backend.lib=velox \
- --jars https://github.com/oap/gluten/releases/tag/gluten-velox-bundle-spark3.3_2.12-ubuntu_22.04-0.5.0-SNAPSHOT.jar,https://github.com/oap/gluten/releases/tag/gluten-thirdparty-lib-ubuntu-22.04.jar
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
- --conf spark.gluten.loadLibFromJar=true
+ --conf spark.gluten.loadLibFromJar=true \
+ --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
+
 ```
