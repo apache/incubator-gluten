@@ -201,7 +201,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   try {
     // Set the max memory of partial aggregation as 3/4 of offheap size.
     auto maxMemory =
-        (long)(0.75 * (double)std::stol(getConfigValue(kSparkOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
+        (long)(0.75 * (double)std::stol(getConfigValue(kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
     configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
   } catch (const std::invalid_argument&) {
     throw std::runtime_error("Invalid off-heap memory size.");

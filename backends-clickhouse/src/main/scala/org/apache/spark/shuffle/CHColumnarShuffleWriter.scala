@@ -47,8 +47,6 @@ class CHColumnarShuffleWriter[K, V](
     .map(_.getAbsolutePath)
     .mkString(",")
   private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
-  // FIXME GlutenConfig.getConf.offHeapMemorySize is per executor
-  private val offheapPerTask = GlutenConfig.getConf.offHeapMemorySize
   private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec

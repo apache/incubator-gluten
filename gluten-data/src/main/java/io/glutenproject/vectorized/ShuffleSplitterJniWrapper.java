@@ -30,7 +30,7 @@ public class ShuffleSplitterJniWrapper {
    * Construct native splitter for shuffled RecordBatch over
    *
    * @param part contains the partitioning parameter needed by native splitter
-   * @param bufferSize size of native buffers hold by each partition writer
+   * @param bufferSize size of native buffers held by each partition writer
    * @param codec compression codec
    * @param dataFile acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories

@@ -220,8 +220,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  // Must provide default value since non-execution operations (e.g.
+  //   org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using
+  //   org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated
   def offHeapMemorySize: Long =
     conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
+
+  def taskOffHeapMemorySize: Long =
+    conf.getConfString(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
 
   // velox caching options
   // enable Velox cache, default off
@@ -333,8 +339,9 @@ object GlutenConfig {
   // Pass through to native conf
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
 
-  // Added back to Spark Conf during driver / executor initialization
+  // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
+  val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
 
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
@@ -360,7 +367,8 @@ object GlutenConfig {
     val nativeConfMap = new util.HashMap[String, String]()
     val conf = SQLConf.get
     val keys = ImmutableList.of(
-      GLUTEN_SAVE_DIR
+      GLUTEN_SAVE_DIR,
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {

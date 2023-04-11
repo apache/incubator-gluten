@@ -62,9 +62,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
     numPartitions, context, mapId, client, celebornConf)
 
   private val blockManager = SparkEnv.get.blockManager
-  private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
-  private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum
+  private val offheapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec

@@ -55,12 +55,27 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   }
 
   def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
+    // extensions
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       s"${conf.get(SPARK_SESSION_EXTS_KEY)},${GLUTEN_SESSION_EXTENSION_NAME}"
     } else {
       s"${GLUTEN_SESSION_EXTENSION_NAME}"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
+
+    // off-heap bytes
+    if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
+    }
+    val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
+    conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
+    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
+    val executorCores = conf.getInt("spark.executor.cores", 1)
+    val taskCores = conf.getInt("spark.task.cpus", 1)
+    val offHeapPerTask = offHeapSize / (executorCores / taskCores)
+    conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
+
+    // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
     if (BackendsApiManager.getSettings.disableVanillaColumnarReaders()) {
       // FIXME Hongze 22/12/06
       //  BatchScan.scala in shim was not always loaded by class loader.
@@ -80,6 +95,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
 }
 
 private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
+
   /**
    * Initialize the executor plugin.
    */
