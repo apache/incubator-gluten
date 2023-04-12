@@ -92,6 +92,74 @@ class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer
   }
 }
 
+class PosExplodeTransformer(substraitExprName: String, child: ExpressionTransformer,
+  original: PosExplode, attributeSeq: Seq[Attribute])
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode: ExpressionNode = child.doTransform(args)
+
+    // sequence(1, size(array_or_map))
+    val startExpr = new Literal(1, IntegerType)
+    val stopExpr = new Size(original.child, false)
+    val stepExpr = new Literal(1, IntegerType)
+    val sequenceExpr = new Sequence(startExpr, stopExpr, stepExpr)
+    val sequenceExprNode = ExpressionConverter.replaceWithExpressionTransformer(sequenceExpr,
+      attributeSeq).doTransform(args)
+
+    val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+
+    // map_from_arrays(sequence(1, size(array_or_map)), array_or_map)
+    val mapFromArraysFuncId = ExpressionBuilder.newScalarFunction(funcMap,
+      ConverterUtils.makeFuncName(ExpressionMappings.MAP_FROM_ARRAYS,
+        Seq(sequenceExpr.dataType, original.child.dataType), FunctionConfig.OPT))
+    
+    // Notice that in CH mapFromArrays accepts the second arguments as MapType or ArrayType
+    // But in Spark, it accepts ArrayType.
+    val keyType = IntegerType
+    val (valType, valContainsNull) = original.child.dataType match {
+      case a: ArrayType => (a.elementType, a.containsNull)
+      case m: MapType => (
+        StructType(
+          StructField("", m.keyType, false) ::
+          StructField("", m.valueType, m.valueContainsNull) :: Nil), false)
+      case _ => throw new UnsupportedOperationException(
+        s"posexplode(${original.child.dataType}) not supported yet.")
+    }
+    val outputType = MapType(keyType, valType, valContainsNull)
+    val mapFromArraysExprNode = ExpressionBuilder.makeScalarFunction(mapFromArraysFuncId,
+      Lists.newArrayList(sequenceExprNode, childNode),
+      ConverterUtils.getTypeNode(outputType, original.child.nullable))
+
+    // posexplode(map_from_arrays(sequence(1, size(array_or_map)), array_or_map))
+    val funcId = ExpressionBuilder.newScalarFunction(funcMap,
+      ConverterUtils.makeFuncName(ExpressionMappings.POSEXPLODE,
+        Seq(outputType), FunctionConfig.OPT))
+    
+    val childType = original.child.dataType
+    childType match {
+      case a: ArrayType =>
+        // Output pos, col when input is array
+        val structType = StructType(Array(
+          StructField("pos", IntegerType, false),
+          StructField("col", a.elementType, a.containsNull)))
+        ExpressionBuilder.makeScalarFunction(funcId, Lists.newArrayList(mapFromArraysExprNode),
+          ConverterUtils.getTypeNode(structType, false))
+      case m: MapType =>
+        // Output pos, key, value when input is map
+        val structType = StructType(Array(
+          StructField("pos", IntegerType, false),
+          StructField("key", m.keyType, false),
+          StructField("value", m.valueType, m.valueContainsNull)))
+        ExpressionBuilder.makeScalarFunction(funcId, Lists.newArrayList(mapFromArraysExprNode),
+          ConverterUtils.getTypeNode(structType, false))
+      case _ =>
+        throw new UnsupportedOperationException(s"posexplode(${childType}) not supported yet.")
+    }
+  }
+}
+
 class PromotePrecisionTransformer(child: ExpressionTransformer, original: PromotePrecision)
   extends ExpressionTransformer
   with Logging {

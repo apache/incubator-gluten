@@ -249,6 +249,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case e: Explode =>
         new ExplodeTransformer(substraitExprName,
           replaceWithExpressionTransformer(e.child, attributeSeq), e)
+      case p: PosExplode =>
+        new PosExplodeTransformer(substraitExprName,
+          replaceWithExpressionTransformer(p.child, attributeSeq), p, attributeSeq)
       case a: Alias =>
         BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
           substraitExprName,
@@ -537,6 +540,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case mapValues: MapValues =>
         new UnaryArgumentCollectionOperationTransformer(substraitExprName,
           replaceWithExpressionTransformer(mapValues.child, attributeSeq), mapValues)
+      case seq: Sequence =>
+        new SequenceTransformer(substraitExprName,
+          replaceWithExpressionTransformer(seq.start, attributeSeq),
+          replaceWithExpressionTransformer(seq.stop, attributeSeq),
+          seq.stepOpt.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          seq)
       case expr =>
         logWarning(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(

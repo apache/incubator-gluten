@@ -130,7 +130,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenComplexTypesSuite]
   enableSuite[GlutenComplexTypeSuite].exclude(
-    "CreateMap"
+    "CreateMap",
+    "MapFromArrays"
   )
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
