@@ -87,7 +87,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     void* buffer;
     try {
       if (!gluten_alloc_->Allocate(alignedSize, &buffer)) {
-        VELOX_FAIL("WrappedVeloxMemoryPool: Failed to allocate " + std::to_string(alignedSize) + " bytes")
+        VELOX_FAIL(fmt::format("WrappedVeloxMemoryPool: Failed to allocate {} bytes", alignedSize))
       }
     } catch (std::exception& e) {
       release(alignedSize);
@@ -107,9 +107,8 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     try {
       bool succeed = gluten_alloc_->AllocateZeroFilled(alignedSize, 1, &buffer);
       if (!succeed) {
-        VELOX_FAIL(
-            "WrappedVeloxMemoryPool: Failed to allocate (zero filled) " + std::to_string(alignedSize) + " members, " +
-            std::to_string(1) + " bytes for each")
+        VELOX_FAIL(fmt::format(
+            "WrappedVeloxMemoryPool: Failed to allocate (zero filled) {} members, {} bytes for each", alignedSize, 1))
       }
     } catch (std::exception& e) {
       release(alignedSize);
@@ -161,7 +160,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
     auto alignedSize = sizeAlign(size);
     if (!gluten_alloc_->Free(p, alignedSize)) {
-      VELOX_FAIL("WrappedVeloxMemoryPool: Failed to free " + std::to_string(alignedSize) + " bytes")
+      VELOX_FAIL(fmt::format("WrappedVeloxMemoryPool: Failed to free {} bytes", alignedSize))
     }
     release(alignedSize);
   }
