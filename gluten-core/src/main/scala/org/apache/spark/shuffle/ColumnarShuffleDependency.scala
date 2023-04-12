@@ -42,7 +42,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
  * @param mapSideCombine         whether to perform partial aggregation
  *                               (also known as map-side combine)
  * @param shuffleWriterProcessor the processor to control the write behavior in ShuffleMapTask
- * @param nativePartitioning     hold partitioning parameters needed by native splitter
+ * @param nativePartitioning     hold partitioning parameters needed by native shuffle writer
  * @param metrics                the metrics for the columnar shuffle
  */
 class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](

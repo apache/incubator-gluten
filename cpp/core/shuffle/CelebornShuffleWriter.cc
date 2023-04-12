@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "operators/shuffle/CelebornSplitter.h"
+#include "shuffle/CelebornShuffleWriter.h"
 
 #if defined(__x86_64__)
 #include <immintrin.h>
@@ -72,22 +72,22 @@ std::string __m128i_toString(const __m128i var) {
 #endif
 
 // ----------------------------------------------------------------------
-// CelebornSplitter
-arrow::Result<std::shared_ptr<CelebornSplitter>>
-CelebornSplitter::Make(const std::string& short_name, int num_partitions, SplitOptions options) {
+// CelebornShuffleWriter
+arrow::Result<std::shared_ptr<CelebornShuffleWriter>>
+CelebornShuffleWriter::Make(const std::string& short_name, int num_partitions, SplitOptions options) {
   if (short_name == "hash") {
-    return CelebornHashSplitter::Create(num_partitions, std::move(options));
+    return CelebornHashShuffleWriter::Create(num_partitions, std::move(options));
   } else if (short_name == "rr") {
-    return CelebornRoundRobinSplitter::Create(num_partitions, std::move(options));
+    return CelebornRoundRobinShuffleWriter::Create(num_partitions, std::move(options));
   } else if (short_name == "range") {
-    return CelebornFallbackRangeSplitter::Create(num_partitions, std::move(options));
+    return CelebornFallbackRangeShuffleWriter::Create(num_partitions, std::move(options));
   } else if (short_name == "single") {
-    return CelebornSinglePartSplitter::Create(1, std::move(options));
+    return CelebornSinglePartShuffleWriter::Create(1, std::move(options));
   }
   return arrow::Status::NotImplemented("Partitioning " + short_name + " not supported yet.");
 }
 
-arrow::Status CelebornSplitter::Stop() {
+arrow::Status CelebornShuffleWriter::Stop() {
   EVAL_START("push", options_.thread_id)
 
   // push data and collect metrics
@@ -107,7 +107,7 @@ arrow::Status CelebornSplitter::Stop() {
 }
 
 // call from memory management
-arrow::Status CelebornSplitter::EvictFixedSize(int64_t size, int64_t* actual) {
+arrow::Status CelebornShuffleWriter::EvictFixedSize(int64_t size, int64_t* actual) {
   int64_t current_pushed = 0L;
   int32_t try_count = 0;
   while (current_pushed < size && try_count < 5) {
@@ -123,7 +123,7 @@ arrow::Status CelebornSplitter::EvictFixedSize(int64_t size, int64_t* actual) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornSplitter::PushPartition(int32_t partition_id) {
+arrow::Status CelebornShuffleWriter::PushPartition(int32_t partition_id) {
   int64_t temp_total_write_time = 0;
   int64_t temp_total_push_time = 0;
   TIME_NANO_OR_RAISE(temp_total_push_time, WriteArrowToOutputStream(partition_id));
@@ -142,7 +142,7 @@ arrow::Status CelebornSplitter::PushPartition(int32_t partition_id) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornSplitter::WriteArrowToOutputStream(int32_t partition_id) {
+arrow::Status CelebornShuffleWriter::WriteArrowToOutputStream(int32_t partition_id) {
   ARROW_ASSIGN_OR_RAISE(
       celeborn_buffer_os_, arrow::io::BufferOutputStream::Create(options_.buffer_size, options_.memory_pool.get()));
   int32_t metadata_length = 0; // unused
@@ -156,7 +156,7 @@ arrow::Status CelebornSplitter::WriteArrowToOutputStream(int32_t partition_id) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornSplitter::Push(int32_t partition_id) {
+arrow::Status CelebornShuffleWriter::Push(int32_t partition_id) {
   auto buffer = celeborn_buffer_os_->Finish();
   int32_t size = buffer->get()->size();
   char* dst = reinterpret_cast<char*>(buffer->get()->mutable_data());
@@ -167,7 +167,7 @@ arrow::Status CelebornSplitter::Push(int32_t partition_id) {
   return arrow::Status::OK();
 }
 
-arrow::Result<int32_t> CelebornSplitter::PushLargestPartition(int64_t* size) {
+arrow::Result<int32_t> CelebornShuffleWriter::PushLargestPartition(int64_t* size) {
   // push the largest partition
   auto max_size = 0;
   int32_t partition_to_push = -1;
@@ -190,7 +190,7 @@ arrow::Result<int32_t> CelebornSplitter::PushLargestPartition(int64_t* size) {
   return partition_to_push;
 }
 
-arrow::Status CelebornSplitter::DoSplit(const arrow::RecordBatch& rb) {
+arrow::Status CelebornShuffleWriter::DoSplit(const arrow::RecordBatch& rb) {
   // buffer is allocated less than 64K
   // ARROW_CHECK_LE(rb.num_rows(),64*1024);
 
@@ -262,17 +262,18 @@ arrow::Status CelebornSplitter::DoSplit(const arrow::RecordBatch& rb) {
 }
 
 // ----------------------------------------------------------------------
-// CelebornRoundRobinSplitter
+// CelebornRoundRobinShuffleWriter
 
-arrow::Result<std::shared_ptr<CelebornRoundRobinSplitter>> CelebornRoundRobinSplitter::Create(
+arrow::Result<std::shared_ptr<CelebornRoundRobinShuffleWriter>> CelebornRoundRobinShuffleWriter::Create(
     int32_t num_partitions,
     SplitOptions options) {
-  std::shared_ptr<CelebornRoundRobinSplitter> res(new CelebornRoundRobinSplitter(num_partitions, std::move(options)));
+  std::shared_ptr<CelebornRoundRobinShuffleWriter> res(
+      new CelebornRoundRobinShuffleWriter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
 
-arrow::Status CelebornRoundRobinSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
+arrow::Status CelebornRoundRobinShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
   std::fill(std::begin(partition_id_cnt_), std::end(partition_id_cnt_), 0);
   partition_id_.resize(rb.num_rows());
   for (auto& pid : partition_id_) {
@@ -284,21 +285,22 @@ arrow::Status CelebornRoundRobinSplitter::ComputeAndCountPartitionId(const arrow
 }
 
 // ----------------------------------------------------------------------
-// CelebornSinglePartSplitter
+// CelebornSinglePartShuffleWriter
 
-arrow::Result<std::shared_ptr<CelebornSinglePartSplitter>> CelebornSinglePartSplitter::Create(
+arrow::Result<std::shared_ptr<CelebornSinglePartShuffleWriter>> CelebornSinglePartShuffleWriter::Create(
     int32_t num_partitions,
     SplitOptions options) {
-  std::shared_ptr<CelebornSinglePartSplitter> res(new CelebornSinglePartSplitter(num_partitions, std::move(options)));
+  std::shared_ptr<CelebornSinglePartShuffleWriter> res(
+      new CelebornSinglePartShuffleWriter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
 
-arrow::Status CelebornSinglePartSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
+arrow::Status CelebornSinglePartShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornSinglePartSplitter::Init() {
+arrow::Status CelebornSinglePartShuffleWriter::Init() {
   partition_writer_.resize(num_partitions_);
   partition_buffer_idx_base_.resize(num_partitions_);
   partition_cached_recordbatch_.resize(num_partitions_);
@@ -329,7 +331,7 @@ arrow::Status CelebornSinglePartSplitter::Init() {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornSinglePartSplitter::Split(ColumnarBatch* batch) {
+arrow::Status CelebornSinglePartShuffleWriter::Split(ColumnarBatch* batch) {
   ARROW_ASSIGN_OR_RAISE(
       auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
   EVAL_START("split", options_.thread_id)
@@ -346,7 +348,7 @@ arrow::Status CelebornSinglePartSplitter::Split(ColumnarBatch* batch) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornSinglePartSplitter::Stop() {
+arrow::Status CelebornSinglePartShuffleWriter::Stop() {
   EVAL_START("push", options_.thread_id)
 
   // push data and collect metrics
@@ -363,17 +365,17 @@ arrow::Status CelebornSinglePartSplitter::Stop() {
 }
 
 // ----------------------------------------------------------------------
-// CelebornHashSplitter
+// CelebornHashShuffleWriter
 
-arrow::Result<std::shared_ptr<CelebornHashSplitter>> CelebornHashSplitter::Create(
+arrow::Result<std::shared_ptr<CelebornHashShuffleWriter>> CelebornHashShuffleWriter::Create(
     int32_t num_partitions,
     SplitOptions options) {
-  std::shared_ptr<CelebornHashSplitter> res(new CelebornHashSplitter(num_partitions, std::move(options)));
+  std::shared_ptr<CelebornHashShuffleWriter> res(new CelebornHashShuffleWriter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
 
-arrow::Status CelebornHashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
+arrow::Status CelebornHashShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
   if (rb.num_columns() == 0) {
     return arrow::Status::Invalid("Recordbatch missing partition id column.");
   }
@@ -410,7 +412,7 @@ arrow::Status CelebornHashSplitter::ComputeAndCountPartitionId(const arrow::Reco
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornHashSplitter::Split(ColumnarBatch* batch) {
+arrow::Status CelebornHashShuffleWriter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
   ARROW_ASSIGN_OR_RAISE(
       auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
@@ -426,18 +428,18 @@ arrow::Status CelebornHashSplitter::Split(ColumnarBatch* batch) {
 }
 
 // ----------------------------------------------------------------------
-// CelebornFallbackRangeSplitter
+// CelebornFallbackRangeShuffleWriter
 
-arrow::Result<std::shared_ptr<CelebornFallbackRangeSplitter>> CelebornFallbackRangeSplitter::Create(
+arrow::Result<std::shared_ptr<CelebornFallbackRangeShuffleWriter>> CelebornFallbackRangeShuffleWriter::Create(
     int32_t num_partitions,
     SplitOptions options) {
-  auto res = std::shared_ptr<CelebornFallbackRangeSplitter>(
-      new CelebornFallbackRangeSplitter(num_partitions, std::move(options)));
+  auto res = std::shared_ptr<CelebornFallbackRangeShuffleWriter>(
+      new CelebornFallbackRangeShuffleWriter(num_partitions, std::move(options)));
   RETURN_NOT_OK(res->Init());
   return res;
 }
 
-arrow::Status CelebornFallbackRangeSplitter::Split(ColumnarBatch* batch) {
+arrow::Status CelebornFallbackRangeShuffleWriter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
   ARROW_ASSIGN_OR_RAISE(
       auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
@@ -452,7 +454,7 @@ arrow::Status CelebornFallbackRangeSplitter::Split(ColumnarBatch* batch) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornFallbackRangeSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
+arrow::Status CelebornFallbackRangeShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
   if (rb.column(0)->type_id() != arrow::Type::INT32) {
     return arrow::Status::Invalid(
         "RecordBatch field 0 should be ", arrow::int32()->ToString(), ", actual is ", rb.column(0)->type()->ToString());

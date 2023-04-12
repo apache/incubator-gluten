@@ -156,7 +156,7 @@ Open the file in `<gluten_home>/.vscode/settings.json` (create if not exists)
 }
 ```
 
-Then we can get some executables, take `shuffle_test` as example
+Then we can get some executables, take `velox_shuffle_writer_test` as example
 
 Click `Run and Debug` to create launch.json in `<gluten_home>/.vscode/launch.json`
 Click `Add Configuration` in the top of launch.json, select gdb launch or attach to exists program
@@ -170,11 +170,11 @@ launch.json example
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "shuffle test",
+      "name": "velox shuffle writer test",
       "type": "cppdbg",
       "request": "launch",
-      "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/shuffle_test",
-      "args": ["--gtest_filter=*TestSingleSplitter*"],
+      "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/tests/velox_shuffle_writer_test",
+      "args": ["--gtest_filter=*TestSingleShuffleWriter*"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

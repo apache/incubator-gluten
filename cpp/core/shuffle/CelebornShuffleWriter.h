@@ -17,16 +17,16 @@
 
 #pragma once
 
-#include "operators/shuffle/splitter.h"
+#include "shuffle/ArrowShuffleWriter.h"
 
 namespace gluten {
-class CelebornSplitter : public Splitter {
+class CelebornShuffleWriter : public ArrowShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<CelebornSplitter>>
+  static arrow::Result<std::shared_ptr<CelebornShuffleWriter>>
   Make(const std::string& short_name, int num_partitions, SplitOptions options = SplitOptions::Defaults());
 
  protected:
-  CelebornSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, options) {
+  CelebornShuffleWriter(int32_t num_partitions, SplitOptions options) : ArrowShuffleWriter(num_partitions, options) {
     celeborn_client_ = std::move(options.celeborn_client);
   }
 
@@ -55,30 +55,30 @@ class CelebornSplitter : public Splitter {
   std::shared_ptr<CelebornClient> celeborn_client_;
 };
 
-class CelebornRoundRobinSplitter final : public CelebornSplitter {
+class CelebornRoundRobinShuffleWriter final : public CelebornShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<CelebornRoundRobinSplitter>> Create(
+  static arrow::Result<std::shared_ptr<CelebornRoundRobinShuffleWriter>> Create(
       int32_t num_partitions,
       SplitOptions options);
 
  private:
-  CelebornRoundRobinSplitter(int32_t num_partitions, SplitOptions options)
-      : CelebornSplitter(num_partitions, std::move(options)) {}
+  CelebornRoundRobinShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : CelebornShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   int32_t pid_selection_ = 0;
 };
 
-class CelebornSinglePartSplitter final : public CelebornSplitter {
+class CelebornSinglePartShuffleWriter final : public CelebornShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<CelebornSinglePartSplitter>> Create(
+  static arrow::Result<std::shared_ptr<CelebornSinglePartShuffleWriter>> Create(
       int32_t num_partitions,
       SplitOptions options);
 
  private:
-  CelebornSinglePartSplitter(int32_t num_partitions, SplitOptions options)
-      : CelebornSplitter(num_partitions, std::move(options)) {}
+  CelebornSinglePartShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : CelebornShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
@@ -89,30 +89,30 @@ class CelebornSinglePartSplitter final : public CelebornSplitter {
   arrow::Status Stop() override;
 };
 
-class CelebornHashSplitter final : public CelebornSplitter {
+class CelebornHashShuffleWriter final : public CelebornShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<CelebornHashSplitter>> Create(int32_t num_partitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<CelebornHashShuffleWriter>> Create(int32_t num_partitions, SplitOptions options);
 
  private:
-  CelebornHashSplitter(int32_t num_partitions, SplitOptions options)
-      : CelebornSplitter(num_partitions, std::move(options)) {}
+  CelebornHashShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : CelebornShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   arrow::Status Split(ColumnarBatch* cb) override;
 };
 
-class CelebornFallbackRangeSplitter final : public CelebornSplitter {
+class CelebornFallbackRangeShuffleWriter final : public CelebornShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<CelebornFallbackRangeSplitter>> Create(
+  static arrow::Result<std::shared_ptr<CelebornFallbackRangeShuffleWriter>> Create(
       int32_t num_partitions,
       SplitOptions options);
 
   arrow::Status Split(ColumnarBatch* cb) override;
 
  private:
-  CelebornFallbackRangeSplitter(int32_t num_partitions, SplitOptions options)
-      : CelebornSplitter(num_partitions, std::move(options)) {}
+  CelebornFallbackRangeShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : CelebornShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 };

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "shuffle/VeloxSplitter.h"
+#include "shuffle/VeloxShuffleWriter.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "tests/TestUtils.h"
@@ -85,7 +85,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
   arrow::internal::MemoryPoolStats stats_;
 };
 
-class VeloxSplitterTest : public ::testing::Test {
+class VeloxShuffleWriterTest : public ::testing::Test {
  protected:
   void SetUp() {
     const std::string tmp_dir_prefix = "columnar-shuffle-test";
@@ -199,7 +199,7 @@ class VeloxSplitterTest : public ::testing::Test {
 
   SplitOptions split_options_;
 
-  std::shared_ptr<VeloxSplitter> splitter_;
+  std::shared_ptr<VeloxShuffleWriter> shuffle_writer_;
 
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::RecordBatch> input_batch_1_;
@@ -222,31 +222,31 @@ std::shared_ptr<ColumnarBatch> RecordBatch2VeloxColumnarBatch(const arrow::Recor
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
-arrow::Status SplitRecordBatch(VeloxSplitter& splitter, const arrow::RecordBatch& rb) {
+arrow::Status SplitRecordBatch(VeloxShuffleWriter& shuffle_writer, const arrow::RecordBatch& rb) {
   auto cb = RecordBatch2VeloxColumnarBatch(rb);
-  return splitter.Split(cb.get());
+  return shuffle_writer.Split(cb.get());
 }
 
-TEST_F(VeloxSplitterTest, TestHashSplitter) {
+TEST_F(VeloxShuffleWriterTest, TestHashShuffleWriter) {
   uint32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("hash", num_partitions, split_options_))
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *hash_input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *hash_input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *hash_input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *hash_input_batch_1_));
 
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
 
   // verify data file
-  CheckFileExists(splitter_->DataFile());
+  CheckFileExists(shuffle_writer_->DataFile());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify schema
   ASSERT_EQ(*file_reader->schema(), *schema_);
@@ -262,26 +262,26 @@ TEST_F(VeloxSplitterTest, TestHashSplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestSingleSplitter) {
+TEST_F(VeloxShuffleWriterTest, TestSingleShuffleWriter) {
   split_options_.buffer_size = 10;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("single", 1, split_options_))
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("single", 1, split_options_))
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
 
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   // verify data file
-  CheckFileExists(splitter_->DataFile());
+  CheckFileExists(shuffle_writer_->DataFile());
 
   // verify output temporary files
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 1);
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify schema
   ASSERT_EQ(*file_reader->schema(), *schema_);
@@ -305,22 +305,22 @@ TEST_F(VeloxSplitterTest, TestSingleSplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinSplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinShuffleWriter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
 
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -354,7 +354,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinSplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *schema_);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -369,7 +369,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinSplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestSplitterMemoryLeak) {
+TEST_F(VeloxShuffleWriterTest, TestShuffleWriterMemoryLeak) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(17 * 1024 * 1024);
 
   int32_t num_partitions = 2;
@@ -377,20 +377,20 @@ TEST_F(VeloxSplitterTest, TestSplitterMemoryLeak) {
   split_options_.memory_pool = pool;
   split_options_.write_schema = false;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
 
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   ASSERT_TRUE(pool->bytes_allocated() == 0);
-  splitter_.reset();
+  shuffle_writer_.reset();
   ASSERT_TRUE(pool->bytes_allocated() == 0);
 }
 
-TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
+TEST_F(VeloxShuffleWriterTest, TestFallbackRangeShuffleWriter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
@@ -407,19 +407,19 @@ TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
   ARROW_ASSIGN_OR_THROW(input_batch_1_w_pid, input_batch_1_->AddColumn(0, "pid", pid_arr_0));
   ARROW_ASSIGN_OR_THROW(input_batch_2_w_pid, input_batch_2_->AddColumn(0, "pid", pid_arr_1));
 
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("range", num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("range", num_partitions, split_options_))
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_w_pid));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_w_pid));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_w_pid));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_w_pid));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_w_pid));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_w_pid));
 
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -453,7 +453,7 @@ TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *schema_);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -468,22 +468,22 @@ TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestSpillFailWithOutOfMemory) {
+TEST_F(VeloxShuffleWriterTest, TestSpillFailWithOutOfMemory) {
   auto pool = std::make_shared<MyMemoryPool>(0);
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
   split_options_.memory_pool = pool;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  auto status = SplitRecordBatch(*splitter_, *input_batch_1_);
+  auto status = SplitRecordBatch(*shuffle_writer_, *input_batch_1_);
 
   // should return OOM status because there's no partition buffer to spill
   ASSERT_TRUE(status.IsOutOfMemory());
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 }
 
-TEST_F(VeloxSplitterTest, TestSpillLargestPartition) {
+TEST_F(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(9 * 1024 * 1024);
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
 
@@ -491,17 +491,17 @@ TEST_F(VeloxSplitterTest, TestSpillLargestPartition) {
   split_options_.buffer_size = 4;
   // split_options_.memory_pool = pool.get();
   split_options_.compression_type = arrow::Compression::UNCOMPRESSED;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
   for (int i = 0; i < 100; ++i) {
-    ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
-    ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_2_));
-    ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_1_));
+    ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+    ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
+    ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
   }
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
   auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
   auto f_arr_bool = arrow::field("f_bool", arrow::list(arrow::boolean()));
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::int32()));
@@ -520,16 +520,16 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -561,7 +561,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -576,7 +576,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinNestListArraySplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
   auto f_arr_str = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
 
@@ -591,16 +591,16 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestListArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -631,7 +631,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestListArraySplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -646,7 +646,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestListArraySplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinNestLargeListArraySplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
   auto f_arr_str = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
 
@@ -661,16 +661,16 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestLargeListArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -701,7 +701,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestLargeListArraySplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -716,7 +716,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinNestLargeListArraySplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinListStructArraySplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto f_arr_list_struct = arrow::field(
       "f_list_struct",
@@ -733,16 +733,16 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListStructArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -773,7 +773,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListStructArraySplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -788,7 +788,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListStructArraySplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinListMapArraySplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto f_arr_list_map = arrow::field("f_list_map", arrow::list(arrow::map(arrow::utf8(), arrow::utf8())));
 
@@ -803,16 +803,16 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListMapArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -843,7 +843,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListMapArraySplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -858,7 +858,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListMapArraySplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto f_arr_struct_list = arrow::field(
       "f_struct_list",
@@ -875,16 +875,16 @@ TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -915,7 +915,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -931,7 +931,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinStructArraySplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinMapArraySplitter) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto f_arr_map = arrow::field("f_map", arrow::map(arrow::utf8(), arrow::utf8()));
 
@@ -946,16 +946,16 @@ TEST_F(VeloxSplitterTest, TestRoundRobinMapArraySplitter) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -986,7 +986,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinMapArraySplitter) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -1001,7 +1001,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinMapArraySplitter) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
+TEST_F(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions) {
   int32_t num_partitions = 5;
   split_options_.buffer_size = 4;
 
@@ -1015,19 +1015,19 @@ TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_batch_1_data, rb_schema, &input_batch_arr);
 
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("hash", num_partitions, split_options_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
 
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 5);
 
-  CheckFileExists(splitter_->DataFile());
+  CheckFileExists(shuffle_writer_->DataFile());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   ASSERT_EQ(*file_reader->schema(), *data_schema);
 
@@ -1042,7 +1042,7 @@ TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
   }
 }
 
-TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitterwithCompression) {
+TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompression) {
   auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
   auto f_arr_bool = arrow::field("f_bool", arrow::list(arrow::boolean()));
   auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::int32()));
@@ -1061,17 +1061,17 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitterwithCompression) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("rr", num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Make("rr", num_partitions, split_options_));
   auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
-  ASSERT_NOT_OK(splitter_->SetCompressType(compression_type.MoveValueUnsafe()));
-  ASSERT_NOT_OK(SplitRecordBatch(*splitter_, *input_batch_arr));
-  ASSERT_NOT_OK(splitter_->Stop());
+  ASSERT_NOT_OK(shuffle_writer_->SetCompressType(compression_type.MoveValueUnsafe()));
+  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(shuffle_writer_->Stop());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
 
   // verify partition lengths
-  const auto& lengths = splitter_->PartitionLengths();
+  const auto& lengths = shuffle_writer_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
@@ -1103,7 +1103,7 @@ TEST_F(VeloxSplitterTest, TestRoundRobinListArraySplitterwithCompression) {
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));

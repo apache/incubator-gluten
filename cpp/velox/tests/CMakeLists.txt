@@ -39,6 +39,6 @@ function(add_velox_test TEST_EXEC)
 endfunction()
 
 # velox test
-add_velox_test(velox_splitter_test SOURCES VeloxSplitterTest.cc)
+add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
 add_velox_test(velox_converter SOURCES ArrowToVeloxTest.cc VeloxColumnarToRowTest.cc)
 add_velox_test(orc_test SOURCES OrcTest.cc)

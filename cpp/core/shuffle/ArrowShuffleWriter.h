@@ -27,13 +27,13 @@
 
 #include "jni/JniCommon.h"
 #include "memory/ColumnarBatch.h"
-#include "operators/shuffle/SplitterBase.h"
-#include "operators/shuffle/type.h"
-#include "operators/shuffle/utils.h"
+#include "shuffle/ShuffleWriter.h"
+#include "shuffle/type.h"
+#include "shuffle/utils.h"
 #include "substrait/algebra.pb.h"
 
 namespace gluten {
-class Splitter : public SplitterBase {
+class ArrowShuffleWriter : public ShuffleWriter {
  protected:
   struct BinaryBuff {
     BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c, uint64_t f)
@@ -48,7 +48,7 @@ class Splitter : public SplitterBase {
   };
 
  public:
-  static arrow::Result<std::shared_ptr<Splitter>>
+  static arrow::Result<std::shared_ptr<ArrowShuffleWriter>>
   Make(const std::string& short_name, int num_partitions, SplitOptions options = SplitOptions::Defaults());
 
   typedef uint32_t row_offset_type;
@@ -95,7 +95,7 @@ class Splitter : public SplitterBase {
   }
 
  protected:
-  Splitter(int32_t num_partitions, SplitOptions options) : SplitterBase(num_partitions, options) {}
+  ArrowShuffleWriter(int32_t num_partitions, SplitOptions options) : ShuffleWriter(num_partitions, options) {}
 
   virtual arrow::Status Init();
 
@@ -152,7 +152,7 @@ class Splitter : public SplitterBase {
   // 1. Split record batch. It first calculate whether the partition
   // buffer can hold all data according to partition id. If not, call this
   // method and allocate new buffers. Spill will happen if OOM.
-  // 2. Stop the splitter. The record batch will be written to disk immediately.
+  // 2. Stop the shuffle writer. The record batch will be written to disk immediately.
   arrow::Status CreateRecordBatchFromBuffer(int32_t partition_id, bool reset_buffers);
 
   arrow::Status CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch);
@@ -249,24 +249,30 @@ class Splitter : public SplitterBase {
   std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
 };
 
-class RoundRobinSplitter final : public Splitter {
+class ArrowRoundRobinShuffleWriter final : public ArrowShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<RoundRobinSplitter>> Create(int32_t num_partitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<ArrowRoundRobinShuffleWriter>> Create(
+      int32_t num_partitions,
+      SplitOptions options);
 
  private:
-  RoundRobinSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
+  ArrowRoundRobinShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   int32_t pid_selection_ = 0;
 };
 
-class SinglePartSplitter final : public Splitter {
+class ArrowSinglePartShuffleWriter final : public ArrowShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<SinglePartSplitter>> Create(int32_t num_partitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<ArrowSinglePartShuffleWriter>> Create(
+      int32_t num_partitions,
+      SplitOptions options);
 
  private:
-  SinglePartSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
+  ArrowSinglePartShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
@@ -277,26 +283,30 @@ class SinglePartSplitter final : public Splitter {
   arrow::Status Stop() override;
 };
 
-class HashSplitter final : public Splitter {
+class ArrowHashShuffleWriter final : public ArrowShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<HashSplitter>> Create(int32_t num_partitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<ArrowHashShuffleWriter>> Create(int32_t num_partitions, SplitOptions options);
 
  private:
-  HashSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
+  ArrowHashShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   arrow::Status Split(ColumnarBatch* cb) override;
 };
 
-class FallbackRangeSplitter final : public Splitter {
+class ArrowFallbackRangeShuffleWriter final : public ArrowShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>> Create(int32_t num_partitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<ArrowFallbackRangeShuffleWriter>> Create(
+      int32_t num_partitions,
+      SplitOptions options);
 
   arrow::Status Split(ColumnarBatch* cb) override;
 
  private:
-  FallbackRangeSplitter(int32_t num_partitions, SplitOptions options) : Splitter(num_partitions, std::move(options)) {}
+  ArrowFallbackRangeShuffleWriter(int32_t num_partitions, SplitOptions options)
+      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 };

@@ -26,8 +26,8 @@
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
 #include "operators/r2c/RowToArrowColumnarConverter.h"
-#include "operators/shuffle/SplitterBase.h"
-#include "operators/shuffle/reader.h"
+#include "shuffle/ShuffleWriter.h"
+#include "shuffle/reader.h"
 
 namespace types {
 class ExpressionList;
@@ -74,7 +74,7 @@ static ConcurrentMap<std::shared_ptr<RowToColumnarConverter>> row_to_columnar_co
 
 static ConcurrentMap<std::shared_ptr<ResultIterator>> result_iterator_holder_;
 
-static ConcurrentMap<std::shared_ptr<SplitterBase>> shuffle_splitter_holder_;
+static ConcurrentMap<std::shared_ptr<ShuffleWriter>> shuffle_writer_holder_;
 
 static ConcurrentMap<std::shared_ptr<Reader>> shuffle_reader_holder_;
 
@@ -301,7 +301,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   result_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
-  shuffle_splitter_holder_.Clear();
+  shuffle_writer_holder_.Clear();
   shuffle_reader_holder_.Clear();
 
   JNIEnv* env;
@@ -674,7 +674,7 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_close(JNIEnv* env, j
 }
 
 // Shuffle
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_nativeMake(
     JNIEnv* env,
     jobject,
     jstring partitioning_name_jstr,
@@ -777,86 +777,88 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
 
   auto backend = gluten::CreateBackend();
   auto batch = gluten_columnarbatch_holder_.Lookup(firstBatchHandle);
-  auto splitter = backend->makeSplitter(partitioning_name, num_partitions, std::move(splitOptions), batch->GetType());
+  auto shuffle_writer =
+      backend->makeShuffleWriter(partitioning_name, num_partitions, std::move(splitOptions), batch->GetType());
 
-  return shuffle_splitter_holder_.Insert(splitter);
+  return shuffle_writer_holder_.Insert(shuffle_writer);
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeSpill(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_nativeSpill(
     JNIEnv* env,
     jobject,
-    jlong splitter_id,
+    jlong shuffle_writer_id,
     jlong size,
     jboolean callBySelf) {
   JNI_METHOD_START
-  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
-  if (!splitter) {
-    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+  auto shuffle_writer = shuffle_writer_holder_.Lookup(shuffle_writer_id);
+  if (!shuffle_writer) {
+    std::string error_message = "Invalid shuffle writer id " + std::to_string(shuffle_writer_id);
     gluten::JniThrow(error_message);
   }
   jlong spilled_size;
-  gluten::JniAssertOkOrThrow(splitter->EvictFixedSize(size, &spilled_size), "(shuffle) nativeSpill: spill failed");
+  gluten::JniAssertOkOrThrow(
+      shuffle_writer->EvictFixedSize(size, &spilled_size), "(shuffle) nativeSpill: spill failed");
   return spilled_size;
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativePush(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_nativePush(
     JNIEnv* env,
     jobject,
-    jlong splitter_id,
+    jlong shuffle_writer_id,
     jlong size,
     jboolean callBySelf) {
   JNI_METHOD_START
-  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
-  if (!splitter) {
-    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+  auto shuffle_writer = shuffle_writer_holder_.Lookup(shuffle_writer_id);
+  if (!shuffle_writer) {
+    std::string error_message = "Invalid shuffle writer id " + std::to_string(shuffle_writer_id);
     gluten::JniThrow(error_message);
   }
   jlong pushed_size;
-  gluten::JniAssertOkOrThrow(splitter->EvictFixedSize(size, &pushed_size), "(shuffle) nativePush: push failed");
+  gluten::JniAssertOkOrThrow(shuffle_writer->EvictFixedSize(size, &pushed_size), "(shuffle) nativePush: push failed");
   return pushed_size;
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_split(
     JNIEnv* env,
     jobject,
-    jlong splitter_id,
+    jlong shuffle_writer_id,
     jint num_rows,
     jlong handle) {
   JNI_METHOD_START
-  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
-  if (!splitter) {
-    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+  auto shuffle_writer = shuffle_writer_holder_.Lookup(shuffle_writer_id);
+  if (!shuffle_writer) {
+    std::string error_message = "Invalid shuffle writer id " + std::to_string(shuffle_writer_id);
     gluten::JniThrow(error_message);
   }
 
-  // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeSplitter)
+  // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeShuffleWriter)
   std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
   auto numBytes = batch->GetBytes();
-  gluten::JniAssertOkOrThrow(splitter->Split(batch.get()), "Native split: splitter split failed");
+  gluten::JniAssertOkOrThrow(shuffle_writer->Split(batch.get()), "Native split: shuffle writer split failed");
   return numBytes;
   JNI_METHOD_END(-1L)
 }
 
 JNIEXPORT jobject JNICALL
-Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(JNIEnv* env, jobject, jlong splitter_id) {
+Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_stop(JNIEnv* env, jobject, jlong shuffle_writer_id) {
   JNI_METHOD_START
-  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
-  if (!splitter) {
-    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+  auto shuffle_writer = shuffle_writer_holder_.Lookup(shuffle_writer_id);
+  if (!shuffle_writer) {
+    std::string error_message = "Invalid shuffle writer id " + std::to_string(shuffle_writer_id);
     gluten::JniThrow(error_message);
   }
 
-  gluten::JniAssertOkOrThrow(splitter->Stop(), "Native split: splitter stop failed");
+  gluten::JniAssertOkOrThrow(shuffle_writer->Stop(), "Native split: shuffle writer stop failed");
 
-  const auto& partition_lengths = splitter->PartitionLengths();
+  const auto& partition_lengths = shuffle_writer->PartitionLengths();
   auto partition_length_arr = env->NewLongArray(partition_lengths.size());
   auto src = reinterpret_cast<const jlong*>(partition_lengths.data());
   env->SetLongArrayRegion(partition_length_arr, 0, partition_lengths.size(), src);
 
-  const auto& raw_partition_lengths = splitter->RawPartitionLengths();
+  const auto& raw_partition_lengths = shuffle_writer->RawPartitionLengths();
   auto raw_partition_length_arr = env->NewLongArray(raw_partition_lengths.size());
   auto raw_src = reinterpret_cast<const jlong*>(raw_partition_lengths.data());
   env->SetLongArrayRegion(raw_partition_length_arr, 0, raw_partition_lengths.size(), raw_src);
@@ -865,11 +867,11 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(JNIEnv* env, job
       split_result_class,
       split_result_constructor,
       0L,
-      splitter->TotalWriteTime(),
-      splitter->TotalEvictTime(),
-      splitter->TotalCompressTime(),
-      splitter->TotalBytesWritten(),
-      splitter->TotalBytesEvicted(),
+      shuffle_writer->TotalWriteTime(),
+      shuffle_writer->TotalEvictTime(),
+      shuffle_writer->TotalCompressTime(),
+      shuffle_writer->TotalBytesWritten(),
+      shuffle_writer->TotalBytesEvicted(),
       partition_length_arr,
       raw_partition_length_arr);
 
@@ -878,9 +880,9 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(JNIEnv* env, job
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_close(JNIEnv* env, jobject, jlong splitter_id) {
+Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_close(JNIEnv* env, jobject, jlong shuffle_writer_id) {
   JNI_METHOD_START
-  shuffle_splitter_holder_.Erase(splitter_id);
+  shuffle_writer_holder_.Erase(shuffle_writer_id);
   JNI_METHOD_END()
 }
 

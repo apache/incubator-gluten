@@ -169,7 +169,7 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
-    shuffle/VeloxSplitter.cc
+    shuffle/VeloxShuffleWriter.cc
     jni/JniWrapper.cc
     compute/VeloxBackend.cc
     compute/VeloxInitializer.cc

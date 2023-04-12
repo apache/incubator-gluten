@@ -26,7 +26,7 @@
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "operators/shuffle/SplitterBase.h"
+#include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
 // This class is used to convert the Substrait plan into Velox plan.
@@ -50,7 +50,7 @@ class VeloxBackend final : public Backend {
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
 
-  std::shared_ptr<SplitterBase> makeSplitter(
+  std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       const std::string& partitioning_name,
       int num_partitions,
       const SplitOptions& options,

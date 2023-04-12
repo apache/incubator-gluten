@@ -185,9 +185,9 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
         operators/r2c/RowToArrowColumnarConverter.cc
-        operators/shuffle/reader.cc
-        operators/shuffle/splitter.cc
-        operators/shuffle/CelebornSplitter.cc
+        shuffle/reader.cc
+        shuffle/ArrowShuffleWriter.cc
+        shuffle/CelebornShuffleWriter.cc
         operators/writer/ArrowWriter.cc
         )
 
