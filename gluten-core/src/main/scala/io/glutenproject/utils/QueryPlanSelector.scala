@@ -55,7 +55,7 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
     if (log.isDebugEnabled) {
       logDebug(
         s"=========================\n" +
-          s"running shloudUseGluten from:\n${stackTrace()}\n" +
+          s"running shouldUseGluten from:\n${stackTrace()}\n" +
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }

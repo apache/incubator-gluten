@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.datasources.parquet
+package org.apache.spark.tags;
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.tags.ExtendedSQLTest
+import org.scalatest.TagAnnotation;
 
-@ExtendedSQLTest
-class GlutenParquetV1SchemaPruningSuite extends ParquetV1SchemaPruningSuite
-  with GlutenSQLTestsBaseTrait {
-}
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@ExtendedSQLTest
-class GlutenParquetV2SchemaPruningSuite extends ParquetV2SchemaPruningSuite
-  with GlutenSQLTestsBaseTrait {
-}
+@TagAnnotation
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD, ElementType.TYPE})
+public @interface ExtendedSQLTest { }
+

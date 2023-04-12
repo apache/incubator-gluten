@@ -177,12 +177,14 @@ object ExpressionMappings {
   final val ARRAY_CONTAINS = "array_contains"
   final val ARRAY_MAX = "array_max"
   final val ARRAY_MIN = "array_min"
+  final val SEQUENCE = "sequence"
 
   // Map functions
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
+  final val MAP_FROM_ARRAYS = "map_from_arrays"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"
@@ -202,6 +204,7 @@ object ExpressionMappings {
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
   final val EXPLODE = "explode"
+  final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
@@ -356,16 +359,19 @@ object ExpressionMappings {
     Sig[Size](SIZE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[PosExplode](POSEXPLODE),
     Sig[GetArrayItem](GET_ARRAY_ITEM),
     Sig[ElementAt](ELEMENT_AT),
     Sig[ArrayContains](ARRAY_CONTAINS),
     Sig[ArrayMax](ARRAY_MAX),
     Sig[ArrayMin](ARRAY_MIN),
+    Sig[Sequence](SEQUENCE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
     Sig[MapKeys](MAP_KEYS),
     Sig[MapValues](MAP_VALUES),
+    Sig[MapFromArrays](MAP_FROM_ARRAYS),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),

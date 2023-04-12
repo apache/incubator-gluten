@@ -212,12 +212,33 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
+  test("test 'function posexplode(array)'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, posexplode(array(l_returnflag, l_linestatus)),
+                         |  l_suppkey from lineitem);
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
   test("test 'lateral view explode(array)'") {
     val df = spark.sql("""
                          |select count(*) from (
                          |  select l_orderkey, l_suppkey, col1, col2 from lineitem
                          |  lateral view explode(array(l_returnflag, l_linestatus)) as col1
                          |  lateral view explode(array(l_shipmode, l_comment)) as col2)
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 2402288L)
+  }
+
+  test("test 'lateral view posexplode(array)'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, l_suppkey, pos1, col1, pos2, col2 from lineitem
+                         |  lateral view posexplode(array(l_returnflag, l_linestatus)) as pos1, col1
+                         |  lateral view posexplode(array(l_shipmode, l_comment)) as pos2, col2)
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
@@ -234,6 +255,18 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
+  test("test 'function posexplode(map)'") {
+    val df =
+      spark.sql("""
+                  |select count(*) from (
+                  |  select l_orderkey,
+                  |    posexplode(map('returnflag', l_returnflag, 'linestatus', l_linestatus)),
+                  |    l_suppkey from lineitem);
+                  |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
   test("test 'lateral view explode(map)'") {
     val df = spark.sql("""
                          |select count(*) from (
@@ -246,6 +279,23 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |    as k2, v2
                          |)
                          |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 2402288L)
+  }
+
+  test("test 'lateral view posexplode(map)'") {
+    val df =
+      spark.sql("""
+                  |select count(*) from (
+                  |  select l_orderkey, l_suppkey, p1, k1, v1, p2, k2, v2 from lineitem
+                  |  lateral view
+                  |    posexplode(map('returnflag', l_returnflag, 'linestatus', l_linestatus))
+                  |    as p1, k1, v1
+                  |  lateral view
+                  |    posexplode(map('orderkey', l_orderkey, 'partkey', l_partkey))
+                  |    as p2, k2, v2
+                  |)
+                  |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
   }
