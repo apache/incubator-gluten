@@ -70,6 +70,8 @@ jlong default_memory_allocator_id = -1L;
 
 static ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnar_to_row_converter_holder_;
 
+static ConcurrentMap<std::shared_ptr<RowToColumnarConverter>> row_to_columnar_converter_holder_;
+
 static ConcurrentMap<std::shared_ptr<ResultIterator>> result_iterator_holder_;
 
 static ConcurrentMap<std::shared_ptr<SplitterBase>> shuffle_splitter_holder_;
@@ -548,20 +550,9 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(JNIEn
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowToColumnar(
-    JNIEnv* env,
-    jobject,
-    jlong cSchema,
-    jlongArray row_length,
-    jlong memory_address,
-    long allocId) {
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_init(JNIEnv* env, jobject, jlong cSchema, long allocId) {
   JNI_METHOD_START
-  if (row_length == nullptr) {
-    gluten::JniThrow("Native convert row to columnar: buf_addrs can't be null");
-  }
-  int num_rows = env->GetArrayLength(row_length);
-  jlong* in_row_length = env->GetLongArrayElements(row_length, JNI_FALSE);
-  uint8_t* address = reinterpret_cast<uint8_t*>(memory_address);
   auto* allocator = reinterpret_cast<MemoryAllocator*>(allocId);
   if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
@@ -572,9 +563,27 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniW
   std::shared_ptr<arrow::Schema> schema =
       gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 
-  auto converter =
-      std::make_shared<gluten::RowToColumnarConverter>(schema, num_rows, in_row_length, address, pool.get());
-  auto rb = converter->convert();
+  auto converter = std::make_shared<gluten::RowToColumnarConverter>(schema, pool.get());
+  return row_to_columnar_converter_holder_.Insert(converter);
+  JNI_METHOD_END(-1)
+}
+
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowToColumnar(
+    JNIEnv* env,
+    jobject,
+    jlong r2cId,
+    jlongArray row_length,
+    jlong memory_address) {
+  JNI_METHOD_START
+  if (row_length == nullptr) {
+    gluten::JniThrow("Native convert row to columnar: buf_addrs can't be null");
+  }
+  int num_rows = env->GetArrayLength(row_length);
+  jlong* in_row_length = env->GetLongArrayElements(row_length, JNI_FALSE);
+  uint8_t* address = reinterpret_cast<uint8_t*>(memory_address);
+
+  auto converter = row_to_columnar_converter_holder_.Lookup(r2cId);
+  auto rb = converter->convert(num_rows, in_row_length, address);
   std::unique_ptr<ArrowSchema> cArrowSchema = std::make_unique<ArrowSchema>();
   std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
   GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*rb, cArray.get(), cArrowSchema.get()));
@@ -582,6 +591,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniW
   env->ReleaseLongArrayElements(row_length, in_row_length, JNI_ABORT);
   return gluten_columnarbatch_holder_.Insert(cb);
   JNI_METHOD_END(-1)
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_close(JNIEnv* env, jobject, jlong r2cId) {
+  JNI_METHOD_START
+  row_to_columnar_converter_holder_.Erase(r2cId);
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jstring JNICALL
