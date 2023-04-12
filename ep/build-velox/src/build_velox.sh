@@ -60,6 +60,14 @@ function compile {
         exit 1
       ;;
     esac
+  elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
+    case "$LINUX_VERSION_ID" in
+      3) scripts/setup-centos8.sh ;;
+      *)
+        echo "Unsupport alinux version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
   else
     echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
     exit 1
