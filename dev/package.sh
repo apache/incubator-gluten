@@ -45,5 +45,10 @@ elif [ "$LINUX_OS" == "centos" ]; then
     process_setup_centos_7
   fi
 fi
+elif [ "$LINUX_OS" == "alinux" ]; then
+  if [ "$VERSION" == "3" ]; then
+    process_setup_centos_8
+  fi
+fi
 cd $THIRDPARTY_LIB/
 jar cvf gluten-thirdparty-lib-$LINUX_OS-$VERSION.jar ./

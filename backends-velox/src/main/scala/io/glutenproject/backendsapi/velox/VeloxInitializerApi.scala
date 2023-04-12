@@ -32,10 +32,12 @@ class VeloxInitializerApi extends InitializerApi {
         new VeloxSharedlibraryLoaderUbuntu2004
       } else if (system.contains("Ubuntu") && system.contains("22.04")) {
         new VeloxSharedlibraryLoaderUbuntu2204
-      } else if (system.contains("CentOS") && system.contains("8")){
+      } else if (system.contains("CentOS") && system.contains("8")) {
         new VeloxSharedlibraryLoaderCentos8
-      } else if (system.contains("CentOS") && system.contains("7")){
+      } else if (system.contains("CentOS") && system.contains("7")) {
         new VeloxSharedlibraryLoaderCentos7
+      } else if (system.contains("alinux") && system.contains("3")) {
+        new VeloxSharedlibraryLoaderCentos8
       }
       loader.asInstanceOf[VeloxSharedlibraryLoader].loadLib(load)
   }

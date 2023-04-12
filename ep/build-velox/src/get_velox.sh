@@ -96,25 +96,33 @@ function process_setup_centos8 {
 }
 
 function process_setup_centos7 {
-      # make this function Reentrantly
-      git checkout scripts/setup-centos7.sh
+  # make this function Reentrantly
+  git checkout scripts/setup-centos7.sh
 
-      # cmake 3 and ninja should be installed
-      sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
-      sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
+  # cmake 3 and ninja should be installed
+  sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
+  sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
 
-      # install gtest
-      sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
+  # install gtest
+  sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
 
-      if [ $ENABLE_HDFS = "ON" ]; then
-        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
-      fi
-      if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
-        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
-      fi
-      if [ $ENABLE_S3 == "ON" ]; then
-        sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
-      fi
+  if [ $ENABLE_HDFS = "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
+  fi
+  if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
+  fi
+  if [ $ENABLE_S3 == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
+  fi
+}
+
+function process_setup_alinux3 {
+  process_setup_centos8
+  sed -i "s/.*dnf_install epel-release/#&/" scripts/setup-centos8.sh
+  sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" scripts/setup-centos8.sh
+  sed -i "s/gcc-toolset-9 //" scripts/setup-centos8.sh
+  sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" scripts/setup-centos8.sh
 }
 
 echo "Preparing Velox source code..."
@@ -159,6 +167,14 @@ elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     7) process_setup_centos7 ;;
     *)
       echo "Unsupport centos version: $LINUX_VERSION_ID"
+      exit 1
+    ;;
+  esac
+elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
+  case "$LINUX_VERSION_ID" in
+    3) process_setup_alinux3 ;;
+    *)
+      echo "Unsupport alinux version: $LINUX_VERSION_ID"
       exit 1
     ;;
   esac
