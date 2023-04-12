@@ -127,9 +127,7 @@ case class GlutenHashAggregateExecTransformer(
           // Select sum from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
           // Select isEmpty from Velox Struct.
-          expressionNodes.add(ExpressionBuilder
-            .makeCast(ConverterUtils.getTypeNode(BooleanType, nullable = true),
-              ExpressionBuilder.makeSelection(colIdx, 1), SQLConf.get.ansiEnabled))
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
           colIdx += 1
         case _: Corr =>
           // Select count from Velox struct with count casted from LongType into DoubleType.
@@ -202,7 +200,7 @@ case class GlutenHashAggregateExecTransformer(
         structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
       case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
         structTypeNodes.add(ConverterUtils.getTypeNode(sum.dataType, nullable = true))
-        structTypeNodes.add(ConverterUtils.getTypeNode(IntegerType, nullable = false))
+        structTypeNodes.add(ConverterUtils.getTypeNode(BooleanType, nullable = false))
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
