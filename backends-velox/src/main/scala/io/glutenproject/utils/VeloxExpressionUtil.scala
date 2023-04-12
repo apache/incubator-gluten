@@ -17,8 +17,10 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ExpressionMappings._
+import io.glutenproject.expression.ExpressionMappings.{APPROX_PERCENTILE, _}
 import io.glutenproject.utils.GlutenExpressionUtil.EMPTY_TYPE
+
+import org.apache.spark.sql.catalyst.expressions.aggregate.ApproximatePercentile
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
@@ -47,7 +49,7 @@ object VeloxExpressionUtil {
     DATE_FORMAT -> Set(EMPTY_TYPE),
     TRUNC -> Set(EMPTY_TYPE),
     SEQUENCE -> Set(EMPTY_TYPE),
-    POSEXPLODE -> Set(EMPTY_TYPE)
+    POSEXPLODE -> Set(EMPTY_TYPE),
   )
 
   final val VELOX_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(

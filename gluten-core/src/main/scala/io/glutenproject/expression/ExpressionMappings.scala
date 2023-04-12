@@ -44,7 +44,6 @@ object ExpressionMappings {
   final val CORR = "corr"
   final val COVAR_POP = "covar_pop"
   final val COVAR_SAMP = "covar_samp"
-  final val APPROX_PERCENTILE = "approx_percentile"
   final val LAST = "last"
 
   // Function names used by Substrait plan.
@@ -423,7 +422,6 @@ object ExpressionMappings {
     Sig[Corr](CORR),
     Sig[CovPopulation](COVAR_POP),
     Sig[CovSample](COVAR_SAMP),
-    Sig[ApproximatePercentile](APPROX_PERCENTILE),
     Sig[Last](LAST)
   )
 
