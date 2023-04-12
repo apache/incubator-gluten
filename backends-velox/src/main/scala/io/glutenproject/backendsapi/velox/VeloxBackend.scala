@@ -54,9 +54,6 @@ object VeloxBackendSettings extends BackendSettings {
       // Collect unsupported types.
       fields.map(_.dataType).collect {
         case _: ByteType =>
-        case _: ArrayType =>
-        case _: MapType =>
-        case _: StructType =>
       }.isEmpty
     }
 
