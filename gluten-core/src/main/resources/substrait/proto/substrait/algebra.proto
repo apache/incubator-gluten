@@ -358,17 +358,12 @@ message ExchangeRel {
 message ExpandRel {
   RelCommon common = 1;
   Rel input = 2;
+.
+  repeated Projections projections = 3;
 
-  repeated Expression aggregate_expressions = 3;
-
-  // A list of expression grouping that the aggregation measured should be calculated for.
-  repeated GroupSets groupings = 4;
-
-  message GroupSets {
-    repeated Expression groupSets_expressions = 1;
+  message Projections {
+    repeated Expression project_expressions = 1;
   }
-
-  string group_name = 5;
 
   substrait.extensions.AdvancedExtension advanced_extension = 10;
 }
