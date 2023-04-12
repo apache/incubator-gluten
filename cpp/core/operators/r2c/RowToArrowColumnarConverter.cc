@@ -58,7 +58,7 @@ inline arrow::Status CreateArrayData(
     std::shared_ptr<arrow::Schema> schema,
     int32_t batch_rows,
     std::vector<int64_t>& offsets,
-    uint8_t* memory_address_,
+    uint8_t* memory_address,
     bool support_avx512,
     std::vector<arrow::Type::type>& typevec,
     std::vector<uint8_t>& typewidth,
@@ -76,12 +76,12 @@ inline arrow::Status CreateArrayData(
 
         auto out_is_valid = array->buffers[0]->mutable_data();
         while (position < row_start + batch_rows) {
-          bool is_null = IsNull(memory_address_ + offsets[position], columnar_id);
+          bool is_null = IsNull(memory_address + offsets[position], columnar_id);
           if (is_null) {
             null_count++;
             arrow::bit_util::SetBitTo(out_is_valid, position, false);
           } else {
-            bool value = *(bool*)(memory_address_ + offsets[position] + fieldOffset);
+            bool value = *(bool*)(memory_address + offsets[position] + fieldOffset);
             arrow::bit_util::SetBitTo(array_data, position, value);
             arrow::bit_util::SetBitTo(out_is_valid, position, true);
           }
@@ -101,7 +101,7 @@ inline arrow::Status CreateArrayData(
         int64_t null_count = 0;
         auto out_is_valid = array->buffers[0]->mutable_data();
         while (position < row_start + batch_rows) {
-          bool is_null = IsNull(memory_address_ + offsets[position], columnar_id);
+          bool is_null = IsNull(memory_address + offsets[position], columnar_id);
           if (is_null) {
             null_count++;
             arrow::bit_util::SetBitTo(out_is_valid, position, false);
@@ -110,16 +110,16 @@ inline arrow::Status CreateArrayData(
             arrow::bit_util::SetBitTo(out_is_valid, position, true);
             if (precision <= 18) {
               int64_t low_value;
-              memcpy(&low_value, memory_address_ + offsets[position] + fieldOffset, 8);
+              memcpy(&low_value, memory_address + offsets[position] + fieldOffset, 8);
               arrow::Decimal128 value = arrow::Decimal128(arrow::BasicDecimal128(low_value));
               array_data[position] = value;
             } else {
               int64_t offsetAndSize;
-              memcpy(&offsetAndSize, memory_address_ + offsets[position] + fieldOffset, sizeof(int64_t));
+              memcpy(&offsetAndSize, memory_address + offsets[position] + fieldOffset, sizeof(int64_t));
               int32_t length = int32_t(offsetAndSize);
               int32_t wordoffset = int32_t(offsetAndSize >> 32);
               uint8_t bytesValue[length];
-              memcpy(bytesValue, memory_address_ + offsets[position] + wordoffset, length);
+              memcpy(bytesValue, memory_address + offsets[position] + wordoffset, length);
               uint8_t bytesValue2[16]{};
               for (int k = length - 1; k >= 0; k--) {
                 bytesValue2[length - 1 - k] = bytesValue[k];
@@ -148,9 +148,9 @@ inline arrow::Status CreateArrayData(
 
         array_offset[0] = 0;
         for (int64_t position = row_start; position < row_start + batch_rows; position++) {
-          bool is_null = IsNull(memory_address_ + offsets[position], columnar_id);
+          bool is_null = IsNull(memory_address + offsets[position], columnar_id);
           if (!is_null) {
-            int64_t offsetAndSize = *(int64_t*)(memory_address_ + offsets[position] + fieldOffset);
+            int64_t offsetAndSize = *(int64_t*)(memory_address + offsets[position] + fieldOffset);
             offset_type length = int32_t(offsetAndSize);
             int32_t wordoffset = int32_t(offsetAndSize >> 32);
             auto value_offset = array_offset[position + 1] = array_offset[position] + length;
@@ -166,7 +166,7 @@ inline arrow::Status CreateArrayData(
             }
 
             auto dst_value_base = array_data + array_offset[position];
-            auto value_src_ptr = memory_address_ + offsets[position] + wordoffset;
+            auto value_src_ptr = memory_address + offsets[position] + wordoffset;
 #ifdef __AVX512BW__
             if (ARROW_PREDICT_TRUE(support_avx512)) {
               // write the variable value
@@ -200,8 +200,8 @@ inline arrow::Status CreateArrayData(
 
         if (typewidth[columnar_id] > 0) {
           while (position < row_start + batch_rows) {
-            const uint8_t* srcptr = (memory_address_ + offsets[position] + fieldOffset);
-            bool is_null = IsNull(memory_address_ + offsets[position], columnar_id);
+            const uint8_t* srcptr = (memory_address + offsets[position] + fieldOffset);
+            bool is_null = IsNull(memory_address + offsets[position], columnar_id);
             auto mask = (1L << (typewidth[columnar_id])) - 1;
             auto shift = _tzcnt_u32(typewidth[columnar_id]);
             uint8_t* destptr = array_data + (position << shift);
@@ -233,15 +233,17 @@ inline arrow::Status CreateArrayData(
   return arrow::Status::OK();
 }
 
-std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
+std::shared_ptr<arrow::RecordBatch>
+RowToColumnarConverter::convert(int64_t num_rows, int64_t* row_length, uint8_t* memory_address) {
   support_avx512_ = __builtin_cpu_supports("avx512bw");
   auto num_fields = schema_->num_fields();
   int64_t nullBitsetWidthInBytes = CalculateBitSetWidthInBytes(num_fields);
-  for (auto i = 0; i < num_rows_; i++) {
-    offsets_.push_back(0);
+  std::vector<int64_t> offsets;
+  for (auto i = 0; i < num_rows; i++) {
+    offsets.push_back(0);
   }
-  for (auto i = 1; i < num_rows_; i++) {
-    offsets_[i] = offsets_[i - 1] + row_length_[i - 1];
+  for (auto i = 1; i < num_rows; i++) {
+    offsets[i] = offsets[i - 1] + row_length[i - 1];
   }
   std::vector<std::shared_ptr<arrow::Array>> arrays;
 
@@ -266,13 +268,13 @@ std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
     switch (typevec[i]) {
       case arrow::BooleanType::type_id: {
         arrow::ArrayData out_data;
-        out_data.length = num_rows_;
+        out_data.length = num_rows;
         out_data.buffers.resize(2);
         out_data.type = arrow::TypeTraits<arrow::BooleanType>::type_singleton();
         out_data.null_count = 0;
 
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBitmap(num_rows_, m_pool_));
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows_, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBitmap(num_rows, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows, m_pool_));
         auto validity_buffer = out_data.buffers[0]->mutable_data();
         // initialize all true once allocated
         memset(validity_buffer, 0xff, out_data.buffers[0]->capacity());
@@ -282,14 +284,14 @@ std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id: {
         arrow::ArrayData out_data;
-        out_data.length = num_rows_;
+        out_data.length = num_rows;
         out_data.buffers.resize(3);
         out_data.type = field->type();
         out_data.null_count = 0;
         using offset_type = typename arrow::StringType::offset_type;
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows_, m_pool_));
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBuffer(sizeof(offset_type) * (num_rows_ + 1), m_pool_));
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[2], AllocateResizableBuffer(20 * num_rows_, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBuffer(sizeof(offset_type) * (num_rows + 1), m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[2], AllocateResizableBuffer(20 * num_rows, m_pool_));
         auto validity_buffer = out_data.buffers[0]->mutable_data();
         // initialize all true once allocated
         memset(validity_buffer, 0xff, out_data.buffers[0]->capacity());
@@ -302,12 +304,12 @@ std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
         int32_t scale = dtype->scale();
 
         arrow::ArrayData out_data;
-        out_data.length = num_rows_;
+        out_data.length = num_rows;
         out_data.buffers.resize(2);
         out_data.type = arrow::decimal128(precision, scale);
         out_data.null_count = 0;
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBuffer(16 * num_rows_, m_pool_));
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows_, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBuffer(16 * num_rows, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows, m_pool_));
         auto validity_buffer = out_data.buffers[0]->mutable_data();
         // initialize all true once allocated
         memset(validity_buffer, 0xff, out_data.buffers[0]->capacity());
@@ -316,12 +318,12 @@ std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
       }
       default: {
         arrow::ArrayData out_data;
-        out_data.length = num_rows_;
+        out_data.length = num_rows;
         out_data.buffers.resize(2);
         out_data.type = field->type();
         out_data.null_count = 0;
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBuffer(typewidth[i] * num_rows_, m_pool_));
-        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows_, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[1], AllocateBuffer(typewidth[i] * num_rows, m_pool_));
+        GLUTEN_ASSIGN_OR_THROW(out_data.buffers[0], AllocateBitmap(num_rows, m_pool_));
         auto validity_buffer = out_data.buffers[0]->mutable_data();
         // initialize all true once allocated
         memset(validity_buffer, 0xff, out_data.buffers[0]->capacity());
@@ -333,13 +335,13 @@ std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
 
   const int32_t kBatchRowNum = 16;
   int row = 0;
-  for (; row + kBatchRowNum < num_rows_; row += kBatchRowNum) {
+  for (; row + kBatchRowNum < num_rows; row += kBatchRowNum) {
     GLUTEN_THROW_NOT_OK(CreateArrayData(
         row,
         schema_,
         kBatchRowNum,
-        offsets_,
-        memory_address_,
+        offsets,
+        memory_address,
         support_avx512_,
         typevec,
         typewidth,
@@ -347,13 +349,13 @@ std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
         num_fields,
         field_offset_vec));
   }
-  for (; row < num_rows_; row++) {
+  for (; row < num_rows; row++) {
     GLUTEN_THROW_NOT_OK(CreateArrayData(
         row,
         schema_,
         1,
-        offsets_,
-        memory_address_,
+        offsets,
+        memory_address,
         support_avx512_,
         typevec,
         typewidth,
@@ -367,7 +369,7 @@ std::shared_ptr<arrow::RecordBatch> RowToColumnarConverter::convert() {
     arrays.push_back(array);
   }
 
-  return arrow::RecordBatch::Make(schema_, num_rows_, arrays);
+  return arrow::RecordBatch::Make(schema_, num_rows, arrays);
 }
 
 } // namespace gluten

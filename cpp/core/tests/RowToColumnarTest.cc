@@ -32,7 +32,39 @@
 
 namespace gluten {
 
-class Row2ColumnarTest : public ::testing::Test {};
+class Row2ColumnarTest : public ::testing::Test {
+ public:
+  void testRecordBatchEqual(
+      std::shared_ptr<arrow::RecordBatch> input_batch,
+      uint8_t* expect_arr = nullptr,
+      size_t expect_arr_length = 0) {
+    auto columnarToRowConverter =
+        std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+
+    GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
+    GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+
+    int64_t num_rows = input_batch->num_rows();
+    uint8_t* address = columnarToRowConverter->GetBufferAddress();
+    auto length_vec = columnarToRowConverter->GetLengths();
+    if (expect_arr_length != 0) {
+      for (int i = 0; i < expect_arr_length; i++) {
+        ASSERT_EQ(*(address + i), *(expect_arr + i));
+      }
+    }
+    long arr[length_vec.size()];
+    for (int i = 0; i < length_vec.size(); i++) {
+      arr[i] = length_vec[i];
+    }
+    long* lengthPtr = arr;
+
+    std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
+        std::make_shared<RowToColumnarConverter>(input_batch->schema());
+
+    auto rb = row_to_columnar_converter->convert(num_rows, lengthPtr, address);
+    ASSERT_TRUE(rb->Equals(*input_batch));
+  }
+};
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultForInt_64) {
   const std::vector<std::string> input_data = {"[1, 2, 3]"};
@@ -41,28 +73,7 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultForInt_64) {
   auto schema = arrow::schema({f_int64});
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-  auto length_vec = columnarToRowConverter->GetLengths();
-
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch);
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResult) {
@@ -84,29 +95,7 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResult) {
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-  auto length_vec = columnarToRowConverter->GetLengths();
-
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch);
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultForInt_64_twoColumn) {
@@ -120,29 +109,7 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultForInt_64_twoColum
   auto schema = arrow::schema({f_int64_col0, f_int64_col1});
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch);
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_int8_int16) {
@@ -158,36 +125,12 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_int8_int16)
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
 
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
 
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_int32_int64) {
@@ -202,37 +145,11 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_int32_int64
   auto schema = arrow::schema({f_int32, f_int64});
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
-
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_float_double) {
@@ -248,34 +165,9 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_float_doubl
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
 
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 240, 63,
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   64};
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
-
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_bool_binary) {
@@ -290,37 +182,11 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_bool_binary
   auto schema = arrow::schema({f_bool, f_binary});
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 24, 0, 0, 0, 97, 97, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 24, 0, 0, 0, 98, 98, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
-
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_decimal_string) {
@@ -333,36 +199,12 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_decimal_str
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
 
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 24, 0, 0, 0, 97, 97, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 200, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 24, 0, 0, 0, 98, 98, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
 
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_int64_int64_with_null) {
@@ -377,36 +219,11 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_int64_int64
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
 
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {
       3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
-
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_string) {
@@ -419,36 +236,12 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_string) {
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
 
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0, 0, 0, 97, 97, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0, 0, 0, 98, 98, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
 
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_bool) {
@@ -463,36 +256,10 @@ TEST_F(Row2ColumnarTest, TestArrowColumnarToRowConverterResultBuffer_bool) {
   auto schema = arrow::schema({f_bool});
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-
   uint8_t expect_arr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
-  }
-
-  auto length_vec = columnarToRowConverter->GetLengths();
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch, expect_arr, sizeof(expect_arr));
 }
 
 TEST_F(Row2ColumnarTest, allTypes) {
@@ -522,28 +289,7 @@ TEST_F(Row2ColumnarTest, allTypes) {
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-  auto length_vec = columnarToRowConverter->GetLengths();
-
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch);
 }
 
 TEST_F(Row2ColumnarTest, allTypes_18rows) {
@@ -576,28 +322,7 @@ TEST_F(Row2ColumnarTest, allTypes_18rows) {
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
-
-  auto columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
-
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
-
-  int64_t num_rows = input_batch->num_rows();
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
-  auto length_vec = columnarToRowConverter->GetLengths();
-
-  long arr[length_vec.size()];
-  for (int i = 0; i < length_vec.size(); i++) {
-    arr[i] = length_vec[i];
-  }
-  long* lengthPtr = arr;
-
-  std::shared_ptr<RowToColumnarConverter> row_to_columnar_converter =
-      std::make_shared<RowToColumnarConverter>(schema, num_rows, lengthPtr, address);
-
-  auto rb = row_to_columnar_converter->convert();
-  ASSERT_TRUE(rb->Equals(*input_batch));
+  testRecordBatchEqual(input_batch);
 }
 
 } // namespace gluten
