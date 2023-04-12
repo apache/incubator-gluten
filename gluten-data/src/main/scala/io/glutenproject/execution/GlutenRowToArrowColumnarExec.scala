@@ -18,12 +18,10 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
-
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowAbiUtil
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, SpecializedGetters, UnsafeRow}
@@ -32,15 +30,15 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.{broadcast, TaskContext}
+import org.apache.spark.{TaskContext, broadcast}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.utils.SparkArrowUtil
 import io.glutenproject.vectorized._
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.memory.ArrowBuf
-
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.unsafe.Platform
+import org.apache.spark.util.memory.TaskMemoryResources
 
 class RowToColumnConverter(schema: StructType) extends Serializable {
   private val converters = schema.fields.map {
@@ -316,7 +314,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
 
       var closed = false
 
-      TaskContext.get().addTaskCompletionListener[Unit](_ => {
+      TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
         if (!closed) {
           jniWrapper.close(r2cId)
           closed = true
@@ -337,7 +335,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
 
           def nativeConvert(row: UnsafeRow): ColumnarBatch = {
             var arrowBuf: ArrowBuf = null
-            TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
               // Remind, remove isOpen here
               if (arrowBuf != null && arrowBuf.refCnt() == 0) {
                 arrowBuf.close()
