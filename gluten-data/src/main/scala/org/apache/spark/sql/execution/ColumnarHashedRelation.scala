@@ -142,7 +142,7 @@ object ColumnarHashedRelation {
         case e: Exception =>
           // We should suppress all possible errors in Cleaner to prevent JVM from being shut down
           // scalastyle:off println
-          System.err.println("ColumnarHashedRelation: Error running deaallocator")
+          System.err.println("ColumnarHashedRelation: Error running deallocator")
           // scalastyle:on println
           e.printStackTrace()
       }
