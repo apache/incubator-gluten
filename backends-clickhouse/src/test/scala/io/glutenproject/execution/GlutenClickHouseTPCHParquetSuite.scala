@@ -711,6 +711,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("Bug-398 collec_list failure") {
+    val sql =
+      """
+        |select n_regionkey, collect_list(if(n_regionkey=0, n_name, null)) as t from nation group by n_regionkey
+        |order by n_regionkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
