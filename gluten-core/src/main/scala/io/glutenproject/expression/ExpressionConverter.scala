@@ -447,30 +447,22 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             attributeSeq),
           u)
       case b: BinaryExpression =>
-        val rescaleBinary = b match {
-          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic)
-            && !conf.decimalOperationsAllowPrecisionLoss =>
-            throw new UnsupportedOperationException(
-              s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} false mode")
-          case arith: BinaryArithmetic if isDecimalArithmetic(arith) &&
-            BackendsApiManager.getSettings.rescaleDecimalLiteral() =>
-            rescaleLiteral(arith)
-          case _ => b
-        }
-        val newLeft = rescaleBinary match {
-          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic) =>
-            removeCastForDecimal(rescaleBinary.left)
-          case _ => rescaleBinary.left
-        }
-        val newRight = rescaleBinary match {
-          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic) =>
-            removeCastForDecimal(rescaleBinary.right)
-          case _ => rescaleBinary.right
-        }
-        val (newLeft1, newRight1) = b match {
-          case arithmetic: BinaryArithmetic if isDecimalArithmetic(arithmetic) =>
-            rescaleCastForDecimal(newLeft, newRight)
-          case _ => (b.left, b.right)
+        val idDecimalArithmetic = b.isInstanceOf[BinaryArithmetic]&&
+          isDecimalArithmetic(b.asInstanceOf[BinaryArithmetic])
+        val (newLeft1, newRight1) = if (idDecimalArithmetic) {
+          val rescaleBinary = b match {
+            case _: BinaryArithmetic if !conf.decimalOperationsAllowPrecisionLoss =>
+              throw new UnsupportedOperationException(
+                s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} false mode")
+            case arith: BinaryArithmetic if
+              BackendsApiManager.getSettings.rescaleDecimalLiteral() =>
+              rescaleLiteral(arith)
+            case _ => b
+          }
+          rescaleCastForDecimal(removeCastForDecimal(rescaleBinary.left),
+            removeCastForDecimal(rescaleBinary.right))
+        } else {
+          (b.left, b.right)
         }
 
         BinaryExpressionTransformer(
