@@ -185,10 +185,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
       // Add groupID col index
       if (SQLConf.get.integerGroupingIdEnabled) {
+        // scalastyle:off
         // When 'integerGroupingIdEnabled' set, groupID is integer type but velox always gerenate long type value.
         // Convert result to fix test case 'SPARK-30279 Support 32 or more grouping attributes for GROUPING_ID()'.
+        // scalastyle:on
         val typeNode = ConverterUtils.getTypeNode(DataTypes.IntegerType, false)
-        selectNodes.add(ExpressionBuilder.makeCast(typeNode, ExpressionBuilder.makeSelection(projections(0).size - 1), SQLConf.get.ansiEnabled))
+        selectNodes.add(ExpressionBuilder.makeCast(typeNode,
+          ExpressionBuilder.makeSelection(projections(0).size - 1), SQLConf.get.ansiEnabled))
       } else {
         selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
       }
@@ -220,6 +223,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       return false
     }
     if (projections.isEmpty) {
+      return false
+    }
+
+    // Fallback if projections have scalar function, which is not supported currently.
+    if (projections.exists(
+          _.exists(expr => !expr.isInstanceOf[Attribute] && !expr.isInstanceOf[Literal]))) {
+      logWarning("There are scalar functions in expand node, which is not supported currently.")
       return false
     }
 
