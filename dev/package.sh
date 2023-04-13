@@ -44,7 +44,6 @@ elif [ "$LINUX_OS" == "centos" ]; then
   elif [ "$VERSION" == "7" ]; then
     process_setup_centos_7
   fi
-fi
 elif [ "$LINUX_OS" == "alinux" ]; then
   if [ "$VERSION" == "3" ]; then
     process_setup_centos_8
