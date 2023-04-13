@@ -1009,7 +1009,7 @@ arrow::Status ArrowShuffleWriter::SplitFixedWidthValueBuffer(const arrow::Record
         }
 #elif defined(__aarch64__)
       case 128:
-        SplitFixedType<uint32x4_t>(src_addr, dst_addrs);
+        RETURN_NOT_OK(SplitFixedType<uint32x4_t>(src_addr, dst_addrs));
 #endif
         break;
       case 1: // arrow::BooleanType::type_id:

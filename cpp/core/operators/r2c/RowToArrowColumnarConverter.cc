@@ -25,9 +25,11 @@
 #include <arrow/type.h>
 #include <arrow/util/bit_util.h>
 #include <arrow/util/decimal.h>
-
+#if defined(__x86_64__)
 #include <immintrin.h>
 #include <x86intrin.h>
+#endif
+
 #include <algorithm>
 
 #include "utils/exception.h"
@@ -203,7 +205,11 @@ inline arrow::Status CreateArrayData(
             const uint8_t* srcptr = (memory_address + offsets[position] + fieldOffset);
             bool is_null = IsNull(memory_address + offsets[position], columnar_id);
             auto mask = (1L << (typewidth[columnar_id])) - 1;
+#if defined(__x86_64__)
             auto shift = _tzcnt_u32(typewidth[columnar_id]);
+#else
+            auto shift = __builtin_ctz((uint32_t)typewidth[columnar_id]);
+#endif
             uint8_t* destptr = array_data + (position << shift);
             if (!is_null) {
 #ifdef __AVX512BW__
@@ -235,7 +241,10 @@ inline arrow::Status CreateArrayData(
 
 std::shared_ptr<arrow::RecordBatch>
 RowToColumnarConverter::convert(int64_t num_rows, int64_t* row_length, uint8_t* memory_address) {
+  support_avx512_ = false;
+#if defined(__x86_64__)
   support_avx512_ = __builtin_cpu_supports("avx512bw");
+#endif
   auto num_fields = schema_->num_fields();
   int64_t nullBitsetWidthInBytes = CalculateBitSetWidthInBytes(num_fields);
   std::vector<int64_t> offsets;
