@@ -11,10 +11,18 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | build_jemalloc   | build with jemalloc | ON |
 | build_protobuf | build protobuf lib    | ON|
 | enable_qat | enable QAT for shuffle data de/compression| OFF|
+| enable_iaa | enable IAA for shuffle data de/compression| OFF|
 | enable_hbm | enable HBM allocator      | OFF|
 | enable_s3   | build with s3 lib        | OFF|
 | enable_hdfs | build with hdfs lib      | OFF|
 | enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
+
+#### Parameters for get_arrow.sh
+Please set them via `--`, e.g., `--enable_custom_codec=ON`.
+
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| enable_custom_codec | Apply patch to plugin custom codec (used by QAT/IAA) in Arrow cpp IPC module. | OFF |
 
 #### Parameters for build_arrow.sh
 Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.

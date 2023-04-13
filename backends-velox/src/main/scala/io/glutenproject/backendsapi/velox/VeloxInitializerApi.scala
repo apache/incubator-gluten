@@ -25,6 +25,8 @@ import org.apache.spark.SparkConf
 
 import scala.sys.process._
 
+import java.util.Locale
+
 class VeloxInitializerApi extends InitializerApi {
   def loadLibFromJar(load: JniLibLoader): Unit = {
       val system = "cat /etc/os-release".!!
@@ -53,7 +55,8 @@ class VeloxInitializerApi extends InitializerApi {
       .loadAndCreateLink("libarrow.so.1100.0.0", "libarrow.so.1100", false)
       .loadAndCreateLink("libparquet.so.1100.0.0", "libparquet.so.1100", false)
       .commit()
-    if (conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false)) {
+    if (conf.get(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
+      .toUpperCase(Locale.ROOT) == GlutenConfig.GLUTEN_QAT_BACKEND_NAME) {
       loader.newTransaction()
         .loadAndCreateLink("libqatzip.so.3.0.1", "libqatzip.so.3", false)
         .commit()
