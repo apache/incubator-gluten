@@ -82,6 +82,14 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ExpandRel& sexpand) {
   }
 }
 
+void VeloxBackend::setInputPlanNode(const ::substrait::GroupIdRel& sGroupId) {
+  if (sGroupId.has_input()) {
+    setInputPlanNode(sGroupId.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
 void VeloxBackend::setInputPlanNode(const ::substrait::SortRel& ssort) {
   if (ssort.has_input()) {
     setInputPlanNode(ssort.input());
@@ -200,6 +208,8 @@ void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.sort());
   } else if (srel.has_expand()) {
     setInputPlanNode(srel.expand());
+  } else if (srel.has_group_id()) {
+    setInputPlanNode(srel.group_id());
   } else if (srel.has_fetch()) {
     setInputPlanNode(srel.fetch());
   } else if (srel.has_window()) {

@@ -355,14 +355,32 @@ message ExchangeRel {
   }
 }
 
+message GroupIdRel {
+  RelCommon common = 1;
+  Rel input = 2;
+
+  repeated Expression aggregate_expressions = 3;
+
+  // A list of expression grouping that the aggregation measured should be calculated for.
+  repeated GroupSets groupings = 4;
+
+  message GroupSets {
+    repeated Expression groupSets_expressions = 1;
+  }
+
+  string group_name = 5;
+
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+}
+
 message ExpandRel {
   RelCommon common = 1;
   Rel input = 2;
-.
-  repeated Projections projections = 3;
 
-  message Projections {
-    repeated Expression project_expressions = 1;
+  repeated ProjectionSets projections = 3;
+
+  message ProjectionSets {
+    repeated Expression projectionSets_expressions = 1;
   }
 
   substrait.extensions.AdvancedExtension advanced_extension = 10;
@@ -396,9 +414,10 @@ message Rel {
     //Physical relations
     HashJoinRel hash_join = 13;
     MergeJoinRel merge_join = 14;
-    ExpandRel expand = 15;
+    GroupIdRel group_id = 15;
     WindowRel window = 16;
     GenerateRel generate = 17;
+    ExpandRel expand = 18;
   }
 }
 
