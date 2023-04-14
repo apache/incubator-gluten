@@ -87,10 +87,6 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
       conf.set("spark.sql.orc.enableVectorizedReader", "false")
       conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
     }
-    val hdfsUri = sc.hadoopConfiguration.get("fs.defaultFS", "hdfs://localhost:9000")
-    if (!conf.contains(GlutenConfig.SPARK_HDFS_URI)) {
-      conf.set(GlutenConfig.SPARK_HDFS_URI, hdfsUri)
-    }
   }
 }
 
