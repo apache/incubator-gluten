@@ -308,8 +308,6 @@ object GlutenConfig {
 
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
-  val HDFS_URI = "fs.defaultFS"
-  val SPARK_HDFS_URI: String = HADOOP_PREFIX + HDFS_URI
 
   // S3 config
   val S3_ACCESS_KEY = "fs.s3a.access.key"
@@ -434,7 +432,6 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SPARK_HDFS_URI, "hdfs://localhost:9000"),
       (SPARK_S3_ACCESS_KEY, "minio"),
       (SPARK_S3_SECRET_KEY, "miniopass"),
       (SPARK_S3_ENDPOINT, "localhost:9000"),

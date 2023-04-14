@@ -173,33 +173,10 @@ make -j
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
 ```
-Gluten HDFS support requires Hdfs URI, you can define this config in three ways:
+It is supported to access data on different HDFS endpoints.
+The endpoint info (hdfs://host:port) contained in a given hdfs file path will be used to initialize an hdfs client.
 
-1. spark-defaults.conf
-
-```
-spark.hadoop.fs.defaultFS hdfs://hdfshost:9000
-```
-
-2. envrionment variable `VELOX_HDFS`
-```
-// Spark local mode
-export VELOX_HDFS="hdfs://hdfshost:9000"
-
-// Spark Yarn cluster mode
---conf spark.executorEnv.VELOX_HDFS="hdfs://hdfshost:9000"
-```
-
-3. Hadoop's `core-site.xml` (recomended)
-```
-<property>
-   <name>fs.defaultFS</name>
-   <value>hdfs://hdfshost:9000</value>
-</property>
-```
-If Gluten is used in a fully-prepared Hadoop cluster, we recommend to use Hadoop's config.
-
-If your HDFS is in HA mode, you need to set the LIBHDFS3_CONF environment variable to specify the hdfs client configuration file.
+If your HDFS is in HA mode, you need to set the `LIBHDFS3_CONF` environment variable to specify hdfs client configuration file.
 
 ```
 // Spark local mode
