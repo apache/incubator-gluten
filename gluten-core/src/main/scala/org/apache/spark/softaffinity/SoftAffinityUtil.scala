@@ -21,10 +21,11 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.GlutenMergeTreePartition
 import io.glutenproject.softaffinity.SoftAffinityManager
 import io.glutenproject.utils.LogLevelUtil
+import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
 import org.apache.spark.sql.execution.datasources.FilePartition
 
-object SoftAffinityUtil extends LogLevelUtil {
+object SoftAffinityUtil extends LogLevelUtil with Logging {
 
   private lazy val softAffinityLogLevel = GlutenConfig.getConf.softAffinityLogLevel
 
