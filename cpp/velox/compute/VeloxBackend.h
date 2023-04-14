@@ -50,6 +50,10 @@ class VeloxBackend final : public Backend {
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
 
+  std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
+      MemoryAllocator* allocator,
+      struct ArrowSchema* cSchema) override;
+
   std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       const std::string& partitioning_name,
       int num_partitions,

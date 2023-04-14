@@ -17,24 +17,25 @@
 
 #pragma once
 
-#include <arrow/record_batch.h>
+#include <arrow/c/abi.h>
+#include "memory/ColumnarBatch.h"
+#include "utils/exception.h"
 
 namespace gluten {
 
 class RowToColumnarConverter {
  public:
-  RowToColumnarConverter(
-      std::shared_ptr<arrow::Schema> schema,
-      arrow::MemoryPool* memory_pool = arrow::default_memory_pool())
-      : schema_(schema), m_pool_(memory_pool) {}
+  RowToColumnarConverter(struct ArrowSchema* cSchema) {}
 
-  std::shared_ptr<arrow::RecordBatch> convert(int64_t num_rows, int64_t* row_length, uint8_t* memory_address);
+  virtual ~RowToColumnarConverter() = default;
+
+  virtual std::shared_ptr<ColumnarBatch> convert(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress) {
+    throw GlutenException("Not implement row to column");
+  };
 
  protected:
   // Check whether support AVX512 instructions
-  bool support_avx512_;
-  std::shared_ptr<arrow::Schema> schema_;
-  arrow::MemoryPool* m_pool_;
+  bool supportAvx512_;
 };
 
 } // namespace gluten

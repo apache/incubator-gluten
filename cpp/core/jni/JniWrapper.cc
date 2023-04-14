@@ -25,7 +25,6 @@
 #include "jni/ConcurrentMap.h"
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
-#include "operators/r2c/RowToArrowColumnarConverter.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/reader.h"
 
@@ -557,13 +556,8 @@ Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_init(JNIEnv* env,
   if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
-  // TODO: this will core dump now, because pool will be destroyed before allocated buffer
-  // auto pool = AsWrappedArrowMemoryPool(allocator);
-  auto pool = GetDefaultWrappedArrowMemoryPool();
-  std::shared_ptr<arrow::Schema> schema =
-      gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-
-  auto converter = std::make_shared<gluten::RowToColumnarConverter>(schema, pool.get());
+  auto backend = gluten::CreateBackend();
+  auto converter = backend->getRowToColumnarConverter(allocator, reinterpret_cast<struct ArrowSchema*>(cSchema));
   return row_to_columnar_converter_holder_.Insert(converter);
   JNI_METHOD_END(-1)
 }
@@ -583,12 +577,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniW
   uint8_t* address = reinterpret_cast<uint8_t*>(memory_address);
 
   auto converter = row_to_columnar_converter_holder_.Lookup(r2cId);
-  auto rb = converter->convert(num_rows, in_row_length, address);
-  std::unique_ptr<ArrowSchema> cArrowSchema = std::make_unique<ArrowSchema>();
-  std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
-  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*rb, cArray.get(), cArrowSchema.get()));
-  auto cb = std::make_shared<ArrowCStructColumnarBatch>(std::move(cArrowSchema), std::move(cArray));
-  env->ReleaseLongArrayElements(row_length, in_row_length, JNI_ABORT);
+  auto cb = converter->convert(num_rows, in_row_length, address);
   return gluten_columnarbatch_holder_.Insert(cb);
   JNI_METHOD_END(-1)
 }
