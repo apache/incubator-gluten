@@ -21,32 +21,31 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.types.DataType
 
 object AggregateFunctionsBuilder {
-
-  val veloxCorrIntermediateDataOrder = Seq("ck", "n", "xMk", "yMk", "xAvg", "yAvg")
-  val veloxCovarIntermediateDataOrder = Seq("ck", "n", "xAvg", "yAvg")
-
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    val substraitAggFuncName =
-      ExpressionMappings.aggregate_functions_map.getOrElse(aggregateFunc.getClass,
-        ExpressionMappings.getAggSigOther(aggregateFunc.prettyName))
-    // Check whether Gluten supports this aggregate function
+    val substraitAggFuncName = ExpressionMappings.aggregate_functions_map.getOrElse(
+      aggregateFunc.getClass, ExpressionMappings.getAggSigOther(aggregateFunc.prettyName))
+    // Check whether Gluten supports this aggregate function.
     if (substraitAggFuncName.isEmpty) {
       throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
-    // Check whether each backend supports this aggregate function
+    // Check whether each backend supports this aggregate function.
     if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
-      substraitAggFuncName, aggregateFunc )) {
+      substraitAggFuncName, aggregateFunc)) {
       throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
+
+    val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
+
     ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(
         substraitAggFuncName,
-        aggregateFunc.children.map(child => child.dataType),
+        inputTypes,
         FunctionConfig.REQ))
   }
 }

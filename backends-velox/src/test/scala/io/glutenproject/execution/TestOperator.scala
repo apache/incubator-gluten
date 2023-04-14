@@ -161,23 +161,77 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("count") {
-    val df = runQueryAndCompare("select count(*) from lineitem " +
-      "where l_partkey in (1552, 674, 1062)") {
-      _ =>
-    }
-    checkLengthAndPlan(df, 1)
+    val df = runQueryAndCompare(
+      "select count(*) from lineitem where l_partkey in (1552, 674, 1062)") {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer] }
+    runQueryAndCompare(
+      "select count(l_quantity), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("avg") {
-    val df = runQueryAndCompare("select avg(l_partkey) from lineitem " +
-      "where l_partkey < 1000") { _ => }
-    checkLengthAndPlan(df, 1)
+    val df = runQueryAndCompare(
+      "select avg(l_partkey) from lineitem where l_partkey < 1000") {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer] }
+    runQueryAndCompare(
+      "select avg(l_quantity), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "select avg(cast (l_quantity as DECIMAL(12, 2))), " +
+        "count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "select avg(cast (l_quantity as DECIMAL(22, 2))), " +
+        "count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("sum") {
-    val df = runQueryAndCompare("select sum(l_partkey) from lineitem " +
-      "where l_partkey < 2000") { _ => }
-    checkLengthAndPlan(df, 1)
+    runQueryAndCompare(
+      "select sum(l_partkey) from lineitem where l_partkey < 2000") {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select sum(l_quantity), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "select sum(cast (l_quantity as DECIMAL(22, 2))) from lineitem") {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select sum(cast (l_quantity as DECIMAL(12, 2))), " +
+        "count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "select sum(cast (l_quantity as DECIMAL(22, 2))), " +
+        "count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+  }
+
+  test("min and max") {
+    runQueryAndCompare(
+      "select min(l_partkey), max(l_partkey) from lineitem where l_partkey < 2000") {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select min(l_partkey), max(l_partkey), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("groupby") {
@@ -328,7 +382,7 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("union_all three tables") {
-    val df = runQueryAndCompare(
+    runQueryAndCompare(
       """
         |select count(orderkey) from (
         | select l_orderkey as orderkey from lineitem
@@ -383,6 +437,11 @@ class TestOperator extends WholeStageTransformerSuite {
         |""".stripMargin) {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
+    runQueryAndCompare(
+      "select stddev_samp(l_quantity), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("round") {
@@ -408,6 +467,11 @@ class TestOperator extends WholeStageTransformerSuite {
         |""".stripMargin) {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
+    runQueryAndCompare(
+      "select stddev_pop(l_quantity), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("var_samp") {
@@ -424,6 +488,11 @@ class TestOperator extends WholeStageTransformerSuite {
         |""".stripMargin) {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
+    runQueryAndCompare(
+      "select var_samp(l_quantity), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("var_pop") {
@@ -440,6 +509,11 @@ class TestOperator extends WholeStageTransformerSuite {
         |""".stripMargin) {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
+    runQueryAndCompare(
+      "select var_pop(l_quantity), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("bit_and and bit_or") {
@@ -451,12 +525,22 @@ class TestOperator extends WholeStageTransformerSuite {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
     runQueryAndCompare(
+      "select bit_and(l_linenumber), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
       """
         |select bit_or(l_linenumber) from lineitem
         |group by l_orderkey;
         |""".stripMargin) {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
+    runQueryAndCompare(
+      "select bit_or(l_linenumber), count(distinct l_partkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("bool scan") {
@@ -491,26 +575,39 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("corr covar_pop covar_samp") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select corr(l_partkey, l_suppkey) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select covar_pop(l_partkey, l_suppkey) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select covar_samp(l_partkey, l_suppkey) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
+    runQueryAndCompare(
+      """
+        |select corr(l_partkey, l_suppkey) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
+    runQueryAndCompare(
+      "select corr(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      """
+        |select covar_pop(l_partkey, l_suppkey) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select covar_pop(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      """
+        |select covar_samp(l_partkey, l_suppkey) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select covar_samp(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
   }
 
   test("Cast double to decimal") {
@@ -520,5 +617,16 @@ class TestOperator extends WholeStageTransformerSuite {
       .select(col("DecimalCol")).agg(avg($"DecimalCol"))
     assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
     checkOperatorMatch[GlutenHashAggregateExecTransformer](result)
+  }
+
+  test("corr distinct") {
+    Seq((1, 1), (2, 2), (2, 2))
+      .toDF("a", "b").createOrReplaceTempView("view")
+    runQueryAndCompare("SELECT corr(DISTINCT a, b)," +
+      "corr(DISTINCT b, a), count(*) FROM view") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+      }) == 4)
+    }}
   }
 }

@@ -96,7 +96,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   try {
     return planValidator.validate(subPlan);
   } catch (std::invalid_argument& e) {
-    LOG(INFO) << "Faled to validate substrait plan because " << e.what();
+    LOG(INFO) << "Failed to validate substrait plan because " << e.what();
     return false;
   }
   JNI_METHOD_END(false)
