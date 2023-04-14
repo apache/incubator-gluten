@@ -22,6 +22,7 @@ import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
@@ -29,9 +30,7 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import io.substrait.proto.JoinRel
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -101,12 +100,13 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
 trait HashJoinLikeExecTransformer
-  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin {
+  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin with GlutenPlan {
 
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetrics(sparkContext)
 
   // Whether the left and right side should be exchanged.
@@ -216,9 +216,7 @@ trait HashJoinLikeExecTransformer
       this
   }
 
-  override def getChild: SparkPlan = streamedPlan
-
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
@@ -237,7 +235,8 @@ trait HashJoinLikeExecTransformer
         buildPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
     // Then, validate the generated plan in native engine.
@@ -290,6 +289,14 @@ trait HashJoinLikeExecTransformer
     }
     if (JoinUtils.preProjectionNeeded(buildKeyExprs)) {
       joinParams.buildPreProjectionNeeded = true
+    }
+
+    if (!condition.isEmpty) {
+      joinParams.isWithCondition = true
+    }
+
+    if (this.isInstanceOf[BroadcastHashJoinExecTransformer]) {
+      joinParams.isBHJ = true
     }
 
     val joinRel = JoinUtils.createJoinRel(

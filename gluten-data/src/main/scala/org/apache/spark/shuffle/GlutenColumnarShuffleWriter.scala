@@ -18,18 +18,18 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
-
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SparkDirectoryUtil, Utils}
+
+import java.util.UUID
 
 class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
                                         handle: BaseShuffleHandle[K, V, V],
@@ -51,20 +51,22 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private var mapStatus: MapStatus = _
 
-  private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
+  private val localDirs = SparkDirectoryUtil
+    .namespace("shuffle-write")
+    .mkChildDirs(UUID.randomUUID().toString)
+    .map(_.getAbsolutePath)
+    .mkString(",")
 
-  private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
-  private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum
+  private val offHeapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-    val enableQat = conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false) &&
-      GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC.contains(codec)
-    if (enableQat) {
+    if (GlutenConfig.getConf.columnarShuffleEnableQat) {
       GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
+    } else if (GlutenConfig.getConf.columnarShuffleEnableIaa) {
+      GlutenConfig.GLUTEN_IAA_CODEC_PREFIX + codec
     } else {
       codec
     }
@@ -77,15 +79,17 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
 
-  private val jniWrapper = new ShuffleSplitterJniWrapper
+  private val jniWrapper = new ShuffleWriterJniWrapper
 
-  private var nativeSplitter: Long = 0
+  private var nativeShuffleWriter: Long = 0
 
   private var splitResult: SplitResult = _
 
   private var partitionLengths: Array[Long] = _
 
   private var rawPartitionLengths: Array[Long] = _
+
+  private val taskContext: TaskContext = TaskContext.get()
 
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
@@ -109,10 +113,10 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val handle = GlutenColumnarBatches.getNativeHandle(cb)
-        if (nativeSplitter == 0) {
-          nativeSplitter = jniWrapper.make(
+        if (nativeShuffleWriter == 0) {
+          nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
-            offheapPerTask,
+            offHeapPerTask,
             nativeBufferSize,
             customizedCompressionCodec,
             batchCompressThreshold,
@@ -123,24 +127,25 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
             NativeMemoryAllocators.createSpillable(
               new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
-                  if (nativeSplitter == 0) {
+                  if (nativeShuffleWriter == 0) {
                     throw new IllegalStateException(
-                      "Fatal: spill() called before a shuffle splitter " +
+                      "Fatal: spill() called before a shuffle shuffle writer " +
                       "evaluator is created. This behavior should be optimized by moving memory " +
                       "allocations from make() to split()")
                   }
                   logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
                   // fixme pass true when being called by self
-                  val spilled = jniWrapper.nativeSpill(nativeSplitter, size, false)
+                  val spilled = jniWrapper.nativeSpill(nativeShuffleWriter, size, false)
                   logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                   spilled
                 }
               }).getNativeInstanceId,
             writeSchema,
-            handle)
+            handle,
+            taskContext.taskAttemptId())
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeSplitter, cb.numRows, handle)
+        val bytes = jniWrapper.split(nativeShuffleWriter, cb.numRows, handle)
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
@@ -151,8 +156,8 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     }
 
     val startTime = System.nanoTime()
-    if (nativeSplitter != 0) {
-      splitResult = jniWrapper.stop(nativeSplitter)
+    if (nativeShuffleWriter != 0) {
+      splitResult = jniWrapper.stop(nativeShuffleWriter)
     }
 
     dep.metrics("splitTime").add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
@@ -191,8 +196,8 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     internalWrite(records)
   }
 
-  def closeSplitter(): Unit = {
-    jniWrapper.close(nativeSplitter)
+  def closeShuffleWriter(): Unit = {
+    jniWrapper.close(nativeShuffleWriter)
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {
@@ -207,9 +212,9 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         None
       }
     } finally {
-      if (nativeSplitter != 0) {
-        closeSplitter()
-        nativeSplitter = 0
+      if (nativeShuffleWriter != 0) {
+        closeShuffleWriter()
+        nativeShuffleWriter = 0
       }
     }
   }

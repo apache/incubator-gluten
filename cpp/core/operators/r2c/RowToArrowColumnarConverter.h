@@ -25,26 +25,15 @@ class RowToColumnarConverter {
  public:
   RowToColumnarConverter(
       std::shared_ptr<arrow::Schema> schema,
-      int64_t num_rows,
-      int64_t* row_length,
-      uint8_t* memory_address,
       arrow::MemoryPool* memory_pool = arrow::default_memory_pool())
-      : schema_(schema),
-        num_rows_(num_rows),
-        row_length_(row_length),
-        memory_address_(memory_address),
-        m_pool_(memory_pool) {}
+      : schema_(schema), m_pool_(memory_pool) {}
 
-  std::shared_ptr<arrow::RecordBatch> convert();
+  std::shared_ptr<arrow::RecordBatch> convert(int64_t num_rows, int64_t* row_length, uint8_t* memory_address);
 
  protected:
   // Check whether support AVX512 instructions
   bool support_avx512_;
   std::shared_ptr<arrow::Schema> schema_;
-  int64_t num_rows_;
-  int64_t* row_length_;
-  uint8_t* memory_address_;
-  std::vector<int64_t> offsets_;
   arrow::MemoryPool* m_pool_;
 };
 

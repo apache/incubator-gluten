@@ -27,7 +27,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
   with AdaptiveSparkPlanHelper {
 
   override protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries"
+    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
   override protected val queriesResults: String = rootPath + "tpcds-queries-output"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
@@ -42,7 +42,22 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.memory.offHeap.size", "3g")
   }
+
+  tpcdsAllQueries.foreach(
+    sql =>
+      if (!independentTestTpcdsQueries.contains(sql)) {
+        if (excludedTpcdsQueries.contains(sql)) {
+          ignore(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        } else {
+          ignore(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        }
+      })
 
   test("test reading from partitioned table") {
     val df = spark.sql("""
@@ -76,9 +91,45 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     assert(result(0).getDouble(1) == 80037.12727449503)
   }
 
+  test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
+    val testSql =
+      """
+        |select dt.d_year
+        |       ,sum(ss_ext_sales_price) sum_agg
+        | from  date_dim dt
+        |      ,store_sales
+        | where dt.d_date_sk = store_sales.ss_sold_date_sk
+        |   and dt.d_moy=12
+        | group by dt.d_year
+        | order by dt.d_year
+        |         ,sum_agg desc
+        |  LIMIT 100 ;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      testSql,
+      true,
+      df => {
+        val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(foundDynamicPruningExpr.size == 2)
+        assert(
+          foundDynamicPruningExpr(1)
+            .asInstanceOf[FileSourceScanExecTransformer]
+            .partitionFilters
+            .exists(_.isInstanceOf[DynamicPruningExpression]))
+        assert(
+          foundDynamicPruningExpr(1)
+            .asInstanceOf[FileSourceScanExecTransformer]
+            .selectedPartitions
+            .size == 1823)
+      }
+    )
+  }
+
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(9) {
+      runTPCDSQuery("q9") {
         df =>
           val subqueryAdaptiveSparkPlan = collectWithSubqueries(df.queryExecution.executedPlan) {
             case a: AdaptiveSparkPlanExec if a.isSubquery => true
@@ -94,7 +145,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
 
   test("TPCDS Q21") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
@@ -118,7 +169,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "false")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
@@ -140,7 +191,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
 
   test("TPCDS Q21 with non-separated scan rdd") {
     withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
@@ -158,5 +209,28 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
           assert(reusedExchangeExec.nonEmpty == true)
       }
     }
+  }
+
+  test("Gluten-1234: Fix error when executing hash agg after union all") {
+    val testSql =
+      """
+        |select channel, COUNT(*) sales_cnt, SUM(ext_sales_price) sales_amt FROM (
+        |  SELECT 'store' as channel, ss_ext_sales_price ext_sales_price
+        |  FROM store_sales, item, date_dim
+        |  WHERE ss_addr_sk IS NULL
+        |    AND ss_sold_date_sk=d_date_sk
+        |    AND ss_item_sk=i_item_sk
+        |  UNION ALL
+        |  SELECT 'web' as channel, ws_ext_sales_price ext_sales_price
+        |  FROM web_sales, item, date_dim
+        |  WHERE ws_web_page_sk IS NULL
+        |    AND ws_sold_date_sk=d_date_sk
+        |    AND ws_item_sk=i_item_sk
+        |  ) foo
+        |GROUP BY channel
+        |ORDER BY channel
+        | LIMIT 100 ;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(testSql, true, df => {})
   }
 }

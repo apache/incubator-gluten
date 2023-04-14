@@ -23,6 +23,8 @@ import io.glutenproject.execution._
 import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.aggregate.Count
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -159,41 +161,39 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     }
   }
 
-  def insertRowGuardRecursive(plan: SparkPlan): SparkPlan = {
+  def tagNotTransformableRecursive(plan: SparkPlan): SparkPlan = {
     plan match {
       case p: ShuffleExchangeExec =>
-        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
+        tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens)))
       case p: BroadcastExchangeExec =>
-        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
+        tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens)))
       case p: ShuffledHashJoinExec =>
-        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
+        tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableRecursive)))
       case p if !supportCodegen(p) =>
         // insert row guard them recursively
-        p.withNewChildren(p.children.map(insertRowGuardOrNot))
+        p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))
       case p if isAQEShuffleReadExec(p) =>
-        p.withNewChildren(p.children.map(insertRowGuardOrNot))
+        p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))
       case p: BroadcastQueryStageExec =>
         p
-      case p => tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
+      case p => tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableRecursive)))
     }
   }
 
-  def insertRowGuardOrNot(plan: SparkPlan): SparkPlan = {
+  def tagNotTransformableForMultiCodegens(plan: SparkPlan): SparkPlan = {
     plan match {
-      // For operators that will output domain object, do not insert WholeStageCodegen for it as
-      // domain object can not be written into unsafe row.
       case plan if existsMultiCodegens(plan) =>
-        insertRowGuardRecursive(plan)
+        tagNotTransformableRecursive(plan)
       case p: BroadcastQueryStageExec =>
         p
       case other =>
-        other.withNewChildren(other.children.map(insertRowGuardOrNot))
+        other.withNewChildren(other.children.map(tagNotTransformableForMultiCodegens))
     }
   }
 
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (physicalJoinOptimize) {
-      insertRowGuardOrNot(plan)
+      tagNotTransformableForMultiCodegens(plan)
     } else plan
   }
 }
@@ -217,14 +217,15 @@ case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan]
 case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
     case p =>
-      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
-        if (p.output.isEmpty) {
-          // Some backends are not eligible to offload zero-column plan so far
-          TransformHints.tagNotTransformable(p)
-        }
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema(p)) {
         if (p.children.exists(_.output.isEmpty)) {
-          // Some backends are also not eligible to offload plan within zero-column input so far
+          // Some backends are not eligible to offload plan with zero-column input.
+          // If any child have empty output, mark the plan and that child as UNSUPPORTED.
+          logWarning(s"May fallback ${p.getClass.toString} and its children because" +
+            s"at least one of its children has empty output.")
           TransformHints.tagNotTransformable(p)
+          p.children.foreach(child =>
+            if (child.output.isEmpty) TransformHints.tagNotTransformable(child))
         }
       }
       p
@@ -403,7 +404,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           } else {
             val transformer = ColumnarShuffleExchangeExec(
               plan.outputPartitioning,
-              plan.child)
+              plan.child,
+              plan.shuffleOrigin,
+              plan.child.output)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ShuffledHashJoinExec =>

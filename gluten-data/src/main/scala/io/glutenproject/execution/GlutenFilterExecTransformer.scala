@@ -35,7 +35,7 @@ case class GlutenFilterExecTransformer(condition: Expression,
                                       child: SparkPlan)
   extends FilterExecBaseTransformer(condition, child) with TransformSupport {
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val leftCondition = getLeftCondition
     if (leftCondition == null) {
       // All the filters can be pushed down and the computing of this Filter
@@ -50,7 +50,8 @@ case class GlutenFilterExecTransformer(condition: Expression,
         substraitContext, leftCondition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))

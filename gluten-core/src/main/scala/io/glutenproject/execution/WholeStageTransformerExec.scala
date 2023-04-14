@@ -21,13 +21,13 @@ import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -50,12 +50,33 @@ case class WholestageTransformContext(
     root: PlanNode,
     substraitContext: SubstraitContext = null)
 
-trait TransformSupport extends SparkPlan {
+trait TransformSupport extends SparkPlan with LogLevelUtil {
+
+  lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
+  lazy val printStackOnValidateFailure = GlutenConfig.getConf.printStackOnValidateFailure
 
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
-  def doValidate(): Boolean = false
+  final def doValidate(): Boolean = {
+    try {
+      TransformerState.enterValidation
+      doValidateInternal
+    } finally {
+      TransformerState.finishValidation
+    }
+  }
+
+  def doValidateInternal(): Boolean = false
+
+  def logValidateFailure(msg: => String, e: Throwable): Unit = {
+    if (printStackOnValidateFailure) {
+      logOnLevel(validateFailureLogLevel, msg, e)
+    } else {
+      logOnLevel(validateFailureLogLevel, msg)
+    }
+
+  }
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
@@ -68,8 +89,6 @@ trait TransformSupport extends SparkPlan {
   def getBuildPlans: Seq[(SparkPlan, SparkPlan)]
 
   def getStreamedLeafPlan: SparkPlan
-
-  def getChild: SparkPlan
 
   def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
@@ -89,11 +108,12 @@ trait TransformSupport extends SparkPlan {
 }
 
 case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode with TransformSupport with LogLevelUtil {
+  extends UnaryExecNode with TransformSupport with GlutenPlan with LogLevelUtil {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
   val sparkConf = sparkContext.getConf
@@ -147,13 +167,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
   }
 
+  // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
+  // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
+  // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
     child.asInstanceOf[TransformSupport].getBuildPlans
   }
-
-  override def getChild: SparkPlan = child
 
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException("Row based execution is not supported")
@@ -181,31 +202,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       childCtx.outputAttributes,
       planNode,
       substraitContext)
-  }
-
-  @deprecated
-  def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
-    var currentOp = child
-    while (
-      currentOp.isInstanceOf[TransformSupport] &&
-      !currentOp.isInstanceOf[BasicScanExecTransformer] &&
-      currentOp.asInstanceOf[TransformSupport].getChild != null
-    ) {
-      currentOp = currentOp.asInstanceOf[TransformSupport].getChild
-    }
-    if (
-      currentOp != null &&
-      currentOp.isInstanceOf[BasicScanExecTransformer]
-    ) {
-      currentOp match {
-        case op: BatchScanExecTransformer =>
-          Some(currentOp.asInstanceOf[BatchScanExecTransformer])
-        case op: FileSourceScanExecTransformer =>
-          Some(currentOp.asInstanceOf[FileSourceScanExecTransformer])
-      }
-    } else {
-      None
-    }
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformerExec */
@@ -298,7 +294,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       /**
        * the whole stage contains NO BasicScanExecTransformer. this the default case for:
-       *   1. SCAN with clickhouse backend (check ColumnarCollapseCodegenStages#separateScanRDD())
+       *   1. SCAN with clickhouse backend (check ColumnarCollapseTransformStages#separateScanRDD())
        *      2. test case where query plan is constructed from simple dataframes (e.g.
        *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked

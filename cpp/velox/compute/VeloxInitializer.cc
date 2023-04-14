@@ -21,9 +21,9 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "RegistrationAllFunctions.h"
-#include "VeloxBridge.h"
 #include "config/GlutenConfig.h"
 #include "velox/common/file/FileSystems.h"
+#include "velox/serializers/PrestoSerializer.h"
 #ifdef VELOX_ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #endif
@@ -34,6 +34,8 @@
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/exec/Operator.h"
+
+DECLARE_int32(split_preload_per_driver);
 
 using namespace facebook;
 
@@ -49,27 +51,6 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
 
 #ifdef VELOX_ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
-  std::unordered_map<std::string, std::string> hdfsConfig({});
-
-  std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
-  const char* envHdfsUri = std::getenv("VELOX_HDFS");
-  if (envHdfsUri != nullptr) {
-    hdfsUri = std::string(envHdfsUri);
-  }
-
-  auto hdfsHostWithPort = hdfsUri.substr(hdfsUri.find(':') + 3);
-  std::size_t pos = hdfsHostWithPort.find(':');
-  if (pos != std::string::npos) {
-    auto hdfsPort = hdfsHostWithPort.substr(pos + 1);
-    auto hdfsHost = hdfsHostWithPort.substr(0, pos);
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
-  } else {
-    // For HDFS HA mode. In this case, hive.hdfs.host should be the nameservice, we can
-    // get it from HDFS uri, and hive.hdfs.port should be an empty string, and the HDFS HA
-    // configurations should be taken from the LIBHDFS3_CONF file.
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHostWithPort}, {"hive.hdfs.port", ""}});
-  }
-  configurationValues.merge(hdfsConfig);
 #endif
 
 #ifdef VELOX_ENABLE_S3
@@ -112,18 +93,25 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
   configurationValues.merge(S3Config);
 #endif
 
+  InitCache(conf);
+
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
+  if (ioExecutor_) {
+    FLAGS_split_preload_per_driver = 0;
+  }
 
   registerConnector(hiveConnector);
   velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
   velox::dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   registerAllFunctions();
-
-  InitCache(conf);
+  if (!facebook::velox::isRegisteredVectorSerde()) {
+    // serde, for spill
+    facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
+  }
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
@@ -178,7 +166,12 @@ void VeloxInitializer::InitCache(std::unordered_map<std::string, std::string>& c
     velox::memory::MmapAllocator::Options options;
     options.capacity = memCacheSize;
     auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
-    asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+    if (ssdCacheSize == 0) {
+      LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
+      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, nullptr);
+    } else {
+      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+    }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))
     LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize

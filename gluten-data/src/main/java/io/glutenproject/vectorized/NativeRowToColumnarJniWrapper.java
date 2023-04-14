@@ -20,6 +20,8 @@ package io.glutenproject.vectorized;
 public class NativeRowToColumnarJniWrapper {
     public NativeRowToColumnarJniWrapper() {}
 
-    public native void nativeConvertRowToColumnar(
-            long cSchema, long[] rowLength, long bufferAddress, long cArrayOut, long allocId);
+    public native long init(long cSchema, long allocId);
+    public native long nativeConvertRowToColumnar(long r2CId, long[] rowLength, long bufferAddress);
+
+    public native void close(long r2cId);
 }

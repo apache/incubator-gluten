@@ -25,7 +25,7 @@ Many aspects of C++ coding style will be covered by clang-format, such as spacin
 line width, indentation and ordering (for includes, using directives and etc). 
 
 * Always ensure your code is compatible with clang-format.
-* `tools/formatcppcode.sh` is provided for formating CPP code.
+* `dev/formatcppcode.sh` is provided for formating CPP code.
 
 ## Naming Conventions
 

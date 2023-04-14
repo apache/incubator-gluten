@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -25,7 +26,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashJoin, HashedRelation, LongHashedRelation}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.util.ThreadUtils
 
@@ -36,7 +37,8 @@ case class ColumnarSubqueryBroadcastExec(name: String,
                                          index: Int,
                                          buildKeys: Seq[Expression],
                                          child: SparkPlan
-                                        ) extends BaseSubqueryExec with UnaryExecNode {
+                                        )
+    extends BaseSubqueryExec with UnaryExecNode with GlutenPlan {
 
   // `ColumnarSubqueryBroadcastExec` is only used with `InSubqueryExec`.
   // No one would reference this output,
@@ -52,7 +54,8 @@ case class ColumnarSubqueryBroadcastExec(name: String,
     Seq(AttributeReference(name, key.dataType, key.nullable)())
   }
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarSubqueryBroadcastMetrics(sparkContext)
 
   override def doCanonicalize(): SparkPlan = {

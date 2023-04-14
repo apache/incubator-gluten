@@ -41,6 +41,9 @@ object ExpressionMappings {
   final val VAR_POP = "var_pop"
   final val BIT_AND_AGG = "bitwise_and_agg"
   final val BIT_OR_AGG = "bitwise_or_agg"
+  final val CORR = "corr"
+  final val COVAR_POP = "covar_pop"
+  final val COVAR_SAMP = "covar_samp"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -65,6 +68,7 @@ object ExpressionMappings {
   final val IS_NOT_NULL = "is_not_null"
   final val IS_NULL = "is_null"
   final val NOT = "not"
+  final val IS_NAN = "isnan"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -173,12 +177,14 @@ object ExpressionMappings {
   final val ARRAY_CONTAINS = "array_contains"
   final val ARRAY_MAX = "array_max"
   final val ARRAY_MIN = "array_min"
+  final val SEQUENCE = "sequence"
 
   // Map functions
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
+  final val MAP_FROM_ARRAYS = "map_from_arrays"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"
@@ -198,7 +204,9 @@ object ExpressionMappings {
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
   final val EXPLODE = "explode"
+  final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
+  final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
   final val ROW_CONSTRUCTOR = "row_constructor"
 
@@ -212,6 +220,9 @@ object ExpressionMappings {
   final val ROW_NUMBER = "row_number"
   final val CUME_DIST = "cume_dist"
   final val PERCENT_RANK = "percent_rank"
+
+  // Decimal functions
+  final val UNSCALED_VALUE = "unscaled_value"
 
   /**
    * Mapping Spark scalar expression to Substrait function name
@@ -239,6 +250,7 @@ object ExpressionMappings {
     Sig[IsNotNull](IS_NOT_NULL),
     Sig[IsNull](IS_NULL),
     Sig[Not](NOT),
+    Sig[IsNaN](IS_NAN),
     // SparkSQL String functions
     Sig[Ascii](ASCII),
     Sig[Chr](CHR),
@@ -347,16 +359,19 @@ object ExpressionMappings {
     Sig[Size](SIZE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[PosExplode](POSEXPLODE),
     Sig[GetArrayItem](GET_ARRAY_ITEM),
     Sig[ElementAt](ELEMENT_AT),
     Sig[ArrayContains](ARRAY_CONTAINS),
     Sig[ArrayMax](ARRAY_MAX),
     Sig[ArrayMin](ARRAY_MIN),
+    Sig[Sequence](SEQUENCE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
     Sig[MapKeys](MAP_KEYS),
     Sig[MapValues](MAP_VALUES),
+    Sig[MapFromArrays](MAP_FROM_ARRAYS),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),
@@ -373,7 +388,10 @@ object ExpressionMappings {
     Sig[InSet](IN_SET),
     Sig[ScalarSubquery](SCALAR_SUBQUERY),
     Sig[CheckOverflow](CHECK_OVERFLOW),
-    Sig[PromotePrecision](PROMOTE_PRECISION)
+    Sig[MakeDecimal](MAKE_DECIMAL),
+    Sig[PromotePrecision](PROMOTE_PRECISION),
+    // Decimal
+    Sig[UnscaledValue](UNSCALED_VALUE)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
 
   /**
@@ -391,7 +409,10 @@ object ExpressionMappings {
     Sig[VarianceSamp](VAR_SAMP),
     Sig[VariancePop](VAR_POP),
     Sig[BitAndAgg](BIT_AND_AGG),
-    Sig[BitOrAgg](BIT_OR_AGG)
+    Sig[BitOrAgg](BIT_OR_AGG),
+    Sig[Corr](CORR),
+    Sig[CovPopulation](COVAR_POP),
+    Sig[CovSample](COVAR_SAMP)
   )
 
   /**

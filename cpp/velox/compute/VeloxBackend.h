@@ -26,43 +26,35 @@
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "operators/shuffle/SplitterBase.h"
+#include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxBackend final : public Backend {
  public:
-  VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {}
+  explicit VeloxBackend(const std::unordered_map<std::string, std::string>& confMap);
 
+  // FIXME This is not thread-safe?
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
-      std::unordered_map<std::string, std::string> sessionConf = {}) override;
+      const std::string& spillDir,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
+      const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
   // Used by unit test and benchmark.
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
-      std::unordered_map<std::string, std::string> sessionConf = {});
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
 
   arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
 
-  std::shared_ptr<SplitterBase> makeSplitter(
+  std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       const std::string& partitioning_name,
       int num_partitions,
-      SplitOptions options,
+      const SplitOptions& options,
       const std::string& batchType) override;
-
-  /// Separate the scan ids and stream ids, and get the scan infos.
-  void getInfoAndIds(
-      std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>>
-          splitInfoMap,
-      std::unordered_set<facebook::velox::core::PlanNodeId> leafPlanNodeIds,
-      std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
-      std::vector<facebook::velox::core::PlanNodeId>& scanIds,
-      std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
   std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResultIterator*>(raw_iter);
@@ -94,7 +86,7 @@ class VeloxBackend final : public Backend {
 
   void setInputPlanNode(const ::substrait::RelRoot& sroot);
 
-  std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlanNode(const ::substrait::Plan& splan);
+  void toVeloxPlan();
 
   std::string nextPlanNodeId();
 
@@ -108,11 +100,15 @@ class VeloxBackend final : public Backend {
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
 
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
-      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(GetDefaultWrappedVeloxMemoryPool());
+      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
+          GetDefaultWrappedVeloxMemoryPool().get());
 
   // Cache for tests/benchmark purpose.
-  std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
-  std::shared_ptr<arrow::Schema> output_schema_;
+  std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+  std::shared_ptr<arrow::Schema> outputSchema_;
+
+  // Memory pool options used to create mem pool for iterators.
+  facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
 };
 
 } // namespace gluten

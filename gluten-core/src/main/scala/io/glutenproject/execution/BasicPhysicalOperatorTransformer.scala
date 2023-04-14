@@ -21,7 +21,8 @@ import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer, TransformerState}
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
@@ -46,11 +47,13 @@ import scala.collection.JavaConverters._
 abstract class FilterExecBaseTransformer(val cond: Expression,
                                          val input: SparkPlan) extends UnaryExecNode
   with TransformSupport
+  with GlutenPlan
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
@@ -63,8 +66,6 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
   private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-
-  def doValidate(): Boolean
 
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
@@ -94,8 +95,6 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
-
-  override def getChild: SparkPlan = child
 
   def doTransform(context: SubstraitContext): TransformContext
 
@@ -154,7 +153,7 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecBaseTransformer(condition, child) {
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     if (condition == null) {
       // The computing of this Filter is not needed.
       return true
@@ -167,7 +166,8 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         substraitContext, condition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 
@@ -233,18 +233,20 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
 case class ProjectExecTransformer(projectList: Seq[NamedExpression],
                                   child: SparkPlan) extends UnaryExecNode
   with TransformSupport
+  with GlutenPlan
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId
@@ -253,8 +255,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         substraitContext, projectList, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} " +
-          s"due to ${e.getMessage} stack:${e.printStackTrace()}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
     // Then, validate the generated plan in native engine.
@@ -294,8 +296,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
-
-  override def getChild: SparkPlan = child
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
@@ -386,7 +386,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 }
 
 // An alternatives for UnionExec.
-case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
+case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {

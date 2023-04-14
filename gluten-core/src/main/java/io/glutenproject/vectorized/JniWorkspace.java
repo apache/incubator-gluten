@@ -1,16 +1,14 @@
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GlutenConfig;
-import org.apache.commons.io.FileUtils;
-import org.apache.spark.util.GlutenShutdownManager;
+import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.runtime.BoxedUnit;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class JniWorkspace {
@@ -27,19 +25,11 @@ public class JniWorkspace {
     try {
       LOG.info("Creating JNI workspace in root directory {}", rootDir);
       Path root = Paths.get(rootDir);
-      Path created = Files.createTempDirectory(root, "gluten_");
+      Path created = Files.createTempDirectory(root, "gluten-");
       this.workDir = created.toAbsolutePath().toString();
       this.jniLibLoader = new JniLibLoader(workDir);
       this.jniResourceHelper = new JniResourceHelper(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
-      GlutenShutdownManager.addHookForTempDirRemoval(() -> {
-        try {
-          FileUtils.deleteDirectory(created.toFile());
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-        return BoxedUnit.UNIT;
-      });
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -47,7 +37,9 @@ public class JniWorkspace {
 
   private static JniWorkspace createDefault() {
     try {
-      final String tempRoot = GlutenConfig.getTempFile();
+      final String tempRoot = SparkDirectoryUtil.namespace("jni")
+          .mkChildDirRandomly(UUID.randomUUID().toString())
+          .getAbsolutePath();
       return createOrGet(tempRoot);
     } catch (Exception e) {
       throw new RuntimeException(e);

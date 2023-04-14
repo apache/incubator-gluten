@@ -130,7 +130,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenComplexTypesSuite]
   enableSuite[GlutenComplexTypeSuite].exclude(
-    "CreateMap"
+    "CreateMap",
+    "MapFromArrays"
   )
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
@@ -174,13 +175,15 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-16804",
       "SPARK-17337",
       "SPARK-28441",
-      "SPARK-28379"
+      "SPARK-28379",
+      "SPARK-17348" // TODO: loneylee ch: INVALID_JOIN_ON_EXPRESSION
     )
     .exclude(
       "Correlated subqueries in LATERAL VIEW",
       "NOT EXISTS predicate subquery",
       "NOT IN predicate subquery",
-      "disjunctive correlated scalar subquery"
+      "disjunctive correlated scalar subquery",
+      "IN predicate subquery" // TODO: loneylee ch: INVALID_JOIN_ON_EXPRESSION
     )
 
   enableSuite[GlutenDataFramePivotSuite]
@@ -203,11 +206,50 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenJoinSuite]
     .include(
-      "big inner join, 4 matches per row"
+      "big inner join, 4 matches per row",
+      "cartesian product join",
+      "equi-join is hash-join",
+      "inner join, no matches",
+      "inner join, where, multiple matches",
+      "inner join ON, one match per row",
+      "inner join where, one match per row",
+      "left semi join",
+      "multiple-key equi-join is hash-join",
+      "full outer join"
     )
 
   enableSuite[GlutenHashExpressionsSuite]
     .include(
       "md5"
+    )
+
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
+    .exclude(
+      "SPARK-34436: DPP support LIKE ANY/ALL expression",
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+    )
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+    .exclude(
+      "avoid reordering broadcast join keys to match input hash partitioning",
+      "SPARK-34436: DPP support LIKE ANY/ALL expression",
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+    )
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
+    .exclude(
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+    )
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+    .exclude(
+      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
+      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
     )
 }

@@ -223,7 +223,7 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
     SQLMetrics.postDriverMetricsUpdatedByValue(sparkContext, executionId, driverAccumUpdates.toSeq)
   }
 
-
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = {
     if (shuffleStage.isDefined) {
       Map("numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions")) ++ {

@@ -22,7 +22,6 @@ import io.glutenproject.execution.GlutenColumnarToRowExecBase
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
-
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -35,17 +34,15 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.NANOSECONDS
-
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.memory.TaskMemoryResources
 
 case class GlutenColumnarToRowExec(child: SparkPlan)
   extends GlutenColumnarToRowExecBase(child = child) {
   private val LOG = LoggerFactory.getLogger(classOf[GlutenColumnarToRowExec])
 
   override def nodeName: String = "GlutenColumnarToRowExec"
-
-  override def supportCodegen: Boolean = false
 
   override def buildCheck(): Unit = {
     val schema = child.schema
@@ -89,6 +86,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
             case _: TimestampType =>
             case _: DateType =>
             case _: BinaryType =>
+            case _: DecimalType =>
             case _ =>
               throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
                   s"GlutenColumnarToRowExec/VeloxColumnarToRowConverter")
@@ -111,19 +109,11 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
       numOutputRows, numInputBatches, convertTime)
   }
 
-  override def inputRDDs(): Seq[RDD[InternalRow]] = {
-    Seq(child.executeColumnar().asInstanceOf[RDD[InternalRow]]) // Hack because of type erasure
-  }
-
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-
-  protected def doProduce(ctx: CodegenContext): String = {
-    throw new RuntimeException("Codegen is not supported!")
-  }
 
   protected def withNewChildInternal(newChild: SparkPlan): GlutenColumnarToRowExec =
     copy(child = newChild)
@@ -185,7 +175,7 @@ class GlutenColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch
           val row = new UnsafeRow(batch.numCols())
           var closed = false
 
-          TaskContext.get().addTaskCompletionListener[Unit](_ => {
+          TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
             if (!closed) {
               jniWrapper.nativeClose(info.instanceID)
               closed = true

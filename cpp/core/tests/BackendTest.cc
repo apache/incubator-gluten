@@ -25,8 +25,9 @@ class DummyBackend final : public Backend {
  public:
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
-      std::unordered_map<std::string, std::string> sessionConf = {}) override {
+      const std::string& spillDir,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs,
+      const std::unordered_map<std::string, std::string>& sessionConf) override {
     auto res_iter = std::make_unique<DummyResultIterator>();
     return std::make_shared<ResultIterator>(std::move(res_iter));
   }
@@ -69,7 +70,7 @@ TEST(TestExecBackend, CreateBackend) {
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->GetResultIterator(DefaultMemoryAllocator().get());
+  auto iter = backend->GetResultIterator(DefaultMemoryAllocator().get(), "/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->HasNext());
   auto next = iter->Next();
   ASSERT_NE(next, nullptr);

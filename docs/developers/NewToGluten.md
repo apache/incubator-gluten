@@ -54,7 +54,7 @@ If you need to debug cpp code, please compile the backend code and gluten cpp co
 ## compile velox
 ./build_velox.sh --build_type=Debug
 ## compile arrow with tests required library
-./build_arrow_for_velox.sh --build_tests=ON
+./build_arrow.sh --build_tests=ON
 ## compile gluten cpp with benchmark and tests to debug
 cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Debug ..
 ```
@@ -156,7 +156,7 @@ Open the file in `<gluten_home>/.vscode/settings.json` (create if not exists)
 }
 ```
 
-Then we can get some executables, take `shuffle_test` as example
+Then we can get some executables, take `velox_shuffle_writer_test` as example
 
 Click `Run and Debug` to create launch.json in `<gluten_home>/.vscode/launch.json`
 Click `Add Configuration` in the top of launch.json, select gdb launch or attach to exists program
@@ -170,11 +170,11 @@ launch.json example
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "shuffle test",
+      "name": "velox shuffle writer test",
       "type": "cppdbg",
       "request": "launch",
-      "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/shuffle_test",
-      "args": ["--gtest_filter=*TestSingleSplitter*"],
+      "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/tests/velox_shuffle_writer_test",
+      "args": ["--gtest_filter=*TestSingleShuffleWriter*"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -342,3 +342,19 @@ wait to attach....
 
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
 Refer to [unittest.yml](https://github.com/oap-project/gluten/blob/main/.github/workflows/unittests.yml)
+
+# Run gluten+velox on clean machine
+
+We can run gluten+velox on clean machine by one command.(Support Ubuntu20.04/Ubuntu22.04). gluten will load dynamic link(DLL)
+from gluten-thirdparty-lib-<osversion>.jar when spark.gluten.loadLibFromJar=true.
+```
+spark-shell --name run_gluten \
+ --master yarn --deploy-mode client \
+ --conf spark.plugins=io.glutenproject.GlutenPlugin \
+ --conf spark.gluten.sql.columnar.backend.lib=velox \
+ --conf spark.memory.offHeap.enabled=true \
+ --conf spark.memory.offHeap.size=20g \
+ --conf spark.gluten.loadLibFromJar=true \
+ --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
+
+```

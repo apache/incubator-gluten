@@ -44,7 +44,7 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
   var ENABLE_BY_DEFAULT = true
   val CONF_KEY = "spark.gluten.enabled"
 
-  private[this] def stackTrace(max: Int = 1000): String = {
+  private[this] def stackTrace(max: Int = 5): String = {
     val trim: Int = 6
     new Throwable().getStackTrace().slice(trim, trim + max).mkString("\n")
   }
@@ -55,7 +55,7 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
     if (log.isDebugEnabled) {
       logDebug(
         s"=========================\n" +
-          s"running shloudUseGluten from:\n${stackTrace()}\n" +
+          s"running shouldUseGluten from:\n${stackTrace()}\n" +
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }

@@ -56,6 +56,11 @@ class ColumnarBatch {
     return exportNanos_;
   };
 
+  friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch) {
+    return os << "NumColumns: " << std::to_string(columnarBatch.GetNumColumns())
+              << "NumRows: " << std::to_string(columnarBatch.GetNumRows());
+  }
+
  private:
   int32_t numColumns_;
   int32_t numRows_;
@@ -75,6 +80,10 @@ class ArrowColumnarBatch final : public ColumnarBatch {
 
   int64_t GetBytes() override {
     throw gluten::GlutenException("Not implemented GetBytes for ArrowColumnarBatch");
+  }
+
+  arrow::RecordBatch* GetRecordBatch() const {
+    return batch_.get();
   }
 
   std::shared_ptr<ArrowSchema> exportArrowSchema() override {

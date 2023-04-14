@@ -1,4 +1,4 @@
-# Gluten: A Spark Plugin to Offload SQL Engine to Native Library
+# Gluten: Plugin to Double SparkSQL's Performance
 *<b>This plugin is still under active development now, and doesn't have a stable release. Welcome to evaluate it. If you encounter any issues or have any suggestions, please submit to our issue list. We'd love to hear your feedback</b>*
 
 # 1 Introduction
@@ -57,7 +57,25 @@ There are several key component in Gluten:
 
 # 3 Usage
 
-Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details
+Gluten is still under active development now. There are two ways to use Gluten. 
+
+# 3.1 Use Prebuilt jar
+
+One Way is use released binary jar. Here is the simple example. we support centos7/8 and ubuntu20.04/22.04 now.
+
+```
+spark-shell \
+ --master yarn --deploy-mode client \
+ --conf spark.plugins=io.glutenproject.GlutenPlugin \
+ --conf spark.gluten.sql.columnar.backend.lib=velox \
+ --conf spark.gluten.loadLibFromJar=true \
+ --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+ --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
+```
+
+# 3.2 Custom Build
+
+Another way is build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details.
 
 ```
 export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
@@ -69,25 +87,25 @@ spark-shell
   --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
   --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
   ...
-  ```
+```
 
-## 3.1 Build and Install Gluten with Velox backend
+### 3.2.1 Build and Install Gluten with Velox backend
 
 <img src="https://github.com/facebookincubator/velox/raw/main/static/logo.svg" width="200">
 
 If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](./docs/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
 
-## 3.2 Build and Install Gluten with ClickHouse backend
+### 3.2.2 Build and Install Gluten with ClickHouse backend
 
 ![logo](./docs/image/ClickHouse/logo.png)
 
 If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
-## 3.4 Build script parameters
+### 3.2.3 Build script parameters
 
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
-## 3.5 Jar conflicts
+### 3.2.4 Jar conflicts
 
 With the latest version of Gluten, there should not be any jar conflict anymore. If you still get hit with such issues, please following the below instructions.
 
@@ -137,8 +155,23 @@ Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
 
 # 7 Contact
 
+Gluten was initiated by Intel and Kyligence in 2022. Several companies such as Intel, Kyligence, BIGO, Meituan and others, are actively participating in the development of Gluten. If you are interested in Gluten project, please contact below email address for further discussion.
+
 rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
-chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
+chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io;
+zuochunwei@meituan.com;
+
+#
+
+<img src="./docs/image/intel_logo.jpg" width="200"> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<img src="./docs/image/kyligence_logo.png" width="500"><br>
+<img src="./docs/image/bigo_logo.png" width="200"> &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; <img src="./docs/image/meituan_logo.png" width="200">
+
+#
+
+Intel, the Intel logo, Arc, Intel Atom, Intel Core, Iris, OpenVINO, the OpenVINO logo, Pentium, VTune, and Xeon are trademarks of Intel Corporation or its subsidiaries.
+* Other names and brands may be claimed as the property of others.
+
+(C) Intel Corporation
 
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.

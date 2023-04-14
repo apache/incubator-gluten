@@ -146,9 +146,18 @@ macro(find_libhdfs3)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
   find_library(LIBHDFS3_LIBRARY NAMES hdfs3 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
   if (NOT LIBHDFS3_LIBRARY)
-     message(FATAL_ERROR "LIBHDFS3 Library Not Found")
+    message(FATAL_ERROR "LIBHDFS3 Library Not Found")
   else()
     message(STATUS "LIBHDFS3 Library Can Be Found in ${LIBHDFS3_LIBRARY}")
+  endif()
+endmacro()
+
+macro(find_re2)
+  find_library(RE2_LIBRARY NAMES re2 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT RE2_LIBRARY)
+     message(FATAL_ERROR "RE2 Library Not Found")
+  else()
+    message(STATUS "RE2 Library Can Be Found in ${RE2_LIBRARY}")
   endif()
 endmacro()
 
@@ -160,7 +169,7 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
-    shuffle/VeloxSplitter.cc
+    shuffle/VeloxShuffleWriter.cc
     jni/JniWrapper.cc
     compute/VeloxBackend.cc
     compute/VeloxInitializer.cc
@@ -189,12 +198,21 @@ set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
+## If the folly is not builded in system directories, please add
+## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
+## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+
+target_include_directories(velox PUBLIC
+        ${GTEST_INCLUDE_DIRS}
+        ${PROTOBUF_INCLUDE})
 
 target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
+find_re2()
+target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

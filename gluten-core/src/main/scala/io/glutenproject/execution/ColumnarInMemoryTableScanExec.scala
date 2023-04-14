@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-
+import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -33,9 +33,10 @@ case class ColumnarInMemoryTableScanExec(
                                           attributes: Seq[Attribute],
                                           predicates: Seq[Expression],
                                           @transient relation: InMemoryRelation)
-  extends LeafExecNode {
+  extends LeafExecNode with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarInMemoryTableMetrics(sparkContext)
 
   // Accumulators used for testing purposes

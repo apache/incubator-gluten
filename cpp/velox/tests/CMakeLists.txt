@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+find_arrow_lib(${PARQUET_LIB_NAME})
 function(add_velox_test TEST_EXEC)
   set(options)
   set(one_value_args)
@@ -34,9 +35,10 @@ function(add_velox_test TEST_EXEC)
   endif()
   add_executable(${TEST_EXEC} ${SOURCES})
   target_include_directories(${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
-  target_link_libraries(${TEST_EXEC} gflags_shared velox gtest gtest_main glog::glog protobuf)
+  target_link_libraries(${TEST_EXEC} gflags_shared Arrow::parquet velox gtest gtest_main glog::glog protobuf benchmark::benchmark)
 endfunction()
 
 # velox test
-add_velox_test(velox_splitter_test SOURCES VeloxSplitterTest.cc)
+add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
 add_velox_test(velox_converter SOURCES ArrowToVeloxTest.cc VeloxColumnarToRowTest.cc)
+add_velox_test(orc_test SOURCES OrcTest.cc)

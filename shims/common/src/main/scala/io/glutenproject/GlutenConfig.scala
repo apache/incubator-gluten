@@ -18,13 +18,12 @@ package io.glutenproject
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
 
 import java.util
-import java.util.{Locale, TimeZone}
+import java.util.Locale
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -170,12 +169,24 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleWriteSchema: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
 
-  // When spark.gluten.sql.columnar.qat=false, the supported codecs are lz4 and zstd.
-  // When spark.gluten.sql.columnar.qat=true, the supported codec is gzip.
+  // By default, the supported codecs are lz4 and zstd.
+  // When spark.gluten.sql.columnar.shuffle.codecBackend=qat, the supported codec is gzip.
+  // When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.
   def columnarShuffleUseCustomizedCompressionCodec: String =
     conf
-      .getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
+      .getConfString("spark.gluten.sql.columnar.shuffle.codec", "lz4")
       .toUpperCase(Locale.ROOT)
+
+  def columnarShuffleCodecBackend: String =
+    conf
+      .getConfString(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
+      .toUpperCase(Locale.ROOT)
+
+  def columnarShuffleEnableQat: Boolean =
+    columnarShuffleCodecBackend == GlutenConfig.GLUTEN_QAT_BACKEND_NAME
+
+  def columnarShuffleEnableIaa: Boolean =
+    columnarShuffleCodecBackend == GlutenConfig.GLUTEN_IAA_BACKEND_NAME
 
   def columnarShuffleBatchCompressThreshold: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
@@ -198,6 +209,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableNativeBloomFilter: Boolean =
     conf.getConfString("spark.gluten.sql.native.bloomFilter", "true").toBoolean
 
+  // The threshold for whether whole stage will fall back in AQE supported case by counting the
+  // number of ColumnarToRow & vanilla leaf node.
+  def wholeStageFallbackThreshold: Int =
+    conf.getConfString("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "-1").toInt
+
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.gluten.sql.columnar.numaBinding", "false").toBoolean
@@ -216,32 +232,55 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  // Must provide default value since non-execution operations (e.g.
+  //   org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using
+  //   org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated
+  def offHeapMemorySize: Long =
+    conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
+
+  def taskOffHeapMemorySize: Long =
+    conf.getConfString(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, "0").toLong
+
   // velox caching options
   // enable Velox cache, default off
   def enableVeloxCache: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "false").toBoolean
 
-  // The folder to store the cache files, better on SSD
-  def veloxCachePath: String =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cachePath", "/tmp")
+  // The memory cache size
+  def veloxMemCacheSize: Long =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.memCacheSize", "1073741824").toLong
 
-  // The total cache size
-  def veloxCacheSize: Long =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheSize", "1073741824").toLong
+  // The folder to store the cache files, better on SSD
+  def veloxSsdCachePath: String =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCachePath", "/tmp")
+
+  // The SSD cache size, will do memory caching only if this value = 0
+  def veloxSsdCacheSize: Long =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheSize", "1073741824").toLong
 
   // The cache shards
-  def veloxCacheShards: Integer =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheShards", "1").toInt
+  def veloxSsdCacheShards: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheShards", "1").toInt
 
   // The IO threads for cache promoting
-  def veloxIOThreads: Integer =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheIOThreads", "1").toInt
+  def veloxSsdCacheIOThreads: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads", "1").toInt
+
+  // The O_DIRECT flag for cache writing
+  def veloxSsdODirectEnabled: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ssdODirect", "false").toBoolean
 
   def transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
 
   def substraitPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.substrait.plan.logLevel", "DEBUG")
+
+  def validateFailureLogLevel: String =
+    conf.getConfString("spark.gluten.sql.validate.failure.logLevel", "INFO")
+
+  def printStackOnValidateFailure: Boolean =
+    conf.getConfString("spark.gluten.sql.validate.failure.printStack", "false").toBoolean
 
   def debug: Boolean = conf.getConfString("spark.gluten.sql.debug", "false").toBoolean
   def taskStageId: Int = conf.getConfString("spark.gluten.sql.benchmark_task.stageId", "1").toInt
@@ -266,8 +305,6 @@ object GlutenConfig {
 
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
-  val HDFS_URI = "fs.defaultFS"
-  val SPARK_HDFS_URI: String = HADOOP_PREFIX + HDFS_URI
 
   // S3 config
   val S3_ACCESS_KEY = "fs.s3a.access.key"
@@ -283,10 +320,16 @@ object GlutenConfig {
   val S3_USE_INSTANCE_CREDENTIALS = "fs.s3a.use.instance.credentials"
   val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = HADOOP_PREFIX + S3_USE_INSTANCE_CREDENTIALS
 
+  // Hardware acceleraters backend
+  val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
   // QAT config
-  val GLUTEN_ENABLE_QAT = "spark.gluten.sql.columnar.qat"
+  val GLUTEN_QAT_BACKEND_NAME = "QAT"
   val GLUTEN_QAT_CODEC_PREFIX = "gluten_qat_"
   val GLUTEN_QAT_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
+  // IAA config
+  val GLUTEN_IAA_BACKEND_NAME = "IAA"
+  val GLUTEN_IAA_CODEC_PREFIX = "gluten_iaa_"
+  val GLUTEN_IAA_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
 
   // Backends.
   val GLUTEN_VELOX_BACKEND = "velox"
@@ -309,8 +352,16 @@ object GlutenConfig {
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
+  // Pass through to native conf
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
-  val GLUTEN_TIMEZONE = "spark.gluten.timezone"
+
+  // Added back to Spark Conf during executor initialization
+  val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
+  val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
+
+  // Whether load DLL from jars
+  val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
+  val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
 
   var ins: GlutenConfig = _
 
@@ -318,6 +369,7 @@ object GlutenConfig {
     new GlutenConfig(SQLConf.get)
   }
 
+  @deprecated
   def getTempFile: String = synchronized {
     if (ins != null && ins.tmpFile != null) {
       ins.tmpFile
@@ -326,11 +378,13 @@ object GlutenConfig {
     }
   }
 
-  def getNativeSessionConf(): util.Map[String, String] = {
+  // TODO Backend-ize this
+  def getNativeSessionConf(backendPrefix: String): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val conf = SQLConf.get
     val keys = ImmutableList.of(
-      GLUTEN_SAVE_DIR
+      GLUTEN_SAVE_DIR,
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {
@@ -345,13 +399,13 @@ object GlutenConfig {
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getConfString(e._1, e._2)))
 
-    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      nativeConfMap.put(
-        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
-        JavaUtils
-          .byteStringAsBytes(conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY))
-          .toString)
-    }
+    // FIXME all configs with BE prefix is considered dynamic and static at the same time
+    //   We'd untangle this logic
+    conf.getAllConfs
+      .filter(_._1.startsWith(backendPrefix))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // return
     nativeConfMap
   }
 
@@ -363,8 +417,9 @@ object GlutenConfig {
       // DWRF datasource config
       SPARK_HIVE_EXEC_ORC_STRIPE_SIZE,
       SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
-      SPARK_HIVE_EXEC_ORC_COMPRESS
+      SPARK_HIVE_EXEC_ORC_COMPRESS,
       // DWRF datasource config end
+      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {
@@ -374,7 +429,6 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SPARK_HDFS_URI, "hdfs://localhost:9000"),
       (SPARK_S3_ACCESS_KEY, "minio"),
       (SPARK_S3_SECRET_KEY, "miniopass"),
       (SPARK_S3_ENDPOINT, "localhost:9000"),
@@ -388,19 +442,7 @@ object GlutenConfig {
       .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
-    // for further use
-    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      nativeConfMap.put(
-        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
-        JavaUtils
-          .byteStringAsBytes(conf.get(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY))
-          .toString)
-    }
-
-    nativeConfMap.put(
-      GlutenConfig.GLUTEN_TIMEZONE,
-      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
-
+    // return
     nativeConfMap
   }
 }

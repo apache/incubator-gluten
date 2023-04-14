@@ -1,8 +1,8 @@
 package io.glutenproject.integration.tpc.ds
 
-import io.glutenproject.integration.tpc.{Constants, DataGen, TpcSuite, TypeModifier}
-import io.glutenproject.integration.tpc.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_PATH}
 import io.glutenproject.integration.tpc.action.Action
+import io.glutenproject.integration.tpc.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_PATH}
+import io.glutenproject.integration.tpc.{Constants, DataGen, TpcSuite, TypeModifier}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
 
@@ -10,6 +10,7 @@ class TpcdsSuite(
   val actions: Array[Action],
   val testConf: SparkConf,
   val baselineConf: SparkConf,
+  val extraSparkConf: Map[String, String],
   val fixedWidthAsDouble: Boolean,
   val logLevel: Level,
   val errorOnMemLeak: Boolean,
@@ -23,10 +24,10 @@ class TpcdsSuite(
   val disableWscg: Boolean,
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(
-  actions, testConf, baselineConf, fixedWidthAsDouble,
-  logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort, cpus,
-  offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions,
-  minimumScanPartitions) {
+  actions, testConf, baselineConf, extraSparkConf, fixedWidthAsDouble,
+  logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
+  cpus, offHeapSize, disableAqe, disableBhj, disableWscg,
+  shufflePartitions, minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 

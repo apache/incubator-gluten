@@ -94,7 +94,7 @@ class GoogleBenchmarkColumnarToRow {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
+    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool().get());
   }
 
  protected:
@@ -152,11 +152,12 @@ class GoogleBenchmarkColumnarToRow_CacheScan_Benchmark : public GoogleBenchmarkC
     // reuse the columnarToRowConverter for batches caused system % increase a lot
 
     auto arrowPool = GetDefaultWrappedArrowMemoryPool();
-    auto veloxPool = AsWrappedVeloxMemoryPool(DefaultMemoryAllocator().get());
+    auto veloxPool = GetDefaultWrappedVeloxMemoryPool();
+    auto ctxPool = veloxPool->addChild("cache_scan", velox::memory::MemoryPool::Kind::kLeaf);
     for (auto _ : state) {
       for (const auto& vector : vectors) {
         auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(
-            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, veloxPool);
+            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, ctxPool);
         TIME_NANO_OR_THROW(init_time, columnarToRowConverter->Init());
         TIME_NANO_OR_THROW(write_time, columnarToRowConverter->Write());
       }
@@ -202,7 +203,8 @@ class GoogleBenchmarkColumnarToRow_IterateScan_Benchmark : public GoogleBenchmar
         arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file), properties, &parquet_reader));
 
     auto arrowPool = GetDefaultWrappedArrowMemoryPool();
-    auto veloxPool = AsWrappedVeloxMemoryPool(DefaultMemoryAllocator().get());
+    auto veloxPool = GetDefaultWrappedVeloxMemoryPool();
+    auto ctxPool = veloxPool->addChild("iterate_scan", velox::memory::MemoryPool::Kind::kLeaf);
     for (auto _ : state) {
       ASSERT_NOT_OK(parquet_reader->GetRecordBatchReader(row_group_indices, column_indices, &record_batch_reader));
       TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
@@ -211,7 +213,7 @@ class GoogleBenchmarkColumnarToRow_IterateScan_Benchmark : public GoogleBenchmar
         num_rows += record_batch->num_rows();
         auto vector = recordBatch2RowVector(*record_batch);
         auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(
-            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, veloxPool);
+            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, ctxPool);
         TIME_NANO_OR_THROW(init_time, columnarToRowConverter->Init());
         TIME_NANO_OR_THROW(write_time, columnarToRowConverter->Write());
         TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));

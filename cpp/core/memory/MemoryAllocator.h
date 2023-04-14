@@ -40,6 +40,9 @@ class MemoryAllocator {
 
   virtual bool Free(void* p, int64_t size) = 0;
 
+  virtual bool ReserveBytes(int64_t size) = 0;
+  virtual bool UnreserveBytes(int64_t size) = 0;
+
   virtual int64_t GetBytes() const = 0;
 };
 
@@ -72,6 +75,10 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
 
   bool Free(void* p, int64_t size) override;
 
+  bool ReserveBytes(int64_t size) override;
+
+  bool UnreserveBytes(int64_t size) override;
+
   int64_t GetBytes() const override;
 
  private:
@@ -94,28 +101,14 @@ class StdMemoryAllocator final : public MemoryAllocator {
 
   bool Free(void* p, int64_t size) override;
 
+  bool ReserveBytes(int64_t size) override;
+
+  bool UnreserveBytes(int64_t size) override;
+
   int64_t GetBytes() const override;
 
  private:
   std::atomic_int64_t bytes_{0};
-};
-
-class WrappedArrowMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit WrappedArrowMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
-
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
-
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override;
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
-
-  int64_t bytes_allocated() const override;
-
-  std::string backend_name() const override;
-
- private:
-  MemoryAllocator* allocator_;
 };
 
 std::shared_ptr<MemoryAllocator> DefaultMemoryAllocator();

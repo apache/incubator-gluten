@@ -6,7 +6,7 @@ BUILD_TYPE=release
 BUILD_VELOX_BACKEND=OFF
 BUILD_TESTS=OFF
 BUILD_BENCHMARKS=OFF
-BUILD_JEMALLOC=ON
+BUILD_JEMALLOC=OFF
 BUILD_PROTOBUF=OFF
 ENABLE_QAT=OFF
 ENABLE_HBM=OFF
@@ -16,65 +16,67 @@ NPROC=$(nproc --ignore=2)
 ARROW_ROOT=
 VELOX_HOME=
 
-for arg in "$@"
-do
-    case $arg in
-        --arrow_root=*)
-        ARROW_ROOT=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --velox_home=*)
-        VELOX_HOME=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_type=*)
-        BUILD_TYPE=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_velox_backend=*)
-        BUILD_VELOX_BACKEND=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_tests=*)
-        BUILD_TESTS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_benchmarks=*)
-        BUILD_BENCHMARKS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_jemalloc=*)
-        BUILD_JEMALLOC=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_qat=*)
-        ENABLE_QAT=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_hbm=*)
-        ENABLE_HBM=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_protobuf=*)
-        BUILD_PROTOBUF=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_s3=*)
-        ENABLE_S3=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_hdfs=*)
-        ENABLE_HDFS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        *)
-        OTHER_ARGUMENTS+=("$1")
-        shift # Remove generic argument from processing
-        ;;
-    esac
+for arg in "$@"; do
+  case $arg in
+  --arrow_root=*)
+    ARROW_ROOT=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --velox_home=*)
+    VELOX_HOME=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_type=*)
+    BUILD_TYPE=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_velox_backend=*)
+    BUILD_VELOX_BACKEND=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_tests=*)
+    BUILD_TESTS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_benchmarks=*)
+    BUILD_BENCHMARKS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_jemalloc=*)
+    BUILD_JEMALLOC=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_qat=*)
+    ENABLE_QAT=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_hbm=*)
+    ENABLE_HBM=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_protobuf=*)
+    BUILD_PROTOBUF=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_s3=*)
+    ENABLE_S3=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_hdfs=*)
+    ENABLE_HDFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  *)
+    OTHER_ARGUMENTS+=("$1")
+    shift # Remove generic argument from processing
+    ;;
+  esac
 done
 
-CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+CURRENT_DIR=$(
+  cd "$(dirname "$BASH_SOURCE")"
+  pwd
+)
 #gluten cpp will find arrow lib from ARROW_ROOT
 if [ "$ARROW_ROOT" == "" ]; then
   ARROW_ROOT="$CURRENT_DIR/../ep/build-arrow/build/arrow_install"

@@ -21,7 +21,7 @@ case class QueriesCompare(
       iteration =>
         println(s"Running tests (iteration $iteration)...")
         val runQueryIds = queryIds match {
-          case Array("__all__") =>
+          case Array() =>
             allQueries
           case _ =>
             queryIds

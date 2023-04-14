@@ -54,10 +54,10 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       StructField("l_partkey", LongType),
       StructField("l_suppkey", LongType),
       StructField("l_linenumber", IntegerType),
-      StructField("l_quantity", LongType),
-      StructField("l_extendedprice", DoubleType),
-      StructField("l_discount", DoubleType),
-      StructField("l_tax", DoubleType),
+      StructField("l_quantity", DecimalType(12, 2)),
+      StructField("l_extendedprice", DecimalType(12, 2)),
+      StructField("l_discount", DecimalType(12, 2)),
+      StructField("l_tax", DecimalType(12, 2)),
       StructField("l_returnflag", StringType),
       StructField("l_linestatus", StringType),
       StructField("l_commitdate", DateType),
@@ -76,10 +76,10 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
         lineItem.getPartKey,
         lineItem.getSupplierKey,
         lineItem.getLineNumber,
-        lineItem.getQuantity,
-        lineItem.getExtendedPrice,
-        lineItem.getDiscount,
-        lineItem.getTax,
+        BigDecimal.valueOf(lineItem.getQuantity),
+        BigDecimal.valueOf(lineItem.getExtendedPrice),
+        BigDecimal.valueOf(lineItem.getDiscount),
+        BigDecimal.valueOf(lineItem.getTax),
         lineItem.getReturnFlag,
         lineItem.getStatus,
         Date.valueOf(GenerateUtils.formatDate(lineItem.getCommitDate)),
@@ -102,7 +102,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       StructField("c_address", StringType),
       StructField("c_nationkey", LongType),
       StructField("c_phone", StringType),
-      StructField("c_acctbal", DoubleType),
+      StructField("c_acctbal", DecimalType(12, 2)),
       StructField("c_comment", StringType),
       StructField("c_mktsegment", StringType)
     ))
@@ -116,7 +116,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
         customer.getAddress,
         customer.getNationKey,
         customer.getPhone,
-        customer.getAccountBalance,
+        BigDecimal.valueOf(customer.getAccountBalance),
         customer.getComment,
         customer.getMarketSegment,
       )
@@ -131,7 +131,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       StructField("o_orderkey", LongType),
       StructField("o_custkey", LongType),
       StructField("o_orderstatus", StringType),
-      StructField("o_totalprice", DoubleType),
+      StructField("o_totalprice", DecimalType(12, 2)),
       StructField("o_orderpriority", StringType),
       StructField("o_clerk", StringType),
       StructField("o_shippriority", IntegerType),
@@ -146,7 +146,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
         order.getOrderKey,
         order.getCustomerKey,
         String.valueOf(order.getOrderStatus),
-        order.getTotalPrice,
+        BigDecimal.valueOf(order.getTotalPrice),
         order.getOrderPriority,
         order.getClerk,
         order.getShipPriority,
@@ -164,7 +164,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       StructField("ps_partkey", LongType),
       StructField("ps_suppkey", LongType),
       StructField("ps_availqty", IntegerType),
-      StructField("ps_supplycost", DoubleType),
+      StructField("ps_supplycost", DecimalType(12, 2)),
       StructField("ps_comment", StringType)
     ))
   }
@@ -175,7 +175,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
         ps.getPartKey,
         ps.getSupplierKey,
         ps.getAvailableQuantity,
-        ps.getSupplyCost,
+        BigDecimal.valueOf(ps.getSupplyCost),
         ps.getComment
       )
 
@@ -191,7 +191,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       StructField("s_address", StringType),
       StructField("s_nationkey", LongType),
       StructField("s_phone", StringType),
-      StructField("s_acctbal", DoubleType),
+      StructField("s_acctbal", DecimalType(12, 2)),
       StructField("s_comment", StringType)
     ))
   }
@@ -204,7 +204,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
         s.getAddress,
         s.getNationKey,
         s.getPhone,
-        s.getAccountBalance,
+        BigDecimal.valueOf(s.getAccountBalance),
         s.getComment
       )
 
@@ -244,7 +244,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       StructField("p_type", StringType),
       StructField("p_size", IntegerType),
       StructField("p_container", StringType),
-      StructField("p_retailprice", DoubleType),
+      StructField("p_retailprice", DecimalType(12, 2)),
       StructField("p_comment", StringType),
       StructField("p_brand", StringType)
     ))
@@ -259,7 +259,7 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
         part.getType,
         part.getSize,
         part.getContainer,
-        part.getRetailPrice,
+        BigDecimal.valueOf(part.getRetailPrice),
         part.getComment,
         part.getBrand
       )

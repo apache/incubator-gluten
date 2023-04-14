@@ -1,8 +1,8 @@
 package io.glutenproject.integration.tpc.h
 
-import io.glutenproject.integration.tpc.{Constants, DataGen, TpcSuite, TypeModifier}
-import io.glutenproject.integration.tpc.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_PATH}
 import io.glutenproject.integration.tpc.action.Action
+import io.glutenproject.integration.tpc.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_PATH}
+import io.glutenproject.integration.tpc.{DataGen, TpcSuite, TypeModifier}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
 
@@ -10,6 +10,7 @@ class TpchSuite(
   val actions: Array[Action],
   val testConf: SparkConf,
   val baselineConf: SparkConf,
+  val extraSparkConf: Map[String, String],
   val fixedWidthAsDouble: Boolean,
   val logLevel: Level,
   val errorOnMemLeak: Boolean,
@@ -23,8 +24,9 @@ class TpchSuite(
   val disableWscg: Boolean,
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(actions, testConf, baselineConf,
-  fixedWidthAsDouble, logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort, cpus,
-  offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions, minimumScanPartitions) {
+  extraSparkConf, fixedWidthAsDouble, logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
+  cpus, offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions,
+  minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
@@ -34,20 +36,12 @@ class TpchSuite(
     scale, cpus, dataWritePath(scale), typeModifiers())
 
   override private[tpc] def queryResource(): String = {
-    if (fixedWidthAsDouble) {
-      "/tpch-queries-noint-nodate"
-    } else {
-      "/tpch-queries"
-    }
+    "/tpch-queries"
   }
 
+
   override protected def typeModifiers(): List[TypeModifier] = {
-    if (fixedWidthAsDouble) {
-      List(Constants.TYPE_MODIFIER_INTEGER_AS_DOUBLE, Constants.TYPE_MODIFIER_LONG_AS_DOUBLE,
-        Constants.TYPE_MODIFIER_DATE_AS_DOUBLE)
-    } else {
-      List()
-    }
+    List()
   }
 
   override private[tpc] def allQueryIds(): Array[String] = TpchSuite.ALL_QUERY_IDS

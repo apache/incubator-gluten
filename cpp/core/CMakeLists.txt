@@ -34,7 +34,6 @@ set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
-set(JEMALLOC_BUILD_VERSION "5.2.1")
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
@@ -56,9 +55,16 @@ endif(CCACHE_FOUND)
 # Building Protobuf
 macro(build_protobuf)
   message(STATUS "Building Protocol Buffers from Source")
-  set (PROTOBUF_SOURCE_URL
-       "https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz"
-  )
+
+  if(DEFINED ENV{GLUTEN_PROTOBUF_URL})
+    set(PROTOBUF_SOURCE_URL "$ENV{GLUTEN_PROTOBUF_URL}")
+  else()
+    set(PROTOBUF_BUILD_VERSION "21.4")
+    set (PROTOBUF_SOURCE_URL
+            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_BUILD_VERSION}/protobuf-all-${PROTOBUF_BUILD_VERSION}.tar.gz")
+  endif()
+  set(PROTOBUF_BUILD_SHA256_CHECKSUM "6c5e1b0788afba4569aeebb2cfe205cb154aa01deacaba0cd26442f3b761a836")
+
   set(PROTOBUF_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/protobuf_ep-install")
   set(PROTOBUF_INCLUDE_DIR "${PROTOBUF_PREFIX}/include")
   set(
@@ -76,6 +82,8 @@ macro(build_protobuf)
   set(
     PROTOBUF_INCLUDE
     "${PROTOBUF_PREFIX}/include"
+    CACHE PATH
+    "Protobuf include path"
     )
   set(PROTOBUF_COMPILER "${PROTOBUF_PREFIX}/bin/protoc")
   set(PROTOBUF_CONFIGURE_ARGS
@@ -90,12 +98,12 @@ macro(build_protobuf)
   set(PROTOBUF_BUILD_COMMAND ${MAKE} ${MAKE_BUILD_ARGS})
   ExternalProject_Add(protobuf_ep
                       PREFIX protobuf_ep
-                      CONFIGURE_COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
+                      CONFIGURE_COMMAND ./autogen.sh COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
                       BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
-                      URL_MD5 802d3c1d31d1c295de18f8f6b4a488ef
                       URL ${PROTOBUF_SOURCE_URL}
+                      URL_HASH "SHA256=${PROTOBUF_BUILD_SHA256_CHECKSUM}"
   )
 
   file(MAKE_DIRECTORY "${PROTOBUF_INCLUDE_DIR}")
@@ -115,6 +123,7 @@ macro(find_protobuf)
     message(FATAL_ERROR "Protobuf Library Not Found")
   endif()
   set(PROTOC_BIN ${Protobuf_PROTOC_EXECUTABLE})
+  set(PROTOBUF_INCLUDE "${Protobuf_INCLUDE_DIRS}" CACHE PATH "Protobuf include path")
 endmacro()
 
 if(USE_AVX512)
@@ -176,9 +185,9 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
         operators/r2c/RowToArrowColumnarConverter.cc
-        operators/shuffle/reader.cc
-        operators/shuffle/splitter.cc
-        operators/shuffle/CelebornSplitter.cc
+        shuffle/reader.cc
+        shuffle/ArrowShuffleWriter.cc
+        shuffle/CelebornShuffleWriter.cc
         operators/writer/ArrowWriter.cc
         )
 
@@ -213,9 +222,18 @@ endif()
 if(ENABLE_QAT)
   include(BuildQATzip)
   target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qat_util.cc)
+  target_sources(gluten PRIVATE utils/qat/qat_util.cc)
   target_link_libraries(gluten PUBLIC qatzip::qatzip)
   add_definitions(-DGLUTEN_ENABLE_QAT)
+endif()
+
+if(ENABLE_IAA)
+  include(BuildQpl)
+  target_include_directories(gluten PUBLIC ${QPL_INCLUDE_DIR})
+  # set_source_files_properties(utils/qpl/qpl_codec.cc PROPERTIES COMPILE_FLAGS "-mwaitpkg")
+  target_sources(gluten PRIVATE utils/qpl/qpl_job_pool.cc utils/qpl/qpl_codec.cc)
+  target_link_libraries(gluten PUBLIC qpl::qpl)
+  add_definitions(-DGLUTEN_ENABLE_IAA)
 endif()
 
 if(BUILD_PROTOBUF)

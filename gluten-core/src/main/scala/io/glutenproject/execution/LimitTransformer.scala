@@ -18,19 +18,18 @@
 package io.glutenproject.execution
 
 import java.util
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -39,16 +38,16 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class LimitTransformer(child: SparkPlan,
                             offset: Long,
-                            count: Long) extends UnaryExecNode with TransformSupport {
+                            count: Long)
+    extends UnaryExecNode with TransformSupport with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetrics(sparkContext)
 
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = child.output
-
-  override def getChild: SparkPlan = child
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
@@ -86,14 +85,15 @@ case class LimitTransformer(child: SparkPlan,
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId
     val relNode = try {
       getRelNode(context, operatorId, offset, count, child.output, null, true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 

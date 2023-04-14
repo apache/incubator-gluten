@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <filesystem>
 
 #include "VeloxBackend.h"
+#include <filesystem>
 
 #include "ArrowTypeUtils.h"
 #include "VeloxBridge.h"
@@ -24,16 +24,48 @@
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
-#include "operators/shuffle/CelebornSplitter.h"
-#include "operators/shuffle/splitter.h"
-#include "shuffle/VeloxSplitter.h"
+#include "shuffle/ArrowShuffleWriter.h"
+#include "shuffle/CelebornShuffleWriter.h"
+#include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"
-#include "velox/exec/Operator.h"
-#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
 
 namespace gluten {
+
+namespace {
+// Velox configs
+const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
+} // namespace
+
+VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
+  // mem cap ratio
+  float_t memCapRatio;
+  {
+    auto got = confMap_.find(kMemoryCapRatio);
+    if (got == confMap_.end()) {
+      // not found
+      memCapRatio = 0.75;
+    } else {
+      memCapRatio = std::stof(got->second);
+    }
+  }
+
+  // mem tracker
+  int64_t maxMemory;
+  {
+    auto got = confMap_.find(kSparkTaskOffHeapMemory); // per task, for creating iterator
+    if (got == confMap_.end()) {
+      // not found
+      maxMemory = facebook::velox::memory::kMaxMemory;
+    } else {
+      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+    }
+  }
+
+  memPoolOptions_ = {facebook::velox::memory::MemoryAllocator::kMaxAlignment, maxMemory};
+}
+
 void VeloxBackend::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
     setInputPlanNode(fetchRel.input());
@@ -186,9 +218,9 @@ void VeloxBackend::setInputPlanNode(const ::substrait::RelRoot& sroot) {
   }
 }
 
-std::shared_ptr<const velox::core::PlanNode> VeloxBackend::getVeloxPlanNode(const ::substrait::Plan& splan) {
+void VeloxBackend::toVeloxPlan() {
   // In fact, only one RelRoot is expected here.
-  for (auto& srel : splan.relations()) {
+  for (auto& srel : substraitPlan_.relations()) {
     if (srel.has_root()) {
       setInputPlanNode(srel.root());
     }
@@ -196,11 +228,10 @@ std::shared_ptr<const velox::core::PlanNode> VeloxBackend::getVeloxPlanNode(cons
       setInputPlanNode(srel.rel());
     }
   }
-  auto planNode = subVeloxPlanConverter_->toVeloxPlan(splan);
+  veloxPlan_ = subVeloxPlanConverter_->toVeloxPlan(substraitPlan_);
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Plan Node: " << std::endl << planNode->toString(true, true) << std::endl;
+  std::cout << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
 #endif
-  return planNode;
 }
 
 std::string VeloxBackend::nextPlanNodeId() {
@@ -209,9 +240,9 @@ std::string VeloxBackend::nextPlanNodeId() {
   return id;
 }
 
-void VeloxBackend::getInfoAndIds(
-    std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<velox::substrait::SplitInfo>> splitInfoMap,
-    std::unordered_set<velox::core::PlanNodeId> leafPlanNodeIds,
+static void getInfoAndIds(
+    const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<velox::substrait::SplitInfo>>& splitInfoMap,
+    const std::unordered_set<velox::core::PlanNodeId>& leafPlanNodeIds,
     std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
     std::vector<velox::core::PlanNodeId>& scanIds,
     std::vector<velox::core::PlanNodeId>& streamIds) {
@@ -219,10 +250,11 @@ void VeloxBackend::getInfoAndIds(
     throw std::runtime_error("At least one data source info is required. Can be scan or stream info.");
   }
   for (const auto& leafPlanNodeId : leafPlanNodeIds) {
-    if (splitInfoMap.find(leafPlanNodeId) == splitInfoMap.end()) {
+    auto it = splitInfoMap.find(leafPlanNodeId);
+    if (it == splitInfoMap.end()) {
       throw std::runtime_error("Could not find leafPlanNodeId.");
     }
-    auto splitInfo = splitInfoMap[leafPlanNodeId];
+    auto splitInfo = it->second;
     if (splitInfo->isStream) {
       streamIds.emplace_back(leafPlanNodeId);
     } else {
@@ -234,12 +266,14 @@ void VeloxBackend::getInfoAndIds(
 
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<ResultIterator>> inputs,
-    std::unordered_map<std::string, std::string> sessionConf) {
+    const std::string& spill_dir,
+    const std::vector<std::shared_ptr<ResultIterator>>& inputs,
+    const std::unordered_map<std::string, std::string>& sessionConf) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
-  planNode_ = getVeloxPlanNode(plan_);
+
+  toVeloxPlan();
 
   // Scan node can be required.
   std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
@@ -247,26 +281,27 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   std::vector<velox::core::PlanNodeId> streamIds;
 
   // Separate the scan ids and stream ids, and get the scan infos.
-  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
+  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+  auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
+  auto ctxPool = veloxPool->addChild("result_iterator", velox::memory::MemoryPool::Kind::kAggregate);
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
-        std::make_unique<WholeStageResultIteratorMiddleStage>(veloxPool, planNode_, streamIds, sessionConf);
+        std::make_unique<WholeStageResultIteratorMiddleStage>(ctxPool, veloxPlan_, streamIds, spill_dir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        veloxPool, planNode_, scanIds, scanInfos, streamIds, sessionConf);
+        ctxPool, veloxPlan_, scanIds, scanInfos, streamIds, spill_dir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
 
+// Used by unit test and benchmark.
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos,
-    std::unordered_map<std::string, std::string> sessionConf) {
-  planNode_ = getVeloxPlanNode(plan_);
+    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
+  toVeloxPlan();
 
   // In test, use setScanInfos to replace the one got from Substrait.
   std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
@@ -274,12 +309,12 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   std::vector<velox::core::PlanNodeId> streamIds;
 
   // Separate the scan ids and stream ids, and get the scan infos.
-  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
+  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-
+  auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
+  auto ctxPool = veloxPool->addChild("result_iterator", velox::memory::MemoryPool::Kind::kLeaf);
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
+      ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp/test-spill", confMap_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
@@ -289,42 +324,46 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
     auto arrowPool = AsWrappedArrowMemoryPool(allocator);
-    auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-    return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
+    auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
+    auto ctxVeloxPool = veloxPool->addChild("columnar_to_row_velox", velox::memory::MemoryPool::Kind::kLeaf);
+    return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, ctxVeloxPool);
   } else {
     return Backend::getColumnar2RowConverter(allocator, cb);
   }
 }
 
-std::shared_ptr<SplitterBase> VeloxBackend::makeSplitter(
+std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     const std::string& partitioning_name,
     int num_partitions,
-    SplitOptions options,
+    const SplitOptions& options,
     const std::string& batchType) {
   if (options.is_celeborn) {
     GLUTEN_ASSIGN_OR_THROW(
-        auto splitter, CelebornSplitter::Make(partitioning_name, num_partitions, std::move(options)));
-    return splitter;
+        auto shuffle_writer, CelebornShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+    return shuffle_writer;
   } else if (batchType == "velox") {
-    GLUTEN_ASSIGN_OR_THROW(auto splitter, VeloxSplitter::Make(partitioning_name, num_partitions, std::move(options)));
-    return splitter;
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer, VeloxShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+    return shuffle_writer;
   } else {
-    GLUTEN_ASSIGN_OR_THROW(auto splitter, Splitter::Make(partitioning_name, num_partitions, std::move(options)));
-    return splitter;
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer, ArrowShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+    return shuffle_writer;
   }
 }
 
 std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
-  if (output_schema_ == nullptr) {
-    cacheOutputSchema(planNode_);
+  if (outputSchema_ == nullptr) {
+    cacheOutputSchema(veloxPlan_);
   }
-  return output_schema_;
+  return outputSchema_;
 }
 
 void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const velox::core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
-  exportToArrow(velox::BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool()), arrowSchema);
-  GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
+  exportToArrow(
+      velox::BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool().get()), arrowSchema);
+  GLUTEN_ASSIGN_OR_THROW(outputSchema_, arrow::ImportSchema(&arrowSchema));
 }
 
 } // namespace gluten

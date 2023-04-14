@@ -55,7 +55,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     disableBucketedScan)
     with BasicScanExecTransformer {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance
     .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetrics
 
@@ -114,14 +115,10 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     this
   }
 
-  override def getChild: SparkPlan = {
-    null
-  }
-
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
     if (!bucketedScan) {
-      super.doValidate()
+      super.doValidateInternal()
     } else {
       false
     }

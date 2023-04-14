@@ -20,7 +20,7 @@ package io.glutenproject.expression
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.substrait.proto.Type;
+import io.substrait.proto.Type
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -28,7 +28,9 @@ import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import scala.collection.JavaConverters._
+import scala.util.control.Breaks.{break, breakable}
 
 object ConverterUtils extends Logging {
 
@@ -316,7 +318,10 @@ object ConverterUtils extends Logging {
         case BinaryType =>
           typedFuncName.concat("vbin")
         case DecimalType() =>
-          typedFuncName.concat("dec")
+          val decimalType = datatype.asInstanceOf[DecimalType]
+          val precision = decimalType.precision
+          val scale = decimalType.scale
+          typedFuncName.concat("dec<" + precision + "," + scale + ">")
         case ArrayType(_, _) =>
           typedFuncName.concat("list")
         case StructType(_) =>

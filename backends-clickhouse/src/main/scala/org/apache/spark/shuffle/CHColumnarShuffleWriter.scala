@@ -23,9 +23,10 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
+import java.util.UUID
 
 class CHColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -40,10 +41,12 @@ class CHColumnarShuffleWriter[K, V](
   private val conf = SparkEnv.get.conf
 
   private val blockManager = SparkEnv.get.blockManager
-  private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
-  private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
-  private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum;
+  private val localDirs = SparkDirectoryUtil
+    .namespace("ch-shuffle-write")
+    .mkChildDirs(UUID.randomUUID().toString)
+    .map(_.getAbsolutePath)
+    .mkString(",")
+  private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
   private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
@@ -90,11 +93,13 @@ class CHColumnarShuffleWriter[K, V](
     if (nativeSplitter == 0) {
       nativeSplitter = splitterJniWrapper.make(
         dep.nativePartitioning,
+        dep.shuffleId,
         mapId,
         splitSize,
         customizedCompressCodec,
         dataTmp.getAbsolutePath,
-        localDirs)
+        localDirs,
+        subDirsPerLocalDir)
     }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]

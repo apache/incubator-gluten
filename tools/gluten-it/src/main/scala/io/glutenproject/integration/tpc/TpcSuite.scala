@@ -14,6 +14,7 @@ abstract class TpcSuite(
   private val actions: Array[Action],
   private val testConf: SparkConf,
   private val baselineConf: SparkConf,
+  private val extraSparkConf: Map[String, String],
   private val fixedWidthAsDouble: Boolean,
   private val logLevel: Level,
   private val errorOnMemLeak: Boolean,
@@ -38,6 +39,7 @@ abstract class TpcSuite(
   sessionSwitcher.defaultConf().set("spark.sql.shuffle.partitions", s"$shufflePartitions")
   sessionSwitcher.defaultConf().set("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
   sessionSwitcher.defaultConf().set("spark.executor.heartbeatInterval", "3600000")
+  sessionSwitcher.defaultConf().set("spark.executor.metrics.pollingInterval", "1")
   sessionSwitcher.defaultConf().set("spark.network.timeout", "3601s")
   sessionSwitcher.defaultConf().set("spark.sql.broadcastTimeout", "1800")
   sessionSwitcher.defaultConf().set("spark.network.io.preferDirectBufs", "false")
@@ -74,6 +76,10 @@ abstract class TpcSuite(
     sessionSwitcher.defaultConf().set("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().set("spark.sql.files.openCostInBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().set("spark.default.parallelism", "1")
+  }
+
+  extraSparkConf.toStream.foreach { kv =>
+    sessionSwitcher.defaultConf().set(kv._1, kv._2)
   }
 
   // register sessions

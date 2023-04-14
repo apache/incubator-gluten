@@ -26,10 +26,13 @@ import java.math.BigDecimal;
 
 public class DecimalLiteralNode implements ExpressionNode, Serializable {
     private final Decimal value;
+    private final ByteString valueBytes;
 
     public DecimalLiteralNode(Decimal value) {
         ExpressionBuilder.checkDecimalScale(value.scale());
         this.value = value;
+        this.valueBytes = ByteString.copyFrom(
+                encodeDecimalIntoBytes(value.toJavaBigDecimal(), value.scale(), 16));
     }
 
     private static final long[] POWER_OF_10 = {
@@ -73,9 +76,7 @@ public class DecimalLiteralNode implements ExpressionNode, Serializable {
         decimalBuilder.setPrecision(value.precision());
         decimalBuilder.setScale(value.scale());
 
-        byte[] twosComplement =
-                encodeDecimalIntoBytes(value.toJavaBigDecimal(), value.scale(), 16);
-        decimalBuilder.setValue(ByteString.copyFrom(twosComplement));
+        decimalBuilder.setValue(valueBytes);
 
         Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
         literalBuilder.setDecimal(decimalBuilder.build());

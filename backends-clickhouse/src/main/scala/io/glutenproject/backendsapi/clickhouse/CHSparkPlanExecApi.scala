@@ -178,7 +178,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   // scalastyle:off argcount
   override def genShuffleDependency(
       rdd: RDD[ColumnarBatch],
-      outputAttributes: Seq[Attribute],
+      childOutputAttributes: Seq[Attribute],
+      projectOutputAttributes: Seq[Attribute],
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
@@ -186,7 +187,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
-      outputAttributes,
+      childOutputAttributes,
+      projectOutputAttributes,
       newPartitioning,
       serializer,
       writeMetrics,
@@ -257,11 +259,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             // TODO: remove this after pushdowning preprojection
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
-              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
           case r2c: RowToCHNativeColumnarExec =>
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
-              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet()
+              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
             )
         }
         (

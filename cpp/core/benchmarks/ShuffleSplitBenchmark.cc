@@ -31,7 +31,7 @@
 #include <chrono>
 
 #include "memory/ColumnarBatch.h"
-#include "operators/shuffle/splitter.h"
+#include "shuffle/ArrowShuffleWriter.h"
 #include "utils/macros.h"
 
 void print_trace(void) {
@@ -50,9 +50,9 @@ void print_trace(void) {
 using arrow::RecordBatchReader;
 using arrow::Status;
 
+using gluten::ArrowShuffleWriter;
 using gluten::GlutenException;
 using gluten::SplitOptions;
-using gluten::Splitter;
 
 namespace gluten {
 
@@ -237,21 +237,21 @@ class BenchmarkShuffleSplit {
     options.write_schema = false;
     options.memory_pool = pool;
 
-    std::shared_ptr<Splitter> splitter;
+    std::shared_ptr<ArrowShuffleWriter> shuffle_writer;
     int64_t elapse_read = 0;
     int64_t num_batches = 0;
     int64_t num_rows = 0;
     int64_t split_time = 0;
     auto start_time = std::chrono::steady_clock::now();
 
-    Do_Split(splitter, elapse_read, num_batches, num_rows, split_time, num_partitions, options, state);
+    Do_Split(shuffle_writer, elapse_read, num_batches, num_rows, split_time, num_partitions, options, state);
     auto end_time = std::chrono::steady_clock::now();
     auto total_time = (end_time - start_time).count();
 
     auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
-    GLUTEN_THROW_NOT_OK(fs->DeleteFile(splitter->DataFile()));
+    GLUTEN_THROW_NOT_OK(fs->DeleteFile(shuffle_writer->DataFile()));
 
-    state.SetBytesProcessed(int64_t(splitter->RawPartitionBytes()));
+    state.SetBytesProcessed(int64_t(shuffle_writer->RawPartitionBytes()));
 
     state.counters["rowgroups"] = benchmark::Counter(
         row_group_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
@@ -269,31 +269,32 @@ class BenchmarkShuffleSplit {
         benchmark::Counter(split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["bytes_spilled"] = benchmark::Counter(
-        splitter->TotalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        shuffle_writer->TotalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_written"] = benchmark::Counter(
-        splitter->TotalBytesWritten(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        shuffle_writer->TotalBytesWritten(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_raw"] = benchmark::Counter(
-        splitter->RawPartitionBytes(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        shuffle_writer->RawPartitionBytes(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_spilled"] = benchmark::Counter(
-        splitter->TotalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        shuffle_writer->TotalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] =
         benchmark::Counter(elapse_read, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] = benchmark::Counter(
-        splitter->TotalWriteTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        shuffle_writer->TotalWriteTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["spill_time"] = benchmark::Counter(
-        splitter->TotalEvictTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        shuffle_writer->TotalEvictTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["compress_time"] = benchmark::Counter(
-        splitter->TotalCompressTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        shuffle_writer->TotalCompressTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
-    split_time = split_time - splitter->TotalEvictTime() - splitter->TotalCompressTime() - splitter->TotalWriteTime();
+    split_time = split_time - shuffle_writer->TotalEvictTime() - shuffle_writer->TotalCompressTime() -
+        shuffle_writer->TotalWriteTime();
 
     state.counters["split_time"] =
         benchmark::Counter(split_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["total_time"] =
         benchmark::Counter(total_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    splitter.reset();
+    shuffle_writer.reset();
   }
 
  protected:
@@ -305,7 +306,7 @@ class BenchmarkShuffleSplit {
   }
 
   virtual void Do_Split(
-      std::shared_ptr<Splitter>& splitter,
+      std::shared_ptr<ArrowShuffleWriter>& shuffle_writer,
       int64_t& elapse_read,
       int64_t& num_batches,
       int64_t& num_rows,
@@ -329,7 +330,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
 
  protected:
   void Do_Split(
-      std::shared_ptr<Splitter>& splitter,
+      std::shared_ptr<ArrowShuffleWriter>& shuffle_writer,
       int64_t& elapse_read,
       int64_t& num_batches,
       int64_t& num_rows,
@@ -365,7 +366,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << local_schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", num_partitions, options));
+    GLUTEN_ASSIGN_OR_THROW(shuffle_writer, ArrowShuffleWriter::Make("rr", num_partitions, options));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -393,14 +394,14 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
       for_each(
           batches.begin(),
           batches.end(),
-          [&splitter, &split_time, &options](std::shared_ptr<arrow::RecordBatch>& record_batch) {
-            TIME_NANO_OR_THROW(split_time, splitter->Split(RecordBatchToColumnarBatch(record_batch).get()));
+          [&shuffle_writer, &split_time, &options](std::shared_ptr<arrow::RecordBatch>& record_batch) {
+            TIME_NANO_OR_THROW(split_time, shuffle_writer->Split(RecordBatchToColumnarBatch(record_batch).get()));
           });
       // std::cout << " split done memory allocated = " <<
       // options.memory_pool->bytes_allocated() << std::endl;
     }
 
-    TIME_NANO_OR_THROW(split_time, splitter->Stop());
+    TIME_NANO_OR_THROW(split_time, shuffle_writer->Stop());
   }
 };
 
@@ -410,7 +411,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
 
  protected:
   void Do_Split(
-      std::shared_ptr<Splitter>& splitter,
+      std::shared_ptr<ArrowShuffleWriter>& shuffle_writer,
       int64_t& elapse_read,
       int64_t& num_batches,
       int64_t& num_rows,
@@ -421,7 +422,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     if (state.thread_index() == 0)
       std::cout << schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", num_partitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(shuffle_writer, ArrowShuffleWriter::Make("rr", num_partitions, std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -438,11 +439,11 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
       while (record_batch) {
         num_batches += 1;
         num_rows += record_batch->num_rows();
-        TIME_NANO_OR_THROW(split_time, splitter->Split(RecordBatchToColumnarBatch(record_batch).get()));
+        TIME_NANO_OR_THROW(split_time, shuffle_writer->Split(RecordBatchToColumnarBatch(record_batch).get()));
         TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       }
     }
-    TIME_NANO_OR_THROW(split_time, splitter->Stop());
+    TIME_NANO_OR_THROW(split_time, shuffle_writer->Stop());
   }
 };
 

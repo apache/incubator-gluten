@@ -92,6 +92,74 @@ class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer
   }
 }
 
+class PosExplodeTransformer(substraitExprName: String, child: ExpressionTransformer,
+  original: PosExplode, attributeSeq: Seq[Attribute])
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode: ExpressionNode = child.doTransform(args)
+
+    // sequence(1, size(array_or_map))
+    val startExpr = new Literal(1, IntegerType)
+    val stopExpr = new Size(original.child, false)
+    val stepExpr = new Literal(1, IntegerType)
+    val sequenceExpr = new Sequence(startExpr, stopExpr, stepExpr)
+    val sequenceExprNode = ExpressionConverter.replaceWithExpressionTransformer(sequenceExpr,
+      attributeSeq).doTransform(args)
+
+    val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+
+    // map_from_arrays(sequence(1, size(array_or_map)), array_or_map)
+    val mapFromArraysFuncId = ExpressionBuilder.newScalarFunction(funcMap,
+      ConverterUtils.makeFuncName(ExpressionMappings.MAP_FROM_ARRAYS,
+        Seq(sequenceExpr.dataType, original.child.dataType), FunctionConfig.OPT))
+    
+    // Notice that in CH mapFromArrays accepts the second arguments as MapType or ArrayType
+    // But in Spark, it accepts ArrayType.
+    val keyType = IntegerType
+    val (valType, valContainsNull) = original.child.dataType match {
+      case a: ArrayType => (a.elementType, a.containsNull)
+      case m: MapType => (
+        StructType(
+          StructField("", m.keyType, false) ::
+          StructField("", m.valueType, m.valueContainsNull) :: Nil), false)
+      case _ => throw new UnsupportedOperationException(
+        s"posexplode(${original.child.dataType}) not supported yet.")
+    }
+    val outputType = MapType(keyType, valType, valContainsNull)
+    val mapFromArraysExprNode = ExpressionBuilder.makeScalarFunction(mapFromArraysFuncId,
+      Lists.newArrayList(sequenceExprNode, childNode),
+      ConverterUtils.getTypeNode(outputType, original.child.nullable))
+
+    // posexplode(map_from_arrays(sequence(1, size(array_or_map)), array_or_map))
+    val funcId = ExpressionBuilder.newScalarFunction(funcMap,
+      ConverterUtils.makeFuncName(ExpressionMappings.POSEXPLODE,
+        Seq(outputType), FunctionConfig.OPT))
+    
+    val childType = original.child.dataType
+    childType match {
+      case a: ArrayType =>
+        // Output pos, col when input is array
+        val structType = StructType(Array(
+          StructField("pos", IntegerType, false),
+          StructField("col", a.elementType, a.containsNull)))
+        ExpressionBuilder.makeScalarFunction(funcId, Lists.newArrayList(mapFromArraysExprNode),
+          ConverterUtils.getTypeNode(structType, false))
+      case m: MapType =>
+        // Output pos, key, value when input is map
+        val structType = StructType(Array(
+          StructField("pos", IntegerType, false),
+          StructField("key", m.keyType, false),
+          StructField("value", m.valueType, m.valueContainsNull)))
+        ExpressionBuilder.makeScalarFunction(funcId, Lists.newArrayList(mapFromArraysExprNode),
+          ConverterUtils.getTypeNode(structType, false))
+      case _ =>
+        throw new UnsupportedOperationException(s"posexplode(${childType}) not supported yet.")
+    }
+  }
+}
+
 class PromotePrecisionTransformer(child: ExpressionTransformer, original: PromotePrecision)
   extends ExpressionTransformer
   with Logging {
@@ -118,8 +186,37 @@ class CheckOverflowTransformer(
         Seq(original.dataType, BooleanType),
         FunctionConfig.OPT))
 
+    // just make a fake toType value, because native engine cannot accept datatype itself
+    val toTypeNodes = ExpressionBuilder.makeDecimalLiteral(
+      new Decimal().set(0, original.dataType.precision, original.dataType.scale))
     val expressionNodes =
-      Lists.newArrayList(childNode, new BooleanLiteralNode(original.nullOnOverflow))
+      Lists.newArrayList(childNode, new BooleanLiteralNode(original.nullOnOverflow), toTypeNodes)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class MakeDecimalTransformer(substraitExprName: String,
+                            child: ExpressionTransformer,
+                            original: MakeDecimal)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.doTransform(args)
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        Seq(original.dataType, BooleanType),
+        FunctionConfig.OPT))
+
+    // use fake decimal literal, because velox function signature need to get return type
+    // scale and precision by input type variable
+    val toTypeNodes = ExpressionBuilder.makeDecimalLiteral(
+      new Decimal().set(0, original.precision, original.scale))
+    val expressionNodes = Lists.newArrayList(childNode, toTypeNodes,
+        new BooleanLiteralNode(original.nullOnOverflow))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -193,6 +290,8 @@ object UnaryExpressionTransformer {
     original match {
       case c: CheckOverflow =>
         new CheckOverflowTransformer(substraitExprName, child, c)
+      case m: MakeDecimal =>
+        new MakeDecimalTransformer(substraitExprName, child, m)
       case p: PromotePrecision =>
         new PromotePrecisionTransformer(child, p)
       case extract if extract.isInstanceOf[GetDateField] || extract.isInstanceOf[GetTimeField] =>

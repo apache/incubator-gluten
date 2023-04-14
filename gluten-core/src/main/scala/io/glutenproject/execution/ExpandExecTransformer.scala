@@ -19,10 +19,10 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -31,12 +31,13 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
@@ -46,9 +47,10 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
                                  groupExpression: Seq[NamedExpression],
                                  output: Seq[Attribute],
                                  child: SparkPlan)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode with TransformSupport with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genExpandTransformerMetrics(sparkContext)
 
   val originalInputAttributes: Seq[Attribute] = child.output
@@ -79,8 +81,6 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     case _ =>
       this
   }
-
-  override def getChild: SparkPlan = child
 
   def getRelNode(context: SubstraitContext,
                  projections: Seq[Seq[Expression]],
@@ -184,7 +184,14 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       }
 
       // Add groupID col index
-      selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
+      if (SQLConf.get.integerGroupingIdEnabled) {
+        // When 'integerGroupingIdEnabled' set, groupID is integer type but velox always gerenate long type value.
+        // Convert result to fix test case 'SPARK-30279 Support 32 or more grouping attributes for GROUPING_ID()'.
+        val typeNode = ConverterUtils.getTypeNode(DataTypes.IntegerType, false)
+        selectNodes.add(ExpressionBuilder.makeCast(typeNode, ExpressionBuilder.makeSelection(projections(0).size - 1), SQLConf.get.ansiEnabled))
+      } else {
+        selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
+      }
 
       // Pass the reordered index agg + groupingsets + GID
       val emitStartIndex = originalInputAttributes.size + 1
@@ -208,7 +215,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     }
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportExpandExec()) {
       return false
     }
@@ -234,7 +241,8 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 

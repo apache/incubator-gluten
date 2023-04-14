@@ -18,12 +18,12 @@ package org.apache.spark.sql.execution.datasources.utils
 
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.execution.GlutenMergeTreePartition
-import io.glutenproject.utils.SparkResourcesUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
+import org.apache.spark.util.SparkResourcesUtil
 
 import scala.collection.mutable.ArrayBuffer
 

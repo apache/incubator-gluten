@@ -90,8 +90,10 @@ class VeloxTestSettings extends BackendTestSettings {
       // Mismatch when max NaN and infinite value
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
-      "describe"
-    )
+      "describe",
+      // decimal failed ut.
+      "SPARK-22271: mean overflows and returns null for some decimal variables"
+  )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
@@ -149,6 +151,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // Spill not supported yet.
     .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
     .exclude("NaN and -0.0 in window partition keys") // NaN case
+    // Rewrite with NaN test cases excluded.
+    .exclude("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window")
+    .exclude("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]
@@ -311,6 +316,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "without partition data column - select one deep nested complex field after outer join")
     .exclude("Spark vectorized reader - " +
       "with partition data column - select one deep nested complex field after outer join")
+    // Vectorized reading.
+    .exclude("Spark vectorized reader - without partition data column - " +
+      "select only expressions without references")
+    .exclude("Spark vectorized reader - with partition data column - " +
+      "select only expressions without references")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
@@ -389,11 +399,15 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
+    // decimal failed ut
+    .exclude("SPARK-34212 Parquet should read decimals correctly")
   enableSuite[GlutenParquetV2QuerySuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
+    // decimal failed ut
+    .exclude("SPARK-34212 Parquet should read decimals correctly")
   // requires resource files from Vanilla spark jar
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
@@ -534,4 +548,5 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenMetadataCacheSuite]
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+  enableSuite[FallbackStrategiesSuite]
 }

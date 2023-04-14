@@ -104,7 +104,6 @@ private class CHColumnarBatchSerializerInstance(
             nativeBlock = reader.next()
           }
           val numRows = nativeBlock.numRows()
-          logDebug(s"Read ColumnarBatch of $numRows rows")
 
           numBatchesTotal += 1
           numRowsTotal += numRows

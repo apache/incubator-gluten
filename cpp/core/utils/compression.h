@@ -20,12 +20,16 @@
 #include <arrow/util/compression.h>
 
 #ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat_util.h"
+#include "utils/qat/qat_util.h"
+#endif
+
+#ifdef GLUTEN_ENABLE_IAA
+#include "utils/qpl/qpl_codec.h"
 #endif
 
 namespace gluten {
 
-#ifdef GLUTEN_ENABLE_QAT
+#if defined(GLUTEN_ENABLE_QAT) or defined(GLUTEN_ENABLE_IAA)
 static const std::vector<arrow::Compression::type> supported_codec = {
     arrow::Compression::LZ4_FRAME,
     arrow::Compression::ZSTD,

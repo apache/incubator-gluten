@@ -38,14 +38,14 @@ velox::VectorPtr RecordBatch2RowVector(const RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
+  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool().get());
 }
 
 void checkBatchEqual(std::shared_ptr<RecordBatch> input_batch, bool checkMetadata = true) {
   velox::VectorPtr vp = RecordBatch2RowVector(*input_batch);
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  velox::exportToArrow(vp, arrowArray);
+  velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
   velox::exportToArrow(vp, arrowSchema);
   auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
   ASSERT_TRUE(in->Equals(*input_batch, checkMetadata)) << in->ToString() << input_batch->ToString();
@@ -111,17 +111,17 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
     auto shortDecimalFlatVector = makeShortDecimalFlatVector({1000265, -35610, 0}, DECIMAL(10, 3));
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
-    velox::exportToArrow(shortDecimalFlatVector, arrowArray);
+    velox::exportToArrow(shortDecimalFlatVector, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
     velox::exportToArrow(shortDecimalFlatVector, arrowSchema);
   }
 
   {
     // only RowVector can convert to RecordBatch
     auto row = makeRowVector({
-        makeShortDecimalFlatVector({1000265, -35610, 0}, DECIMAL(10, 3)),
+        makeShortDecimalFlatVector({1000265000, -35610000, 0}, DECIMAL(10, 3)),
     });
 
-    std::vector<std::shared_ptr<Field>> fields = {field("f_decimal128", decimal(10, 3))};
+    std::vector<std::shared_ptr<Field>> fields = {field("c0", decimal(10, 3))};
     auto schema = arrow::schema(fields);
     std::shared_ptr<RecordBatch> input_batch;
     const std::vector<std::string> input_data = {R"(["1000265.000", "-35610.000", "0.000"])"};
@@ -129,21 +129,11 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
 
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
-    velox::exportToArrow(row, arrowArray);
+    velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
     velox::exportToArrow(row, arrowSchema);
-    //     c0:   [
-    //     1000.265,
-    //     -35.610,
-    //     0.000
-    //   ]
-    // f_decimal128:   [
-    //     1000265.000,
-    //     -35610.000,
-    //     0.000
-    //   ]
-    // TODO:: fix bug, velox decimal vector result is not right
+
     auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
-    EXPECT_FALSE(in->Equals(*input_batch));
+    EXPECT_TRUE(in->Equals(*input_batch));
   }
 }
 
@@ -156,7 +146,7 @@ TEST_F(ArrowToVeloxTest, timestampV2A) {
   });
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  EXPECT_ANY_THROW(velox::exportToArrow(row, arrowArray));
+  EXPECT_ANY_THROW(velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get()));
   velox::exportToArrow(row, arrowSchema);
 }
 

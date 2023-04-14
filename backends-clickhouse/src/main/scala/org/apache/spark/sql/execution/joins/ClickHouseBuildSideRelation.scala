@@ -82,10 +82,8 @@ case class ClickHouseBuildSideRelation(
       private var current: CHNativeBlock = _
 
       override def hasNext: Boolean = {
-        if (current == null) {
-          current = blockReader.next()
-        }
-        current.numRows() > 0
+        current = blockReader.next()
+        current != null && current.numRows() > 0
       }
 
       override def next(): ColumnarBatch = {

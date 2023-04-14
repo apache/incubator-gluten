@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include <folly/system/ThreadName.h>
 #include <jni.h>
 #include "include/arrow/c/bridge.h"
 
@@ -45,6 +44,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
   }
+  // logging
+  google::InitGoogleLogging("gluten");
   gluten::GetJniErrorsState()->Initialize(env);
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
@@ -63,10 +64,17 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
     jbyteArray planArray) {
   JNI_METHOD_START
   sparkConfs_ = gluten::getConfMap(env, planArray);
+  // FIXME this is not thread-safe. The function can be called twice
+  //   within Spark local-mode, one from Driver, another from Executor.
   gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs_); });
   static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()
 }
+
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative(JNIEnv* env){
+    JNI_METHOD_START
+        // TODO Release resources allocated for single executor/driver
+        JNI_METHOD_END()}
 
 JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env,
@@ -80,9 +88,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
 
   // A query context used for function validation.
   velox::core::QueryCtx queryCtx;
-
-  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool();
-
+  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
@@ -102,12 +108,12 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jstring file_path,
     jlong c_schema) {
-  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool();
+  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool().get();
   gluten::DwrfDatasource* dwrfDatasource = nullptr;
   if (c_schema == -1) {
     // Only inspect the schema and not write
     dwrfDatasource = new gluten::DwrfDatasource(JStringToCString(env, file_path), nullptr, pool);
-    // dwrfDatasource->Init( );
+    // dwrfDatasource->Init();
   } else {
     auto schema = gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
     dwrfDatasource = new gluten::DwrfDatasource(JStringToCString(env, file_path), schema, pool);

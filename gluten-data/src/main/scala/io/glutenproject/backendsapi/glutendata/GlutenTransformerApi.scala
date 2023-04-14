@@ -24,8 +24,11 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
+
+import java.util;
 
 abstract class GlutenTransformerApi extends TransformerApi with Logging {
 
@@ -35,7 +38,9 @@ abstract class GlutenTransformerApi extends TransformerApi with Logging {
    * @return
    */
   override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
-                                                   outputAttributes: Seq[Attribute]): Boolean = {
+                                                   child: SparkPlan)
+  : Boolean = {
+    val outputAttributes = child.output
     // Complex type is not supported.
     for (attr <- outputAttributes) {
       attr.dataType match {
@@ -76,5 +81,10 @@ abstract class GlutenTransformerApi extends TransformerApi with Logging {
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+  }
+
+  override def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
+    backendPrefix: String): Unit = {
+    /// TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
   }
 }

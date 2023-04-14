@@ -20,11 +20,14 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, ParquetReadFormat}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{MergeTreeReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructField
 
@@ -33,6 +36,7 @@ import scala.util.control.Breaks.{break, breakable}
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
   override def initializerApi(): InitializerApi = new CHInitializerApi
+  override def shutdownApi(): ShutdownApi = new CHShutdownApi
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
@@ -83,12 +87,25 @@ object CHBackendSettings extends BackendSettings with Logging {
     format match {
       case ParquetReadFormat => validateFilePath
       case OrcReadFormat => true
-      // True for CH backend for unknown type.
-      case _ => true
+      case MergeTreeReadFormat => true
+      case _ => false
     }
   }
 
   override def utilizeShuffledHashJoinHint(): Boolean = true
+  override def supportShuffleWithProject(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean = {
+    // FIXME: The HashAggregateExec's output is different from backend, cannot use directly.
+    child match {
+      case _: HashAggregateExec =>
+        logInfo(
+          s"Not support shuffleExechangeExec with child of HashAggregateExec, which" +
+            s" has expressions in partitioning")
+        false
+      case _ => true
+    }
+  }
 
   override def supportSortExec(): Boolean = {
     GlutenConfig.getConf.enableColumnarSort

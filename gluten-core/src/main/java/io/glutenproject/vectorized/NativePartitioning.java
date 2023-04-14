@@ -20,7 +20,7 @@ package io.glutenproject.vectorized;
 import java.io.Serializable;
 
 /**
- * POJO to hold partitioning parameters needed by native splitter
+ * POJO to hold partitioning parameters needed by native shuffle writer
  */
 public class NativePartitioning implements Serializable {
 
@@ -28,6 +28,8 @@ public class NativePartitioning implements Serializable {
   private final int numPartitions;
 
   private final byte[] exprList;
+
+  private final byte[] requiredFields;
 
   private final byte[] schema;
 
@@ -46,10 +48,11 @@ public class NativePartitioning implements Serializable {
     this.numPartitions = numPartitions;
     this.exprList = exprList;
     this.schema = null;
+    this.requiredFields = null;
   }
 
   public NativePartitioning(String shortName, int numPartitions) {
-    this(shortName, numPartitions, null, null);
+    this(shortName, numPartitions, null, null, null);
   }
 
   public NativePartitioning(String shortName, int numPartitions, byte[] schema, byte[] exprList) {
@@ -57,6 +60,16 @@ public class NativePartitioning implements Serializable {
     this.numPartitions = numPartitions;
     this.schema = schema;
     this.exprList = exprList;
+    this.requiredFields = null;
+  }
+
+  public NativePartitioning(String shortName, int numPartitions, byte[] schema, byte[] exprList,
+                            byte[] requiredFields) {
+    this.shortName = shortName;
+    this.numPartitions = numPartitions;
+    this.schema = schema;
+    this.exprList = exprList;
+    this.requiredFields = requiredFields;
   }
 
   public String getShortName() {
@@ -69,6 +82,10 @@ public class NativePartitioning implements Serializable {
 
   public byte[] getExprList() {
     return exprList;
+  }
+
+  public byte[] getRequiredFields() {
+    return requiredFields;
   }
 
   public byte[] getSchema() {

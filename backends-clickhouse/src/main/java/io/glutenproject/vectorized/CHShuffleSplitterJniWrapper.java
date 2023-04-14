@@ -25,21 +25,25 @@ public class CHShuffleSplitterJniWrapper {
 
   public long make(
       NativePartitioning part,
+      int shuffleId,
       long mapId,
       int bufferSize,
       String codec,
       String dataFile,
-      String localDirs) {
+      String localDirs,
+      int subDirsPerLocalDir) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
         part.getExprList(),
-        part.getSchema(),
+        part.getRequiredFields(),
+        shuffleId,
         mapId,
         bufferSize,
         codec,
         dataFile,
-        localDirs);
+        localDirs,
+        subDirsPerLocalDir);
   }
 
   public native long nativeMake(
@@ -47,11 +51,13 @@ public class CHShuffleSplitterJniWrapper {
       int numPartitions,
       byte[] exprList,
       byte[] exprIndexList,
+      int shuffleId,
       long mapId,
       int bufferSize,
       String codec,
       String dataFile,
-      String localDirs);
+      String localDirs,
+      int subDirsPerLocalDir);
 
   public native void split(long splitterId, int numRows, long block);
 

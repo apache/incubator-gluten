@@ -22,11 +22,17 @@
 
 using namespace facebook;
 
+const std::string getFilePath(const std::string& fileName) {
+  const std::string currentPath = std::filesystem::current_path().c_str();
+  const std::string filePath = currentPath + "/../../../velox/benchmarks/data/" + fileName;
+  return filePath;
+}
+
 auto BM = [](::benchmark::State& state,
              const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile,
              const std::string& fileFormat) {
-  const auto& filePath = getExampleFilePath("plan/" + jsonFile);
+  const auto& filePath = getFilePath("plan/" + jsonFile);
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
     state.SkipWithError(maybePlan.status().message().c_str());
@@ -37,7 +43,7 @@ auto BM = [](::benchmark::State& state,
   std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
   for (const auto& datasetPath : datasetPaths) {
-    scanInfos.emplace_back(getFileInfos(datasetPath, fileFormat));
+    scanInfos.emplace_back(getSplitInfos(datasetPath, fileFormat));
   }
 
   for (auto _ : state) {
@@ -66,32 +72,26 @@ int main(int argc, char** argv) {
   // The multi-thread performance is not correct.
   // BENCHMARK(BM)->ThreadRange(36, 36);
 
-  // Register for TPC-H Q1 ORC tests.
-  std::string lineitemOrcPath = getExampleFilePath("orc/bm_lineitem/");
+  const auto& lineitemParquetPath = getFilePath("bm_lineitem/parquet/");
   if (argc < 2) {
     ::benchmark::RegisterBenchmark(
-        "q1_first_stage_orc", BM, std::vector<std::string>{lineitemOrcPath}, "q1_first_stage_orc.json", "orc");
+        "select", BM, std::vector<std::string>{lineitemParquetPath}, "select.json", "parquet");
   } else {
     ::benchmark::RegisterBenchmark(
-        "q1_first_stage_orc",
-        BM,
-        std::vector<std::string>{std::string(argv[1]) + "/"},
-        "q1_first_stage_orc.json",
-        "orc");
+        "select", BM, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "parquet");
   }
 
-  // Register for TPC-H Q6 ORC tests.
+  // For ORC debug.
+  /*
+  const auto& lineitemOrcPath = getFilePath("bm_lineitem/orc/");
   if (argc < 2) {
     ::benchmark::RegisterBenchmark(
-        "q6_first_stage_orc", BM, std::vector<std::string>{lineitemOrcPath}, "q6_first_stage_orc.json", "orc");
+        "select", BM, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
   } else {
     ::benchmark::RegisterBenchmark(
-        "q6_first_stage_orc",
-        BM,
-        std::vector<std::string>{std::string(argv[1]) + "/"},
-        "q6_first_stage_orc.json",
-        "orc");
+        "select", BM, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
   }
+  */
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();

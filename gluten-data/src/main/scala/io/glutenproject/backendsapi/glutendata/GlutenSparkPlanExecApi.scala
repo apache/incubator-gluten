@@ -152,8 +152,8 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   // scalastyle:off argcount
-  override def genShuffleDependency(rdd: RDD[ColumnarBatch],
-    outputAttributes: Seq[Attribute],
+  override def genShuffleDependency(rdd: RDD[ColumnarBatch], childOutputAttributes: Seq[Attribute],
+    projectOutputAttributes: Seq[Attribute],
     newPartitioning: Partitioning,
     serializer: Serializer,
     writeMetrics: Map[String, SQLMetric],
@@ -162,7 +162,7 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
     // scalastyle:on argcount
     GlutenExecUtil.genShuffleDependency(
       rdd,
-      outputAttributes,
+      childOutputAttributes,
       newPartitioning,
       serializer,
       writeMetrics,

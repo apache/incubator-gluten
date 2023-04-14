@@ -18,10 +18,11 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.{Decimal, DecimalType, StringType, StructField, StructType}
 import org.apache.spark.sql.Row
-
 import scala.collection.JavaConverters
+
+import org.apache.spark.sql.functions.{avg, col}
 
 class TestOperator extends WholeStageTransformerSuite {
 
@@ -29,6 +30,8 @@ class TestOperator extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
+
+  import testImplicits._
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -454,5 +457,68 @@ class TestOperator extends WholeStageTransformerSuite {
         |""".stripMargin) {
       checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
+  }
+
+  test("bool scan") {
+    withTempPath { path =>
+      Seq(true, false, true, true, false, false)
+        .toDF("a").write.parquet(path.getCanonicalPath)
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+      runQueryAndCompare("SELECT a from view") {
+        checkOperatorMatch[BatchScanExecTransformer]
+      }
+    }
+  }
+
+  test("decimal abs") {
+    runQueryAndCompare(
+      """
+        |select abs(cast (l_quantity * (-1.0) as decimal(12, 2))),
+        |abs(cast (l_quantity * (-1.0) as decimal(22, 2))),
+        |abs(cast (l_quantity as decimal(12, 2))),
+        |abs(cast (l_quantity as decimal(12, 2))) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    withTempPath { path =>
+      Seq(-3099.270000, -3018.367500, -2833.887500, -1304.180000, -1263.289167, -1480.093333)
+        .toDF("a").write.parquet(path.getCanonicalPath)
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+      runQueryAndCompare("SELECT abs(cast (a as decimal(19, 6))) from view") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  test("corr covar_pop covar_samp") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      runQueryAndCompare(
+        """
+          |select corr(l_partkey, l_suppkey) from lineitem;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+      runQueryAndCompare(
+        """
+          |select covar_pop(l_partkey, l_suppkey) from lineitem;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+      runQueryAndCompare(
+        """
+          |select covar_samp(l_partkey, l_suppkey) from lineitem;
+          |""".stripMargin) {
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      }
+    }
+  }
+
+  test("Cast double to decimal") {
+    val d = 0.034567890
+    val df = Seq(d, d, d, d, d, d, d, d, d, d).toDF("DecimalCol")
+    val result = df.select($"DecimalCol" cast DecimalType(38, 33))
+      .select(col("DecimalCol")).agg(avg($"DecimalCol"))
+    assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
+    checkOperatorMatch[GlutenHashAggregateExecTransformer](result)
   }
 }

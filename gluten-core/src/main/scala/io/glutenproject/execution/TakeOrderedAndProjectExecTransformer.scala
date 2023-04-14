@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.utils.ColumnarShuffleUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -23,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, So
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.{ColumnarCollapseCodegenStages, ColumnarInputAdapter, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarInputAdapter, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -33,8 +34,8 @@ case class TakeOrderedAndProjectExecTransformer (
                                                 sortOrder: Seq[SortOrder],
                                                 projectList: Seq[NamedExpression],
                                                 child: SparkPlan,
-                                                isAdaptiveContextOrLeafPlanExchange: Boolean)
-    extends UnaryExecNode{
+                                                isAdaptiveContextOrTopParentExchange: Boolean)
+    extends UnaryExecNode with GlutenPlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
   override def supportsColumnar: Boolean = true
@@ -68,7 +69,7 @@ case class TakeOrderedAndProjectExecTransformer (
     if (childRDDPartsNum == 0) {
       sparkContext.parallelize(Seq.empty, 1)
     } else {
-      // The child should have been replaced by ColumnarCollapseCodegenStages.
+      // The child should have been replaced by ColumnarCollapseTransformStages.
       val limitExecPlan = child match {
         case wholeStage: WholeStageTransformerExec =>
           // remove this WholeStageTransformerExec, put the new sort, limit and project
@@ -80,16 +81,16 @@ case class TakeOrderedAndProjectExecTransformer (
           val sortExecPlan = SortExecTransformer(sortOrder, false, other)
           LimitTransformer(sortExecPlan, 0, limit)
       }
-      val codegenStageCounter: AtomicInteger = ColumnarCollapseCodegenStages.codegenStageCounter
+      val transformStageCounter: AtomicInteger =
+        ColumnarCollapseTransformStages.transformStageCounter
       val finalLimitPlan = if (childRDDPartsNum == 1) {
           limitExecPlan
       } else {
         val sortStagePlan = WholeStageTransformerExec(limitExecPlan)(
-          codegenStageCounter.incrementAndGet())
+          transformStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
         val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(shuffleExec,
-          sortStagePlan, false, isAdaptiveContextOrLeafPlanExchange)
-
+          sortStagePlan, isAdaptiveContextOrTopParentExchange, shuffleExec.child.output)
         val globalSortExecPlan = SortExecTransformer(sortOrder, false,
           new ColumnarInputAdapter(transformedShuffleExec))
         LimitTransformer(globalSortExecPlan, 0, limit)
@@ -101,7 +102,7 @@ case class TakeOrderedAndProjectExecTransformer (
         finalLimitPlan
       }
 
-      val finalPlan = WholeStageTransformerExec(projectPlan)(codegenStageCounter.incrementAndGet())
+      val finalPlan = WholeStageTransformerExec(projectPlan)(transformStageCounter.incrementAndGet())
 
       finalPlan.doExecuteColumnar()
     }

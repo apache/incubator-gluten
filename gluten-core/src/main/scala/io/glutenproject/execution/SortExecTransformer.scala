@@ -19,7 +19,6 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.metrics.MetricsUpdater
@@ -27,13 +26,12 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.utils.BindReferencesUtil
-
 import io.substrait.proto.SortField
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -49,9 +47,10 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
                                global: Boolean,
                                child: SparkPlan,
                                testSpillFrequency: Int = 0)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode with TransformSupport with GlutenPlan {
 
-  override lazy val metrics =
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater =
@@ -69,8 +68,6 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
-
-  override def getChild: SparkPlan = child
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
@@ -247,7 +244,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     }
   }
 
-  override def doValidate(): Boolean = {
+  override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
       return false
     }
@@ -259,7 +256,8 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         substraitContext, sortOrder, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 

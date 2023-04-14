@@ -21,6 +21,15 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {}
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      MetricsUtil.updateOperatorMetrics(metrics, FilterMetricsUpdater.METRICS_MAP, operatorMetrics)
+    }
   }
+}
+
+object FilterMetricsUpdater {
+  val METRICS_MAP = Map(
+    "FilterTransform" -> "totalTime"
+  )
 }

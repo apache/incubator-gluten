@@ -17,6 +17,8 @@
 package org.apache.spark.sql.execution.datasources.orc
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.tags.ExtendedSQLTest
 
+@ExtendedSQLTest
 class GlutenOrcV2SchemaPruningSuite extends OrcV2SchemaPruningSuite with GlutenSQLTestsBaseTrait {
 }

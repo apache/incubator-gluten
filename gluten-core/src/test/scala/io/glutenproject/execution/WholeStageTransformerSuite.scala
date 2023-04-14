@@ -96,13 +96,25 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       row.schema.foreach(s => {
         s match {
           case d if d.dataType == DoubleType =>
-            val v1 = row.getDouble(i)
-            val v2 = result(i).toDouble
-            assert(Math.abs(v1 - v2) < 0.00001)
+            // handle null value
+            if (row.isNullAt(i)) {
+              assert(result(i).equals("null"))
+            } else {
+              val v1 = row.getDouble(i)
+              assert(!result(i).equals("null"))
+              val v2 = result(i).toDouble
+              assert(Math.abs(v1 - v2) < 0.00001)
+            }
           case _ =>
-            val v1 = row.get(i).toString
-            val v2 = result(i)
-            assert(v1.equals(v2))
+            // handle null value
+            if (row.isNullAt(i)) {
+              assert(result(i).equals("null"))
+            } else {
+              val v1 = row.get(i)
+              assert(!result(i).equals("null"))
+              val v2 = result(i)
+              assert(v1.toString.equals(v2))
+            }
         }
         i += 1
       })
@@ -208,7 +220,6 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     if (compareResult) {
       checkAnswer(df, expected)
     }
-    print(df.queryExecution.executedPlan)
     customCheck(df)
     df
   }
