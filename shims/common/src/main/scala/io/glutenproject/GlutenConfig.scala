@@ -19,8 +19,8 @@ package io.glutenproject
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
-
 import com.google.common.collect.ImmutableList
+import io.glutenproject.GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
 
 import java.util
 import java.util.Locale
@@ -422,7 +422,8 @@ object GlutenConfig {
       SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
       SPARK_HIVE_EXEC_ORC_COMPRESS,
       // DWRF datasource config end
-      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
+      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {
