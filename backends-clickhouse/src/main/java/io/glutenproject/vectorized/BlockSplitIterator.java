@@ -113,6 +113,5 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
 
     public String getRequiredFields() { return requiredFields; }
     public void setRequiredFields(String requiredFields) { this.requiredFields = requiredFields; }
-    
   }
 }
