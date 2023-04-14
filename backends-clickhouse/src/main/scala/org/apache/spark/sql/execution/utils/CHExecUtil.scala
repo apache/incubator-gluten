@@ -161,6 +161,7 @@ object CHExecUtil extends Logging {
     options.setName(nativePartitioning.getShortName)
     options.setPartitionNum(nativePartitioning.getNumPartitions)
     options.setExpr(new String(nativePartitioning.getExprList))
+    options.setExprIndex(new String(nativePartitioning.getSchema))
     options.setRequiredFields(if (nativePartitioning.getRequiredFields != null) {
       new String(nativePartitioning.getRequiredFields)
     } else {

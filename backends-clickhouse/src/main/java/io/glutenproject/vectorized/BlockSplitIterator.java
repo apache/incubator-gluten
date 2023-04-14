@@ -27,11 +27,11 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
   private long instance = 0;
 
   public BlockSplitIterator(Iterator<Long> in, IteratorOptions options) {
-    this.instance = nativeCreate(new IteratorWrapper(in), options.getName(), options.getExpr(),
+    this.instance = nativeCreate(new IteratorWrapper(in), options.getName(), options.getExpr(), options.getExprIndex(),
         options.getRequiredFields(), options.getPartitionNum(), options.getBufferSize());
   }
 
-  private native long nativeCreate(IteratorWrapper in, String name, String expr, String schema,
+  private native long nativeCreate(IteratorWrapper in, String name, String expr, String expr_index, String schema,
                                    int partitionNum, int bufferSize);
 
   private native void nativeClose(long instance);
@@ -68,6 +68,7 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
     private String name;
     private int bufferSize;
     private String expr;
+    private String exprIndex;
     private String requiredFields;
 
     public int getPartitionNum() {
@@ -102,7 +103,16 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
       this.expr = expr;
     }
 
+    public String getExprIndex() {
+      return exprIndex;
+    }
+
+    public void setExprIndex(String exprIndex) {
+      this.exprIndex = exprIndex;
+    }
+
     public String getRequiredFields() { return requiredFields; }
     public void setRequiredFields(String requiredFields) { this.requiredFields = requiredFields; }
+    
   }
 }
