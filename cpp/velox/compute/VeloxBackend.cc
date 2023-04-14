@@ -54,7 +54,7 @@ VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& c
   // mem tracker
   int64_t maxMemory;
   {
-    auto got = confMap_.find(kSparkOffHeapMemory);
+    auto got = confMap_.find(kSparkTaskOffHeapMemory); // per task, for creating iterator
     if (got == confMap_.end()) {
       // not found
       maxMemory = facebook::velox::memory::kMaxMemory;
@@ -63,12 +63,7 @@ VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& c
     }
   }
 
-  try {
-    // 1/2 of offheap size.
-    memUsageTracker_ = velox::memory::MemoryUsageTracker::create(maxMemory);
-  } catch (const std::invalid_argument&) {
-    throw std::runtime_error("Invalid off-heap memory size: " + std::to_string(maxMemory));
-  }
+  memPoolOptions_ = {facebook::velox::memory::MemoryAllocator::kMaxAlignment, maxMemory};
 }
 
 void VeloxBackend::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
@@ -288,8 +283,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-  auto ctxPool = veloxPool->addChild("result_iterator_spill", velox::memory::MemoryPool::Kind::kAggregate);
+  auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
+  auto ctxPool = veloxPool->addChild("result_iterator", velox::memory::MemoryPool::Kind::kAggregate);
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
@@ -302,6 +297,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   }
 }
 
+// Used by unit test and benchmark.
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
@@ -315,7 +311,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+  auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
   auto ctxPool = veloxPool->addChild("result_iterator", velox::memory::MemoryPool::Kind::kLeaf);
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
       ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp/test-spill", confMap_);
@@ -328,7 +324,7 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
     auto arrowPool = AsWrappedArrowMemoryPool(allocator);
-    auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+    auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
     auto ctxVeloxPool = veloxPool->addChild("columnar_to_row_velox", velox::memory::MemoryPool::Kind::kLeaf);
     return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, ctxVeloxPool);
   } else {
@@ -361,10 +357,6 @@ std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
     cacheOutputSchema(veloxPlan_);
   }
   return outputSchema_;
-}
-
-std::shared_ptr<facebook::velox::memory::MemoryUsageTracker> VeloxBackend::getMemoryUsageTracker() {
-  return memUsageTracker_;
 }
 
 void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const velox::core::PlanNode>& planNode) {

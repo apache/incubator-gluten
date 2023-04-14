@@ -393,14 +393,17 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   velox::memory::MemoryUsage subtreeMemoryUsage_;
 };
 
-std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
+std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
+    gluten::MemoryAllocator* allocator,
+    const facebook::velox::memory::MemoryPool::Options& options) {
   return std::make_shared<WrappedVeloxMemoryPool>(
       &velox::memory::MemoryManager::getInstance(),
       "wrappedRoot",
       velox::memory::MemoryPool::Kind::kAggregate,
       nullptr,
       allocator,
-      nullptr);
+      nullptr,
+      options);
 }
 
 std::shared_ptr<velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool() {
