@@ -29,12 +29,34 @@ namespace gluten {
 class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
   VeloxColumnarToRowConverter(
-      facebook::velox::RowVectorPtr rv,
       std::shared_ptr<arrow::MemoryPool> arrow_pool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> velox_pool)
-      : ColumnarToRowConverter(arrow_pool), rv_(rv), velox_pool_(velox_pool) {}
+      : ColumnarToRowConverter(arrow_pool), velox_pool_(velox_pool) {
+    }
+
+  VeloxColumnarToRowConverter(
+      const facebook::velox::RowVectorPtr& rv,
+      std::shared_ptr<arrow::MemoryPool> arrow_pool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> velox_pool)
+      : rv_(rv), ColumnarToRowConverter(arrow_pool), velox_pool_(velox_pool) {}
+
+  ~VeloxColumnarToRowConverter() = default;
 
   arrow::Status Init() override;
+
+  arrow::Status Init(const facebook::velox::RowVectorPtr& rv)
+  {
+    rv_ = rv;
+    return Init();
+  }
+
+  arrow::Status FillBuffer(
+      int32_t& row_start,
+      int32_t batch_rows,
+      std::vector<const uint8_t*>& dataptrs,
+      std::vector<uint8_t> nullvec,
+      std::vector<arrow::Type::type>& typevec,
+      std::vector<uint8_t>& typewidth);
 
   arrow::Status Write() override;
 

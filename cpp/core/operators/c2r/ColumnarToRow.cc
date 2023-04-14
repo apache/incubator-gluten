@@ -40,32 +40,6 @@ int64_t ColumnarToRowConverter::CalculatedFixeSizePerRow(std::shared_ptr<arrow::
   return fixed_size + decimal_cols_size;
 }
 
-int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) {
-  // TODO: we can get faster implementation by gcc build-in function
-  // HD, Figure 5-6
-  if (i == 0)
-    return 32;
-  int32_t n = 1;
-  if (i >> 16 == 0) {
-    n += 16;
-    i <<= 16;
-  }
-  if (i >> 24 == 0) {
-    n += 8;
-    i <<= 8;
-  }
-  if (i >> 28 == 0) {
-    n += 4;
-    i <<= 4;
-  }
-  if (i >> 30 == 0) {
-    n += 2;
-    i <<= 2;
-  }
-  n -= i >> 31;
-  return n;
-}
-
 int32_t ColumnarToRowConverter::GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len) {
   int32_t n = -1;
   if (len == 0) {

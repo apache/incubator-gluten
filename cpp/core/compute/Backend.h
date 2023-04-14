@@ -76,7 +76,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
         std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
-    return std::make_shared<ArrowColumnarToRowConverter>(rb, memory_pool);
+    auto ret = std::make_shared<ArrowColumnarToRowConverter>(memory_pool);
   }
 
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
