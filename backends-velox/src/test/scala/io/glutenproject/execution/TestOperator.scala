@@ -618,4 +618,15 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
     checkOperatorMatch[GlutenHashAggregateExecTransformer](result)
   }
+
+  test("corr distinct") {
+    Seq((1, 1), (2, 2), (2, 2))
+      .toDF("a", "b").createOrReplaceTempView("view")
+    runQueryAndCompare("SELECT corr(DISTINCT a, b)," +
+      "corr(DISTINCT b, a), count(*) FROM view") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+      }) == 4)
+    }}
+  }
 }
