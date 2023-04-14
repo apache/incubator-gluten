@@ -390,7 +390,7 @@ case class GlutenHashAggregateExecTransformer(
       val functionInputAttributes = aggregateExpression.aggregateFunction.inputAggBufferAttributes
       val aggregateFunction = aggregateExpression.aggregateFunction
       aggregateFunction match {
-        case _: Count | _: Corr if mixedPartialAndMerge && aggregateExpression.mode == Partial =>
+        case _ if mixedPartialAndMerge && aggregateExpression.mode == Partial =>
           val childNodes = new util.ArrayList[ExpressionNode](
             aggregateFunction.children.map(attr => {
               ExpressionConverter
@@ -590,20 +590,31 @@ case class GlutenHashAggregateExecTransformer(
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
         case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
-             _: Corr | _: CovPopulation | _: CovSample =>
+             _: Corr | _: CovPopulation | _: CovSample
+          if aggExpr.mode == PartialMerge | aggExpr.mode == Final =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
-        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
+        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] &&
+          (aggExpr.mode == PartialMerge | aggExpr.mode == Final) =>
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
-        case _ =>
+        case _ if aggExpr.mode == PartialMerge | aggExpr.mode == Final =>
           aggregateFunc.inputAggBufferAttributes.toList.map(_ => {
             childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
             colIdx += 1
             aggExpr
           })
+        case _ if aggExpr.mode == Partial =>
+          aggregateFunc.children.toList.map(_ => {
+            childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
+            colIdx += 1
+            aggExpr
+          })
+        case function =>
+          throw new UnsupportedOperationException(
+            s"$function of ${aggExpr.mode.toString} is not supported.")
       }
       addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
     })
