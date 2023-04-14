@@ -64,25 +64,11 @@ public class ReadRelNode implements RelNode, Serializable {
     RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
     relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
 
-    Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-    for (TypeNode typeNode : types) {
-      structBuilder.addTypes(typeNode.toProtobuf());
-    }
-    NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
-    nStructBuilder.setStruct(structBuilder.build());
-    for (String name : names) {
-      nStructBuilder.addNames(name);
-    }
-    if (!columnTypeNodes.isEmpty()) {
-      PartitionColumns.Builder partitionColumnsBuilder = PartitionColumns.newBuilder();
-      for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
-        partitionColumnsBuilder.addColumnType(columnTypeNode.toProtobuf());
-      }
-      nStructBuilder.setPartitionColumns(partitionColumnsBuilder.build());
-    }
+    NamedStruct schema = buildNamedStruct(types, names, columnTypeNodes);
+
     ReadRel.Builder readBuilder = ReadRel.newBuilder();
     readBuilder.setCommon(relCommonBuilder.build());
-    readBuilder.setBaseSchema(nStructBuilder.build());
+    readBuilder.setBaseSchema(schema);
     if (filterNode != null) {
       readBuilder.setFilter(filterNode.toProtobuf());
     }
@@ -99,5 +85,27 @@ public class ReadRelNode implements RelNode, Serializable {
     Rel.Builder builder = Rel.newBuilder();
     builder.setRead(readBuilder.build());
     return builder.build();
+  }
+
+  public static NamedStruct buildNamedStruct(ArrayList<TypeNode> types,
+                                             ArrayList<String> names,
+                                             ArrayList<ColumnTypeNode> columnTypeNodes) {
+    Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+    for (TypeNode typeNode : types) {
+      structBuilder.addTypes(typeNode.toProtobuf());
+    }
+    NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
+    nStructBuilder.setStruct(structBuilder.build());
+    for (String name : names) {
+      nStructBuilder.addNames(name);
+    }
+    if (columnTypeNodes != null && !columnTypeNodes.isEmpty()) {
+      PartitionColumns.Builder partitionColumnsBuilder = PartitionColumns.newBuilder();
+      for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
+        partitionColumnsBuilder.addColumnType(columnTypeNode.toProtobuf());
+      }
+      nStructBuilder.setPartitionColumns(partitionColumnsBuilder.build());
+    }
+    return nStructBuilder.build();
   }
 }

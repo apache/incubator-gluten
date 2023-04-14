@@ -57,7 +57,8 @@ trait IteratorApi {
                           numOutputBatches: SQLMetric = null,
                           collectTime: SQLMetric = null,
                           concatTime: SQLMetric = null,
-                          avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch]
+                          avgCoalescedNumRows: SQLMetric = null,
+                          schema: Array[Byte] = null): Iterator[ColumnarBatch]
 
   /**
    * Generate closeable ColumnBatch iterator.

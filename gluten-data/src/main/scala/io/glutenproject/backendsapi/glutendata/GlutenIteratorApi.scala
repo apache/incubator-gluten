@@ -108,7 +108,8 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
                                    numOutputBatches: SQLMetric = null,
                                    collectTime: SQLMetric = null,
                                    concatTime: SQLMetric = null,
-                                   avgCoalescedNumRows: SQLMetric = null)
+                                   avgCoalescedNumRows: SQLMetric = null,
+                                   schema: Array[Byte] = null)
   : Iterator[ColumnarBatch] = {
 
     val beforeInput = System.nanoTime

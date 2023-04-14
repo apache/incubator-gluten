@@ -720,6 +720,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, df => {})
   }
 
+  test("Bug-432 coalesec nullable mismatch") {
+    val sql =
+      """
+        |select n_name, d, count(1) from (
+        | select n_name, coalesce(n_nationkey, 1) as d from nation
+        | union all
+        | select n_name, coalesce(n_nationkey, NULL) as d from nation
+        |) as t group by n_name, d order by n_name, d
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,

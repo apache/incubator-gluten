@@ -27,11 +27,11 @@ public class CHCoalesceOperator implements Serializable, Closeable {
   private static final long serialVersionUID = -1L;
   private long nativeOperator;
 
-  public CHCoalesceOperator(int bufSize) {
-    this.nativeOperator = createNativeOperator(bufSize);
+  public CHCoalesceOperator(int bufSize, byte[] schema) {
+    this.nativeOperator = createNativeOperator(bufSize, schema);
   }
 
-  public native long createNativeOperator(int bufSize);
+  public native long createNativeOperator(int bufSize, byte[] schema);
 
   public native boolean nativeIsFull(long nativeOperator);
 

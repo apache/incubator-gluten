@@ -108,9 +108,10 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       numOutputBatches: SQLMetric = null,
       collectTime: SQLMetric = null,
       concatTime: SQLMetric = null,
-      avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch] = {
+      avgCoalescedNumRows: SQLMetric = null,
+      schema: Array[Byte]): Iterator[ColumnarBatch] = {
     val res = if (GlutenConfig.getConf.enableCoalesceBatches) {
-      val operator = new CHCoalesceOperator(recordsPerBatch)
+      val operator = new CHCoalesceOperator(recordsPerBatch, schema)
       new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
           val beforeNext = System.nanoTime

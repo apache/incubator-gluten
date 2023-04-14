@@ -18,13 +18,19 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.substrait.`type`.TypeNode
+import io.glutenproject.substrait.rel.ReadRelNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util
+import java.util.ArrayList
 
 case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode with GlutenPlan {
 
@@ -50,9 +56,19 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode with Glut
     val avgCoalescedNumRows = longMetric("avgCoalescedNumRows")
 
     child.executeColumnar().mapPartitions { iter =>
+      val typeList = new util.ArrayList[TypeNode]
+      val nameList = new util.ArrayList[String]
+      child.output.foreach(
+        attr => {
+          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+          nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+        }
+      )
+      val schema = ReadRelNode.buildNamedStruct(typeList, nameList, null)
       BackendsApiManager.getIteratorApiInstance
         .genCoalesceIterator(iter, recordsPerBatch, numOutputRows,
-          numInputBatches, numOutputBatches, collectTime, concatTime, avgCoalescedNumRows)
+          numInputBatches, numOutputBatches, collectTime, concatTime, avgCoalescedNumRows,
+          schema.toByteArray)
     }
   }
 
