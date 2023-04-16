@@ -148,7 +148,6 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         }
         projectSetExprNodes.add(porjectExprNodes)
       }
-      println("add pre-project for expand")
       RelBuilder.makeExpandRel(
           inputRel,
           projectSetExprNodes,
