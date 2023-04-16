@@ -191,6 +191,7 @@ target_include_directories(velox PUBLIC
     ${root_directory}/src
     ${VELOX_HOME}
     ${VELOX_BUILD_PATH}
+    ${VELOX_BUILD_PATH}/_deps/xsimd-src/include/
     ${VELOX_HOME}/velox/vector
     ${VELOX_HOME}/third_party/xsimd/include/)
 
