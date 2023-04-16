@@ -44,6 +44,7 @@ object ExpressionMappings {
   final val CORR = "corr"
   final val COVAR_POP = "covar_pop"
   final val COVAR_SAMP = "covar_samp"
+  final val LAST = "last"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -178,6 +179,9 @@ object ExpressionMappings {
   final val ARRAY_MAX = "array_max"
   final val ARRAY_MIN = "array_min"
   final val SEQUENCE = "sequence"
+  final val SORT_ARRAY = "sort_array"
+  final val ARRAYS_OVERLAP = "arrays_overlap"
+  final val SLICE = "slice"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -220,6 +224,7 @@ object ExpressionMappings {
   final val ROW_NUMBER = "row_number"
   final val CUME_DIST = "cume_dist"
   final val PERCENT_RANK = "percent_rank"
+  final val NTILE = "ntile"
 
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"
@@ -366,6 +371,10 @@ object ExpressionMappings {
     Sig[ArrayMax](ARRAY_MAX),
     Sig[ArrayMin](ARRAY_MIN),
     Sig[Sequence](SEQUENCE),
+    Sig[SortArray](SORT_ARRAY),
+    Sig[ArraysOverlap](ARRAYS_OVERLAP),
+    Sig[Slice](SLICE),
+
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
@@ -412,7 +421,8 @@ object ExpressionMappings {
     Sig[BitOrAgg](BIT_OR_AGG),
     Sig[Corr](CORR),
     Sig[CovPopulation](COVAR_POP),
-    Sig[CovSample](COVAR_SAMP)
+    Sig[CovSample](COVAR_SAMP),
+    Sig[Last](LAST)
   )
 
   /**
@@ -423,7 +433,8 @@ object ExpressionMappings {
     Sig[DenseRank](DENSE_RANK),
     Sig[RowNumber](ROW_NUMBER),
     Sig[CumeDist](CUME_DIST),
-    Sig[PercentRank](PERCENT_RANK)
+    Sig[PercentRank](PERCENT_RANK),
+    Sig[NTile](NTILE)
   )
 
   // some spark new version class
