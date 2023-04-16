@@ -196,7 +196,7 @@ case class GroupIdExecTransformer(projections: Seq[Seq[Expression]],
       // Pass the reordered index agg + groupingsets + GID
       val emitStartIndex = originalInputAttributes.size + 1
       if (!validation) {
-        RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId, emitStartIndex)
+        RelBuilder.makeProjectRel(groupIdRel, selectNodes, context, operatorId, emitStartIndex)
       } else {
         // Use a extension node to send the input types through Substrait plan for a validation.
         val inputTypeNodeList = new java.util.ArrayList[TypeNode]()

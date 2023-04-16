@@ -21,7 +21,7 @@ import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, LiteralTransformer}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
@@ -36,12 +36,11 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
-import scala.util.control.Breaks.{break, breakable}
+import scala.collection.mutable.ArrayBuffer
 
 case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
                                  output: Seq[Attribute],
@@ -88,38 +87,105 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
                  input: RelNode,
                  validation: Boolean): RelNode = {
     val args = context.registeredFunction
-    val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
-    projections.foreach { projection =>
-      val porjectExprNodes = new util.ArrayList[ExpressionNode]()
-      for (i <- 0 until projection.size) {
-        var projectExprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(
-            projection(i),
-            originalInputAttributes)
-        val transformedNode = projectExprNode.doTransform(args)
-        porjectExprNodes.add(transformedNode)
-      }
-      projectSetExprNodes.add(porjectExprNodes)
+    def needsPreProjection(projections: Seq[Seq[Expression]]): Boolean = {
+      projections
+        .exists(set => set.exists(p => !p.isInstanceOf[Attribute] && !p.isInstanceOf[Literal]))
     }
-
-    if (!validation) {
-      RelBuilder.makeExpandRel(
-        input,
-        projectSetExprNodes,
-        context, operatorId)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for a validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(
-          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+    if (needsPreProjection(projections)) {
+      // if there is not literal and attribute expression in project sets, add a project op
+      // to calculate them before expand op.
+      val preExprNodes = new util.ArrayList[ExpressionNode]()
+      val selections = ArrayBuffer.empty[Int]
+      var preExprIndex = 0
+      for (i <- 0 until projections.head.size) {
+        var nonLiteralExprFound = false
+        for (j <- 0 until projections.size) {
+          val proj = projections(j)(i)
+          if (!nonLiteralExprFound && !proj.isInstanceOf[Literal]) {
+            var projectExprNode = ExpressionConverter
+              .replaceWithExpressionTransformer(
+                proj,
+                originalInputAttributes).doTransform(args)
+            preExprNodes.add(projectExprNode)
+            selections += preExprIndex
+            preExprIndex = preExprIndex + 1
+            nonLiteralExprFound = true
+          }
+        }
+        if (!nonLiteralExprFound) {
+          selections += -1
+        }
+      }
+      // make project
+      val emitStartIndex = originalInputAttributes.size
+      val inputRel = if (!validation) {
+        RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId, emitStartIndex)
+      } else {
+        // Use a extension node to send the input types through Substrait plan for a validation.
+        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+        for (attr <- originalInputAttributes) {
+          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        }
+        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+          Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        RelBuilder.makeProjectRel(
+          input, preExprNodes, extensionNode, context, operatorId, emitStartIndex)
       }
 
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeExpandRel(input,
-        projectSetExprNodes,
-        extensionNode, context, operatorId)
+      // make expand
+      val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
+      projections.foreach { projection =>
+        val porjectExprNodes = new util.ArrayList[ExpressionNode]()
+        for (i <- 0 until projection.size) {
+          val projectExprNode = projection(i) match {
+            case l: Literal =>
+              new LiteralTransformer(l).doTransform(args)
+            case _ =>
+              ExpressionBuilder.makeSelection(selections(i))
+          }
+          
+          porjectExprNodes.add(projectExprNode)
+        }
+        projectSetExprNodes.add(porjectExprNodes)
+      }
+      println("add pre-project for expand")
+      RelBuilder.makeExpandRel(
+          inputRel,
+          projectSetExprNodes,
+          context, operatorId)
+    } else {
+      val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
+      projections.foreach { projectSet =>
+        val porjectExprNodes = new util.ArrayList[ExpressionNode]()
+        projectSet.foreach { project =>
+          var projectExprNode = ExpressionConverter
+            .replaceWithExpressionTransformer(
+              project,
+              originalInputAttributes).doTransform(args)
+          porjectExprNodes.add(projectExprNode)
+        }
+        projectSetExprNodes.add(porjectExprNodes)
+      }
+
+      if (!validation) {
+        RelBuilder.makeExpandRel(
+          input,
+          projectSetExprNodes,
+          context, operatorId)
+      } else {
+        // Use a extension node to send the input types through Substrait plan for a validation.
+        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+        for (attr <- originalInputAttributes) {
+          inputTypeNodeList.add(
+            ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        }
+
+        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+          Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        RelBuilder.makeExpandRel(input,
+          projectSetExprNodes,
+          extensionNode, context, operatorId)
+      }
     }
   }
 
@@ -148,8 +214,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val result = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
-      result
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }
