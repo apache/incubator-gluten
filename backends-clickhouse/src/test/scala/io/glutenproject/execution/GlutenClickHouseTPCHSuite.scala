@@ -439,6 +439,20 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       Seq(Row(new java.math.BigDecimal("123456789.123456789012345678901234566"))))
   }
 
+  test("test 'max(NULL)/min(NULL) from table'") {
+    val df = spark.sql(
+      """
+        |select
+        | l_linenumber, max(NULL), min(NULL)
+        | from lineitem where l_linenumber = 3 and l_orderkey < 3
+        | group by l_linenumber limit 1
+        |""".stripMargin
+    )
+    val result = df.collect()
+    assert(result(0).isNullAt(1))
+    assert(result(0).isNullAt(2))
+  }
+
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
