@@ -27,7 +27,7 @@ include_directories(
         ${CMAKE_CURRENT_BINARY_DIR}/proto
         ${THRIFT_INCLUDE_DIR}
         ${CMAKE_BINARY_DIR}/contrib/thrift-cmake
-        ${ClickHouse_SOURCE_DIR}/utils/local-engine
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${ClickHouse_SOURCE_DIR}/src
         ${ClickHouse_SOURCE_DIR}/base
         ${ClickHouse_SOURCE_DIR}/contrib/orc/c++/include
