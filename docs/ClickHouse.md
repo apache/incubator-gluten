@@ -68,28 +68,24 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 - Open Gluten code in IDEA
 
 #### Setup ClickHouse backend development environment
-Support the use of existing ClickHouse projects for development, and also support automatic clone ClickHouse to cpp-ch.
+Support the use of existing ClickHouse repo for development, and also support automatic clone ClickHouse to cpp-ch.
 
-The following is an example of using an external warehouse to configure the development environment. Non-existing CH sources can skip the clone stage of ClickHouse.
-- Clone ClickHouse backend code
+The following is an example of using an existing CH repo to configure the development environment.
+1. clone ClickHouse repo
 ```
     git clone -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
     git submodule update --init --recursive
 ```
-- Open ClickHouse backend code in CLion
-- Configure cpp-ch
+2. Configure cpp-ch
 
-use shell command
+Initialize some project configuration
 ```shell
 export GLUTEN_SOURCE=/path/to/gluten
-cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${GLUTEN_SOURCE}/cpp-ch/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=Release"
+cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=/path/to/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=Release"
 ```
 
-use clion
-![img.png](image/ClickHouse/cpp-ch-configuration.png)
-Need to configure CH SOURCE DIR to specify the external Click House directory.
-
-- Configure the ClickHouse backend project
+3. Open ClickHouse Project on CLion
+    - Open ClickHouse repo
     - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-15 as C Compiler, clang++-15 as C++ Compiler:
 
         ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-1.png)
@@ -102,17 +98,17 @@ Need to configure CH SOURCE DIR to specify the external Click House directory.
     ```
     -DENABLE_PROTOBUF=ON -DENABLE_TESTS=OFF -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON -DENABLE_EXTERN_LOCAL_ENGINE=ON
     ```
-- Build 'ch' target with Debug mode or Release mode:
+- Build 'ch' target on ClickHouse Project with Debug mode or Release mode:
 
     ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-3.png)
 
-    - If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path 'cmake-build-debug/utils/local-engine/'.
-    - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/local-engine/'.
+    - If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path 'cmake-build-debug/utils/extern-local-engine/'.
+    - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/extern-local-engine/'.
 
 ### Compile ClickHouse backend
 First need to enter the root directory of the Gluten project.
 run`sudo ./ep/build-clickhouse/src/install_ubuntu.sh`,Install the software required for compilation.  
-Create a build directory, such as /tmp/build_clickhouse, run `./ep/build-clickhouse/src/build_clickhouse.sh --src = /path/to/gluten`.  
+run `./ep/build-clickhouse/src/build_clickhouse.sh --src = /path/to/gluten`.  
 Target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.   
 
 ### Some problems
