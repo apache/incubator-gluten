@@ -72,6 +72,73 @@ case class CHHashAggregateExecTransformer(
   lazy val aggregateResultAttributes =
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
+  def getPartialAggregateColumnName(attr: Attribute): String = {
+    ConverterUtils.genColumnNameWithExprId(attr) + "#Partial#" + ConverterUtils
+      .getShortAttributeName(attr)
+  }
+  def getColumnName(attr: Attribute, aggAttrs: Seq[Attribute]): String = {
+    if (aggAttrs.contains(attr)) {
+      getPartialAggregateColumnName(attr)
+    } else {
+      // for group by cols
+      ConverterUtils.genColumnNameWithExprId(attr)
+    }
+  }
+
+  def getTypeNode(
+      colName: String,
+      attr: Attribute,
+      aggExprs: Seq[AggregateExpression]): TypeNode = {
+    // In final stage, when the output attr is the output of the avg func,
+    // CH needs to get the original data type as input type.
+    if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
+      val originalExpr = aggExprs.find(_.resultAttribute == attr)
+      val originalType = {
+        if (
+          originalExpr.isDefined &&
+          originalExpr.get
+            .asInstanceOf[AggregateExpression]
+            .aggregateFunction
+            .isInstanceOf[Average]
+        ) {
+          originalExpr.get
+            .asInstanceOf[AggregateExpression]
+            .aggregateFunction
+            .asInstanceOf[Average]
+            .child
+            .dataType
+        } else {
+          attr.dataType
+        }
+      }
+      ConverterUtils.getTypeNode(originalType, attr.nullable)
+    } else if (colName.toLowerCase(Locale.ROOT).startsWith("collect_list#")) {
+      val originalExpr = aggExprs.find(_.resultAttribute == attr)
+      val (exprType, nullable) =
+        if (
+          originalExpr.isDefined &&
+          originalExpr.get
+            .asInstanceOf[AggregateExpression]
+            .aggregateFunction
+            .isInstanceOf[CollectList]
+        ) {
+          val child = originalExpr.get
+            .asInstanceOf[AggregateExpression]
+            .aggregateFunction
+            .asInstanceOf[CollectList]
+            .child
+          (child.dataType, child.nullable)
+        } else {
+          (attr.dataType, attr.nullable)
+        }
+      // Be careful with the nullable. We must keep the nullable the same as the column
+      // otherwise it will cause a parsing exception on partial aggregated data.
+      ConverterUtils.getTypeNode(exprType, nullable)
+    } else {
+      ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
+    }
+  }
+
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
@@ -125,62 +192,10 @@ case class CHHashAggregateExecTransformer(
           (child.output, aggregateResultAttributes)
         } else {
           for (attr <- aggregateResultAttributes) {
-            val colName = if (aggregateAttributes.contains(attr)) {
-              // for aggregate func
-              ConverterUtils.genColumnNameWithExprId(attr) +
-                "#Partial#" + ConverterUtils.getShortAttributeName(attr)
-            } else {
-              // for group by cols
-              ConverterUtils.genColumnNameWithExprId(attr)
-            }
+            val colName = getColumnName(attr, aggregateAttributes)
             nameList.add(colName)
-            // In final stage, when the output attr is the output of the avg func,
-            // CH needs to get the original data type as input type.
-            if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
-              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-              val originalType =
-                if (
-                  originalExpr.isDefined &&
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .isInstanceOf[Average]
-                ) {
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .asInstanceOf[Average]
-                    .child
-                    .dataType
-                } else {
-                  attr.dataType
-                }
-              typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
-            } else if (colName.toLowerCase(Locale.ROOT).startsWith("collect_list#")) {
-              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-              val (exprType, nullable) =
-                if (
-                  originalExpr.isDefined &&
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .isInstanceOf[CollectList]
-                ) {
-                  val child = originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .asInstanceOf[CollectList]
-                    .child
-                  (child.dataType, child.nullable)
-                } else {
-                  (attr.dataType, attr.nullable)
-                }
-              // Be careful with the nullable. We must keep the nullable the same as the column
-              // otherwise it will cause a parsing exception on partial aggregated data.
-              typeList.add(ConverterUtils.getTypeNode(exprType, nullable))
-            } else {
-              typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            }
+            val colType = getTypeNode(colName, attr, aggregateExpressions)
+            typeList.add(colType)
           }
           (aggregateResultAttributes, output)
         }

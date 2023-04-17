@@ -17,6 +17,8 @@
 
 package io.glutenproject.backendsapi
 
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
@@ -59,4 +61,21 @@ trait TransformerApi {
    */
   def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
     backendPrefix: String): Unit = {}
+
+  // Get the schema for the input of coalesce to solve the issue
+  // https://github.com/Kyligence/ClickHouse/issues/432
+  // Default result is based on the child's output simply.
+  def getCoalesceInputAttributes(plan: SparkPlan):
+    (util.ArrayList[TypeNode], util.ArrayList[String]) = {
+    val typeList = new util.ArrayList[TypeNode]
+    val nameList = new util.ArrayList[String]
+    plan.output.foreach(
+      attr => {
+        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+      }
+    )
+    // (typeList, nameList)
+    throw new IllegalStateException(s"xxxx should not call this")
+  }
 }

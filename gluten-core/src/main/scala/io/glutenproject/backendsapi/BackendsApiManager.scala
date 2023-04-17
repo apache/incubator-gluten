@@ -17,8 +17,13 @@
 
 package io.glutenproject.backendsapi
 
-import java.util.ServiceLoader
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.substrait.`type`.TypeNode
+import org.apache.spark.sql.execution.SparkPlan
 
+import java.util
+import java.util.ServiceLoader
 import scala.collection.JavaConverters
 
 object BackendsApiManager {

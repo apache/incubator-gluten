@@ -32,7 +32,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import java.util
 import java.util.ArrayList
 
-case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode with GlutenPlan {
+  case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode with GlutenPlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -55,15 +55,23 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode with Glut
     val concatTime = longMetric("concatTime")
     val avgCoalescedNumRows = longMetric("avgCoalescedNumRows")
 
+    logDebug(s"xxx child is ${child.getClass},\n$child\n child.output=${child.output}")
+    /*
+    logDebug(s"xxx child is ${child.getClass}, " +
+      s"child's child is ${child.children(0).children(0).getClass}")
+    val cchild = child.children(0).children(0)
+    if (cchild.isInstanceOf[HashAggregateExecBaseTransformer]) {
+      logDebug(s"xxxx is a hash agg")
+    }
+
+    */
+
+
     child.executeColumnar().mapPartitions { iter =>
-      val typeList = new util.ArrayList[TypeNode]
-      val nameList = new util.ArrayList[String]
-      child.output.foreach(
-        attr => {
-          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-          nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-        }
-      )
+      logDebug(s"xxx call + getCoalesceInputAttributes")
+      val (typeList, nameList) = BackendsApiManager.getTransformerApiInstance
+        .getCoalesceInputAttributes(child)
+      logDebug(s"xxx typeList=$typeList; nameList:$nameList")
       val schema = ReadRelNode.buildNamedStruct(typeList, nameList, null)
       BackendsApiManager.getIteratorApiInstance
         .genCoalesceIterator(iter, recordsPerBatch, numOutputRows,
