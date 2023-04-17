@@ -60,12 +60,15 @@ public class ExpandRelNode implements RelNode, Serializable {
     }
 
     for (ArrayList<ExpressionNode> projectList: projections) {
-      ExpandRel.ProjectionSets.Builder projectsBuilder =
-      ExpandRel.ProjectionSets.newBuilder();
+      ExpandRel.ExpandField.Builder expandFieldBuilder =
+        ExpandRel.ExpandField.newBuilder();
+      ExpandRel.SwitchingField.Builder switchingField =
+        ExpandRel.SwitchingField.newBuilder();
       for (ExpressionNode exprNode : projectList) {
-        projectsBuilder.addProjectionSetsExpressions(exprNode.toProtobuf());
+          switchingField.addDuplicates(exprNode.toProtobuf());
       }
-      expandBuilder.addProjections(projectsBuilder.build());
+      expandFieldBuilder.setSwitchingField(switchingField.build());
+      expandBuilder.addFields(expandFieldBuilder.build());
     }
 
     if (extensionNode != null) {
