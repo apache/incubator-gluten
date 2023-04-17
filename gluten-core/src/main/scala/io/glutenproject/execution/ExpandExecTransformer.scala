@@ -227,10 +227,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     }
 
     // Fallback if projections have scalar function, which is not supported currently.
-    if (projections.exists(
-          _.exists(expr => !expr.isInstanceOf[Attribute] && !expr.isInstanceOf[Literal]))) {
-      logWarning("There are scalar functions in expand node, which is not supported currently.")
-      return false
+    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+      if (projections.exists(
+        _.exists(expr => !expr.isInstanceOf[Attribute] && !expr.isInstanceOf[Literal]))) {
+        logWarning("There are scalar functions in expand node, which is not supported currently.")
+        return false
+      }
     }
 
     // FIXME.
