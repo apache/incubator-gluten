@@ -200,8 +200,6 @@ void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.sort());
   } else if (srel.has_expand()) {
     setInputPlanNode(srel.expand());
-  } else if (srel.has_group_id()) {
-    setInputPlanNode(srel.group_id());
   } else if (srel.has_fetch()) {
     setInputPlanNode(srel.fetch());
   } else if (srel.has_window()) {

@@ -112,7 +112,7 @@ case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case agg: HashAggregateExec
       if agg.child.isInstanceOf[ExpandExec] &&
-        !BackendsApiManager.getSettings.useExpandInsteadGroupId() =>
+        !BackendsApiManager.getSettings.supportNewExpandContract() =>
       val childExpandExec = agg.child.asInstanceOf[ExpandExec]
       agg.copy(child = CustomExpandExec(
         childExpandExec.projections, agg.groupingExpressions,

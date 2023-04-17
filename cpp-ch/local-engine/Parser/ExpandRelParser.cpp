@@ -26,7 +26,7 @@ ExpandRelParser::ExpandRelParser(SerializedPlanParser * plan_parser_)
 DB::QueryPlanPtr
 ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel  & rel, std::list<const substrait::Rel*> & rel_stack)
 {
-    const auto & expand_rel = rel.expand();
+    const auto & expand_rel = rel.group_id();
     std::vector<size_t> aggregating_expressions_columns;
     std::set<size_t> agg_cols_ref;
     const auto & header = query_plan->getCurrentDataStream().header;
@@ -59,7 +59,7 @@ ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel  & rel,
 }
 
 
-void ExpandRelParser::buildGroupingSets(const substrait::ExpandRel & expand_rel, std::vector<std::set<size_t>> & grouping_sets)
+void ExpandRelParser::buildGroupingSets(const substrait::GroupIdRel & expand_rel, std::vector<std::set<size_t>> & grouping_sets)
 {
     for (int i = 0; i < expand_rel.groupings_size(); ++i)
     {
@@ -87,6 +87,6 @@ void registerExpandRelParser(RelParserFactory & factory)
     {
         return std::make_shared<ExpandRelParser>(plan_parser);
     };
-    factory.registerBuilder(substrait::Rel::RelTypeCase::kExpand, builder);
+    factory.registerBuilder(substrait::Rel::RelTypeCase::kGroupId, builder);
 }
 }
