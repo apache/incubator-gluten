@@ -279,6 +279,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def validateFailureLogLevel: String =
     conf.getConfString("spark.gluten.sql.validate.failure.logLevel", "INFO")
 
+  def softAffinityLogLevel: String =
+    conf.getConfString("spark.gluten.soft-affinity.logLevel", "DEBUG")
+
   def printStackOnValidateFailure: Boolean =
     conf.getConfString("spark.gluten.sql.validate.failure.printStack", "false").toBoolean
 
