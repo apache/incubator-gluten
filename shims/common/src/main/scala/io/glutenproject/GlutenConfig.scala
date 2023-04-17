@@ -419,10 +419,6 @@ object GlutenConfig {
   // TODO: some of the config is dynamic in spark, but is static in gluten, because it should be
   //  used to construct HiveConnector which intends reused in velox
   def getNativeStaticConf(conf: SparkConf, backendPrefix: String): util.Map[String, String] = {
-    // scalastyle:off println
-    println(s"in conf ${conf.toDebugString}")
-    // scalastyle:on println
-
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
       // Velox datasource config
