@@ -21,11 +21,14 @@
 #include "velox/common/memory/Memory.h"
 
 namespace gluten {
+class WrappedVeloxMemoryPool;
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
+std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxAggregateMemoryPool(
     MemoryAllocator* allocator,
     const facebook::velox::memory::MemoryPool::Options& options);
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool();
+std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxAggregateMemoryPool();
+
+std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultLeafWrappedVeloxMemoryPool();
 
 } // namespace gluten

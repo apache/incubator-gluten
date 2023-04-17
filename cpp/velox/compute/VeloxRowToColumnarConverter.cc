@@ -17,7 +17,7 @@
 
 #include "VeloxRowToColumnarConverter.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "velox/row/UnsafeRowBatchDeserializer.h"
+#include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook::velox;
@@ -38,7 +38,7 @@ VeloxRowToColumnarConverter::convert(int64_t numRows, int64_t* rowLength, uint8_
     data.emplace_back(std::string_view(reinterpret_cast<const char*>(memoryAddress + offset), rowLength[i]));
     offset += rowLength[i];
   }
-  auto vp = row::UnsafeRowDynamicVectorBatchDeserializer::deserializeComplex(data, rowType_, pool_.get());
+  auto vp = row::UnsafeRowDeserializer::deserialize(data, rowType_, pool_.get());
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<RowVector>(vp));
 }
 } // namespace gluten

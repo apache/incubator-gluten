@@ -39,14 +39,14 @@ velox::VectorPtr RecordBatch2RowVector(const RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool().get());
+  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultLeafWrappedVeloxMemoryPool().get());
 }
 
 void checkBatchEqual(std::shared_ptr<RecordBatch> input_batch, bool checkMetadata = true) {
   velox::VectorPtr vp = RecordBatch2RowVector(*input_batch);
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  velox::exportToArrow(vp, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
+  velox::exportToArrow(vp, arrowArray, GetDefaultLeafWrappedVeloxMemoryPool().get());
   velox::exportToArrow(vp, arrowSchema);
   auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
   ASSERT_TRUE(in->Equals(*input_batch, checkMetadata)) << in->ToString() << input_batch->ToString();
@@ -119,7 +119,7 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
 
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
+  velox::exportToArrow(row, arrowArray, GetDefaultLeafWrappedVeloxMemoryPool().get());
   velox::exportToArrow(row, arrowSchema);
 
   auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
@@ -136,7 +136,7 @@ TEST_F(ArrowToVeloxTest, timestampV2A) {
   });
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  EXPECT_ANY_THROW(velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get()));
+  EXPECT_ANY_THROW(velox::exportToArrow(row, arrowArray, GetDefaultLeafWrappedVeloxMemoryPool().get()));
   velox::exportToArrow(row, arrowSchema);
 }
 
