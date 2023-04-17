@@ -467,7 +467,7 @@ void BackendInitializerUtil::initConfig(const std::string &plan)
     else
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
 
-    /// Apply spark.gluten.sql.columnar.backend.ch.* to config
+    /// Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
     for (const auto & kv : backend_conf_map)
     {
         const auto & key = kv.first;
@@ -524,7 +524,7 @@ void BackendInitializerUtil::initSettings()
     for (const std::string & key : config_keys)
         settings.set(key, config->getString(settings_path + "." + key));
 
-    /// Secondly apply spark.gluten.sql.columnar.backend.ch.* to settings
+    /// Secondly apply spark.gluten.sql.columnar.backend.ch.runtime_settings.* to settings
     for (const auto & kv : backend_conf_map)
     {
         const auto & key = kv.first;
