@@ -247,60 +247,40 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, const bo
 
     return ch_function_name;
 }
+
 /// TODO: This function needs to be improved for Decimal/Array/Map/Tuple types.
 std::string getCastFunction(const substrait::Type & type)
 {
     std::string ch_function_name;
     if (type.has_fp64())
-    {
         ch_function_name = "toFloat64";
-    }
     else if (type.has_fp32())
-    {
         ch_function_name = "toFloat32";
-    }
-    else if (type.has_string() || type.has_binary())
-    {
+    else if (type.has_string())
         ch_function_name = "toString";
-    }
+    else if (type.has_binary())
+        ch_function_name = "reinterpretAsStringSpark";
     else if (type.has_i64())
-    {
         ch_function_name = "toInt64";
-    }
     else if (type.has_i32())
-    {
         ch_function_name = "toInt32";
-    }
     else if (type.has_i16())
-    {
         ch_function_name = "toInt16";
-    }
     else if (type.has_i8())
-    {
         ch_function_name = "toInt8";
-    }
     else if (type.has_date())
-    {
         ch_function_name = "toDate32";
-    }
     // TODO need complete param: scale
     else if (type.has_timestamp())
-    {
         ch_function_name = "toDateTime64";
-    }
     else if (type.has_bool_())
-    {
         ch_function_name = "toUInt8";
-    }
     else if (type.has_decimal())
-    {
         ch_function_name = getDecimalFunction(type.decimal(), false);
-    }
     else
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "doesn't support cast type {}", type.DebugString());
 
     /// TODO(taiyang-li): implement cast functions of other types
-
     return ch_function_name;
 }
 
@@ -1270,6 +1250,15 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         if (args.size() < 2)
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
         ch_function_name = getDecimalFunction(output_type.decimal(), args.at(1).value().literal().boolean());
+    }
+    else if (function_name == "char_length")
+    {
+        /// In Spark
+        /// char_length returns the number of bytes when input is binary type, corresponding to CH length function
+        /// char_length returns the number of characters when input is string type, corresponding to CH char_length function
+        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
+        if (function_signature.find("vbin") != std::string::npos)
+            ch_function_name = "length";
     }
     else
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);

@@ -44,8 +44,6 @@ add_executable(unit_tests_local_engine ${local_engine_gtest_sources} )
 
 add_executable(benchmark_local_engine benchmark_local_engine.cpp benchmark_parquet_read.cpp benchmark_spark_row.cpp)
 
-target_compile_options(unit_tests_local_engine PRIVATE -Wno-sign-compare)
-
 target_include_directories(unit_tests_local_engine PRIVATE
         ${GTEST_INCLUDE_DIRS}/include
         )

@@ -27,7 +27,7 @@ include_directories(
         ${CMAKE_CURRENT_BINARY_DIR}/proto
         ${THRIFT_INCLUDE_DIR}
         ${CMAKE_BINARY_DIR}/contrib/thrift-cmake
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${ClickHouse_SOURCE_DIR}/utils/local-engine
         ${ClickHouse_SOURCE_DIR}/src
         ${ClickHouse_SOURCE_DIR}/base
         ${ClickHouse_SOURCE_DIR}/contrib/orc/c++/include
@@ -41,8 +41,6 @@ add_subdirectory(Storages/ch_parquet)
 add_subdirectory(Storages/SubstraitSource)
 
 add_library(${LOCALENGINE_SHARED_LIB} SHARED
-        $<TARGET_OBJECTS:clickhouse_malloc>
-        $<TARGET_OBJECTS:memcpy>
         ${builder_sources}
         ${parser_sources}
         ${storages_sources}
@@ -60,8 +58,7 @@ add_library(${LOCALENGINE_SHARED_LIB} SHARED
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC
         -Wno-shorten-64-to-32)
 
-target_link_libraries(${LOCALENGINE_SHARED_LIB}
-        PUBLIC
+target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
         clickhouse_aggregate_functions
         clickhouse_common_config
         clickhouse_common_io

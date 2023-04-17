@@ -23,11 +23,10 @@
 
 namespace local_engine
 {
-
 static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
-    {"is_not_null","isNotNull"},
-    {"is_null","isNull"},
-    {"gte","greaterOrEquals"},
+    {"is_not_null", "isNotNull"},
+    {"is_null", "isNull"},
+    {"gte", "greaterOrEquals"},
     {"gt", "greater"},
     {"lte", "lessOrEquals"},
     {"lt", "less"},
@@ -114,7 +113,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"rtrim", ""},
     {"concat", "concat"},
     {"strpos", "position"},
-    {"char_length", "char_length"},
+    {"char_length",
+     "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
     {"replace", "replaceAll"},
     {"regexp_replace", "replaceRegexpAll"},
     {"chr", "char"},
@@ -123,17 +123,17 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"split", "splitByRegexp"},
     {"concat_ws", "concat_ws"},
     {"base64", "base64Encode"},
-    {"unbase64","base64Decode"},
-    {"lpad","leftPadUTF8"},
-    {"rpad","rightPadUTF8"},
-    {"reverse","reverseUTF8"},
+    {"unbase64", "base64Decode"},
+    {"lpad", "leftPadUTF8"},
+    {"rpad", "rightPadUTF8"},
+    {"reverse", "reverseUTF8"},
     // {"hash","murmurHash3_32"},
-    {"md5","MD5"},
+    {"md5", "MD5"},
     {"translate", "translateUTF8"},
-    {"repeat","repeat"},
+    {"repeat", "repeat"},
     {"position", "positionUTF8Spark"},
     {"locate", "positionUTF8Spark"},
-    {"space","space"},
+    {"space", "space"},
 
     /// hash functions
     {"hash", "murmurHashSpark3_32"},
@@ -162,7 +162,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"datediff", "dateDiff"},
     {"second", "toSecond"},
     {"add_months", "addMonths"},
-    {"trunc", ""},  /// dummy mapping
+    {"trunc", ""}, /// dummy mapping
 
     // array functions
     {"array", "array"},

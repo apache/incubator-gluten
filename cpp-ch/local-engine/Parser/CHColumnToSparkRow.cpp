@@ -714,10 +714,8 @@ int64_t VariableLengthDataWriter::writeMap(size_t row_idx, const DB::Map & map, 
     const auto start = cursor;
     cursor += 8;
 
-    /// If Map is empty, return in advance
+    /// Even if Map is empty, still write as [unsafe key array numBytes] [unsafe key array] [unsafe value array]
     const auto num_pairs = map.size();
-    if (num_pairs == 0)
-        return BackingDataLengthCalculator::getOffsetAndSize(start - parent_offset, 8);
 
     /// Construct array of keys and array of values from map
     auto key_array = Array();
