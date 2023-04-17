@@ -30,3 +30,9 @@ local_engine目录与ClickHouse项目通过软链接的方式关联,cpp-ch下的
 
 # 一些问题
 启动时需要指定LD_PRELOAD={path of libch.so}，目的是让libch.so内的jemalloc最先被加载。
+
+spark-submit --conf spark.executorEnv.LD_PRELOAD=/path/to/your/library
+
+# 新的Jenkins CI
+https://cicd-aws.kyligence.com/job/Gluten/job/gluten-ci/
+公共只读账号：gluten/hN2xX3uQ4m
