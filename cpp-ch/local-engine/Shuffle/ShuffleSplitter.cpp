@@ -249,7 +249,16 @@ void ColumnsBuffer::add(DB::Block & block, int start, int end)
     }
     assert(!accumulated_columns.empty());
     for (size_t i = 0; i < block.columns(); ++i)
-        accumulated_columns[i]->insertRangeFrom(*block.getByPosition(i).column, start, end - start);
+    {
+        if (!accumulated_columns[i]->onlyNull())
+        {
+            accumulated_columns[i]->insertRangeFrom(*block.getByPosition(i).column, start, end - start);
+        }
+        else
+        {
+            accumulated_columns[i]->insertMany(DB::Field(), end - start);
+        }
+    }
 }
 
 void ColumnsBuffer::appendSelective(size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length)
@@ -266,7 +275,14 @@ void ColumnsBuffer::appendSelective(size_t column_idx, const DB::Block & source,
             accumulated_columns.emplace_back(std::move(column));
         }
     }
-    accumulated_columns[column_idx]->insertRangeSelective(*source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
+    if (!accumulated_columns[column_idx]->onlyNull())
+    {
+        accumulated_columns[column_idx]->insertRangeSelective(*source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
+    }
+    else
+    {
+        accumulated_columns[column_idx]->insertMany(DB::Field(), length);
+    }
 }
 
 size_t ColumnsBuffer::size() const

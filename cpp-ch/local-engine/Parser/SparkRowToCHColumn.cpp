@@ -310,8 +310,12 @@ Field VariableLengthDataReader::readStruct(const char * buffer, size_t  /*length
 FixedLengthDataReader::FixedLengthDataReader(const DataTypePtr & type_)
     : type(type_), type_without_nullable(removeNullable(type)), which(type_without_nullable)
 {
-    if (!BackingDataLengthCalculator::isFixedLengthDataType(type_without_nullable) || !type_without_nullable->isValueRepresentedByNumber())
-        throw Exception(ErrorCodes::UNKNOWN_TYPE, "VariableLengthDataReader doesn't support type {}", type->getName());
+    if (type->onlyNull())
+    {
+        return 0;
+    }
+    else if (!BackingDataLengthCalculator::isFixedLengthDataType(type_without_nullable) || !type_without_nullable->isValueRepresentedByNumber())
+        throw Exception(ErrorCodes::UNKNOWN_TYPE, "FixedLengthDataReader doesn't support type {}", type->getName());
 
     value_size = type_without_nullable->getSizeOfValueInMemory();
 }
