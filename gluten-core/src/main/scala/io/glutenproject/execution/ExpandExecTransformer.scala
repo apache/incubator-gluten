@@ -208,7 +208,8 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
   }
 
   override def doValidateInternal(): Boolean = {
-    if (!BackendsApiManager.getSettings.supportExpandExec()) {
+    if (!BackendsApiManager.getSettings.supportExpandExec() ||
+      !BackendsApiManager.getSettings.supportNewExpandContract()) {
       return false
     }
     if (projections.isEmpty) {
