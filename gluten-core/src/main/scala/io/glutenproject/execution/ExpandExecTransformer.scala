@@ -94,32 +94,46 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     if (needsPreProjection(projections)) {
       // if there is not literal and attribute expression in project sets, add a project op
       // to calculate them before expand op.
-      val preExprNodes = new util.ArrayList[ExpressionNode]()
-      val selections = ArrayBuffer.empty[Int]
+      val preExprs = ArrayBuffer.empty[Expression]
+      val selectionMaps = ArrayBuffer.empty[Seq[Int]]
       var preExprIndex = 0
-      for (i <- 0 until projections.head.size) {
-        var nonLiteralExprFound = false
-        for (j <- 0 until projections.size) {
-          val proj = projections(j)(i)
-          if (!nonLiteralExprFound && !proj.isInstanceOf[Literal]) {
-            var projectExprNode = ExpressionConverter
-              .replaceWithExpressionTransformer(
-                proj,
-                originalInputAttributes).doTransform(args)
-            preExprNodes.add(projectExprNode)
-            selections += preExprIndex
-            preExprIndex = preExprIndex + 1
-            nonLiteralExprFound = true
+      for (i <- 0 until projections.size) {
+        val selections = ArrayBuffer.empty[Int]
+        for (j <- 0 until projections(i).size) {
+          val proj = projections(i)(j)
+          if (!proj.isInstanceOf[Literal]) {
+            val exprIdx = preExprs.indexWhere(expr => expr.semanticEquals(proj))
+            if (exprIdx != -1) {
+              selections += exprIdx
+            } else {
+              preExprs += proj
+              selections += preExprIndex
+              preExprIndex = preExprIndex + 1
+            }
+          } else {
+            selections += -1
           }
         }
-        if (!nonLiteralExprFound) {
-          selections += -1
-        }
+        selectionMaps += selections
       }
       // make project
+      val preExprNodes = new util.ArrayList[ExpressionNode]()
+      preExprs.foreach { expr =>
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(
+            expr,
+            originalInputAttributes).doTransform(args)
+        preExprNodes.add(exprNode)
+      }
+
       val emitStartIndex = originalInputAttributes.size
       val inputRel = if (!validation) {
-        RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId, emitStartIndex)
+        RelBuilder.makeProjectRel(
+          input,
+          preExprNodes,
+          context,
+          operatorId,
+          emitStartIndex)
       } else {
         // Use a extension node to send the input types through Substrait plan for a validation.
         val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -129,19 +143,24 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         val extensionNode = ExtensionBuilder.makeAdvancedExtension(
           Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
         RelBuilder.makeProjectRel(
-          input, preExprNodes, extensionNode, context, operatorId, emitStartIndex)
+          input,
+          preExprNodes,
+          extensionNode,
+          context,
+          operatorId,
+          emitStartIndex)
       }
 
       // make expand
       val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
-      projections.foreach { projection =>
+      for (i <- 0 until projections.size) {
         val porjectExprNodes = new util.ArrayList[ExpressionNode]()
-        for (i <- 0 until projection.size) {
-          val projectExprNode = projection(i) match {
+        for (j <- 0 until projections(i).size) {
+          val projectExprNode = projections(i)(j) match {
             case l: Literal =>
               new LiteralTransformer(l).doTransform(args)
             case _ =>
-              ExpressionBuilder.makeSelection(selections(i))
+              ExpressionBuilder.makeSelection(selectionMaps(i)(j))
           }
           
           porjectExprNodes.add(projectExprNode)
@@ -149,9 +168,10 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         projectSetExprNodes.add(porjectExprNodes)
       }
       RelBuilder.makeExpandRel(
-          inputRel,
-          projectSetExprNodes,
-          context, operatorId)
+        inputRel,
+        projectSetExprNodes,
+        context,
+        operatorId)
     } else {
       val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
       projections.foreach { projectSet =>
