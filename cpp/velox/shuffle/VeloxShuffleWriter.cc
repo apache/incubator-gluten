@@ -501,7 +501,14 @@ arrow::Status VeloxShuffleWriter::SplitFixedWidthValueBuffer(const velox::RowVec
         }
 #elif defined(__aarch64__)
       case 128:
-        RETURN_NOT_OK(SplitFixedType<uint32x4_t>(src_addr, dst_addrs));
+        if (column->type()->isShortDecimal()) {
+          RETURN_NOT_OK(SplitFixedType<uint64_t>(src_addr, dst_addrs));
+        } else if (column->type()->isLongDecimal()) {
+          RETURN_NOT_OK(SplitFixedType<uint32x4_t>(src_addr, dst_addrs));
+        } else {
+          return arrow::Status::Invalid(
+              "Column type " + schema_->field(col_idx)->type()->ToString() + " is not supported.");
+        }
 #endif
         break;
       case 1: // arrow::BooleanType::type_id:
