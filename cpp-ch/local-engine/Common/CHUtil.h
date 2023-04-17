@@ -111,15 +111,21 @@ private:
 
     static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
 
-    inline static const String CH_BACKEND_CONF_PREFIX = "spark.gluten.sql.columnar.backend.ch";
-    inline static const String CH_RUNTIME_CONF = "runtime_conf";
-    inline static const String CH_RUNTIME_CONF_PREFIX = CH_BACKEND_CONF_PREFIX + "." + CH_RUNTIME_CONF;
-    inline static const String CH_RUNTIME_CONF_FILE = CH_RUNTIME_CONF_PREFIX + ".conf_file";
+    inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
+
+    inline static const String CH_RUNTIME_CONFIG = "runtime_conf";
+    inline static const String CH_RUNTIME_CONFIG_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_CONFIG + ".";
+    inline static const String CH_RUNTIME_CONFIG_FILE = CH_RUNTIME_CONFIG_PREFIX + "config_file";
+
+    inline static const String CH_RUNTIME_SETTINGS = "runtime_settings";
+    inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS + ".";
+
     inline static const String GLUTEN_TIMEZONE_KEY = "spark.gluten.timezone";
     inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
     inline static const String SETTINGs_PATH = "local_engine.settings";
 
     inline static std::once_flag init_flag;
+    inline static std::map<std::string, std::string> backend_conf_map;
     inline static DB::Context::ConfigurationPtr config;
     inline static Poco::Logger * logger;
     inline static DB::Settings settings;
