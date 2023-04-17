@@ -29,6 +29,7 @@ protected:
     FormatFilePtr file;
 
     static DB::ColumnPtr createConstColumn(DB::DataTypePtr type, const DB::Field & field, size_t rows);
+    static DB::ColumnPtr createColumn(DB::DataTypePtr data_type, size_t rows, const String & value);
     static DB::Field buildFieldFromString(const String & value, DB::DataTypePtr type);
 };
 
