@@ -255,7 +255,7 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop velox-backend-ubuntu2204-test-$GITHUB_RUN_ID || true
-  
+
   velox-backend-centos8-test:
     runs-on: velox-self-hosted
     steps:
@@ -304,7 +304,7 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop velox-backend-centos8-test-$GITHUB_RUN_ID || true
-  
+
   velox-backend-centos7-test:
     runs-on: velox-self-hosted
     steps:
