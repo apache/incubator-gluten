@@ -345,6 +345,7 @@ object GlutenConfig {
 
   // Private Spark configs.
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
+  val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, defalut value is false
@@ -418,13 +419,18 @@ object GlutenConfig {
   // TODO: some of the config is dynamic in spark, but is static in gluten, because it should be
   //  used to construct HiveConnector which intends reused in velox
   def getNativeStaticConf(conf: SparkConf, backendPrefix: String): util.Map[String, String] = {
+    // scalastyle:off println
+    println(s"in conf ${conf.toDebugString}")
+    // scalastyle:on println
+
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
       // Velox datasource config
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // Velox datasource config end
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GLUTEN_OFFHEAP_ENABLED
     )
     keys.forEach(
       k => {

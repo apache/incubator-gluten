@@ -104,7 +104,7 @@ class CHTransformerApi extends TransformerApi with Logging {
       nativeConfMap: util.Map[String, String],
       backendPrefix: String): Unit = {
     // IMPLEMENT POST PROCESS FOR CLICKHOUSE BACKEND
-    val settingPrefix = "spark.gluten.sql.columnar.backend." + backendPrefix + ".runtime_conf."
+    val settingPrefix = backendPrefix + ".runtime_settings."
     if (nativeConfMap.getOrDefault("spark.memory.offHeap.enabled", "false").toBoolean) {
       val offHeapSize =
         nativeConfMap.getOrDefault("spark.gluten.memory.offHeap.size.in.bytes", "0").toLong
@@ -116,7 +116,7 @@ class CHTransformerApi extends TransformerApi with Logging {
 
         val maxBytesBeforeExternalGroupBy = offHeapSize * 0.5
         nativeConfMap.put(
-          settingPrefix + "max_bytes_before_external_sort",
+          settingPrefix + "max_bytes_before_external_group_by",
           maxBytesBeforeExternalGroupBy.toLong.toString)
       }
     }
