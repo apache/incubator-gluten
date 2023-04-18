@@ -22,21 +22,9 @@ The architecture of the ClickHouse backend is shown below:
 In general, we use IDEA for Gluten development and CLion for ClickHouse backend development on **Ubuntu 20**.
 
 #### Prerequisites
-
-- GCC 9.0 or higher version
-    ```
-    sudo apt install gcc-9 g++-9 gcc-10 g++-10 gcc-11 g++-11
-
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 --slave /usr/bin/gcov gcov /usr/bin/gcov-9
-
-    sudo update-alternatives --config gcc  # then choose the right version
-    gcc --version  # check the version of the gcc
-    ```
-
+Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
+Under the hood, it will install the following software:
 - Clang 15.0 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
-
     Install the latest clang.
     On Ubuntu/Debian you can use the automatic installation script.
     ```shell
@@ -73,8 +61,7 @@ Support the use of existing ClickHouse repo for development, and also support au
 The following is an example of using an existing CH repo to configure the development environment.
 1. clone ClickHouse repo
 ```
-    git clone -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
-    git submodule update --init --recursive
+    git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
 ```
 2. Configure cpp-ch
 
@@ -84,7 +71,7 @@ export GLUTEN_SOURCE=/path/to/gluten
 cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=/path/to/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=Release"
 ```
 
-3. Open ClickHouse Project on CLion
+3. [Optional] Open ClickHouse Project on CLion
     - Open ClickHouse repo
     - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-15 as C Compiler, clang++-15 as C++ Compiler:
 
@@ -106,19 +93,17 @@ cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -D
     - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/extern-local-engine/'.
 
 ### Compile ClickHouse backend
-First need to enter the root directory of the Gluten project.
-run`sudo ./ep/build-clickhouse/src/install_ubuntu.sh`,Install the software required for compilation.  
-run `./ep/build-clickhouse/src/build_clickhouse.sh --src = /path/to/gluten`.  
-Target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.   
+Run `bash ./ep/build-clickhouse/src/build_clickhouse.sh`.
+Target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.
 
-### Some problems
+### Deploy notes
 LD_PRELOAD={path of libch.so} needs to be specified at startup, so that jemalloc in libch.so is loaded first.
 
 spark-submit --conf spark.executorEnv.LD_PRELOAD=/path/to/your/library
 
 ### New CI System
 
-https://cicd-aws.kyligence.com/job/Gluten/job/gluten-ci/    
+https://cicd-aws.kyligence.com/job/Gluten/job/gluten-ci/
 public read-only account：gluten/hN2xX3uQ4m
 
 ### Compile Gluten with ClickHouse backend
@@ -277,7 +262,7 @@ bin/beeline -u jdbc:hive2://localhost:10000/ -n root
 - Result
 
     The DAG is shown on Spark UI as below:
-    
+
     ![ClickHouse-CLion-Toolchains](./image/ClickHouse/Gluten-ClickHouse-Backend-Q6-DAG.png)
 ##### Use local parquet files as DataSource
 
@@ -431,7 +416,7 @@ This benchmark is tested on AWS EC2 cluster, there are 7 EC2 instances:
 ```
     wget https://github.com/juicedata/juicefs/releases/download/v0.17.5/juicefs-0.17.5-linux-amd64.tar.gz
     tar -zxvf juicefs-0.17.5-linux-amd64.tar.gz
-    
+
     ./juicefs format --block-size 4096 --storage s3 --bucket https://s3.cn-northwest-1.amazonaws.com.cn/s3-gluten-tpch100/ --access-key "XXXXXXXX" --secret-key "XXXXXXXX" redis://:123456@master-ip:6379/1 gluten-tables
 
     #mount a volumn on every node
