@@ -17,10 +17,13 @@
 
 package org.apache.spark.shuffle
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
-import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
+
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -28,10 +31,6 @@ import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.RssShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.shuffle.utils.CelebornPartitionPusher
-
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 

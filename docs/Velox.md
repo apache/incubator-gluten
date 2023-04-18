@@ -285,7 +285,7 @@ First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a
 
 Currently to use Celeborn following configurations are required in spark-defaults.conf
 ```
-spark.shuffle.manager org.apache.spark.shuffle.celeborn.CelebornShuffleManager
+spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
 
 # celeborn master
 spark.celeborn.master.endpoints clb-master:9097

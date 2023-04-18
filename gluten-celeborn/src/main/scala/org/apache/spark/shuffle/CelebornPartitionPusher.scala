@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.utils
-
-import org.apache.spark._
-import org.apache.spark.internal.Logging
+package org.apache.spark.shuffle
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
+
+import org.apache.spark._
+import org.apache.spark.internal.Logging
 
 import java.io.IOException
 

@@ -19,8 +19,6 @@ package io.glutenproject.vectorized;
 
 import java.io.IOException;
 
-import org.apache.spark.shuffle.utils.CelebornPartitionPusher;
-
 public class ShuffleWriterJniWrapper {
 
   public ShuffleWriterJniWrapper() throws IOException {
@@ -60,7 +58,7 @@ public class ShuffleWriterJniWrapper {
    */
   public long makeForCeleborn(NativePartitioning part, long offheapPerTask,
                               int bufferSize, String codec, int batchCompressThreshold,
-                              int pushBufferMaxSize, CelebornPartitionPusher pusher,
+                              int pushBufferMaxSize, Object pusher,
                               long memoryPoolId, long handle, long taskAttemptId) {
       return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, null,
@@ -74,7 +72,7 @@ public class ShuffleWriterJniWrapper {
                                 int subDirsPerLocalDir, String localDirs, boolean preferSpill,
                                 long memoryPoolId, boolean writeSchema,
                                 long handle, long taskAttemptId, int pushBufferMaxSize,
-                                CelebornPartitionPusher pusher, String shuffleWriterType);
+                                Object pusher, String shuffleWriterType);
 
   /**
    * Spill partition data to disk.
