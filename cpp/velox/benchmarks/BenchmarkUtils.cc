@@ -28,19 +28,24 @@ namespace fs = std::filesystem;
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(write_file, "", "Write the output to parquet file, file absolute path");
+DEFINE_string(batch_size, "4096", "To set velox::core::QueryConfig::kPreferredOutputBatchSize.");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
 namespace {
 
-std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, "512"}};
+std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, FLAGS_batch_size}};
 
 } // anonymous namespace
 
+void InitVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
+  gluten::SetBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(conf); });
+  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(conf);
+}
+
 void InitVeloxBackend() {
-  gluten::SetBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(bmConfMap); });
-  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(bmConfMap);
+  InitVeloxBackend(bmConfMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {

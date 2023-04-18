@@ -29,11 +29,14 @@
 #include "BatchVectorIterator.h"
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
+#include "config/GlutenConfig.h"
 #include "utils/exception.h"
 
 #include <thread>
 
 using namespace gluten;
+
+DEFINE_bool(skip_input, false, "Skip specifying input files.");
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
@@ -58,13 +61,15 @@ auto BM_Generic = [](::benchmark::State& state,
   for (auto _ : state) {
     auto backend = gluten::CreateBackend();
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
-    std::transform(input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
     std::vector<BatchIterator*> inputItersRaw;
-    std::transform(
-        inputIters.begin(),
-        inputIters.end(),
-        std::back_inserter(inputItersRaw),
-        [](std::shared_ptr<gluten::ResultIterator> iter) { return static_cast<BatchIterator*>(iter->GetRaw()); });
+    if (!input_files.empty()) {
+      std::transform(input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
+      std::transform(
+          inputIters.begin(),
+          inputIters.end(),
+          std::back_inserter(inputItersRaw),
+          [](std::shared_ptr<gluten::ResultIterator> iter) { return static_cast<BatchIterator*>(iter->GetRaw()); });
+    }
 
     backend->ParsePlan(plan->data(), plan->size());
     auto resultIter = backend->GetResultIterator(
@@ -176,9 +181,11 @@ void OrcTestEnd() {
 }
 
 int main(int argc, char** argv) {
-  InitVeloxBackend();
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+  std::unordered_map<std::string, std::string> conf = {{gluten::kSparkBatchSize, FLAGS_batch_size}};
+  InitVeloxBackend(conf);
 
   std::string substraitJsonFile;
   std::vector<std::string> inputFiles;
@@ -230,22 +237,27 @@ int main(int argc, char** argv) {
   std::cout << "FLAGS_cpu:" << FLAGS_cpu << std::endl;
   std::cout << "FLAGS_print_result:" << FLAGS_print_result << std::endl;
   std::cout << "FLAGS_write_file:" << FLAGS_write_file << std::endl;
+  std::cout << "FLAGS_batch_size:" << FLAGS_batch_size << std::endl;
 #endif
 
-  GENERIC_BENCHMARK("ParquetInputFromBatchVector", getParquetInputFromBatchVector);
-  GENERIC_BENCHMARK("ParquetInputFromBatchStream", getParquetInputFromBatchStream);
+  if (FLAGS_skip_input) {
+    GENERIC_BENCHMARK("SkipInput", nullptr);
+  } else {
+    GENERIC_BENCHMARK("ParquetInputFromBatchVector", getParquetInputFromBatchVector);
+    GENERIC_BENCHMARK("ParquetInputFromBatchStream", getParquetInputFromBatchStream);
+  }
 
-  OrcTestBegin();
+  // OrcTestBegin();
 
-  inputFiles = outputFiles;
+  // inputFiles = outputFiles;
 
-  GENERIC_BENCHMARK("OrcInputFromBatchVector", getOrcInputFromBatchVector);
-  GENERIC_BENCHMARK("OrcInputFromBatchStream", getOrcInputFromBatchStream);
+  // GENERIC_BENCHMARK("OrcInputFromBatchVector", getOrcInputFromBatchVector);
+  // GENERIC_BENCHMARK("OrcInputFromBatchStream", getOrcInputFromBatchStream);
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
 
-  OrcTestEnd();
+  // OrcTestEnd();
 
   return 0;
 }
