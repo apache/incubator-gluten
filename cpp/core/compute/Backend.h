@@ -22,6 +22,7 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
+#include "operators/r2c/RowToColumnar.h"
 #include "shuffle/ArrowShuffleWriter.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
@@ -77,6 +78,12 @@ class Backend : public std::enable_shared_from_this<Backend> {
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
     return std::make_shared<ArrowColumnarToRowConverter>(rb, memory_pool);
+  }
+
+  virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
+      MemoryAllocator* allocator,
+      struct ArrowSchema* cSchema) {
+    return std::make_shared<gluten::RowToColumnarConverter>(cSchema);
   }
 
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(

@@ -15,18 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.utils
+#pragma once
 
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenColumnarShuffleWriter, GlutenShuffleWriterWrapper}
+#include <arrow/c/abi.h>
+#include "memory/ColumnarBatch.h"
+#include "operators/r2c/RowToColumnar.h"
+#include "velox/common/memory/Memory.h"
+#include "velox/type/Type.h"
 
-object GlutenShuffleUtil {
+namespace gluten {
 
-  def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V]
-                                    ): GlutenShuffleWriterWrapper[K, V] = {
-    GlutenShuffleWriterWrapper(new GlutenColumnarShuffleWriter[K, V](
-      parameters.shuffleBlockResolver,
-      parameters.columnarShuffleHandle,
-      parameters.mapId,
-      parameters.metrics))
-  }
-}
+class VeloxRowToColumnarConverter final : public RowToColumnarConverter {
+ public:
+  VeloxRowToColumnarConverter(
+      struct ArrowSchema* cSchema,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> memory_pool);
+
+  std::shared_ptr<ColumnarBatch> convert(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
+
+ protected:
+  facebook::velox::TypePtr rowType_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
+};
+
+} // namespace gluten

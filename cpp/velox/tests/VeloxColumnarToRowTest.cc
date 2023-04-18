@@ -16,10 +16,11 @@
  */
 
 #include "compute/VeloxColumnarToRowConverter.h"
+#include "compute/VeloxRowToColumnarConverter.h"
 #include "jni/JniErrors.h"
 #include "memory/ArrowMemoryPool.h"
+#include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
-#include "operators/r2c/RowToArrowColumnarConverter.h"
 #include "tests/TestUtils.h"
 #include "velox/type/Timestamp.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -45,7 +46,7 @@ class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBa
 
   void testRecordBatchEqual(std::shared_ptr<arrow::RecordBatch> input_batch) {
     auto row = RecordBatch2VeloxRowVector(*input_batch);
-    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
+    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool_, veloxPool_);
     GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
     GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -60,18 +61,21 @@ class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBa
     }
     long* lengthPtr = arr;
 
-    auto row_to_columnar_converter =
-        std::make_shared<RowToColumnarConverter>(input_batch->schema(), arrow::default_memory_pool());
+    ArrowSchema cSchema;
+    GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*input_batch->schema(), &cSchema));
+    auto row_to_columnar_converter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, veloxPool_);
 
-    auto rb = row_to_columnar_converter->convert(num_rows, lengthPtr, address);
+    auto cb = row_to_columnar_converter->convert(num_rows, lengthPtr, address);
+    auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
     // std::cout << "From rowbuffer to Column, rb->ToString():\n" << rb->ToString() << std::endl;
-    ASSERT_TRUE(rb->Equals(*input_batch));
+    velox::test::assertEqualVectors(row, vp);
   }
 
  private:
-  std::shared_ptr<velox::memory::MemoryPool> veloxPool =
-      GetDefaultWrappedVeloxMemoryPool()->addChild("columnar_to_row_test", velox::memory::MemoryPool::Kind::kLeaf);
-  std::shared_ptr<arrow::MemoryPool> arrowPool = GetDefaultWrappedArrowMemoryPool();
+  std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = GetDefaultWrappedVeloxMemoryPool()->addChild(
+      "velox_columnar_to_row_test",
+      velox::memory::MemoryPool::Kind::kLeaf);
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultWrappedArrowMemoryPool();
 };
 
 TEST_F(VeloxColumnarToRowTest, timestamp) {

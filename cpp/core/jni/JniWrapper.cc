@@ -25,7 +25,6 @@
 #include "jni/ConcurrentMap.h"
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
-#include "operators/r2c/RowToArrowColumnarConverter.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/reader.h"
 
@@ -62,9 +61,6 @@ static jmethodID serialized_arrow_array_iterator_next;
 
 static jclass native_columnar_to_row_info_class;
 static jmethodID native_columnar_to_row_info_constructor;
-
-jclass celeborn_partition_pusher_class;
-jmethodID celeborn_push_partition_data_method;
 
 jlong default_memory_allocator_id = -1L;
 
@@ -289,11 +285,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   unreserve_memory_method = GetMethodIDOrError(env, java_reservation_listener_class, "unreserve", "(J)J");
 
   default_memory_allocator_id = reinterpret_cast<jlong>(DefaultMemoryAllocator().get());
-
-  celeborn_partition_pusher_class =
-      CreateGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/utils/CelebornPartitionPusher;");
-  celeborn_push_partition_data_method =
-      GetMethodIDOrError(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[B)I");
 
   return JNI_VERSION;
 }
@@ -557,13 +548,8 @@ Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_init(JNIEnv* env,
   if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
-  // TODO: this will core dump now, because pool will be destroyed before allocated buffer
-  // auto pool = AsWrappedArrowMemoryPool(allocator);
-  auto pool = GetDefaultWrappedArrowMemoryPool();
-  std::shared_ptr<arrow::Schema> schema =
-      gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-
-  auto converter = std::make_shared<gluten::RowToColumnarConverter>(schema, pool.get());
+  auto backend = gluten::CreateBackend();
+  auto converter = backend->getRowToColumnarConverter(allocator, reinterpret_cast<struct ArrowSchema*>(cSchema));
   return row_to_columnar_converter_holder_.Insert(converter);
   JNI_METHOD_END(-1)
 }
@@ -583,12 +569,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniW
   uint8_t* address = reinterpret_cast<uint8_t*>(memory_address);
 
   auto converter = row_to_columnar_converter_holder_.Lookup(r2cId);
-  auto rb = converter->convert(num_rows, in_row_length, address);
-  std::unique_ptr<ArrowSchema> cArrowSchema = std::make_unique<ArrowSchema>();
-  std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
-  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*rb, cArray.get(), cArrowSchema.get()));
-  auto cb = std::make_shared<ArrowCStructColumnarBatch>(std::move(cArrowSchema), std::move(cArray));
-  env->ReleaseLongArrayElements(row_length, in_row_length, JNI_ABORT);
+  auto cb = converter->convert(num_rows, in_row_length, address);
   return gluten_columnarbatch_holder_.Insert(cb);
   JNI_METHOD_END(-1)
 }
@@ -762,6 +743,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
     env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
   } else if (shuffle_writer_type == "celeborn") {
+    jclass celeborn_partition_pusher_class =
+        CreateGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
+    jmethodID celeborn_push_partition_data_method =
+        GetMethodIDOrError(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[B)I");
     splitOptions.is_celeborn = true;
     if (push_buffer_max_size > 0) {
       splitOptions.push_buffer_max_size = push_buffer_max_size;

@@ -30,9 +30,10 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.JavaConverters._
 
 object TaskMemoryResources extends Logging {
+  // And open java assert mode to get memory stack
   val DEBUG: Boolean = {
     SQLConf.get
-      .getConfString("spark.gluten.sql.memory.debug", "false").toBoolean
+      .getConfString("spark.gluten.sql.memory.debug", "true").toBoolean
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 

@@ -193,6 +193,22 @@
       </activation>
       <modules>
         <module>gluten-data</module>
+        <module>gluten-celeborn</module>
+        <module>backends-velox</module>
+      </modules>
+      <properties>
+        <backend_type>velox</backend_type>
+        <arrow.version>11.0.0-gluten</arrow.version>
+        <build_velox_backend>ON</build_velox_backend>
+      </properties>
+    </profile>
+    <profile>
+      <id>backends-velox-without-rss</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-data</module>
         <module>backends-velox</module>
       </modules>
       <properties>
@@ -211,11 +227,6 @@
 
   <dependencyManagement>
     <dependencies>
-      <dependency>
-        <groupId>org.apache.celeborn</groupId>
-        <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
-        <version>${celeborn.version}</version>
-      </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>

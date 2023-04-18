@@ -23,7 +23,7 @@ object Constants {
     .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
-    .set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+    .set("spark.shuffle.manager", "org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
     .set("spark.celeborn.shuffle.writer", "hash")
     .set("spark.celeborn.push.replicate.enabled", "false")
     .set("spark.shuffle.service.enabled", "false")
