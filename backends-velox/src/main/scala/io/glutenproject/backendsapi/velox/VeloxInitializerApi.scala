@@ -40,6 +40,10 @@ class VeloxInitializerApi extends InitializerApi {
         new VeloxSharedlibraryLoaderCentos7
       } else if (system.contains("alinux") && system.contains("3")) {
         new VeloxSharedlibraryLoaderCentos8
+      } else if (system.contains("Anolis") && system.contains("8")) {
+        new VeloxSharedlibraryLoaderCentos8
+      } else if (system.contains("Anolis") && system.contains("7")) {
+        new VeloxSharedlibraryLoaderCentos7
       }
       loader.asInstanceOf[VeloxSharedlibraryLoader].loadLib(load)
   }
