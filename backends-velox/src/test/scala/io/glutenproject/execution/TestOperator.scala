@@ -619,14 +619,103 @@ class TestOperator extends WholeStageTransformerSuite {
     checkOperatorMatch[GlutenHashAggregateExecTransformer](result)
   }
 
-  test("corr distinct") {
-    Seq((1, 1), (2, 2), (2, 2))
-      .toDF("a", "b").createOrReplaceTempView("view")
-    runQueryAndCompare("SELECT corr(DISTINCT a, b)," +
-      "corr(DISTINCT b, a), count(*) FROM view") { df => {
+  test("distinct functions") {
+    runQueryAndCompare("SELECT sum(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
-      }) == 4)
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "SELECT sum(DISTINCT l_partkey), count(*), sum(l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT avg(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "SELECT avg(DISTINCT l_partkey), count(*), avg(l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT count(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "SELECT count(DISTINCT l_partkey), count(*), count(l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT stddev_samp(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "SELECT stddev_samp(DISTINCT l_partkey), count(*), " +
+        "stddev_samp(l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT stddev_pop(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "SELECT stddev_pop(DISTINCT l_partkey), count(*), " +
+        "stddev_pop(l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT var_samp(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "SELECT var_samp(DISTINCT l_partkey), count(*), " +
+        "var_samp(l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT var_pop(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare(
+      "SELECT var_pop(DISTINCT l_partkey), count(*), " +
+        "var_pop(l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT corr(DISTINCT l_partkey, l_suppkey)," +
+      "corr(DISTINCT l_suppkey, l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT corr(DISTINCT l_partkey, l_suppkey)," +
+      "count(*), corr(l_suppkey, l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT covar_pop(DISTINCT l_partkey, l_suppkey)," +
+      "covar_pop(DISTINCT l_suppkey, l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT covar_pop(DISTINCT l_partkey, l_suppkey)," +
+      "count(*), covar_pop(l_suppkey, l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT covar_samp(DISTINCT l_partkey, l_suppkey)," +
+      "covar_samp(DISTINCT l_suppkey, l_partkey), count(*) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
+    }}
+    runQueryAndCompare("SELECT covar_samp(DISTINCT l_partkey, l_suppkey)," +
+      "count(*), covar_samp(l_suppkey, l_partkey) FROM lineitem") { df => {
+      assert(getExecutedPlan(df).count(plan => {
+        plan.isInstanceOf[GlutenHashAggregateExecTransformer]}) == 4)
     }}
   }
 }
