@@ -312,7 +312,8 @@ FixedLengthDataReader::FixedLengthDataReader(const DataTypePtr & type_)
 {
     if (type->onlyNull())
     {
-        return 0;
+        value_size = 0;
+        return;
     }
     else if (!BackingDataLengthCalculator::isFixedLengthDataType(type_without_nullable) || !type_without_nullable->isValueRepresentedByNumber())
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "FixedLengthDataReader doesn't support type {}", type->getName());
