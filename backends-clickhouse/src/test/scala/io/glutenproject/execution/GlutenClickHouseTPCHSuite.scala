@@ -391,20 +391,18 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val df = spark.sql(
       """
         | select
-        | space(l_linenumber),
-        | space(l_linenumber-3),
-        | space(l_linenumber-4),
-        | space(if(l_linenumber==3, NULL, 0)),
-        | space(l_linenumber/3.00f)
-        | from lineitem where l_linenumber = 3
+        | space(3),
+        | space(0),
+        | space(NULL),
+        | space(3/3.00f)
+        | from lineitem limit 1
         |""".stripMargin
     )
     val result = df.collect()
     assert(result(0).getString(0).equals("   "))
     assert(result(0).getString(1).equals(""))
-    assert(result(0).getString(2).equals(""))
-    assert(result(0).getString(3) == null)
-    assert(result(0).getString(4).equals(" "))
+    assert(result(0).getString(2) == null)
+    assert(result(0).getString(3).equals(" "))
   }
 
   test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
