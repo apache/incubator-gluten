@@ -240,18 +240,23 @@ DB::ColumnPtr FileReaderWrapper::createConstColumn(DB::DataTypePtr data_type, co
     return column;
 }
 
-DB::ColumnPtr FileReaderWrapper::createColumn(DB::DataTypePtr data_type, size_t rows, const String & value)
+DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataTypePtr type, size_t rows)
 {
     if (StringUtils::isNullPartitionValue(value))
     {
-        auto nested_type = DB::removeNullable(data_type);
+        if (!type->isNullable())
+        {
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR, "Partition column is null value,but column data type is not nullable.");
+        }
+        auto nested_type = static_cast<const DB::DataTypeNullable &>(*type).getNestedType();
         auto column = nested_type->createColumnConstWithDefaultValue(rows);
         return DB::ColumnNullable::create(column, DB::ColumnUInt8::create(rows, 1));
     }
     else
     {
-        auto field = buildFieldFromString(value, data_type);
-        return createConstColumn(data_type, field, rows);
+        auto field = buildFieldFromString(value, type);
+        return createConstColumn(type, field, rows);
     }
 }
 
@@ -349,7 +354,7 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
             {
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow partition column : {}", name);
             }
-            res_columns.emplace_back(createColumn(type, to_read_rows, it->second));
+            res_columns.emplace_back(createColumn(it->second, type, to_read_rows));
         }
     }
     else
@@ -408,7 +413,7 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
                 throw DB::Exception(
                     DB::ErrorCodes::LOGICAL_ERROR, "Not found column({}) from file({}) partition keys.", column.name, file->getURIPath());
             }
-            res_columns.push_back(createColumn(column.type, rows, it->second));
+            res_columns.push_back(createColumn(it->second, column.type, rows));
         }
     }
     chunk = DB::Chunk(std::move(res_columns), rows);
