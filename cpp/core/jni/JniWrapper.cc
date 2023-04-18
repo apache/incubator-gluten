@@ -613,6 +613,27 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumRows(JNIEnv* e
   JNI_METHOD_END(-1L)
 }
 
+JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_addColumn(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jint index,
+    jlong colHandle) {
+  JNI_METHOD_START
+  std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
+  std::shared_ptr<ColumnarBatch> col = gluten_columnarbatch_holder_.Lookup(colHandle);
+#ifdef DEBUG
+  if (col->GetNumColumns() != 1) {
+    throw GlutenException("Add column should add one col");
+  }
+#endif
+  auto newBatch = batch->addColumn(index, col);
+  gluten_columnarbatch_holder_.Erase(handle);
+  gluten_columnarbatch_holder_.Erase(colHandle);
+  return gluten_columnarbatch_holder_.Insert(newBatch);
+  JNI_METHOD_END(-1L)
+}
+
 JNIEXPORT void JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_exportToArrow(
     JNIEnv* env,
     jobject,

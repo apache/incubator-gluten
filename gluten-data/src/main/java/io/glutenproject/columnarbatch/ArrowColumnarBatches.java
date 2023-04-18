@@ -68,8 +68,18 @@ public class ArrowColumnarBatches {
     ColumnarBatchJniWrapper.INSTANCE.close(GlutenColumnarBatches.getNativeHandle(input));
   }
 
+  public static long addColumn(ColumnarBatch input, int index, ColumnarBatch col) {
+    return ColumnarBatchJniWrapper.INSTANCE.addColumn(
+        GlutenColumnarBatches.getNativeHandle(input), index,
+        GlutenColumnarBatches.getNativeHandle(col));
+  }
+
   public static long getBytes(ColumnarBatch input) {
     return ColumnarBatchJniWrapper.INSTANCE.getBytes(GlutenColumnarBatches.getNativeHandle(input));
+  }
+
+  public static String getType(ColumnarBatch input) {
+    return ColumnarBatchJniWrapper.INSTANCE.getType(GlutenColumnarBatches.getNativeHandle(input));
   }
 
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {

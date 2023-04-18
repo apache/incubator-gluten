@@ -1454,7 +1454,7 @@ arrow::Status VeloxFallbackRangeShuffleWriter::Partition(const velox::RowVector&
   using NativeType = velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType;
   auto pid_flat_vector = firstChild->asFlatVector<NativeType>();
   if (pid_flat_vector == nullptr) {
-    return arrow::Status::Invalid("failed to cast rv.column(0), this column should be hash_partition_key");
+    return arrow::Status::Invalid("failed to cast rv.column(0), this column should be pid key");
   }
 
   auto num_rows = rv.size();

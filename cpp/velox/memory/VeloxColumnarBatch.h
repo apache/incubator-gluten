@@ -35,6 +35,8 @@ class VeloxColumnarBatch final : public ColumnarBatch {
 
   int64_t GetBytes() override;
 
+  std::shared_ptr<ColumnarBatch> addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) override;
+
   std::shared_ptr<ArrowSchema> exportArrowSchema() override;
   std::shared_ptr<ArrowArray> exportArrowArray() override;
 
