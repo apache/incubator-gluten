@@ -31,6 +31,8 @@ object Constants {
     .set("spark.dynamicAllocation.enabled", "false")
     .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
+    .set("spark.celeborn.push.data.timeout", "600s")
+    .set("spark.celeborn.push.limit.inFlight.timeout", "1200s")
 
   val TYPE_MODIFIER_DATE_AS_DOUBLE: TypeModifier = new TypeModifier(
     GlutenTypeUtils.typeAccepts(_, DateType), DoubleType) {
