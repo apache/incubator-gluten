@@ -439,6 +439,20 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       Seq(Row(new java.math.BigDecimal("123456789.123456789012345678901234566"))))
   }
 
+  test("test 'sum/count/max/min from empty table'") {
+    spark.sql(
+      """
+        | create table test_tbl(id bigint, name string) using parquet;
+        |""".stripMargin
+    )
+    val df = spark.sql("select count(1), sum(id), max(id), min(id) from test_tbl");
+    val result = df.collect()
+    assert(result(0).getLong(0) == 0)
+    assert(result(0).isNullAt(1))
+    assert(result(0).isNullAt(2))
+    assert(result(0).isNullAt(3))
+  }
+
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
