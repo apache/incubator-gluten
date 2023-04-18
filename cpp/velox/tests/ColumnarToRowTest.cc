@@ -83,9 +83,7 @@ class ColumnarToRowTest : public ::testing::Test {
     return rb;
   }
 
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_ = GetDefaultWrappedVeloxMemoryPool()->addChild(
-      "columnar_to_row_test",
-      facebook::velox::memory::MemoryPool::Kind::kLeaf);
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_ = GetDefaultWrappedVeloxMemoryPool();
   std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultWrappedArrowMemoryPool();
 };
 
