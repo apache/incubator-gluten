@@ -114,8 +114,7 @@ case class CHHashAggregateExecTransformer(
         if (
           (child.find(_.isInstanceOf[Exchange]).isEmpty
             && child.find(_.isInstanceOf[QueryStageExec]).isEmpty)
-          || (child.isInstanceOf[InputAdapter]
-            && child.asInstanceOf[InputAdapter].child.isInstanceOf[UnionExecTransformer])
+          || child.isInstanceOf[InputAdapter]
         ) {
           for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))

@@ -720,6 +720,22 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, df => {})
   }
 
+  test("issue-1402 Logical error: 'Invalid number of columns in chunk pushed to OutputPort.") {
+    val sql =
+      """
+        |SELECT LTRIM(o_orderpriority, '-') ltm, count(*) AS order_count
+        |FROM orders
+        |WHERE o_orderdate >= date '1993-07-01'
+        |  AND o_orderdate < date '1993-07-01' + interval 3 month
+        |  AND EXISTS ( SELECT * FROM lineitem WHERE l_orderkey = o_orderkey
+        |  AND l_commitdate
+        |    < l_receiptdate)
+        |GROUP BY ltm
+        |ORDER BY ltm;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
