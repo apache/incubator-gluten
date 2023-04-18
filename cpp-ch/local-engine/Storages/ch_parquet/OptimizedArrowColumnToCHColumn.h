@@ -1,7 +1,9 @@
 #pragma once
 
-#include <config.h>
+#include "config.h"
+#include <Common/Config.h>
 
+#if USE_LOCAL_FORMATS
 #if USE_ARROW || USE_ORC || USE_PARQUET
 
 #include <unordered_map>
@@ -55,4 +57,5 @@ private:
 
 }
 
+#endif
 #endif

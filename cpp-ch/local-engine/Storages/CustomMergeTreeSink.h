@@ -24,7 +24,7 @@ public:
 
     String getName() const override { return "CustomMergeTreeSink"; }
     void consume(Chunk chunk) override;
-//    std::list<OutputPort> getOutputs();
+
 private:
     CustomStorageMergeTree & storage;
     StorageMetadataPtr metadata_snapshot;

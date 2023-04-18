@@ -1,9 +1,13 @@
 #pragma once
+
+#include "config.h"
+
+#if USE_PARQUET
+
 #include <memory>
-#include <Storages/SubstraitSource/FormatFile.h>
-#include <parquet/arrow/reader.h>
 #include <IO/ReadBuffer.h>
-#include <base/types.h>
+#include <Storages/SubstraitSource/FormatFile.h>
+
 namespace local_engine
 {
 struct RowGroupInfomation
@@ -27,8 +31,9 @@ private:
     std::mutex mutex;
     std::optional<size_t> total_rows;
 
-    std::vector<RowGroupInfomation> collectRequiredRowGroups();
-    std::vector<RowGroupInfomation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer);
+    std::vector<RowGroupInfomation> collectRequiredRowGroups(int & total_row_groups);
+    std::vector<RowGroupInfomation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups);
 };
 
 }
+#endif

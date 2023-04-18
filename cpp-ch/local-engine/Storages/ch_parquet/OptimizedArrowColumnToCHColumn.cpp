@@ -1,5 +1,6 @@
 #include "OptimizedArrowColumnToCHColumn.h"
 
+#if USE_LOCAL_FORMATS
 #if USE_ARROW || USE_ORC || USE_PARQUET
 
 #include <algorithm>
@@ -682,4 +683,5 @@ std::vector<size_t> OptimizedArrowColumnToCHColumn::getMissingColumns(const arro
 
 }
 
+#endif
 #endif

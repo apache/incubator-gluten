@@ -1,13 +1,22 @@
 #pragma once
+#include <config.h>
+#include <Common/Config.h>
+
+#if USE_ORC
 #include <memory>
 #include <IO/ReadBuffer.h>
-#include <Interpreters/Context_fwd.h>
-#include <Processors/Formats/IInputFormat.h>
+#include <Interpreters/Context.h>
 #include <Storages/SubstraitSource/FormatFile.h>
-#include <arrow/adapters/orc/adapter.h>
 #include <base/types.h>
-#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+
+#if USE_LOCAL_FORMATS
+#include <arrow/adapters/orc/adapter.h>
+#include <Processors/Formats/IInputFormat.h>
 #include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
+#else
+#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#endif
+
 namespace local_engine
 {
 
@@ -19,6 +28,9 @@ struct StripeInformation
     UInt64 num_rows;
     UInt64 start_row;
 };
+
+
+#if USE_LOCAL_FORMATS
 
 // local engine's orc block input formatter
 // the behavior of generate is different from DB::ORCBlockInputFormat
@@ -70,6 +82,8 @@ private:
     std::shared_ptr<arrow::RecordBatchReader> fetchNextStripe();
 };
 
+#endif
+
 class OrcFormatFile : public FormatFile
 {
 public:
@@ -86,7 +100,9 @@ private:
     std::mutex mutex;
     std::optional<size_t> total_rows;
 
-    std::vector<StripeInformation> collectRequiredStripes();
-    std::vector<StripeInformation> collectRequiredStripes(DB::ReadBuffer * read_buffer);
+    std::vector<StripeInformation> collectRequiredStripes(UInt64 & total_stripes);
+    std::vector<StripeInformation> collectRequiredStripes(DB::ReadBuffer * read_buffer, UInt64 & total_strpes);
 };
 }
+
+#endif

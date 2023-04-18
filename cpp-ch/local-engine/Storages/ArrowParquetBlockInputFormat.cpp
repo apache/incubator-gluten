@@ -1,5 +1,6 @@
 #include "ArrowParquetBlockInputFormat.h"
 
+#if USE_PARQUET && USE_LOCAL_FORMATS
 #include <arrow/record_batch.h>
 #include <Common/Stopwatch.h>
 #include <arrow/table.h>
@@ -101,3 +102,5 @@ DB::Chunk ArrowParquetBlockInputFormat::generate()
 }
 
 }
+
+#endif
