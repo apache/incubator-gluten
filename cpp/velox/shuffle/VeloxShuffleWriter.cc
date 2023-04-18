@@ -502,7 +502,23 @@ arrow::Status VeloxShuffleWriter::SplitFixedWidthValueBuffer(const velox::RowVec
 #elif defined(__aarch64__)
       case 128:
         if (column->type()->isShortDecimal()) {
-          RETURN_NOT_OK(SplitFixedType<uint64_t>(src_addr, dst_addrs));
+          std::transform(
+              dst_addrs.begin(),
+              dst_addrs.end(),
+              partition_buffer_idx_base_.begin(),
+              partition_buffer_idx_offset_.begin(),
+              [](uint8_t* x, uint32_t y) { return x + y * sizeof(uint32x4_t); });
+          for (uint32_t pid = 0; pid < num_partitions_; ++pid) {
+            auto dst_pid_base = reinterpret_cast<uint32x4_t*>(partition_buffer_idx_offset_[pid]);
+            auto pos = partition_2_row_offset_[pid];
+            auto end = partition_2_row_offset_[pid + 1];
+            for (; pos < end; ++pos) {
+              auto row_id = row_offset_2_row_id_[pos];
+              const uint64_t value = reinterpret_cast<const uint64_t *>(src_addr)[row_id]; // copy
+              memcpy(dst_pid_base, &value, sizeof(uint64_t));
+              dst_pid_base += 1;
+            }
+          }
         } else if (column->type()->isLongDecimal()) {
           RETURN_NOT_OK(SplitFixedType<uint32x4_t>(src_addr, dst_addrs));
         } else {
