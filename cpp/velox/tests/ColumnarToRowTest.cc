@@ -18,13 +18,18 @@
 #include <arrow/record_batch.h>
 #include <gtest/gtest.h>
 
+#include "compute/VeloxRowToColumnarConverter.h"
 #include "jni/JniErrors.h"
 #include "memory/ArrowMemoryPool.h"
+#include "memory/VeloxColumnarBatch.h"
+#include "memory/VeloxMemoryPool.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
-#include "operators/r2c/RowToArrowColumnarConverter.h"
 #include "tests/TestUtils.h"
+#include "velox/vector/ComplexVector.h"
 
 using namespace arrow;
+using namespace facebook;
+using namespace facebook::velox;
 
 namespace gluten {
 class ColumnarToRowTest : public ::testing::Test {
@@ -47,24 +52,42 @@ class ColumnarToRowTest : public ::testing::Test {
     }
     long* lengthPtr = arr;
 
-    auto row_to_columnar_converter = std::make_shared<RowToColumnarConverter>(input_batch->schema());
+    ArrowSchema cSchema;
+    GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*input_batch->schema(), &cSchema));
+    auto row_to_columnar_converter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, veloxPool_);
 
-    auto rb = row_to_columnar_converter->convert(num_rows, lengthPtr, address);
+    auto cb = row_to_columnar_converter->convert(num_rows, lengthPtr, address);
+    auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
+    auto rb = veloxVectorToRecordBatch(vp);
     // std::cout << "From rowbuffer to Column, rb->ToString():\n" << rb->ToString() << std::endl;
     // std::cout << "From rowbuffer to Column, rb->ToString():\n" << rb->ToString() << std::endl;
     ASSERT_TRUE(rb->Equals(*input_batch));
   }
-};
 
-void testConvertBatch(std::shared_ptr<RecordBatch> input_batch) {
-  auto arrowPool = GetDefaultWrappedArrowMemoryPool();
-  auto converter = std::make_shared<ArrowColumnarToRowConverter>(input_batch, arrowPool);
-  JniAssertOkOrThrow(
-      converter->Init(),
-      "Native convert columnar to row: Init "
-      "ColumnarToRowConverter failed");
-  JniAssertOkOrThrow(converter->Write(), "Native convert columnar to row: ColumnarToRowConverter write failed");
-}
+  void testConvertBatch(std::shared_ptr<RecordBatch> input_batch) {
+    auto converter = std::make_shared<ArrowColumnarToRowConverter>(input_batch, arrowPool_);
+    JniAssertOkOrThrow(
+        converter->Init(),
+        "Native convert columnar to row: Init "
+        "ColumnarToRowConverter failed");
+    JniAssertOkOrThrow(converter->Write(), "Native convert columnar to row: ColumnarToRowConverter write failed");
+  }
+
+ private:
+  std::shared_ptr<arrow::RecordBatch> veloxVectorToRecordBatch(VectorPtr vector) {
+    ArrowArray arrowArray;
+    ArrowSchema arrowSchema;
+    velox::exportToArrow(vector, arrowArray, veloxPool_.get());
+    velox::exportToArrow(vector, arrowSchema);
+    GLUTEN_ASSIGN_OR_THROW(std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(&arrowArray, &arrowSchema));
+    return rb;
+  }
+
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_ = GetDefaultWrappedVeloxMemoryPool()->addChild(
+      "columnar_to_row_test",
+      facebook::velox::memory::MemoryPool::Kind::kLeaf);
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultWrappedArrowMemoryPool();
+};
 
 TEST_F(ColumnarToRowTest, decimal) {
   {
@@ -94,6 +117,7 @@ TEST_F(ColumnarToRowTest, Int_64) {
   auto schema = arrow::schema({f_int64});
   std::shared_ptr<arrow::RecordBatch> input_batch;
   MakeInputBatch(input_data, schema, &input_batch);
+  testRecordBatchEqual(input_batch);
 }
 
 TEST_F(ColumnarToRowTest, basic) {
