@@ -384,6 +384,7 @@ public:
 private:
     QueryContext query_context;
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
+    bool checkAndSetDefaultBlock(size_t current_block_columns, bool has_next_blocks);
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
