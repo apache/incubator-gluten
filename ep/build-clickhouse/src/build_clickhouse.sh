@@ -1,15 +1,10 @@
-export CLICKHOUSE_SRC=''
-export BUILD_DIR=''
+export GLUTEN_SOURCE=''
 
 for arg in "$@"
 do
     case $arg in
         -t=*|--src=*)
-        CLICKHOUSE_SRC=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        -a=*|--build_dir=*)
-        BUILD_DIR=("${arg#*=}")
+        GLUTEN_SOURCE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -19,8 +14,7 @@ do
     esac
 done
 
-mkdir -p ${BUILD_DIR}
-cd ${BUILD_DIR}
-cmake -G Ninja  "-DCMAKE_C_COMPILER=$(command -v clang-12)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-12)" "-DCMAKE_BUILD_TYPE=Release" "-DENABLE_PROTOBUF=1" "-DWERROR=OFF" "-DENABLE_JEMALLOC=0" ${CLICKHOUSE_SRC}
+echo ${GLUTEN_SOURCE}
 
-ninja ch
+cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${GLUTEN_SOURCE}/cpp-ch/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=Release"
+cmake --build ${GLUTEN_SOURCE}/cpp-ch/build_ch --target build_ch

@@ -73,7 +73,7 @@ cpp/**/example/**/*
 !cpp/**/example/**/
 !cpp/**/example/**/*.*
 
-/cpp-ch/ClickHouse/*
+/cpp-ch/ClickHouse
 /cpp-ch/cmake-build-*
 /cpp-ch/local-engine/tests/testConfig.h
-/cpp-ch/local-engine/proto/substrait/
+/cpp-ch/local-engine/proto/substrait
