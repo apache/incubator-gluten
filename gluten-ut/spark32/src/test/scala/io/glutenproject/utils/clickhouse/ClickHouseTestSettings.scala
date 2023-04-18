@@ -213,7 +213,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenHashExpressionsSuite]
     .include(
-      "md5"
+      "md5",
+      "sha1",
+      "sha2",
+      "crc32"
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]

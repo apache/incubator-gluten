@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
+import io.glutenproject.expression.CHSha2Transformer
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -46,6 +47,8 @@ import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import com.fasterxml.jackson.module.scala.deser.overrides
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -327,23 +330,34 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Generate extended columnar pre-rules. Currently only for Velox backend.
+   * Generate extended columnar pre-rules. Currently only for CH backend.
    *
    * @return
    */
   override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended columnar post-rules. Currently only for Velox backend.
+   * Generate extended columnar post-rules. Currently only for CH backend.
    *
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended Strategies. Currently only for Velox backend.
+   * Generate extended Strategies. Currently only for CH backend.
    *
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+
+  /**
+   * Generate an ExpressionTransformer to transform Sha2 expression. Currently only for CH backend.
+   */
+  override def genSha2Transformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Sha2): ExpressionTransformer = {
+    new CHSha2Transformer(substraitExprName, left, right, original)
+  }
 }
