@@ -514,7 +514,7 @@ arrow::Status VeloxShuffleWriter::SplitFixedWidthValueBuffer(const velox::RowVec
             auto end = partition_2_row_offset_[pid + 1];
             for (; pos < end; ++pos) {
               auto row_id = row_offset_2_row_id_[pos];
-              const uint64_t value = reinterpret_cast<const uint64_t *>(src_addr)[row_id]; // copy
+              const uint64_t value = reinterpret_cast<const uint64_t*>(src_addr)[row_id]; // copy
               memcpy(dst_pid_base, &value, sizeof(uint64_t));
               dst_pid_base += 1;
             }
