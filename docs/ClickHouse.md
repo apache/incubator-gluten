@@ -22,42 +22,17 @@ The architecture of the ClickHouse backend is shown below:
 In general, we use IDEA for Gluten development and CLion for ClickHouse backend development on **Ubuntu 20**.
 
 #### Prerequisites
-
-- GCC 9.0 or higher version
-    ```
-    sudo apt install gcc-9 g++-9 gcc-10 g++-10 gcc-11 g++-11
-
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 --slave /usr/bin/gcov gcov /usr/bin/gcov-9
-
-    sudo update-alternatives --config gcc  # then choose the right version
-    gcc --version  # check the version of the gcc
-    ```
-
-- Clang 15.0 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
-
-    Install the latest clang.
-    On Ubuntu/Debian you can use the automatic installation script.
-    ```shell
-    sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-    ```
-    Note: in case of troubles, you can also use this:
-    ```shell
-    sudo apt-get install software-properties-common
-    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-    ```
-    Use the latest clang for Builds( In this example we use version 15 that is the latest as of Feb 2023. )
-    ```shell
-    export CC=clang-15
-    export CXX=clang++-15
-    ```
-- cmake 3.20 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
+Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
+Under the hood, it will install the following software:
+- Clang 15.0
+- cmake 3.20 or higher version
 - ninja-build 1.8.2
+
+You can also refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/).
+You need to install the following software manually:
 - Java 8
 - Maven 3.6.3 or higher version
 - Spark 3.2.2 or Spark 3.3.1
-
 
 #### Setup Gluten development environment
 
@@ -65,17 +40,25 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 ```
     git clone https://github.com/oap-project/gluten.git
 ```
-- Open Gluten code in IDEA
 
 #### Setup ClickHouse backend development environment
+Gluten supports the use of existing ClickHouse repo for development, and also supports automatic clone ClickHouse to cpp-ch.
 
-- Clone ClickHouse backend code
+The following is an example of using an existing CH repo to configure the development environment.
+1. clone ClickHouse repo
 ```
-    git clone -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
-    git submodule update --init --recursive
+git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
 ```
-- Open ClickHouse backend code in CLion
-- Configure the ClickHouse backend project
+2. Configure cpp-ch
+
+Initialize some project configuration
+```shell
+export GLUTEN_SOURCE=/path/to/gluten
+cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=/path/to/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+```
+
+3. [Optional] Open ClickHouse Project on CLion
+    - Open ClickHouse repo
     - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-15 as C Compiler, clang++-15 as C++ Compiler:
 
         ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-1.png)
@@ -86,20 +69,33 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
         And then add these options into CMake options:
     ```
-    -G "Unix Makefiles" -D WERROR=OFF -D ENABLE_PROTOBUF=1 -D ENABLE_JEMALLOC=1 -D ENABLE_BUILD_PATH_MAPPING=OFF
+    -DENABLE_PROTOBUF=ON -DENABLE_TESTS=OFF -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON -DENABLE_EXTERN_LOCAL_ENGINE=ON
     ```
-- Build 'ch' target with Debug mode or Release mode:
+- Build 'ch' target on ClickHouse Project with Debug mode or Release mode:
 
     ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-3.png)
 
-    - If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path 'cmake-build-debug/utils/local-engine/'.
-    - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/local-engine/'.
+    - If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path 'cmake-build-debug/utils/extern-local-engine/'.
+    - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/extern-local-engine/'.
 
 ### Compile ClickHouse backend
-First need to enter the root directory of the Gluten project.
-run`sudo ./ep/build-clickhouse/src/install_ubuntu.sh`,Install the software required for compilation.  
-Create a build directory, such as /tmp/build_clickhouse, run `./ep/build-clickhouse/src/build_clickhouse.sh --src = /path /to/clickhouse --build_dir=/tmp/build_clickhouse`.  
-Target file is `/tmp/build_clickhouse/utils/local-engine/libch.so`.   
+Run the following command to compile ClickHouse backend:
+```
+bash ./ep/build-clickhouse/src/build_clickhouse.sh
+```
+Target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.
+
+### Deploy notes
+When you deploy Gluten with ClickHouse backend, you need to make sure that the following prerequisites are met:
+LD_PRELOAD={path of libch.so} needs to be specified at startup, so that jemalloc in libch.so is loaded first:
+```
+spark-submit --conf spark.executorEnv.LD_PRELOAD=/path/to/your/library
+```
+
+### New CI System
+
+https://cicd-aws.kyligence.com/job/Gluten/job/gluten-ci/
+public read-only account：gluten/hN2xX3uQ4m
 
 ### Compile Gluten with ClickHouse backend
 
@@ -190,6 +186,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.executorEnv.LD_PRELOAD=/path_to_clickhouse_library/libch.so\
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
@@ -256,7 +253,7 @@ bin/beeline -u jdbc:hive2://localhost:10000/ -n root
 - Result
 
     The DAG is shown on Spark UI as below:
-    
+
     ![ClickHouse-CLion-Toolchains](./image/ClickHouse/Gluten-ClickHouse-Backend-Q6-DAG.png)
 ##### Use local parquet files as DataSource
 
@@ -410,7 +407,7 @@ This benchmark is tested on AWS EC2 cluster, there are 7 EC2 instances:
 ```
     wget https://github.com/juicedata/juicefs/releases/download/v0.17.5/juicefs-0.17.5-linux-amd64.tar.gz
     tar -zxvf juicefs-0.17.5-linux-amd64.tar.gz
-    
+
     ./juicefs format --block-size 4096 --storage s3 --bucket https://s3.cn-northwest-1.amazonaws.com.cn/s3-gluten-tpch100/ --access-key "XXXXXXXX" --secret-key "XXXXXXXX" redis://:123456@master-ip:6379/1 gluten-tables
 
     #mount a volumn on every node

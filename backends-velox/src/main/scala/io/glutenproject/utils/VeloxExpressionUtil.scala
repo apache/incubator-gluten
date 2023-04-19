@@ -19,6 +19,8 @@ package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionMappings._
 import io.glutenproject.utils.GlutenExpressionUtil.EMPTY_TYPE
+
+import org.apache.spark.sql.catalyst.expressions.aggregate.ApproximatePercentile
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {

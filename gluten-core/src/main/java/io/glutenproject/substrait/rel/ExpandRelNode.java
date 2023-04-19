@@ -28,31 +28,22 @@ import java.util.ArrayList;
 
 public class ExpandRelNode implements RelNode, Serializable {
   private final RelNode input;
-  private final String groupName;
-  private final ArrayList<ArrayList<ExpressionNode>> groupings = new ArrayList<>();
-
-  private final ArrayList<ExpressionNode> aggExpressions = new ArrayList<>();
+  private final ArrayList<ArrayList<ExpressionNode>> projections = new ArrayList<>();
 
   private final AdvancedExtensionNode extensionNode;
 
-  public ExpandRelNode(RelNode input, String groupName,
-                       ArrayList<ArrayList<ExpressionNode>> groupings,
-                       ArrayList<ExpressionNode> aggExpressions,
-                       AdvancedExtensionNode extensionNode) {
+  public ExpandRelNode(RelNode input,
+                        ArrayList<ArrayList<ExpressionNode>> projections,
+                        AdvancedExtensionNode extensionNode) {
     this.input = input;
-    this.groupName = groupName;
-    this.groupings.addAll(groupings);
-    this.aggExpressions.addAll(aggExpressions);
+    this.projections.addAll(projections);
     this.extensionNode = extensionNode;
   }
 
-  public ExpandRelNode(RelNode input, String groupName,
-                       ArrayList<ArrayList<ExpressionNode>> groupings,
-                       ArrayList<ExpressionNode> aggExpressions) {
+  public ExpandRelNode(RelNode input,
+                    ArrayList<ArrayList<ExpressionNode>> projections) {
     this.input = input;
-    this.groupName = groupName;
-    this.groupings.addAll(groupings);
-    this.aggExpressions.addAll(aggExpressions);
+    this.projections.addAll(projections);
     this.extensionNode = null;
   }
 
@@ -68,24 +59,21 @@ public class ExpandRelNode implements RelNode, Serializable {
       expandBuilder.setInput(input.toProtobuf());
     }
 
-   for (ArrayList<ExpressionNode> groupList: groupings) {
-     ExpandRel.GroupSets.Builder groupingBuilder =
-         ExpandRel.GroupSets.newBuilder();
-     for (ExpressionNode exprNode : groupList) {
-       groupingBuilder.addGroupSetsExpressions(exprNode.toProtobuf());
-     }
-     expandBuilder.addGroupings(groupingBuilder.build());
-   }
-
-   for (ExpressionNode aggExpression: aggExpressions) {
-     expandBuilder.addAggregateExpressions(aggExpression.toProtobuf());
-   }
+    for (ArrayList<ExpressionNode> projectList: projections) {
+      ExpandRel.ExpandField.Builder expandFieldBuilder =
+        ExpandRel.ExpandField.newBuilder();
+      ExpandRel.SwitchingField.Builder switchingField =
+        ExpandRel.SwitchingField.newBuilder();
+      for (ExpressionNode exprNode : projectList) {
+          switchingField.addDuplicates(exprNode.toProtobuf());
+      }
+      expandFieldBuilder.setSwitchingField(switchingField.build());
+      expandBuilder.addFields(expandFieldBuilder.build());
+    }
 
     if (extensionNode != null) {
       expandBuilder.setAdvancedExtension(extensionNode.toProtobuf());
     }
-
-    expandBuilder.setGroupName(groupName);
 
     Rel.Builder builder = Rel.newBuilder();
     builder.setExpand(expandBuilder.build());

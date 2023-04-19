@@ -40,8 +40,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "zero moments", // [velox does not return NaN]
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
-      "rollup overlapping columns", // wait velox to fix
-      "cube overlapping columns", // wait velox to fix
       // incorrect result, distinct NaN case
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate"
     )

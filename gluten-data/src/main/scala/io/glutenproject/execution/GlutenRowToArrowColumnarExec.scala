@@ -281,6 +281,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
         case _: StringType =>
         case _: BinaryType =>
         case _: DecimalType =>
+        case _: DateType =>
         case _ => return false
       }
     }
@@ -304,15 +305,20 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
       val jniWrapper = new NativeRowToColumnarJniWrapper()
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
+      var closed = false
       val r2cId = try {
-        GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        jniWrapper.init(cSchema.memoryAddress(),
-          NativeMemoryAllocators.contextInstance().getNativeInstanceId);
+        if (useNative) {
+          GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+          jniWrapper.init(cSchema.memoryAddress(),
+            NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+        } else {
+          closed = true
+          -1
+        }
       } finally {
         cSchema.close()
       }
 
-      var closed = false
 
       TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
         if (!closed) {

@@ -25,11 +25,12 @@ import io.glutenproject.execution.GlutenColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, CelebornColumnarBatchSerializer, GlutenColumnarBatchSerializer}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
+import org.apache.commons.lang3.ClassUtils
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{CelebornShuffleWriterWrapper, GenCelebornShuffleWriterParameters, GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.GlutenShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
@@ -181,22 +182,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Generate CelebornColumnarShuffleWriter for ColumnarShuffleManager.
-   *
-   * @return
-   */
-  override def genCelebornColumnarShuffleWriter[K, V](
-  parameters: GenCelebornShuffleWriterParameters[K, V])
-  : CelebornShuffleWriterWrapper[K, V] = {
-    if (parameters.writerMode == "HASH") {
-      GlutenShuffleUtil.genCelebornHashBasedColumnarShuffleWriter(parameters)
-    } else {
-      throw new SparkException(
-        s"Unrecognized shuffle write mode : ${parameters.writerMode}")
-    }
-  }
-
-  /**
    * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.
    *
    * @return
@@ -207,7 +192,10 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
     numOutputRows: SQLMetric,
     dataSize: SQLMetric): Serializer = {
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
-      new CelebornColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
+      val constructor = clazz.getConstructor(classOf[StructType],
+        classOf[SQLMetric], classOf[SQLMetric])
+      constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
     } else {
       new GlutenColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
     }

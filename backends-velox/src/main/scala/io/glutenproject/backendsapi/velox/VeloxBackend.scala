@@ -78,6 +78,8 @@ object VeloxBackendSettings extends BackendSettings {
 
   override def supportExpandExec(): Boolean = true
   override def needProjectExpandOutput: Boolean = true
+
+  override def supportNewExpandContract(): Boolean = true
   override def supportSortExec(): Boolean = true
 
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
