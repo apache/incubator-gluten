@@ -24,28 +24,15 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 #### Prerequisites
 Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
 Under the hood, it will install the following software:
-- Clang 15.0 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
-    Install the latest clang.
-    On Ubuntu/Debian you can use the automatic installation script.
-    ```shell
-    sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-    ```
-    Note: in case of troubles, you can also use this:
-    ```shell
-    sudo apt-get install software-properties-common
-    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-    ```
-    Use the latest clang for Builds( In this example we use version 15 that is the latest as of Feb 2023. )
-    ```shell
-    export CC=clang-15
-    export CXX=clang++-15
-    ```
-- cmake 3.20 or higher version ( Please refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/) )
+- Clang 15.0
+- cmake 3.20 or higher version
 - ninja-build 1.8.2
+
+You can also refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/).
+You need to install the following software manually:
 - Java 8
 - Maven 3.6.3 or higher version
 - Spark 3.2.2 or Spark 3.3.1
-
 
 #### Setup Gluten development environment
 
@@ -53,22 +40,21 @@ Under the hood, it will install the following software:
 ```
     git clone https://github.com/oap-project/gluten.git
 ```
-- Open Gluten code in IDEA
 
 #### Setup ClickHouse backend development environment
-Support the use of existing ClickHouse repo for development, and also support automatic clone ClickHouse to cpp-ch.
+Gluten supports the use of existing ClickHouse repo for development, and also supports automatic clone ClickHouse to cpp-ch.
 
 The following is an example of using an existing CH repo to configure the development environment.
 1. clone ClickHouse repo
 ```
-    git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
+git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
 ```
 2. Configure cpp-ch
 
 Initialize some project configuration
 ```shell
 export GLUTEN_SOURCE=/path/to/gluten
-cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=/path/to/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=Release"
+cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=/path/to/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
 ```
 
 3. [Optional] Open ClickHouse Project on CLion
@@ -93,13 +79,18 @@ cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -D
     - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/extern-local-engine/'.
 
 ### Compile ClickHouse backend
-Run `bash ./ep/build-clickhouse/src/build_clickhouse.sh`.
+Run the following command to compile ClickHouse backend:
+```
+bash ./ep/build-clickhouse/src/build_clickhouse.sh
+```
 Target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.
 
 ### Deploy notes
-LD_PRELOAD={path of libch.so} needs to be specified at startup, so that jemalloc in libch.so is loaded first.
-
+When you deploy Gluten with ClickHouse backend, you need to make sure that the following prerequisites are met:
+LD_PRELOAD={path of libch.so} needs to be specified at startup, so that jemalloc in libch.so is loaded first:
+```
 spark-submit --conf spark.executorEnv.LD_PRELOAD=/path/to/your/library
+```
 
 ### New CI System
 
