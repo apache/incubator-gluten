@@ -20,7 +20,6 @@ static DB::ITransformingStep::Traits getTraits()
     return DB::ITransformingStep::Traits
     {
         {
-            .preserves_distinct_columns = false, /// Actually, we may check that distinct names are in aggregation keys
             .returns_single_stream = true,
             .preserves_number_of_streams = false,
             .preserves_sorting = false,

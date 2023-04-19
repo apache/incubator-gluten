@@ -22,7 +22,7 @@ namespace ErrorCodes
     do                                                                 \
     {                                                                  \
         if (::arrow::Status _s = (status); !_s.ok())                   \
-            throw Exception(_s.ToString(), ErrorCodes::BAD_ARGUMENTS); \
+            throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
     } while (false)
 
 OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_)
@@ -47,8 +47,8 @@ Chunk OptimizedParquetBlockInputFormat::generate()
     std::shared_ptr<arrow::Table> table;
     arrow::Status read_status = file_reader->ReadRowGroup(row_group_current, column_indices, &table);
     if (!read_status.ok())
-        throw ParsingException{"Error while reading Parquet data: " + read_status.ToString(),
-                        ErrorCodes::CANNOT_READ_ALL_DATA};
+        throw ParsingException(ErrorCodes::CANNOT_READ_ALL_DATA, "Error while reading Parquet data: {}",
+                               read_status.ToString());
 
     if (format_settings.use_lowercase_column_name)
         table = *table->RenameColumns(column_names);

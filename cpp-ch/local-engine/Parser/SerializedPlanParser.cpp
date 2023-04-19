@@ -402,8 +402,10 @@ QueryPlanPtr SerializedPlanParser::parseMergeTreeTable(const substrait::ReadRel 
     {
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "part {} to {} not found.", min_block, max_block);
     }
-    auto query = query_context.custom_storage_merge_tree->reader.readFromParts(
+    auto read_step = query_context.custom_storage_merge_tree->reader.readFromParts(
         selected_parts, names_and_types_list.getNames(), query_context.storage_snapshot, *query_info, context, 4096 * 2, 1);
+    QueryPlanPtr query = std::make_unique<QueryPlan>();
+    query->addStep(std::move(read_step));
     if (!not_null_columns.empty())
     {
         auto input_header = query->getCurrentDataStream().header;
@@ -1122,6 +1124,7 @@ QueryPlanStepPtr SerializedPlanParser::parseAggregate(QueryPlan & plan, const su
             false,
             SortDescription(),
             SortDescription(),
+            false,
             false,
             false);
         return std::move(aggregating_step);
