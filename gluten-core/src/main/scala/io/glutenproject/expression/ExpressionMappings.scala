@@ -96,6 +96,7 @@ object ExpressionMappings {
   final val CONCAT_WS = "concat_ws"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
+  final val SPACE = "space"
 
   // SparkSQL Math functions
   final val ABS = "abs"
@@ -281,6 +282,7 @@ object ExpressionMappings {
     Sig[ConcatWs](CONCAT_WS),
     Sig[StringRepeat](REPEAT),
     Sig[StringTranslate](TRANSLATE),
+    Sig[StringSpace](SPACE),
     // SparkSQL Math functions
     Sig[Abs](ABS),
     Sig[Ceil](CEIL),
