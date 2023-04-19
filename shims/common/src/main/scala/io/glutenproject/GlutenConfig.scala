@@ -16,10 +16,11 @@
  */
 package io.glutenproject
 
-import com.google.common.collect.ImmutableList
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
+
+import com.google.common.collect.ImmutableList
 
 import java.util
 import java.util.Locale
