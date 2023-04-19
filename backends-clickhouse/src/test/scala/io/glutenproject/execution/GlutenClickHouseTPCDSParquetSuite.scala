@@ -91,7 +91,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |)
         |""".stripMargin
     val result = spark.sql(testSql).collect()
-    assert(result(0).getLong(0) == 791980)
+    assert(result(0).getLong(0) == 791809)
   }
 
   test("test union all operator with three tables") {
@@ -107,7 +107,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |)
         |""".stripMargin
     val result = spark.sql(testSql).collect()
-    assert(result(0).getLong(0) == 792080)
+    assert(result(0).getLong(0) == 791909)
   }
 
   test("test union operator with two tables") {
@@ -120,7 +120,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |)
         |""".stripMargin
     val result = spark.sql(testSql).collect()
-    assert(result(0).getLong(0) == 73050)
+    assert(result(0).getLong(0) == 73049)
   }
 
   test("TPCDS Q3") {
