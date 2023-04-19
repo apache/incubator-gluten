@@ -1940,20 +1940,23 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
                 throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support decimal type with precision {}", precision);
             break;
         }
-        /// TODO(taiyang-li) Other type: Struct/Map/List
         case substrait::Expression_Literal::kList: {
-            /// TODO(taiyang-li) Implement empty list
-            if (literal.has_empty_list())
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "Empty list not support!");
+            const auto & values = literal.list().values();
+            if (values.empty())
+            {
+                type = std::make_shared<DataTypeArray>(std::make_shared<DataTypeNothing>());
+                field = Array();
+                break;
+            }
 
             DataTypePtr first_type;
-            std::tie(first_type, std::ignore) = parseLiteral(literal.list().values(0));
+            std::tie(first_type, std::ignore) = parseLiteral(values[0]);
 
-            size_t list_len = literal.list().values_size();
+            size_t list_len = values.size();
             Array array(list_len);
             for (size_t i = 0; i < list_len; ++i)
             {
-                auto type_and_field = std::move(parseLiteral(literal.list().values(i)));
+                auto type_and_field = std::move(parseLiteral(values[i]));
                 if (!first_type->equals(*type_and_field.first))
                     throw Exception(
                         ErrorCodes::LOGICAL_ERROR,
@@ -1967,6 +1970,10 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
             field = std::move(array);
             break;
         }
+        case substrait::Expression_Literal::kMap: {
+        }
+        case substrait::Expression_Literal::kStruct: {
+        }
         case substrait::Expression_Literal::kNull: {
             type = parseType(literal.null());
             field = std::move(Field{});
@@ -1974,7 +1981,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
         }
         default: {
             throw Exception(
-                ErrorCodes::UNKNOWN_TYPE, "Unsupported spark literal type {}", magic_enum::enum_name(literal.literal_type_case()));
+                ErrorCodes::UNKNOWN_TYPE, "Unsupported spark literal {}", literal.DebugString());
         }
     }
     return std::make_pair(std::move(type), std::move(field));
