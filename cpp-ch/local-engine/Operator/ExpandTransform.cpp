@@ -1,4 +1,4 @@
-#include "ExpandTransorm.h"
+#include "ExpandTransform.h"
 #include <memory>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
@@ -96,14 +96,21 @@ void ExpandTransform::work()
                     cols.push_back(original_col);
                 else
                 {
-                    auto null_map = DB::ColumnUInt8::create(rows, 0);
-                    auto col = DB::ColumnNullable::create(original_col, std::move(null_map));
-                    cols.push_back(std::move(col));
+                    if (outputs.front().getHeader().getByPosition(i).column->getDataType() == original_col->getDataType())
+                    {
+                        cols.push_back(original_col);
+                    }
+                    else
+                    {
+                        auto null_map = DB::ColumnUInt8::create(rows, 0);
+                        auto col = DB::ColumnNullable::create(original_col, std::move(null_map));
+                        cols.push_back(std::move(col));
+                    }
                 }
             }
         }
         auto id_col = DB::DataTypeInt64().createColumnConst(input_chunk.getNumRows(), set_id);
-        cols.push_back(std::move(id_col));
+        cols.push_back(std::move(id_col->convertToFullColumnIfConst()));
         expanded_chunks.push_back(DB::Chunk(cols, input_chunk.getNumRows()));
     }
     has_output = true;

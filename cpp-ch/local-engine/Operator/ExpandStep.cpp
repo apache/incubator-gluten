@@ -1,5 +1,6 @@
 #include "ExpandStep.h"
-#include "ExpandTransorm.h"
+#include "Columns/IColumn.h"
+#include "ExpandTransform.h"
 #include <memory>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
@@ -38,7 +39,7 @@ ExpandStep::ExpandStep(
     const std::string & grouping_id_name_)
     : DB::ITransformingStep(
         input_stream_,
-        buildOutputHeader(input_stream_.header, aggregating_expressions_columns_, grouping_id_name_),
+        buildOutputHeader(input_stream_.header, aggregating_expressions_columns_, grouping_sets_, grouping_id_name_),
         getTraits())
     , aggregating_expressions_columns(aggregating_expressions_columns_)
     , grouping_sets(grouping_sets_)
@@ -51,6 +52,7 @@ ExpandStep::ExpandStep(
 DB::Block ExpandStep::buildOutputHeader(
     const DB::Block & input_header,
     const std::vector<size_t> & aggregating_expressions_columns_,
+    const std::vector<std::set<size_t>> & grouping_sets_,
     const std::string & grouping_id_name_)
 {
     DB::ColumnsWithTypeAndName cols;
@@ -69,10 +71,27 @@ DB::Block ExpandStep::buildOutputHeader(
             cols.push_back(old_col);
         else
         {
-            auto null_map = DB::ColumnUInt8::create(0, 0);
-            auto null_col = DB::ColumnNullable::create(old_col.column, std::move(null_map));
-            auto null_type = std::make_shared<DB::DataTypeNullable>(old_col.type);
-            cols.push_back(DB::ColumnWithTypeAndName(null_col, null_type, old_col.name));
+            bool same_output = true;
+            // if a column exists in all columns, it need not be converted to nullable as in spark.
+            for (const auto & g_sets : grouping_sets_)
+            {
+                if (!g_sets.contains(i))
+                {
+                    same_output = false;
+                    break;
+                }
+            }
+            if (same_output)
+            {
+                cols.push_back(old_col);
+            }
+            else
+            {
+                auto null_map = DB::ColumnInt8::create(0, 0);
+                auto null_col = DB::ColumnNullable::create(old_col.column, std::move(null_map));
+                auto null_type = std::make_shared<DB::DataTypeNullable>(old_col.type);
+                cols.push_back(DB::ColumnWithTypeAndName(null_col, null_type, old_col.name));
+            }
         }
     }
 

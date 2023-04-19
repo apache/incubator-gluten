@@ -33,6 +33,7 @@ private:
     static DB::Block buildOutputHeader(
         const DB::Block & header,
         const std::vector<size_t> & aggregating_expressions_columns_,
+        const std::vector<std::set<size_t>> & grouping_sets_,
         const std::string & grouping_id_name_);
 };
 }
