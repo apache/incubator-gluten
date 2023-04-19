@@ -894,12 +894,12 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             query_plan = win_parser->parse(std::move(query_plan), rel, rel_stack);
             break;
         }
-        case substrait::Rel::RelTypeCase::kExpand: {
+        case substrait::Rel::RelTypeCase::kGroupId: {
             rel_stack.push_back(&rel);
-            const auto & expand_rel = rel.expand();
+            const auto & expand_rel = rel.group_id();
             query_plan = parseOp(expand_rel.input(), rel_stack);
             rel_stack.pop_back();
-            auto epand_parser = RelParserFactory::instance().getBuilder(substrait::Rel::RelTypeCase::kExpand)(this);
+            auto epand_parser = RelParserFactory::instance().getBuilder(substrait::Rel::RelTypeCase::kGroupId)(this);
             query_plan = epand_parser->parse(std::move(query_plan), rel, rel_stack);
             break;
         }
