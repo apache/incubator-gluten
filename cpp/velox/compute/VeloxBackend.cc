@@ -22,6 +22,7 @@
 #include "VeloxBridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
+#include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
 #include "shuffle/ArrowShuffleWriter.h"
@@ -330,6 +331,15 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   } else {
     return Backend::getColumnar2RowConverter(allocator, cb);
   }
+}
+
+std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
+    MemoryAllocator* allocator,
+    struct ArrowSchema* cSchema) {
+  // TODO: wait to fix task memory pool
+  auto veloxPool = GetDefaultWrappedVeloxMemoryPool();
+  // AsWrappedVeloxMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
+  return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
 std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(

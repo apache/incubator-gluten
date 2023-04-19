@@ -275,6 +275,56 @@ object ConverterUtils extends Logging {
     val REQ, OPT, NON = Value
   }
 
+  /**
+   * Get the signature name of a type based on Substrait's definition in
+   * https://substrait.io/extensions/#function-signature-compound-names.
+   * @param dataType: the input data type.
+   * @return the corresponding signature name.
+   */
+  def getTypeSigName(dataType: DataType): String = {
+    dataType match {
+      case BooleanType => // TODO: Not in Substrait yet.
+        "bool"
+      case ByteType => "i8"
+      case ShortType => "i16"
+      case IntegerType => "i32"
+      case LongType => "i64"
+      case FloatType => "fp32"
+      case DoubleType => "fp64"
+      case DateType => "date"
+      case TimestampType => "ts"
+      case StringType => "str"
+      case BinaryType => "vbin"
+      case DecimalType() =>
+        val decimalType = dataType.asInstanceOf[DecimalType]
+        val precision = decimalType.precision
+        val scale = decimalType.scale
+        // TODO: different with Substrait due to more details here.
+        "dec<" + precision + "," + scale + ">"
+      case ArrayType(_, _) =>
+        "list"
+      case StructType(fields) =>
+        // TODO: different with Substrait due to more details here.
+        var sigName = "struct<"
+        var index = 0
+        fields.foreach(field => {
+          sigName = sigName.concat(getTypeSigName(field.dataType))
+          sigName = sigName.concat(if (index < fields.length - 1) "," else "")
+          index += 1
+        })
+        sigName = sigName.concat(">")
+        sigName
+      case MapType(_, _, _) =>
+        "map"
+      case CharType(_) =>
+        "fchar"
+      case NullType =>
+        "nothing"
+      case other =>
+        throw new UnsupportedOperationException(s"Type $other not supported.")
+    }
+  }
+
   // This method is used to create a function name with input types.
   // The format would be aligned with that specified in Substrait.
   // The function name Format:
@@ -292,51 +342,9 @@ object ConverterUtils extends Logging {
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
     for (idx <- datatypes.indices) {
-      val datatype = datatypes(idx)
-      typedFuncName = datatype match {
-        case BooleanType =>
-          // TODO: Not in Substrait yet.
-          typedFuncName.concat("bool")
-        case ByteType =>
-          typedFuncName.concat("i8")
-        case ShortType =>
-          typedFuncName.concat("i16")
-        case IntegerType =>
-          typedFuncName.concat("i32")
-        case LongType =>
-          typedFuncName.concat("i64")
-        case FloatType =>
-          typedFuncName.concat("fp32")
-        case DoubleType =>
-          typedFuncName.concat("fp64")
-        case DateType =>
-          typedFuncName.concat("date")
-        case TimestampType =>
-          typedFuncName.concat("ts")
-        case StringType =>
-          typedFuncName.concat("str")
-        case BinaryType =>
-          typedFuncName.concat("vbin")
-        case DecimalType() =>
-          val decimalType = datatype.asInstanceOf[DecimalType]
-          val precision = decimalType.precision
-          val scale = decimalType.scale
-          typedFuncName.concat("dec<" + precision + "," + scale + ">")
-        case ArrayType(_, _) =>
-          typedFuncName.concat("list")
-        case StructType(_) =>
-          typedFuncName.concat("struct")
-        case MapType(_, _, _) =>
-          typedFuncName.concat("map")
-        case CharType(_) =>
-          typedFuncName.concat("fchar")
-        case NullType =>
-          typedFuncName.concat("nothing")
-        case other =>
-          throw new UnsupportedOperationException(s"Type $other not supported.")
-      }
-      // For the last item, do not need to add _.
-      if (idx < (datatypes.size - 1)) {
+      typedFuncName = typedFuncName.concat(getTypeSigName(datatypes(idx)))
+      // For the last item, no need to append _.
+      if (idx < datatypes.size - 1) {
         typedFuncName = typedFuncName.concat("_")
       }
     }

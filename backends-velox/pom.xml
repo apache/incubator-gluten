@@ -18,6 +18,23 @@
     <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
   </properties>
 
+  <profiles>
+    <profile>
+      <id>backends-velox</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>io.glutenproject</groupId>
+          <artifactId>gluten-celeborn</artifactId>
+          <version>${project.version}</version>
+          <scope>compile</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.spark</groupId>

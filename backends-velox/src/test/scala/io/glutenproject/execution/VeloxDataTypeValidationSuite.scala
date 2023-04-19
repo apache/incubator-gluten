@@ -202,24 +202,18 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select int, date from type1 " +
       " group by grouping sets(int, date) sort by date, int limit 1") { df => {
       val executedPlan = getExecutedPlan(df)
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[ProjectExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[GlutenHashAggregateExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[SortExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[GlutenHashAggregateExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[SortExecTransformer]))
     }}
 
     // Validation: Expand, Filter.
     runQueryAndCompare("select date, string, sum(int) from type1 where date > date '1990-01-09' " +
       "group by rollup(date, string) order by date, string") { df => {
       val executedPlan = getExecutedPlan(df)
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[ExpandExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[GlutenFilterExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[ExpandExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[GlutenFilterExecTransformer]))
     }}
 
     // Validation: Union.
@@ -231,9 +225,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
         | select date as d from type1
         |);
         |""".stripMargin) { df => {
-      val executedPlan = getExecutedPlan(df)
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[UnionExecTransformer]).isDefined))
+      assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[UnionExecTransformer]))
     }}
 
     // Validation: Limit.

@@ -83,13 +83,18 @@ case class GlutenBuildSideRelation(mode: BroadcastMode,
           throw new IllegalArgumentException(s"Key column not found in expression: $key")
         }
         if (columnNames.size != 1) {
-          throw new IllegalArgumentException(s"Multiple key column not found in expression: $key")
+          throw new IllegalArgumentException(s"Multiple key columns found in expression: $key")
         }
         val columnExpr = columnNames.head
 
         val columnInOutput = output.zipWithIndex.filter {
           p: (Attribute, Int) =>
-            p._1.name == columnExpr.name
+            if (output.size == 1) {
+              p._1.name == columnExpr.name
+            } else {
+              // A case where output has multiple columns with same name
+              p._1.name == columnExpr.name && p._1.exprId == columnExpr.exprId
+            }
         }
         if (columnInOutput.isEmpty) {
           throw new IllegalStateException(

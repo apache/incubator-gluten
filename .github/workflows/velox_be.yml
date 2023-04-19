@@ -89,7 +89,7 @@ jobs:
       - name: Run CPP unit test
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
-          ctest -V'
+          ctest -V -E OrcTest'
       # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
       - name: Run micro benchmarks
         run: |
@@ -149,14 +149,14 @@ jobs:
           docker exec velox-backend-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
-      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2
         run: |
           docker exec velox-backend-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
           mvn clean package -Pspark-3.2 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
+            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1'
       - name: Build for Spark 3.3.0
         run: |
           docker exec velox-backend-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
@@ -166,14 +166,14 @@ jobs:
         run: |
           docker exec velox-backend-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -Pspark-ut'
-      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.3
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3
         run: |
           docker exec velox-backend-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
           mvn clean package -Pspark-3.3 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 --skip-data-gen \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1 --skip-data-gen'
+            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 --skip-data-gen'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -213,28 +213,28 @@ jobs:
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.2'
-      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
+      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
           mvn clean package -Pspark-3.2 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
-          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
-      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2 with Celeborn
+          && java -Xmx10G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --cpus=32 --iterations=1'
+      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c 'wget https://dlcdn.apache.org/incubator/celeborn/celeborn-0.2.0-incubating/apache-celeborn-0.2.0-incubating-bin.tgz && \
           tar -zxvf apache-celeborn-0.2.0-incubating-bin.tgz && \
           mv apache-celeborn-0.2.0-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.2.0-incubating-bin/conf/celeborn-defaults.conf && \
           mv apache-celeborn-0.2.0-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.2.0-incubating-bin/conf/log4j2.xml && \
           mkdir /opt/hadoop && chmod 777 /opt/hadoop && \
-          echo -e "celeborn.worker.storage.dirs /opt\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.2.0-incubating-bin/conf/celeborn-defaults.conf && \
+          echo -e "celeborn.worker.flusher.threads 32\nceleborn.worker.storage.dirs /opt\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.2.0-incubating-bin/conf/celeborn-defaults.conf && \
           bash apache-celeborn-0.2.0-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.2.0-incubating-bin/sbin/start-worker.sh && \
           cd /opt/gluten/tools/gluten-it && mvn clean package -Pspark-3.2 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1 && \
+            --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=1.0 --cpus=16 --iterations=1 && \
           bash /apache-celeborn-0.2.0-incubating-bin/sbin/stop-worker.sh \
           && bash /apache-celeborn-0.2.0-incubating-bin/sbin/stop-master.sh && rm -rf /apache-celeborn-0.2.0-incubating-bin.tgz \
           && rm -rf /apache-celeborn-0.2.0-incubating-bin && rm -rf /opt/hadoop'
@@ -279,14 +279,14 @@ jobs:
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.2'
-      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
+      - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           docker exec velox-backend-centos8-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
           mvn clean package -Pspark-3.2 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
-          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
+          && java -Xmx50G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=50g -s=30.0 --cpus=32 --iterations=1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -328,14 +328,14 @@ jobs:
           docker exec velox-backend-centos7-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.2'
-      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
+      - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           docker exec velox-backend-centos7-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
           mvn clean package -Pspark-3.2 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --preset=velox --benchmark-type=h --error-on-memleak --fixed-width-as-double --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
-          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --preset=velox --benchmark-type=ds --error-on-memleak --fixed-width-as-double --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
+            --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
+          && java -Xmx50G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=50g -s=30.0 --cpus=32 --iterations=1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |

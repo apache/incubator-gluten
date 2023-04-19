@@ -16,6 +16,8 @@
  */
 package io.glutenproject
 
+import io.glutenproject.GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
@@ -120,7 +122,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
-      .equals("org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+      .equals("org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
 
   // enable or disable columnar exchange
   def enableColumnarShuffle: Boolean =
@@ -279,6 +281,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def validateFailureLogLevel: String =
     conf.getConfString("spark.gluten.sql.validate.failure.logLevel", "INFO")
 
+  def softAffinityLogLevel: String =
+    conf.getConfString("spark.gluten.soft-affinity.logLevel", "DEBUG")
+
   def printStackOnValidateFailure: Boolean =
     conf.getConfString("spark.gluten.sql.validate.failure.printStack", "false").toBoolean
 
@@ -419,7 +424,8 @@ object GlutenConfig {
       SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
       SPARK_HIVE_EXEC_ORC_COMPRESS,
       // DWRF datasource config end
-      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
+      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
     )
     keys.forEach(
       k => {
