@@ -2,16 +2,21 @@
 
 **This document explains how to use the existing micro benchmark template in Gluten Cpp.**
 
-A micro benchmark for Velox backend is provided in Gluten Cpp to simulate the execution of a reducer stage in Spark.
+A micro benchmark for Velox backend is provided in Gluten Cpp to simulate the execution of a first or middle stage in Spark.
 It serves as a more convenient alternative to debug in Gluten Cpp comparing with directly debugging in a Spark job.
 Developers can use it to create their own workloads, debug in native process, profile the hotspot and do optimizations.
 
-Currently, data input files are in Parquet. We load the data into Arrow format, then add Arrow2Velox to feed 
+To simulate a first stage, you need to dump the Substrait plan into a JSON file.
+
+To simulate a middle stage, in addition to the JSON file, you also need to save the input data of this stage into Parquet files.
+The benchmark will load the data into Arrow format, then add Arrow2Velox to feed 
 the data into Velox pipeline to reproduce the reducer stage. Shuffle exchange is not included.
+
+Please refer to the sections below to learn how to dump the Substrait plan and create the input data files.
 
 ## Try the example
 
-To run a micro benchmark, user should provide one file that contains the substrait plan in JSON format, and 
+To run a micro benchmark, user should provide one file that contains the Substrait plan in JSON format, and optional 
 one or more input data files in parquet format.
 The commands below help to generate example input files:
 
@@ -97,7 +102,7 @@ InputFromBatchVector/iterations:1/process_time/real_time/threads:1   41304520 ns
 
 ```
 
-## Generate substrait plan and input for any quey
+## Generate Substrait plan and input for any quey
 
 Build the gluten debug version.
 
@@ -109,7 +114,7 @@ cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BU
 make -j
 ```
 Run the query by spark-shell, and get the Stage Id from spark UI.
-Get the substrait plan from console output.
+Get the Substrait plan from console output.
 
 Example:
 ```shell
@@ -125,7 +130,7 @@ Task stageId: 2, partitionId: 855, taskId: 857; {"extensions":[{"extensionFuncti
 | spark.gluten.sql.benchmark_task.taskId | If not specify partition id, use spark task attempt id, default value -1 means all the partition of this stage | -1 |
 | spark.gluten.saveDir | Directory should exist and be empty, save the stage input to this directory, parquet name format is input_${taskId}_${iteratorIndex}_${partitionId}.parquet | /path/to/saveDir |
 
-Save the substrait plan to a json file, suppose the name is "plan.json", and output is /tmp/save/input_34_0_1.parquet and /tmp/save/input_34_0_2.parquet, please use spark to combine the 2 files to 1 file.
+Save the Substrait plan to a json file, suppose the name is "plan.json", and output is /tmp/save/input_34_0_1.parquet and /tmp/save/input_34_0_2.parquet, please use spark to combine the 2 files to 1 file.
 
 ```java
 val df = spark.read.format("parquet").load("/tmp/save")
@@ -153,7 +158,7 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --threads 1 --noprint-result
 ```
 
-For some complex queries, stageId may cannot represent the substrait plan input, please get the taskId from spark UI, and get your target parquet from saveDir.
+For some complex queries, stageId may cannot represent the Substrait plan input, please get the taskId from spark UI, and get your target parquet from saveDir.
 
 In this example, only one partition input with partition id 2, taskId is 36, iterator length is 2.
 
