@@ -16,6 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
@@ -252,6 +254,18 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         }
         assert(adaptiveSparkPlanExec.size == 3)
         assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
+    }
+  }
+
+  test("Test 'spark.gluten.enabled' false") {
+    withSQLConf(("spark.gluten.enabled", "false")) {
+      runTPCHQuery(2) {
+        df =>
+          val glutenPlans = collect(df.queryExecution.executedPlan) {
+            case glutenPlan: GlutenPlan => glutenPlan
+          }
+          assert(glutenPlans.isEmpty)
+      }
     }
   }
 }

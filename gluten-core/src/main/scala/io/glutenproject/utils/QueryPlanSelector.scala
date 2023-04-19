@@ -18,6 +18,8 @@
 package io.glutenproject.utils
 
 import io.glutenproject.backendsapi.BackendsApiManager
+
+import io.glutenproject.GlutenConfig
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -41,8 +43,6 @@ object LogicalPlanSelector extends QueryPlanSelector[LogicalPlan] {
  * execution.
  */
 abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
-  var ENABLE_BY_DEFAULT = true
-  val CONF_KEY = "spark.gluten.enabled"
 
   private[this] def stackTrace(max: Int = 5): String = {
     val trim: Int = 6
@@ -59,8 +59,9 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }
-    val conf: Option[String] = session.conf.getOption(CONF_KEY)
-    val ret = conf.flatMap((x: String) => Try(x.toBoolean).toOption).getOrElse(ENABLE_BY_DEFAULT)
+    val conf: Option[String] = session.conf.getOption(GlutenConfig.GLUTEN_ENABLE_KEY)
+    val ret = conf.flatMap((x: String) =>
+      Try(x.toBoolean).toOption).getOrElse(GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT)
     logInfo(s"shouldUseGluten: $ret")
     ret & validate(plan)
   }
