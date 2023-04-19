@@ -504,12 +504,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             attributeSeq),
           q)
       case namedStruct: CreateNamedStruct =>
-        var childrenTransformers = Seq[ExpressionTransformer]()
-        namedStruct.children.foreach(
-          child => childrenTransformers = childrenTransformers :+
-            replaceWithExpressionTransformer(child, attributeSeq)
-        )
-        new NamedStructTransformer(substraitExprName, childrenTransformers, namedStruct)
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genNamedStructTransformer(substraitExprName, namedStruct, attributeSeq)
       case element_at: ElementAt =>
         new BinaryArgumentsCollectionOperationTransformer(substraitExprName,
           left = replaceWithExpressionTransformer(element_at.left, attributeSeq),
