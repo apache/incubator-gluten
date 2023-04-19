@@ -14,19 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.glutenproject.expression
+
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.expression.ExpressionConverter.replaceWithExpressionTransformer
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateNamedStruct}
+import org.apache.spark.sql.catalyst.expressions._
 
-class NamedStructTransformer(substraitExprName: String,
-                             original: CreateNamedStruct,
-                             attributeSeq: Seq[Attribute]) extends ExpressionTransformer {
+class GlutenAliasTransformer(substraitExprName: String,
+                             child: ExpressionTransformer,
+                             original: Expression)
+  extends AliasBaseTransformer(substraitExprName, child, original) {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    child.doTransform(args)
+  }
+}
+
+class GlutenNamedStructTransformer(substraitExprName: String,
+                                   original: CreateNamedStruct,
+                                   attributeSeq: Seq[Attribute]) extends ExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
     var childrenTransformers = Seq[ExpressionTransformer]()
-    original.children.foreach(child =>
+    original.valExprs.foreach(child =>
       childrenTransformers = childrenTransformers :+
         replaceWithExpressionTransformer(child, attributeSeq)
     )
@@ -35,10 +47,8 @@ class NamedStructTransformer(substraitExprName: String,
       expressionNodes.add(elem.doTransform(args))
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(
-      substraitExprName,
-      Seq(original.dataType),
-      FunctionConfig.OPT)
+    val functionName = ConverterUtils
+      .makeFuncName(substraitExprName, Seq(original.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
