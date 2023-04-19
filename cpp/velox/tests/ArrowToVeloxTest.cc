@@ -23,6 +23,7 @@
 
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
+#include <arrow/c/helpers.h>
 #include <arrow/record_batch.h>
 #include <arrow/type_fwd.h>
 #include <gtest/gtest.h>
@@ -84,57 +85,46 @@ TEST_F(ArrowToVeloxTest, arrowToVelox) {
 }
 
 TEST_F(ArrowToVeloxTest, unsupport) {
-  {
-    std::vector<std::shared_ptr<Field>> fields = {field("f_decimal128", decimal(10, 2))};
+  auto f2 = {field("f2", timestamp(TimeUnit::MICRO))};
+  auto schema = arrow::schema(f2);
+  std::shared_ptr<RecordBatch> input_batch;
+  const std::vector<std::string> input_data = {R"(["1970-01-01","2000-02-29","3989-07-14","1900-02-28"])"};
 
-    auto schema = arrow::schema(fields);
-    std::shared_ptr<RecordBatch> input_batch;
-    const std::vector<std::string> input_data = {R"(["-1.01", "2.95"])"};
+  MakeInputBatch(input_data, schema, &input_batch);
+  EXPECT_ANY_THROW(RecordBatch2RowVector(*input_batch));
+}
 
-    MakeInputBatch(input_data, schema, &input_batch);
-    EXPECT_ANY_THROW(RecordBatch2RowVector(*input_batch));
-  }
+TEST_F(ArrowToVeloxTest, decimalA2V) {
+  std::vector<std::shared_ptr<Field>> fields = {field("f_decimal128", decimal(10, 2))};
 
-  {
-    auto f2 = {field("f2", timestamp(TimeUnit::MICRO))};
-    auto schema = arrow::schema(f2);
-    std::shared_ptr<RecordBatch> input_batch;
-    const std::vector<std::string> input_data = {R"(["1970-01-01","2000-02-29","3989-07-14","1900-02-28"])"};
+  auto schema = arrow::schema(fields);
+  std::shared_ptr<RecordBatch> input_batch;
+  const std::vector<std::string> input_data = {R"(["-1.01", "2.95"])"};
 
-    MakeInputBatch(input_data, schema, &input_batch);
-    EXPECT_ANY_THROW(RecordBatch2RowVector(*input_batch));
-  }
+  MakeInputBatch(input_data, schema, &input_batch);
+  checkBatchEqual(input_batch);
 }
 
 TEST_F(ArrowToVeloxTest, decimalV2A) {
-  {
-    auto shortDecimalFlatVector = makeShortDecimalFlatVector({1000265, -35610, 0}, DECIMAL(10, 3));
-    ArrowArray arrowArray;
-    ArrowSchema arrowSchema;
-    velox::exportToArrow(shortDecimalFlatVector, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
-    velox::exportToArrow(shortDecimalFlatVector, arrowSchema);
-  }
+  // only RowVector can convert to RecordBatch
+  auto row = makeRowVector({
+      makeShortDecimalFlatVector({1000265000, -35610000, 0}, DECIMAL(10, 3)),
+  });
 
-  {
-    // only RowVector can convert to RecordBatch
-    auto row = makeRowVector({
-        makeShortDecimalFlatVector({1000265000, -35610000, 0}, DECIMAL(10, 3)),
-    });
+  std::vector<std::shared_ptr<Field>> fields = {field("c0", decimal(10, 3))};
+  auto schema = arrow::schema(fields);
+  std::shared_ptr<RecordBatch> input_batch;
+  const std::vector<std::string> input_data = {R"(["1000265.000", "-35610.000", "0.000"])"};
+  MakeInputBatch(input_data, schema, &input_batch);
 
-    std::vector<std::shared_ptr<Field>> fields = {field("c0", decimal(10, 3))};
-    auto schema = arrow::schema(fields);
-    std::shared_ptr<RecordBatch> input_batch;
-    const std::vector<std::string> input_data = {R"(["1000265.000", "-35610.000", "0.000"])"};
-    MakeInputBatch(input_data, schema, &input_batch);
+  ArrowArray arrowArray;
+  ArrowSchema arrowSchema;
+  velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
+  velox::exportToArrow(row, arrowSchema);
 
-    ArrowArray arrowArray;
-    ArrowSchema arrowSchema;
-    velox::exportToArrow(row, arrowArray, GetDefaultWrappedVeloxMemoryPool().get());
-    velox::exportToArrow(row, arrowSchema);
-
-    auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
-    EXPECT_TRUE(in->Equals(*input_batch));
-  }
+  auto in = gluten::JniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
+  EXPECT_TRUE(in->Equals(*input_batch));
+  ArrowArrayRelease(&arrowArray);
 }
 
 TEST_F(ArrowToVeloxTest, timestampV2A) {

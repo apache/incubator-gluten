@@ -36,7 +36,8 @@ function(add_velox_test TEST_EXEC)
   add_executable(${TEST_EXEC} ${SOURCES})
   target_include_directories(${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(${TEST_EXEC} gflags_shared Arrow::parquet velox gtest gtest_main glog::glog protobuf benchmark::benchmark)
-endfunction()
+  gtest_discover_tests(${TEST_EXEC})
+  endfunction()
 
 # velox test
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
