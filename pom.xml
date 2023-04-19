@@ -103,7 +103,8 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
-    <shims-spark-artifactId>spark-sql-columnar-shims-spark32</shims-spark-artifactId>
+    <spark32.shim.version>spark-sql-columnar-shims-spark32</spark32.shim.version>
+    <spark33.shim.version>spark-sql-columnar-shims-spark33</spark33.shim.version>
   </properties>
 
   <profiles>
@@ -119,7 +120,7 @@
         <delta.version>${delta20.version}</delta.version>
         <delta.binary.version>20</delta.binary.version>
         <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>spark-sql-columnar-shims-spark32</shims-spark-artifactId>
+        <shims-spark-artifactId>${spark32.shim.version}</shims-spark-artifactId>
       </properties>
     </profile>
     <profile>
@@ -131,7 +132,7 @@
         <delta.version>${delta22.version}</delta.version>
         <delta.binary.version>22</delta.binary.version>
         <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>spark-sql-columnar-shims-spark33</shims-spark-artifactId>
+        <shims-spark-artifactId>${spark33.shim.version}</shims-spark-artifactId>
       </properties>
     </profile>
     <profile>
