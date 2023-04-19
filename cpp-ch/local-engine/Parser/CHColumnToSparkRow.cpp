@@ -637,8 +637,6 @@ VariableLengthDataWriter::VariableLengthDataWriter(
     , buffer_cursor(buffer_cursor_)
 {
     assert(buffer_address);
-    assert(!offsets.empty());
-    assert(!buffer_cursor.empty());
     assert(offsets.size() == buffer_cursor.size());
 
     if (!BackingDataLengthCalculator::isVariableLengthDataType(type_without_nullable))

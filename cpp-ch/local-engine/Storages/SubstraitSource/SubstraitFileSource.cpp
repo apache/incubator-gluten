@@ -240,6 +240,26 @@ DB::ColumnPtr FileReaderWrapper::createConstColumn(DB::DataTypePtr data_type, co
     return column;
 }
 
+DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataTypePtr type, size_t rows)
+{
+    if (StringUtils::isNullPartitionValue(value))
+    {
+        if (!type->isNullable())
+        {
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR, "Partition column is null value,but column data type is not nullable.");
+        }
+        auto nested_type = static_cast<const DB::DataTypeNullable &>(*type).getNestedType();
+        auto column = nested_type->createColumnConstWithDefaultValue(rows);
+        return DB::ColumnNullable::create(column, DB::ColumnUInt8::create(rows, 1));
+    }
+    else
+    {
+        auto field = buildFieldFromString(value, type);
+        return createConstColumn(type, field, rows);
+    }
+}
+
 #define BUILD_INT_FIELD(type) \
     [](DB::ReadBuffer & in, const String &) \
     {\
@@ -334,9 +354,7 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
             {
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow partition column : {}", name);
             }
-            auto field = buildFieldFromString(it->second, type);
-            auto column = createConstColumn(type, field, to_read_rows);
-            res_columns.emplace_back(column);
+            res_columns.emplace_back(createColumn(it->second, type, to_read_rows));
         }
     }
     else
@@ -395,8 +413,7 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
                 throw DB::Exception(
                     DB::ErrorCodes::LOGICAL_ERROR, "Not found column({}) from file({}) partition keys.", column.name, file->getURIPath());
             }
-            auto field = buildFieldFromString(it->second, column.type);
-            res_columns.push_back(createConstColumn(column.type, field, rows));
+            res_columns.push_back(createColumn(it->second, column.type, rows));
         }
     }
     chunk = DB::Chunk(std::move(res_columns), rows);

@@ -198,7 +198,7 @@ public class RelBuilder {
     return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
   }
 
-  public static RelNode makeExpandRel(RelNode input,
+  public static RelNode makeGroupIdRel(RelNode input,
                                       String groupName,
                                       ArrayList<ArrayList<ExpressionNode>> groupings,
                                       ArrayList<ExpressionNode> aggExpressions,
@@ -206,19 +206,36 @@ public class RelBuilder {
                                       SubstraitContext context,
                                       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ExpandRelNode(input, groupName,
+    return new GroupIdRelNode(input, groupName,
         groupings, aggExpressions, extensionNode);
   }
 
-  public static RelNode makeExpandRel(RelNode input,
+  public static RelNode makeGroupIdRel(RelNode input,
                                       String groupName,
                                       ArrayList<ArrayList<ExpressionNode>> groupings,
                                       ArrayList<ExpressionNode> aggExpressions,
                                       SubstraitContext context,
                                       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ExpandRelNode(input, groupName,
+    return new GroupIdRelNode(input, groupName,
         groupings, aggExpressions);
+  }
+
+  public static RelNode makeExpandRel(RelNode input,
+    ArrayList<ArrayList<ExpressionNode>> projections,
+    AdvancedExtensionNode extensionNode,
+    SubstraitContext context,
+    Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new ExpandRelNode(input, projections, extensionNode);
+  }
+
+  public static RelNode makeExpandRel(RelNode input,
+    ArrayList<ArrayList<ExpressionNode>> projections,
+    SubstraitContext context,
+    Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new ExpandRelNode(input, projections);
   }
 
   public static RelNode makeSortRel(RelNode input,

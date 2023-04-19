@@ -110,7 +110,9 @@ object TagBeforeTransformHits {
 
 case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case agg: HashAggregateExec if agg.child.isInstanceOf[ExpandExec] =>
+    case agg: HashAggregateExec
+      if agg.child.isInstanceOf[ExpandExec] &&
+        !BackendsApiManager.getSettings.supportNewExpandContract() =>
       val childExpandExec = agg.child.asInstanceOf[ExpandExec]
       agg.copy(child = CustomExpandExec(
         childExpandExec.projections, agg.groupingExpressions,
@@ -386,8 +388,16 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarExpand) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = ExpandExecTransformer(plan.projections,
+            val transformer = GroupIdExecTransformer(plan.projections,
               plan.groupExpression, plan.output, plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
+        case plan: ExpandExec =>
+          if (!enableColumnarExpand) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = ExpandExecTransformer(plan.projections,
+              plan.output, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: SortExec =>

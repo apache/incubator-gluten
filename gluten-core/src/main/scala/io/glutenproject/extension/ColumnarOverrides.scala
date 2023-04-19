@@ -282,7 +282,11 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
       case plan: CustomExpandExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ExpandExecTransformer(plan.projections, plan.groupExpression, plan.output, child)
+        GroupIdExecTransformer(plan.projections, plan.groupExpression, plan.output, child)
+      case plan: ExpandExec =>
+        val child = replaceWithTransformerPlan(plan.child)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        ExpandExecTransformer(plan.projections, plan.output, child)
       case plan: SortExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
