@@ -7,6 +7,14 @@
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int LOGICAL_ERROR;
+}
+}
+
 namespace local_engine
 {
 jclass CreateGlobalExceptionClassReference(JNIEnv *env, const char *class_name);
@@ -26,14 +34,16 @@ jbyteArray stringTojbyteArray(JNIEnv* env, const std::string & str);
     if ((env)->ExceptionCheck())\
     {\
         LOG_ERROR(&Poco::Logger::get("local_engine"), "Enter java exception handle.");\
-        auto throwable = (env)->ExceptionOccurred();\
-        jclass exceptionClass = (env)->FindClass("java/lang/Exception"); \
-        jmethodID getMessageMethod = (env)->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;"); \
-        jstring message = static_cast<jstring>((env)->CallObjectMethod(throwable, getMessageMethod)); \
-        const char *messageChars = (env)->GetStringUTFChars(message, NULL); \
-        LOG_ERROR(&Poco::Logger::get("jni"), "exception:{}", messageChars); \
-        (env)->ReleaseStringUTFChars(message, messageChars); \
-        (env)->Throw(throwable);\
+        auto excp = (env)->ExceptionOccurred();\
+        (env)->ExceptionDescribe();\
+        (env)->ExceptionClear();\
+        jclass cls = (env)->GetObjectClass(excp); \
+        jmethodID mid = env->GetMethodID(cls, "toString","()Ljava/lang/String;");\
+        jstring jmsg = static_cast<jstring>((env)->CallObjectMethod(excp, mid));\
+        const char *nmsg = (env)->GetStringUTFChars(jmsg, NULL);\
+        std::string msg = std::string(nmsg);\
+        env->ReleaseStringUTFChars(jmsg, nmsg);\
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, msg);\
     }
 
 template <typename ... Args>
