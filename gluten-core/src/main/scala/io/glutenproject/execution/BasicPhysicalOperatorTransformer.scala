@@ -247,6 +247,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doValidateInternal(): Boolean = {
+    return false
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId

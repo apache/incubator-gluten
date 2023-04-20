@@ -41,6 +41,7 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
@@ -547,6 +548,9 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
         val children = plan.children.map(replaceWithTransformerPlan)
         plan.withNewChildren(children)
       }
+    case write: DataWritingCommandExec
+      if write.child.isInstanceOf[ColumnarToRowExec] =>
+      write.copy(child = write.child.children.head)
     case r: SparkPlan
       if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar && r.children.exists(c =>
         c.isInstanceOf[ColumnarToRowExec]) =>

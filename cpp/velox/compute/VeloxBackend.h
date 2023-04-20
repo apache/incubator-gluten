@@ -23,9 +23,11 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
+#include <iostream>
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
+#include "compute/VeloxParquetDatasource.h"
 #include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
@@ -66,6 +68,17 @@ class VeloxBackend final : public Backend {
   }
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
+
+  facebook::velox::memory::MemoryPool::Options& GetMemoryPoolOptions() {
+    return memPoolOptions_;
+  }
+
+  std::shared_ptr<Datasource> GetDatasource(
+      const std::string& file_path,
+      const std::string& file_name,
+      std::shared_ptr<arrow::Schema> schema) override {
+    return std::make_shared<VeloxParquetDatasource>(file_path, file_name, schema);
+  }
 
  private:
   void setInputPlanNode(const ::substrait::FetchRel& fetchRel);

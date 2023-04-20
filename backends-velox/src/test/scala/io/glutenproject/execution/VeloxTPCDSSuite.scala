@@ -33,7 +33,7 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
 
   override protected val backend: String = "velox"
   override protected val resourcePath: String = sys.env.getOrElse("SPARK_TPCDS_DATA",
-    "/tmp/tpcds-generated")
+    "/mnt/DP_disk2/sparkuser/tpcds/tpcds_parquet_nopartition_date_decimal_1/")
   override protected val fileFormat: String = "parquet"
 
   private val queryPath = System.getProperty("user.dir") +

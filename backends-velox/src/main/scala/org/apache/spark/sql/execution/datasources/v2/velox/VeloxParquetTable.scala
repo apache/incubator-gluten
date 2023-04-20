@@ -28,7 +28,7 @@ import org.apache.spark.sql.execution.datasources.v2.FileTable
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class DwrfTable(
+case class VeloxParquetTable(
                       name: String,
                       sparkSession: SparkSession,
                       options: CaseInsensitiveStringMap,
@@ -48,5 +48,5 @@ case class DwrfTable(
     throw new UnsupportedOperationException
   }
 
-  override def formatName: String = "DWRF"
+  override def formatName: String = "VELOX"
 }
