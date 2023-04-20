@@ -35,13 +35,17 @@ object ColumnarShuffleUtil {
   def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
                                  child: SparkPlan,
                                  isAdaptiveContextOrTopParentExchange: Boolean,
-                                 shuffleOutputAttributes: Seq[Attribute]): SparkPlan = {
+                                 shuffleOutputAttributes: Seq[Attribute],
+                                 enableCoalesceBatches: Boolean): SparkPlan = {
     if (isAdaptiveContextOrTopParentExchange) {
       ColumnarShuffleExchangeExec(plan.outputPartitioning, child,
         plan.shuffleOrigin, shuffleOutputAttributes)
-    } else {
+    } else if (enableCoalesceBatches) {
       CoalesceBatchesExec(ColumnarShuffleExchangeExec(
         plan.outputPartitioning, child, plan.shuffleOrigin, shuffleOutputAttributes))
+    } else {
+      ColumnarShuffleExchangeExec(
+        plan.outputPartitioning, child, plan.shuffleOrigin, shuffleOutputAttributes)
     }
   }
 }
