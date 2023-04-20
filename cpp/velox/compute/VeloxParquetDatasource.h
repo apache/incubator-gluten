@@ -22,7 +22,10 @@
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
+#include <arrow/util/type_fwd.h>
+#include <boost/algorithm/string.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <parquet/properties.h>
 
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"

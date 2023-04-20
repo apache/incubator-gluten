@@ -28,6 +28,7 @@
 #include "ArrowTypeUtils.h"
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
+#include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
@@ -41,9 +42,6 @@ using namespace facebook;
 namespace gluten {
 
 void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  std::string output_path;
-  auto fs = arrow::fs::FileSystemFromUri(file_path_, &output_path).ValueOrDie();
-  std::cout << "the output path is " << output_path << "\n";
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::CreateBackend());
 
   auto veloxPool = AsWrappedVeloxMemoryPool(gluten::DefaultMemoryAllocator().get(), backend->GetMemoryPoolOptions());
@@ -54,7 +52,7 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
     local_path = file_path_.substr(5);
   } else {
-    throw std::runtime_error("The path is not local file path when Write data with DWRF format!");
+    throw std::runtime_error("The path is not local file path when Write data with parquet format in velox backend!");
   }
 
   auto pos = local_path.find("_temporary", 0);
@@ -62,7 +60,6 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
 
   final_path_ = dir_path + "/" + file_name_;
   std::string command = "touch " + final_path_;
-  std::cout << "the dir_path is " << dir_path << " and the file name is " << file_name_ << "\n" << std::flush;
   auto ret = system(command.c_str());
   (void)(ret); // suppress warning
 
@@ -74,38 +71,41 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
 
   type_ = velox::importFromArrow(c_schema);
   auto sink = std::make_unique<velox::dwio::common::LocalFileSink>(final_path_);
-  auto config = std::make_shared<velox::dwrf::Config>();
 
-  for (auto iter = sparkConfs.begin(); iter != sparkConfs.end(); iter++) {
-    auto key = iter->first;
-    if (strcmp(key.c_str(), "hive.exec.orc.stripe.size") == 0) {
-      config->set(velox::dwrf::Config::STRIPE_SIZE, static_cast<uint64_t>(stoi(iter->second)));
-    } else if (strcmp(key.c_str(), "hive.exec.orc.row.index.stride") == 0) {
-      config->set(velox::dwrf::Config::ROW_INDEX_STRIDE, static_cast<uint32_t>(stoi(iter->second)));
-    } else if (strcmp(key.c_str(), "hive.exec.orc.compress") == 0) {
-      // Currently velox only support ZLIB and ZSTD and the default is ZSTD.
-      if (strcasecmp(iter->second.c_str(), "ZLIB") == 0) {
-        config->set(velox::dwrf::Config::COMPRESSION, velox::dwio::common::CompressionKind::CompressionKind_ZLIB);
-      } else {
-        config->set(velox::dwrf::Config::COMPRESSION, velox::dwio::common::CompressionKind::CompressionKind_ZSTD);
-      }
+  auto blockSize = 1024;
+  if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
+    auto blockSize = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
+  }
+  auto compressionCodec = arrow::Compression::UNCOMPRESSED;
+  if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
+    auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
+    // spark support uncompressed snappy, gzip, lzo, brotli, lz4, zstd.
+    if (boost::iequals(compressionCodecStr, "snappy")) {
+      compressionCodec = arrow::Compression::SNAPPY;
+    } else if (boost::iequals(compressionCodecStr, "gzip")) {
+      compressionCodec = arrow::Compression::GZIP;
+    } else if (boost::iequals(compressionCodecStr, "lzo")) {
+      compressionCodec = arrow::Compression::LZO;
+    } else if (boost::iequals(compressionCodecStr, "brotli")) {
+      compressionCodec = arrow::Compression::BROTLI;
+    } else if (boost::iequals(compressionCodecStr, "lz4")) {
+      compressionCodec = arrow::Compression::LZ4;
+    } else if (boost::iequals(compressionCodecStr, "zstd")) {
+      std::cout << "the compression is zstd"
+                << "\n";
+      compressionCodec = arrow::Compression::ZSTD;
     }
   }
-  const int64_t writerMemoryCap = std::numeric_limits<int64_t>::max();
 
-  velox::dwrf::WriterOptions options;
-  options.config = config;
-  options.schema = type_;
-  options.memoryBudget = writerMemoryCap;
-  options.flushPolicyFactory = nullptr;
-  options.layoutPlannerFactory = nullptr;
+  auto properities =
+      ::parquet::WriterProperties::Builder().write_batch_size(blockSize)->compression(compressionCodec)->build();
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities);
 }
 
 std::shared_ptr<arrow::Schema> VeloxParquetDatasource::InspectSchema() {
   velox::dwio::common::ReaderOptions reader_options(pool_.get());
-  auto format = velox::dwio::common::FileFormat::PARQUET; // DWRF
+  auto format = velox::dwio::common::FileFormat::PARQUET;
   reader_options.setFileFormat(format);
 
   // Creates a file system: local, hdfs or s3.

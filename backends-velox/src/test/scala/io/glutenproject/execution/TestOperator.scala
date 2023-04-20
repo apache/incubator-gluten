@@ -101,6 +101,7 @@ class TestOperator extends WholeStageTransformerSuite {
 
   test("ds write") {
     val store_sales = spark.read.format("parquet").load("/mnt/DP_disk2/sparkuser/tpcds/tpcds_parquet_nopartition_date_decimal_1/store_sales")
+
     store_sales.write.mode("append").format("velox").save("/tmp/tpcds-store-sales-dwrf")
   }
 

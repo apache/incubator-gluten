@@ -307,7 +307,8 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE: String = SPARK_PREFIX + HIVE_EXEC_ORC_ROW_INDEX_STRIDE
   val HIVE_EXEC_ORC_COMPRESS = "hive.exec.orc.compress"
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = SPARK_PREFIX + HIVE_EXEC_ORC_COMPRESS
-
+  val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
+  val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -419,11 +420,9 @@ object GlutenConfig {
   def getNativeStaticConf(conf: SparkConf, backendPrefix: String): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
-      // DWRF datasource config
-      SPARK_HIVE_EXEC_ORC_STRIPE_SIZE,
-      SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
-      SPARK_HIVE_EXEC_ORC_COMPRESS,
-      // DWRF datasource config end
+      // Velox datasource config
+      SPARK_SQL_PARQUET_COMPRESSION_CODEC,
+      // Velox datasource config end
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
     )
