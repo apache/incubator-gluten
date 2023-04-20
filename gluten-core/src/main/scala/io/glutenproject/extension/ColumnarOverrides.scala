@@ -548,9 +548,6 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
         val children = plan.children.map(replaceWithTransformerPlan)
         plan.withNewChildren(children)
       }
-    case write: DataWritingCommandExec
-      if write.child.isInstanceOf[ColumnarToRowExec] =>
-      write.copy(child = write.child.children.head)
     case r: SparkPlan
       if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar && r.children.exists(c =>
         c.isInstanceOf[ColumnarToRowExec]) =>

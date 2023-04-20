@@ -90,19 +90,11 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare("select * from temp_test_is_null where col1 is null") { _ => }
     checkLengthAndPlan(df, 2)
   }
-  test("dwrf write") {
-//    val store_sales = spark.read.format("parquet").load("/mnt/DP_disk2/sparkuser/tpcds/tpcds_parquet_nopartition_date_decimal_1/store_sales")
-//    store_sales.write.mode("append").format("dwrf").save("/tmp/tpcds-store-sales-dwrf")
+  test("velox parquet write") {
     val df = runQueryAndCompare(
       "select * from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
     df.write.mode("append").format("velox").save("file:///tmp/dwrf2")
-  }
-
-  test("ds write") {
-    val store_sales = spark.read.format("parquet").load("/mnt/DP_disk2/sparkuser/tpcds/tpcds_parquet_nopartition_date_decimal_1/store_sales")
-
-    store_sales.write.mode("append").format("velox").save("/tmp/tpcds-store-sales-dwrf")
   }
 
   test("is_not_null") {

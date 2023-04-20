@@ -30,7 +30,7 @@ object VeloxColumnarRules {
 
   case class OtherWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan match {
-      case rc@DataWritingCommandExec(cmd, ColumnarToRowExec(child)) =>
+      case rc@DataWritingCommandExec(cmd, GlutenColumnarToRowExec(child)) =>
         cmd match {
           case command: InsertIntoHadoopFsRelationCommand =>
             if (command.fileFormat.isInstanceOf[VeloxParquetFileFormat]) {
