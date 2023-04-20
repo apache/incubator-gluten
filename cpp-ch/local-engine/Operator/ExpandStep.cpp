@@ -32,16 +32,12 @@ static DB::ITransformingStep::Traits getTraits()
 
 ExpandStep::ExpandStep(
     const DB::DataStream & input_stream_,
-    const std::vector<size_t> & aggregating_expressions_columns_,
-    const std::vector<std::set<size_t>> & grouping_sets_,
-    const std::string & grouping_id_name_)
+    const ExpandField & project_set_exprs_)
     : DB::ITransformingStep(
         input_stream_,
-        buildOutputHeader(input_stream_.header, aggregating_expressions_columns_, grouping_id_name_),
+        buildOutputHeader(input_stream_.header, project_set_exprs_),
         getTraits())
-    , aggregating_expressions_columns(aggregating_expressions_columns_)
-    , grouping_sets(grouping_sets_)
-    , grouping_id_name(grouping_id_name_)
+    , project_set_exprs(project_set_exprs_)
 {
     header = input_stream_.header;
     output_header = getOutputStream().header;
@@ -49,36 +45,21 @@ ExpandStep::ExpandStep(
 
 DB::Block ExpandStep::buildOutputHeader(
     const DB::Block & input_header,
-    const std::vector<size_t> & aggregating_expressions_columns_,
-    const std::string & grouping_id_name_)
+    const ExpandField & project_set_exprs_)
 {
     DB::ColumnsWithTypeAndName cols;
-    std::set<size_t> agg_cols;
+    const auto & types = project_set_exprs_.getTypes();
+    const auto & names = project_set_exprs_.getNames();
 
-    for (size_t i = 0; i < input_header.columns(); ++i)
+    for (size_t i = 0; i < project_set_exprs_.getExpandCols(); ++i)
     {
-        const auto & old_col = input_header.getByPosition(i);
-        if (i < aggregating_expressions_columns_.size())
-        {
-            // do nothing with the aggregating columns.
-            cols.push_back(old_col);
-            continue;
-        }
-        if (old_col.type->isNullable())
-            cols.push_back(old_col);
+        String col_name;
+        if (!names[i].empty())
+            col_name = names[i];
         else
-        {
-            auto null_map = DB::ColumnUInt8::create(0, 0);
-            auto null_col = DB::ColumnNullable::create(old_col.column, std::move(null_map));
-            auto null_type = std::make_shared<DB::DataTypeNullable>(old_col.type);
-            cols.push_back(DB::ColumnWithTypeAndName(null_col, null_type, old_col.name));
-        }
+            col_name = "expand_" + std::to_string(i);
+        cols.push_back(DB::ColumnWithTypeAndName(types[i], col_name));
     }
-
-    // add group id column
-    auto grouping_id_col = DB::ColumnInt64::create(0, 0);
-    auto grouping_id_type = std::make_shared<DB::DataTypeInt64>();
-    cols.emplace_back(DB::ColumnWithTypeAndName(std::move(grouping_id_col), grouping_id_type, grouping_id_name_));
     return DB::Block(cols);
 }
 
@@ -89,7 +70,7 @@ void ExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto expand_op = std::make_shared<ExpandTransform>(header, output_header, aggregating_expressions_columns, grouping_sets);
+            auto expand_op = std::make_shared<ExpandTransform>(header, output_header, project_set_exprs);
             new_processors.push_back(expand_op);
             DB::connect(*output, expand_op->getInputs().front());
         }
