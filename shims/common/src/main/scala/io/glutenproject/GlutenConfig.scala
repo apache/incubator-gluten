@@ -399,7 +399,7 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "32768"),
+      (SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "4096"),
       (SQLConf.CASE_SENSITIVE.key, "false")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getConfString(e._1, e._2)))
