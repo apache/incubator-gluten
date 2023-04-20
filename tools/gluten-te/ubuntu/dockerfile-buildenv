@@ -110,7 +110,7 @@ ENV LC_ALL en_US.UTF-8
 # Install Spark 3.2.2 for UT
 RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
 # FIXME: Tmp skip for testing CI
-# RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
+RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 
 # Cache vcpkg depends
 COPY ./vcpkg /tmp/vcpkg
