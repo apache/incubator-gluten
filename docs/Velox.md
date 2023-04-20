@@ -243,7 +243,7 @@ sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1
 ## 2.5 AWS S3 support
 
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
-A new build option for S3(velox_enable_s3) is added. Below command is used to enable this feature
+A new build option for S3(enable_s3) is added. Below command is used to enable this feature
 ```
 cd /path_to_gluten/ep/build-velox/src/
 ./get_velox.sh --enable_s3=ON
@@ -252,7 +252,7 @@ cd /path_to_gluten/ep/build-velox/src/
 cd /path_to_gluten/cpp
 mkdir build
 cd build
-cmake -DBUILD_VELOX_BACKEND=ON -DVELOX_ENABLE_S3=ON ..
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
 make -j
 
 cd /path_to_gluten

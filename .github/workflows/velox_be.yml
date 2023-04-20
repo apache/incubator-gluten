@@ -207,7 +207,7 @@ jobs:
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DVELOX_ENABLE_S3=ON -DVELOX_ENABLE_HDFS=ON .. && make -j'
+          mkdir build && cd build && cmake -DENABLE_S3=ON -DENABLE_HDFS=ON .. && make -j'
       - name: Build for Spark 3.2.2
         run: |
           docker exec velox-backend-ubuntu2204-test-$GITHUB_RUN_ID bash -c '

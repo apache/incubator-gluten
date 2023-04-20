@@ -48,8 +48,8 @@ option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
 option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(ENABLE_IAA "Enable IAA for de/compression" OFF)
-option(VELOX_ENABLE_S3 "Enable S3" OFF)
-option(VELOX_ENABLE_HDFS "Enable HDFS" OFF)
+option(ENABLE_S3 "Enable S3" OFF)
+option(ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 
