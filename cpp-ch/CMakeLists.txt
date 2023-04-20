@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.20)
 set(CH_SOURCE_DIR ${CMAKE_SOURCE_DIR}/ClickHouse CACHE STRING "ClickHouse source dir")
 
