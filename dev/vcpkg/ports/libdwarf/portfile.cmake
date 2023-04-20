@@ -1,5 +1,7 @@
 vcpkg_download_distfile(ARCHIVE
-    URLS "https://www.prevanders.net/libdwarf-0.6.0.tar.xz"
+    URLS
+        "https://github.com/davea42/libdwarf-code/releases/download/v0.6.0/libdwarf-0.6.0.tar.xz"
+        "https://www.prevanders.net/libdwarf-0.6.0.tar.xz"
     FILENAME "libdwarf-0.6.0.tar.xz"
     SHA512 839ba5e4162630ad804d76bd2aa86f35780a178dcda110106a5ee4fb27807fdf45f12e8bbb399ff53721121d0169a73335898f94218a1853116bb106dd455950
 )
