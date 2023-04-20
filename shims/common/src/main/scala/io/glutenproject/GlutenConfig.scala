@@ -16,8 +16,6 @@
  */
 package io.glutenproject
 
-import io.glutenproject.GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
-
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
@@ -295,6 +293,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 }
 
 object GlutenConfig {
+  var GLUTEN_ENABLE_BY_DEFAULT = true
+  val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
 
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"

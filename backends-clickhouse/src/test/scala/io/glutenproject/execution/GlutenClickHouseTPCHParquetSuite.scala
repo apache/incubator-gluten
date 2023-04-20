@@ -16,6 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
@@ -718,6 +720,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |order by n_regionkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
+  test("Test 'spark.gluten.enabled' false") {
+    withSQLConf(("spark.gluten.enabled", "false")) {
+      runTPCHQuery(2) {
+        df =>
+          val glutenPlans = df.queryExecution.executedPlan.collect {
+            case glutenPlan: GlutenPlan => glutenPlan
+          }
+          assert(glutenPlans.isEmpty)
+      }
+    }
   }
 
   override protected def runTPCHQuery(
