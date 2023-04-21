@@ -75,7 +75,7 @@ DB::Chunk ArrowParquetBlockInputFormat::generate()
     if (*batch)
     {
         auto tmp_table = arrow::Table::FromRecordBatches({*batch});
-        if (format_settings.use_lowercase_column_name)
+        if (format_settings.parquet.case_insensitive_column_matching)
         {
             tmp_table = (*tmp_table)->RenameColumns(column_names);
         }

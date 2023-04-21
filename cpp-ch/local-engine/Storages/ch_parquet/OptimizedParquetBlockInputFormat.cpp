@@ -59,7 +59,7 @@ Chunk OptimizedParquetBlockInputFormat::generate()
         throw ParsingException{"Error while reading Parquet data: " + read_status.ToString(),
                         ErrorCodes::CANNOT_READ_ALL_DATA};
 
-    if (format_settings.use_lowercase_column_name)
+    if (format_settings.parquet.case_insensitive_column_matching)
         table = *table->RenameColumns(column_names);
 
     ++row_group_current;
@@ -127,7 +127,7 @@ static void getFileReaderAndSchema(
     THROW_ARROW_NOT_OK(ch_parquet::arrow::OpenFile(std::move(arrow_file), arrow::default_memory_pool(), &file_reader));
     THROW_ARROW_NOT_OK(file_reader->GetSchema(&schema));
 
-    if (format_settings.use_lowercase_column_name)
+    if (format_settings.parquet.case_insensitive_column_matching)
     {
         std::vector<std::shared_ptr<::arrow::Field>> fields;
         fields.reserve(schema->num_fields());

@@ -147,7 +147,7 @@ void OrcUtil::getFileReaderAndSchema(
         throw DB::Exception(read_schema_result.status().ToString(), DB::ErrorCodes::BAD_ARGUMENTS);
     schema = std::move(read_schema_result).ValueOrDie();
 
-    if (format_settings.use_lowercase_column_name)
+    if (format_settings.orc.case_insensitive_column_matching)
     {
         std::vector<std::shared_ptr<::arrow::Field>> fields;
         fields.reserve(schema->num_fields());

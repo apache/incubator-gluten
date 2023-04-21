@@ -78,7 +78,7 @@ DB::Chunk ORCBlockInputFormat::generate()
         return res;
     }
 
-    if (format_settings.use_lowercase_column_name)
+    if (format_settings.orc.case_insensitive_column_matching)
         table = *table->RenameColumns(include_column_names);
 
     arrow_column_to_ch_column->arrowTableToCHChunk(res, table);
