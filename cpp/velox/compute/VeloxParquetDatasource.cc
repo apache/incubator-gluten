@@ -74,7 +74,7 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
 
   auto blockSize = 1024;
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
-    auto blockSize = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
+    blockSize = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
   }
   auto compressionCodec = arrow::Compression::UNCOMPRESSED;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {

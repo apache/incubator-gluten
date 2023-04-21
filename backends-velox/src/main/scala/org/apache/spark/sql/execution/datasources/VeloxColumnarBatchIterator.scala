@@ -48,7 +48,7 @@ class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
         EOS_BATCH
     }
     if (batch == null) {
-      throw new RuntimeException("ArrowWriter: Timeout waiting for data")
+      throw new RuntimeException("VeloxParquetWriter: Timeout waiting for data")
     }
     if (batch == EOS_BATCH) {
       return false

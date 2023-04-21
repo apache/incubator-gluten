@@ -69,7 +69,7 @@ class VeloxBackend final : public Backend {
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
 
-  facebook::velox::memory::MemoryPool::Options& GetMemoryPoolOptions() {
+  const facebook::velox::memory::MemoryPool::Options& GetMemoryPoolOptions() const {
     return memPoolOptions_;
   }
 

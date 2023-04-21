@@ -49,7 +49,7 @@ class VeloxWriteQueue(instanceId: Long,
   writeThread.start()
 
   private def checkWriteException(): Unit = {
-    // check if ArrowWriteQueue thread was failed
+    // check if VeloxWriteQueue thread was failed
     val exception = writeException.get()
     if (exception != null) {
       logWarning("Failed to write velox.", exception)

@@ -82,6 +82,8 @@ class VeloxParquetFileFormat extends FileFormat with DataSourceRegister with Ser
         } catch {
           case e: IOException =>
             throw new RuntimeException(e)
+        } finally {
+          cSchema.close()
         }
 
         val writeQueue = new VeloxWriteQueue(
@@ -98,7 +100,6 @@ class VeloxParquetFileFormat extends FileFormat with DataSourceRegister with Ser
           override def close(): Unit = {
             writeQueue.close()
             datasourceJniWrapper.close(instanceId)
-            cSchema.close()
           }
 
           // Do NOT add override keyword for compatibility on spark 3.1.
