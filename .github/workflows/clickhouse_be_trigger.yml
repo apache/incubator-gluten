@@ -19,17 +19,11 @@
 name: Clickhouse Backend Trigger
 
 on:
-  pull_request:
-    paths:
-      - '.github/**'
-      - 'pom.xml'
-      - 'backends-clickhouse/**'
-      - 'gluten-core/**'
-      - 'gluten-ut/**'
-      - 'shims/**'
-      - 'tools/gluten-it/**'
-      - 'tools/gluten-te/**'
-      - 'cpp-ch/**'
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
 
 jobs:
   add-comment:
