@@ -273,7 +273,8 @@ class UnaryExpressionTransformer(substraitExprName: String,
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(substraitExprName, original.map(_.dataType), FunctionConfig.OPT))
+      ConverterUtils.makeFuncName(
+        substraitExprName, original.children.map(_.dataType), FunctionConfig.OPT))
 
     val expressionNodes = Lists.newArrayList(childNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
