@@ -212,7 +212,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
-  ignore("test 'function posexplode(array)'") {
+  test("test 'function posexplode(array)'") {
     val df = spark.sql("""
                          |select count(*) from (
                          |  select l_orderkey, posexplode(array(l_returnflag, l_linestatus)),
@@ -233,7 +233,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 2402288L)
   }
 
-  ignore("test 'lateral view posexplode(array)'") {
+  test("test 'lateral view posexplode(array)'") {
     val df = spark.sql("""
                          |select count(*) from (
                          |  select l_orderkey, l_suppkey, pos1, col1, pos2, col2 from lineitem
@@ -255,7 +255,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
-  ignore("test 'function posexplode(map)'") {
+  test("test 'function posexplode(map)'") {
     val df =
       spark.sql("""
                   |select count(*) from (
@@ -283,7 +283,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 2402288L)
   }
 
-  ignore("test 'lateral view posexplode(map)'") {
+  test("test 'lateral view posexplode(map)'") {
     val df =
       spark.sql("""
                   |select count(*) from (
