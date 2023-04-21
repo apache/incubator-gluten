@@ -215,6 +215,8 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   }
   // To align with Spark's behavior, set casting to int to be truncating.
   configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
+  // To align with Spark's behavior, allow decimal in casting string to int.
+  configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
 
   // Spill configs
   configs[velox::core::QueryConfig::kSpillEnabled] = getConfigValue(kSpillEnabled, "true");
