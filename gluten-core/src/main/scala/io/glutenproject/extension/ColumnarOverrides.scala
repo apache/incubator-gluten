@@ -613,7 +613,7 @@ case class ColumnarOverrideRules(session: SparkSession)
     List(
       (_: SparkSession) => FallbackEmptySchemaRelation(),
       (_: SparkSession) => StoreExpandGroupExpression(),
-      (_: SparkSession) => AddTransformHintRule(),
+      (_: SparkSession) => AddTransformHintRule(isTopParentExchange),
       (_: SparkSession) => TransformPreOverrides(
         this.isTopParentExchange || this.isAdaptiveContext),
       (_: SparkSession) => RemoveTransformHintRule()) :::

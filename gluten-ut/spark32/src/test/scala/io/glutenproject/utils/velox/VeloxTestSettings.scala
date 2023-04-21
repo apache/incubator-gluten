@@ -88,9 +88,7 @@ class VeloxTestSettings extends BackendTestSettings {
       // Mismatch when max NaN and infinite value
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
-      "describe",
-      // decimal failed ut.
-      "SPARK-22271: mean overflows and returns null for some decimal variables"
+      "describe"
   )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]

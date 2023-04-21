@@ -238,7 +238,7 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
-case class AddTransformHintRule() extends Rule[SparkPlan] {
+case class AddTransformHintRule(isTopExchange: Boolean = true) extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
   val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
@@ -277,6 +277,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
    * Inserts a transformable tag on top of those that are not supported.
    */
   private def addTransformableTags(plan: SparkPlan): SparkPlan = {
+    if (!isTopExchange) {
+      TransformHints.tagNotTransformable(plan)
+    }
     addTransformableTag(plan)
     plan.withNewChildren(plan.children.map(addTransformableTags))
   }
