@@ -91,8 +91,6 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
     } else if (boost::iequals(compressionCodecStr, "lz4")) {
       compressionCodec = arrow::Compression::LZ4;
     } else if (boost::iequals(compressionCodecStr, "zstd")) {
-      std::cout << "the compression is zstd"
-                << "\n";
       compressionCodec = arrow::Compression::ZSTD;
     }
   }

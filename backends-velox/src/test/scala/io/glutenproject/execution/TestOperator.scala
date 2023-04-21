@@ -94,7 +94,7 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare(
       "select * from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
-    df.write.mode("append").format("velox").save("file:///tmp/dwrf2")
+    df.write.mode("append").format("velox").save("file:///tmp/velox_parquet_write/")
   }
 
   test("is_not_null") {

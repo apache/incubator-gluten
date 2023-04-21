@@ -137,8 +137,6 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
   add_velox_dependency(velox::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/libvelox_dwio_parquet_writer.a")
-  add_velox_dependency(arrow::parquet "${VELOX_COMPONENTS_PATH}/../third_party/arrow_ep/install/lib/libparquet.a")
-  add_velox_dependency(arrow "${VELOX_COMPONENTS_PATH}/../third_party/arrow_ep/install/lib/libarrow.a")
 
   if(BUILD_TESTS)
     add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
