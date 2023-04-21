@@ -516,6 +516,12 @@ class TestOperator extends WholeStageTransformerSuite {
     }}
   }
 
+  test("test df.describe() method") {
+    val d = 3
+    val df = Seq(d, d, d, d, d, d, d, d, d, d).toDF("IntegerCol")
+    df.describe().show()
+  }
+
   test("bit_and and bit_or") {
     runQueryAndCompare(
       """
