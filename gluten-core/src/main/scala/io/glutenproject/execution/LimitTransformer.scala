@@ -115,11 +115,10 @@ case class LimitTransformer(child: SparkPlan,
     val relNode = if (childCtx != null) {
       getRelNode(context, operatorId, offset, count, child.output, childCtx.root, false)
     } else {
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val (typeList, nameList) =
+        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
+      val readRel =
+        RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
       getRelNode(context, operatorId, offset, count, child.output, readRel, false)
     }
     TransformContext(child.output, child.output, relNode)

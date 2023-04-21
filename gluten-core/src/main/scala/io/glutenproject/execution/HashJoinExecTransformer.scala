@@ -263,10 +263,12 @@ trait HashJoinLikeExecTransformer
           val transformContext = p.doTransform(substraitContext)
           (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
-          val readRel = RelBuilder.makeReadRel(
-            new util.ArrayList[Attribute](plan.output.asJava),
-            substraitContext,
-            new lang.Long(-1)) /* A special handling in Join to delay the rel registration. */
+          val (typeList, nameList) =
+            BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(plan)
+          /* A special operatorId handling in Join to delay the rel registration. */
+          val readRel =
+            RelBuilder.makeReadRel(typeList, nameList, substraitContext, new lang.Long(-1))
+
           (readRel, plan.output, true)
       }
     }

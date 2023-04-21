@@ -182,11 +182,10 @@ abstract class HashAggregateExecBaseTransformer(
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       aggParams.isReadRel = true
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val (typeList, nameList) =
+        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
+      val readRel =
+        RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
       (getAggRel(context, operatorId, aggParams, readRel), child.output, output)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)

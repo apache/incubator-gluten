@@ -904,6 +904,39 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   //      assert(StorageJoinBuilder.nativeCachedHashTableCount == 0)
   //    }
   //  }
+
+  test("Test genOuputSchema on join 1") {
+    val sql =
+      """
+        |select l.n_regionkey, l.n_nationkey from (
+        |  select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey with rollup
+        |) as l
+        |left join (
+        |  select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey with rollup
+        |) as r 
+        |on l.n_regionkey = r.n_regionkey and l.n_nationkey = r.n_nationkey
+        |order by l.n_regionkey, l.n_nationkey;
+        |
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
+  test("Test genOuputSchema on join 2") {
+    val sql =
+      """
+        |select l.n_regionkey, l.n_nationkey, s, n from (
+        |  select n_regionkey, n_nationkey, sum(n_nationkey) as s from nation group by n_regionkey, n_nationkey with rollup
+        |) as l
+        |left join (
+        |  select n_regionkey, n_nationkey, count(1) as n from nation group by n_regionkey, n_nationkey with rollup
+        |) as r 
+        |on l.n_regionkey = r.n_regionkey and l.n_nationkey = r.n_nationkey
+        |ORDER BY l.n_regionkey, l.n_nationkey, s, n;
+        |
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,

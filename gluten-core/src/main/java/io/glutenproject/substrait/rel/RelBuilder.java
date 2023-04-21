@@ -29,7 +29,6 @@ import io.glutenproject.substrait.type.TypeNode;
 
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.SortField;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -148,30 +147,22 @@ public class RelBuilder {
     }
     return names;
   }
-  public static RelNode makeReadRel(ArrayList<Attribute> attributes,
+
+  public static RelNode makeReadRel(ArrayList<TypeNode> types,
+                                    ArrayList<String> names,
                                     SubstraitContext context,
                                     Long operatorId) {
+    Long iteratorIndex = context.nextIteratorIndex();
+    ConverterUtils$ converter = ConverterUtils$.MODULE$;
+    LocalFilesNode inputIter = LocalFilesBuilder
+      .makeLocalFiles(converter.ITERATOR_PREFIX().concat(iteratorIndex.toString()));
+    context.setIteratorNode(iteratorIndex, inputIter);
     if (operatorId >= 0) {
       // If the operator id is negative, will not register the rel to operator.
       // Currently, only for the special handling in join.
       context.registerRelToOperator(operatorId);
     }
-    ArrayList<TypeNode> typeList = new ArrayList<>();
-    ArrayList<String> nameList = new ArrayList<>();
-    ConverterUtils$ converter = ConverterUtils$.MODULE$;
-    for (Attribute attr : attributes) {
-      typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
-      nameList.add(converter.genColumnNameWithExprId(attr));
-      nameList.addAll(collectStructFieldNamesDFS(attr.dataType()));
-    }
-
-    // The iterator index will be added in the path of LocalFiles.
-    Long iteratorIndex = context.nextIteratorIndex();
-    context.setIteratorNode(
-        iteratorIndex,
-        LocalFilesBuilder.makeLocalFiles(
-            converter.ITERATOR_PREFIX().concat(iteratorIndex.toString())));
-    return new ReadRelNode(typeList, nameList, context, null, iteratorIndex);
+    return new ReadRelNode(types, names, context, null, iteratorIndex);
   }
 
   public static RelNode makeJoinRel(RelNode left,

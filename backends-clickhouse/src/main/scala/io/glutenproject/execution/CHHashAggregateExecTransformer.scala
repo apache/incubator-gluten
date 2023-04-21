@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.expression._
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -31,6 +32,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.types.DataType
 
 import com.google.protobuf.Any
 
@@ -106,9 +108,8 @@ case class CHHashAggregateExecTransformer(
       // Notes: Currently, ClickHouse backend uses the output attributes of
       // aggregateResultAttributes as Shuffle output,
       // which is different from Velox backend.
-      aggParams.isReadRel = true
-      val typeList = new util.ArrayList[TypeNode]()
-      val nameList = new util.ArrayList[String]()
+      val (typeList, nameList) =
+        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
       // 1. When the child is file scan rdd ( in case of separating file scan )
       // 2. When the child is Union all operator
       val (inputAttrs, outputAttrs) =
@@ -118,81 +119,13 @@ case class CHHashAggregateExecTransformer(
           || (child.isInstanceOf[InputAdapter]
             && child.asInstanceOf[InputAdapter].child.isInstanceOf[UnionExecTransformer])
         ) {
-          for (attr <- child.output) {
-            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-          }
-
           (child.output, aggregateResultAttributes)
         } else {
-          for (attr <- aggregateResultAttributes) {
-            val colName = if (aggregateAttributes.contains(attr)) {
-              // for aggregate func
-              ConverterUtils.genColumnNameWithExprId(attr) +
-                "#Partial#" + ConverterUtils.getShortAttributeName(attr)
-            } else {
-              // for group by cols
-              ConverterUtils.genColumnNameWithExprId(attr)
-            }
-            nameList.add(colName)
-            // In final stage, when the output attr is the output of the avg func,
-            // CH needs to get the original data type as input type.
-            if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
-              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-              val originalType =
-                if (
-                  originalExpr.isDefined &&
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .isInstanceOf[Average]
-                ) {
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .asInstanceOf[Average]
-                    .child
-                    .dataType
-                } else {
-                  attr.dataType
-                }
-              typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
-            } else if (colName.toLowerCase(Locale.ROOT).startsWith("collect_list#")) {
-              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-              val (exprType, nullable) =
-                if (
-                  originalExpr.isDefined &&
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .isInstanceOf[CollectList]
-                ) {
-                  val child = originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .asInstanceOf[CollectList]
-                    .child
-                  (child.dataType, child.nullable)
-                } else {
-                  (attr.dataType, attr.nullable)
-                }
-              // Be careful with the nullable. We must keep the nullable the same as the column
-              // otherwise it will cause a parsing exception on partial aggregated data.
-              typeList.add(ConverterUtils.getTypeNode(exprType, nullable))
-            } else {
-              typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            }
-          }
           (aggregateResultAttributes, output)
         }
 
-      // The iterator index will be added in the path of LocalFiles.
-      val iteratorIndex: Long = context.nextIteratorIndex
-      val inputIter = LocalFilesBuilder.makeLocalFiles(
-        ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
-      context.setIteratorNode(iteratorIndex, inputIter)
       val readRel =
-        RelBuilder.makeReadRel(typeList, nameList, null, iteratorIndex, context, operatorId)
+        RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
 
       (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
@@ -350,5 +283,36 @@ case class CHHashAggregateExecTransformer(
   override protected def withNewChildInternal(
       newChild: SparkPlan): CHHashAggregateExecTransformer = {
     copy(child = newChild)
+  }
+
+  def getColumnType(
+      columnName: String,
+      attr: Attribute,
+      aggregateExpressions: Seq[AggregateExpression]): (DataType, Boolean) = {
+    val lowercaseName = columnName.toLowerCase(Locale.ROOT)
+    val aggregateExpression = aggregateExpressions.find(_.resultAttribute == attr)
+    val (dataType, nullable) = if (!aggregateExpression.isDefined) {
+      (attr.dataType, attr.nullable)
+    } else {
+      aggregateExpression.get match {
+        case aggExpr: AggregateExpression =>
+          aggExpr.aggregateFunction match {
+            case avg: Average =>
+              (avg.child.dataType, attr.nullable)
+            case collectList: CollectList =>
+              // Be careful with the nullable. We must keep the nullable the same as the column
+              // otherwise it will cause a parsing exception on partial aggregated data.
+              (collectList.child.dataType, collectList.child.nullable)
+            case _ => (attr.dataType, attr.nullable)
+          }
+        case _ => (attr.dataType, attr.nullable)
+      }
+    }
+    (dataType, nullable)
+  }
+
+  def genPartialAggregateResultColumnName(attr: Attribute): String = {
+    ConverterUtils.genColumnNameWithExprId(attr) + "#Partial#" +
+      ConverterUtils.getShortAttributeName(attr)
   }
 }

@@ -209,9 +209,11 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context, condition, child.output, operatorId,
-        RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
+      val (typeList, nameList) =
+        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
+      val readRel =
+        RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
+      getRelNode(context, condition, child.output, operatorId, readRel, validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
     if (currRel == null) {
@@ -324,11 +326,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val (typeList, nameList) =
+        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
+      val readRel =
+        RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
       (getRelNode(
         context, projectList, child.output, operatorId, readRel, validation = false),
         child.output)

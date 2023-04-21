@@ -22,6 +22,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -86,9 +87,11 @@ case class GlutenFilterExecTransformer(condition: Expression,
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute](child.output.asJava)
+      val (typeNodes, names) =
+        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
+      val readRel = RelBuilder.makeReadRel(typeNodes, names, context, operatorId)
       getRelNode(context, leftCondition, child.output, operatorId,
-        RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
+        readRel, validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
     val inputAttributes = if (childCtx != null) {

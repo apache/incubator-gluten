@@ -324,11 +324,9 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val (typeNodes, names) =
+        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
+      val readRel = RelBuilder.makeReadRel(typeNodes, names, context, operatorId)
       (getRelNode(
         context, windowExpression,
         partitionSpec, orderSpec,
