@@ -28,6 +28,7 @@
 
 #include "operators/writer/Datasource.h"
 
+#include <arrow/c/bridge.h>
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/reader.h"
 
@@ -981,18 +982,16 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
   return instanceID;
 }
 
-JNIEXPORT jbyteArray JNICALL
-Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_inspectSchema(
+JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_inspectSchema(
     JNIEnv* env,
     jobject obj,
-    jlong instanceId) {
+    jlong instanceId,
+    jlong cSchema) {
   JNI_METHOD_START
-
   auto datasource = gluten_datasource_holder_.Lookup(instanceId);
   auto schema = datasource->InspectSchema();
-
-  return ToSchemaByteArray(env, schema);
-  JNI_METHOD_END(nullptr)
+  GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema.get(), reinterpret_cast<struct ArrowSchema*>(cSchema)));
+  JNI_METHOD_END()
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_close(

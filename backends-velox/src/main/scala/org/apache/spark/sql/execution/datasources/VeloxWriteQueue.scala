@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import org.apache.arrow.memory.BufferAllocator
@@ -33,7 +32,7 @@ class VeloxWriteQueue(instanceId: Long,
                       allocator: BufferAllocator,
                       datasourceJniWrapper: DatasourceJniWrapper,
                       outputFileURI: String)
-  extends AutoCloseable with Logging {
+  extends AutoCloseable {
   private val scanner = new VeloxColumnarBatchIterator(schema, allocator)
   private val writeException = new AtomicReference[Throwable]
 
@@ -52,7 +51,6 @@ class VeloxWriteQueue(instanceId: Long,
     // check if VeloxWriteQueue thread was failed
     val exception = writeException.get()
     if (exception != null) {
-      logWarning("Failed to write velox.", exception)
       throw exception
     }
   }

@@ -28,7 +28,7 @@ public class DatasourceJniWrapper {
 
   public native long nativeInitDatasource(String filePath, String fileName, long cSchema);
 
-  public native byte[] inspectSchema(long instanceId);
+  public native void inspectSchema(long instanceId, long cSchemaAddress);
 
   public native void close(long instanceId);
 
