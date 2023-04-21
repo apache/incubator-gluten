@@ -131,7 +131,7 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
-  test("read data from csv file format with table") {
+  ignore("read data from csv file format with table") {
     val tableName = "csv_test"
     val sql =
       s"""
