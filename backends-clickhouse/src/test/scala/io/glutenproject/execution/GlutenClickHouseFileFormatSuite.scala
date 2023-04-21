@@ -131,6 +131,7 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
+  // Known CH issue: https://github.com/ClickHouse/ClickHouse/issues/48997
   ignore("read data from csv file format with table") {
     val tableName = "csv_test"
     val sql =
