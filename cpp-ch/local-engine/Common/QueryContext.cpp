@@ -55,6 +55,8 @@ void releaseAllocator(int64_t allocator_id)
     auto listener = allocator_map.get(allocator_id)->listener;
     if (status->untracked_memory < 0)
         listener->free(-status->untracked_memory);
+    else if (status->untracked_memory > 0)
+        listener->reserve(status->untracked_memory);
     allocator_map.erase(allocator_id);
 }
 

@@ -98,6 +98,7 @@ private class CHColumnarBatchSerializerInstance(
           var nativeBlock = reader.next()
           while (nativeBlock.numRows() == 0) {
             if (nativeBlock.numColumns() == 0) {
+              nativeBlock.close()
               this.close()
               throw new EOFException
             }
