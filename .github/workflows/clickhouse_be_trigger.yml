@@ -39,9 +39,8 @@ jobs:
         uses: actions/checkout@v2
         
       - name: Add comment to PR
-        env:
+        uses: wow-actions/auto-comment@v1
+        with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COMMENT="Run Gluten Clickhouse CI"
-          URL=$(jq -r .pull_request.comments_url "$GITHUB_EVENT_PATH")
-          curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST -d "{\"body\":\"$COMMENT\"}" "${URL}"
+          pullRequestOpened: |
+            Run Gluten Clickhouse CI
