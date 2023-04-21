@@ -39,9 +39,14 @@ jobs:
         uses: actions/checkout@v2
         
       - name: Add comment to PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COMMENT="Run Gluten Clickhouse CI"
-          URL=$(jq -r .pull_request.comments_url "$GITHUB_EVENT_PATH")
-          curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST -d "{\"body\":\"$COMMENT\"}" "${URL}"
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = "Run Gluten Clickhouse CI";
+            await github.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.number,
+              body: comment
+            });
