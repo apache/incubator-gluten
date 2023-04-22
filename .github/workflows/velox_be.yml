@@ -100,6 +100,7 @@ jobs:
       - name: Run HBM CPP unit test
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
+          source /opt/gluten/dev/vcpkg/env.sh && \
           cmake -DBUILD_TESTS=ON -DENABLE_HBM=ON .. && \
           cmake --build . --target hbw_allocator_test -- -j && \
           ctest -V -R TestHbw'
