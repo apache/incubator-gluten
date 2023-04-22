@@ -112,7 +112,7 @@ function check_commit {
       fi
     fi
   else
-    git clean -dfx :/
+    git clean -dffx :/
   fi
 
   if [ -f ${BUILD_DIR}/velox-commit.cache ]; then

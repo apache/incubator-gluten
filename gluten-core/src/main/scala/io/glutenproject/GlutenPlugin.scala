@@ -24,6 +24,7 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.util.SparkResourcesUtil
 import org.apache.spark.{SparkConf, SparkContext}
 
 import java.util
@@ -70,7 +71,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
     conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
     // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = conf.getInt("spark.executor.cores", 1)
+    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
     val taskCores = conf.getInt("spark.task.cpus", 1)
     val offHeapPerTask = offHeapSize / (executorCores / taskCores)
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
