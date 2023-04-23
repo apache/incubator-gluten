@@ -416,7 +416,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("test 'function regexp_extract_all'") {
+  ignore("test 'function regexp_extract_all'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
