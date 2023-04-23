@@ -105,13 +105,15 @@ class VeloxBackend final : public Backend {
 
   void toVeloxPlan();
 
+  void insertValueStreamNode(const ::substrait::ReadRel& sread, int32_t iterIdx);
+
   std::string nextPlanNodeId();
 
   void cacheOutputSchema(const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode);
 
   int planNodeId_ = 0;
 
-  std::vector<std::shared_ptr<ResultIterator>> arrowInputIters_;
+  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();

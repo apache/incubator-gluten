@@ -103,4 +103,14 @@ velox::RowVectorPtr VeloxColumnarBatch::getFlattenedRowVector() {
   return flattened_;
 }
 
+velox::RowVectorPtr VeloxColumnarBatch::convertBatch(std::shared_ptr<ColumnarBatch> cb) {
+  if (cb->GetType() != "velox") {
+    auto veloxPool = GetDefaultWrappedVeloxMemoryPool();
+    auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), veloxPool.get());
+    return std::dynamic_pointer_cast<velox::RowVector>(vp);
+  } else {
+    return std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
+  }
+}
+
 } // namespace gluten

@@ -22,6 +22,7 @@
 #include "VeloxBridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
+#include "compute/RowVectorStream.h"
 #include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
@@ -137,15 +138,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
   }
 }
 
-void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
-  int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
-  if (iterIdx == -1) {
-    return;
-  }
-  if (arrowInputIters_.size() == 0) {
-    throw std::runtime_error("Invalid input iterator.");
-  }
-
+void VeloxBackend::insertValueStreamNode(const ::substrait::ReadRel& sread, int32_t iterIdx) {
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
   std::vector<std::shared_ptr<velox::substrait::SubstraitParser::SubstraitType>> subTypeList;
@@ -158,32 +151,33 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
 
   // Get the Arrow fields and output names for this plan node.
-  std::vector<std::shared_ptr<arrow::Field>> arrowFields;
-  arrowFields.reserve(colNum);
   std::vector<std::string> outNames;
   outNames.reserve(colNum);
   for (int idx = 0; idx < colNum; idx++) {
     auto colName = subParser_->makeNodeName(planNodeId_, idx);
-    arrowFields.emplace_back(arrow::field(colName, toArrowTypeFromName(subTypeList[idx]->type)));
     outNames.emplace_back(colName);
   }
 
-  // Create Arrow reader.
-  std::shared_ptr<arrow::Schema> schema = arrow::schema(arrowFields);
-  auto arrayIter = std::move(arrowInputIters_[iterIdx]);
-  // Create ArrowArrayStream.
-  struct ArrowArrayStream veloxArrayStream;
-  GLUTEN_THROW_NOT_OK(ExportArrowArray(schema, arrayIter->ToArrowArrayIterator(), &veloxArrayStream));
-  auto arrowStream = std::make_shared<ArrowArrayStream>(veloxArrayStream);
-
-  // Create Velox ArrowStream node.
   std::vector<velox::TypePtr> veloxTypeList;
   for (auto subType : subTypeList) {
     veloxTypeList.push_back(velox::substrait::toVeloxType(subType->type));
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto arrowStreamNode = std::make_shared<velox::core::ArrowStreamNode>(nextPlanNodeId(), outputType, arrowStream);
-  subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
+  auto vectorStream = std::make_shared<RowVectorStream>(std::move(inputIters_[iterIdx]));
+  auto valuesNode =
+      std::make_shared<velox::core::ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
+  subVeloxPlanConverter_->insertInputNode(iterIdx, valuesNode, planNodeId_);
+}
+
+void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
+  int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
+  if (iterIdx == -1) {
+    return;
+  }
+  if (inputIters_.size() == 0) {
+    throw std::runtime_error("Invalid input iterator.");
+  }
+  insertValueStreamNode(sread, iterIdx);
 }
 
 void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
@@ -271,7 +265,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
   if (inputs.size() > 0) {
-    arrowInputIters_ = std::move(inputs);
+    inputIters_ = std::move(inputs);
   }
 
   toVeloxPlan();

@@ -17,15 +17,24 @@
 
 #pragma once
 
-#include <arrow/type.h>
-#include <arrow/type_fwd.h>
-
-#include "velox/type/Type.h"
+#include "compute/ResultIterator.h"
+#include "memory/VeloxColumnarBatch.h"
+#include "velox/vector/ComplexVectorStream.h"
 
 namespace gluten {
+class RowVectorStream final : public facebook::velox::RowVectorStream {
+ public:
+  explicit RowVectorStream(std::shared_ptr<ResultIterator> iterator) : iterator_(iterator) {}
 
-std::shared_ptr<arrow::DataType> toArrowType(const facebook::velox::TypePtr& type);
+  bool hasNext() {
+    return iterator_->HasNext();
+  }
 
-std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const facebook::velox::RowType>& rowType);
+  facebook::velox::RowVectorPtr next() {
+    return VeloxColumnarBatch::convertBatch(iterator_->Next());
+  }
 
+ private:
+  std::shared_ptr<ResultIterator> iterator_;
+};
 } // namespace gluten
