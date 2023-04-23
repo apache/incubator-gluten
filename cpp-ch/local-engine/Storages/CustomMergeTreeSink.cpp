@@ -12,7 +12,3 @@ void local_engine::CustomMergeTreeSink::consume(Chunk chunk)
         transaction.commit(&lock);
     }
 }
-//std::list<OutputPort> local_engine::CustomMergeTreeSink::getOutputs()
-//{
-//    return {};
-//}

@@ -1,6 +1,8 @@
 #pragma once
 #include <config.h>
-#if USE_PARQUET
+#include <Common/Config.h>
+
+#if USE_PARQUET && USE_LOCAL_FORMATS
 
 #include <Processors/Formats/IInputFormat.h>
 #include <Processors/Formats/ISchemaReader.h>

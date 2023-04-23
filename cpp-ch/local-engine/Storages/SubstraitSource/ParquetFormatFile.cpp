@@ -1,12 +1,21 @@
+#include "ParquetFormatFile.h"
+
+#if USE_PARQUET
+
 #include <memory>
 #include <string>
 #include <utility>
+
+#include <parquet/arrow/reader.h>
+#include <Common/Config.h>
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <IO/SeekableReadBuffer.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/ArrowParquetBlockInputFormat.h>
-#include <Storages/SubstraitSource/ParquetFormatFile.h>
+#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+
 
 namespace DB
 {
@@ -27,26 +36,49 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
     res->read_buffer = std::move(read_buffer_builder->build(file_info));
-    std::vector<int> row_group_indices;
+
     std::vector<RowGroupInfomation> required_row_groups;
+    [[maybe_unused]] int total_row_groups = 0;
     if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(res->read_buffer.get()))
     {
         // reuse the read_buffer to avoid opening the file twice.
         // especially，the cost of opening a hdfs file is large.
-        required_row_groups = collectRequiredRowGroups(seekable_in);
+        required_row_groups = collectRequiredRowGroups(seekable_in, total_row_groups);
         seekable_in->seek(0, SEEK_SET);
     }
     else
-    {
-        required_row_groups = collectRequiredRowGroups();
-    }
-    for (const auto & row_group : required_row_groups)
-    {
-        row_group_indices.emplace_back(row_group.index);
-    }
+        required_row_groups = collectRequiredRowGroups(total_row_groups);
+
     auto format_settings = DB::getFormatSettings(context);
+
+#if USE_LOCAL_FORMATS
     format_settings.parquet.import_nested = true;
-    auto input_format = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
+
+    std::vector<int> row_group_indices;
+    row_group_indices.reserve(required_row_groups.size());
+    for (const auto & row_group : required_row_groups)
+        row_group_indices.emplace_back(row_group.index);
+
+    auto input_format
+        = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
+#else
+
+    std::vector<int> total_row_group_indices(total_row_groups);
+    std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
+
+    std::vector<int> required_row_group_indices(required_row_groups.size());
+    for (size_t i = 0; i < required_row_groups.size(); ++i)
+        required_row_group_indices[i] = required_row_groups[i].index;
+
+    std::vector<int> skip_row_group_indices;
+    std::set_difference(total_row_group_indices.begin(), total_row_group_indices.end(),
+        required_row_group_indices.begin(), required_row_group_indices.end(),
+        std::back_inserter(skip_row_group_indices));
+
+    format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
+    auto input_format = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
+#endif
+
     res->input = input_format;
     return res;
 }
@@ -58,12 +90,13 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
         if (total_rows)
             return total_rows;
     }
-    auto rowgroups = collectRequiredRowGroups();
+
+    int _;
+    auto rowgroups = collectRequiredRowGroups(_);
     size_t rows = 0;
     for (const auto & rowgroup : rowgroups)
-    {
         rows += rowgroup.num_rows;
-    }
+
     {
         std::lock_guard lock(mutex);
         total_rows = rows;
@@ -71,35 +104,39 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
     }
 }
 
-std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups()
+std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(int & total_row_groups)
 {
     auto in = read_buffer_builder->build(file_info);
-    return collectRequiredRowGroups(in.get());
+    return collectRequiredRowGroups(in.get(), total_row_groups);
 }
 
-std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer)
+std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups)
 {
-    std::unique_ptr<parquet::arrow::FileReader> reader;
-    DB::FormatSettings format_settings;
-    format_settings.seekable_read = true;
+    DB::FormatSettings format_settings
+    {
+        .seekable_read = true,
+    };
     std::atomic<int> is_stopped{0};
+    std::unique_ptr<parquet::arrow::FileReader> reader;
     auto status = parquet::arrow::OpenFile(
         asArrowFile(*read_buffer, format_settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES), arrow::default_memory_pool(), &reader);
     if (!status.ok())
-    {
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Open file({}) failed. {}", file_info.uri_file(), status.ToString());
-    }
 
     auto file_meta = reader->parquet_reader()->metadata();
+    total_row_groups = file_meta->num_row_groups();
+
     std::vector<RowGroupInfomation> row_group_metadatas;
-    for (int i = 0, n = file_meta->num_row_groups(); i < n; ++i)
+    row_group_metadatas.reserve(total_row_groups);
+    for (int i = 0; i < total_row_groups; ++i)
     {
         auto row_group_meta = file_meta->RowGroup(i);
+
         auto offset = static_cast<UInt64>(row_group_meta->file_offset());
         if (!offset)
-        {
             offset = static_cast<UInt64>(row_group_meta->ColumnChunk(0)->file_offset());
-        }
+
+        /// Current row group has intersection with the required range.
         if (file_info.start() <=  offset && offset < file_info.start() + file_info.length())
         {
             RowGroupInfomation info;
@@ -108,10 +145,11 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
             info.start = row_group_meta->file_offset();
             info.total_compressed_size = row_group_meta->total_compressed_size();
             info.total_size = row_group_meta->total_byte_size();
-            row_group_metadatas.emplace_back(info);
+            row_group_metadatas.emplace_back(std::move(info));
         }
     }
     return row_group_metadatas;
 
 }
 }
+#endif

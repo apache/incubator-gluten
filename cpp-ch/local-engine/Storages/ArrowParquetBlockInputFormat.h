@@ -1,5 +1,10 @@
 #pragma once
 
+#include "config.h"
+#include <Common/Config.h>
+
+#if USE_PARQUET && USE_LOCAL_FORMATS
+
 #include <Common/ChunkBuffer.h>
 #include "ch_parquet/OptimizedParquetBlockInputFormat.h"
 #include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
@@ -17,7 +22,6 @@ class ArrowParquetBlockInputFormat : public DB::OptimizedParquetBlockInputFormat
 {
 public:
     ArrowParquetBlockInputFormat(DB::ReadBuffer & in, const DB::Block & header, const DB::FormatSettings & formatSettings, const std::vector<int> & row_group_indices_ = {});
-    //virtual ~ArrowParquetBlockInputFormat();
 
 private:
     DB::Chunk generate() override;
@@ -29,3 +33,5 @@ private:
 };
 
 }
+
+#endif

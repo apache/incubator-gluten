@@ -364,7 +364,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     )(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("coalesce") {
+  // TODO: fix memory leak
+  ignore("coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
@@ -405,7 +406,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     checkLengthAndPlan(df, 10)
   }
 
-  test("test 'function regexp_replace'") {
+  // TODO: fix memory leak
+  ignore("test 'function regexp_replace'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])

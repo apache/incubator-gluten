@@ -1,22 +1,19 @@
+#include "FormatFile.h"
+
 #include <memory>
-#include <type_traits>
-#include <unistd.h>
-#include <IO/ReadBuffer.h>
-#include <Storages/SubstraitSource/FormatFile.h>
-#include <Storages/PartitionCommands.h>
-#include <sys/stat.h>
-#include <Poco/URI.h>
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
 #include <IO/ReadBufferFromFile.h>
-#include <Processors/Formats/IInputFormat.h>
-#include <Storages/HDFS/ReadBufferFromHDFS.h>
-#include <Storages/SubstraitSource/ParquetFormatFile.h>
-#include <Storages/SubstraitSource/OrcFormatFile.h>
 
-#include <Poco/Logger.h>
-#include <Common/logger_useful.h>
+#if USE_PARQUET
+#include <Storages/SubstraitSource/ParquetFormatFile.h>
+#endif
+
+#if USE_ORC
+#include <Storages/SubstraitSource/OrcFormatFile.h>
+#endif
+
 
 namespace DB
 {
@@ -41,19 +38,21 @@ FormatFile::FormatFile(
 
 FormatFilePtr FormatFileUtil::createFile(DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
 {
+#if USE_PARQUET
     if (file.has_parquet())
     {
         return std::make_shared<ParquetFormatFile>(context, file, read_buffer_builder);
     }
-    else if (file.has_orc())
+#endif
+
+#if USE_ORC
+    if (file.has_orc())
     {
         return std::make_shared<OrcFormatFile>(context, file, read_buffer_builder);
     }
-    else
-    {
-        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Format not suupported:{}", file.DebugString());
-    }
+#endif
 
+    throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Format not supported:{}", file.DebugString());
     __builtin_unreachable();
 }
 }

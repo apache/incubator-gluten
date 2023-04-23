@@ -1,20 +1,18 @@
 #pragma once
-#include <cstdint>
-#include <Storages/SubstraitSource/FormatFile.h>
-#include <unordered_map>
-#include <Columns/IColumn.h>
+
+#include <base/types.h>
 #include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Field.h>
-#include <DataTypes/Serializations/ISerialization.h>
+#include <Columns/IColumn.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/Context_fwd.h>
 #include <Processors/Chunk.h>
+#include <Processors/ISource.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <QueryPipeline/QueryPipeline.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <base/types.h>
+
 namespace local_engine
 {
 
@@ -63,7 +61,7 @@ class ConstColumnsFileReader : public FileReaderWrapper
 public:
     ConstColumnsFileReader(FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & header_, size_t block_size_ = DEFAULT_BLOCK_SIZE);
     ~ConstColumnsFileReader() override = default;
-    bool pull(DB::Chunk & chunk);
+    bool pull(DB::Chunk & chunk) override;
 private:
     DB::ContextPtr context;
     DB::Block header;
