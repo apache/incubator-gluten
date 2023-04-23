@@ -113,7 +113,7 @@ private:
 
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
 
-    inline static const String CH_RUNTIME_CONFIG = "runtime_conf";
+    inline static const String CH_RUNTIME_CONFIG = "runtime_config";
     inline static const String CH_RUNTIME_CONFIG_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_CONFIG + ".";
     inline static const String CH_RUNTIME_CONFIG_FILE = CH_RUNTIME_CONFIG_PREFIX + "config_file";
 
