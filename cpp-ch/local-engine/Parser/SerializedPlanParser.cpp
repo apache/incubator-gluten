@@ -1748,18 +1748,6 @@ void SerializedPlanParser::parseFunctionArguments(
         parsed_args.emplace_back(json_expr_node);
         parsed_args.emplace_back(extract_expr_node);
     }
-    else if (function_name == "mapFromArrays")
-    {
-        /// Remove nullable for first arg
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
-        auto first_arg = parsed_args.back();
-        auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
-        const auto * first_arg_not_null = &actions_dag->addFunction(
-            assume_not_null_builder, {first_arg}, "assumeNotNull(" + first_arg->result_name + ")");
-        parsed_args.back() = first_arg_not_null;
-
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
-    }
     else
     {
         // Default handle

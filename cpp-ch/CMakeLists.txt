@@ -10,8 +10,7 @@ if ("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
     if ("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
         if (NOT clickhouse_files)
             execute_process(COMMAND git clone -b ${CH_BRANCH} --depth 1 https://github.com/${CH_ORG}/ClickHouse.git ${CH_SOURCE_DIR}
-                    OUTPUT_VARIABLE download_ch)
-            execute_process(COMMAND cd ${CH_SOURCE_DIR} && git reset --hard ${CH_COMMIT} && git submodule update --init --recursive --force --depth 1
+                    cd ${CH_SOURCE_DIR} && git reset --hard ${CH_COMMIT} && git submodule update --init --recursive --force --depth 1
                     OUTPUT_VARIABLE download_ch)
         endif()
     endif()
