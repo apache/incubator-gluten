@@ -18,14 +18,16 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-
 import java.io.File
+
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.ArrowWritableColumnVector
+
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util.GenericArrayData
 import org.apache.spark.sql.execution.GlutenColumnarToRowExec
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtil
 import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, MapType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnarMap}
@@ -443,7 +445,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
 
     vectors.foreach(
       _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(1))
-    GlutenArrowUtil.createArrowRecordBatch(new ColumnarBatch(vectors.toArray, 1))
+    SparkVectorUtil.toArrowRecordBatch(new ColumnarBatch(vectors.toArray, 1))
   }
 
   test("RowToArrow map type") {

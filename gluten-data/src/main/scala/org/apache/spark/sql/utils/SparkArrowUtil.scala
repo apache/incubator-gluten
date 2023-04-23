@@ -21,16 +21,12 @@ import scala.collection.JavaConverters._
 import org.apache.arrow.vector.complex.MapVector
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 /**
  * Originated from org.apache.spark.sql.util.ArrowUtils.
  */
 object SparkArrowUtil {
-  // todo: support more types.
-
   /** Maps data type from Spark to Arrow. NOTE: timeZoneId required for TimestampTypes */
   def toArrowType(dt: DataType, timeZoneId: String): ArrowType = dt match {
     case BooleanType => ArrowType.Bool.INSTANCE
@@ -140,17 +136,4 @@ object SparkArrowUtil {
       StructField(field.getName, dt, field.isNullable)
     })
   }
-
-  /** Return Map with conf settings to be used in ArrowPythonRunner */
-  def getPythonRunnerConfMap(conf: SQLConf): Map[String, String] = {
-    val timeZoneConf = Seq(SQLConf.SESSION_LOCAL_TIMEZONE.key -> conf.sessionLocalTimeZone)
-    val pandasColsByName = Seq(SQLConf.PANDAS_GROUPED_MAP_ASSIGN_COLUMNS_BY_NAME.key ->
-      conf.pandasGroupedMapAssignColumnsByName.toString)
-    val arrowSafeTypeCheck = Seq(SQLConf.PANDAS_ARROW_SAFE_TYPE_CONVERSION.key ->
-      conf.arrowSafeTypeConversion.toString)
-    Map(timeZoneConf ++ pandasColsByName ++ arrowSafeTypeCheck: _*)
-  }
-
-  def fromAttributes(attributes: Seq[Attribute]): StructType =
-    StructType.fromAttributes(attributes)
 }

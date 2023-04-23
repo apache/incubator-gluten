@@ -30,27 +30,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object SparkVectorUtil {
 
-  def estimateSize(columnarBatch: ColumnarBatch): Long = {
-    val cols = (0 until columnarBatch.numCols).toList.map(i =>
-      ArrowColumnarBatches
-        .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-          columnarBatch).column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector())
-    val nodes = new java.util.ArrayList[ArrowFieldNode]()
-    val buffers = new java.util.ArrayList[ArrowBuf]()
-    cols.foreach(vector => {
-      appendNodes(vector.asInstanceOf[FieldVector], nodes, buffers);
-    })
-    buffers.asScala.map(_.getPossibleMemoryConsumed()).sum
-  }
-
-  def toFieldVectorList(cb: ColumnarBatch): List[FieldVector] = {
-    (0 until cb.numCols).toList.map(i =>
-      ArrowColumnarBatches
-        .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-          cb)
-        .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector.asInstanceOf[FieldVector])
-  }
-
   def toArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
     val numRowsInBatch = columnarBatch.numRows()
     val cols = (0 until columnarBatch.numCols).toList.map(i =>
