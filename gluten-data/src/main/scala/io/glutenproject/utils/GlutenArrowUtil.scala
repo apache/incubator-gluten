@@ -23,20 +23,17 @@ import java.util
 
 import scala.collection.JavaConverters._
 
-import com.google.common.collect.Lists
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.expression.CodeGeneration
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
 import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.flatbuf.MessageHeader
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, ValueVector}
+import org.apache.arrow.vector.ValueVector
 import org.apache.arrow.vector.ipc.{ReadChannel, WriteChannel}
 import org.apache.arrow.vector.ipc.message._
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -47,17 +44,7 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 object GlutenArrowUtil extends Logging {
 
-  def calcuateEstimatedSize(columnarBatch: ColumnarBatch): Long = {
-    SparkVectorUtil.estimateSize(columnarBatch)
-  }
-
-  def createArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
-    SparkVectorUtil.toArrowRecordBatch(columnarBatch)
-  }
-
-  def createFieldVectorList(columnarBatch: ColumnarBatch): List[FieldVector] = {
-    SparkVectorUtil.toFieldVectorList(columnarBatch)
-  }
+  private val defaultTimeZoneId = SparkSchemaUtil.getLocalTimezoneID()
 
   def convertToNetty(iter: Array[ColumnarBatch]): Array[Byte] = {
     val innerBuf = ByteBufAllocator.DEFAULT.buffer()
@@ -110,71 +97,6 @@ object GlutenArrowUtil extends Logging {
 
   def createArrowRecordBatch(numRowsInBatch: Int, cols: List[ValueVector]): ArrowRecordBatch = {
     SparkVectorUtil.toArrowRecordBatch(numRowsInBatch, cols)
-  }
-
-  def convertFromNetty(attributes: Seq[Attribute], input: InputStream): Iterator[ColumnarBatch] = {
-    new Iterator[ColumnarBatch] {
-      val allocator = ArrowBufferAllocators.contextInstance()
-      var messageReader =
-        new MessageChannelReader(new ReadChannel(Channels.newChannel(input)), allocator)
-      var schema: Schema = null
-      var result: MessageResult = null
-
-      override def hasNext: Boolean =
-        if (input.available > 0) {
-          return true
-        } else {
-          messageReader.close
-          return false
-        }
-
-      override def next(): ColumnarBatch = {
-        if (input.available == 0) {
-          if (attributes == null) {
-            return null
-          }
-          val resultStructType = StructType(
-            attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
-          val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
-          return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
-        }
-        try {
-          if (schema == null) {
-            result = messageReader.readNext();
-            if (result == null) {
-              throw new IOException("Unexpected end of input. Missing schema.");
-            }
-            if (result.getMessage().headerType() != MessageHeader.Schema) {
-              throw new IOException(
-                "Expected schema but header was " + result.getMessage().headerType());
-            }
-            schema = MessageSerializer.deserializeSchema(result.getMessage());
-          }
-          result = messageReader.readNext();
-          if (result.getMessage().headerType() != MessageHeader.RecordBatch) {
-            throw new IOException(
-              "Expected recordbatch but header was " + result.getMessage().headerType());
-          }
-          var bodyBuffer = result.getBodyBuffer();
-
-          // For zero-length batches, need an empty buffer to deserialize the batch
-          if (bodyBuffer == null) {
-            bodyBuffer = allocator.getEmpty();
-          }
-
-          val batch = MessageSerializer.deserializeRecordBatch(result.getMessage(), bodyBuffer);
-          val vectors = fromArrowRecordBatch(schema, batch, allocator)
-          val length = batch.getLength
-          batch.close
-          new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), length)
-        } catch {
-          case e: Throwable =>
-            messageReader.close
-            throw e
-        }
-      }
-    }
   }
 
   def convertFromNetty(
@@ -291,48 +213,23 @@ object GlutenArrowUtil extends Logging {
     ArrowWritableColumnVector.loadColumns(numRows, recordBatchSchema, recordBatch, allocator)
   }
 
-  def releaseArrowRecordBatchList(recordBatchList: Array[ArrowRecordBatch]): Unit = {
-    recordBatchList.foreach({
-      recordBatch =>
-        if (recordBatch != null) {
-          releaseArrowRecordBatch(recordBatch)
-        }
-    })
+  private def getResultType(dataType: DataType): ArrowType = {
+    getResultType(dataType, defaultTimeZoneId)
   }
 
-  def releaseArrowRecordBatch(recordBatch: ArrowRecordBatch): Unit = {
-    if (recordBatch != null) {
-      recordBatch.close()
+  private def getResultType(dataType: DataType, timeZoneId: String): ArrowType = {
+    dataType match {
+      case other =>
+        SparkArrowUtil.toArrowType(dataType, timeZoneId)
     }
-  }
-
-  def combineArrowRecordBatch(rb1: ArrowRecordBatch, rb2: ArrowRecordBatch): ArrowRecordBatch = {
-    val numRows = rb1.getLength()
-    val rb1_nodes = rb1.getNodes()
-    val rb2_nodes = rb2.getNodes()
-    val rb1_bufferlist = rb1.getBuffers()
-    val rb2_bufferlist = rb2.getBuffers()
-
-    val combined_nodes = rb1_nodes.addAll(rb2_nodes)
-    val combined_bufferlist = rb1_bufferlist.addAll(rb2_bufferlist)
-    new ArrowRecordBatch(numRows, rb1_nodes, rb1_bufferlist)
   }
 
   def toArrowSchema(attributes: Seq[Attribute]): Schema = {
     val fields = attributes.map(
       attr => {
         Field
-          .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
+          .nullable(s"${attr.name}#${attr.exprId.id}", getResultType(attr.dataType))
       })
-    new Schema(fields.toList.asJava)
-  }
-
-  def toArrowSchema(schema: StructType): Schema = {
-    val fields = schema
-      .map(
-        field => {
-          Field.nullable(field.name, CodeGeneration.getResultType(field.dataType))
-        })
     new Schema(fields.toList.asJava)
   }
 
@@ -352,59 +249,6 @@ object GlutenArrowUtil extends Logging {
     new Schema(fields)
   }
 
-  @throws[IOException]
-  def getSchemaBytesBuf(schema: Schema): Array[Byte] = {
-    val out: ByteArrayOutputStream = new ByteArrayOutputStream
-    MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema)
-    out.toByteArray
-  }
-
-  @throws[IOException]
-  def getSchemaFromBytesBuf(schema: Array[Byte]): Schema = {
-    val in: ByteArrayInputStream = new ByteArrayInputStream(schema)
-    MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(in)))
-  }
-
-  def checkIfTypeSupported(dt: DataType): Unit = dt match {
-    case d: BooleanType =>
-    case d: ByteType =>
-    case d: ShortType =>
-    case d: IntegerType =>
-    case d: LongType =>
-    case d: FloatType =>
-    case d: DoubleType =>
-    case d: StringType =>
-    case d: DateType =>
-    case d: DecimalType =>
-    case d: TimestampType =>
-    case _ =>
-      throw new UnsupportedOperationException(s"Unsupported data type: $dt")
-  }
-
-  def createArrowField(name: String, dt: DataType): Field = dt match {
-    case at: ArrayType =>
-      new Field(
-        name,
-        FieldType.nullable(ArrowType.List.INSTANCE),
-        Lists.newArrayList(createArrowField(s"${name}_$dt", at.elementType)))
-    case mt: MapType =>
-      throw new UnsupportedOperationException(s"$dt is not supported yet")
-    case st: StructType =>
-      throw new UnsupportedOperationException(s"$dt is not supported yet")
-    case _ =>
-      Field.nullable(name, CodeGeneration.getResultType(dt))
-  }
-
-  def createArrowField(attr: Attribute): Field =
-    createArrowField(s"${attr.name}#${attr.exprId.id}", attr.dataType)
-
-  private def asTimestampType(inType: ArrowType): ArrowType.Timestamp = {
-    if (inType.getTypeID != ArrowTypeID.Timestamp) {
-      throw new IllegalArgumentException(s"Value type to convert must be timestamp")
-    }
-    inType.asInstanceOf[ArrowType.Timestamp]
-  }
-
   def toSchema(batch: ColumnarBatch): Schema = {
     val fields = new java.util.ArrayList[Field](batch.numCols)
     for (i <- 0 until batch.numCols) {
@@ -418,9 +262,5 @@ object GlutenArrowUtil extends Logging {
       })
     }
     new Schema(fields)
-  }
-
-  override def toString: String = {
-    s"GlutenArrowUtil"
   }
 }
