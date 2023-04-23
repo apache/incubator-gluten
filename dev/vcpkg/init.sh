@@ -16,7 +16,8 @@ if [ ! -d "$VCPKG_ROOT" ] || [ -z "$(ls "$VCPKG_ROOT")" ]; then
 fi
 [ -f "$VCPKG" ] || "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
-$VCPKG install --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}"
+$VCPKG install --no-print-usage \
+    --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}"
 
 EXPORT_TOOLS_PATH=
 EXPORT_TOOLS_PATH="${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}/tools/protobuf:${EXPORT_TOOLS_PATH}"
