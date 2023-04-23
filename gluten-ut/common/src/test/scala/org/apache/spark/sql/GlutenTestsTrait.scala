@@ -128,9 +128,10 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     val expr = resolver.resolveTimeZones(expression)
     assert(expr.resolved)
 
-    if(canConvertToDataFrame(inputRow)) {
+    if (canConvertToDataFrame(inputRow)) {
       glutenCheckExpression(expr, expected, inputRow)
     } else {
+      logWarning(s"The status of this unit test is not guaranteed.")
       val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
       checkEvaluationWithoutCodegen(expr, catalystValue, inputRow)
       checkEvaluationWithMutableProjection(expr, catalystValue, inputRow)
