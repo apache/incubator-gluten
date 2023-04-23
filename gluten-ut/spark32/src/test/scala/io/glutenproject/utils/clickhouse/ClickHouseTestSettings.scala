@@ -92,8 +92,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       // "Quarter", // ch backend not support cast 'yyyy-MM-dd HH:mm:ss' as date32
       "date_add",
       "date_sub",
-      "datediff",
-      "add_months"
+      "datediff"
+      // "add_months" // ch date32 year's range in [1900~2299].Not support 0001-01-01
       // "DateFormat" // ch formatDateTimeInJodaSyntax doesn't support non-constant format argument
     )
 
@@ -129,11 +129,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenComplexTypesSuite]
-  enableSuite[GlutenComplexTypeSuite].exclude(
-    "CreateMap",
-    "MapFromArrays",
-    "SPARK-33386" // different result: actual: empty excepted: null
-  )
+  enableSuite[GlutenComplexTypeSuite]
+    .exclude(
+      "CreateMap",
+      "MapFromArrays"
+    )
+    .excludeByPrefix(
+      "SPARK-33386" // different result: actual: empty excepted: null
+    )
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
       "- (UnaryMinus)",
