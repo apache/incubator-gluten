@@ -29,7 +29,7 @@ namespace gluten {
 namespace {
 void registerCustomFunctions() {
   velox::exec::registerVectorFunction(
-      "row_constructor",
+      "row_constructor_for_agg",
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowConstructor>());
 }
