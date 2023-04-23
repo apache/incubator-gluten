@@ -44,7 +44,7 @@ RUN apt-get update \
         cmake \
         fakeroot \
 #        gdb \
-#        git \
+        git \
 #        gperf \
         lld-${LLVM_VERSION} \
         llvm-${LLVM_VERSION} \
