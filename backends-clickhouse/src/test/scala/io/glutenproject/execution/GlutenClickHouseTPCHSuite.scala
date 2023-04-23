@@ -255,8 +255,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
-  // failed on ch 23.3
-  ignore("test 'function posexplode(map)'") {
+  test("test 'function posexplode(map)'") {
     val df =
       spark.sql("""
                   |select count(*) from (
@@ -284,8 +283,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 2402288L)
   }
 
-  // failed on ch 23.3
-  ignore("test 'lateral view posexplode(map)'") {
+  test("test 'lateral view posexplode(map)'") {
     val df =
       spark.sql("""
                   |select count(*) from (
