@@ -306,16 +306,14 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
-                  ColumnarShuffleUtil.genColumnarShuffleExchange(
-                    plan, projectChild, isAdaptiveContextOrTopParentExchange,
-                    projectChild.output.drop(1), columnarConf.enableCoalesceBatches)
+                  ColumnarShuffleUtil.genColumnarShuffleExchange(plan, projectChild,
+                    isAdaptiveContextOrTopParentExchange, projectChild.output.drop(1))
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
                 ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
-                  isAdaptiveContextOrTopParentExchange = isAdaptiveContextOrTopParentExchange,
-                  null, columnarConf.enableCoalesceBatches)
+                  isAdaptiveContextOrTopParentExchange = isAdaptiveContextOrTopParentExchange, null)
             }
           } else if (BackendsApiManager.getSettings.supportShuffleWithProject(plan
             .outputPartitioning, plan.child)) {
@@ -326,24 +324,21 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
               if (newChild.supportsColumnar) {
                 val newPlan = ShuffleExchangeExec(newPartitioning, newChild, plan.shuffleOrigin)
                 // the new projections columns are appended at the end.
-                ColumnarShuffleUtil.genColumnarShuffleExchange(
-                  newPlan, newChild, isAdaptiveContextOrTopParentExchange,
-                  newChild.output.dropRight(projectColumnNumber),
-                  columnarConf.enableCoalesceBatches)
+                ColumnarShuffleUtil.genColumnarShuffleExchange(newPlan, newChild,
+                  isAdaptiveContextOrTopParentExchange,
+                  newChild.output.dropRight(projectColumnNumber))
               } else {
                 // It's the case that partitioning expressions could be offloaded into native.
                 plan.withNewChildren(Seq(child))
               }
             }
             else {
-              ColumnarShuffleUtil.genColumnarShuffleExchange(
-                plan, child, isAdaptiveContextOrTopParentExchange,
-                null, columnarConf.enableCoalesceBatches)
+              ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
+                isAdaptiveContextOrTopParentExchange, null)
             }
           } else {
             ColumnarShuffleUtil.genColumnarShuffleExchange(
-              plan, child, isAdaptiveContextOrTopParentExchange,
-              null, columnarConf.enableCoalesceBatches)
+              plan, child, isAdaptiveContextOrTopParentExchange, null)
           }
         } else {
           plan.withNewChildren(Seq(child))
@@ -393,25 +388,18 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
             isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
       case plan: AQEShuffleReadExec if
           BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
-        def generateShuffleRead(child: SparkPlan): SparkPlan = {
-          if (columnarConf.enableCoalesceBatches) {
-            CoalesceBatchesExec(child)
-          } else {
-            child
-          }
-        }
         plan.child match {
           case _: ColumnarShuffleExchangeExec =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            generateShuffleRead(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-          case ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
+            CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+          case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _) =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            generateShuffleRead(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+            CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
           case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
             reused match {
-              case ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec) =>
+              case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeExec) =>
                 logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-                generateShuffleRead(
+                CoalesceBatchesExec(
                   ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
               case _ =>
                 plan
