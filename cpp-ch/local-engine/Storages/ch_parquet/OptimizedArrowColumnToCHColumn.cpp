@@ -557,7 +557,10 @@ void OptimizedArrowColumnToCHColumn::arrowTableToCHChunk(Chunk & res, std::share
 
     Stopwatch sw;
     sw.start();
-    arrowColumnsToCHChunk(res, name_to_column_ptr, table->schema());
+    if (!name_to_column_ptr.empty())
+    {
+        arrowColumnsToCHChunk(res, name_to_column_ptr, table->schema());
+    }
     real_convert += sw.elapsedNanoseconds();
 }
 
