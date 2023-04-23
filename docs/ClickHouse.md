@@ -34,30 +34,38 @@ You need to install the following software manually:
 - Maven 3.6.3 or higher version
 - Spark 3.2.2 or Spark 3.3.1
 
-#### Setup Gluten development environment
-
-- Clone Gluten code
+Then, get Gluten code:
 ```
     git clone https://github.com/oap-project/gluten.git
 ```
 
 #### Setup ClickHouse backend development environment
-Gluten supports the use of existing ClickHouse repo for development, and also supports automatic clone ClickHouse to cpp-ch.
 
-The following is an example of using an existing CH repo to configure the development environment.
-1. clone ClickHouse repo
-```
-git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
-```
+If you don't care about development environment, you can skip this part.
+
+Otherwise, do:
+
+1. clone Kyligence/ClickHouse repo
+    ```
+    cd /to/some/place/
+    git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
+    ```
+
 2. Configure cpp-ch
+    ${GLUTEN_SOURCE}/cpp-ch can be treated as an add-on of Kyligence/Clickhouse
 
-Initialize some project configuration
-```shell
-export GLUTEN_SOURCE=/path/to/gluten
-cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=/path/to/ClickHouse "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
-```
+    First, initialize some configuration for this add-on:
 
-3. [Optional] Open ClickHouse Project on CLion
+    ```shell
+    export GLUTEN_SOURCE=/path/to/gluten
+    export CH_SOURCE_DIR=/path/to/ClickHouse
+    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    ```
+
+    Next, you need to compile Kyligence/Clickhouse. There are two options:
+
+3. (Option 1) Use CLion
+
     - Open ClickHouse repo
     - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-15 as C Compiler, clang++-15 as C++ Compiler:
 
@@ -68,22 +76,36 @@ cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -D
         ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-2.png)
 
         And then add these options into CMake options:
-    ```
-    -DENABLE_PROTOBUF=ON -DENABLE_TESTS=OFF -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON -DENABLE_EXTERN_LOCAL_ENGINE=ON
-    ```
-- Build 'ch' target on ClickHouse Project with Debug mode or Release mode:
+        ```
+        -DENABLE_PROTOBUF=ON -DENABLE_TESTS=OFF -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON -DENABLE_EXTERN_LOCAL_ENGINE=ON
+        ```
+    - Build 'ch' target on ClickHouse Project with Debug mode or Release mode:
 
-    ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-3.png)
+       ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-3.png)
 
-    - If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path 'cmake-build-debug/utils/extern-local-engine/'.
-    - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/extern-local-engine/'.
+      If it builds with Release mode successfully, there is a library file called 'libch.so' in path '${CH_SOURCE_DIR}/cmake-build-release/utils/extern-local-engine/'.
+   
+      If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path '${CH_SOURCE_DIR}/cmake-build-debug/utils/extern-local-engine/'.
+
+4. (Option 2) Use command line
+    ```
+    cmake --build ${GLUTEN_SOURCE}/cpp-ch/build_ch --target build_ch
+   ```
+   If it builds successfully, there is a library file called 'libch.so' in path '${GLUTEN_SOURCE}/cpp-ch/build/utils/extern-local-engine/'.
+   
 
 ### Compile ClickHouse backend
-Run the following command to compile ClickHouse backend:
+
+In case you don't want a develop environment, you can use the following command to compile ClickHouse backend directly:
+
 ```
+git clone https://github.com/oap-project/gluten.git
+cd gluten
 bash ./ep/build-clickhouse/src/build_clickhouse.sh
 ```
-Target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.
+
+This will download Clickhouse for you and build everything.
+The target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.
 
 ### Deploy notes
 When you deploy Gluten with ClickHouse backend, you need to make sure that the following prerequisites are met:

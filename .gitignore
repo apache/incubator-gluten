@@ -77,3 +77,4 @@ cpp/**/example/**/*
 /cpp-ch/cmake-build-*
 /cpp-ch/local-engine/tests/testConfig.h
 /cpp-ch/local-engine/proto/substrait
+/cpp-ch/build_ch
