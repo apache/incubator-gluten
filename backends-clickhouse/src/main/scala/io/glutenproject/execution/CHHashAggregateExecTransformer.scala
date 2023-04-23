@@ -131,8 +131,8 @@ case class CHHashAggregateExecTransformer(
             breakable {
               // For those literal expressions not exists in child.output,
               // do not include them in baseSchema of read real
-              // if (attr.isInstanceOf[Literal] && child.output.find(_.name == attr.name).isEmpty) {
-              if (child.output.find(_.name == attr.name).isEmpty) {
+              if (attr.isInstanceOf[Literal] && child.output.find(_.name == attr.name).isEmpty) {
+              // if (child.output.find(_.name == attr.name).isEmpty) {
                 break
               }
 
