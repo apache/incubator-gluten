@@ -189,6 +189,7 @@ set(VELOX_SRCS
     compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxColumnarToRowConverter.cc
+    compute/VeloxPlanConverter.cc
     compute/VeloxRowToColumnarConverter.cc
     compute/VeloxParquetDatasource.cc
     compute/VeloxBridge.cc
