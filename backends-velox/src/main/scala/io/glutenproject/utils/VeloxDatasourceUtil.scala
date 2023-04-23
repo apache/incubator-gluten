@@ -18,10 +18,10 @@
 package io.glutenproject.utils
 
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
+import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
+import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.vector.util.SchemaUtility
 import org.apache.hadoop.fs.FileStatus
-
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.types.StructType
 
@@ -34,14 +34,17 @@ object VeloxDatasourceUtil {
   }
 
   def readSchema(file: FileStatus): Option[StructType] = {
-    val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
-    val instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(file.getPath.toString, -1)
-    val buffer = dwrfDatasourceJniWrapper.inspectSchema(instanceId)
-    val schema = SchemaUtility.deserialize(buffer, ArrowBufferAllocators.contextInstance())
+    val allocator = ArrowBufferAllocators.contextInstance()
+    val datasourceJniWrapper = new DatasourceJniWrapper()
+    val instanceId = datasourceJniWrapper.nativeInitDatasource(file.getPath.toString, null, -1)
+    val cSchema = ArrowSchema.allocateNew(allocator)
+    datasourceJniWrapper.inspectSchema(instanceId, cSchema.memoryAddress())
     try {
-      Option(SparkSchemaUtil.fromArrowSchema(schema))
+      Option(SparkSchemaUtil.fromArrowSchema(
+        GlutenArrowAbiUtil.importToSchema(allocator, cSchema)))
     } finally {
-      dwrfDatasourceJniWrapper.close(instanceId)
+      cSchema.close()
+      datasourceJniWrapper.close(instanceId)
     }
   }
 }

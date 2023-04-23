@@ -17,18 +17,20 @@
 
 package io.glutenproject.spark.sql.execution.datasources.velox;
 
+import org.apache.spark.sql.execution.datasources.VeloxColumnarBatchIterator;
+
 import java.io.IOException;
 
-public class DwrfDatasourceJniWrapper {
+public class DatasourceJniWrapper {
 
-  public DwrfDatasourceJniWrapper() throws IOException {
+  public DatasourceJniWrapper() throws IOException {
   }
 
-  public native long nativeInitDwrfDatasource(String filePath, long cSchema);
+  public native long nativeInitDatasource(String filePath, String fileName, long cSchema);
 
-  public native byte[] inspectSchema(long instanceId);
+  public native void inspectSchema(long instanceId, long cSchemaAddress);
 
   public native void close(long instanceId);
 
-  public native void write(long instanceId, long cSchema, long cArray);
+  public native void write(long instanceId, VeloxColumnarBatchIterator iterator);
 }

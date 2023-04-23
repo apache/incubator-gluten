@@ -24,16 +24,16 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
-import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
+import org.apache.spark.sql.execution.datasources.velox.VeloxParquetFileFormat
 
 object VeloxColumnarRules {
 
   case class OtherWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan match {
-      case rc@DataWritingCommandExec(cmd, ColumnarToRowExec(child)) =>
+      case rc@DataWritingCommandExec(cmd, GlutenColumnarToRowExec(child)) =>
         cmd match {
           case command: InsertIntoHadoopFsRelationCommand =>
-            if (command.fileFormat.isInstanceOf[DwrfFileFormat]) {
+            if (command.fileFormat.isInstanceOf[VeloxParquetFileFormat]) {
               rc.withNewChildren(Array(ColumnarToFakeRowAdaptor(child)))
             } else {
               plan.withNewChildren(plan.children.map(apply))
@@ -43,7 +43,7 @@ object VeloxColumnarRules {
       case rc@DataWritingCommandExec(cmd, child) =>
         cmd match {
           case command: InsertIntoHadoopFsRelationCommand =>
-            if (command.fileFormat.isInstanceOf[DwrfFileFormat]) {
+            if (command.fileFormat.isInstanceOf[VeloxParquetFileFormat]) {
               child match {
                 case c: AdaptiveSparkPlanExec =>
                   rc.withNewChildren(

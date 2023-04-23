@@ -22,6 +22,13 @@ const std::string kAggregationSpillMemoryThreshold =
     "spark.gluten.sql.columnar.backend.velox.aggregationSpillMemoryThreshold";
 const std::string kJoinSpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.joinSpillMemoryThreshold";
 const std::string kOrderBySpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.orderBySpillMemoryThreshold";
+const std::string kMaxSpillLevel = "spark.gluten.sql.columnar.backend.velox.maxSpillLevel";
+const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
+const std::string kMinSpillRunSize = "spark.gluten.sql.columnar.backend.velox.minSpillRunSize";
+const std::string kSpillStartPartitionBit = "spark.gluten.sql.columnar.backend.velox.spillStartPartitionBit";
+const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox.spillPartitionBits";
+const std::string kSpillableReservationGrowthPct =
+    "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -220,6 +227,13 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
       getConfigValue(kJoinSpillMemoryThreshold, "0"); // spill only when input doesn't fit
   configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
       getConfigValue(kOrderBySpillMemoryThreshold, "0"); // spill only when input doesn't fit
+  configs[velox::core::QueryConfig::kMaxSpillLevel] = getConfigValue(kMaxSpillLevel, "4");
+  configs[velox::core::QueryConfig::kMaxSpillFileSize] = getConfigValue(kMaxSpillFileSize, "0");
+  configs[velox::core::QueryConfig::kMinSpillRunSize] = getConfigValue(kMinSpillRunSize, std::to_string(256 << 20));
+  configs[velox::core::QueryConfig::kSpillStartPartitionBit] = getConfigValue(kSpillStartPartitionBit, "29");
+  configs[velox::core::QueryConfig::kSpillPartitionBits] = getConfigValue(kSpillPartitionBits, "2");
+  configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
+      getConfigValue(kSpillableReservationGrowthPct, "25");
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 

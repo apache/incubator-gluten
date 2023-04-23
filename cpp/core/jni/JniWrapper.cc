@@ -25,6 +25,10 @@
 #include "jni/ConcurrentMap.h"
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
+
+#include "operators/writer/Datasource.h"
+
+#include <arrow/c/bridge.h>
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/reader.h"
 
@@ -62,6 +66,10 @@ static jmethodID serialized_arrow_array_iterator_next;
 static jclass native_columnar_to_row_info_class;
 static jmethodID native_columnar_to_row_info_constructor;
 
+static jclass velox_columnarbatch_scanner_class;
+static jmethodID velox_columnarbatch_scanner_hasNext;
+static jmethodID velox_columnarbatch_scanner_next;
+
 jlong default_memory_allocator_id = -1L;
 
 static ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnar_to_row_converter_holder_;
@@ -75,6 +83,8 @@ static ConcurrentMap<std::shared_ptr<ShuffleWriter>> shuffle_writer_holder_;
 static ConcurrentMap<std::shared_ptr<Reader>> shuffle_reader_holder_;
 
 static ConcurrentMap<std::shared_ptr<ColumnarBatch>> gluten_columnarbatch_holder_;
+
+static ConcurrentMap<std::shared_ptr<Datasource>> gluten_datasource_holder_;
 
 std::shared_ptr<ResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
   auto handler = result_iterator_holder_.Lookup(id);
@@ -286,6 +296,13 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   default_memory_allocator_id = reinterpret_cast<jlong>(DefaultMemoryAllocator().get());
 
+  velox_columnarbatch_scanner_class =
+      CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/VeloxColumnarBatchIterator;");
+
+  velox_columnarbatch_scanner_hasNext = GetMethodID(env, velox_columnarbatch_scanner_class, "hasNext", "()Z");
+
+  velox_columnarbatch_scanner_next = GetMethodID(env, velox_columnarbatch_scanner_class, "next", "()J");
+
   return JNI_VERSION;
 }
 
@@ -294,6 +311,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   columnar_to_row_converter_holder_.Clear();
   shuffle_writer_holder_.Clear();
   shuffle_reader_holder_.Clear();
+  gluten_datasource_holder_.Clear();
 
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
@@ -303,6 +321,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(serialized_arrow_array_iterator_class);
   env->DeleteGlobalRef(native_columnar_to_row_info_class);
   env->DeleteGlobalRef(byte_array_class);
+  env->DeleteGlobalRef(velox_columnarbatch_scanner_class);
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
@@ -613,6 +632,27 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumRows(JNIEnv* e
   JNI_METHOD_END(-1L)
 }
 
+JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_addColumn(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jint index,
+    jlong colHandle) {
+  JNI_METHOD_START
+  std::shared_ptr<ColumnarBatch> batch = gluten_columnarbatch_holder_.Lookup(handle);
+  std::shared_ptr<ColumnarBatch> col = gluten_columnarbatch_holder_.Lookup(colHandle);
+#ifdef DEBUG
+  if (col->GetNumColumns() != 1) {
+    throw GlutenException("Add column should add one col");
+  }
+#endif
+  auto newBatch = batch->addColumn(index, col);
+  gluten_columnarbatch_holder_.Erase(handle);
+  gluten_columnarbatch_holder_.Erase(colHandle);
+  return gluten_columnarbatch_holder_.Insert(newBatch);
+  JNI_METHOD_END(-1L)
+}
+
 JNIEXPORT void JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_exportToArrow(
     JNIEnv* env,
     jobject,
@@ -915,6 +955,71 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(JNIEnv* env, jcla
   auto reader = shuffle_reader_holder_.Lookup(handle);
   GLUTEN_THROW_NOT_OK(reader->Close());
   shuffle_reader_holder_.Erase(handle);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_nativeInitDatasource(
+    JNIEnv* env,
+    jobject obj,
+    jstring file_path,
+    jstring file_name,
+    jlong c_schema) {
+  auto backend = gluten::CreateBackend();
+
+  std::shared_ptr<Datasource> datasource = nullptr;
+
+  if (c_schema == -1) {
+    // Only inspect the schema and not write
+    datasource = backend->GetDatasource(JStringToCString(env, file_path), JStringToCString(env, file_name), nullptr);
+  } else {
+    auto schema = gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
+    datasource = backend->GetDatasource(JStringToCString(env, file_path), JStringToCString(env, file_name), schema);
+    datasource->Init(backend->GetConfMap());
+  }
+
+  int64_t instanceID = gluten_datasource_holder_.Insert(datasource);
+  return instanceID;
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_inspectSchema(
+    JNIEnv* env,
+    jobject obj,
+    jlong instanceId,
+    jlong cSchema) {
+  JNI_METHOD_START
+  auto datasource = gluten_datasource_holder_.Lookup(instanceId);
+  auto schema = datasource->InspectSchema();
+  GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema.get(), reinterpret_cast<struct ArrowSchema*>(cSchema)));
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_close(
+    JNIEnv* env,
+    jobject obj,
+    jlong instanceId) {
+  JNI_METHOD_START
+  auto datasource = gluten_datasource_holder_.Lookup(instanceId);
+  datasource->Close();
+  gluten_datasource_holder_.Erase(instanceId);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_write(
+    JNIEnv* env,
+    jobject obj,
+    jlong instanceId,
+    jobject iter) {
+  JNI_METHOD_START
+  auto backend = gluten::CreateBackend();
+
+  while (env->CallBooleanMethod(iter, velox_columnarbatch_scanner_hasNext)) {
+    jlong handler = env->CallLongMethod(iter, velox_columnarbatch_scanner_next);
+    auto batch = gluten_columnarbatch_holder_.Lookup(handler);
+    gluten_datasource_holder_.Lookup(instanceId)->Write(batch);
+    gluten_columnarbatch_holder_.Erase(handler);
+  }
+
   JNI_METHOD_END()
 }
 

@@ -35,6 +35,9 @@ class VeloxColumnarBatch final : public ColumnarBatch {
 
   int64_t GetBytes() override;
 
+  // TODO https://github.com/oap-project/gluten/issues/1419
+  std::shared_ptr<ColumnarBatch> addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) override;
+
   std::shared_ptr<ArrowSchema> exportArrowSchema() override;
   std::shared_ptr<ArrowArray> exportArrowArray() override;
 
