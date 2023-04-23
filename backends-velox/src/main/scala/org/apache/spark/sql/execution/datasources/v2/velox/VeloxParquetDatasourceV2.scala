@@ -20,22 +20,22 @@ package org.apache.spark.sql.execution.datasources.v2.velox
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.v2.FileDataSourceV2
-import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
+import org.apache.spark.sql.execution.datasources.velox.VeloxParquetFileFormat
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-class DwrfDatasourceV2 extends FileDataSourceV2 {
-  private val format = classOf[DwrfFileFormat]
+class VeloxParquetDatasourceV2 extends FileDataSourceV2 {
+  private val format = classOf[VeloxParquetFileFormat]
 
   override def getTable(options: CaseInsensitiveStringMap): Table = {
     val paths = getPaths(options)
     val tableName = getTableName(options, paths)
-    DwrfTable(tableName, sparkSession, options, paths, None, fallbackFileFormat)
+    VeloxParquetTable(tableName, sparkSession, options, paths, None, fallbackFileFormat)
   }
 
   override def fallbackFileFormat: Class[_ <: FileFormat] = {
     format
   }
 
-  override def shortName(): String = "dwrf"
+  override def shortName(): String = "velox"
 
 }

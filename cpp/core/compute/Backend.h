@@ -23,6 +23,7 @@
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
 #include "operators/r2c/RowToColumnar.h"
+#include "operators/writer/Datasource.h"
 #include "shuffle/ArrowShuffleWriter.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
@@ -102,6 +103,15 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual std::shared_ptr<arrow::Schema> GetOutputSchema() {
     return nullptr;
+  }
+
+  virtual std::shared_ptr<Datasource>
+  GetDatasource(const std::string& file_path, const std::string& file_name, std::shared_ptr<arrow::Schema> schema) {
+    return std::make_shared<Datasource>(file_path, file_name, schema);
+  }
+
+  std::unordered_map<std::string, std::string> GetConfMap() {
+    return confMap_;
   }
 
  protected:
