@@ -105,8 +105,6 @@ class VeloxBackend final : public Backend {
 
   void toVeloxPlan();
 
-  void insertValueStreamNode(const ::substrait::ReadRel& sread, int32_t iterIdx);
-
   std::string nextPlanNodeId();
 
   void cacheOutputSchema(const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode);

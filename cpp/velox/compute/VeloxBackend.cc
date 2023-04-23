@@ -138,19 +138,25 @@ void VeloxBackend::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
   }
 }
 
-void VeloxBackend::insertValueStreamNode(const ::substrait::ReadRel& sread, int32_t iterIdx) {
+void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
+  int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
+  if (iterIdx == -1) {
+    return;
+  }
+  if (inputIters_.size() == 0) {
+    throw std::runtime_error("Invalid input iterator.");
+  }
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
   std::vector<std::shared_ptr<velox::substrait::SubstraitParser::SubstraitType>> subTypeList;
   if (sread.has_base_schema()) {
     const auto& baseSchema = sread.base_schema();
     // Input names is not used. Instead, new input/output names will be created
-    // because the Arrow Stream node in Velox does not support name change.
+    // because the ValueStreamNode in Velox does not support name change.
     colNum = baseSchema.names().size();
     subTypeList = subParser_->parseNamedStruct(baseSchema);
   }
 
-  // Get the Arrow fields and output names for this plan node.
   std::vector<std::string> outNames;
   outNames.reserve(colNum);
   for (int idx = 0; idx < colNum; idx++) {
@@ -163,21 +169,12 @@ void VeloxBackend::insertValueStreamNode(const ::substrait::ReadRel& sread, int3
     veloxTypeList.push_back(velox::substrait::toVeloxType(subType->type));
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto vectorStream = std::make_shared<RowVectorStream>(std::move(inputIters_[iterIdx]));
+  std::cout << "output type " << outputType->toString() << std::endl;
+  auto pool = GetDefaultWrappedVeloxMemoryPool();
+  auto vectorStream = std::make_shared<RowVectorStream>(pool, std::move(inputIters_[iterIdx]), outputType);
   auto valuesNode =
       std::make_shared<velox::core::ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
   subVeloxPlanConverter_->insertInputNode(iterIdx, valuesNode, planNodeId_);
-}
-
-void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
-  int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
-  if (iterIdx == -1) {
-    return;
-  }
-  if (inputIters_.size() == 0) {
-    throw std::runtime_error("Invalid input iterator.");
-  }
-  insertValueStreamNode(sread, iterIdx);
 }
 
 void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
@@ -268,6 +265,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     inputIters_ = std::move(inputs);
   }
 
+  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator, memPoolOptions_);
+  auto ctxPool = veloxPool->addAggregateChild("result_iterator");
   toVeloxPlan();
 
   // Scan node can be required.
@@ -278,8 +277,6 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator, memPoolOptions_);
-  auto ctxPool = veloxPool->addAggregateChild("result_iterator");
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =

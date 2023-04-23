@@ -24,17 +24,26 @@
 namespace gluten {
 class RowVectorStream final : public facebook::velox::RowVectorStream {
  public:
-  explicit RowVectorStream(std::shared_ptr<ResultIterator> iterator) : iterator_(iterator) {}
+  explicit RowVectorStream(
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
+      std::shared_ptr<ResultIterator> iterator,
+      const facebook::velox::RowTypePtr& outputType)
+      : pool_(pool), iterator_(iterator), outputType_(outputType) {}
 
   bool hasNext() {
     return iterator_->HasNext();
   }
 
+  // Convert arrow batch to rowvector and use new output columns
   facebook::velox::RowVectorPtr next() {
-    return VeloxColumnarBatch::convertBatch(iterator_->Next());
+    auto vp = VeloxColumnarBatch::convertBatch(pool_, iterator_->Next());
+    return std::make_shared<facebook::velox::RowVector>(
+        vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), std::move(vp->children()));
   }
 
  private:
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
   std::shared_ptr<ResultIterator> iterator_;
+  const facebook::velox::RowTypePtr outputType_;
 };
 } // namespace gluten
