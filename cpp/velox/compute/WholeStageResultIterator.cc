@@ -202,7 +202,7 @@ std::string WholeStageResultIterator::getConfigValue(
 void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox::core::QueryCtx>& queryCtx) {
   std::unordered_map<std::string, std::string> configs = {};
   // Find batch size from Spark confs. If found.
-  configs[velox::core::QueryConfig::kPreferredOutputBatchSize] = getConfigValue(kSparkBatchSize, "4096");
+  configs[velox::core::QueryConfig::kPreferredOutputBatchRows] = getConfigValue(kSparkBatchSize, "4096");
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {

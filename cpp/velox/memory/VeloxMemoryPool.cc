@@ -31,6 +31,22 @@ namespace {
       /* isRetriable */ true,                                       \
       "Exceeded memory manager cap of {} MB",                       \
       (cap) / 1024 / 1024);
+
+std::shared_ptr<velox::memory::MemoryUsageTracker> createMemoryUsageTracker(
+    velox::memory::MemoryPool* parent,
+    velox::memory::MemoryPool::Kind kind,
+    const velox::memory::MemoryPool::Options& options) {
+  if (parent == nullptr) {
+    return options.trackUsage ? velox::memory::MemoryUsageTracker::create(options.capacity, options.checkUsageLeak)
+                              : nullptr;
+  }
+  if (parent->getMemoryUsageTracker() == nullptr) {
+    return nullptr;
+  }
+  const bool isLeaf = kind == velox::memory::MemoryPool::Kind::kLeaf;
+  VELOX_CHECK(isLeaf || options.threadSafe);
+  return parent->getMemoryUsageTracker()->addChild(isLeaf, options.threadSafe);
+}
 } // namespace
 
 //  The code is originated from /velox/common/memory/Memory.h
@@ -50,9 +66,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       DestructionCallback destructionCb,
       const Options& options = Options{})
       : velox::memory::MemoryPool{name, kind, parent, options},
-        memoryUsageTracker_(
-            parent_ == nullptr ? velox::memory::MemoryUsageTracker::create(options.capacity)
-                               : parent->getMemoryUsageTracker()->addChild(kind == MemoryPool::Kind::kLeaf)),
+        memoryUsageTracker_(createMemoryUsageTracker(parent_.get(), kind, options)),
         memoryManager_{memoryManager},
         velox_alloc_{&memoryManager_->getAllocator()},
         gluten_alloc_{gluten_alloc},
@@ -299,8 +313,12 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     return alignment_;
   }
 
-  std::shared_ptr<velox::memory::MemoryPool>
-  genChild(std::shared_ptr<velox::memory::MemoryPool> parent, const std::string& name, Kind kind) override {
+  std::shared_ptr<MemoryPool> genChild(
+      std::shared_ptr<MemoryPool> parent,
+      const std::string& name,
+      MemoryPool::Kind kind,
+      bool /*unused*/,
+      std::shared_ptr<facebook::velox::memory::MemoryReclaimer> /*unused*/) override {
     return std::make_shared<WrappedVeloxMemoryPool>(
         memoryManager_, name, kind, parent, gluten_alloc_, nullptr, Options{.alignment = alignment_});
   }
@@ -363,6 +381,18 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
         velox::memory::MemoryAllocator::kindString(velox_alloc_->kind()));
   }
 
+  uint64_t freeBytes() const override {
+    VELOX_NYI("{} unsupported", __FUNCTION__);
+  }
+
+  uint64_t shrink(uint64_t targetBytes = 0) override {
+    VELOX_NYI("{} unsupported", __FUNCTION__);
+  }
+
+  uint64_t grow(uint64_t bytes) override {
+    VELOX_NYI("{} unsupported", __FUNCTION__);
+  }
+
  private:
   VELOX_FRIEND_TEST(MemoryPoolTest, Ctor);
 
@@ -393,7 +423,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   velox::memory::MemoryUsage subtreeMemoryUsage_;
 };
 
-std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
+std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxAggregateMemoryPool(
     gluten::MemoryAllocator* allocator,
     const facebook::velox::memory::MemoryPool::Options& options) {
   return std::make_shared<WrappedVeloxMemoryPool>(
@@ -406,7 +436,7 @@ std::shared_ptr<velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
       options);
 }
 
-std::shared_ptr<velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool() {
+std::shared_ptr<velox::memory::MemoryPool> GetDefaultWrappedVeloxAggregateMemoryPool() {
   static std::shared_ptr<WrappedVeloxMemoryPool> default_pool_root = std::make_shared<WrappedVeloxMemoryPool>(
       &velox::memory::MemoryManager::getInstance(),
       "root",
@@ -414,8 +444,12 @@ std::shared_ptr<velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool() {
       nullptr,
       DefaultMemoryAllocator().get(),
       nullptr);
+  return default_pool_root;
+}
+
+std::shared_ptr<velox::memory::MemoryPool> GetDefaultLeafWrappedVeloxMemoryPool() {
   static std::shared_ptr<velox::memory::MemoryPool> default_pool =
-      default_pool_root->addChild("default_pool", velox::memory::MemoryPool::Kind::kLeaf);
+      GetDefaultWrappedVeloxAggregateMemoryPool()->addLeafChild("default_pool");
   return default_pool;
 }
 } // namespace gluten

@@ -33,8 +33,6 @@
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
 #include "velox/dwio/common/Options.h"
-#include "velox/row/UnsafeRowDynamicSerializer.h"
-#include "velox/row/UnsafeRowSerializer.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
@@ -44,8 +42,9 @@ namespace gluten {
 void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::CreateBackend());
 
-  auto veloxPool = AsWrappedVeloxMemoryPool(gluten::DefaultMemoryAllocator().get(), backend->GetMemoryPoolOptions());
-  pool_ = veloxPool->addChild("velox_parquet_write");
+  auto veloxPool =
+      AsWrappedVeloxAggregateMemoryPool(gluten::DefaultMemoryAllocator().get(), backend->GetMemoryPoolOptions());
+  pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
   // Construct the file path and writer
   std::string local_path = "";
