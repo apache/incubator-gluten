@@ -249,7 +249,32 @@ void ColumnsBuffer::add(DB::Block & block, int start, int end)
     }
     assert(!accumulated_columns.empty());
     for (size_t i = 0; i < block.columns(); ++i)
-        accumulated_columns[i]->insertRangeFrom(*block.getByPosition(i).column, start, end - start);
+    {
+        auto & l_column = *accumulated_columns[i].get();
+        const auto & r_column = *block.getByPosition(i).column.get();
+        if (l_column.getDataType() == r_column.getDataType() && l_column.getFamilyName() == r_column.getFamilyName()) {
+            accumulated_columns[i]->insertRangeFrom(*block.getByPosition(i).column, start, end - start);
+        }
+        else
+        {
+            // for union, two column with same name may be one nullable and the other not
+            if (r_column.getDataType() == TypeIndex::Nullable)
+            {
+                const DB::ColumnNullable & column_nullable = dynamic_cast<const DB::ColumnNullable &>(*block.getByPosition(i).column);
+                accumulated_columns[i]->insertRangeFrom(column_nullable.getNestedColumn(), start, end - start);
+            }
+            else if (l_column.getDataType() == TypeIndex::Nullable)
+            {
+                DB::ColumnNullable & column_nullable = dynamic_cast<DB::ColumnNullable &>(*accumulated_columns[i]);
+                column_nullable.getNestedColumn().insertRangeFrom(*block.getByPosition(i).column, start, end - start);
+                column_nullable.getNullMapColumn().insertRangeFrom(*ColumnUInt8::create(end, UInt8(0)), start, end - start);
+            }
+            else
+            {
+                throw Exception(ErrorCodes::LOGICAL_ERROR, "Unsupported add column {} with {}.", l_column.getDataType(), r_column.getDataType());
+            }
+        }
+    }
 }
 
 void ColumnsBuffer::appendSelective(size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length)
