@@ -19,7 +19,7 @@
 name: Clickhouse Backend Trigger
 
 on:
-  pull_request:
+  pull_request_target:
     paths:
       - '.github/**'
       - 'pom.xml'
