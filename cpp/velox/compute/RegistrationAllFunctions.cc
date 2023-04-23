@@ -29,7 +29,7 @@ namespace gluten {
 namespace {
 void registerCustomFunctions() {
   velox::exec::registerVectorFunction(
-      "row_constructor_for_agg",
+      "row_constructor",
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowConstructor>());
 }
@@ -40,7 +40,7 @@ void registerAllFunctions() {
   // presto sql functions to overwrite the registration for same named functions.
   velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
-  registerCustomFunctions();
+  // registerCustomFunctions();
   velox::aggregate::prestosql::registerAllAggregateFunctions();
   velox::functions::sparksql::aggregates::registerAggregateFunctions("");
   velox::window::prestosql::registerAllWindowFunctions();
