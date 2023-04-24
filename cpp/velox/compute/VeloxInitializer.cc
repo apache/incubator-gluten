@@ -36,6 +36,7 @@
 #include "velox/exec/Operator.h"
 
 DECLARE_int32(split_preload_per_driver);
+DECLARE_bool(wsVRLoad);
 
 using namespace facebook;
 
@@ -101,6 +102,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
   if (ioExecutor_) {
     FLAGS_split_preload_per_driver = 0;
+    FLAGS_wsVRLoad = 1;
   }
 
   registerConnector(hiveConnector);
