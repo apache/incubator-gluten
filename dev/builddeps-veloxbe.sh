@@ -86,7 +86,7 @@ cd $GLUTEN_DIR/ep/build-arrow/src
 cd $GLUTEN_DIR/ep/build-velox/src
 ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3
 ./build_velox.sh --enable_s3=$ENABLE_S3 --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-               --enable_ep_cache=$ENABLE_EP_CACHE
+               --enable_ep_cache=$ENABLE_EP_CACHE --build_benchmarks=$BUILD_BENCHMARKS
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
