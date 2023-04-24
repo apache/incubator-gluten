@@ -65,6 +65,12 @@ class GlutenClickHouseColumnarShuffleAQESuite
     runTPCHQuery(2) { df => }
   }
 
+  test("TPCH Q2 with coalesce batch true") {
+    withSQLConf(("spark.gluten.sql.columnar.coalesce.batches", "true")) {
+      runTPCHQuery(2) { df => }
+    }
+  }
+
   test("TPCH Q3") {
     runTPCHQuery(3) { df => }
   }
@@ -87,6 +93,12 @@ class GlutenClickHouseColumnarShuffleAQESuite
 
   test("TPCH Q8") {
     runTPCHQuery(8) { df => }
+  }
+
+  test("TPCH Q8 with coalesce batch true") {
+    withSQLConf(("spark.gluten.sql.columnar.coalesce.batches", "true")) {
+      runTPCHQuery(8) { df => }
+    }
   }
 
   test("TPCH Q9") {

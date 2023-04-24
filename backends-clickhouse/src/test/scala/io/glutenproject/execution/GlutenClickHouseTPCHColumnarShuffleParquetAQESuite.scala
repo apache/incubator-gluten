@@ -108,6 +108,19 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     }
   }
 
+  test("TPCH Q2 with coalesce batch true") {
+    withSQLConf(("spark.gluten.sql.columnar.coalesce.batches", "true")) {
+      runTPCHQuery(2) {
+        df =>
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case scanExec: BasicScanExecTransformer => scanExec
+          }
+          assert(scanExec.size == 8)
+      }
+    }
+  }
+
   test("TPCH Q3") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(3) {
