@@ -1,3 +1,8 @@
+---
+layout: page
+title: Compatibility
+nav_order: 6
+---
 This document describes some corner cases which will throw exception or has different appearance, cannot successfully fall back to vanilla.
 
 ### Runtime BloomFilter

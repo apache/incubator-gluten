@@ -1,3 +1,9 @@
+---
+layout: page
+title: CPP Code Style
+nav_order: 4
+parent: Developer Overview
+---
 # Gluten CPP Core Guidelines
 
 This is a set of CPP core guidelines for Gluten. The aim is to make the codebase

@@ -1,3 +1,9 @@
+---
+layout: page
+title: Build Parameters for Velox Backend
+nav_order: 4
+parent: Getting-Started
+---
 ### Build parameters
 
 #### Parameters for builddeps-veloxbe.sh
