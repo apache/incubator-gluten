@@ -18,11 +18,12 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.glutendata.GlutenSparkPlanExecApi
-
+import io.glutenproject.expression.{ExpressionTransformer, GlutenNamedStructTransformer}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.VeloxColumnarRules.OtherWritePostRule
+import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateNamedStruct}
 
 class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
   /**
@@ -33,4 +34,13 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] =
     List(spark => OtherWritePostRule(spark)) ::: super.genExtendedColumnarPostRules()
+
+  /**
+   * Generate an expression transformer to transform NamedStruct to Substrait.
+   */
+  override def genNamedStructTransformer(substraitExprName: String,
+                                         original: CreateNamedStruct,
+                                         attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    new GlutenNamedStructTransformer(substraitExprName, original, attributeSeq)
+  }
 }

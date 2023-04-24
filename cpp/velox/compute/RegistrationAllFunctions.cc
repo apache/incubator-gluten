@@ -40,7 +40,7 @@ void registerAllFunctions() {
   // presto sql functions to overwrite the registration for same named functions.
   velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
-  registerCustomFunctions();
+  // registerCustomFunctions();
   velox::aggregate::prestosql::registerAllAggregateFunctions();
   velox::functions::sparksql::aggregates::registerAggregateFunctions("");
   velox::window::prestosql::registerAllWindowFunctions();

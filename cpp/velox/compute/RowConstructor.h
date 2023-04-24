@@ -22,6 +22,9 @@
 
 namespace gluten {
 
+/**
+ * A customized RowConstructor function to set struct as null when one of its argument is null.
+ */
 class RowConstructor final : public facebook::velox::exec::VectorFunction {
   void apply(
       const facebook::velox::SelectivityVector& rows,
@@ -41,6 +44,7 @@ class RowConstructor final : public facebook::velox::exec::VectorFunction {
         for (size_t c = 0; c < argsCopy.size(); c++) {
           auto arg = argsCopy[c].get();
           if (arg->mayHaveNulls() && arg->isNullAt(i)) {
+            // If any argument of the struct is null, set the struct as null.
             facebook::velox::bits::setNull(nullsPtr, i, true);
             cntNull++;
             break;
