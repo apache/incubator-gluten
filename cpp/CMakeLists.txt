@@ -105,7 +105,7 @@ find_package(Threads REQUIRED)
 find_package(JNI REQUIRED)
 
 if(BUILD_TESTS)
-  set(GLUTEN_GTEST_MIN_VERSION "1.12.1")
+  set(GLUTEN_GTEST_MIN_VERSION "1.13.0")
   find_package(gtest ${GLUTEN_GTEST_MIN_VERSION} CONFIG)
   if(NOT gtest_FOUND)
     include(BuildGTest)
