@@ -65,7 +65,7 @@ jobs:
           ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
-          ./build_velox.sh'
+          ./build_velox.sh --build_benchmarks=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '

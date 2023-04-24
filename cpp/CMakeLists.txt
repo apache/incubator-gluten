@@ -50,6 +50,7 @@ option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(ENABLE_IAA "Enable IAA for de/compression" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
+option(ENABLE_DUCKDB "Enable DUCKDB" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 
