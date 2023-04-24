@@ -311,7 +311,7 @@ export HADOOP_CONF_DIR=/path_to_spark/conf
 hdfs_conf_file=/your_local_path/hdfs-site.xml
 
 cd spark-3.2.2-bin-hadoop2.7
-# add a new option: spark.gluten.sql.columnar.backend.ch.runtime_conf.hdfs.libhdfs3_conf
+# add a new option: spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.libhdfs3_conf
 ./sbin/start-thriftserver.sh \
   --master local[3] \
   --files $hdfs_conf_file \
@@ -344,7 +344,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.databricks.delta.snapshotPartitions=1 \
   --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
   --conf spark.databricks.delta.stalenessLimit=3600000 \
-  --conf spark.gluten.sql.columnar.backend.ch.runtime_conf.hdfs.libhdfs3_conf=./hdfs-site.xml
+  --conf spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.libhdfs3_conf=./hdfs-site.xml
 ```
 
 For example, you have a table `demo_database`.`demo_table` on the hive, you can run queries as below.

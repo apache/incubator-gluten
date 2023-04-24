@@ -345,6 +345,7 @@ object GlutenConfig {
 
   // Private Spark configs.
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
+  val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, defalut value is false
@@ -424,7 +425,8 @@ object GlutenConfig {
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // Velox datasource config end
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GLUTEN_OFFHEAP_ENABLED
     )
     keys.forEach(
       k => {

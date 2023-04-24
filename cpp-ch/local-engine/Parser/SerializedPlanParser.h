@@ -127,7 +127,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"lpad", "leftPadUTF8"},
     {"rpad", "rightPadUTF8"},
     {"reverse", "reverseUTF8"},
-    // {"hash","murmurHash3_32"},
     {"md5", "MD5"},
     {"translate", "translateUTF8"},
     {"repeat", "repeat"},
@@ -136,7 +135,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"space", "space"},
 
     /// hash functions
-    {"hash", "murmurHashSpark3_32"},
+    {"murmur3hash", "murmurHashSpark3_32"},
     {"xxhash64", "xxHashSpark64"},
 
     // in functions
