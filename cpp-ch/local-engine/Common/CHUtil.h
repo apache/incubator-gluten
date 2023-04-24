@@ -123,6 +123,13 @@ private:
     inline static const String GLUTEN_TIMEZONE_KEY = "spark.gluten.timezone";
     inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
     inline static const String SETTINGs_PATH = "local_engine.settings";
+    inline static const std::string SPARK_S3_ACCESS_KEY = "spark.hadoop.fs.s3a.access.key";
+    inline static const std::string SPARK_S3_SECRET_KEY = "spark.hadoop.fs.s3a.secret.key";
+    inline static const std::string SPARK_S3_ENDPOINT = "spark.hadoop.fs.s3a.endpoint";
+    inline static const std::map<std::string, std::string> S3_CONFIGS
+        = {{SPARK_S3_ACCESS_KEY, "s3.access_key_id"},
+           {SPARK_S3_SECRET_KEY, "s3.secret_access_key"},
+           {SPARK_S3_ENDPOINT, "s3.endpoint"}};
 
     inline static std::once_flag init_flag;
     inline static std::map<std::string, std::string> backend_conf_map;
