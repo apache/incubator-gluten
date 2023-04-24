@@ -19,8 +19,9 @@ fi
 $VCPKG install --no-print-usage \
     --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}"
 
+VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
 EXPORT_TOOLS_PATH=
-EXPORT_TOOLS_PATH="${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}/tools/protobuf:${EXPORT_TOOLS_PATH}"
+EXPORT_TOOLS_PATH="${VCPKG_TRIPLET_INSTALL_DIR}/tools/protobuf:${EXPORT_TOOLS_PATH}"
 
 # This scripts depends on environment $CMAKE_TOOLCHAIN_FILE, which requires
 # cmake >= 3.21. If system cmake < 3.25, vcpkg will download latest cmake. We
@@ -39,6 +40,7 @@ if [ "\${GLUTEN_VCPKG_ENABLED:-}" != "${VCPKG_ROOT}" ]; then
     export VCPKG_TRIPLET=${VCPKG_TRIPLET}
 
     export CMAKE_TOOLCHAIN_FILE=${SCRIPT_ROOT}/toolchain.cmake
+    export PKG_CONFIG_PATH=${VCPKG_TRIPLET_INSTALL_DIR}/lib/pkgconfig:${VCPKG_TRIPLET_INSTALL_DIR}/share/pkgconfig:\${PKG_CONFIG_PATH:-}
     export PATH="${EXPORT_TOOLS_PATH}:\$PATH"
 
     export GLUTEN_VCPKG_ENABLED=${VCPKG_ROOT}
