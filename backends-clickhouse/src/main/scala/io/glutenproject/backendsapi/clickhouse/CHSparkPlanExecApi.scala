@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.ColumnarAQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
@@ -259,6 +260,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             // TODO: remove this after pushdowning preprojection
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
+              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+          case columnarAQEShuffleReadExec: ColumnarAQEShuffleReadExec =>
+            // when aqe is open
+            // TODO: remove this after pushdowning preprojection
+            WholeStageTransformerExec(
+              ProjectExecTransformer(
+                child.output ++ appendedProjections.toSeq,
+                columnarAQEShuffleReadExec))(
               ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
           case r2c: RowToCHNativeColumnarExec =>
             WholeStageTransformerExec(
