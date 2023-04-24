@@ -1,0 +1,11 @@
+{
+  "name": "memkind",
+  "version": "1.14.0",
+  "homepage": "https://pmem.io/memkind/",
+  "description": "Memkind is an easy-to-use, general-purpose allocator which helps to fully utilize various kinds of memory available in the system, including DRAM, NVDIMM, and HBM",
+  "dependencies": [
+    "libdaxctl",
+    "libkmod",
+    "numactl"
+  ]
+}
