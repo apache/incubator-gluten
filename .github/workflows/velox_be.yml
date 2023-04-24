@@ -70,7 +70,7 @@ jobs:
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DENABLE_DUCKDB=ON .. && make -j'
+          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
       - name: Build for Spark 3.2.0
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
