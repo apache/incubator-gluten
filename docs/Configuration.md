@@ -9,7 +9,6 @@ nav_order: 4
 There are many configuration could impact the Gluten Plugin performance and can be fine tuned in Spark.
 You can add these configuration into spark-defaults.conf to enable or disable the setting.
 
-<<<<<<< HEAD
 | Parameters                                | Description                                                                                                                                                                                                                                                                                                      | Recommend Setting                                    |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
 | spark.driver.extraClassPath               | To add Gluten Plugin jar file in Spark Driver                                                                                                                                                                                                                                                                    | /path/to/jar_file                                    |
