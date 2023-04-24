@@ -20,23 +20,15 @@ package io.glutenproject.substrait.expression;
 import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.Expression;
 
-import java.io.Serializable;
-
-public class NullLiteralNode implements ExpressionNode, Serializable {
-  private final TypeNode typeNode;
-
+public class NullLiteralNode extends LiteralNode {
   public NullLiteralNode(TypeNode typeNode) {
-    this.typeNode = typeNode;
+    super(typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder literalBuilder =
-        Expression.Literal.newBuilder();
-    literalBuilder.setNull(typeNode.toProtobuf());
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(literalBuilder.build());
-    return builder.build();
+  protected Expression.Literal getLiteral() {
+    Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
+    literalBuilder.setNull(getTypeNode().toProtobuf());
+    return literalBuilder.build();
   }
 }

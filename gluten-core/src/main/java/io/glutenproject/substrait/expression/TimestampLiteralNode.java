@@ -17,25 +17,22 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.TimestampTypeNode;
+import io.glutenproject.substrait.type.TypeNode;
 
-import java.io.Serializable;
+import io.substrait.proto.Expression.Literal.Builder;
 
-public class TimestampLiteralNode implements ExpressionNode, Serializable {
-  private final Long value;
-
+public class TimestampLiteralNode extends LiteralNodeWithValue<Long> {
   public TimestampLiteralNode(Long value) {
-    this.value = value;
+    super(value, new TimestampTypeNode(true));
+  }
+
+  public TimestampLiteralNode(Long value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder timestampBuilder =
-        Expression.Literal.newBuilder();
-    timestampBuilder.setTimestamp(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(timestampBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Long value) {
+    literalBuilder.setTimestamp(value);
   }
 }

@@ -7,7 +7,7 @@ public class ListNode implements TypeNode, Serializable {
   private final Boolean nullable;
   private final TypeNode nestedType;
 
-  ListNode(Boolean nullable, TypeNode nestedType) {
+  public ListNode(Boolean nullable, TypeNode nestedType) {
     this.nullable = nullable;
     this.nestedType = nestedType;
   }

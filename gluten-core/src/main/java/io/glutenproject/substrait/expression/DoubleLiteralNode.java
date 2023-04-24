@@ -17,25 +17,21 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.FP64TypeNode;
+import io.glutenproject.substrait.type.TypeNode;
+import io.substrait.proto.Expression.Literal.Builder;
 
-import java.io.Serializable;
-
-public class DoubleLiteralNode implements ExpressionNode, Serializable {
-  private final Double value;
-
+public class DoubleLiteralNode extends LiteralNodeWithValue<Double> {
   public DoubleLiteralNode(Double value) {
-    this.value = value;
+    super(value, new FP64TypeNode(true));
+  }
+
+  public DoubleLiteralNode(Double value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder doubleBuilder =
-        Expression.Literal.newBuilder();
-    doubleBuilder.setFp64(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(doubleBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Double value) {
+    literalBuilder.setFp64(value);
   }
 }

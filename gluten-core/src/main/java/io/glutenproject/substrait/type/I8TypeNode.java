@@ -24,7 +24,7 @@ import java.io.Serializable;
 public class I8TypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  I8TypeNode(Boolean nullable) {
+  public I8TypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 

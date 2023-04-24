@@ -24,7 +24,7 @@ import java.io.Serializable;
 public class I64TypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  I64TypeNode(Boolean nullable) {
+  public I64TypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 

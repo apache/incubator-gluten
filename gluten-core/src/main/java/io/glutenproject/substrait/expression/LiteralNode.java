@@ -19,29 +19,27 @@ package io.glutenproject.substrait.expression;
 
 import io.substrait.proto.Expression;
 
+import io.glutenproject.substrait.type.TypeNode;
+
 import java.io.Serializable;
-import java.util.ArrayList;
 
-public class IntListNode implements ExpressionNode, Serializable {
-  private final ArrayList<Integer> values = new ArrayList<>();
+public abstract class LiteralNode implements ExpressionNode, Serializable {
+  private final TypeNode typeNode;
 
-  public IntListNode(ArrayList<Integer> values) {
-    this.values.addAll(values);
+  LiteralNode(TypeNode typeNode) {
+    this.typeNode = typeNode;
   }
+
+  public TypeNode getTypeNode() {
+    return typeNode;
+  }
+
+  protected abstract Expression.Literal getLiteral();
 
   @Override
   public Expression toProtobuf() {
-    Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
-    Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
-    for (Integer value : values) {
-      literalBuilder.setI32(value);
-      listBuilder.addValues(literalBuilder.build());
-    }
-    literalBuilder.setList(listBuilder.build());
-
     Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(literalBuilder.build());
-
+    builder.setLiteral(getLiteral());
     return builder.build();
   }
 }

@@ -129,7 +129,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenComplexTypeSuite]
     .exclude(
       "CreateMap",
-      "MapFromArrays"
+      "MapFromArrays",
+      "SPARK-33460: GetMapValue NoSuchElementException"
     )
     .excludeByPrefix(
       "SPARK-33386" // different result: actual: empty excepted: null

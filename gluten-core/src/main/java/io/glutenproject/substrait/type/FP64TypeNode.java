@@ -24,7 +24,7 @@ import java.io.Serializable;
 public class FP64TypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  FP64TypeNode(Boolean nullable) {
+  public FP64TypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 

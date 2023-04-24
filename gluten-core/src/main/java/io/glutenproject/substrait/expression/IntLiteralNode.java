@@ -17,29 +17,21 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.I32TypeNode;
+import io.glutenproject.substrait.type.TypeNode;
+import io.substrait.proto.Expression.Literal.Builder;
 
-import java.io.Serializable;
-
-public class IntLiteralNode implements ExpressionNode, Serializable {
-  private final Integer value;
-
+public class IntLiteralNode extends LiteralNodeWithValue<Integer> {
   public IntLiteralNode(Integer value) {
-    this.value = value;
+    super(value, new I32TypeNode(true));
   }
 
-  public Integer getValue() {
-    return value;
+  public IntLiteralNode(Integer value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder intBuilder =
-        Expression.Literal.newBuilder();
-    intBuilder.setI32(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(intBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Integer value) {
+    literalBuilder.setI32(value);
   }
 }

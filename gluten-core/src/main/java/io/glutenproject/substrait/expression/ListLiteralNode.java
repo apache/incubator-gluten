@@ -17,31 +17,30 @@
 
 package io.glutenproject.substrait.expression;
 
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
+
 import io.substrait.proto.Expression;
+import io.substrait.proto.Expression.Literal.Builder;
+import io.glutenproject.substrait.type.TypeNode;
+import io.glutenproject.substrait.type.ListNode;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-
-public class StringListNode implements ExpressionNode, Serializable {
-  private final ArrayList<String> values = new ArrayList<>();
-
-  public StringListNode(ArrayList<String> values) {
-    this.values.addAll(values);
+public class ListLiteralNode extends LiteralNodeWithValue<GenericArrayData> {
+  public ListLiteralNode(GenericArrayData array, TypeNode typeNode) {
+    super(array, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
+  protected void updateLiteralBuilder(Builder literalBuilder, GenericArrayData array) {
+    Object[] elements = array.array();
+    TypeNode elementType = ((ListNode) getTypeNode()).getNestedType();
+
     Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
-    Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
-    for (String value : values) {
-      literalBuilder.setString(value);
-      listBuilder.addValues(literalBuilder.build());
+    for (Object element : elements) {
+      LiteralNode elementNode = ExpressionBuilder.makeLiteral(element, elementType);
+      Expression.Literal elementExpr = elementNode.getLiteral();
+      listBuilder.addValues(elementExpr);
     }
+
     literalBuilder.setList(listBuilder.build());
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(literalBuilder.build());
-
-    return builder.build();
   }
 }

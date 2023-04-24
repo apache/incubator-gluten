@@ -26,7 +26,7 @@ public class DecimalTypeNode implements TypeNode, Serializable {
   private final int precision;
   private final int scale;
 
-  DecimalTypeNode(Boolean nullable, int precision, int scale) {
+  public DecimalTypeNode(Boolean nullable, int precision, int scale) {
     this.nullable = nullable;
     this.precision = precision;
     this.scale = scale;

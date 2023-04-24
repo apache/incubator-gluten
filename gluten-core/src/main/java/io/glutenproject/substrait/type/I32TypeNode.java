@@ -24,7 +24,7 @@ import java.io.Serializable;
 public class I32TypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  I32TypeNode(Boolean nullable) {
+  public I32TypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 

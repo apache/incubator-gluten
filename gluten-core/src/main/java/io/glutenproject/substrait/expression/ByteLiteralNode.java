@@ -17,25 +17,22 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.I8TypeNode;
+import io.glutenproject.substrait.type.TypeNode;
 
-import java.io.Serializable;
+import io.substrait.proto.Expression.Literal.Builder;
 
-public class ByteLiteralNode implements ExpressionNode, Serializable {
-  private final Byte value;
-
+public class ByteLiteralNode extends LiteralNodeWithValue<Byte> {
   public ByteLiteralNode(Byte value) {
-    this.value = value;
+    super(value, new I8TypeNode(true));
+  }
+
+  public ByteLiteralNode(Byte value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder intBuilder =
-        Expression.Literal.newBuilder();
-    intBuilder.setI8(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(intBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Byte value) {
+    literalBuilder.setI8(value);
   }
 }

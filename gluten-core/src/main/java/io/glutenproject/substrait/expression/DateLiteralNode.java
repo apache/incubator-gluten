@@ -17,25 +17,21 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.DateTypeNode;
+import io.glutenproject.substrait.type.TypeNode;
+import io.substrait.proto.Expression.Literal.Builder;
 
-import java.io.Serializable;
-
-public class DateLiteralNode implements ExpressionNode, Serializable {
-  private final Integer value;
-
+public class DateLiteralNode extends LiteralNodeWithValue<Integer> {
   public DateLiteralNode(Integer value) {
-    this.value = value;
+    super(value, new DateTypeNode(true));
+  }
+
+  public DateLiteralNode(Integer value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder dateBuilder =
-        Expression.Literal.newBuilder();
-    dateBuilder.setDate(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(dateBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Integer value) {
+    literalBuilder.setDate(value);
   }
 }
