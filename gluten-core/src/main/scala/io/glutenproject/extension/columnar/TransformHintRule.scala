@@ -224,7 +224,7 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
           // Some backends are not eligible to offload plan with zero-column input.
           // If any child have empty output, mark the plan and that child as UNSUPPORTED.
           logWarning(s"May fallback ${p.getClass.toString} and its children because" +
-            s"at least one of its children has empty output.")
+            s" at least one of its children has empty output.")
           TransformHints.tagNotTransformable(p)
           p.children.foreach(child =>
             if (child.output.isEmpty) TransformHints.tagNotTransformable(child))
