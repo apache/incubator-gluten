@@ -36,7 +36,7 @@ class RowVectorStream final : public facebook::velox::RowVectorStream {
 
   // Convert arrow batch to rowvector and use new output columns
   facebook::velox::RowVectorPtr next() {
-    auto vp = VeloxColumnarBatch::convertBatch(pool_, iterator_->Next());
+    auto vp = convertBatch(pool_, iterator_->Next());
     return std::make_shared<facebook::velox::RowVector>(
         vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), std::move(vp->children()));
   }

@@ -103,7 +103,7 @@ velox::RowVectorPtr VeloxColumnarBatch::getFlattenedRowVector() {
   return flattened_;
 }
 
-velox::RowVectorPtr VeloxColumnarBatch::convertBatch(
+velox::RowVectorPtr convertBatch(
     std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
     std::shared_ptr<ColumnarBatch> cb) {
   if (cb->GetType() != "velox") {
