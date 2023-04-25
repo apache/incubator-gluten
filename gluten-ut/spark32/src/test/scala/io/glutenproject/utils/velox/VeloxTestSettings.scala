@@ -119,7 +119,8 @@ class VeloxTestSettings extends BackendTestSettings {
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
       // decimal failed ut.
-      "SPARK-22271: mean overflows and returns null for some decimal variables"
+      "SPARK-22271: mean overflows and returns null for some decimal variables",
+      "Gluten - describe"
   )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
