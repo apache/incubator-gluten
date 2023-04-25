@@ -120,7 +120,7 @@
         <delta.version>${delta20.version}</delta.version>
         <delta.binary.version>20</delta.binary.version>
         <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>${spark32.shim.version}</shims-spark-artifactId>
+        <sparkshim.artifactId>${spark32.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>
@@ -132,7 +132,7 @@
         <delta.version>${delta22.version}</delta.version>
         <delta.binary.version>22</delta.binary.version>
         <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>${spark33.shim.version}</shims-spark-artifactId>
+        <sparkshim.artifactId>${spark33.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>
