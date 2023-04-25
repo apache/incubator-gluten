@@ -13,6 +13,7 @@
 #include <aws/core/client/DefaultRetryStrategy.h>
 #include <aws/s3/S3Client.h>
 #include <Storages/StorageS3Settings.h>
+#include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -92,9 +93,9 @@ public:
         return readbuffer;
     }
 private:
-    std::shared_ptr<Aws::S3::S3Client> shared_client;
+    std::shared_ptr<DB::S3::Client> shared_client;
 
-    std::shared_ptr<Aws::S3::S3Client> getClient()
+    std::shared_ptr<DB::S3::Client> getClient()
     {
         if (shared_client)
             return shared_client;
@@ -126,8 +127,10 @@ private:
             config.getString(config_prefix + ".secret_access_key", ""),
             config.getString(config_prefix + ".server_side_encryption_customer_key_base64", ""),
             {},
-            config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
-            config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false)));
+            {
+                .use_environment_credentials=config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
+                .use_insecure_imds_request=config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))
+            });
         return shared_client;
     }
 };
