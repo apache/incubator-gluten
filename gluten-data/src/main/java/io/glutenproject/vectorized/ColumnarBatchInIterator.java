@@ -17,22 +17,21 @@
 
 package io.glutenproject.vectorized;
 
-/**
- * Wrapper for ArrowFieldNodeBuilder.
- */
-public class ArrowFieldNodeBuilder {
+import io.glutenproject.columnarbatch.ArrowColumnarBatches;
+import io.glutenproject.columnarbatch.GlutenColumnarBatches;
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
+import java.util.Iterator;
+import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-  public int length;
-  public int nullCount;
+public class ColumnarBatchInIterator extends GeneralInIterator {
+  public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {
+    super(delegated);
+  }
 
-  /**
-   * Create an instance of ArrowFieldNodeBuilder.
-   *
-   * @param length    numRows in this Field
-   * @param nullCount numCount in this Fields
-   */
-  public ArrowFieldNodeBuilder(int length, int nullCount) {
-    this.length = length;
-    this.nullCount = nullCount;
+  public long next() {
+    final ColumnarBatch batch = nextColumnarBatch();
+    final ColumnarBatch offloaded =
+        ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+    return GlutenColumnarBatches.getNativeHandle(offloaded);
   }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "memory/ColumnarBatchIterator.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "substrait/plan.pb.h"
 #include "utils/metrics.h"
@@ -11,7 +12,7 @@ namespace gluten {
 
 static const std::string kHiveConnectorId = "test-hive";
 
-class WholeStageResultIterator {
+class WholeStageResultIterator : public ColumnarBatchIterator {
  public:
   WholeStageResultIterator(
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
@@ -29,7 +30,7 @@ class WholeStageResultIterator {
     }
   };
 
-  arrow::Result<std::shared_ptr<VeloxColumnarBatch>> Next();
+  std::shared_ptr<ColumnarBatch> next() override;
 
   std::shared_ptr<Metrics> GetMetrics(int64_t exportNanos) {
     collectMetrics();

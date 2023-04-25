@@ -75,7 +75,9 @@ auto BM_Generic = [](::benchmark::State& state,
           inputIters.begin(),
           inputIters.end(),
           std::back_inserter(inputItersRaw),
-          [](std::shared_ptr<gluten::ResultIterator> iter) { return static_cast<BatchIterator*>(iter->GetRaw()); });
+          [](std::shared_ptr<gluten::ResultIterator> iter) {
+            return static_cast<BatchIterator*>(iter->GetInputIter());
+          });
     }
 
     backend->ParsePlan(plan->data(), plan->size());
@@ -116,7 +118,7 @@ auto BM_Generic = [](::benchmark::State& state,
           return sum + iter->GetCollectBatchTime();
         });
 
-    auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->GetRaw());
+    auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->GetInputIter());
     const auto& task = rawIter->task_;
     const auto& planNode = rawIter->veloxPlan_;
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
@@ -180,11 +182,8 @@ class OrcFileGuard {
 
     while (true) {
       // 1. read from Parquet
-      auto columnarBatch = parquetIterator.Next();
-      GLUTEN_THROW_NOT_OK(columnarBatch);
-
-      auto& cb = *columnarBatch;
-      if (!cb) {
+      auto cb = parquetIterator.next();
+      if (cb == nullptr) {
         break;
       }
 

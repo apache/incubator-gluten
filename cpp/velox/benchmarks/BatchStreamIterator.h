@@ -13,7 +13,7 @@ class ParquetBatchStreamIterator final : public ParquetBatchIterator {
 #endif
   }
 
-  arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() override {
+  std::shared_ptr<gluten::ColumnarBatch> next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
 #ifdef GLUTEN_PRINT_DEBUG
@@ -38,7 +38,7 @@ class OrcBatchStreamIterator final : public OrcBatchIterator {
     CreateReader();
   }
 
-  arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() override {
+  std::shared_ptr<gluten::ColumnarBatch> next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
 #ifdef GLUTEN_PRINT_DEBUG

@@ -54,7 +54,7 @@ class VeloxBackend final : public Backend {
   std::shared_ptr<ShuffleWriter>
   makeShuffleWriter(int num_partitions, const SplitOptions& options, const std::string& batchType) override;
 
-  std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
+  std::shared_ptr<Metrics> GetMetrics(ColumnarBatchIterator* raw_iter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResultIterator*>(raw_iter);
     return iter->GetMetrics(exportNanos);
   }

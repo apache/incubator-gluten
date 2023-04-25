@@ -17,15 +17,13 @@
 
 package io.glutenproject.vectorized;
 
-import org.apache.spark.sql.catalyst.expressions.Attribute;
-
 import java.io.IOException;
 import java.util.List;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 public class GlutenNativeExpressionEvaluator extends NativeExpressionEvaluator {
   @Override
-  protected GeneralOutIterator createOutIterator(
-      long nativeHandle, List<Attribute> outAttrs) throws IOException {
-    return new ArrowOutIterator(nativeHandle, outAttrs);
+  protected GeneralOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs) throws IOException {
+    return new ColumnarBatchOutIterator(nativeHandle, outAttrs);
   }
 }

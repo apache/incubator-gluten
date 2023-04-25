@@ -225,7 +225,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
     val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
       new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ArrowInIterator(iter.asJava)
+        new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val transKernel = new GlutenNativeExpressionEvaluator()
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
@@ -284,7 +284,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
     val transKernel = new GlutenNativeExpressionEvaluator()
     val columnarNativeIterator =
       new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ArrowInIterator(iter.asJava)
+        new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
       transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator,

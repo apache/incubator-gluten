@@ -61,7 +61,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
   return ctx;
 }
 
-arrow::Result<std::shared_ptr<VeloxColumnarBatch>> WholeStageResultIterator::Next() {
+std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   addSplits_(task_.get());
   if (task_->isFinished()) {
     return nullptr;
