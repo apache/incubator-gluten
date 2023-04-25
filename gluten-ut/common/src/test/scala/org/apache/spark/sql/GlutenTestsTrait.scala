@@ -128,11 +128,11 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     val expr = resolver.resolveTimeZones(expression)
     assert(expr.resolved)
 
-    val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
-
-    if(canConvertToDataFrame(inputRow)) {
-      glutenCheckExpression(expr, catalystValue, inputRow)
+    if (canConvertToDataFrame(inputRow)) {
+      glutenCheckExpression(expr, expected, inputRow)
     } else {
+      logWarning(s"The status of this unit test is not guaranteed.")
+      val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
       checkEvaluationWithoutCodegen(expr, catalystValue, inputRow)
       checkEvaluationWithMutableProjection(expr, catalystValue, inputRow)
       if (GenerateUnsafeProjection.canSupport(expr.dataType)) {
@@ -172,7 +172,18 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     } else {
       logInfo("Has unsupported data type, fall back to vanilla spark.\n")
     }
-    checkResult(result, expected, expression)
+    if (!(checkResult(result.head.get(0), expected, expression.dataType, expression.nullable)
+      || checkResult(
+      CatalystTypeConverters.convertToCatalyst(result.head.get(0)),
+      CatalystTypeConverters.convertToCatalyst(expected),
+      expression.dataType,
+      expression.nullable))) {
+      val input = if (inputRow == EmptyRow) "" else s", input: $inputRow"
+      fail(
+        s"Incorrect evaluation: $expression, " +
+          s"actual: ${result.head.get(0)}, " +
+          s"expected: $expected$input")
+    }
   }
 
   def canConvertToDataFrame(inputRow: InternalRow): Boolean = {
