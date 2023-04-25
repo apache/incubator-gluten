@@ -362,7 +362,7 @@ Using the following configuration options to customize spilling:
 
 Gluten enables spilling-to-disk by default. However, manual tweaking may still be required if user wants to get it working at the best situation.
 
-Following are some tips to tune against spilling-related configuration options:
+The following tips may help when you are trying to tune against spilling-related configuration options:
 
 * `spark.gluten.sql.columnar.backend.velox.memoryCapRatio`
 
