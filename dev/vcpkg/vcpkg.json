@@ -45,6 +45,7 @@
           "features": ["zstd", "lz4", "lzma", "snappy"]
         },
         "boost-atomic",
+        "boost-process",
         "boost-context",
         "boost-date-time",
         "boost-filesystem",
@@ -56,6 +57,7 @@
         "boost-stacktrace",
         "boost-uuid",
         "boost-circular-buffer",
+        "boost-format",
         "gtest",
         "xsimd",
         "protobuf",
