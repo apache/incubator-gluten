@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, DwrfReadFormat, ParquetReadFormat}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count}
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -72,6 +72,7 @@ object VeloxBackendSettings extends BackendSettings {
     format match {
       case ParquetReadFormat => validateTypes && validateFilePath
       case DwrfReadFormat => true
+      case OrcReadFormat => true
       case _ => false
     }
   }

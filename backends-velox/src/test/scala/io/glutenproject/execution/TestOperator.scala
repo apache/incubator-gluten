@@ -407,4 +407,15 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
     checkOperatorMatch[GlutenHashAggregateExecTransformer](result)
   }
+
+  test("orc scan") {
+    val df = spark.read.format("orc").load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
+    df.createOrReplaceTempView("lineitem_orc")
+    runQueryAndCompare(
+      "select l_orderkey from lineitem_orc") { df => {
+        assert(getExecutedPlan(df).count(plan => {
+          plan.isInstanceOf[BatchScanExecTransformer]}) == 1)
+        }
+      }
+  }
 }

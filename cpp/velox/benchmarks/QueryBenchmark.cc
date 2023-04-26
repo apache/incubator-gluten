@@ -101,6 +101,7 @@ int main(int argc, char** argv) {
   // The multi-thread performance is not correct.
   // BENCHMARK(BM)->ThreadRange(36, 36);
 
+#if 0
   const auto& lineitemParquetPath = getFilePath("bm_lineitem/parquet/");
   if (argc < 2) {
     ::benchmark::RegisterBenchmark(
@@ -109,18 +110,16 @@ int main(int argc, char** argv) {
     ::benchmark::RegisterBenchmark(
         "select", BM, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "parquet");
   }
-
+#else
   // For ORC debug.
-  /*
   const auto& lineitemOrcPath = getFilePath("bm_lineitem/orc/");
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark(
-        "select", BM, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
+    ::benchmark::RegisterBenchmark("select", BM, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
   } else {
     ::benchmark::RegisterBenchmark(
         "select", BM, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
   }
-  */
+#endif
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
