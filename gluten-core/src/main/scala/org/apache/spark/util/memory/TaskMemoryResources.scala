@@ -65,6 +65,8 @@ object TaskMemoryResources extends Logging {
           // in case of crashing in task completion listener, errors may be swallowed
           new TaskFailureListener {
             override def onTaskFailure(context: TaskContext, error: Throwable): Unit = {
+              // TODO:
+              // The general duty of printing error message should not reside in memory module
               logError(s"Task ${context.taskAttemptId()} failed by error: ", error)
             }
           })

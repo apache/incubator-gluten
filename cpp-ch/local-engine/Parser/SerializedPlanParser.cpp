@@ -2763,7 +2763,9 @@ bool LocalExecutor::hasNext()
     catch (DB::Exception & e)
     {
         LOG_ERROR(
-            &Poco::Logger::get("LocalExecutor"), "run query plan failed. {}\n{}", e.message(), PlanUtil::explainPlan(*current_query_plan));
+            &Poco::Logger::get("LocalExecutor"),
+            "LocalExecutor run query plan failed with message: {}. Plan Explained: \n{}",
+            e.message(), PlanUtil::explainPlan(*current_query_plan));
         throw;
     }
     return has_next;
