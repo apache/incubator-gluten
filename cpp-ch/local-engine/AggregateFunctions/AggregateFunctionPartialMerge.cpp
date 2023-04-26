@@ -28,14 +28,17 @@ namespace
         DataTypes transformArguments(const DataTypes & arguments) const override
         {
             if (arguments.size() != 1)
-                throw Exception("Incorrect number of arguments for aggregate function with " + getName() + " suffix", ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH);
+                throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
+                              "Incorrect number of arguments for aggregate function with {} suffix",
+                              getName());
 
             const DataTypePtr & argument = arguments[0];
 
             const DataTypeAggregateFunction * function = typeid_cast<const DataTypeAggregateFunction *>(argument.get());
             if (!function)
-                throw Exception("Illegal type " + argument->getName() + " of argument for aggregate function with " + getName() + " suffix"
-                                    + " must be AggregateFunction(...)", ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
+                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                                "Illegal type {} of argument for aggregate function with {} suffix  must be AggregateFunction(...)",
+                                argument->getName(), getName());
 
             const DataTypeAggregateFunction * function2 = typeid_cast<const DataTypeAggregateFunction *>(function->getArgumentsDataTypes()[0].get());
             if (function2) {
@@ -54,21 +57,23 @@ namespace
 
             const DataTypeAggregateFunction * function = typeid_cast<const DataTypeAggregateFunction *>(argument.get());
             if (!function)
-                throw Exception("Illegal type " + argument->getName() + " of argument for aggregate function with " + getName() + " suffix"
-                                    + " must be AggregateFunction(...)", ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
+                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                                "Illegal type {} of argument for aggregate function with {} suffix must be AggregateFunction(...)",
+                                argument->getName(), getName());
 
             while (nested_function->getName() != function->getFunctionName()) {
                 argument = function->getArgumentsDataTypes()[0];
                 function = typeid_cast<const DataTypeAggregateFunction *>(function->getArgumentsDataTypes()[0].get());
                 if (!function)
-                    throw Exception("Illegal type " + argument->getName() + " of argument for aggregate function with " + getName() + " suffix"
-                                        + " must be AggregateFunction(...)", ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
+                    throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                                  "Illegal type {} of argument for aggregate function with {} suffix must be AggregateFunction(...)",
+                                  argument->getName(), getName());
             }
 
             if (nested_function->getName() != function->getFunctionName())
-                throw Exception("Illegal type " + argument->getName() + " of argument for aggregate function with " + getName() + " suffix"
-                                    + ", because it corresponds to different aggregate function: " + function->getFunctionName() + " instead of " + nested_function->getName(),
-                                ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
+                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                                "Illegal type {} of argument for aggregate function with {} suffix, because it corresponds to different aggregate function: {} instead of {}",
+                                argument->getName(), getName(), function->getFunctionName(), nested_function->getName());
 
             return std::make_shared<AggregateFunctionPartialMerge>(nested_function, argument, params);
         }

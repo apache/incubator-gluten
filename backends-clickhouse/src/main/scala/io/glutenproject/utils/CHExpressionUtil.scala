@@ -32,7 +32,6 @@ object CHExpressionUtil {
   final val STRING_TYPE = "string"
 
   final val CH_EXPR_BLACKLIST_TYPE_EXISTS: Map[String, Set[String]] = Map(
-    REGEXP_EXTRACT_ALL -> Set(EMPTY_TYPE),
     REGEXP_EXTRACT -> Set(EMPTY_TYPE),
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     SHA1 -> Set(EMPTY_TYPE),

@@ -14,8 +14,8 @@ include_directories(${GTEST_INCLUDE_DIRS})
 set(TEST_DATA_DIR "${ClickHouse_SOURCE_DIR}/utils/local-engine/tests")
 
 configure_file(
-        ${ClickHouse_SOURCE_DIR}/utils/local-engine/tests/testConfig.h.in
-        ${ClickHouse_SOURCE_DIR}/utils/local-engine/tests/testConfig.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h
 )
 set(HAVE_POSIX_REGEX 1)
 include(FetchContent)
@@ -38,7 +38,7 @@ target_compile_options(benchmark PUBLIC
         -Wno-thread-safety-analysis
         )
 
-grep_gtest_sources("${ClickHouse_SOURCE_DIR}/utils/local_engine/tests" local_engine_gtest_sources)
+grep_gtest_sources("${CMAKE_CURRENT_SOURCE_DIR}" local_engine_gtest_sources)
 
 add_executable(unit_tests_local_engine ${local_engine_gtest_sources} )
 

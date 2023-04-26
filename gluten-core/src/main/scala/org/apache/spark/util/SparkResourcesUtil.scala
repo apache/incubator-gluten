@@ -16,7 +16,9 @@
  */
 package org.apache.spark.util
 
+import org.apache.spark.{SparkConf, SparkMasterRegex}
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.{DRIVER_CORES, SUBMIT_DEPLOY_MODE}
 import org.apache.spark.sql.internal.SQLConf
 
 object SparkResourcesUtil extends Logging {
@@ -50,5 +52,23 @@ object SparkResourcesUtil extends Logging {
     } else {
       sqlConf.getConfString("spark.executor.instances", "1").toInt
     }
+  }
+
+  def getExecutorCores(conf: SparkConf): Int = {
+    val master = conf.get("spark.master")
+
+    // part of the code originated from org.apache.spark.SparkContext#numDriverCores
+    def convertToInt(threads: String): Int = {
+      if (threads == "*") Runtime.getRuntime.availableProcessors() else threads.toInt
+    }
+
+    val cores = master match {
+      case "local" => 1
+      case SparkMasterRegex.LOCAL_N_REGEX(threads) => convertToInt(threads)
+      case SparkMasterRegex.LOCAL_N_FAILURES_REGEX(threads, _) => convertToInt(threads)
+      case _ => conf.getInt("spark.executor.cores", 1)
+    }
+
+    cores
   }
 }

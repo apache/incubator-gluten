@@ -139,12 +139,12 @@ void OrcUtil::getFileReaderAndSchema(
 
     auto result = arrow::adapters::orc::ORCFileReader::Open(arrow_file, arrow::default_memory_pool());
     if (!result.ok())
-        throw DB::Exception(result.status().ToString(), DB::ErrorCodes::BAD_ARGUMENTS);
+        throw DB::Exception::createRuntime(DB::ErrorCodes::BAD_ARGUMENTS, result.status().ToString());
     file_reader = std::move(result).ValueOrDie();
 
     auto read_schema_result = file_reader->ReadSchema();
     if (!read_schema_result.ok())
-        throw DB::Exception(read_schema_result.status().ToString(), DB::ErrorCodes::BAD_ARGUMENTS);
+        throw DB::Exception::createRuntime(DB::ErrorCodes::BAD_ARGUMENTS, read_schema_result.status().ToString());
     schema = std::move(read_schema_result).ValueOrDie();
 
     if (format_settings.use_lowercase_column_name)
