@@ -416,6 +416,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  ignore("test 'function regexp_extract_all'") {
+    runQueryAndCompare(
+      "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'function to_unix_timestamp/unix_timestamp'") {
     runQueryAndCompare(
       "select to_unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
