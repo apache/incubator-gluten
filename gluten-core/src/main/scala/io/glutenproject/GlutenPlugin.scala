@@ -88,6 +88,12 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
       conf.set("spark.sql.orc.enableVectorizedReader", "false")
       conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
     }
+    // We will apply another rule named GlutenRemoveRedundantSorts to remove redundant sort after
+    // columnar rule's TransformPreOverrides. Since sort can be removed from the use of hash
+    // agg to replace sort agg, but the sort order is not satisfied by latter executed operator.
+    if (conf.getBoolean("spark.gluten.sql.columnar.force.hashagg", true)) {
+      conf.set("spark.sql.execution.removeRedundantSorts", "false")
+    }
   }
 }
 

@@ -25,6 +25,7 @@ import io.glutenproject.extension.columnar._
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.GlutenRemoveRedundantSorts
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, Expression, Murmur3Hash, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
@@ -650,7 +651,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       (_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(
         this.isTopParentExchange || this.isAdaptiveContext),
-      (_: SparkSession) => RemoveTransformHintRule()) :::
+      (_: SparkSession) => RemoveTransformHintRule(),
+      (_: SparkSession) => GlutenRemoveRedundantSorts) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
       SparkUtil.extendedColumnarRules(
         session,
