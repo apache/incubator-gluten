@@ -107,6 +107,9 @@ ENV VCPKG_BINARY_SOURCES=files,/var/cache/vcpkg,read
 RUN VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES}write /tmp/vcpkg/init.sh \
   && rm -rf /tmp/vcpkg
 
+# Configure java
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
+
 # Prepare entry command
 
 COPY buildenv-cmd/cmd.sh /root/.cmd.sh
