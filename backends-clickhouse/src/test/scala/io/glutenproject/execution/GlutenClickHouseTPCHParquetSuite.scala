@@ -364,8 +364,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     )(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  // TODO: fix memory leak
-  ignore("coalesce") {
+  test("coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
@@ -407,7 +406,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   // TODO: fix memory leak
-  ignore("test 'function regexp_replace'") {
+  test("test 'function regexp_replace'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
@@ -416,7 +415,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  ignore("test 'function regexp_extract_all'") {
+  test("test 'function regexp_extract_all'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
