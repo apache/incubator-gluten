@@ -5,6 +5,7 @@
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <Processors/Port.h>
+#include <Parser/ExpandField.h>
 namespace local_engine
 {
 // For handling substrait expand node.
@@ -21,16 +22,14 @@ public:
     ExpandTransform(
         const DB::Block & input_,
         const DB::Block & output_,
-        const std::vector<size_t> & aggregating_expressions_columns_,
-        const std::vector<std::set<size_t>> & grouping_sets_);
+        const ExpandField & project_set_exprs_);
 
     Status prepare() override;
     void work() override;
 
     DB::String getName() const override { return "ExpandTransform"; }
 private:
-    std::vector<size_t> aggregating_expressions_columns;
-    std::vector<std::set<size_t>> grouping_sets;
+    ExpandField project_set_exprs;
     bool has_input = false;
     bool has_output = false;
 

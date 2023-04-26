@@ -29,6 +29,8 @@ target_compile_options(substait_source PUBLIC -fPIC
     -Wno-suggest-override
     -Wno-unused-member-function
     -Wno-deprecated-this-capture
+    -Wno-suggest-destructor-override
+    -Wno-inconsistent-missing-destructor-override
 )
 
 target_link_libraries(substait_source PUBLIC

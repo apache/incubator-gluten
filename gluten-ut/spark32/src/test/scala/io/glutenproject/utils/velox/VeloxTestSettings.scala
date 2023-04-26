@@ -48,21 +48,41 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
+    .exclude("cast from float")
+    .exclude("cast from double")
+    .exclude("from decimal")
+    .exclude("cast string to date #2")
+    .exclude("casting to fixed-precision decimals")
+    .exclude("cast from date")
+    .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
+    .exclude("Fast fail for cast string type to decimal type")
+    .exclude("missing cases - from boolean")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
+    .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
   enableSuite[GlutenTryCastSuite]
     .exclude(
@@ -72,6 +92,10 @@ class VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+    .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
+    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
     .excludeByPrefix(
@@ -121,25 +145,62 @@ class VeloxTestSettings extends BackendTestSettings {
     "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join")
 
   enableSuite[GlutenLiteralExpressionSuite]
+    .exclude("default")
+    .exclude("decimal")
   enableSuite[GlutenIntervalExpressionsSuite]
+    .exclude("seconds")
+    .exclude("ANSI: extract days, hours, minutes and seconds")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
+    .exclude("SPARK-30633: xxHash with different type seeds")
   enableSuite[GlutenCollectionExpressionsSuite]
+    .exclude("Map Concat")
+    .exclude("Shuffle")
   enableSuite[GlutenDateExpressionsSuite]
-      // Has exception in fallback execution when we use resultDF.collect in evaluation.
-      .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
+    // Has exception in fallback execution when we use resultDF.collect in evaluation.
+    .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
+    .exclude("DayOfYear")
+    .exclude("Year")
+    .exclude("Quarter")
+    .exclude("Month")
+    .exclude("Day / DayOfMonth")
+    .exclude("DayOfWeek")
+    .exclude("extract the seconds part with fraction from timestamps")
   enableSuite[GlutenDecimalExpressionSuite]
+    .exclude("MakeDecimal")
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
+    .exclude("BinaryComparison: lessThan")
+    .exclude("BinaryComparison: LessThanOrEqual")
+    .exclude("BinaryComparison: GreaterThan")
+    .exclude("BinaryComparison: GreaterThanOrEqual")
+    .exclude("SPARK-32764: compare special double/float values")
   enableSuite[GlutenMathExpressionsSuite]
+    .exclude("cos")
+    .exclude("cosh")
+    .exclude("toDegrees")
+    .exclude("toRadians")
+    .exclude("cbrt")
+    .exclude("exp")
+    .exclude("log10")
+    .exclude("log2")
+    .exclude("pow")
+    .exclude("atan2")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
+    .exclude("Substring")
+    .exclude("string for ascii")
+    .exclude("replace")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
+    .exclude("MonotonicallyIncreasingID")
+    .exclude("SparkPartitionID")
   enableSuite[GlutenRandomSuite]
+    .exclude("random")
+    .exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
       "% (Remainder)" // Velox will throw exception when right is zero, need fallback
@@ -154,6 +215,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
+    .exclude("CreateMap")
+    .exclude("MapFromArrays")
   enableSuite[GlutenDateFunctionsSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]

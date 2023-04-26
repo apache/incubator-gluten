@@ -26,7 +26,7 @@
   <dependencies>
     <dependency>
       <groupId>io.glutenproject</groupId>
-      <artifactId>${shims-spark-artifactId}</artifactId>
+      <artifactId>${sparkshim.artifactId}</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
@@ -55,6 +55,12 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
       <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-client</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>

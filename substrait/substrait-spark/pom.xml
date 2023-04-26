@@ -30,6 +30,10 @@
       <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-client</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>

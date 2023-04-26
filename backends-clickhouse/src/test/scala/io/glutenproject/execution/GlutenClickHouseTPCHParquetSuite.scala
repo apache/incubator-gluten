@@ -416,6 +416,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  ignore("test 'function regexp_extract_all'") {
+    runQueryAndCompare(
+      "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'function to_unix_timestamp/unix_timestamp'") {
     runQueryAndCompare(
       "select to_unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
@@ -658,6 +664,52 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |order by l_shipdate, l_shipmode, cnt
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("expand with nullable type not match") {
+    val sql =
+      """
+        |select a, n_regionkey, n_nationkey from
+        |(select nvl(n_name, "aaaa") as a, n_regionkey, n_nationkey from nation)
+        |group by n_regionkey, n_nationkey
+        |grouping sets((a, n_regionkey, n_nationkey),(a, n_regionkey), (a))
+        |order by a, n_regionkey, n_nationkey
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+  }
+
+  test("expand col result") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey, count(1) as cnt from nation
+        |group by n_regionkey, n_nationkey with rollup
+        |order by n_regionkey, n_nationkey, cnt
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+  }
+
+  test("expand with not nullable") {
+    val sql =
+      """
+        |select a,b, sum(c) from
+        |(select nvl(n_nationkey, 0) as c, nvl(n_name, '') as b, nvl(n_nationkey, 0) as a from nation)
+        |group by a,b with rollup
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+  }
+
+  test("expand with function expr") {
+    val sql =
+      """
+        |select
+        | n_name,
+        | count(distinct n_regionkey) as col1,
+        | count(distinct concat(n_regionkey, n_nationkey)) as col2
+        |from nation
+        |group by n_name
+        |order by n_name, col1, col2
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
   }
 
   test("test 'position/locate'") {

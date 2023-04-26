@@ -22,6 +22,7 @@ The architecture of the ClickHouse backend is shown below:
 In general, we use IDEA for Gluten development and CLion for ClickHouse backend development on **Ubuntu 20**.
 
 #### Prerequisites
+
 Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
 Under the hood, it will install the following software:
 - Clang 15.0
@@ -93,8 +94,7 @@ Otherwise, do:
    ```
    If it builds successfully, there is a library file called 'libch.so' in path '${GLUTEN_SOURCE}/cpp-ch/build/utils/extern-local-engine/'.
    
-
-### Compile ClickHouse backend
+### Directly Compile ClickHouse backend
 
 In case you don't want a develop environment, you can use the following command to compile ClickHouse backend directly:
 
@@ -107,23 +107,14 @@ bash ./ep/build-clickhouse/src/build_clickhouse.sh
 This will download Clickhouse for you and build everything.
 The target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.
 
-### Deploy notes
-When you deploy Gluten with ClickHouse backend, you need to make sure that the following prerequisites are met:
-LD_PRELOAD={path of libch.so} needs to be specified at startup, so that jemalloc in libch.so is loaded first:
-```
-spark-submit --conf spark.executorEnv.LD_PRELOAD=/path/to/your/library
-```
 
-### New CI System
 
-https://cicd-aws.kyligence.com/job/Gluten/job/gluten-ci/
-public read-only account：gluten/hN2xX3uQ4m
+### Compile Gluten
 
-### Compile Gluten with ClickHouse backend
+The prerequisites are the same as the one mentioned above. Compile Gluten with ClickHouse backend through maven:
 
-The prerequisites are the same as the one above mentioned. Compile Gluten with ClickHouse backend through maven:
+- for Spark 3.2.2
 
-##### With Spark 3.2.2
 ```
     git clone https://github.com/oap-project/gluten.git
     cd gluten/
@@ -132,7 +123,8 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
     ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.2-jar-with-dependencies.jar
 ```
 
-##### With Spark 3.3.1
+- for Spark 3.3.1
+
 ```
     git clone https://github.com/oap-project/gluten.git
     cd gluten/
@@ -141,9 +133,12 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
     ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.3-jar-with-dependencies.jar
 ```
 
-### Test on local
+### Gluten in local Spark Thrift Server
 
-#### Deploy Spark 3.2.2
+#### Prepare working directory 
+
+- for Spark 3.2.2
+
 ```
 tar zxf spark-3.2.2-bin-hadoop2.7.tgz
 cd spark-3.2.2-bin-hadoop2.7
@@ -155,7 +150,8 @@ wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2
 cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
 ```
 
-#### Deploy Spark 3.3.1
+- for Spark 3.3.1
+
 ```
 tar zxf spark-3.3.1-bin-hadoop2.7.tgz
 cd spark-3.3.1-bin-hadoop2.7
@@ -167,27 +163,9 @@ wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2
 cp gluten-XXXXX-spark-3.3-jar-with-dependencies.jar jars/
 ```
 
-#### Data preparation
+#### Query local data
 
-Currently, the feature of writing ClickHouse MergeTree parts by Spark is developing, so it needs to use command 'clickhouse-local' to generate MergeTree parts data manually. We provide a python script to call the command 'clickhouse-local' to convert parquet data to MergeTree parts:
-```
-
-#install ClickHouse community version
-sudo apt-get install -y apt-transport-https ca-certificates dirmngr
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 8919F6BD2B48D754
-echo "deb https://packages.clickhouse.com/deb stable main" | sudo tee /etc/apt/sources.list.d/clickhouse.list
-sudo apt-get update
-sudo apt install -y --allow-downgrades clickhouse-server=22.5.1.2079 clickhouse-client=22.5.1.2079 clickhouse-common-static=22.5.1.2079
-
-#generate MergeTree parts
-mkdir -p /path_clickhouse_database/table_path/
-python3 /path_to_clickhouse_backend_src/utils/local-engine/tool/parquet_to_mergetree.py --path=/tmp --source=/path_to_parquet_data/tpch-data-sf100/lineitem --dst=/path_clickhouse_database/table_path/lineitem
-```
-
-##### **This python script will convert one parquet data file to one MergeTree parts.**
-
-
-#### Run Spark Thriftserver on local
+##### Start Spark Thriftserver on local
 ```
 cd spark-3.2.2-bin-hadoop2.7
 ./sbin/start-thriftserver.sh \
@@ -228,9 +206,28 @@ cd spark-3.2.2-bin-hadoop2.7
 bin/beeline -u jdbc:hive2://localhost:10000/ -n root
 ```
 
-#### Test
+##### Query local MergeTree files
 
-#### Use MergeTree Source
+- Prepare data
+
+Currently, the feature of writing ClickHouse MergeTree parts by Spark is developing, so you need to use command 'clickhouse-local' to generate MergeTree parts data manually. We provide a python script to call the command 'clickhouse-local' to convert parquet data to MergeTree parts:
+
+```
+
+#install ClickHouse community version
+sudo apt-get install -y apt-transport-https ca-certificates dirmngr
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 8919F6BD2B48D754
+echo "deb https://packages.clickhouse.com/deb stable main" | sudo tee /etc/apt/sources.list.d/clickhouse.list
+sudo apt-get update
+sudo apt install -y --allow-downgrades clickhouse-server=22.5.1.2079 clickhouse-client=22.5.1.2079 clickhouse-common-static=22.5.1.2079
+
+#generate MergeTree parts
+mkdir -p /path_clickhouse_database/table_path/
+python3 /path_to_clickhouse_backend_src/utils/local-engine/tool/parquet_to_mergetree.py --path=/tmp --source=/path_to_parquet_data/tpch-data-sf100/lineitem --dst=/path_clickhouse_database/table_path/lineitem
+```
+
+**This python script will convert one parquet data file to one MergeTree parts.**
+
 - Create a TPC-H lineitem table using ClickHouse DataSource
 
 ```
@@ -277,7 +274,8 @@ bin/beeline -u jdbc:hive2://localhost:10000/ -n root
     The DAG is shown on Spark UI as below:
 
     ![ClickHouse-CLion-Toolchains](./image/ClickHouse/Gluten-ClickHouse-Backend-Q6-DAG.png)
-##### Use local parquet files as DataSource
+
+##### Query local Parquet files
 
 You can query local parquet files directly.
 ```sql
@@ -297,16 +295,57 @@ options(
 )
 ```
 
-##### Use Hive+HDFS as DataSource
+
+##### Query Parquet files in S3
+
+If you have parquet files in S3(either AWS S3 or S3 compatible storages like MINIO), you can query them directly.
+You need to add these additional configs to spark:
+
+```bash
+  --config spark.hadoop.fs.s3a.endpoint=S3_ENDPOINT
+  --config spark.hadoop.fs.s3a.path.style.access=true
+  --config spark.hadoop.fs.s3a.access.key=YOUR_ACCESS_KEY
+  --config spark.hadoop.fs.s3a.secret.key=YOUR_SECRET_KEY
+```
+where S3_ENDPOINT must follow the format of `https://s3.region-code.amazonaws.com`, e.g. `https://s3.us-east-1.amazonaws.com` (or `http://hostname:39090 for MINIO)
+
+When you query the parquet files in S3, you need to add the prefix `s3a://` to the path, e.g. `s3a://your_bucket_name/path_to_your_parquet`.
+
+Additionally, you can add these configs to enable local caching of S3 data. Each spark executor will have its own cache. Cache stealing between executors is not supported yet.
+
+```bash
+  --config spark.gluten.sql.columnar.backend.ch.runtime_config.s3.local_cache.enabled=true
+  --config spark.gluten.sql.columnar.backend.ch.runtime_config.s3.local_cache.cache_path=/executor_local_folder_for_cache
+```
+
+##### Use beeline to execute queries
+
+After start a spark thriftserver, we can use the beeline to connect to this server.
+```bash
+# run a file
+/path_to_spark/bin/beeline -u jdbc:hive2://localhost:10000 -f <your_sql_file>
+
+# run a query
+/path_to_spark/bin/beeline -u jdbc:hive2://localhost:10000 -e '<your_sql>'
+
+# enter a interactive mode
+/path_to_spark/bin/beeline -u jdbc:hive2://localhost:10000
+```
+
+#### Query Hive tables in HDFS
+
 Suppose that you have set up hive and hdfs, you can query the data on hive directly.
 
 - Copy `hive-site.xml` into `/path_to_spark/conf/`
 - Copy `hdfs-site.xml` into `/path_to_spark/conf/`, and edit `spark-env.sh`
+
 ```bash
 # add this line into spark-env.sh
 export HADOOP_CONF_DIR=/path_to_spark/conf
 ```
+
 - Start spark thriftserver with hdfs configurations
+
 ```bash
 hdfs_conf_file=/your_local_path/hdfs-site.xml
 
@@ -330,6 +369,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.executorEnv.LD_PRELOAD=/path_to_clickhouse_library/libch.so\
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
@@ -348,26 +388,61 @@ cd spark-3.2.2-bin-hadoop2.7
 ```
 
 For example, you have a table `demo_database`.`demo_table` on the hive, you can run queries as below.
+
 ```sql
 select * from demo_database.demo_talbe;
 ```
 
 
+### Gluten in YARN cluster
 
-##### Use beeline to run queries
-After start a spark thriftserver, we can use the beeline to connect to this server.
+We can to run a Spark SQL task by gluten on a yarn cluster as following
 ```bash
-# run a file
-/path_to_spark/bin/beeline -u jdbc:hive2://localhost:10000 -f <your_sql_file>
+#!/bin/bash
 
-# run a query
-/path_to_spark/bin/beeline -u jdbc:hive2://localhost:10000 -e '<your_sql>'
+# The file contains the sql you want to run
+sql_file=$YOUR_SQL_FILE
 
-# enter a interactive mode
-/path_to_spark/bin/beeline -u jdbc:hive2://localhost:10000
+# Your need to setup the env varibale SPARK_HOME
+# export SPARK_HOME=xxx
+my_spark_sql=$SPARK_HOME/bin/spark-sql
+
+# The location of libch.so on local
+ch_lib=$LOCAL_PATH_OF_LIBCH
+
+# The location of gluten jar package on local
+gluten_jar=$LOCAL_PATH_OF_GLUTEN/<gluten-jar>
+
+
+# spark.gluten.sql.columnar.libpath is set to a relative path ./libch.so, since it is dispatched
+# to every worker node's working directory by conf --files.
+# Other configurations are almost the same as setup Spark Thriftserver.
+$my_spark_sql \
+  --master yarn \
+  --files $ch_lib \
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
+  --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
+  --conf spark.databricks.delta.snapshotPartitions=1 \
+  --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
+  --conf spark.databricks.delta.stalenessLimit=3600000 \
+  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.gluten.sql.columnar.backend.ch.worker.id=1 \
+  --conf spark.gluten.sql.columnar.loadnative=true \
+  --conf spark.gluten.sql.columnar.loadarrow=false \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
+  --conf spark.gluten.sql.columnar.libpath=./libch.so \
+  --conf spark.gluten.sql.columnar.iterator=true \
+  --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
+  --conf spark.gluten.sql.enable.native.validation=false \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.union=true \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=5G \
+  -f $sql_file
 ```
 
-
+We also can use `spark-submit` to run a task.
 
 
 ### Benchmark with TPC-H 100 Q6 on Gluten with ClickHouse backend
@@ -384,13 +459,13 @@ This benchmark is tested on AWS EC2 cluster, there are 7 EC2 instances:
 
 - Tested on Spark Standalone cluster, its resources are shown below:
 
-    |  | CPU cores | Memory | Instances Count |
-    | ---------- | ----------- | ------------- | ------------- |
-    | Spark Worker | 15 | 60G  | 6 |
+  |  | CPU cores | Memory | Instances Count |
+      | ---------- | ----------- | ------------- | ------------- |
+  | Spark Worker | 15 | 60G  | 6 |
 
 - Prepare jars
 
-    Refer to [Deploy Spark 3.2.2](#deploy-spark-322)
+  Refer to [Deploy Spark 3.2.2](#deploy-spark-322)
 
 - Deploy gluten-core-XXXXX-jar-with-dependencies.jar
 
@@ -401,7 +476,7 @@ This benchmark is tested on AWS EC2 cluster, there are 7 EC2 instances:
 
 - Deploy ClickHouse library
 
-    Deploy ClickHouse library 'libch.so' to every worker node.
+  Deploy ClickHouse library 'libch.so' to every worker node.
 
 
 ##### Deploy JuiceFS
@@ -424,7 +499,7 @@ This benchmark is tested on AWS EC2 cluster, there are 7 EC2 instances:
 ```
 - Use JuiceFS to format a S3 bucket and mount a volumn on every node
 
-    Please refer to [The-JuiceFS-Command-Reference](https://juicefs.com/docs/community/command_reference)
+  Please refer to [The-JuiceFS-Command-Reference](https://juicefs.com/docs/community/command_reference)
 
 ```
     wget https://github.com/juicedata/juicefs/releases/download/v0.17.5/juicefs-0.17.5-linux-amd64.tar.gz
@@ -526,52 +601,8 @@ The performance of Gluten + ClickHouse backend increases by **about 1/3**.
 | Spark + Parquet | 590ms | 592ms  | 597ms | 609ms | 588ms |
 | Spark + Gluten + ClickHouse backend | 402ms | 405ms  | 409ms | 425ms | 399ms |
 
-### Run on a yarn cluster
 
-We can to run a Spark SQL task by gluten on a yarn cluster as following
-```bash
-#!/bin/bash
+### New CI System
 
-# The file contains the sql you want to run
-sql_file=$YOUR_SQL_FILE
-
-# Your need to setup the env varibale SPARK_HOME
-# export SPARK_HOME=xxx
-my_spark_sql=$SPARK_HOME/bin/spark-sql
-
-# The location of libch.so on local
-ch_lib=$LOCAL_PATH_OF_LIBCH
-
-# The location of gluten jar package on local
-gluten_jar=$LOCAL_PATH_OF_GLUTEN/<gluten-jar>
-
-
-# spark.gluten.sql.columnar.libpath is set to a relative path ./libch.so, since it is dispatched
-# to every worker node's working directory by conf --files.
-# Other configurations are almost the same as setup Spark Thriftserver.
-$my_spark_sql \
-  --master yarn \
-  --files $ch_lib \
-  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
-  --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
-  --conf spark.databricks.delta.snapshotPartitions=1 \
-  --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
-  --conf spark.databricks.delta.stalenessLimit=3600000 \
-  --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=true \
-  --conf spark.gluten.sql.columnar.backend.ch.worker.id=1 \
-  --conf spark.gluten.sql.columnar.loadnative=true \
-  --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
-  --conf spark.gluten.sql.columnar.libpath=./libch.so \
-  --conf spark.gluten.sql.columnar.iterator=true \
-  --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
-  --conf spark.gluten.sql.enable.native.validation=false \
-  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
-  --conf spark.gluten.sql.columnar.union=true \
-  --conf spark.memory.offHeap.enabled=true \
-  --conf spark.memory.offHeap.size=5G \
-  -f $sql_file
-```
-
-We also can use `spark-submit` to run a task.
+https://cicd-aws.kyligence.com/job/Gluten/job/gluten-ci/
+public read-only account：gluten/hN2xX3uQ4m
