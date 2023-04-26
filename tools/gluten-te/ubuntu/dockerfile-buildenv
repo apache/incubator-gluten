@@ -44,9 +44,14 @@ RUN env
 RUN cat /etc/apt/apt.conf || (echo "Apt proxy not set" && true)
 RUN cat /root/.m2/settings.xml
 
-## APT dependencies
+# Install OpenJDK 8 and Maven
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk maven git wget
 
-# Update, then install essentials
+# Install Spark 3.2.2 for UT
+RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
+RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
+
+# Install gluten build dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
   sudo \
   locales \
@@ -70,10 +75,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 # install HBM dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libnuma-dev libdaxctl-dev
-
-# Install OpenJDK 8 and Maven
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven
 
 # Setup SSH server
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
@@ -99,10 +100,6 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
 ENV LANG en_US.UTF-8  
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8
-
-# Install Spark 3.2.2 for UT
-RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
-RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 
 # Cache vcpkg depends
 COPY ./vcpkg /tmp/vcpkg

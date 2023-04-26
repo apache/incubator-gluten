@@ -40,11 +40,17 @@ RUN ulimit -a
 RUN env
 RUN cat /root/.m2/settings.xml
 
-# Install deps from repo
-ARG OS_VERSION
-COPY centos-$OS_VERSION-deps.sh /tmp/deps.sh
-RUN /tmp/deps.sh \
-  && rm /tmp/deps.sh \
+# Setup centos 8 mirror
+RUN if [ "$(cat /etc/os-release | sed -nE 's/VERSION_ID="([0-9]*)"/\1/p')" = 8 ]; then \
+    sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* \
+    && sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*; \
+  fi
+
+# Install deps for building spark
+RUN yum -y install \
+    wget git which \
+    java-1.8.0-openjdk \
+    java-1.8.0-openjdk-devel \
   && yum clean all \
   && rm -rf /var/cache/yum
 
@@ -54,21 +60,25 @@ RUN wget https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-
     tar -xvf apache-maven-3.6.3-bin.tar.gz && \
     rm apache-maven-3.6.3-bin.tar.gz && \
     mv apache-maven-3.6.3 /usr/lib/maven
+ENV PATH="$PATH:/usr/lib/maven/bin"
 
 # Install Spark 3.2.2 for UT
 RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
-# FIXME: Tmp skip for testing CI
-# RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
+RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 
-ENV PATH="$PATH:/usr/lib/maven/bin"
-ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib
+# Install deps for building gluten
+ARG OS_VERSION
+COPY centos-$OS_VERSION-deps.sh /tmp/deps.sh
+RUN /tmp/deps.sh \
+  && rm /tmp/deps.sh \
+  && yum clean all \
+  && rm -rf /var/cache/yum
+COPY env.sh /env.sh
 
 # Velox setup scripts require sudo
 RUN yum -y install sudo \
     && yum clean all
 RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-COPY env.sh /env.sh
 
 # Cache vcpkg depends
 COPY ./vcpkg /tmp/vcpkg
