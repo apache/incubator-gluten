@@ -431,9 +431,6 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
             if (!key.has_string() || !value.has_string())
                 continue;
 
-            if (!key.string().starts_with(CH_BACKEND_PREFIX) && key.string() != std::string(GLUTEN_TIMEZONE_KEY))
-                continue;
-
             ch_backend_conf[key.string()] = value.string();
         }
     } while (false);
@@ -475,8 +472,10 @@ void BackendInitializerUtil::initConfig(const std::string &plan)
 
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
-        else if (kv.first == GLUTEN_TIMEZONE_KEY)
+        else if (key == GLUTEN_TIMEZONE_KEY)
             config->setString(key, value);
+        else if (S3_CONFIGS.find(key) != S3_CONFIGS.end())
+            config->setString(S3_CONFIGS.at(key), value);
     }
 }
 

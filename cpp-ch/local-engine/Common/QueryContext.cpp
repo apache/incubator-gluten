@@ -25,6 +25,15 @@ int64_t initializeQuery(ReservationListenerWrapperPtr listener)
 {
     auto query_context = Context::createCopy(SerializedPlanParser::global_context);
     query_context->makeQueryContext();
+
+    // empty input will trigger random query id to be set
+    // FileCache will check if query id is set to decide whether to skip cache or not
+    // check FileCache.isQueryInitialized()
+    //
+    // Notice:
+    // this generated random query id a qualified global queryid for the spark query
+    query_context->setCurrentQueryId("");
+
     auto allocator_context = std::make_shared<NativeAllocatorContext>();
     allocator_context->thread_status = std::make_shared<ThreadStatus>();
     allocator_context->query_scope = std::make_shared<CurrentThread::QueryScope>(query_context);

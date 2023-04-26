@@ -4,12 +4,13 @@
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
+#include <Disks/IO/ReadBufferFromRemoteFSGather.h>
 #include <IO/ReadBufferFromFile.h>
+#include <IO/ReadBufferFromS3.h>
+#include <IO/S3Common.h>
 #include <Interpreters/Context_fwd.h>
 #include <sys/stat.h>
 #include <Poco/URI.h>
-#include <IO/S3Common.h>
-#include <IO/ReadBufferFromS3.h>
 #include <aws/core/client/DefaultRetryStrategy.h>
 #include <aws/s3/S3Client.h>
 #include <Storages/StorageS3Settings.h>
@@ -17,6 +18,15 @@
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
+
+#include <Interpreters/Cache/FileCache.h>
+#include <Interpreters/Cache/FileCacheFactory.h>
+#include <Interpreters/Cache/FileCacheSettings.h>
+
+#include <aws/s3/model/CopyObjectRequest.h>
+#include <aws/s3/model/DeleteObjectsRequest.h>
+#include <aws/s3/model/ListObjectsV2Request.h>
+#include <IO/S3/getObjectInfo.h>
 
 namespace DB
 {
@@ -32,7 +42,7 @@ namespace local_engine
 class LocalFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
-    explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) {}
+    explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
@@ -56,7 +66,7 @@ public:
 class HDFSFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
-    explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) {}
+    explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
@@ -80,29 +90,91 @@ public:
 class S3FileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
-    explicit S3FileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) {}
+    explicit S3FileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_)
+    {
+        DB::FileCacheSettings file_cache_settings;
+        file_cache_settings.max_size = static_cast<size_t>(context->getConfigRef().getUInt64("s3.local_cache.max_size", 100L << 30));
+        auto cache_base_path = context->getConfigRef().getString("s3.local_cache.cache_path", "/tmp/gluten/local_cache");
+        if (!fs::exists(cache_base_path))
+            fs::create_directories(cache_base_path);
+
+        new_settings = DB::ReadSettings();
+        new_settings.enable_filesystem_cache = context->getConfigRef().getBool("s3.local_cache.enabled", false);
+        if (new_settings.enable_filesystem_cache)
+        {
+            auto cache = DB::FileCacheFactory::instance().getOrCreate(cache_base_path, file_cache_settings, "s3_local_cache");
+            cache->initialize();
+
+            new_settings.remote_fs_cache = cache;
+        }
+    }
+
     ~S3FileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        auto client = getClient();
-        std::unique_ptr<DB::ReadBuffer> readbuffer;
-        readbuffer
-            = std::make_unique<DB::ReadBufferFromS3>(client, file_uri.getHost(), file_uri.getPath().substr(1), "", DB::S3Settings::RequestSettings(),DB::ReadSettings());
-        return readbuffer;
+        const auto client = getClient();
+        // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
+        std::string bucket = file_uri.getHost();
+        std::string key = file_uri.getPath().substr(1);
+        size_t object_size = DB::S3::getObjectSize(*client, bucket, key, "");
+
+        auto read_buffer_creator =
+            [bucket, this](const std::string & path, size_t read_until_position) -> std::shared_ptr<DB::ReadBufferFromFileBase>
+        {
+            return std::make_shared<DB::ReadBufferFromS3>(
+                shared_client,
+                bucket,
+                path,
+                "",
+                DB::S3Settings::RequestSettings(),
+                new_settings,
+                /* use_external_buffer */ true,
+                /* offset */ 0,
+                read_until_position,
+                /* restricted_seek */ true);
+        };
+
+        auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
+            std::move(read_buffer_creator), DB::StoredObjects{DB::StoredObject{key, object_size}}, new_settings);
+
+        auto & pool_reader = context->getThreadPoolReader(DB::Context::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
+        auto async_reader = std::make_unique<DB::AsynchronousReadIndirectBufferFromRemoteFS>(pool_reader, new_settings, std::move(s3_impl));
+
+        async_reader->setReadUntilEnd();
+        if (new_settings.remote_fs_prefetch)
+            async_reader->prefetch(0);
+
+        return async_reader;
     }
+
 private:
     std::shared_ptr<DB::S3::Client> shared_client;
+    DB::ReadSettings new_settings;
+
 
     std::shared_ptr<DB::S3::Client> getClient()
     {
         if (shared_client)
             return shared_client;
+
         const auto & config = context->getConfigRef();
         String config_prefix = "s3";
+        auto endpoint = config.getString(config_prefix + ".endpoint", "https://s3.us-west-2.amazonaws.com");
+        String region_name;
+        const char * amazon_suffix = ".amazonaws.com";
+        const char * amazon_prefix = "https://s3.";
+        if (endpoint.find(amazon_suffix) != std::string::npos)
+        {
+            assert(endpoint.starts_with(amazon_prefix));
+            region_name = endpoint.substr(strlen(amazon_prefix), endpoint.size() - strlen(amazon_prefix) - strlen(amazon_suffix));
+            assert(region_name.find('.') == std::string::npos);
+        }
+        // for AWS CN, the endpoint is like: https://s3.cn-north-1.amazonaws.com.cn, should still work with above code (NOT TESTED)
+
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
-            config.getString(config_prefix + ".region", ""),
+            region_name,
             context->getRemoteHostFilter(),
             context->getGlobalContext()->getSettingsRef().s3_max_redirects,
             false,
@@ -110,19 +182,17 @@ private:
             nullptr,
             nullptr);
 
-        DB::S3::URI uri(config.getString(config_prefix + ".endpoint"));
-
         client_configuration.connectTimeoutMs = config.getUInt(config_prefix + ".connect_timeout_ms", 10000);
         client_configuration.requestTimeoutMs = config.getUInt(config_prefix + ".request_timeout_ms", 5000);
         client_configuration.maxConnections = config.getUInt(config_prefix + ".max_connections", 100);
-        client_configuration.endpointOverride = uri.endpoint;
+        client_configuration.endpointOverride = endpoint;
 
         client_configuration.retryStrategy
             = std::make_shared<Aws::Client::DefaultRetryStrategy>(config.getUInt(config_prefix + ".retry_attempts", 10));
 
         shared_client = DB::S3::ClientFactory::instance().create(
             client_configuration,
-            uri.is_virtual_hosted_style,
+            false,
             config.getString(config_prefix + ".access_key_id", ""),
             config.getString(config_prefix + ".secret_access_key", ""),
             config.getString(config_prefix + ".server_side_encryption_customer_key_base64", ""),
@@ -140,7 +210,7 @@ private:
 class AzureBlobReadBuffer : public ReadBufferBuilder
 {
 public:
-    explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) {}
+    explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
@@ -150,6 +220,7 @@ public:
         read_buffer = std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
         return read_buffer;
     }
+
 private:
     std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> shared_client;
 
@@ -174,6 +245,7 @@ void registerReadBufferBuilders()
 
 #if USE_AWS_S3
     factory.registerBuilder("s3", [](DB::ContextPtr context_) { return std::make_shared<S3FileReadBufferBuilder>(context_); });
+    factory.registerBuilder("s3a", [](DB::ContextPtr context_) { return std::make_shared<S3FileReadBufferBuilder>(context_); });
 #endif
 
 #if USE_AZURE_BLOB_STORAGE
