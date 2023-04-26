@@ -2,14 +2,6 @@
 
 set -ex
 
-sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* 
-# The connection to vault.centos.org in CI is unstable
-sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*
-# minorver=8.5.2111
-# sed -i -e \
-#   "s|^#baseurl=http://mirror.centos.org/\$contentdir/\$releasever|baseurl=https://mirrors.aliyun.com/centos-vault/$minorver|g" \
-#   /etc/yum.repos.d/CentOS-*.repo
-
 sed -i "s/^enabled=0$/enable=1/" /etc/yum.repos.d/CentOS-Linux-PowerTools.repo
 yum -y install \
     git \

@@ -2,9 +2,6 @@
 
 set -ex
 
-# The connection to centos.org in CI is unstable
-# curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo
-
 yum -y install epel-release centos-release-scl
 yum -y install \
     cmake3 \
