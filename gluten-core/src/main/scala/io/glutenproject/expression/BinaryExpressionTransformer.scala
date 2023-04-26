@@ -19,19 +19,14 @@ package io.glutenproject.expression
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.expression.IntLiteralNode
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Expression, Like}
 import org.apache.spark.sql.catalyst.expressions.Sha2
-import org.apache.spark.sql.types.CharType
 import org.apache.spark.sql.types.StringType
 
 import com.google.common.collect.Lists
-
-import java.util.ArrayList
 
 /** Transformer for the normal binary expression */
 class BinaryExpressionTransformer(
@@ -96,86 +91,15 @@ class LikeTransformer(
   }
 }
 
-abstract class Sha2BaseTransformer(
-    substraitExprName: String,
-    left: ExpressionTransformer,
-    right: ExpressionTransformer,
-    original: Expression)
-  extends ExpressionTransformer
-  with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    BinaryExpressionTransformer(substraitExprName, left, right, original).doTransform(args)
-  }
-}
-
-case class Sha2Transformer(
-    substraitExprName: String,
-    left: ExpressionTransformer,
-    right: ExpressionTransformer,
-    original: Expression)
-  extends Sha2BaseTransformer(substraitExprName, left, right, original) {}
-
-case class CHSha2Transformer(
+class Sha2Transformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     original: Sha2)
-  extends Sha2BaseTransformer(substraitExprName, left, right, original)
+  extends ExpressionTransformer
   with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // bitLength must be literal for CH backend
-    val rightNode = right.doTransform(args)
-    if (!rightNode.isInstanceOf[IntLiteralNode]) {
-      throw new UnsupportedOperationException(s"right in function sha2 must be a literal")
-    }
-
-    // CH backend only support bitLength in (0, 224, 256, 384, 512)
-    val bitLength = rightNode.asInstanceOf[IntLiteralNode].getValue.toInt
-    if (
-      bitLength != 0 && bitLength != 224 && bitLength != 256 && bitLength != 384 && bitLength != 512
-    ) {
-      throw new UnsupportedOperationException(
-        s"bit length in function sha2 must be 224, 256, 384 or 512")
-    }
-
-    // In Spark: sha2(str, bitLength)
-    // in CH: lower(hex(SHA224(str))) or lower(hex(SHA256(str))) or ...
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val sha2FuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        Seq(original.left.dataType, original.right.dataType),
-        FunctionConfig.OPT))
-    val fixedCharLength = bitLength match {
-      case 0 => 32
-      case 224 => 28
-      case 256 => 32
-      case 384 => 48
-      case 512 => 64
-    }
-    val sha2TypeNode = TypeBuilder.makeFixedChar(original.nullable, fixedCharLength)
-    val leftNode = left.doTransform(args)
-    val sha2FuncNode = ExpressionBuilder.makeScalarFunction(
-      sha2FuncId,
-      Lists.newArrayList(leftNode, rightNode),
-      sha2TypeNode)
-
-    // wrap in hex: hex(md5(str))
-    val hexFuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName("hex", Seq(CharType(fixedCharLength)), FunctionConfig.OPT))
-    val hexExprNodes: ArrayList[ExpressionNode] = Lists.newArrayList(sha2FuncNode)
-    val hexTypeNode = TypeBuilder.makeString(original.nullable)
-    val hexFuncNode = ExpressionBuilder.makeScalarFunction(hexFuncId, hexExprNodes, hexTypeNode)
-
-    // wrap in lower: lower(hex(md5(str)))
-    val lowerFuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName("lower", Seq(StringType), FunctionConfig.OPT))
-    val lowerExprNodes: ArrayList[ExpressionNode] = Lists.newArrayList(hexFuncNode)
-    val lowerTypeNode = TypeBuilder.makeString(original.nullable)
-    ExpressionBuilder.makeScalarFunction(lowerFuncId, lowerExprNodes, lowerTypeNode)
+    BinaryExpressionTransformer(substraitExprName, left, right, original).doTransform(args)
   }
 }
 

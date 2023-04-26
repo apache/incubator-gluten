@@ -48,8 +48,6 @@ import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.fasterxml.jackson.module.scala.deser.overrides
-
 import scala.collection.mutable.ArrayBuffer
 
 class CHSparkPlanExecApi extends SparkPlanExecApi {
