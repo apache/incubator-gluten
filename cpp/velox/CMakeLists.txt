@@ -208,6 +208,11 @@ set(VELOX_SRCS
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
+if(ENABLE_GLUTEN_VCPKG)
+  # Hide symbols of static dependencies
+  target_link_options(velox PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+endif()
+
 target_include_directories(velox PUBLIC
     ${CMAKE_SYSTEM_INCLUDE_PATH}
     ${JNI_INCLUDE_DIRS}
@@ -227,7 +232,12 @@ set_target_properties(velox PROPERTIES
 ## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
-find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+
+if(ENABLE_GLUTEN_VCPKG)
+  find_package(gflags REQUIRED COMPONENTS static CONFIG)
+else()
+  find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+endif()
 
 target_include_directories(velox PUBLIC
         ${GTEST_INCLUDE_DIRS}
@@ -239,13 +249,12 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
-# TODO: Find shared then static. Only vcpkg provides thrift-config.cmake now,
-#       so try CONFIG mode first.
-find_package(Thrift CONFIG)
-if(NOT Thrift_FOUND)
+if(ENABLE_GLUTEN_VCPKG)
+  find_package(Thrift CONFIG)
+else()
   # Prefer the shared library on system.
   set(ARROW_THRIFT_USE_SHARED ON)
-  find_package(Thrift MODULE)
+  find_package(Thrift)
 endif()
 
 if(Thrift_FOUND)
