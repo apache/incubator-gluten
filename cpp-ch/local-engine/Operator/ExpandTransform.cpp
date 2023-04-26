@@ -4,8 +4,10 @@
 #include <Columns/ColumnsNumber.h>
 #include <Columns/IColumn.h>
 #include <DataTypes/DataTypesNumber.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Processors/IProcessor.h>
 
+#include "Common/Exception.h"
 #include <Common/logger_useful.h>
 #include <Poco/Logger.h>
 
@@ -14,11 +16,9 @@ namespace local_engine
 ExpandTransform::ExpandTransform(
     const DB::Block & input_,
     const DB::Block & output_,
-    const std::vector<size_t> & aggregating_expressions_columns_,
-    const std::vector<std::set<size_t>> & grouping_sets_)
+    const ExpandField & project_set_exprs_)
     : DB::IProcessor({input_}, {output_})
-    , aggregating_expressions_columns(aggregating_expressions_columns_)
-    , grouping_sets(grouping_sets_)
+    , project_set_exprs(project_set_exprs_)
 {}
 
 ExpandTransform::Status ExpandTransform::prepare()
@@ -68,43 +68,57 @@ ExpandTransform::Status ExpandTransform::prepare()
 void ExpandTransform::work()
 {
     assert(expanded_chunks.empty());
-    size_t agg_cols_size = aggregating_expressions_columns.size();
-    for (int set_id = 0; static_cast<size_t>(set_id) < grouping_sets.size(); ++set_id)
+    const auto & original_cols = input_chunk.getColumns();
+    size_t rows = input_chunk.getNumRows();
+
+    for (size_t i = 0; i < project_set_exprs.getExpandRows(); ++i)
     {
-        const auto & sets = grouping_sets[set_id];
         DB::Columns cols;
-        const auto & original_cols = input_chunk.getColumns();
-        for (size_t i = 0; i < original_cols.size(); ++i)
+        for (size_t j = 0; j < project_set_exprs.getExpandCols(); ++j)
         {
-            const auto & original_col = original_cols[i];
-            size_t rows = original_col->size();
-            if (i < agg_cols_size)
+            const auto & type = project_set_exprs.getTypes()[j];
+            const auto & kind = project_set_exprs.getKinds()[i][j];
+            const auto & field = project_set_exprs.getFields()[i][j];
+            
+            if (kind == EXPAND_FIELD_KIND_SELECTION)
             {
-                cols.push_back(original_col);
-                continue;
-            }
-            // the output columns should all be nullable.
-            if (!sets.contains(i))
-            {
-                auto null_map = DB::ColumnUInt8::create(rows, 1);
-                auto col = DB::ColumnNullable::create(original_col, std::move(null_map));
-                cols.push_back(std::move(col));
-            }
-            else
-            {
-                if (original_col->isNullable())
+                const auto & original_col = original_cols[field.get<Int32>()];
+                if (type->isNullable() == original_col->isNullable())
+                {
                     cols.push_back(original_col);
-                else
+                }
+                else if (type->isNullable() && !original_col->isNullable())
                 {
                     auto null_map = DB::ColumnUInt8::create(rows, 0);
                     auto col = DB::ColumnNullable::create(original_col, std::move(null_map));
                     cols.push_back(std::move(col));
                 }
+                else
+                {
+                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR,
+                        "Miss match nullable, column {} is nullable, but type {} is not nullable",
+                        original_col->getName(), type->getName());
+                }
+            }
+            else
+            {
+                if (field.isNull())
+                {
+                    // Add null column
+                    auto null_map = DB::ColumnUInt8::create(rows, 1);
+                    auto nested_type = DB::removeNullable(type);
+                    auto col = DB::ColumnNullable::create(nested_type->createColumn()->cloneResized(rows), std::move(null_map));
+                    cols.push_back(std::move(col));
+                }
+                else
+                {
+                    // Add constant column: gid, gpos, etc.
+                    auto col = type->createColumnConst(rows, field);
+                    cols.push_back(std::move(col->convertToFullColumnIfConst()));
+                }
             }
         }
-        auto id_col = DB::DataTypeInt64().createColumnConst(input_chunk.getNumRows(), set_id);
-        cols.push_back(std::move(id_col));
-        expanded_chunks.push_back(DB::Chunk(cols, input_chunk.getNumRows()));
+        expanded_chunks.push_back(DB::Chunk(cols, rows));
     }
     has_output = true;
     has_input = false;

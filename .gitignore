@@ -16,6 +16,10 @@
 # vscode config
 .vscode
 
+# vscode scala
+.bloop
+.metals
+
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
