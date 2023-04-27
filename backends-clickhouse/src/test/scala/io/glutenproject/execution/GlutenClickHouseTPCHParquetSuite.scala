@@ -785,9 +785,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
           }
           assert(glutenPlans.isEmpty)
       }
-    
+    }
   }
-  
+
   test("test 'max(NULL)/min(NULL) from table'") {
     val df = spark.sql(
       """
