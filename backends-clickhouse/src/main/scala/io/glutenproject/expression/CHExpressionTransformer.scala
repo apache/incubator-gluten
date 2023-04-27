@@ -28,6 +28,49 @@ import com.google.common.collect.Lists
 
 import java.util.ArrayList
 
+case class CHSha1Transformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    original: Sha1)
+  extends Sha1Transformer(substraitExprName, child, original)
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // Spark sha1(child) = CH lower(hex(sha1(child)))
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+
+    // sha1(child)
+    var fixedCharLength = 20
+    val sha1FuncId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        Seq(original.child.dataType),
+        FunctionConfig.OPT))
+    val sha1TypeNode = TypeBuilder.makeFixedChar(original.child.nullable, fixedCharLength)
+    val sha1FuncNode = ExpressionBuilder.makeScalarFunction(
+      sha1FuncId,
+      Lists.newArrayList(child.doTransform(args)),
+      sha1TypeNode)
+
+    // wrap in hex: hex(sha1(str))
+    val hexFuncId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName("hex", Seq(CharType(fixedCharLength)), FunctionConfig.OPT))
+    val hexExprNodes: ArrayList[ExpressionNode] = Lists.newArrayList(sha1FuncNode)
+    val hexTypeNode = TypeBuilder.makeString(original.child.nullable)
+    val hexFuncNode = ExpressionBuilder.makeScalarFunction(hexFuncId, hexExprNodes, hexTypeNode)
+
+    // wrap in lower: lower(hex(sha1(str)))
+    val lowerFuncId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName("lower", Seq(StringType), FunctionConfig.OPT))
+    val lowerExprNodes: ArrayList[ExpressionNode] = Lists.newArrayList(hexFuncNode)
+    val lowerTypeNode = TypeBuilder.makeString(original.child.nullable)
+    ExpressionBuilder.makeScalarFunction(lowerFuncId, lowerExprNodes, lowerTypeNode)
+  }
+}
+
 case class CHSha2Transformer(
     substraitExprName: String,
     left: ExpressionTransformer,
@@ -74,7 +117,7 @@ case class CHSha2Transformer(
       Lists.newArrayList(leftNode, rightNode),
       sha2TypeNode)
 
-    // wrap in hex: hex(md5(str))
+    // wrap in hex: hex(sha2(str, bitLength))
     val hexFuncId = ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName("hex", Seq(CharType(fixedCharLength)), FunctionConfig.OPT))
@@ -82,7 +125,7 @@ case class CHSha2Transformer(
     val hexTypeNode = TypeBuilder.makeString(original.nullable)
     val hexFuncNode = ExpressionBuilder.makeScalarFunction(hexFuncId, hexExprNodes, hexTypeNode)
 
-    // wrap in lower: lower(hex(md5(str)))
+    // wrap in lower: lower(hex(sha2(str, bitLength)))
     val lowerFuncId = ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName("lower", Seq(StringType), FunctionConfig.OPT))

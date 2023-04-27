@@ -17,14 +17,14 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, NamedStructTransformer, Sha2Transformer}
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, NamedStructTransformer, Sha1Transformer, Sha2Transformer}
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateNamedStruct, Expression, GetStructField, NamedExpression, Sha2}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateNamedStruct, Expression, GetStructField, NamedExpression, Sha1, Sha2}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -227,4 +227,16 @@ trait SparkPlanExecApi {
       original: Sha2): ExpressionTransformer = {
     new Sha2Transformer(substraitExprName, left, right, original)
   }
+
+  /**
+   * Generate an ExpressionTransformer to transform Sha1 expression. Sha1Transformer is the default
+   * implementation.
+   */
+  def genSha1Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Sha1): ExpressionTransformer = {
+    new Sha1Transformer(substraitExprName, child, original)
+  }
+
 }

@@ -93,6 +93,15 @@ class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer
   }
 }
 
+class Sha1Transformer(substraitExprName: String, child: ExpressionTransformer, original: Sha1)
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    UnaryExpressionTransformer(substraitExprName, child, original).doTransform(args)
+  }
+}
+
 class PosExplodeTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,

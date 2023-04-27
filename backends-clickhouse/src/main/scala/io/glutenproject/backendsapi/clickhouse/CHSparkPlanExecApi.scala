@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
+import io.glutenproject.expression.CHSha1Transformer
 import io.glutenproject.expression.CHSha2Transformer
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
@@ -358,4 +359,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       original: Sha2): ExpressionTransformer = {
     new CHSha2Transformer(substraitExprName, left, right, original)
   }
+
+  /**
+   * Generate an ExpressionTransformer to transform Sha1 expression. Currently only for CH backend.
+   */
+  override def genSha1Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Sha1): ExpressionTransformer = {
+    new CHSha1Transformer(substraitExprName, child, original)
+  }
+
 }
