@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+package org.apache.spark.sql.extension
 
-import io.glutenproject.extension.columnar.{FallbackMultiCodegens, FallbackOneRowRelation}
 import io.glutenproject.extension.{ColumnarOverrideRules, FallbackBroadcastExchange, JoinSelectionOverrides}
+import io.glutenproject.extension.columnar.{FallbackMultiCodegens, FallbackOneRowRelation}
+
 import org.apache.spark.SparkConf
+import org.apache.spark.sql._
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
 
 class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
