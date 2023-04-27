@@ -45,7 +45,6 @@ add_custom_command(
         -DENABLE_JEMALLOC=ON
         -DENABLE_MULTITARGET_CODE=ON
         -DENABLE_EXTERN_LOCAL_ENGINE=ON
-        -DENABLE_THINLTO=OFF
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
         cmake --build ${CH_BINARY_DIR} --target ch\"
         OUTPUT _build_ch
