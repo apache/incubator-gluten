@@ -51,11 +51,8 @@ class VeloxBackend final : public Backend {
       MemoryAllocator* allocator,
       struct ArrowSchema* cSchema) override;
 
-  std::shared_ptr<ShuffleWriter> makeShuffleWriter(
-      const std::string& partitioning_name,
-      int num_partitions,
-      const SplitOptions& options,
-      const std::string& batchType) override;
+  std::shared_ptr<ShuffleWriter>
+  makeShuffleWriter(int num_partitions, const SplitOptions& options, const std::string& batchType) override;
 
   std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResultIterator*>(raw_iter);

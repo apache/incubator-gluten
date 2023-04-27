@@ -236,6 +236,7 @@ class BenchmarkShuffleSplit {
     options.prefer_evict = true;
     options.write_schema = false;
     options.memory_pool = pool;
+    options.partitioning_name = "rr";
 
     std::shared_ptr<ArrowShuffleWriter> shuffle_writer;
     int64_t elapse_read = 0;
@@ -366,7 +367,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << local_schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(shuffle_writer, ArrowShuffleWriter::Make("rr", num_partitions, options));
+    GLUTEN_ASSIGN_OR_THROW(shuffle_writer, ArrowShuffleWriter::Create(num_partitions, options));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -422,7 +423,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     if (state.thread_index() == 0)
       std::cout << schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(shuffle_writer, ArrowShuffleWriter::Make("rr", num_partitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(shuffle_writer, ArrowShuffleWriter::Create(num_partitions, std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
