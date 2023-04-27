@@ -31,8 +31,6 @@ trait BackendSettings {
                             partTable: Boolean,
                             paths: Seq[String]): Boolean = false
   def supportExpandExec(): Boolean = false
-  def needProjectExpandOutput: Boolean = false
-  def supportNewExpandContract(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     false

@@ -279,10 +279,6 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
         val children = plan.children.map(replaceWithTransformerPlan)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         UnionExecTransformer(children)
-      case plan: CustomExpandExec =>
-        val child = replaceWithTransformerPlan(plan.child)
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        GroupIdExecTransformer(plan.projections, plan.groupExpression, plan.output, child)
       case plan: ExpandExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -624,7 +620,6 @@ case class ColumnarOverrideRules(session: SparkSession)
     tagBeforeTransformHitsRules :::
     List(
       (_: SparkSession) => FallbackEmptySchemaRelation(),
-      (_: SparkSession) => StoreExpandGroupExpression(),
       (_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(
         this.isTopParentExchange || this.isAdaptiveContext),
