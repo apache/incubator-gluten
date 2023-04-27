@@ -1,3 +1,9 @@
+---
+layout: page
+title: Configuration
+nav_order: 4
+---
+
 # Spark Configurations for Gluten Plugin
 
 There are many configuration could impact the Gluten Plugin performance and can be fine tune in Spark.

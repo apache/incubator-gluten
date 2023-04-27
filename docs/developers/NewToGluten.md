@@ -1,3 +1,9 @@
+---
+layout: page
+title: New To Gluten
+nav_order: 2
+parent: Developer Overview
+---
 Help users to debug and test with gluten.
 
 For intel internal developer, you could refer to internal wiki  [New Employee Guide](https://wiki.ith.intel.com/display/HPDA/New+Employee+Guide) to get more information such as proxy settings,

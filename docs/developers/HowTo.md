@@ -1,3 +1,9 @@
+---
+layout: page
+title: How To Use Gluten
+nav_order: 1
+parent: Developer Overview
+---
 There are some common questions about developing, debugging and testing been asked again and again. In order to help the developers to contribute
 to Gluten as soon as possible, we collected these frequently asked questions, and organized them in the form of Q&A. It's convenient for the developers
 to check and learn.

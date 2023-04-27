@@ -1,3 +1,9 @@
+---
+layout: page
+title: Gluten with ClickHouse Backend
+nav_order: 2
+parent: Getting-Started
+---
 ## ClickHouse Backend
 
 ClickHouse is a column-oriented database management system (DBMS) for online analytical processing of queries (OLAP), which supports best in the industry query performance, while significantly reducing storage requirements through its innovative use of columnar storage and compression.
