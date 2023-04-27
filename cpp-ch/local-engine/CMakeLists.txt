@@ -93,6 +93,41 @@ if (ENABLE_LOCAL_FORMATS)
     target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 endif ()
 
+target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::aws_s3>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::filesystem>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::iostreams>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::program_options>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::regex>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::system>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::context>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::coroutine>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::graph>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:clickhouse_common_io>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:cxx>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:cxxabi>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:common>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_arrow>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_orc>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_icuuc>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_icui18n>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_icudata>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::curl>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::parquet>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::lz4>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::nuraft>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::zstd>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::vectorscan>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::XML>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Net>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Net::SSL>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Util>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::JSON>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Crypto>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Foundation>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:unwind>
+)
+
 #set(CPACK_PACKAGE_VERSION 0.1.0)
 #set(CPACK_GENERATOR "RPM")
 #set(CPACK_PACKAGE_NAME "local_engine_jni")
