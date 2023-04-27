@@ -2,9 +2,11 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+#VELOX_REPO=https://github.com/oap-project/velox.git
+#VELOX_BRANCH=main
 
+VELOX_REPO=https://github.com/JkSelf/velox.git
+VELOX_BRANCH=velox_functions_spark_test
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
 #It can be set to OFF when compiling velox again
