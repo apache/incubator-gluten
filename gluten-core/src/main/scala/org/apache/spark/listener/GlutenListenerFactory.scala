@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution
 
-import java.util
+package org.apache.spark.listener
 
-object CHBroadcastBuildSideRDD {
+import org.apache.spark.SparkContext
+import org.apache.spark.rpc.GlutenDriverEndpoint
 
-  // Use for controling to build bhj hash table once.
-  val buildSideRelationCache = new util.LinkedHashMap[String, Long]() {
-    override def removeEldestEntry(eldest: util.Map.Entry[String, Long]): Boolean = {
-      size() > 100;
-    }
+object GlutenListenerFactory {
+  def addToSparkListenerBus(sc: SparkContext): Unit = {
+    sc.listenerBus.addToStatusQueue(
+      new GlutenSQLAppStatusListener(GlutenDriverEndpoint.glutenDriverEndpointRef))
   }
 }

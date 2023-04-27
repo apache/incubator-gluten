@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.backendsapi.ShutdownApi
+package org.apache.spark.rpc
 
-class VeloxShutdownApi extends ShutdownApi {
+object GlutenRpcConstants {
 
-  override def shutdown(): Unit = {
-    /// TODO shutdown implementation in velox to release resources
-  }
+  val GLUTEN_DRIVER_ENDPOINT_NAME = "GlutenDriverEndpoint"
+
+  val GLUTEN_EXECUTOR_ENDPOINT_NAME = "GlutenExecutorEndpoint"
 }

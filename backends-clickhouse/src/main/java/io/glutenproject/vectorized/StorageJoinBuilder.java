@@ -33,6 +33,11 @@ import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 
 public class StorageJoinBuilder implements AutoCloseable {
+
+  public static native int nativeCachedHashTableCount();
+
+  public static native void nativeCleanBuildHashTable(String hashTableId, long hashTableData);
+
   private ShuffleInputStream in;
 
   private int customizeBufferSize;
@@ -55,7 +60,7 @@ public class StorageJoinBuilder implements AutoCloseable {
     this.customizeBufferSize = customizeBufferSize;
   }
 
-  private native void nativeBuild(String buildHashTableId,
+  private native long nativeBuild(String buildHashTableId,
                                   ShuffleInputStream in,
                                   int customizeBufferSize,
                                   String joinKeys,
@@ -65,7 +70,7 @@ public class StorageJoinBuilder implements AutoCloseable {
   /**
    * build storage join object
    */
-  public void build() {
+  public long build() {
     ConverterUtils$ converter = ConverterUtils$.MODULE$;
     String join = converter.convertJoinType(broadCastContext.joinType());
     List<Expression> keys = null;
@@ -99,7 +104,7 @@ public class StorageJoinBuilder implements AutoCloseable {
       nStructBuilder.addNames(name);
     }
     byte[] structure = nStructBuilder.build().toByteArray();
-    nativeBuild(
+    return nativeBuild(
         broadCastContext.buildHashTableId(),
         in,
         this.customizeBufferSize,

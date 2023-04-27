@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
+import io.glutenproject.vectorized.StorageJoinBuilder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -25,6 +26,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
 import org.apache.commons.io.FileUtils
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import java.io.File
 
@@ -523,6 +525,15 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
   }
 
   override protected def afterAll(): Unit = {
+    // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
+    // normally this doesn't take more than 1s
+    eventually(timeout(60.seconds), interval(1.seconds)) {
+      // Spark listener message was not sent in time with ci env.
+      // In tpch case, there are more then 10 hbj data has build.
+      // Let's just verify it was cleaned ever.
+      assert(StorageJoinBuilder.nativeCachedHashTableCount <= 10)
+    }
+
     ClickHouseLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll

@@ -17,16 +17,20 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.InitializerApi
+import io.glutenproject.backendsapi.ContextApi
+import io.glutenproject.execution.CHBroadcastBuildSideCache
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
+import org.apache.spark.rpc.GlutenDriverEndpoint
 
 import org.apache.commons.lang3.StringUtils
 
+import java.util
 import java.util.TimeZone
 
-class CHInitializerApi extends InitializerApi {
+class CHContextApi extends ContextApi with Logging {
 
   override def initialize(conf: SparkConf): Unit = {
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
@@ -43,5 +47,32 @@ class CHInitializerApi extends InitializerApi {
       conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
     val initKernel = new CHNativeExpressionEvaluator()
     initKernel.initNative(conf)
+  }
+
+  override def shutdown(): Unit = {
+    val kernel = new CHNativeExpressionEvaluator()
+    kernel.finalizeNative()
+  }
+
+  override def cleanExecutionBroadcastHashtable(
+      executionId: String,
+      broadcastHashIds: util.Set[String]): Unit = {
+    if (broadcastHashIds != null) {
+      broadcastHashIds.forEach(
+        resource_id => CHBroadcastBuildSideCache.invalidateBroadcastHashtable(resource_id))
+    }
+  }
+
+  override def collectExecutionBroadcastHashTableId(
+      executionId: String,
+      buildHashTableId: String): Unit = {
+    if (executionId != null) {
+      GlutenDriverEndpoint.collectResources(executionId, buildHashTableId)
+    } else {
+      logWarning(
+        s"Can't not trace broadcast hash table data $buildHashTableId" +
+          s" because execution id is null." +
+          s" Will clean up until expire time.")
+    }
   }
 }

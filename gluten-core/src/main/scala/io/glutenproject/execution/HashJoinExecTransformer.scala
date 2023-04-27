@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SQLExecution, SparkPlan}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -444,6 +444,10 @@ abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
 
     val context = BroadCastHashJoinContext(
       buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
+
+    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    BackendsApiManager.getContextApiInstance
+      .collectExecutionBroadcastHashTableId(executionId, context.buildHashTableId)
 
     val buildRDD = if (streamedRDD.isEmpty) {
       // Stream plan itself contains scan and has no input rdd,

@@ -670,6 +670,7 @@ void BackendFinalizerUtil::finalizeGlobally()
 
 void BackendFinalizerUtil::finalizeSessionally()
 {
+    local_engine::BroadCastJoinBuilder::clean();
 }
 
 }
