@@ -52,7 +52,7 @@ public class NativeMemoryAllocator {
     return bytesAllocated(this.nativeInstanceId);
   }
 
-  public void close() throws Exception {
+  public void close() {
     if (this.nativeInstanceId == -1L) return;
     releaseAllocator(this.nativeInstanceId);
   }
