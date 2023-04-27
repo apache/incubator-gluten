@@ -17,20 +17,19 @@
 
 package io.glutenproject.extension
 
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, Expression, Murmur3Hash, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, NamedExpression, SortOrder}
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, RangePartitioning}
-import org.apache.spark.sql.catalyst.expressions.{BindReferences, BoundReference}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -40,7 +39,7 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
@@ -629,13 +628,19 @@ case class ColumnarOverrideRules(session: SparkSession)
       (_: SparkSession) => TransformPreOverrides(
         this.isTopParentExchange || this.isAdaptiveContext),
       (_: SparkSession) => RemoveTransformHintRule()) :::
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
+      SparkUtil.extendedColumnarRules(
+        session,
+        GlutenConfig.getConf.extendedColumnarPreRules)
   }
 
   def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
     List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
-      List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf))
+      List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
+      SparkUtil.extendedColumnarRules(
+        session,
+        GlutenConfig.getConf.extendedColumnarPostRules)
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
