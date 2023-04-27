@@ -175,7 +175,7 @@ endmacro()
 
 macro(find_awssdk)
   set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
+  find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management;transfer)
 endmacro()
 
 

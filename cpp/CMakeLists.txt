@@ -103,6 +103,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 find_package(JNI REQUIRED)
+find_package(ZLIB REQUIRED)
 
 if(BUILD_TESTS)
   set(GLUTEN_GTEST_MIN_VERSION "1.13.0")
