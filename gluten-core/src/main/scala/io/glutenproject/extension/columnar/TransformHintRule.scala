@@ -108,18 +108,6 @@ object TagBeforeTransformHits {
   }
 }
 
-case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case agg: HashAggregateExec
-      if agg.child.isInstanceOf[ExpandExec] &&
-        !BackendsApiManager.getSettings.supportNewExpandContract() =>
-      val childExpandExec = agg.child.asInstanceOf[ExpandExec]
-      agg.copy(child = CustomExpandExec(
-        childExpandExec.projections, agg.groupingExpressions,
-        childExpandExec.output, childExpandExec.child))
-  }
-}
-
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (GlutenConfig.getConf.enableAnsiMode) {
@@ -382,14 +370,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = UnionExecTransformer(plan.children)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
-          }
-        case plan: CustomExpandExec =>
-          if (!enableColumnarExpand) {
-            TransformHints.tagNotTransformable(plan)
-          } else {
-            val transformer = GroupIdExecTransformer(plan.projections,
-              plan.groupExpression, plan.output, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ExpandExec =>

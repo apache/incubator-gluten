@@ -384,24 +384,6 @@ message ExpandRel {
   }
 }
 
-message GroupIdRel {
-  RelCommon common = 1;
-  Rel input = 2;
-
-  repeated Expression aggregate_expressions = 3;
-
-  // A list of expression grouping that the aggregation measured should be calculated for.
-  repeated GroupSets groupings = 4;
-
-  message GroupSets {
-    repeated Expression groupSets_expressions = 1;
-  }
-
-  string group_name = 5;
-
-  substrait.extensions.AdvancedExtension advanced_extension = 10;
-}
-
 // A relation with output field names.
 //
 // This is for use at the root of a `Rel` tree.
@@ -433,7 +415,6 @@ message Rel {
     ExpandRel expand = 15;
     WindowRel window = 16;
     GenerateRel generate = 17;
-    GroupIdRel group_id = 18;
   }
 }
 

@@ -198,29 +198,6 @@ public class RelBuilder {
     return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
   }
 
-  public static RelNode makeGroupIdRel(RelNode input,
-                                      String groupName,
-                                      ArrayList<ArrayList<ExpressionNode>> groupings,
-                                      ArrayList<ExpressionNode> aggExpressions,
-                                      AdvancedExtensionNode extensionNode,
-                                      SubstraitContext context,
-                                      Long operatorId) {
-    context.registerRelToOperator(operatorId);
-    return new GroupIdRelNode(input, groupName,
-        groupings, aggExpressions, extensionNode);
-  }
-
-  public static RelNode makeGroupIdRel(RelNode input,
-                                      String groupName,
-                                      ArrayList<ArrayList<ExpressionNode>> groupings,
-                                      ArrayList<ExpressionNode> aggExpressions,
-                                      SubstraitContext context,
-                                      Long operatorId) {
-    context.registerRelToOperator(operatorId);
-    return new GroupIdRelNode(input, groupName,
-        groupings, aggExpressions);
-  }
-
   public static RelNode makeExpandRel(RelNode input,
     ArrayList<ArrayList<ExpressionNode>> projections,
     AdvancedExtensionNode extensionNode,
