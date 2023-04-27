@@ -67,6 +67,7 @@ endfunction()
 macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
   add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
+  add_velox_dependency(functions::sparksql::window "${VELOX_COMPONENTS_PATH}/functions/sparksql/windows/libvelox_functions_spark_windows.a")
   add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
 
   add_velox_dependency(functions::prestosql::window "${VELOX_COMPONENTS_PATH}/functions/prestosql/window/libvelox_window.a")
@@ -87,10 +88,10 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
-  if(VELOX_ENABLE_HDFS)
+  if(ENABLE_HDFS)
     add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
   endif()
-  if(VELOX_ENABLE_S3)
+  if(ENABLE_S3)
     add_velox_dependency(connector::hive::s3fs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a")
   endif()
   add_velox_dependency(dwio::dwrf::test_utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/test/utils/libvelox_dwrf_test_utils.a")
@@ -101,6 +102,15 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(dwio::common::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
   add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_reader.a")
   add_velox_dependency(parquet::reader::native "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_native_parquet_reader.a")
+  if(BUILD_BENCHMARKS)
+    add_velox_dependency(parquet::reader::duckdb "${VELOX_COMPONENTS_PATH}/dwio/parquet/duckdb_reader/libvelox_dwio_duckdb_parquet_reader.a")
+    add_velox_dependency(parquet::reader::duckdb_allocator "${VELOX_COMPONENTS_PATH}/duckdb/memory/libvelox_duckdb_allocator.a")
+    add_velox_dependency(parquet::reader::duckdb_conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
+    add_velox_dependency(duckdb::duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
+    add_velox_dependency(parquet::reader::duckdb_tpch_extension "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/libtpch_extension.a")
+    add_velox_dependency(dbgen "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/dbgen/libdbgen.a")
+  endif()
+
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
   add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
 
@@ -136,6 +146,8 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
+  add_velox_dependency(velox::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/libvelox_dwio_parquet_writer.a")
+
   if(BUILD_TESTS)
     add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
   endif()
@@ -177,7 +189,8 @@ set(VELOX_SRCS
     compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxColumnarToRowConverter.cc
-    compute/DwrfDatasource.cc
+    compute/VeloxRowToColumnarConverter.cc
+    compute/VeloxParquetDatasource.cc
     compute/VeloxBridge.cc
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
@@ -219,8 +232,8 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
-if(VELOX_ENABLE_HDFS)
-  add_definitions(-DVELOX_ENABLE_HDFS)
+if(ENABLE_HDFS)
+  add_definitions(-DENABLE_HDFS)
   find_libhdfs3()
   add_library(libhdfs3 SHARED IMPORTED)
   set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
@@ -231,8 +244,8 @@ if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
 
-if(VELOX_ENABLE_S3)
-  add_definitions(-DVELOX_ENABLE_S3)
+if(ENABLE_S3)
+  add_definitions(-DENABLE_S3)
   find_awssdk()
   target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()

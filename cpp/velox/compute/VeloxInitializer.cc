@@ -24,10 +24,10 @@
 #include "config/GlutenConfig.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/serializers/PrestoSerializer.h"
-#ifdef VELOX_ENABLE_HDFS
+#ifdef ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #endif
-#ifdef VELOX_ENABLE_S3
+#ifdef ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
 #include "velox/common/memory/MmapAllocator.h"
@@ -49,11 +49,11 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
 
   std::unordered_map<std::string, std::string> configurationValues;
 
-#ifdef VELOX_ENABLE_HDFS
+#ifdef ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
 #endif
 
-#ifdef VELOX_ENABLE_S3
+#ifdef ENABLE_S3
   velox::filesystems::registerS3FileSystem();
 
   std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];

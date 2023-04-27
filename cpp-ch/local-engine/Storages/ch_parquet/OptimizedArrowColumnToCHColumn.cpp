@@ -1,5 +1,6 @@
 #include "OptimizedArrowColumnToCHColumn.h"
 
+#if USE_LOCAL_FORMATS
 #if USE_ARROW || USE_ORC || USE_PARQUET
 
 #include <algorithm>
@@ -557,7 +558,10 @@ void OptimizedArrowColumnToCHColumn::arrowTableToCHChunk(Chunk & res, std::share
 
     Stopwatch sw;
     sw.start();
-    arrowColumnsToCHChunk(res, name_to_column_ptr, table->schema());
+    if (!name_to_column_ptr.empty())
+    {
+        arrowColumnsToCHChunk(res, name_to_column_ptr, table->schema());
+    }
     real_convert += sw.elapsedNanoseconds();
 }
 
@@ -679,4 +683,5 @@ std::vector<size_t> OptimizedArrowColumnToCHColumn::getMissingColumns(const arro
 
 }
 
+#endif
 #endif

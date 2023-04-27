@@ -71,10 +71,9 @@ namespace
         DataTypePtr getReturnTypeImpl(const DataTypes & arguments) const override
         {
             if (arguments.size() != 2)
-                throw Exception(
-                    "Number of arguments for function " + getName() + " doesn't match: passed " + toString(arguments.size())
-                        + ", should be  2.",
-                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH);
+                throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
+                              "Number of arguments for function {} doesn't match: passed {}, should be  2.",
+                              getName(), toString(arguments.size()));
             return std::make_shared<DataTypeString>();
         }
 
@@ -84,7 +83,7 @@ namespace
             const ColumnConst * trimStrConst = typeid_cast<const ColumnConst *>(&*trimStrPtr);
 
             if (!trimStrConst) {
-                throw Exception("Second argument of function " + getName() + " must be constant string", ErrorCodes::ILLEGAL_COLUMN);
+                throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Second argument of function {} must be constant string", getName());
             }
             String trimStr = trimStrConst->getValue<String>();
             auto col_res = ColumnString::create();

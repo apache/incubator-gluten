@@ -53,12 +53,12 @@ struct SplitOptions {
   int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::UNCOMPRESSED;
 
-  bool prefer_spill = true;
+  bool prefer_evict = true;
   bool write_schema = true;
   bool buffered_write = false;
-  bool is_celeborn = false;
 
   std::string data_file;
+  std::string partition_writer_type = "local";
 
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;

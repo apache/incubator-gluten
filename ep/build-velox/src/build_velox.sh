@@ -8,6 +8,7 @@ ENABLE_HDFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
+ENABLE_BENCHMARK=OFF
 
 LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
 LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
@@ -32,6 +33,10 @@ for arg in "$@"; do
     ;;
   --enable_ep_cache=*)
     ENABLE_EP_CACHE=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_benchmarks=*)
+    ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -72,7 +77,11 @@ function compile {
     echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
     exit 1
   fi
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
+
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON "
+  if [ $ENABLE_BENCHMARK == "OFF" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
+  fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
   fi
@@ -103,7 +112,7 @@ function check_commit {
       fi
     fi
   else
-    git clean -dfx :/
+    git clean -dffx :/
   fi
 
   if [ -f ${BUILD_DIR}/velox-commit.cache ]; then

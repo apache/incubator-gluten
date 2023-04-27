@@ -149,6 +149,8 @@ case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
 }
 
 object GlutenColumnarRules {
+  // Load when fallback to vanilla columnar to row
+  // Remove it when supports all the spark type velox columnar to row
   case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
       case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeExec) =>

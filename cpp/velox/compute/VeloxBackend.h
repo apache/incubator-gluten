@@ -23,9 +23,11 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
+#include <iostream>
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
+#include "compute/VeloxParquetDatasource.h"
 #include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
@@ -50,6 +52,10 @@ class VeloxBackend final : public Backend {
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
 
+  std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
+      MemoryAllocator* allocator,
+      struct ArrowSchema* cSchema) override;
+
   std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       const std::string& partitioning_name,
       int num_partitions,
@@ -62,6 +68,17 @@ class VeloxBackend final : public Backend {
   }
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
+
+  const facebook::velox::memory::MemoryPool::Options& GetMemoryPoolOptions() const {
+    return memPoolOptions_;
+  }
+
+  std::shared_ptr<Datasource> GetDatasource(
+      const std::string& file_path,
+      const std::string& file_name,
+      std::shared_ptr<arrow::Schema> schema) override {
+    return std::make_shared<VeloxParquetDatasource>(file_path, file_name, schema);
+  }
 
  private:
   void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
@@ -101,7 +118,7 @@ class VeloxBackend final : public Backend {
 
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
       std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
-          GetDefaultWrappedVeloxMemoryPool().get());
+          GetDefaultLeafWrappedVeloxMemoryPool().get());
 
   // Cache for tests/benchmark purpose.
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;

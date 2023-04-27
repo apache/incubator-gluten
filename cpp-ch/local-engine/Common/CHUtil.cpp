@@ -431,21 +431,16 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
             if (!key.has_string() || !value.has_string())
                 continue;
 
-            if (!key.string().starts_with(CH_BACKEND_CONF_PREFIX) && key.string() != std::string(GLUTEN_TIMEZONE_KEY))
-                continue;
-
             ch_backend_conf[key.string()] = value.string();
         }
     } while (false);
 
-    if (!ch_backend_conf.count(CH_RUNTIME_CONF_FILE))
+    if (!ch_backend_conf.count(CH_RUNTIME_CONFIG_FILE))
     {
         /// Try to get config path from environment variable
         const char * config_path = std::getenv("CLICKHOUSE_BACKEND_CONFIG"); /// NOLINT
         if (config_path)
-        {
-            ch_backend_conf[CH_RUNTIME_CONF_FILE] = config_path;
-        }
+            ch_backend_conf[CH_RUNTIME_CONFIG_FILE] = config_path;
     }
     return ch_backend_conf;
 }
@@ -453,31 +448,32 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
 void BackendInitializerUtil::initConfig(const std::string &plan)
 {
     /// Parse input substrait plan, and get native conf map from it.
-    std::map<std::string, std::string> backend_conf_map;
     backend_conf_map = getBackendConfMap(plan);
-
-    if (backend_conf_map.count(CH_RUNTIME_CONF_FILE))
+    if (backend_conf_map.count(CH_RUNTIME_CONFIG_FILE))
     {
-        if (fs::exists(CH_RUNTIME_CONF_FILE) && fs::is_regular_file(CH_RUNTIME_CONF_FILE))
+        if (fs::exists(CH_RUNTIME_CONFIG_FILE) && fs::is_regular_file(CH_RUNTIME_CONFIG_FILE))
         {
-            ConfigProcessor config_processor(CH_RUNTIME_CONF_FILE, false, true);
-            config_processor.setConfigPath(fs::path(CH_RUNTIME_CONF_FILE).parent_path());
+            ConfigProcessor config_processor(CH_RUNTIME_CONFIG_FILE, false, true);
+            config_processor.setConfigPath(fs::path(CH_RUNTIME_CONFIG_FILE).parent_path());
             auto loaded_config = config_processor.loadConfig(false);
             config = loaded_config.configuration;
         }
         else
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} is not a valid configure file.", CH_RUNTIME_CONF_FILE);
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} is not a valid configure file.", CH_RUNTIME_CONFIG_FILE);
     }
     else
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
 
-    /// Update specified settings
+    /// Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
     for (const auto & kv : backend_conf_map)
     {
-        if (kv.first.starts_with(CH_RUNTIME_CONF_PREFIX) && kv.first != CH_RUNTIME_CONF_FILE)
-            config->setString(kv.first.substr(CH_RUNTIME_CONF_PREFIX.size() + 1), kv.second);
-        else if (kv.first == std::string(GLUTEN_TIMEZONE_KEY))
-            config->setString(kv.first, kv.second);
+        const auto & key = kv.first;
+        const auto & value = kv.second;
+
+        if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
+            config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
+        else if (S3_CONFIGS.find(key) != S3_CONFIGS.end())
+            config->setString(S3_CONFIGS.at(key), value);
     }
 }
 
@@ -495,9 +491,9 @@ void BackendInitializerUtil::initLoggers()
 void BackendInitializerUtil::initEnvs()
 {
     /// Set environment variable TZ if possible
-    if (config->has(GLUTEN_TIMEZONE_KEY))
+    if (config->has("timezone"))
     {
-        String timezone_name = config->getString(GLUTEN_TIMEZONE_KEY);
+        String timezone_name = config->getString("timezone");
         if (0 != setenv("TZ", timezone_name.data(), 1)) /// NOLINT
             throw Poco::Exception("Cannot setenv TZ variable");
 
@@ -521,13 +517,27 @@ void BackendInitializerUtil::initSettings()
     Poco::Util::AbstractConfiguration::Keys config_keys;
     config->keys(settings_path, config_keys);
 
+    /// Firstly apply section [local_engine.settings] in config file to settings
     for (const std::string & key : config_keys)
         settings.set(key, config->getString(settings_path + "." + key));
+
+    /// Secondly apply spark.gluten.sql.columnar.backend.ch.runtime_settings.* to settings
+    for (const auto & kv : backend_conf_map)
+    {
+        const auto & key = kv.first;
+        const auto & value = kv.second;
+        if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
+            settings.set(key.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), value);
+    }
+
+    /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
     settings.set("input_format_orc_case_insensitive_column_matching", true);
+    settings.set("input_format_orc_import_nested", true);
     settings.set("input_format_parquet_allow_missing_columns", true);
     settings.set("input_format_parquet_case_insensitive_column_matching", true);
+    settings.set("input_format_parquet_import_nested", true);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
 }

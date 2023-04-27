@@ -31,5 +31,9 @@ const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.si
 
 const std::string kSparkBatchSize = "spark.sql.execution.arrow.maxRecordsPerBatch";
 
+const std::string kParquetBlockSize = "parquet.block.size";
+
+const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
+
 std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
 } // namespace gluten

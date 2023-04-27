@@ -1,3 +1,9 @@
+---
+layout: page
+title: New To Gluten
+nav_order: 2
+parent: Developer Overview
+---
 Help users to debug and test with gluten.
 
 For intel internal developer, you could refer to internal wiki  [New Employee Guide](https://wiki.ith.intel.com/display/HPDA/New+Employee+Guide) to get more information such as proxy settings,
@@ -135,7 +141,7 @@ And we need to compile velox debug mode before, if you have compiled velox relea
 
 ```bash
 # Build the velox debug version in <velox_home>/_build/debug
-make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_ENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF  -DVELOX_ENABLE_DUCKDB=ON -DVELOX_BUILD_TEST_UTILS=ON"
+make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF  -DVELOX_ENABLE_DUCKDB=ON -DVELOX_BUILD_TEST_UTILS=ON"
 ```
 
 Then gluten will link velox debug library.

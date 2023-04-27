@@ -1,44 +1,26 @@
 #include <functional>
 #include <memory>
-#include <Columns/ColumnNullable.h>
-#include <Columns/ColumnTuple.h>
-#include <Columns/ColumnsNumber.h>
-#include <Columns/IColumn.h>
-#include <Core/Block.h>
-#include <Core/ColumnWithTypeAndName.h>
-#include <Core/ColumnsWithTypeAndName.h>
-#include <Core/Field.h>
-#include <Core/Types.h>
-#include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/DataTypesNumber.h>
-#include <DataTypes/Serializations/ISerialization.h>
-#include <IO/ReadBufferFromString.h>
-#include <IO/ReadHelpers.h>
-#include <Interpreters/castColumn.h>
-#include <Processors/Chunk.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/SubstraitSource/FormatFile.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <base/types.h>
-#include <substrait/plan.pb.h>
+
 #include <magic_enum.hpp>
-#include <Poco/Logger.h>
 #include <Poco/URI.h>
+#include <substrait/plan.pb.h>
+
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
 #include <Common/typeid_cast.h>
-#include <Core/Block.h>
-#include <Core/Types.h>
+#include <Columns/ColumnNullable.h>
+#include <Columns/ColumnTuple.h>
+#include <Columns/ColumnsNumber.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesNumber.h>
+#include <IO/ReadBufferFromString.h>
+#include <Interpreters/castColumn.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/FormatFile.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
-#include <substrait/plan.pb.h>
+#include <QueryPipeline/Pipe.h>
 
-#include <Poco/Logger.h>
-#include <Common/logger_useful.h>
-#include <magic_enum.hpp>
-#include <Common/CHUtil.h>
 namespace DB
 {
 namespace ErrorCodes
@@ -92,7 +74,6 @@ SubstraitFileSource::SubstraitFileSource(DB::ContextPtr context_, const DB::Bloc
         }
     }
 }
-
 
 DB::Chunk SubstraitFileSource::generate()
 {
@@ -240,6 +221,26 @@ DB::ColumnPtr FileReaderWrapper::createConstColumn(DB::DataTypePtr data_type, co
     return column;
 }
 
+DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataTypePtr type, size_t rows)
+{
+    if (StringUtils::isNullPartitionValue(value))
+    {
+        if (!type->isNullable())
+        {
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR, "Partition column is null value,but column data type is not nullable.");
+        }
+        auto nested_type = static_cast<const DB::DataTypeNullable &>(*type).getNestedType();
+        auto column = nested_type->createColumnConstWithDefaultValue(rows);
+        return DB::ColumnNullable::create(column, DB::ColumnUInt8::create(rows, 1));
+    }
+    else
+    {
+        auto field = buildFieldFromString(value, type);
+        return createConstColumn(type, field, rows);
+    }
+}
+
 #define BUILD_INT_FIELD(type) \
     [](DB::ReadBuffer & in, const String &) \
     {\
@@ -334,9 +335,7 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
             {
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow partition column : {}", name);
             }
-            auto field = buildFieldFromString(it->second, type);
-            auto column = createConstColumn(type, field, to_read_rows);
-            res_columns.emplace_back(column);
+            res_columns.emplace_back(createColumn(it->second, type, to_read_rows));
         }
     }
     else
@@ -395,8 +394,7 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
                 throw DB::Exception(
                     DB::ErrorCodes::LOGICAL_ERROR, "Not found column({}) from file({}) partition keys.", column.name, file->getURIPath());
             }
-            auto field = buildFieldFromString(it->second, column.type);
-            res_columns.push_back(createConstColumn(column.type, field, rows));
+            res_columns.push_back(createColumn(it->second, column.type, rows));
         }
     }
     chunk = DB::Chunk(std::move(res_columns), rows);

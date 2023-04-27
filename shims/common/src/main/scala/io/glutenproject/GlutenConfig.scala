@@ -120,7 +120,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
-      .equals("org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+      .equals("org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
 
   // enable or disable columnar exchange
   def enableColumnarShuffle: Boolean =
@@ -195,7 +195,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
   def enableCoalesceBatches: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "false").toBoolean
 
   def enableColumnarLimit: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.limit", "true").toBoolean
@@ -293,6 +293,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 }
 
 object GlutenConfig {
+  var GLUTEN_ENABLE_BY_DEFAULT = true
+  val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
 
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
@@ -305,7 +307,8 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE: String = SPARK_PREFIX + HIVE_EXEC_ORC_ROW_INDEX_STRIDE
   val HIVE_EXEC_ORC_COMPRESS = "hive.exec.orc.compress"
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = SPARK_PREFIX + HIVE_EXEC_ORC_COMPRESS
-
+  val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
+  val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -342,6 +345,7 @@ object GlutenConfig {
 
   // Private Spark configs.
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
+  val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, defalut value is false
@@ -397,7 +401,7 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "32768"),
+      (SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "4096"),
       (SQLConf.CASE_SENSITIVE.key, "false")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getConfString(e._1, e._2)))
@@ -417,12 +421,12 @@ object GlutenConfig {
   def getNativeStaticConf(conf: SparkConf, backendPrefix: String): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
-      // DWRF datasource config
-      SPARK_HIVE_EXEC_ORC_STRIPE_SIZE,
-      SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
-      SPARK_HIVE_EXEC_ORC_COMPRESS,
-      // DWRF datasource config end
-      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY
+      // Velox datasource config
+      SPARK_SQL_PARQUET_COMPRESSION_CODEC,
+      // Velox datasource config end
+      GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GLUTEN_OFFHEAP_ENABLED
     )
     keys.forEach(
       k => {

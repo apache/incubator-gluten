@@ -29,8 +29,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
 
-case class TakeOrderedAndProjectExecTransformer (
-                                                limit: Int,
+case class TakeOrderedAndProjectExecTransformer(limit: Int,
                                                 sortOrder: Seq[SortOrder],
                                                 projectList: Seq[NamedExpression],
                                                 child: SparkPlan,
@@ -89,8 +88,9 @@ case class TakeOrderedAndProjectExecTransformer (
         val sortStagePlan = WholeStageTransformerExec(limitExecPlan)(
           transformStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
-        val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(shuffleExec,
-          sortStagePlan, isAdaptiveContextOrTopParentExchange, shuffleExec.child.output)
+        val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(
+          shuffleExec, sortStagePlan, isAdaptiveContextOrTopParentExchange,
+          shuffleExec.child.output, enableCoalesceBatches = false)
         val globalSortExecPlan = SortExecTransformer(sortOrder, false,
           new ColumnarInputAdapter(transformedShuffleExec))
         LimitTransformer(globalSortExecPlan, 0, limit)

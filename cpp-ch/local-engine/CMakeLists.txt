@@ -1,3 +1,10 @@
+option(ENABLE_LOCAL_FORMATS "Use ORC/Parquet input formats defined in utils/local-engine/, notice that it is not stable and has some known issues. We suggest setting it to OFF in production environment." OFF)
+if (ENABLE_LOCAL_FORMATS)
+    add_definitions(-DENABLE_LOCAL_FORMATS=1)
+else()
+    add_definitions(-DENABLE_LOCAL_FORMATS=0)
+endif()
+
 set(THRIFT_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/thrift/lib/cpp/src")
 
 # Find java/jni
@@ -37,7 +44,10 @@ include_directories(
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
 )
 
-add_subdirectory(Storages/ch_parquet)
+if (ENABLE_LOCAL_FORMATS)
+    add_subdirectory(Storages/ch_parquet)
+endif()
+
 add_subdirectory(Storages/SubstraitSource)
 
 add_library(${LOCALENGINE_SHARED_LIB} SHARED
@@ -52,13 +62,15 @@ add_library(${LOCALENGINE_SHARED_LIB} SHARED
         ${operator_sources}
         ${aggregate_functions_sources}
         ${functions_sources}
-        local_engine_jni.cpp)
-
+        local_engine_jni.cpp $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
 
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC
         -Wno-shorten-64-to-32)
 
+target_link_libraries (${LOCALENGINE_SHARED_LIB} PRIVATE )
+
 target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
+        clickhouse_new_delete
         clickhouse_aggregate_functions
         clickhouse_common_config
         clickhouse_common_io
@@ -67,10 +79,14 @@ target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
         clickhouse_storages_system
         substrait
         loggers
-        ch_parquet
         substait_source
-        xxHash
+        ch_contrib::xxHash
+        ch_contrib::protobuf
 )
+
+if (ENABLE_LOCAL_FORMATS)
+    target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
+endif ()
 
 #set(CPACK_PACKAGE_VERSION 0.1.0)
 #set(CPACK_GENERATOR "RPM")

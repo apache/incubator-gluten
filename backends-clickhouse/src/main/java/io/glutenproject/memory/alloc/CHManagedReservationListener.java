@@ -90,9 +90,9 @@ public class CHManagedReservationListener implements ReservationListener {
       }
       long memoryToFree = size;
       if ((currentMemory.get() - size) < 0L) {
-        LOG.warn(
+        LOG.debug(
             "The current used memory' " + currentMemory.get() +
-                " will be less than 0 after free " + size
+                " will be less than 0(" + (currentMemory.get() - size) + ") after free " + size
         );
         memoryToFree = currentMemory.get();
       }
@@ -108,6 +108,15 @@ public class CHManagedReservationListener implements ReservationListener {
   @Override
   public void inactivate() {
     synchronized (this) {
+      // for some reasons, memory audit in the native code may not be 100% accurate
+      // we'll allow the inaccuracy
+      if (currentMemory.get() > 0) {
+        unreserve(currentMemory.get());
+      } else if (currentMemory.get() < 0) {
+        reserve(currentMemory.get());
+      }
+      currentMemory.set(0L);
+
       consumer = null; // make it gc reachable
       open = false;
     }
@@ -117,4 +126,5 @@ public class CHManagedReservationListener implements ReservationListener {
   public long currentMemory() {
     return currentMemory.get();
   }
+
 }

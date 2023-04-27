@@ -1,6 +1,7 @@
 #pragma once
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ORCBlockInputFormat.h>
+
 /// there are destructor not be overrided warnings in orc lib, ignore them
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsuggest-destructor-override"

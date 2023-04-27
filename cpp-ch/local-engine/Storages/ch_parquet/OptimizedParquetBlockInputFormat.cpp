@@ -1,22 +1,13 @@
 #include "OptimizedParquetBlockInputFormat.h"
 #include <boost/algorithm/string/case_conv.hpp>
 
-#if USE_PARQUET
+#if USE_PARQUET && USE_LOCAL_FORMATS
 
 #include <Formats/FormatFactory.h>
-#include <IO/ReadBufferFromMemory.h>
-#include <IO/copyData.h>
-#include <arrow/api.h>
-#include <arrow/io/api.h>
-#include <arrow/status.h>
-#include "Storages/ch_parquet/arrow/reader.h"
-#include <parquet/file_reader.h>
+#include <Storages/ch_parquet/arrow/reader.h>
+#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#include "OptimizedArrowColumnToCHColumn.h"
 #include <DataTypes/NestedUtils.h>
-
-#include <Poco/Logger.h>
-#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -31,7 +22,7 @@ namespace ErrorCodes
     do                                                                 \
     {                                                                  \
         if (::arrow::Status _s = (status); !_s.ok())                   \
-            throw Exception(_s.ToString(), ErrorCodes::BAD_ARGUMENTS); \
+            throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
     } while (false)
 
 OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_)
@@ -56,8 +47,8 @@ Chunk OptimizedParquetBlockInputFormat::generate()
     std::shared_ptr<arrow::Table> table;
     arrow::Status read_status = file_reader->ReadRowGroup(row_group_current, column_indices, &table);
     if (!read_status.ok())
-        throw ParsingException{"Error while reading Parquet data: " + read_status.ToString(),
-                        ErrorCodes::CANNOT_READ_ALL_DATA};
+        throw ParsingException(ErrorCodes::CANNOT_READ_ALL_DATA, "Error while reading Parquet data: {}",
+                               read_status.ToString());
 
     if (format_settings.use_lowercase_column_name)
         table = *table->RenameColumns(column_names);
@@ -193,6 +184,7 @@ NamesAndTypesList OptimizedParquetSchemaReader::readSchema()
     return header.getNamesAndTypesList();
 }
 
+/*
 void registerInputFormatParquet(FormatFactory & factory)
 {
     factory.registerInputFormat(
@@ -219,19 +211,8 @@ void registerOptimizedParquetSchemaReader(FormatFactory & factory)
         [](const FormatSettings & settings)
         { return fmt::format("schema_inference_make_columns_nullable={}", settings.schema_inference_make_columns_nullable); });
 }
+*/
 
-}
-
-#else
-
-namespace DB
-{
-class FormatFactory;
-void registerInputFormatParquet(FormatFactory &)
-{
-}
-
-void registerOptimizedParquetSchemaReader(FormatFactory &) {}
 }
 
 #endif

@@ -47,7 +47,7 @@ def getListOfFiles(dir: String):List[File] = {
          List[File]()
      }
 }
-val fileLists = getListOfFiles(gluten_root + "/gluten-core/src/test/resources/tpch-data/")
+val fileLists = getListOfFiles(gluten_root + "/gluten-core/src/test/resources/tpch-queries/")
 val sorted = fileLists.sortBy {
        f => f.getName match {
        case name =>

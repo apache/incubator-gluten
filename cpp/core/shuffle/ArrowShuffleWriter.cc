@@ -84,118 +84,6 @@ SplitOptions SplitOptions::Defaults() {
   return SplitOptions();
 }
 
-class ArrowShuffleWriter::PartitionWriter {
- public:
-  PartitionWriter(ArrowShuffleWriter* shuffleWriter, int32_t partition_id)
-      : shuffleWriter_(shuffleWriter), partition_id_(partition_id) {}
-
-  arrow::Status Spill() {
-#ifndef SKIPWRITE
-    RETURN_NOT_OK(EnsureOpened());
-#endif
-    RETURN_NOT_OK(WriteRecordBatchPayload(spilled_file_os_.get()));
-    ClearCache();
-    return arrow::Status::OK();
-  }
-
-  arrow::Status WriteCachedRecordBatchAndClose() {
-    const auto& data_file_os = shuffleWriter_->data_file_os_;
-    ARROW_ASSIGN_OR_RAISE(auto before_write, data_file_os->Tell());
-
-    if (shuffleWriter_->options_.write_schema) {
-      RETURN_NOT_OK(WriteSchemaPayload(data_file_os.get()));
-    }
-
-    if (spilled_file_opened_) {
-      RETURN_NOT_OK(spilled_file_os_->Close());
-      RETURN_NOT_OK(MergeSpilled());
-    } else {
-      if (shuffleWriter_->partition_cached_recordbatch_size_[partition_id_] == 0) {
-        return arrow::Status::Invalid("Partition writer got empty partition");
-      }
-    }
-
-    RETURN_NOT_OK(WriteRecordBatchPayload(data_file_os.get()));
-    RETURN_NOT_OK(WriteEOS(data_file_os.get()));
-    ClearCache();
-
-    ARROW_ASSIGN_OR_RAISE(auto after_write, data_file_os->Tell());
-    partition_length = after_write - before_write;
-
-    return arrow::Status::OK();
-  }
-
-  // metrics
-  int64_t bytes_spilled = 0;
-  int64_t partition_length = 0;
-
- private:
-  arrow::Status EnsureOpened() {
-    if (!spilled_file_opened_) {
-      ARROW_ASSIGN_OR_RAISE(spilled_file_, CreateTempShuffleFile(shuffleWriter_->NextSpilledFileDir()));
-      ARROW_ASSIGN_OR_RAISE(spilled_file_os_, arrow::io::FileOutputStream::Open(spilled_file_, true));
-      spilled_file_opened_ = true;
-    }
-    return arrow::Status::OK();
-  }
-
-  arrow::Status MergeSpilled() {
-    ARROW_ASSIGN_OR_RAISE(
-        auto spilled_file_is_, arrow::io::MemoryMappedFile::Open(spilled_file_, arrow::io::FileMode::READ));
-    // copy spilled data blocks
-    ARROW_ASSIGN_OR_RAISE(auto nbytes, spilled_file_is_->GetSize());
-    ARROW_ASSIGN_OR_RAISE(auto buffer, spilled_file_is_->Read(nbytes));
-    RETURN_NOT_OK(shuffleWriter_->data_file_os_->Write(buffer));
-
-    // close spilled file streams and delete the file
-    RETURN_NOT_OK(spilled_file_is_->Close());
-    auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
-    RETURN_NOT_OK(fs->DeleteFile(spilled_file_));
-    bytes_spilled += nbytes;
-    return arrow::Status::OK();
-  }
-
-  arrow::Status WriteSchemaPayload(arrow::io::OutputStream* os) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, shuffleWriter_->GetSchemaPayload());
-    int32_t metadata_length = 0; // unused
-    RETURN_NOT_OK(
-        arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options_.ipc_write_options, os, &metadata_length));
-    return arrow::Status::OK();
-  }
-
-  arrow::Status WriteRecordBatchPayload(arrow::io::OutputStream* os) {
-    int32_t metadata_length = 0; // unused
-#ifndef SKIPWRITE
-    for (auto& payload : shuffleWriter_->partition_cached_recordbatch_[partition_id_]) {
-      RETURN_NOT_OK(
-          arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options_.ipc_write_options, os, &metadata_length));
-      payload = nullptr;
-    }
-#endif
-    return arrow::Status::OK();
-  }
-
-  arrow::Status WriteEOS(arrow::io::OutputStream* os) {
-    // write EOS
-    constexpr int32_t kZeroLength = 0;
-    RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
-    RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));
-    return arrow::Status::OK();
-  }
-
-  void ClearCache() {
-    shuffleWriter_->partition_cached_recordbatch_[partition_id_].clear();
-    shuffleWriter_->partition_cached_recordbatch_size_[partition_id_] = 0;
-  }
-
-  ArrowShuffleWriter* shuffleWriter_;
-  int32_t partition_id_;
-  std::string spilled_file_;
-  std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os_;
-
-  bool spilled_file_opened_ = false;
-};
-
 // ----------------------------------------------------------------------
 // ArrowShuffleWriter
 
@@ -285,7 +173,7 @@ arrow::Status ArrowShuffleWriter::Init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  partition_writer_.resize(num_partitions_);
+  ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
 
   // pre-computed row count for each partition after the record batch split
   partition_id_cnt_.resize(num_partitions_);
@@ -302,16 +190,6 @@ arrow::Status ArrowShuffleWriter::Init() {
   partition_lengths_.resize(num_partitions_);
   raw_partition_lengths_.resize(num_partitions_);
   reducer_offset_offset_.resize(num_partitions_ + 1);
-
-  ARROW_ASSIGN_OR_RAISE(configured_dirs_, GetConfiguredLocalDirs());
-  sub_dir_selection_.assign(configured_dirs_.size(), 0);
-
-  // Both data_file and shuffle_index_file should be set through jni.
-  // For test purpose, Create a temporary subdirectory in the system temporary
-  // dir with prefix "columnar-shuffle"
-  if (options_.data_file.length() == 0) {
-    ARROW_ASSIGN_OR_RAISE(options_.data_file, CreateTempShuffleFile(configured_dirs_[0]));
-  }
 
   RETURN_NOT_OK(SetCompressType(options_.compression_type));
 
@@ -370,41 +248,7 @@ arrow::Status ArrowShuffleWriter::Split(ColumnarBatch* batch) {
 
 arrow::Status ArrowShuffleWriter::Stop() {
   EVAL_START("write", options_.thread_id)
-  // open data file output stream
-  std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(options_.data_file, true));
-  if (options_.buffered_write) {
-    ARROW_ASSIGN_OR_RAISE(
-        data_file_os_, arrow::io::BufferedOutputStream::Create(16384, options_.memory_pool.get(), fout));
-  } else {
-    data_file_os_ = fout;
-  }
-
-  // stop PartitionWriter and collect metrics
-  for (auto pid = 0; pid < num_partitions_; ++pid) {
-    RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, true));
-    if (partition_cached_recordbatch_size_[pid] > 0) {
-      if (partition_writer_[pid] == nullptr) {
-        partition_writer_[pid] = std::make_shared<PartitionWriter>(this, pid);
-      }
-    }
-    if (partition_writer_[pid] != nullptr) {
-      const auto& writer = partition_writer_[pid];
-      TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
-      partition_lengths_[pid] = writer->partition_length;
-      total_bytes_written_ += writer->partition_length;
-      total_bytes_evicted_ += writer->bytes_spilled;
-    } else {
-      partition_lengths_[pid] = 0;
-    }
-  }
-  this->combine_buffer_.reset();
-  this->schema_payload_.reset();
-  partition_buffers_.clear();
-
-  // close data file output Stream
-  RETURN_NOT_OK(data_file_os_->Close());
-
+  RETURN_NOT_OK(partition_writer_->Stop());
   EVAL_END("write", options_.thread_id, options_.task_attempt_id)
 
   return arrow::Status::OK();
@@ -455,7 +299,7 @@ arrow::Status ArrowShuffleWriter::CacheRecordBatch(int32_t partition_id, const a
   return arrow::Status::OK();
 }
 
-arrow::Status ArrowShuffleWriter::CreateRecordBatchFromBuffer(int32_t partition_id, bool reset_buffers) {
+arrow::Status ArrowShuffleWriter::CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers) {
   if (partition_buffer_idx_base_[partition_id] <= 0) {
     return arrow::Status::OK();
   }
@@ -667,11 +511,11 @@ arrow::Status ArrowShuffleWriter::AllocateNew(int32_t partition_id, int32_t new_
     std::cerr << status.ToString() << std::endl
               << std::to_string(++retry) << " retry to allocate new buffer for partition "
               << std::to_string(partition_id) << std::endl;
-    int64_t spilled_size;
-    ARROW_ASSIGN_OR_RAISE(auto partition_to_spill, SpillLargestPartition(&spilled_size));
-    if (partition_to_spill == -1) {
+    int64_t evicted_size;
+    ARROW_ASSIGN_OR_RAISE(auto partition_to_evict, EvictLargestPartition(&evicted_size));
+    if (partition_to_evict == -1) {
       std::cerr << "Failed to allocate new buffer for partition " << std::to_string(partition_id)
-                << ". No partition buffer to spill." << std::endl;
+                << ". No partition buffer to evict." << std::endl;
       return status;
     }
     status = AllocatePartitionBuffers(partition_id, new_size);
@@ -685,28 +529,25 @@ arrow::Status ArrowShuffleWriter::AllocateNew(int32_t partition_id, int32_t new_
 
 // call from memory management
 arrow::Status ArrowShuffleWriter::EvictFixedSize(int64_t size, int64_t* actual) {
-  int64_t current_spilled = 0L;
+  int64_t current_evicted = 0L;
   int32_t try_count = 0;
-  while (current_spilled < size && try_count < 5) {
+  while (current_evicted < size && try_count < 5) {
     try_count++;
-    int64_t single_call_spilled;
-    ARROW_ASSIGN_OR_RAISE(int32_t spilled_partition_id, SpillLargestPartition(&single_call_spilled))
-    if (spilled_partition_id == -1) {
+    int64_t single_call_evicted;
+    ARROW_ASSIGN_OR_RAISE(int32_t evicted_partition_id, EvictLargestPartition(&single_call_evicted))
+    if (evicted_partition_id == -1) {
       break;
     }
-    current_spilled += single_call_spilled;
+    current_evicted += single_call_evicted;
   }
-  *actual = current_spilled;
+  *actual = current_evicted;
   return arrow::Status::OK();
 }
 
-arrow::Status ArrowShuffleWriter::SpillPartition(int32_t partition_id) {
-  if (partition_writer_[partition_id] == nullptr) {
-    partition_writer_[partition_id] = std::make_shared<PartitionWriter>(this, partition_id);
-  }
-  TIME_NANO_OR_RAISE(total_evict_time_, partition_writer_[partition_id]->Spill());
+arrow::Status ArrowShuffleWriter::EvictPartition(int32_t partition_id) {
+  RETURN_NOT_OK(partition_writer_->EvictPartition(partition_id));
 
-  // reset validity buffer after spill
+  // reset validity buffer after evict
   std::for_each(
       partition_buffers_.begin(), partition_buffers_.end(), [partition_id](std::vector<arrow::BufferVector>& bufs) {
         if (bufs[partition_id].size() != 0 && bufs[partition_id][0] != nullptr) {
@@ -719,27 +560,27 @@ arrow::Status ArrowShuffleWriter::SpillPartition(int32_t partition_id) {
   return arrow::Status::OK();
 }
 
-arrow::Result<int32_t> ArrowShuffleWriter::SpillLargestPartition(int64_t* size) {
-  // spill the largest partition
+arrow::Result<int32_t> ArrowShuffleWriter::EvictLargestPartition(int64_t* size) {
+  // evict the largest partition
   auto max_size = 0;
-  int32_t partition_to_spill = -1;
+  int32_t partition_to_evict = -1;
   for (auto i = 0; i < num_partitions_; ++i) {
     if (partition_cached_recordbatch_size_[i] > max_size) {
       max_size = partition_cached_recordbatch_size_[i];
-      partition_to_spill = i;
+      partition_to_evict = i;
     }
   }
-  if (partition_to_spill != -1) {
-    RETURN_NOT_OK(SpillPartition(partition_to_spill));
+  if (partition_to_evict != -1) {
+    RETURN_NOT_OK(EvictPartition(partition_to_evict));
 #ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "Spilled partition " << std::to_string(partition_to_spill) << ", " << std::to_string(max_size)
+    std::cout << "Evicted partition " << std::to_string(partition_to_evict) << ", " << std::to_string(max_size)
               << " bytes released" << std::endl;
 #endif
     *size = max_size;
   } else {
     *size = 0;
   }
-  return partition_to_spill;
+  return partition_to_evict;
 }
 
 ArrowShuffleWriter::row_offset_type ArrowShuffleWriter::CalculateSplitBatchSize(const arrow::RecordBatch& rb) {
@@ -822,13 +663,13 @@ arrow::Status ArrowShuffleWriter::DoSplit(const arrow::RecordBatch& rb) {
   for (size_t col = 0; col < array_idx_.size(); ++col) {
     auto col_idx = array_idx_[col];
     // check input_has_null_[col] is cheaper than GetNullCount()
-    // once input_has_null_ is set to true, we didn't reset it after spill
+    // once input_has_null_ is set to true, we didn't reset it after evict
     if (!input_has_null_[col] && rb.column_data(col_idx)->GetNullCount() != 0) {
       input_has_null_[col] = true;
     }
   }
 
-  // prepare partition buffers and spill if necessary
+  // prepare partition buffers and evict if necessary
   for (auto pid = 0; pid < num_partitions_; ++pid) {
     if (partition_id_cnt_[pid] > 0) {
       // make sure the size to be allocated is larger than the size to be filled
@@ -840,8 +681,8 @@ arrow::Status ArrowShuffleWriter::DoSplit(const arrow::RecordBatch& rb) {
         auto new_size = std::max(CalculateSplitBatchSize(rb), partition_id_cnt_[pid]);
         // if the size to be filled + allready filled > the buffer size, need to
         // allocate new buffer
-        if (options_.prefer_spill) {
-          // if prefer_spill is set, spill current record batch, we may reuse
+        if (options_.prefer_evict) {
+          // if prefer_evict is set, evict current record batch, we may reuse
           // the buffers
 
           if (new_size > (unsigned)partition_buffer_size_[pid]) {
@@ -850,16 +691,16 @@ arrow::Status ArrowShuffleWriter::DoSplit(const arrow::RecordBatch& rb) {
             RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, /*reset_buffers = */ true));
 
             // splill immediately
-            RETURN_NOT_OK(SpillPartition(pid));
+            RETURN_NOT_OK(EvictPartition(pid));
             RETURN_NOT_OK(AllocatePartitionBuffers(pid, new_size));
           } else {
             // partition size after split is smaller than buffer size, no need
             // to reset buffer, reuse it.
             RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, /*reset_buffers = */ false));
-            RETURN_NOT_OK(SpillPartition(pid));
+            RETURN_NOT_OK(EvictPartition(pid));
           }
         } else {
-          // if prefer_spill is disabled, cache the record batch
+          // if prefer_evict is disabled, cache the record batch
           RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, /*reset_buffers = */ true));
           // allocate partition buffer with retries
           RETURN_NOT_OK(AllocateNew(pid, new_size));
@@ -1268,25 +1109,6 @@ arrow::Status ArrowShuffleWriter::AppendList(
   return arrow::Status::OK();
 }
 
-std::string ArrowShuffleWriter::NextSpilledFileDir() {
-  auto spilled_file_dir =
-      GetSpilledShuffleFileDir(configured_dirs_[dir_selection_], sub_dir_selection_[dir_selection_]);
-  sub_dir_selection_[dir_selection_] = (sub_dir_selection_[dir_selection_] + 1) % options_.num_sub_dirs;
-  dir_selection_ = (dir_selection_ + 1) % configured_dirs_.size();
-  return spilled_file_dir;
-}
-
-arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> ArrowShuffleWriter::GetSchemaPayload() {
-  if (schema_payload_ != nullptr) {
-    return schema_payload_;
-  }
-  schema_payload_ = std::make_shared<arrow::ipc::IpcPayload>();
-  arrow::ipc::DictionaryFieldMapper dict_file_mapper; // unused
-  RETURN_NOT_OK(
-      arrow::ipc::GetSchemaPayload(*schema_, options_.ipc_write_options, dict_file_mapper, schema_payload_.get()));
-  return schema_payload_;
-}
-
 // ----------------------------------------------------------------------
 // ArrowRoundRobinShuffleWriter
 
@@ -1327,22 +1149,12 @@ arrow::Status ArrowSinglePartShuffleWriter::ComputeAndCountPartitionId(const arr
 }
 
 arrow::Status ArrowSinglePartShuffleWriter::Init() {
-  partition_writer_.resize(num_partitions_);
+  ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
   partition_buffer_idx_base_.resize(num_partitions_);
   partition_cached_recordbatch_.resize(num_partitions_);
   partition_cached_recordbatch_size_.resize(num_partitions_);
   partition_lengths_.resize(num_partitions_);
   raw_partition_lengths_.resize(num_partitions_);
-
-  ARROW_ASSIGN_OR_RAISE(configured_dirs_, GetConfiguredLocalDirs());
-  sub_dir_selection_.assign(configured_dirs_.size(), 0);
-
-  // Both data_file and shuffle_index_file should be set through jni.
-  // For test purpose, Create a temporary subdirectory in the system temporary
-  // dir with prefix "columnar-shuffle"
-  if (options_.data_file.length() == 0) {
-    ARROW_ASSIGN_OR_RAISE(options_.data_file, CreateTempShuffleFile(configured_dirs_[0]));
-  }
 
   RETURN_NOT_OK(SetCompressType(options_.compression_type));
 
@@ -1367,46 +1179,6 @@ arrow::Status ArrowSinglePartShuffleWriter::Split(ColumnarBatch* batch) {
   }
   RETURN_NOT_OK(CacheRecordBatch(0, *rb));
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
-  return arrow::Status::OK();
-}
-
-arrow::Status ArrowSinglePartShuffleWriter::Stop() {
-  EVAL_START("write", options_.thread_id)
-
-  // open data file output stream
-  std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(options_.data_file, true));
-  if (options_.buffered_write) {
-    ARROW_ASSIGN_OR_RAISE(
-        data_file_os_, arrow::io::BufferedOutputStream::Create(16384, options_.memory_pool.get(), fout));
-  } else {
-    data_file_os_ = fout;
-  }
-
-  // stop PartitionWriter and collect metrics
-  for (auto pid = 0; pid < num_partitions_; ++pid) {
-    if (partition_cached_recordbatch_size_[pid] > 0) {
-      if (partition_writer_[pid] == nullptr) {
-        partition_writer_[pid] = std::make_shared<PartitionWriter>(this, pid);
-      }
-    }
-    if (partition_writer_[pid] != nullptr) {
-      const auto& writer = partition_writer_[pid];
-      TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
-      partition_lengths_[pid] = writer->partition_length;
-      total_bytes_written_ += writer->partition_length;
-      total_bytes_evicted_ += writer->bytes_spilled;
-    } else {
-      partition_lengths_[pid] = 0;
-    }
-  }
-  this->schema_payload_.reset();
-
-  // close data file output Stream
-  RETURN_NOT_OK(data_file_os_->Close());
-
-  EVAL_END("write", options_.thread_id, options_.task_attempt_id)
-
   return arrow::Status::OK();
 }
 

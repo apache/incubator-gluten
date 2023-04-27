@@ -233,7 +233,7 @@ class BenchmarkShuffleSplit {
     options.buffer_size = split_buffer_size;
     options.buffered_write = true;
     options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
-    options.prefer_spill = true;
+    options.prefer_evict = true;
     options.write_schema = false;
     options.memory_pool = pool;
 

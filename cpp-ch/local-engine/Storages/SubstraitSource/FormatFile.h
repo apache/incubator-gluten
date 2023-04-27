@@ -1,13 +1,14 @@
 #pragma once
+
 #include <optional>
-#include <Processors/Formats/IInputFormat.h>
-#include <Interpreters/Context_fwd.h>
-#include <substrait/plan.pb.h>
-#include <Poco/URI.h>
-#include <Core/Block.h>
-#include <IO/ReadBuffer.h>
 #include <vector>
 #include <memory>
+
+#include <substrait/plan.pb.h>
+#include <Core/Block.h>
+#include <IO/ReadBuffer.h>
+#include <Interpreters/Context.h>
+#include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 
 namespace local_engine

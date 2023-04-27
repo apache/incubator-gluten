@@ -355,7 +355,36 @@ message ExchangeRel {
   }
 }
 
+// Duplicates records, possibly switching output expressions between each duplicate.
+// Default output is all of the fields declared followed by one int64 field that contains the
+// duplicate_id which is a zero-index ordinal of which duplicate of the original record this
+// corresponds to.
 message ExpandRel {
+  RelCommon common = 1;
+  Rel input = 2;
+  repeated ExpandField fields = 4;
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+
+  message ExpandField {
+    oneof field_type {
+      // Field that switches output based on which duplicate_id we're outputting
+      SwitchingField switching_field = 2;
+
+      // Field that outputs the same value no matter which duplicate_id we're on.
+      Expression consistent_field = 3;
+    }
+  }
+
+  message SwitchingField {
+    // Array that contains an expression to output per duplicate_id
+    // each `switching_field` must have the same number of expressions
+    // all expressions within a switching field be the same type class but can differ in nullability.
+    // this column will be nullable if any of the expressions are nullable.
+    repeated Expression duplicates = 1;
+  }
+}
+
+message GroupIdRel {
   RelCommon common = 1;
   Rel input = 2;
 
@@ -404,6 +433,7 @@ message Rel {
     ExpandRel expand = 15;
     WindowRel window = 16;
     GenerateRel generate = 17;
+    GroupIdRel group_id = 18;
   }
 }
 

@@ -140,6 +140,24 @@ class GlutenClickHouseTPCDSParquetAQESuite
     }
   }
 
+  test("TPCDS Q9 with coalesce batch true") {
+    withSQLConf(
+      ("spark.gluten.sql.columnar.columnartorow", "true"),
+      ("spark.gluten.sql.columnar.coalesce.batches", "true")) {
+      runTPCDSQuery("q9") {
+        df =>
+          val subqueryAdaptiveSparkPlan = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case a: AdaptiveSparkPlanExec if a.isSubquery => true
+            case r: ReusedSubqueryExec => true
+            case _ => false
+          }
+          // On Spark 3.2, there are 15 AdaptiveSparkPlanExec,
+          // and on Spark 3.3, there are 5 AdaptiveSparkPlanExec and 10 ReusedSubqueryExec
+          assert(subqueryAdaptiveSparkPlan.filter(_ == true).size == 15)
+      }
+    }
+  }
+
   test("TPCDS Q21") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery("q21") {

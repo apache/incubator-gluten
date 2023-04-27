@@ -18,13 +18,13 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, NamedStructTransformer}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{CelebornShuffleWriterWrapper, GenCelebornShuffleWriterParameters, GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GetStructField, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateNamedStruct, Expression, GetStructField, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -143,16 +143,6 @@ trait SparkPlanExecApi {
                                     ): GlutenShuffleWriterWrapper[K, V]
 
   /**
-   * Generate CelebornColumnarShuffleWriter for ColumnarShuffleManager.
-   *
-   * @return
-   */
-  def genCelebornColumnarShuffleWriter[K, V](parameters: GenCelebornShuffleWriterParameters[K, V]
-                                    ): CelebornShuffleWriterWrapper[K, V] = {
-    throw new UnsupportedOperationException
-  }
-
-  /**
    * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.
    *
    * @return
@@ -215,8 +205,18 @@ trait SparkPlanExecApi {
    * GetStructFieldTransformer is the default implementation.
    */
   def genGetStructFieldTransformer(substraitExprName: String,
-                                 childTransformer: ExpressionTransformer, ordinal: Int,
-                                 original: GetStructField): ExpressionTransformer = {
+                                   childTransformer: ExpressionTransformer,
+                                   ordinal: Int,
+                                   original: GetStructField): ExpressionTransformer = {
     new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+  }
+
+  /**
+   * Generate an expression transformer to transform NamedStruct to Substrait.
+   */
+  def genNamedStructTransformer(substraitExprName: String,
+                                original: CreateNamedStruct,
+                                attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    new NamedStructTransformer(substraitExprName, original, attributeSeq)
   }
 }

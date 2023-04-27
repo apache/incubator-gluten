@@ -22,10 +22,10 @@
 #include "VeloxBridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
+#include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
 #include "shuffle/ArrowShuffleWriter.h"
-#include "shuffle/CelebornShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"
 
@@ -283,8 +283,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
-  auto ctxPool = veloxPool->addChild("result_iterator", velox::memory::MemoryPool::Kind::kAggregate);
+  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator, memPoolOptions_);
+  auto ctxPool = veloxPool->addAggregateChild("result_iterator");
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
@@ -311,8 +311,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
-  auto ctxPool = veloxPool->addChild("result_iterator", velox::memory::MemoryPool::Kind::kLeaf);
+  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator, memPoolOptions_);
+  auto ctxPool = veloxPool->addLeafChild("result_iterator");
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
       ctxPool, veloxPlan_, scanIds, setScanInfos, streamIds, "/tmp/test-spill", confMap_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
@@ -324,12 +324,21 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
     auto arrowPool = AsWrappedArrowMemoryPool(allocator);
-    auto veloxPool = AsWrappedVeloxMemoryPool(allocator, memPoolOptions_);
-    auto ctxVeloxPool = veloxPool->addChild("columnar_to_row_velox", velox::memory::MemoryPool::Kind::kLeaf);
+    auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator, memPoolOptions_);
+    auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
     return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, ctxVeloxPool);
   } else {
     return Backend::getColumnar2RowConverter(allocator, cb);
   }
+}
+
+std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
+    MemoryAllocator* allocator,
+    struct ArrowSchema* cSchema) {
+  // TODO: wait to fix task memory pool
+  auto veloxPool = GetDefaultLeafWrappedVeloxMemoryPool();
+  // AsWrappedVeloxAggregateMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
+  return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
 std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
@@ -337,11 +346,7 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     int num_partitions,
     const SplitOptions& options,
     const std::string& batchType) {
-  if (options.is_celeborn) {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer, CelebornShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
-    return shuffle_writer;
-  } else if (batchType == "velox") {
+  if (batchType == "velox") {
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffle_writer, VeloxShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
     return shuffle_writer;
@@ -362,7 +367,7 @@ std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
 void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const velox::core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
   exportToArrow(
-      velox::BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool().get()), arrowSchema);
+      velox::BaseVector::create(planNode->outputType(), 0, GetDefaultLeafWrappedVeloxMemoryPool().get()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(outputSchema_, arrow::ImportSchema(&arrowSchema));
 }
 
