@@ -30,9 +30,6 @@ const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
 
-// Velox configs, defined by Gluten
-const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
-
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
@@ -220,21 +217,17 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
         (long)(0.75 * (double)std::stol(getConfigValue(kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
     configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
 
-    // Overall spill threshold ratio used to set spill memory thresholds for operators automatically.
-    auto defaultSpillThresholdRatio = std::stod(getConfigValue(kSpillThresholdRatio, "0.6"));
-    auto defaultSpillThreshold = std::to_string((long)(defaultSpillThresholdRatio * (double)maxMemory));
-
     // Spill configs
     configs[velox::core::QueryConfig::kSpillEnabled] = getConfigValue(kSpillEnabled, "true");
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] = getConfigValue(kAggregationSpillEnabled, "true");
     configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(kJoinSpillEnabled, "true");
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(kOrderBySpillEnabled, "true");
     configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
-        getConfigValue(kAggregationSpillMemoryThreshold, defaultSpillThreshold); // spill only when input doesn't fit
+        getConfigValue(kAggregationSpillMemoryThreshold, "0"); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] =
-        getConfigValue(kJoinSpillMemoryThreshold, defaultSpillThreshold); // spill only when input doesn't fit
+        getConfigValue(kJoinSpillMemoryThreshold, "0"); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
-        getConfigValue(kOrderBySpillMemoryThreshold, defaultSpillThreshold); // spill only when input doesn't fit
+        getConfigValue(kOrderBySpillMemoryThreshold, "0"); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kMaxSpillLevel] = getConfigValue(kMaxSpillLevel, "4");
     configs[velox::core::QueryConfig::kMaxSpillFileSize] = getConfigValue(kMaxSpillFileSize, "0");
     configs[velox::core::QueryConfig::kMinSpillRunSize] = getConfigValue(kMinSpillRunSize, std::to_string(256 << 20));

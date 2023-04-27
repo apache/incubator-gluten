@@ -35,7 +35,7 @@ std::shared_ptr<ResultIterator> GetResultIterator(
     MemoryAllocator* allocator,
     std::shared_ptr<Backend> backend,
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
-  auto ctxPool = GetDefaultWrappedVeloxAggregateMemoryPool()->addAggregateChild("query_benchmark_result_iterator");
+  auto ctxPool = GetDefaultVeloxLeafMemoryPool()->addAggregateChild("query_benchmark_result_iterator");
   auto resultPool = ctxPool->addLeafChild("query_benchmark_result_vector");
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
   auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, ctxPool);

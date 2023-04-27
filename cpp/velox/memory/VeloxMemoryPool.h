@@ -23,11 +23,9 @@
 namespace gluten {
 class WrappedVeloxMemoryPool;
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxAggregateMemoryPool(
-    MemoryAllocator* allocator,
-    const facebook::velox::memory::MemoryPool::Options& options);
+std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxAggregateMemoryPool(MemoryAllocator* allocator);
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxAggregateMemoryPool();
+std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultVeloxAggregateMemoryPool();
 
 std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultVeloxLeafMemoryPool();
 

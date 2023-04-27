@@ -63,6 +63,10 @@ class VeloxBackend final : public Backend {
     return memPoolOptions_;
   }
 
+  int64_t GetSpillThreshold() const {
+    return spillThreshold_;
+  }
+
   std::shared_ptr<Datasource> GetDatasource(
       const std::string& file_path,
       const std::string& file_name,
@@ -88,6 +92,7 @@ class VeloxBackend final : public Backend {
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
   // Memory pool options used to create mem pool for iterators.
   facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
+  int64_t spillThreshold_ = std::numeric_limits<int64_t>::max();
 };
 
 } // namespace gluten
