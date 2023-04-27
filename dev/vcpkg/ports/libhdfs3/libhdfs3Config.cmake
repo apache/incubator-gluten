@@ -10,7 +10,7 @@ FUNCTION(SET_LIBRARY_TARGET NAMESPACE LIB_NAME DEBUG_LIB_FILE_NAME RELEASE_LIB_F
                           IMPORTED_LOCATION_RELEASE "${RELEASE_LIB_FILE_NAME}"
                           IMPORTED_LOCATION_DEBUG "${DEBUG_LIB_FILE_NAME}"
                           INTERFACE_INCLUDE_DIRECTORIES "${INCLUDE_DIR}"
-                          INTERFACE_LINK_LIBRARIES "${PROTOBUF_LIBRARIES};LibXml2::LibXml2;${HDFS_DEPS}"
+                          INTERFACE_LINK_LIBRARIES "protobuf::libprotobuf;LibXml2::LibXml2;${HDFS_DEPS}"
                           )
     SET(${NAMESPACE}_${LIB_NAME}_FOUND 1)
 ENDFUNCTION()
