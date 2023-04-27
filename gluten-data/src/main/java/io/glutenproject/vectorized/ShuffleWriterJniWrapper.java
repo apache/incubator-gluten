@@ -33,72 +33,60 @@ public class ShuffleWriterJniWrapper {
    * @param dataFile acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
    * @param localDirs configured local directories where Spark can write files
-   * @param preferSpill
+   * @param preferEvict
    * @param memoryPoolId
    * @return native shuffle writer instance id if created successfully.
    */
   public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
                    int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
-                   String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema,
+                   String localDirs, boolean preferEvict, long memoryPoolId, boolean writeSchema,
                    long handle, long taskAttemptId) {
       return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
-          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId,
-          writeSchema, handle, taskAttemptId, 0, null, "gluten");
+          subDirsPerLocalDir, localDirs, preferEvict, memoryPoolId,
+          writeSchema, handle, taskAttemptId, 0, null, "local");
   }
 
   /**
-   * Construct celeborn native shuffle writer for shuffled RecordBatch over
+   * Construct RSS native shuffle writer for shuffled RecordBatch over
    *
    * @param part contains the partitioning parameter needed by native shuffle writer
-   * @param bufferSize size of native buffers hold by each partition writer
+   * @param bufferSize size of native buffers hold by partition writer
    * @param codec compression codec
    * @param memoryPoolId
    * @return native shuffle writer instance id if created successfully.
    */
-  public long makeForCeleborn(NativePartitioning part, long offheapPerTask,
-                              int bufferSize, String codec, int batchCompressThreshold,
-                              int pushBufferMaxSize, Object pusher,
-                              long memoryPoolId, long handle, long taskAttemptId) {
+  public long makeForRSS(NativePartitioning part, long offheapPerTask,
+                         int bufferSize, String codec, int batchCompressThreshold,
+                         int pushBufferMaxSize, Object pusher,
+                         long memoryPoolId, long handle,
+                         long taskAttemptId, String partitionWriterType) {
       return nativeMake(part.getShortName(), part.getNumPartitions(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, null,
-          0, null, false, memoryPoolId,
-          false, handle, taskAttemptId, pushBufferMaxSize, pusher, "celeborn");
+          0, null, true, memoryPoolId,
+          false, handle, taskAttemptId, pushBufferMaxSize, pusher, partitionWriterType);
   }
 
   public native long nativeMake(String shortName, int numPartitions,
                                 long offheapPerTask, int bufferSize,
                                 String codec, int batchCompressThreshold, String dataFile,
-                                int subDirsPerLocalDir, String localDirs, boolean preferSpill,
+                                int subDirsPerLocalDir, String localDirs, boolean preferEvict,
                                 long memoryPoolId, boolean writeSchema,
                                 long handle, long taskAttemptId, int pushBufferMaxSize,
-                                Object pusher, String shuffleWriterType);
+                                Object pusher, String partitionWriterType);
 
   /**
-   * Spill partition data to disk.
+   * Evict partition data.
    *
    * @param shuffleWriterId shuffle writer instance id
-   * @param size expected size to spill (in bytes)
+   * @param size expected size to Evict (in bytes)
    * @param callBySelf whether the caller is the shuffle shuffle writer itself, true
    * when running out of off-heap memory due to allocations from
    * the evaluator itself
    * @return actual spilled size
    */
-  public native long nativeSpill(
+  public native long nativeEvict(
       long shuffleWriterId, long size, boolean callBySelf) throws RuntimeException;
-
-  /**
-   * Push partition data to celeborn server.
-   *
-   * @param shuffleWriterId shuffle writer instance id
-   * @param size expected size to push (in bytes)
-   * @param callBySelf whether the caller is the shuffle shuffle writer itself, true
-   * when running out of off-heap memory due to allocations from
-   * the evaluator itself
-   * @return actual pushed size
-   */
-  public native long nativePush(
-          long shuffleWriterId, long size, boolean callBySelf) throws RuntimeException;
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is

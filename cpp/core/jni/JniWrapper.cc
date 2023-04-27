@@ -707,14 +707,14 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring data_file_jstr,
     jint num_sub_dirs,
     jstring local_dirs_jstr,
-    jboolean prefer_spill,
+    jboolean prefer_evict,
     jlong allocator_id,
     jboolean write_schema,
     jlong firstBatchHandle,
     jlong taskAttemptId,
     jint push_buffer_max_size,
     jobject celeborn_partition_pusher,
-    jstring shuffle_writer_type_jstr) {
+    jstring partition_writer_type_jstr) {
   JNI_METHOD_START
   if (partitioning_name_jstr == nullptr) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
@@ -757,10 +757,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   splitOptions.task_attempt_id = (int64_t)taskAttemptId;
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
-  auto shuffle_writer_type_c = env->GetStringUTFChars(shuffle_writer_type_jstr, JNI_FALSE);
-  auto shuffle_writer_type = std::string(shuffle_writer_type_c);
-  env->ReleaseStringUTFChars(shuffle_writer_type_jstr, shuffle_writer_type_c);
-  if (shuffle_writer_type == "gluten") {
+  auto partition_writer_type_c = env->GetStringUTFChars(partition_writer_type_jstr, JNI_FALSE);
+  auto partition_writer_type = std::string(partition_writer_type_c);
+  env->ReleaseStringUTFChars(partition_writer_type_jstr, partition_writer_type_c);
+  if (partition_writer_type == "local") {
+    splitOptions.partition_writer_type = "local";
     if (data_file_jstr == NULL) {
       gluten::JniThrow(std::string("Shuffle DataFile can't be null"));
     }
@@ -769,7 +770,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     }
 
     splitOptions.write_schema = write_schema;
-    splitOptions.prefer_spill = prefer_spill;
+    splitOptions.prefer_evict = prefer_evict;
 
     if (num_sub_dirs > 0) {
       splitOptions.num_sub_dirs = num_sub_dirs;
@@ -782,12 +783,12 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto local_dirs = env->GetStringUTFChars(local_dirs_jstr, JNI_FALSE);
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
     env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
-  } else if (shuffle_writer_type == "celeborn") {
+  } else if (partition_writer_type == "celeborn") {
+    splitOptions.partition_writer_type = "celeborn";
     jclass celeborn_partition_pusher_class =
         CreateGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celeborn_push_partition_data_method =
         GetMethodIDOrError(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[B)I");
-    splitOptions.is_celeborn = true;
     if (push_buffer_max_size > 0) {
       splitOptions.push_buffer_max_size = push_buffer_max_size;
     }
@@ -809,7 +810,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_nativeSpill(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_nativeEvict(
     JNIEnv* env,
     jobject,
     jlong shuffle_writer_id,
@@ -821,28 +822,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     std::string error_message = "Invalid shuffle writer id " + std::to_string(shuffle_writer_id);
     gluten::JniThrow(error_message);
   }
-  jlong spilled_size;
+  jlong evicted_size;
   gluten::JniAssertOkOrThrow(
-      shuffle_writer->EvictFixedSize(size, &spilled_size), "(shuffle) nativeSpill: spill failed");
-  return spilled_size;
-  JNI_METHOD_END(-1L)
-}
-
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_nativePush(
-    JNIEnv* env,
-    jobject,
-    jlong shuffle_writer_id,
-    jlong size,
-    jboolean callBySelf) {
-  JNI_METHOD_START
-  auto shuffle_writer = shuffle_writer_holder_.Lookup(shuffle_writer_id);
-  if (!shuffle_writer) {
-    std::string error_message = "Invalid shuffle writer id " + std::to_string(shuffle_writer_id);
-    gluten::JniThrow(error_message);
-  }
-  jlong pushed_size;
-  gluten::JniAssertOkOrThrow(shuffle_writer->EvictFixedSize(size, &pushed_size), "(shuffle) nativePush: push failed");
-  return pushed_size;
+      shuffle_writer->EvictFixedSize(size, &evicted_size), "(shuffle) nativeEvict: evict failed");
+  return evicted_size;
   JNI_METHOD_END(-1L)
 }
 

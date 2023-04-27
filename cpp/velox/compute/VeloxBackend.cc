@@ -26,7 +26,6 @@
 #include "config/GlutenConfig.h"
 #include "include/arrow/c/bridge.h"
 #include "shuffle/ArrowShuffleWriter.h"
-#include "shuffle/CelebornShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"
 
@@ -347,11 +346,7 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     int num_partitions,
     const SplitOptions& options,
     const std::string& batchType) {
-  if (options.is_celeborn) {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer, CelebornShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
-    return shuffle_writer;
-  } else if (batchType == "velox") {
+  if (batchType == "velox") {
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffle_writer, VeloxShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
     return shuffle_writer;

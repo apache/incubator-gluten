@@ -186,8 +186,11 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         operators/c2r/ColumnarToRow.cc
         shuffle/reader.cc
         shuffle/ArrowShuffleWriter.cc
-        shuffle/CelebornShuffleWriter.cc
         operators/writer/ArrowWriter.cc
+        shuffle/PartitionWriter.cc
+        shuffle/LocalPartitionWriter.cc
+        shuffle/rss/RemotePartitionWriter.cc
+        shuffle/rss/CelebornPartitionWriter.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)

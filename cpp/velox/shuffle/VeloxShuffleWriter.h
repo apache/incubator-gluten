@@ -24,9 +24,7 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
-#include "memory/ColumnarBatch.h"
 #include "shuffle/ShuffleWriter.h"
-#include "shuffle/type.h"
 #include "shuffle/utils.h"
 
 #include "utils/Print.h"
@@ -106,6 +104,8 @@ class VeloxShuffleWriter : public ShuffleWriter {
   virtual arrow::Status Stop();
 
   arrow::Status EvictFixedSize(int64_t size, int64_t* actual);
+
+  arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers);
 
   int64_t RawPartitionBytes() const {
     return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
@@ -192,10 +192,6 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   arrow::Status DoSplit(const facebook::velox::RowVector& rv);
 
-  std::string NextSpilledFileDir();
-
-  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> GetSchemaPayload();
-
   uint32_t CalculatePartitionBufferSize(const facebook::velox::RowVector& rv);
 
   arrow::Status AllocatePartitionBuffers(uint32_t partition_id, uint32_t new_size);
@@ -203,8 +199,6 @@ class VeloxShuffleWriter : public ShuffleWriter {
   arrow::Status AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
 
   arrow::Status AllocateNew(uint32_t partition_id, uint32_t new_size);
-
-  arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers);
 
   arrow::Status CacheRecordBatch(uint32_t partition_id, const arrow::RecordBatch& rb);
 
@@ -244,15 +238,12 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   arrow::Status SplitListArray(const facebook::velox::RowVector& rv);
 
-  arrow::Result<int32_t> SpillLargestPartition(int64_t* size);
+  arrow::Result<int32_t> EvictLargestPartition(int64_t* size);
 
-  arrow::Status SpillPartition(uint32_t partition_id);
+  arrow::Status EvictPartition(uint32_t partition_id);
 
  protected:
   bool support_avx512_ = false;
-
-  // the first column may be stripped if hash split
-  std::shared_ptr<arrow::Schema> schema_;
 
   // store arrow column types
   std::vector<std::shared_ptr<arrow::DataType>> arrow_column_types_; // column_type_id_
@@ -307,40 +298,16 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   typedef uint32_t row_offset_type;
 
-  class PartitionWriter;
-
-  std::vector<std::shared_ptr<PartitionWriter>> partition_writer_;
-
   std::vector<std::vector<uint8_t*>> partition_validity_addrs_;
   std::vector<std::vector<uint8_t*>> partition_fixed_width_value_addrs_;
 
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partition_buffers_;
   std::vector<std::vector<std::shared_ptr<arrow::ArrayBuilder>>> partition_list_builders_;
-
-  // slice the buffer for each reducer's column, in this way we can combine into large page
-  std::shared_ptr<arrow::ResizableBuffer> combine_buffer_;
-
-  // partid
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partition_cached_recordbatch_;
-
-  // partid
-  std::vector<int64_t> partition_cached_recordbatch_size_; // in bytes
 
   std::vector<uint64_t> binary_array_empirical_size_;
 
   std::vector<std::vector<BinaryBuff>> partition_binary_addrs_;
 
   std::vector<bool> input_has_null_;
-
-  int32_t dir_selection_ = 0;
-  std::vector<int32_t> sub_dir_selection_;
-
-  std::vector<std::string> configured_dirs_;
-
-  std::shared_ptr<arrow::io::OutputStream> data_file_os_;
-
-  // shared by all partition writers
-  std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
 }; // class VeloxShuffleWriter
 
 class VeloxRoundRobinShuffleWriter final : public VeloxShuffleWriter {
@@ -367,8 +334,6 @@ class VeloxSinglePartShuffleWriter final : public VeloxShuffleWriter {
   arrow::Status Partition(const facebook::velox::RowVector& rv) override;
 
   arrow::Status Split(ColumnarBatch* cb) override;
-
-  arrow::Status Stop() override;
 }; // class VeloxSinglePartShuffleWriter
 
 class VeloxHashShuffleWriter final : public VeloxShuffleWriter {

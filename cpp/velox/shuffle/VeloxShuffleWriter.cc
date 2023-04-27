@@ -1,11 +1,12 @@
 #include "VeloxShuffleWriter.h"
-#include "VeloxShuffleWriterPartitionWriter.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "velox/vector/arrow/Bridge.h"
 
 #include "utils/compression.h"
 #include "utils/macros.h"
+
+#include "shuffle/PartitionWriter.h"
 
 #include "include/arrow/c/bridge.h"
 
@@ -112,7 +113,7 @@ arrow::Status VeloxShuffleWriter::Init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  partition_writer_.resize(num_partitions_);
+  ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
 
   partition_2_row_count_.resize(num_partitions_);
 
@@ -129,16 +130,6 @@ arrow::Status VeloxShuffleWriter::Init() {
   raw_partition_lengths_.resize(num_partitions_);
 
   partition_2_row_offset_.resize(num_partitions_ + 1);
-
-  ARROW_ASSIGN_OR_RAISE(configured_dirs_, GetConfiguredLocalDirs());
-  sub_dir_selection_.assign(configured_dirs_.size(), 0);
-
-  // Both data_file and shuffle_index_file should be set through jni.
-  // For test purpose, Create a temporary subdirectory in the system temporary
-  // dir with prefix "columnar-shuffle"
-  if (options_.data_file.length() == 0) {
-    ARROW_ASSIGN_OR_RAISE(options_.data_file, CreateTempShuffleFile(configured_dirs_[0]));
-  }
 
   RETURN_NOT_OK(SetCompressType(options_.compression_type));
 
@@ -208,44 +199,10 @@ arrow::Status VeloxShuffleWriter::Split(ColumnarBatch* cb) {
 }
 
 arrow::Status VeloxShuffleWriter::Stop() {
-  // open data file output stream
-  std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(options_.data_file, true));
-  if (options_.buffered_write) {
-    ARROW_ASSIGN_OR_RAISE(
-        data_file_os_, arrow::io::BufferedOutputStream::Create(16384, options_.memory_pool.get(), fout));
-  } else {
-    data_file_os_ = fout;
-  }
+  EVAL_START("write", options_.thread_id)
+  RETURN_NOT_OK(partition_writer_->Stop());
+  EVAL_END("write", options_.thread_id, options_.task_attempt_id)
 
-  // stop PartitionWriter and collect metrics
-  for (auto pid = 0; pid < num_partitions_; ++pid) {
-    RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, true));
-
-    if (partition_cached_recordbatch_size_[pid] > 0) {
-      if (partition_writer_[pid] == nullptr) {
-        partition_writer_[pid] = std::make_shared<PartitionWriter>(this, pid);
-      }
-    }
-
-    const auto& writer = partition_writer_[pid];
-    if (writer) {
-      TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
-      partition_lengths_[pid] = writer->partition_length;
-      total_bytes_written_ += writer->partition_length;
-      total_bytes_evicted_ += writer->bytes_spilled;
-      total_compress_time_ += writer->compress_time;
-    } else {
-      partition_lengths_[pid] = 0;
-    }
-  }
-
-  combine_buffer_.reset();
-  schema_payload_.reset();
-  partition_buffers_.clear();
-
-  // close data file output Stream
-  RETURN_NOT_OK(data_file_os_->Close());
   return arrow::Status::OK();
 }
 
@@ -274,7 +231,7 @@ arrow::Status VeloxShuffleWriter::CreatePartition2Row(uint32_t row_num) {
 arrow::Status VeloxShuffleWriter::UpdateInputHasNull(const velox::RowVector& rv) {
   for (size_t col = 0; col < simple_column_indices_.size(); ++col) {
     // check input_has_null_[col] is cheaper than GetNullCount()
-    // once input_has_null_ is set to true, we didn't reset it after spill
+    // once input_has_null_ is set to true, we didn't reset it after evict
     if (!input_has_null_[col]) {
       auto col_idx = simple_column_indices_[col];
       if (VectorHasNull(rv.childAt(col_idx))) {
@@ -286,27 +243,6 @@ arrow::Status VeloxShuffleWriter::UpdateInputHasNull(const velox::RowVector& rv)
   PrintInputHasNull();
 
   return arrow::Status::OK();
-}
-
-std::string VeloxShuffleWriter::NextSpilledFileDir() {
-  auto spilled_file_dir =
-      GetSpilledShuffleFileDir(configured_dirs_[dir_selection_], sub_dir_selection_[dir_selection_]);
-  sub_dir_selection_[dir_selection_] = (sub_dir_selection_[dir_selection_] + 1) % options_.num_sub_dirs;
-  dir_selection_ = (dir_selection_ + 1) % configured_dirs_.size();
-  return spilled_file_dir;
-}
-
-arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> VeloxShuffleWriter::GetSchemaPayload() {
-  if (schema_payload_ != nullptr) {
-    return schema_payload_;
-  }
-  schema_payload_ = std::make_shared<arrow::ipc::IpcPayload>();
-  arrow::ipc::DictionaryFieldMapper dict_file_mapper; // unused
-
-  RETURN_NOT_OK(
-      arrow::ipc::GetSchemaPayload(*schema_, options_.ipc_write_options, dict_file_mapper, schema_payload_.get()));
-
-  return schema_payload_;
 }
 
 arrow::Status VeloxShuffleWriter::DoSplit(const velox::RowVector& rv) {
@@ -326,24 +262,24 @@ arrow::Status VeloxShuffleWriter::DoSplit(const velox::RowVector& rv) {
       } else if (partition_buffer_idx_base_[pid] + partition_2_row_count_[pid] > partition_2_buffer_size_[pid]) {
         auto new_size = std::max(CalculatePartitionBufferSize(rv), partition_2_row_count_[pid]);
         // if the size to be filled + allready filled > the buffer size, need to allocate new buffer
-        if (options_.prefer_spill) {
-          // if prefer_spill is set, spill current RowVector, we may reuse the buffers
+        if (options_.prefer_evict) {
+          // if prefer_evict is set, evict current RowVector, we may reuse the buffers
           if (new_size > partition_2_buffer_size_[pid]) {
             // if the partition size after split is already larger than
             // allocated buffer size, need reallocate
             RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, /*reset_buffers = */ true));
 
             // splill immediately
-            RETURN_NOT_OK(SpillPartition(pid));
+            RETURN_NOT_OK(EvictPartition(pid));
             RETURN_NOT_OK(AllocatePartitionBuffers(pid, new_size));
           } else {
             // partition size after split is smaller than buffer size, no need
             // to reset buffer, reuse it.
             RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, /*reset_buffers = */ false));
-            RETURN_NOT_OK(SpillPartition(pid));
+            RETURN_NOT_OK(EvictPartition(pid));
           }
         } else {
-          // if prefer_spill is disabled, cache the record batch
+          // if prefer_evict is disabled, cache the record batch
           RETURN_NOT_OK(CreateRecordBatchFromBuffer(pid, /*reset_buffers = */ true));
           // allocate partition buffer with retries
           RETURN_NOT_OK(AllocateNew(pid, new_size));
@@ -1024,11 +960,11 @@ arrow::Status VeloxShuffleWriter::AllocateNew(uint32_t partition_id, uint32_t ne
               << std::to_string(retry) << " retry to allocate new buffer for partition " << std::to_string(partition_id)
               << std::endl;
 
-    int64_t spilled_size;
-    ARROW_ASSIGN_OR_RAISE(auto partition_to_spill, SpillLargestPartition(&spilled_size));
-    if (partition_to_spill == -1) {
+    int64_t evicted_size;
+    ARROW_ASSIGN_OR_RAISE(auto partition_to_evict, EvictLargestPartition(&evicted_size));
+    if (partition_to_evict == -1) {
       std::cout << "Failed to allocate new buffer for partition " << std::to_string(partition_id)
-                << ". No partition buffer to spill." << std::endl;
+                << ". No partition buffer to evict." << std::endl;
       return status;
     }
 
@@ -1206,51 +1142,48 @@ arrow::Status VeloxShuffleWriter::CacheRecordBatch(uint32_t partition_id, const 
 }
 
 arrow::Status VeloxShuffleWriter::EvictFixedSize(int64_t size, int64_t* actual) {
-  int64_t current_spilled = 0L;
+  int64_t current_evicted = 0L;
   auto try_count = 0;
-  while (current_spilled < size && try_count < 5) {
+  while (current_evicted < size && try_count < 5) {
     try_count++;
-    int64_t single_call_spilled;
-    ARROW_ASSIGN_OR_RAISE(int32_t spilled_partition_id, SpillLargestPartition(&single_call_spilled))
-    if (spilled_partition_id == -1) {
+    int64_t single_call_evicted;
+    ARROW_ASSIGN_OR_RAISE(int32_t evicted_partition_id, EvictLargestPartition(&single_call_evicted))
+    if (evicted_partition_id == -1) {
       break;
     }
-    current_spilled += single_call_spilled;
+    current_evicted += single_call_evicted;
   }
-  *actual = current_spilled;
+  *actual = current_evicted;
   return arrow::Status::OK();
 }
 
-arrow::Result<int32_t> VeloxShuffleWriter::SpillLargestPartition(int64_t* size) {
-  // spill the largest partition
+arrow::Result<int32_t> VeloxShuffleWriter::EvictLargestPartition(int64_t* size) {
+  // evict the largest partition
   auto max_size = 0;
-  int32_t partition_to_spill = -1;
+  int32_t partition_to_evict = -1;
   for (auto i = 0; i < num_partitions_; ++i) {
     if (partition_cached_recordbatch_size_[i] > max_size) {
       max_size = partition_cached_recordbatch_size_[i];
-      partition_to_spill = i;
+      partition_to_evict = i;
     }
   }
-  if (partition_to_spill != -1) {
-    RETURN_NOT_OK(SpillPartition(partition_to_spill));
+  if (partition_to_evict != -1) {
+    RETURN_NOT_OK(EvictPartition(partition_to_evict));
 #ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "Spilled partition " << std::to_string(partition_to_spill) << ", " << std::to_string(max_size)
+    std::cout << "Evicted partition " << std::to_string(partition_to_evict) << ", " << std::to_string(max_size)
               << " bytes released" << std::endl;
 #endif
     *size = max_size;
   } else {
     *size = 0;
   }
-  return partition_to_spill;
+  return partition_to_evict;
 }
 
-arrow::Status VeloxShuffleWriter::SpillPartition(uint32_t partition_id) {
-  if (partition_writer_[partition_id] == nullptr) {
-    partition_writer_[partition_id] = std::make_shared<PartitionWriter>(this, partition_id);
-  }
-  TIME_NANO_OR_RAISE(total_evict_time_, partition_writer_[partition_id]->Spill());
+arrow::Status VeloxShuffleWriter::EvictPartition(uint32_t partition_id) {
+  RETURN_NOT_OK(partition_writer_->EvictPartition(partition_id));
 
-  // reset validity buffer after spill
+  // reset validity buffer after evict
   std::for_each(
       partition_buffers_.begin(), partition_buffers_.end(), [partition_id](std::vector<arrow::BufferVector>& bufs) {
         if (bufs[partition_id].size() != 0 && bufs[partition_id][0] != nullptr) {
@@ -1283,22 +1216,12 @@ arrow::Status VeloxRoundRobinShuffleWriter::Partition(const velox::RowVector& rv
 
 // VeloxSinglePartShuffleWriter
 arrow::Status VeloxSinglePartShuffleWriter::Init() {
-  partition_writer_.resize(num_partitions_);
+  ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
   partition_buffer_idx_base_.resize(num_partitions_);
   partition_cached_recordbatch_.resize(num_partitions_);
   partition_cached_recordbatch_size_.resize(num_partitions_);
   partition_lengths_.resize(num_partitions_);
   raw_partition_lengths_.resize(num_partitions_);
-
-  ARROW_ASSIGN_OR_RAISE(configured_dirs_, GetConfiguredLocalDirs());
-  sub_dir_selection_.assign(configured_dirs_.size(), 0);
-
-  // Both data_file and shuffle_index_file should be set through jni.
-  // For test purpose, Create a temporary subdirectory in the system temporary
-  // dir with prefix "columnar-shuffle"
-  if (options_.data_file.length() == 0) {
-    ARROW_ASSIGN_OR_RAISE(options_.data_file, CreateTempShuffleFile(configured_dirs_[0]));
-  }
 
   RETURN_NOT_OK(SetCompressType(options_.compression_type));
 
@@ -1330,43 +1253,6 @@ arrow::Status VeloxSinglePartShuffleWriter::Split(ColumnarBatch* cb) {
 
   // 2. call CacheRecordBatch with RecordBatch
   RETURN_NOT_OK(CacheRecordBatch(0, *(*result)));
-
-  return arrow::Status::OK();
-}
-
-arrow::Status VeloxSinglePartShuffleWriter::Stop() {
-  // open data file output stream
-  std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(options_.data_file, true));
-  if (options_.buffered_write) {
-    ARROW_ASSIGN_OR_RAISE(
-        data_file_os_, arrow::io::BufferedOutputStream::Create(16384, options_.memory_pool.get(), fout));
-  } else {
-    data_file_os_ = fout;
-  }
-
-  // stop PartitionWriter and collect metrics
-  for (auto pid = 0; pid < num_partitions_; ++pid) {
-    if (partition_cached_recordbatch_size_[pid] > 0) {
-      if (partition_writer_[pid] == nullptr) {
-        partition_writer_[pid] = std::make_shared<PartitionWriter>(this, pid);
-      }
-    }
-    if (partition_writer_[pid] != nullptr) {
-      const auto& writer = partition_writer_[pid];
-      TIME_NANO_OR_RAISE(total_write_time_, writer->WriteCachedRecordBatchAndClose());
-      partition_lengths_[pid] = writer->partition_length;
-      total_bytes_written_ += writer->partition_length;
-      total_bytes_evicted_ += writer->bytes_spilled;
-      total_compress_time_ += writer->compress_time;
-    } else {
-      partition_lengths_[pid] = 0;
-    }
-  }
-  this->schema_payload_.reset();
-
-  // close data file output Stream
-  RETURN_NOT_OK(data_file_os_->Close());
 
   return arrow::Status::OK();
 }
