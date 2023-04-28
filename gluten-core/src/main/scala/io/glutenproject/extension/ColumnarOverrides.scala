@@ -23,7 +23,6 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.GlutenRemoveRedundantSorts
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -468,7 +467,13 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)
-        p.withNewChildren(children)
+        val planTransformer = p.withNewChildren(children)
+        p.getClass.getSimpleName match {
+          case "HiveTableScanExec" =>
+            BackendsApiManager.getSparkPlanExecApiInstance
+              .genHiveTableScanExecTransformer(p).getOrElse(planTransformer)
+          case _ => planTransformer
+        }
     }
   }
 
@@ -574,10 +579,10 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-    // The ColumnarShuffleExchangeExec node may be the top node, so we cannot remove it.
-    // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
-    // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE mode
-    // have tested gluten-it TPCH when AQE OFF
+      // The ColumnarShuffleExchangeExec node may be the top node, so we cannot remove it.
+      // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
+      // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE
+      // mode have tested gluten-it TPCH when AQE OFF
     case ColumnarToRowExec(child: ColumnarShuffleExchangeExec)
       if isAdaptiveContext =>
       replaceWithTransformerPlan(child)

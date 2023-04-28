@@ -28,9 +28,11 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -72,5 +74,25 @@ class Spark33Shims extends SparkShims {
           fileSourceScanExec.relation.partitionSchema.fields),
       fileSourceScanExec.metadataColumns
     )
+  }
+
+  override def getTextScan(
+      sparkSession: SparkSession,
+      fileIndex: PartitioningAwareFileIndex,
+      dataSchema: StructType,
+      readDataSchema: StructType,
+      readPartitionSchema: StructType,
+      options: CaseInsensitiveStringMap,
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): TextScan = {
+    new TextScan(
+      sparkSession,
+      fileIndex,
+      dataSchema,
+      readDataSchema,
+      readPartitionSchema,
+      options,
+      partitionFilters,
+      dataFilters)
   }
 }

@@ -63,6 +63,39 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
   override def genBatchScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new BatchScanMetricsUpdater(metrics)
 
+  override def genHiveTableScanTransformerMetrics(
+      sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of scan"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext, "totaltime of scan and filter"),
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
+      "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
+      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
+      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
+      "pruningTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext, "number of memory allocations"),
+      "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
+        sparkContext, "number of dynamic filters accepted"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
+      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
+      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+    )
+
+  override def genHiveTableScanTransformerMetricsUpdater(
+        metrics: Map[String, SQLMetric]): MetricsUpdater = new HiveTableScanMetricsUpdater(metrics)
+
   override def genFileSourceScanTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
