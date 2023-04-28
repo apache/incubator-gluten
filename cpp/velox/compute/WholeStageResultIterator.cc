@@ -214,6 +214,8 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
     configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
     configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
+    // To align with Spark's behavior, trim leading and trailing white space.
+    configs[velox::core::QueryConfig::kCastIntTrimWhitespace] = std::to_string(true);
 
     // Set the max memory of partial aggregation as 3/4 of offheap size.
     auto maxMemory =
