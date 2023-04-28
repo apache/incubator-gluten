@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.GlutenHashAggregateExecTransformer
+import io.glutenproject.execution.HashAggregateExecBaseTransformer
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.functions._
 
@@ -198,7 +198,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       checkAnswer(df, Row("D") :: Nil)
       // Sort agg is expected to be replaced by gluten's hash agg.
       assert(find(df.queryExecution.executedPlan)(
-        _.isInstanceOf[GlutenHashAggregateExecTransformer]).isDefined)
+        _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
     }
   }
 }
