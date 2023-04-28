@@ -212,12 +212,33 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
+  test("test 'function posexplode(array)'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, posexplode(array(l_returnflag, l_linestatus)),
+                         |  l_suppkey from lineitem);
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
   test("test 'lateral view explode(array)'") {
     val df = spark.sql("""
                          |select count(*) from (
                          |  select l_orderkey, l_suppkey, col1, col2 from lineitem
                          |  lateral view explode(array(l_returnflag, l_linestatus)) as col1
                          |  lateral view explode(array(l_shipmode, l_comment)) as col2)
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 2402288L)
+  }
+
+  test("test 'lateral view posexplode(array)'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, l_suppkey, pos1, col1, pos2, col2 from lineitem
+                         |  lateral view posexplode(array(l_returnflag, l_linestatus)) as pos1, col1
+                         |  lateral view posexplode(array(l_shipmode, l_comment)) as pos2, col2)
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
@@ -234,6 +255,18 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
+  test("test 'function posexplode(map)'") {
+    val df =
+      spark.sql("""
+                  |select count(*) from (
+                  |  select l_orderkey,
+                  |    posexplode(map('returnflag', l_returnflag, 'linestatus', l_linestatus)),
+                  |    l_suppkey from lineitem);
+                  |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
   test("test 'lateral view explode(map)'") {
     val df = spark.sql("""
                          |select count(*) from (
@@ -246,6 +279,23 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |    as k2, v2
                          |)
                          |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 2402288L)
+  }
+
+  test("test 'lateral view posexplode(map)'") {
+    val df =
+      spark.sql("""
+                  |select count(*) from (
+                  |  select l_orderkey, l_suppkey, p1, k1, v1, p2, k2, v2 from lineitem
+                  |  lateral view
+                  |    posexplode(map('returnflag', l_returnflag, 'linestatus', l_linestatus))
+                  |    as p1, k1, v1
+                  |  lateral view
+                  |    posexplode(map('orderkey', l_orderkey, 'partkey', l_partkey))
+                  |    as p2, k2, v2
+                  |)
+                  |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
   }
@@ -337,6 +387,24 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     TestUtils.compareAnswers(result, expectedResult)
   }
 
+  test("test 'function space'") {
+    val df = spark.sql(
+      """
+        | select
+        | space(3),
+        | space(0),
+        | space(NULL),
+        | space(3/3.00f)
+        | from lineitem limit 1
+        |""".stripMargin
+    )
+    val result = df.collect()
+    assert(result(0).getString(0).equals("   "))
+    assert(result(0).getString(1).equals(""))
+    assert(result(0).getString(2) == null)
+    assert(result(0).getString(3).equals(" "))
+  }
+
   test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
     val df = spark.sql(
       """
@@ -406,6 +474,20 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getString(1).equals("[\"world\",\"world1\"]"))
     assert(result(0).getString(2).equals("{\"hello1\":\"world1\"}"))
     assert(result(0).isNullAt(3) == true)
+  }
+  
+  test("test 'sum/count/max/min from empty table'") {
+    spark.sql(
+      """
+        | create table test_tbl(id bigint, name string) using parquet;
+        |""".stripMargin
+    )
+    val df = spark.sql("select count(1), sum(id), max(id), min(id) from test_tbl");
+    val result = df.collect()
+    assert(result(0).getLong(0) == 0)
+    assert(result(0).isNullAt(1))
+    assert(result(0).isNullAt(2))
+    assert(result(0).isNullAt(3))
   }
 
   ignore("TPCH Q21") {

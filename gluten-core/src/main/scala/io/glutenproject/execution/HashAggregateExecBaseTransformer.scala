@@ -133,6 +133,7 @@ abstract class HashAggregateExecBaseTransformer(
        | DoubleType | StringType | TimestampType | DateType | BinaryType => true
       case d: DecimalType => true
       case a: ArrayType => true
+      case n: NullType => true
       case other => logInfo(s"Type ${dataType} not support"); false
     }
   }
@@ -219,14 +220,14 @@ abstract class HashAggregateExecBaseTransformer(
           break
         }
         expr.mode match {
-          case Partial | PartialMerge =>
+          case Partial =>
             for (aggChild <- expr.aggregateFunction.children) {
               if (!aggChild.isInstanceOf[Attribute] && !aggChild.isInstanceOf[Literal]) {
                 needsProjection = true
                 break
               }
             }
-          // No need to consider pre-projection for Final Agg.
+          // No need to consider pre-projection for PartialMerge and Final Agg.
           case _ =>
         }
       }
@@ -436,7 +437,7 @@ abstract class HashAggregateExecBaseTransformer(
                                         aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
     var aggregateAttr = new ListBuffer[Attribute]()
     val size = aggregateExpressions.size
-    var res_index = 0
+    var resIndex = 0
     for (expIdx <- 0 until size) {
       val exp: AggregateExpression = aggregateExpressions(expIdx)
       val mode = exp.mode
@@ -444,25 +445,17 @@ abstract class HashAggregateExecBaseTransformer(
       aggregateFunc match {
         case Average(_, _) =>
           mode match {
-            case Partial =>
+            case Partial | PartialMerge =>
               val avg = aggregateFunc.asInstanceOf[Average]
               val aggBufferAttr = avg.inputAggBufferAttributes
               for (index <- aggBufferAttr.indices) {
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr
               }
-              res_index += 2
-            case PartialMerge =>
-              val avg = aggregateFunc.asInstanceOf[Average]
-              val aggBufferAttr = avg.inputAggBufferAttributes
-              for (index <- aggBufferAttr.indices) {
-                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-                aggregateAttr += attr
-              }
-              res_index += 1
+              resIndex += 2
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
@@ -476,15 +469,15 @@ abstract class HashAggregateExecBaseTransformer(
                 aggregateAttr += ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
                 val isEmptyAttr = ConverterUtils.getAttrFromExpr(aggBufferAttr(1))
                 aggregateAttr += isEmptyAttr
-                res_index += 2
+                resIndex += 2
               } else {
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
                 aggregateAttr += attr
-                res_index += 1
+                resIndex += 1
               }
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
@@ -495,14 +488,14 @@ abstract class HashAggregateExecBaseTransformer(
               val aggBufferAttr = count.inputAggBufferAttributes
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
               aggregateAttr += attr
-              res_index += 1
+              resIndex += 1
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg =>
+        case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg | _: BitXorAgg =>
           mode match {
             case Partial | PartialMerge =>
               val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
@@ -510,10 +503,10 @@ abstract class HashAggregateExecBaseTransformer(
                 s"Aggregate function ${aggregateFunc} expects one buffer attribute.")
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
               aggregateAttr += attr
-              res_index += 1
+              resIndex += 1
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
@@ -529,10 +522,10 @@ abstract class HashAggregateExecBaseTransformer(
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr
               }
-              res_index += expectedBufferSize
+              resIndex += expectedBufferSize
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: ${other}.")
           }
@@ -548,27 +541,25 @@ abstract class HashAggregateExecBaseTransformer(
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr
               }
-              res_index += expectedBufferSize
+              resIndex += expectedBufferSize
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: ${other}.")
           }
         case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           mode match {
-            case Partial =>
+            case Partial | PartialMerge =>
               val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
               for (index <- aggBufferAttr.indices) {
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr
               }
-              res_index += 3
-            case PartialMerge =>
-              throw new UnsupportedOperationException("not currently supported: PartialMerge.")
+              resIndex += 3
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
@@ -582,10 +573,10 @@ abstract class HashAggregateExecBaseTransformer(
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr
               }
-              res_index += aggBufferAttr.size
+              resIndex += aggBufferAttr.size
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
@@ -598,10 +589,10 @@ abstract class HashAggregateExecBaseTransformer(
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr
               }
-              res_index += aggBufferAttr.size
+              resIndex += aggBufferAttr.size
             case Final =>
-              aggregateAttr += aggregateAttributeList(res_index)
-              res_index += 1
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
@@ -658,7 +649,7 @@ abstract class HashAggregateExecBaseTransformer(
               .replaceWithExpressionTransformer(expr, originalInputAttributes)
               .doTransform(args)
           })
-        case Final =>
+        case PartialMerge | Final =>
           aggregateFunc.inputAggBufferAttributes.toList.map(attr => {
             ExpressionConverter
               .replaceWithExpressionTransformer(attr, originalInputAttributes)

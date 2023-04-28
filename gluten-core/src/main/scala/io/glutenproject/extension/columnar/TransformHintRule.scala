@@ -108,16 +108,6 @@ object TagBeforeTransformHits {
   }
 }
 
-case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case agg: HashAggregateExec if agg.child.isInstanceOf[ExpandExec] =>
-      val childExpandExec = agg.child.asInstanceOf[ExpandExec]
-      agg.copy(child = CustomExpandExec(
-        childExpandExec.projections, agg.groupingExpressions,
-        childExpandExec.output, childExpandExec.child))
-  }
-}
-
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (GlutenConfig.getConf.enableAnsiMode) {
@@ -222,7 +212,7 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
           // Some backends are not eligible to offload plan with zero-column input.
           // If any child have empty output, mark the plan and that child as UNSUPPORTED.
           logWarning(s"May fallback ${p.getClass.toString} and its children because" +
-            s"at least one of its children has empty output.")
+            s" at least one of its children has empty output.")
           TransformHints.tagNotTransformable(p)
           p.children.foreach(child =>
             if (child.output.isEmpty) TransformHints.tagNotTransformable(child))
@@ -382,12 +372,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             val transformer = UnionExecTransformer(plan.children)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-        case plan: CustomExpandExec =>
+        case plan: ExpandExec =>
           if (!enableColumnarExpand) {
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = ExpandExecTransformer(plan.projections,
-              plan.groupExpression, plan.output, plan.child)
+              plan.output, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: SortExec =>

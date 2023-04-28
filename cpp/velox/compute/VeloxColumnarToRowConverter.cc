@@ -25,8 +25,8 @@
 #include "ArrowTypeUtils.h"
 #include "arrow/c/helpers.h"
 #include "include/arrow/c/bridge.h"
-#include "velox/row/UnsafeRowDynamicSerializer.h"
-#include "velox/row/UnsafeRowSerializer.h"
+#include "velox/row/UnsafeRowDeserializers.h"
+#include "velox/row/UnsafeRowSerializers.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;

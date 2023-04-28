@@ -6,7 +6,7 @@ LINUX_OS=$(. /etc/os-release && echo ${ID})
 VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 
 # compile gluten jar
-$GLUTEN_DIR/dev//builddeps-veloxbe.sh --build_test=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
+$GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_test=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
@@ -21,6 +21,17 @@ function process_setup_ubuntu_2204 {
   cp /usr/local/lib/{libhdfs3.so.1,libprotobuf.so.32} $THIRDPARTY_LIB/
 }
 
+function process_setup_centos_8 {
+  cp /usr/lib64/{libre2.so.0,libdouble-conversion.so.3,libgflags.so.2.2,libglog.so.0,libevent-2.1.so.6,libdwarf.so.1,libgsasl.so.7,libicudata.so.60,libicui18n.so.60,libicuuc.so.60,libidn.so.11,libntlm.so.0} $THIRDPARTY_LIB/
+  cp /usr/local/lib/{libhdfs3.so.1,libboost_context.so.1.72.0,libboost_filesystem.so.1.72.0,libboost_program_options.so.1.72.0,libboost_regex.so.1.72.0,libboost_system.so.1.72.0,libboost_thread.so.1.72.0,libprotobuf.so.32} $THIRDPARTY_LIB/
+}
+
+function process_setup_centos_7 {
+  cp /usr/local/lib64/{libgflags.so.2.2,libglog.so.0} $THIRDPARTY_LIB/
+  cp /usr/lib64/{libdouble-conversion.so.1,libevent-2.0.so.5,libzstd.so.1,libntlm.so.0,libgsasl.so.7} $THIRDPARTY_LIB/
+  cp /usr/local/lib/{libre2.so.10,libhdfs3.so.1,libboost_context.so.1.72.0,libboost_filesystem.so.1.72.0,libboost_program_options.so.1.72.0,libboost_system.so.1.72.0,libboost_thread.so.1.72.0,libboost_regex.so.1.72.0,libprotobuf.so.32} $THIRDPARTY_LIB/
+}
+
 if [ "$LINUX_OS" == "ubuntu" ]; then
   if [ "$VERSION" == "20.04" ]; then
     process_setup_ubuntu_2004
@@ -28,7 +39,15 @@ if [ "$LINUX_OS" == "ubuntu" ]; then
     process_setup_ubuntu_2204
   fi
 elif [ "$LINUX_OS" == "centos" ]; then
-  echo $LINUX_OS-$VERSION
+  if [ "$VERSION" == "8" ]; then
+    process_setup_centos_8
+  elif [ "$VERSION" == "7" ]; then
+    process_setup_centos_7
+  fi
+elif [ "$LINUX_OS" == "alinux" ]; then
+  if [ "$VERSION" == "3" ]; then
+    process_setup_centos_8
+  fi
 fi
 cd $THIRDPARTY_LIB/
 jar cvf gluten-thirdparty-lib-$LINUX_OS-$VERSION.jar ./

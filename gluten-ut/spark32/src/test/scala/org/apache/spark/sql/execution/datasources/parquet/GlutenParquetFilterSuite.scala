@@ -40,6 +40,7 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
 
 import java.sql.Date
@@ -301,6 +302,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
   }
 }
 
+@ExtendedSQLTest
 class GlutenParquetV1FilterSuite extends GltuenParquetFilterSuite with GlutenSQLTestsBaseTrait {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =
@@ -379,6 +381,7 @@ class GlutenParquetV1FilterSuite extends GltuenParquetFilterSuite with GlutenSQL
   }
 }
 
+@ExtendedSQLTest
 class GlutenParquetV2FilterSuite extends GltuenParquetFilterSuite with GlutenSQLTestsBaseTrait {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =

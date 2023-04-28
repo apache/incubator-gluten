@@ -21,9 +21,9 @@
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
 #include <exception>
-#include "compute/DwrfDatasource.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
+#include "compute/VeloxParquetDatasource.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
@@ -44,7 +44,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
   }
+  // logging
+  google::InitGoogleLogging("gluten");
   gluten::GetJniErrorsState()->Initialize(env);
+
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -69,10 +72,10 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative(JNIEnv* env){
-    JNI_METHOD_START
-        // TODO Release resources allocated for single executor/driver
-        JNI_METHOD_END()}
+JNIEXPORT void JNICALL Java_io_glutenprovject_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative(
+    JNIEnv* env){JNI_METHOD_START
+                     // TODO Release resources allocated for single executor/driver
+                     JNI_METHOD_END()}
 
 JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env,
@@ -86,7 +89,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
 
   // A query context used for function validation.
   velox::core::QueryCtx queryCtx;
-  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool().get();
+  auto pool = gluten::GetDefaultLeafWrappedVeloxMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
@@ -94,68 +97,10 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   try {
     return planValidator.validate(subPlan);
   } catch (std::invalid_argument& e) {
-    LOG(INFO) << "Faled to validate substrait plan because " << e.what();
+    LOG(INFO) << "Failed to validate substrait plan because " << e.what();
     return false;
   }
   JNI_METHOD_END(false)
-}
-
-JNIEXPORT jlong JNICALL
-Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_nativeInitDwrfDatasource(
-    JNIEnv* env,
-    jobject obj,
-    jstring file_path,
-    jlong c_schema) {
-  auto pool = gluten::GetDefaultWrappedVeloxMemoryPool().get();
-  gluten::DwrfDatasource* dwrfDatasource = nullptr;
-  if (c_schema == -1) {
-    // Only inspect the schema and not write
-    dwrfDatasource = new gluten::DwrfDatasource(JStringToCString(env, file_path), nullptr, pool);
-    // dwrfDatasource->Init();
-  } else {
-    auto schema = gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
-    dwrfDatasource = new gluten::DwrfDatasource(JStringToCString(env, file_path), schema, pool);
-    dwrfDatasource->Init(sparkConfs_);
-  }
-  return (jlong)dwrfDatasource;
-}
-
-JNIEXPORT jbyteArray JNICALL
-Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_inspectSchema(
-    JNIEnv* env,
-    jobject obj,
-    jlong instanceId) {
-  JNI_METHOD_START
-  auto dwrfDatasource = (gluten::DwrfDatasource*)(instanceId);
-  auto schema = dwrfDatasource->InspectSchema();
-  return ToSchemaByteArray(env, schema);
-  JNI_METHOD_END(nullptr)
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_close(
-    JNIEnv* env,
-    jobject obj,
-    jlong instanceId) {
-  JNI_METHOD_START
-  auto dwrfDatasource = (gluten::DwrfDatasource*)(instanceId);
-  dwrfDatasource->Close();
-  delete dwrfDatasource;
-  JNI_METHOD_END()
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_write(
-    JNIEnv* env,
-    jobject obj,
-    jlong instanceId,
-    jlong c_schema,
-    jlong c_array) {
-  JNI_METHOD_START
-  std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(arrow::ImportRecordBatch(
-      reinterpret_cast<struct ArrowArray*>(c_array), reinterpret_cast<struct ArrowSchema*>(c_schema)));
-
-  auto dwrfDatasource = (gluten::DwrfDatasource*)(instanceId);
-  dwrfDatasource->Write(rb);
-  JNI_METHOD_END()
 }
 
 #ifdef __cplusplus

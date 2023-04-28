@@ -25,7 +25,15 @@ const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
-const std::string kVeloxMemoryCap = "spark.gluten.sql.columnar.backend.velox.memoryCap";
+const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
+
+const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
+
+const std::string kSparkBatchSize = "spark.sql.execution.arrow.maxRecordsPerBatch";
+
+const std::string kParquetBlockSize = "parquet.block.size";
+
+const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
 
 std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
 } // namespace gluten

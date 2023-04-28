@@ -57,7 +57,25 @@ There are several key component in Gluten:
 
 # 3 Usage
 
-Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details
+Gluten is still under active development now. There are two ways to use Gluten. 
+
+# 3.1 Use Prebuilt jar
+
+One Way is use released binary jar. Here is the simple example. we support centos7/8 and ubuntu20.04/22.04 now.
+
+```
+spark-shell \
+ --master yarn --deploy-mode client \
+ --conf spark.plugins=io.glutenproject.GlutenPlugin \
+ --conf spark.gluten.sql.columnar.backend.lib=velox \
+ --conf spark.gluten.loadLibFromJar=true \
+ --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+ --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
+```
+
+# 3.2 Custom Build
+
+Another way is build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details.
 
 ```
 export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
@@ -69,25 +87,25 @@ spark-shell
   --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
   --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
   ...
-  ```
+```
 
-## 3.1 Build and Install Gluten with Velox backend
+### 3.2.1 Build and Install Gluten with Velox backend
 
 <img src="https://github.com/facebookincubator/velox/raw/main/static/logo.svg" width="200">
 
 If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](./docs/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
 
-## 3.2 Build and Install Gluten with ClickHouse backend
+### 3.2.2 Build and Install Gluten with ClickHouse backend
 
 ![logo](./docs/image/ClickHouse/logo.png)
 
 If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
-## 3.4 Build script parameters
+### 3.2.3 Build script parameters
 
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
-## 3.5 Jar conflicts
+### 3.2.4 Jar conflicts
 
 With the latest version of Gluten, there should not be any jar conflict anymore. If you still get hit with such issues, please following the below instructions.
 

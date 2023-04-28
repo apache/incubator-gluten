@@ -21,25 +21,31 @@
 
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
+#include "config/GlutenConfig.h"
 
 using namespace facebook;
 namespace fs = std::filesystem;
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(write_file, "", "Write the output to parquet file, file absolute path");
+DEFINE_string(batch_size, "4096", "To set velox::core::QueryConfig::kPreferredOutputBatchSize.");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
 namespace {
 
-std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, "512"}};
+std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, FLAGS_batch_size}};
 
 } // anonymous namespace
 
+void InitVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
+  gluten::SetBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(conf); });
+  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(conf);
+}
+
 void InitVeloxBackend() {
-  gluten::SetBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(bmConfMap); });
-  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(bmConfMap);
+  InitVeloxBackend(bmConfMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
@@ -96,6 +102,15 @@ void AbortIfFileNotExists(const std::string& filepath) {
     ::benchmark::Shutdown();
     std::exit(EXIT_FAILURE);
   }
+}
+
+std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> planNode) {
+  ArrowSchema arrowSchema{};
+  exportToArrow(
+      velox::BaseVector::create(planNode->outputType(), 0, gluten::GetDefaultLeafWrappedVeloxMemoryPool().get()),
+      arrowSchema);
+  GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
+  return outputSchema;
 }
 
 bool EndsWith(const std::string& data, const std::string& suffix) {

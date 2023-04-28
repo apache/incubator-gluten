@@ -61,7 +61,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetrics
 
   /** SQL metrics generated only for scans using dynamic partition pruning. */
-  private lazy val staticMetrics = if (partitionFilters.exists(FileSourceScanExecTransformer
+  protected lazy val staticMetrics = if (partitionFilters.exists(FileSourceScanExecTransformer
     .isDynamicPruningFilter)) {
     Map("staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
       "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read"))
@@ -133,20 +133,20 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   // The codes below are copied from FileSourceScanExec in Spark,
   // all of them are private.
-  private lazy val driverMetrics: HashMap[String, Long] = HashMap.empty
+  protected lazy val driverMetrics: HashMap[String, Long] = HashMap.empty
 
   /**
    * Send the driver-side metrics. Before calling this function, selectedPartitions has
    * been initialized. See SPARK-26327 for more details.
    */
-  private def sendDriverMetrics(): Unit = {
+  protected def sendDriverMetrics(): Unit = {
     driverMetrics.foreach(e => metrics(e._1).add(e._2))
     val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     SQLMetrics.postDriverMetricUpdates(sparkContext, executionId,
       metrics.filter(e => driverMetrics.contains(e._1)).values.toSeq)
   }
 
-  private def setFilesNumAndSizeMetric(
+  protected def setFilesNumAndSizeMetric(
      partitions: Seq[PartitionDirectory],
      static: Boolean): Unit = {
     val filesNum = partitions.map(_.files.size.toLong).sum

@@ -35,12 +35,16 @@
 
 DECLARE_bool(print_result);
 DECLARE_string(write_file);
+DECLARE_string(batch_size);
 DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
 
-/// Initilize the Velox backend.
+/// Initilize the Velox backend with default value.
 void InitVeloxBackend();
+
+/// Initilize the Velox backend.
+void InitVeloxBackend(std::unordered_map<std::string, std::string>& conf);
 
 /// Get the location of a file in this project.
 inline std::string getExampleFilePath(const std::string& fileName) {
@@ -91,3 +95,5 @@ void AbortIfFileNotExists(const std::string& filepath);
 bool EndsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
+
+std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> plan);

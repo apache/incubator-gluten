@@ -95,7 +95,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
 
-  @transient private lazy val filteredFlattenPartitions: Seq[InputPartition] =
+  @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
 
   def getPushdownFilters(): Seq[Expression] = {

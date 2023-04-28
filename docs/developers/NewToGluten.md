@@ -1,3 +1,9 @@
+---
+layout: page
+title: New To Gluten
+nav_order: 2
+parent: Developer Overview
+---
 Help users to debug and test with gluten.
 
 For intel internal developer, you could refer to internal wiki  [New Employee Guide](https://wiki.ith.intel.com/display/HPDA/New+Employee+Guide) to get more information such as proxy settings,
@@ -135,7 +141,7 @@ And we need to compile velox debug mode before, if you have compiled velox relea
 
 ```bash
 # Build the velox debug version in <velox_home>/_build/debug
-make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_ENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF  -DVELOX_ENABLE_DUCKDB=ON -DVELOX_BUILD_TEST_UTILS=ON"
+make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF  -DVELOX_ENABLE_DUCKDB=ON -DVELOX_BUILD_TEST_UTILS=ON"
 ```
 
 Then gluten will link velox debug library.
@@ -156,7 +162,7 @@ Open the file in `<gluten_home>/.vscode/settings.json` (create if not exists)
 }
 ```
 
-Then we can get some executables, take `shuffle_test` as example
+Then we can get some executables, take `velox_shuffle_writer_test` as example
 
 Click `Run and Debug` to create launch.json in `<gluten_home>/.vscode/launch.json`
 Click `Add Configuration` in the top of launch.json, select gdb launch or attach to exists program
@@ -170,11 +176,11 @@ launch.json example
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "shuffle test",
+      "name": "velox shuffle writer test",
       "type": "cppdbg",
       "request": "launch",
-      "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/shuffle_test",
-      "args": ["--gtest_filter=*TestSingleSplitter*"],
+      "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/tests/velox_shuffle_writer_test",
+      "args": ["--gtest_filter=*TestSingleShuffleWriter*"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -252,16 +258,16 @@ Search `update` in Manage->Settings to turn off update mode
 
 ### Clang format
 
-Now gluten uses clang-format 11 to format source files.
+Now gluten uses clang-format 12 to format source files.
 
 ```bash
-apt-get install clang-format-11
+apt-get install clang-format-12
 ```
 
 Set config in `settings.json`
 
 ```json
-"clang-format.executable": "clang-format-11",
+"clang-format.executable": "clang-format-12",
 "editor.formatOnSave": true,
 ```
 
@@ -352,8 +358,9 @@ spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
  --conf spark.gluten.sql.columnar.backend.lib=velox \
- --jars https://github.com/oap/gluten/releases/tag/gluten-velox-bundle-spark3.3_2.12-ubuntu_22.04-0.5.0-SNAPSHOT.jar,https://github.com/oap/gluten/releases/tag/gluten-thirdparty-lib-ubuntu-22.04.jar
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
- --conf spark.gluten.loadLibFromJar=true
+ --conf spark.gluten.loadLibFromJar=true \
+ --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
+
 ```

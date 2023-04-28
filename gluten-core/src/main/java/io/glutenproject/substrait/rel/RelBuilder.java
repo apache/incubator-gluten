@@ -199,26 +199,20 @@ public class RelBuilder {
   }
 
   public static RelNode makeExpandRel(RelNode input,
-                                      String groupName,
-                                      ArrayList<ArrayList<ExpressionNode>> groupings,
-                                      ArrayList<ExpressionNode> aggExpressions,
-                                      AdvancedExtensionNode extensionNode,
-                                      SubstraitContext context,
-                                      Long operatorId) {
+    ArrayList<ArrayList<ExpressionNode>> projections,
+    AdvancedExtensionNode extensionNode,
+    SubstraitContext context,
+    Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ExpandRelNode(input, groupName,
-        groupings, aggExpressions, extensionNode);
+    return new ExpandRelNode(input, projections, extensionNode);
   }
 
   public static RelNode makeExpandRel(RelNode input,
-                                      String groupName,
-                                      ArrayList<ArrayList<ExpressionNode>> groupings,
-                                      ArrayList<ExpressionNode> aggExpressions,
-                                      SubstraitContext context,
-                                      Long operatorId) {
+    ArrayList<ArrayList<ExpressionNode>> projections,
+    SubstraitContext context,
+    Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ExpandRelNode(input, groupName,
-        groupings, aggExpressions);
+    return new ExpandRelNode(input, projections);
   }
 
   public static RelNode makeSortRel(RelNode input,

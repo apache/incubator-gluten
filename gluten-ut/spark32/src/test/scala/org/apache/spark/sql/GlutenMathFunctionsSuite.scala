@@ -18,5 +18,4 @@
 package org.apache.spark.sql
 
 class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTrait {
-
 }

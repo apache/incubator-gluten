@@ -8,8 +8,10 @@ ENABLE_HDFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
+ENABLE_BENCHMARK=OFF
 
 LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
+LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
 
 for arg in "$@"; do
   case $arg in
@@ -33,6 +35,10 @@ for arg in "$@"; do
     ENABLE_EP_CACHE=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --build_benchmarks=*)
+    ENABLE_BENCHMARK=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     shift # Remove generic argument from processing
@@ -44,10 +50,38 @@ function compile {
   TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
   if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
     scripts/setup-ubuntu.sh
-  else # Assume CentOS
-    scripts/setup-centos8.sh
+  elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
+    case "$LINUX_VERSION_ID" in
+      8) scripts/setup-centos8.sh ;;
+      7)
+        scripts/setup-centos7.sh
+        set +u
+        export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+        source /opt/rh/devtoolset-9/enable
+        set -u
+      ;;
+      *)
+        echo "Unsupport centos version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
+    case "$LINUX_VERSION_ID" in
+      3) scripts/setup-centos8.sh ;;
+      *)
+        echo "Unsupport alinux version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  else
+    echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+    exit 1
   fi
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
+
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON "
+  if [ $ENABLE_BENCHMARK == "OFF" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
+  fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
   fi
@@ -78,7 +112,7 @@ function check_commit {
       fi
     fi
   else
-    git clean -dfx :/
+    git clean -dffx :/
   fi
 
   if [ -f ${BUILD_DIR}/velox-commit.cache ]; then

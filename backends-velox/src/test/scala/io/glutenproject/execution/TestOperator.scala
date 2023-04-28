@@ -18,10 +18,11 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.{Decimal, DecimalType, StringType, StructField, StructType}
 import org.apache.spark.sql.Row
-
 import scala.collection.JavaConverters
+
+import org.apache.spark.sql.functions.{avg, col}
 
 class TestOperator extends WholeStageTransformerSuite {
 
@@ -88,6 +89,16 @@ class TestOperator extends WholeStageTransformerSuite {
       .createOrReplaceTempView("temp_test_is_null")
     val df = runQueryAndCompare("select * from temp_test_is_null where col1 is null") { _ => }
     checkLengthAndPlan(df, 2)
+  }
+  test("velox parquet write") {
+    withTempDir { dir =>
+      val path = dir.toURI.getPath
+      val df = runQueryAndCompare(
+        "select * from lineitem where l_comment is not null " +
+          "and l_orderkey = 1") { _ => }
+
+      df.write.mode("append").format("velox").save(path)
+    }
   }
 
   test("is_not_null") {
@@ -157,26 +168,6 @@ class TestOperator extends WholeStageTransformerSuite {
     df = runQueryAndCompare("select l_orderkey, coalesce(null, null, null) " +
       "from lineitem limit 5") { _ => }
     checkLengthAndPlan(df, 5)
-  }
-
-  test("count") {
-    val df = runQueryAndCompare("select count(*) from lineitem " +
-      "where l_partkey in (1552, 674, 1062)") {
-      _ =>
-    }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("avg") {
-    val df = runQueryAndCompare("select avg(l_partkey) from lineitem " +
-      "where l_partkey < 1000") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("sum") {
-    val df = runQueryAndCompare("select sum(l_partkey) from lineitem " +
-      "where l_partkey < 2000") { _ => }
-    checkLengthAndPlan(df, 1)
   }
 
   test("groupby") {
@@ -327,7 +318,7 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("union_all three tables") {
-    val df = runQueryAndCompare(
+    runQueryAndCompare(
       """
         |select count(orderkey) from (
         | select l_orderkey as orderkey from lineitem
@@ -368,93 +359,12 @@ class TestOperator extends WholeStageTransformerSuite {
     }
   }
 
-  test("stddev_samp") {
-    runQueryAndCompare(
-      """
-        |select stddev_samp(l_quantity) from lineitem;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |select l_orderkey, stddev_samp(l_quantity) from lineitem
-        |group by l_orderkey;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-  }
-
   test("round") {
     runQueryAndCompare(
       """
         |select round(l_quantity, 2) from lineitem;
         |""".stripMargin) {
       checkOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("stddev_pop") {
-    runQueryAndCompare(
-      """
-        |select stddev_pop(l_quantity) from lineitem;
-      |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |select l_orderkey, stddev_pop(l_quantity) from lineitem
-        |group by l_orderkey;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-  }
-
-  test("var_samp") {
-    runQueryAndCompare(
-      """
-        |select var_samp(l_quantity) from lineitem;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |select l_orderkey, var_samp(l_quantity) from lineitem
-        |group by l_orderkey;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-  }
-
-  test("var_pop") {
-    runQueryAndCompare(
-      """
-        |select var_pop(l_quantity) from lineitem;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |select l_orderkey, var_pop(l_quantity) from lineitem
-        |group by l_orderkey;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-  }
-
-  test("bit_and and bit_or") {
-    runQueryAndCompare(
-      """
-        |select bit_and(l_linenumber) from lineitem
-        |group by l_orderkey;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |select bit_or(l_linenumber) from lineitem
-        |group by l_orderkey;
-        |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
     }
   }
 
@@ -489,26 +399,12 @@ class TestOperator extends WholeStageTransformerSuite {
     }
   }
 
-  test("corr covar_pop covar_samp") {
-    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select corr(l_partkey, l_suppkey) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select covar_pop(l_partkey, l_suppkey) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-      runQueryAndCompare(
-        """
-          |select covar_samp(l_partkey, l_suppkey) from lineitem;
-          |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
-      }
-    }
+  test("Cast double to decimal") {
+    val d = 0.034567890
+    val df = Seq(d, d, d, d, d, d, d, d, d, d).toDF("DecimalCol")
+    val result = df.select($"DecimalCol" cast DecimalType(38, 33))
+      .select(col("DecimalCol")).agg(avg($"DecimalCol"))
+    assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
+    checkOperatorMatch[GlutenHashAggregateExecTransformer](result)
   }
 }

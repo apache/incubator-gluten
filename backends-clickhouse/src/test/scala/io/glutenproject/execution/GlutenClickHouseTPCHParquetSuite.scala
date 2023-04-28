@@ -16,6 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
@@ -403,12 +405,19 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     checkLengthAndPlan(df, 10)
   }
 
+  // TODO: fix memory leak
   test("test 'function regexp_replace'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'function regexp_extract_all'") {
+    runQueryAndCompare(
+      "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
@@ -656,6 +665,52 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("expand with nullable type not match") {
+    val sql =
+      """
+        |select a, n_regionkey, n_nationkey from
+        |(select nvl(n_name, "aaaa") as a, n_regionkey, n_nationkey from nation)
+        |group by n_regionkey, n_nationkey
+        |grouping sets((a, n_regionkey, n_nationkey),(a, n_regionkey), (a))
+        |order by a, n_regionkey, n_nationkey
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+  }
+
+  test("expand col result") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey, count(1) as cnt from nation
+        |group by n_regionkey, n_nationkey with rollup
+        |order by n_regionkey, n_nationkey, cnt
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+  }
+
+  test("expand with not nullable") {
+    val sql =
+      """
+        |select a,b, sum(c) from
+        |(select nvl(n_nationkey, 0) as c, nvl(n_name, '') as b, nvl(n_nationkey, 0) as a from nation)
+        |group by a,b with rollup
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+  }
+
+  test("expand with function expr") {
+    val sql =
+      """
+        |select
+        | n_name,
+        | count(distinct n_regionkey) as col1,
+        | count(distinct concat(n_regionkey, n_nationkey)) as col2
+        |from nation
+        |group by n_name
+        |order by n_name, col1, col2
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+  }
+
   test("test 'position/locate'") {
     runQueryAndCompare(
       """
@@ -703,6 +758,47 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from lineitem
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test 'sequence'") {
+    runQueryAndCompare(
+      "select sequence(id, id+10), sequence(id+10, id), sequence(id, id+10, 3), " +
+        "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("Bug-398 collec_list failure") {
+    val sql =
+      """
+        |select n_regionkey, collect_list(if(n_regionkey=0, n_name, null)) as t from nation group by n_regionkey
+        |order by n_regionkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
+  test("Test 'spark.gluten.enabled' false") {
+    withSQLConf(("spark.gluten.enabled", "false")) {
+      runTPCHQuery(2) {
+        df =>
+          val glutenPlans = df.queryExecution.executedPlan.collect {
+            case glutenPlan: GlutenPlan => glutenPlan
+          }
+          assert(glutenPlans.isEmpty)
+      }
+    }
+  }
+
+  test("test 'max(NULL)/min(NULL) from table'") {
+    val df = spark.sql(
+      """
+        |select
+        | l_linenumber, max(NULL), min(NULL)
+        | from lineitem where l_linenumber = 3 and l_orderkey < 3
+        | group by l_linenumber limit 1
+        |""".stripMargin
+    )
+    val result = df.collect()
+    assert(result(0).isNullAt(1))
+    assert(result(0).isNullAt(2))
   }
 
   override protected def runTPCHQuery(

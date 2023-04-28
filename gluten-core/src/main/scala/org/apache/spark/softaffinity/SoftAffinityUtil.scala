@@ -17,14 +17,17 @@
 
 package org.apache.spark.softaffinity
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.GlutenMergeTreePartition
 import io.glutenproject.softaffinity.SoftAffinityManager
-
+import io.glutenproject.utils.LogLevelUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
 import org.apache.spark.sql.execution.datasources.FilePartition
 
-object SoftAffinityUtil extends Logging {
+object SoftAffinityUtil extends LogLevelUtil with Logging {
+
+  private lazy val softAffinityLogLevel = GlutenConfig.getConf.softAffinityLogLevel
 
   /**
    * Get the locations by SoftAffinityManager
@@ -42,7 +45,7 @@ object SoftAffinityUtil extends Logging {
       val file = filePartition.files.sortBy(_.filePath).head
       val locations = SoftAffinityManager.askExecutors(file.filePath)
       if (!locations.isEmpty) {
-        logInfo(s"SAMetrics=File ${file.filePath} - " +
+        logOnLevel(softAffinityLogLevel, s"SAMetrics=File ${file.filePath} - " +
           s"the expected executors are ${locations.mkString("_")} ")
         locations.map { p =>
           if (p._1.equals("")) p._2
@@ -65,7 +68,7 @@ object SoftAffinityUtil extends Logging {
       val file = filePartition.tablePath + "_" + filePartition.maxParts
       val locations = SoftAffinityManager.askExecutors(file)
       if (!locations.isEmpty) {
-        logInfo(s"SAMetrics=File ${file} - " +
+        logOnLevel(softAffinityLogLevel, s"SAMetrics=File ${file} - " +
           s"the expected executors are ${locations.mkString("_")} ")
         locations.map { p =>
           if (p._1.equals("")) p._2

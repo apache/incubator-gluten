@@ -166,7 +166,8 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         substraitContext, condition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
 
@@ -246,6 +247,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doValidateInternal(): Boolean = {
+    if (this.subqueries.nonEmpty) {
+      logOnLevel(validateFailureLogLevel, "Subquery in Project is not supported.")
+      return false
+    }
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId

@@ -72,7 +72,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         SparkSession.clearDefaultSession()
       }
     }
-    print("Test suite: " + this.getClass.getSimpleName +
+    logInfo("Test suite: " + this.getClass.getSimpleName +
       "; Suite test number: " + TestStats.suiteTestNumber +
       "; OffloadGluten number: " + TestStats.offloadGlutenTestNumber + "\n")
     TestStats.reset()
@@ -128,11 +128,11 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     val expr = resolver.resolveTimeZones(expression)
     assert(expr.resolved)
 
-    val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
-
-    if(canConvertToDataFrame(inputRow)) {
-      glutenCheckExpression(expr, catalystValue, inputRow)
+    if (canConvertToDataFrame(inputRow)) {
+      glutenCheckExpression(expr, expected, inputRow)
     } else {
+      logWarning(s"The status of this unit test is not guaranteed.")
+      val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
       checkEvaluationWithoutCodegen(expr, catalystValue, inputRow)
       checkEvaluationWithMutableProjection(expr, catalystValue, inputRow)
       if (GenerateUnsafeProjection.canSupport(expr.dataType)) {
@@ -165,14 +165,25 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         case p: ProjectExecTransformer => p
       }
       if (projectTransformer.size == 1) {
-        print("Offload to native backend in the test.\n")
+        logInfo("Offload to native backend in the test.\n")
       } else {
-        print("Not supported in native backend, fall back to vanilla spark in the test.\n")
+        logInfo("Not supported in native backend, fall back to vanilla spark in the test.\n")
       }
     } else {
-      print("Has unsupported data type, fall back to vanilla spark.\n")
+      logInfo("Has unsupported data type, fall back to vanilla spark.\n")
     }
-    checkResult(result, expected, expression)
+    if (!(checkResult(result.head.get(0), expected, expression.dataType, expression.nullable)
+      || checkResult(
+      CatalystTypeConverters.convertToCatalyst(result.head.get(0)),
+      CatalystTypeConverters.convertToCatalyst(expected),
+      expression.dataType,
+      expression.nullable))) {
+      val input = if (inputRow == EmptyRow) "" else s", input: $inputRow"
+      fail(
+        s"Incorrect evaluation: $expression, " +
+          s"actual: ${result.head.get(0)}, " +
+          s"expected: $expected$input")
+    }
   }
 
   def canConvertToDataFrame(inputRow: InternalRow): Boolean = {

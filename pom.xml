@@ -103,7 +103,8 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
-    <shims-spark-artifactId>spark-sql-columnar-shims-spark32</shims-spark-artifactId>
+    <spark32.shim.version>spark-sql-columnar-shims-spark32</spark32.shim.version>
+    <spark33.shim.version>spark-sql-columnar-shims-spark33</spark33.shim.version>
   </properties>
 
   <profiles>
@@ -119,7 +120,7 @@
         <delta.version>${delta20.version}</delta.version>
         <delta.binary.version>20</delta.binary.version>
         <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>spark-sql-columnar-shims-spark32</shims-spark-artifactId>
+        <sparkshim.artifactId>${spark32.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>
@@ -131,7 +132,7 @@
         <delta.version>${delta22.version}</delta.version>
         <delta.binary.version>22</delta.binary.version>
         <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>spark-sql-columnar-shims-spark33</shims-spark-artifactId>
+        <sparkshim.artifactId>${spark33.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>
@@ -193,6 +194,22 @@
       </activation>
       <modules>
         <module>gluten-data</module>
+        <module>gluten-celeborn</module>
+        <module>backends-velox</module>
+      </modules>
+      <properties>
+        <backend_type>velox</backend_type>
+        <arrow.version>11.0.0-gluten</arrow.version>
+        <build_velox_backend>ON</build_velox_backend>
+      </properties>
+    </profile>
+    <profile>
+      <id>backends-velox-without-rss</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-data</module>
         <module>backends-velox</module>
       </modules>
       <properties>
@@ -211,11 +228,6 @@
 
   <dependencyManagement>
     <dependencies>
-      <dependency>
-        <groupId>org.apache.celeborn</groupId>
-        <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
-        <version>${celeborn.version}</version>
-      </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>
@@ -239,6 +251,14 @@
             <artifactId>hadoop-client</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
           </exclusion>
@@ -249,6 +269,12 @@
         <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -277,10 +303,24 @@
             <artifactId>hadoop-client</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-yarn_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
@@ -320,6 +360,14 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.curator</groupId>

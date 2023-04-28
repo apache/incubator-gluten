@@ -77,7 +77,7 @@ object VeloxBackendSettings extends BackendSettings {
   }
 
   override def supportExpandExec(): Boolean = true
-  override def needProjectExpandOutput: Boolean = true
+
   override def supportSortExec(): Boolean = true
 
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
@@ -166,10 +166,13 @@ object VeloxBackendSettings extends BackendSettings {
 
   override def recreateJoinExecOnFallback(): Boolean = true
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
+  override def rescaleDecimalLiteral(): Boolean = true
 
   /**
    * Get the config prefix for each backend
    */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
+
+  override def rescaleDecimalIntegralExpression(): Boolean = true
 }

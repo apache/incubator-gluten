@@ -96,21 +96,21 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       row.schema.foreach(s => {
         s match {
           case d if d.dataType == DoubleType =>
-            val v1 = row.getDouble(i)
             // handle null value
-            if (v1 == null) {
+            if (row.isNullAt(i)) {
               assert(result(i).equals("null"))
             } else {
+              val v1 = row.getDouble(i)
               assert(!result(i).equals("null"))
               val v2 = result(i).toDouble
               assert(Math.abs(v1 - v2) < 0.00001)
             }
           case _ =>
-            val v1 = row.get(i)
             // handle null value
-            if (v1 == null) {
+            if (row.isNullAt(i)) {
               assert(result(i).equals("null"))
             } else {
+              val v1 = row.get(i)
               assert(!result(i).equals("null"))
               val v2 = result(i)
               assert(v1.toString.equals(v2))
@@ -199,8 +199,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
    */
   def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
-    assert(executedPlan.exists(
-      plan => plan.find(child => child.getClass == tag.runtimeClass).isDefined))
+    assert(executedPlan.exists(plan => plan.getClass == tag.runtimeClass))
   }
 
   /**

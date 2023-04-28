@@ -17,7 +17,31 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.internal.SQLConf
+
 class GlutenBloomFilterAggregateQuerySuite extends BloomFilterAggregateQuerySuite
   with GlutenSQLTestsTrait {
+  import testImplicits._
 
+  test("Test bloom_filter_agg with big RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS") {
+    val table = "bloom_filter_test"
+    withSQLConf(SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.key -> "5000000") {
+      val numEstimatedItems = 5000000L
+      val numBits = SQLConf.get.getConf(SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_BITS)
+      val sqlString = s"""
+                           |SELECT every(might_contain(
+                           |            (SELECT bloom_filter_agg(col,
+                           |              cast($numEstimatedItems as long),
+                           |              cast($numBits as long))
+                           |             FROM $table),
+                           |            col)) positive_membership_test
+                           |FROM $table
+                      """.stripMargin
+      withTempView(table) {
+        (Seq(Long.MinValue, 0, Long.MaxValue) ++ (1L to 200000L))
+          .toDF("col").createOrReplaceTempView(table)
+        checkAnswer(spark.sql(sqlString), Row(true))
+      }
+    }
+  }
 }

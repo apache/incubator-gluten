@@ -24,11 +24,12 @@ import scala.collection.mutable
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.softaffinity.strategy.SoftAffinityStrategy
+import io.glutenproject.utils.LogLevelUtil
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 
-object SoftAffinityManager extends Logging {
+object SoftAffinityManager extends LogLevelUtil with Logging {
 
   val resourceRWLock = new ReentrantReadWriteLock(true)
 
@@ -51,6 +52,8 @@ object SoftAffinityManager extends Logging {
     GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE
   )
 
+  private val softAffinityLogLevel = GlutenConfig.getConf.softAffinityLogLevel
+
   def totalExecutors(): Int = totalRegisteredExecutors.intValue()
 
   def handleExecutorAdded(execHostId: (String, String)): Unit = {
@@ -72,10 +75,11 @@ object SoftAffinityManager extends Logging {
         }
         totalRegisteredExecutors.addAndGet(1)
       }
-      logInfo(s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
-        s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
-        s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
-        s"actual executors count is ${totalRegisteredExecutors.intValue()}."
+      logOnLevel(softAffinityLogLevel,
+        s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
+          s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
+          s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
+          s"actual executors count is ${totalRegisteredExecutors.intValue()}."
       )
     } finally {
       resourceRWLock.writeLock().unlock()
@@ -103,7 +107,7 @@ object SoftAffinityManager extends Logging {
         }
         totalRegisteredExecutors.addAndGet(-1)
       }
-      logInfo(s"After removing executor ${execId}, " +
+      logOnLevel(softAffinityLogLevel, s"After removing executor ${execId}, " +
         s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
         s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
         s"actual executors count is ${totalRegisteredExecutors.intValue()}."

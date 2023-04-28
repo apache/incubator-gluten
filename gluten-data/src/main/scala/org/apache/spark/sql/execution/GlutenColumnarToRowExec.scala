@@ -22,7 +22,6 @@ import io.glutenproject.execution.GlutenColumnarToRowExecBase
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
-
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -35,9 +34,9 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.NANOSECONDS
-
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.memory.TaskMemoryResources
 
 case class GlutenColumnarToRowExec(child: SparkPlan)
   extends GlutenColumnarToRowExecBase(child = child) {
@@ -176,7 +175,7 @@ class GlutenColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch
           val row = new UnsafeRow(batch.numCols())
           var closed = false
 
-          TaskContext.get().addTaskCompletionListener[Unit](_ => {
+          TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
             if (!closed) {
               jniWrapper.nativeClose(info.instanceID)
               closed = true

@@ -17,15 +17,21 @@
 package io.glutenproject.expression
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.expression.ExpressionConverter.replaceWithExpressionTransformer
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.sql.catalyst.expressions.{CreateNamedStruct}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateNamedStruct}
 
 class NamedStructTransformer(substraitExprName: String,
-  children: Seq[ExpressionTransformer],
-  original: CreateNamedStruct) extends ExpressionTransformer {
+                             original: CreateNamedStruct,
+                             attributeSeq: Seq[Attribute]) extends ExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
+    var childrenTransformers = Seq[ExpressionTransformer]()
+    original.children.foreach(child =>
+      childrenTransformers = childrenTransformers :+
+        replaceWithExpressionTransformer(child, attributeSeq)
+    )
     val expressionNodes = Lists.newArrayList[ExpressionNode]()
-    for (elem <- children) {
+    for (elem <- childrenTransformers) {
       expressionNodes.add(elem.doTransform(args))
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]

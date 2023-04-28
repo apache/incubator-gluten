@@ -20,14 +20,14 @@ package io.glutenproject.backendsapi.glutendata
 import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{GlutenArrowUtil, InputPartitionsUtil}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
-
+import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructField, StructType, TimestampType}
 import java.util;
 
 abstract class GlutenTransformerApi extends TransformerApi with Logging {
@@ -44,19 +44,19 @@ abstract class GlutenTransformerApi extends TransformerApi with Logging {
     // Complex type is not supported.
     for (attr <- outputAttributes) {
       attr.dataType match {
-        case _: ArrayType => return false
-        case _: MapType => return false
-        case _: StructType => return false
-        case _ =>
-      }
-    }
-    // check input datatype
-    for (attr <- outputAttributes) {
-      try GlutenArrowUtil.createArrowField(attr)
-      catch {
-        case e: UnsupportedOperationException =>
-          logInfo(s"${attr.dataType} is not supported in VeloxColumnarShuffledExchangeExec.")
-          return false
+        case _: BooleanType =>
+        case _: ByteType =>
+        case _: ShortType =>
+        case _: IntegerType =>
+        case _: LongType =>
+        case _: FloatType =>
+        case _: DoubleType =>
+        case _: StringType =>
+        case _: TimestampType =>
+        case _: DateType =>
+        case _: BinaryType =>
+        case _: DecimalType =>
+        case _ => return false
       }
     }
     true

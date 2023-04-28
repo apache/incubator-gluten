@@ -99,7 +99,7 @@ object RunTPCHTest {
       .config("spark.sql.columnVector.offheap.enabled", "true")
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", offHeapSize)
-      .config("spark.gluten.sql.columnar.backend.ch.runtime_conf.logger.level", "error")
+      .config("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
       .config("spark.sql.warehouse.dir", warehouse)
       .config(
         "javax.jdo.option.ConnectionURL",

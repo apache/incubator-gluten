@@ -22,8 +22,10 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
-#include "operators/shuffle/SplitterBase.h"
-#include "operators/shuffle/splitter.h"
+#include "operators/r2c/RowToColumnar.h"
+#include "operators/writer/Datasource.h"
+#include "shuffle/ArrowShuffleWriter.h"
+#include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
 
 namespace gluten {
@@ -63,6 +65,11 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return ParseProtobuf(data, size, &substraitPlan_);
   }
 
+  // Just for benchmark
+  ::substrait::Plan& getPlan() {
+    return substraitPlan_;
+  }
+
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
@@ -79,21 +86,33 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return std::make_shared<ArrowColumnarToRowConverter>(rb, memory_pool);
   }
 
-  virtual std::shared_ptr<SplitterBase> makeSplitter(
+  virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
+      MemoryAllocator* allocator,
+      struct ArrowSchema* cSchema) {
+    return std::make_shared<gluten::RowToColumnarConverter>(cSchema);
+  }
+
+  virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       const std::string& partitioning_name,
       int num_partitions,
       const SplitOptions& options,
       const std::string& batchType) {
-    GLUTEN_ASSIGN_OR_THROW(auto splitter, Splitter::Make(partitioning_name, num_partitions, std::move(options)));
-    return splitter;
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer, ArrowShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+    return shuffle_writer;
   }
 
   virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) {
     return nullptr;
   }
 
-  virtual std::shared_ptr<arrow::Schema> GetOutputSchema() {
-    return nullptr;
+  virtual std::shared_ptr<Datasource>
+  GetDatasource(const std::string& file_path, const std::string& file_name, std::shared_ptr<arrow::Schema> schema) {
+    return std::make_shared<Datasource>(file_path, file_name, schema);
+  }
+
+  std::unordered_map<std::string, std::string> GetConfMap() {
+    return confMap_;
   }
 
  protected:

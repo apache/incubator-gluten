@@ -45,6 +45,11 @@ class ColumnarBatch {
 
   virtual int64_t GetBytes() = 0;
 
+  // Will change this columnar batch
+  virtual std::shared_ptr<ColumnarBatch> addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) {
+    throw std::runtime_error("Not implement addColumn");
+  }
+
   virtual std::shared_ptr<ArrowArray> exportArrowArray() = 0;
 
   virtual std::shared_ptr<ArrowSchema> exportArrowSchema() = 0;
@@ -55,6 +60,11 @@ class ColumnarBatch {
   virtual int64_t getExportNanos() const {
     return exportNanos_;
   };
+
+  friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch) {
+    return os << "NumColumns: " << std::to_string(columnarBatch.GetNumColumns())
+              << "NumRows: " << std::to_string(columnarBatch.GetNumRows());
+  }
 
  private:
   int32_t numColumns_;

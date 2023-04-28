@@ -16,6 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
@@ -103,6 +105,19 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           case scanExec: BasicScanExecTransformer => scanExec
         }
         assert(scanExec.size == 8)
+    }
+  }
+
+  test("TPCH Q2 with coalesce batch true") {
+    withSQLConf(("spark.gluten.sql.columnar.coalesce.batches", "true")) {
+      runTPCHQuery(2) {
+        df =>
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case scanExec: BasicScanExecTransformer => scanExec
+          }
+          assert(scanExec.size == 8)
+      }
     }
   }
 
@@ -252,6 +267,18 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         }
         assert(adaptiveSparkPlanExec.size == 3)
         assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
+    }
+  }
+
+  test("Test 'spark.gluten.enabled' false") {
+    withSQLConf(("spark.gluten.enabled", "false")) {
+      runTPCHQuery(2) {
+        df =>
+          val glutenPlans = collect(df.queryExecution.executedPlan) {
+            case glutenPlan: GlutenPlan => glutenPlan
+          }
+          assert(glutenPlans.isEmpty)
+      }
     }
   }
 }

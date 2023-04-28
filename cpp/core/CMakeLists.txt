@@ -98,7 +98,7 @@ macro(build_protobuf)
   set(PROTOBUF_BUILD_COMMAND ${MAKE} ${MAKE_BUILD_ARGS})
   ExternalProject_Add(protobuf_ep
                       PREFIX protobuf_ep
-                      CONFIGURE_COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
+                      CONFIGURE_COMMAND ./autogen.sh COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
                       BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
@@ -184,11 +184,13 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/ProtobufUtils.cc
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
-        operators/r2c/RowToArrowColumnarConverter.cc
-        operators/shuffle/reader.cc
-        operators/shuffle/splitter.cc
-        operators/shuffle/CelebornSplitter.cc
+        shuffle/reader.cc
+        shuffle/ArrowShuffleWriter.cc
         operators/writer/ArrowWriter.cc
+        shuffle/PartitionWriter.cc
+        shuffle/LocalPartitionWriter.cc
+        shuffle/rss/RemotePartitionWriter.cc
+        shuffle/rss/CelebornPartitionWriter.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
@@ -222,9 +224,18 @@ endif()
 if(ENABLE_QAT)
   include(BuildQATzip)
   target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qat_util.cc)
+  target_sources(gluten PRIVATE utils/qat/qat_util.cc)
   target_link_libraries(gluten PUBLIC qatzip::qatzip)
   add_definitions(-DGLUTEN_ENABLE_QAT)
+endif()
+
+if(ENABLE_IAA)
+  include(BuildQpl)
+  target_include_directories(gluten PUBLIC ${QPL_INCLUDE_DIR})
+  # set_source_files_properties(utils/qpl/qpl_codec.cc PROPERTIES COMPILE_FLAGS "-mwaitpkg")
+  target_sources(gluten PRIVATE utils/qpl/qpl_job_pool.cc utils/qpl/qpl_codec.cc)
+  target_link_libraries(gluten PUBLIC qpl::qpl)
+  add_definitions(-DGLUTEN_ENABLE_IAA)
 endif()
 
 if(BUILD_PROTOBUF)

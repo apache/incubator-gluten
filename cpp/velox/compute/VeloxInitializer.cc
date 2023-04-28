@@ -24,10 +24,10 @@
 #include "config/GlutenConfig.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/serializers/PrestoSerializer.h"
-#ifdef VELOX_ENABLE_HDFS
+#ifdef ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #endif
-#ifdef VELOX_ENABLE_S3
+#ifdef ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
 #include "velox/common/memory/MmapAllocator.h"
@@ -49,32 +49,11 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
 
   std::unordered_map<std::string, std::string> configurationValues;
 
-#ifdef VELOX_ENABLE_HDFS
+#ifdef ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
-  std::unordered_map<std::string, std::string> hdfsConfig({});
-
-  std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
-  const char* envHdfsUri = std::getenv("VELOX_HDFS");
-  if (envHdfsUri != nullptr) {
-    hdfsUri = std::string(envHdfsUri);
-  }
-
-  auto hdfsHostWithPort = hdfsUri.substr(hdfsUri.find(':') + 3);
-  std::size_t pos = hdfsHostWithPort.find(':');
-  if (pos != std::string::npos) {
-    auto hdfsPort = hdfsHostWithPort.substr(pos + 1);
-    auto hdfsHost = hdfsHostWithPort.substr(0, pos);
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
-  } else {
-    // For HDFS HA mode. In this case, hive.hdfs.host should be the nameservice, we can
-    // get it from HDFS uri, and hive.hdfs.port should be an empty string, and the HDFS HA
-    // configurations should be taken from the LIBHDFS3_CONF file.
-    hdfsConfig.insert({{"hive.hdfs.host", hdfsHostWithPort}, {"hive.hdfs.port", ""}});
-  }
-  configurationValues.merge(hdfsConfig);
 #endif
 
-#ifdef VELOX_ENABLE_S3
+#ifdef ENABLE_S3
   velox::filesystems::registerS3FileSystem();
 
   std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
@@ -187,7 +166,12 @@ void VeloxInitializer::InitCache(std::unordered_map<std::string, std::string>& c
     velox::memory::MmapAllocator::Options options;
     options.capacity = memCacheSize;
     auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
-    asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+    if (ssdCacheSize == 0) {
+      LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
+      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, nullptr);
+    } else {
+      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+    }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))
     LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize

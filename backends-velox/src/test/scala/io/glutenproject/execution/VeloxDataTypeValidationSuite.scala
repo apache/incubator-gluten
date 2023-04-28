@@ -18,14 +18,16 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-
 import java.io.File
+
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.ArrowWritableColumnVector
+
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util.GenericArrayData
 import org.apache.spark.sql.execution.GlutenColumnarToRowExec
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtil
 import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, MapType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnarMap}
@@ -202,24 +204,18 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select int, date from type1 " +
       " group by grouping sets(int, date) sort by date, int limit 1") { df => {
       val executedPlan = getExecutedPlan(df)
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[ProjectExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[GlutenHashAggregateExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[SortExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[GlutenHashAggregateExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[SortExecTransformer]))
     }}
 
     // Validation: Expand, Filter.
     runQueryAndCompare("select date, string, sum(int) from type1 where date > date '1990-01-09' " +
       "group by rollup(date, string) order by date, string") { df => {
       val executedPlan = getExecutedPlan(df)
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[ExpandExecTransformer]).isDefined))
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[GlutenFilterExecTransformer]).isDefined))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[ExpandExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[GlutenFilterExecTransformer]))
     }}
 
     // Validation: Union.
@@ -231,9 +227,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
         | select date as d from type1
         |);
         |""".stripMargin) { df => {
-      val executedPlan = getExecutedPlan(df)
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[UnionExecTransformer]).isDefined))
+      assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[UnionExecTransformer]))
     }}
 
     // Validation: Limit.
@@ -451,7 +445,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
 
     vectors.foreach(
       _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(1))
-    GlutenArrowUtil.createArrowRecordBatch(new ColumnarBatch(vectors.toArray, 1))
+    SparkVectorUtil.toArrowRecordBatch(new ColumnarBatch(vectors.toArray, 1))
   }
 
   test("RowToArrow map type") {

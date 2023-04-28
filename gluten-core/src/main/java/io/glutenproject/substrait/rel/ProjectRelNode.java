@@ -55,7 +55,7 @@ public class ProjectRelNode implements RelNode, Serializable {
   @Override
   public Rel toProtobuf() {
     RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
-    if (emitStartIndex == -1) {
+    if (emitStartIndex < 0) {
       relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
     } else {
       RelCommon.Emit.Builder emitBuilder = RelCommon.Emit.newBuilder();

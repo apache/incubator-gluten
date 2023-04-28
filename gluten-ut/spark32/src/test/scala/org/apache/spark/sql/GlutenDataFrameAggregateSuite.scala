@@ -166,4 +166,14 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     df = spark.sql("select count(score) filter (where rate > 20) from view")
     checkAnswer(df, Row(2) :: Nil)
   }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "extend with cast expression") {
+    checkAnswer(
+      decimalData.agg(
+          sum($"a".cast("double")),
+          avg($"b".cast("double")),
+          count_distinct($"a"),
+          count_distinct($"b")),
+      Row(12.0, 1.5, 3, 2))
+  }
 }

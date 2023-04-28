@@ -40,6 +40,20 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
       .set("spark.sql.files.openCostInBytes", "134217728")
   }
 
+  tpcdsAllQueries.foreach(
+    sql =>
+      if (!independentTestTpcdsQueries.contains(sql)) {
+        if (excludedTpcdsQueries.contains(sql)) {
+          ignore(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        } else {
+          ignore(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        }
+      })
+
   test("test reading from partitioned table") {
     val df = spark.sql("""
                          |select count(*)
@@ -70,10 +84,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
     val result = spark.sql(testSql).collect()
     assert(result(0).getDouble(0) == 8998.463336886734)
     assert(result(0).getDouble(1) == 80037.12727449503)
-  }
-
-  test("TPCDS Q3") {
-    runTPCDSQuery(3) { df => }
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
@@ -114,7 +124,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
 
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(9) {
+      runTPCDSQuery("q9") {
         df =>
           var countSubqueryExec = 0
           df.queryExecution.executedPlan.transformAllExpressions {
@@ -132,7 +142,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
 
   test("TPCDS Q21") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
             case f: FileSourceScanExecTransformer =>
@@ -157,7 +167,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "false")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
             case f: FileSourceScanExecTransformer =>
@@ -180,7 +190,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
 
   test("TPCDS Q21 with non-separated scan rdd") {
     withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
-      runTPCDSQuery(21) {
+      runTPCDSQuery("q21") {
         df =>
           val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
             case f: FileSourceScanExecTransformer =>
@@ -199,14 +209,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
           assert(reuseExchange.nonEmpty == true)
       }
     }
-  }
-
-  test("TPCDS Q66") {
-    runTPCDSQuery(66) { df => }
-  }
-
-  test("TPCDS Q76") {
-    runTPCDSQuery(76) { df => }
   }
 
   test("Gluten-1234: Fix error when executing hash agg after union all") {

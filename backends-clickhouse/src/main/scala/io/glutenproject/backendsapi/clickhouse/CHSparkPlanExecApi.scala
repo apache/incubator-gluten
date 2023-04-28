@@ -19,6 +19,8 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
+import io.glutenproject.expression.CHSha1Transformer
+import io.glutenproject.expression.CHSha2Transformer
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -35,6 +37,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.ColumnarAQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
@@ -260,6 +263,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
               ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+          case columnarAQEShuffleReadExec: ColumnarAQEShuffleReadExec =>
+            // when aqe is open
+            // TODO: remove this after pushdowning preprojection
+            WholeStageTransformerExec(
+              ProjectExecTransformer(
+                child.output ++ appendedProjections.toSeq,
+                columnarAQEShuffleReadExec))(
+              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
           case r2c: RowToCHNativeColumnarExec =>
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
@@ -318,23 +329,45 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Generate extended columnar pre-rules. Currently only for Velox backend.
+   * Generate extended columnar pre-rules. Currently only for CH backend.
    *
    * @return
    */
   override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended columnar post-rules. Currently only for Velox backend.
+   * Generate extended columnar post-rules. Currently only for CH backend.
    *
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended Strategies. Currently only for Velox backend.
+   * Generate extended Strategies. Currently only for CH backend.
    *
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+
+  /**
+   * Generate an ExpressionTransformer to transform Sha2 expression. Currently only for CH backend.
+   */
+  override def genSha2Transformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Sha2): ExpressionTransformer = {
+    new CHSha2Transformer(substraitExprName, left, right, original)
+  }
+
+  /**
+   * Generate an ExpressionTransformer to transform Sha1 expression. Currently only for CH backend.
+   */
+  override def genSha1Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Sha1): ExpressionTransformer = {
+    new CHSha1Transformer(substraitExprName, child, original)
+  }
+
 }

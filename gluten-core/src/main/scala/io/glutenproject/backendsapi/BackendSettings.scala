@@ -31,7 +31,6 @@ trait BackendSettings {
                             partTable: Boolean,
                             paths: Seq[String]): Boolean = false
   def supportExpandExec(): Boolean = false
-  def needProjectExpandOutput: Boolean = false
   def supportSortExec(): Boolean = false
   def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     false
@@ -66,9 +65,12 @@ trait BackendSettings {
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def avoidOverwritingFilterTransformer(): Boolean = false
   def fallbackFilterWithoutConjunctiveScan(): Boolean = false
+  def rescaleDecimalLiteral(): Boolean = false
 
   /**
    * Get the config prefix for each backend
    */
   def getBackendConfigPrefix(): String
+
+  def rescaleDecimalIntegralExpression(): Boolean = false
 }

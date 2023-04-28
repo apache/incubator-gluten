@@ -50,7 +50,8 @@ case class GlutenFilterExecTransformer(condition: Expression,
         substraitContext, leftCondition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))

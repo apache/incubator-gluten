@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution.WholeStageCodegenExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.TimestampTypes
 import org.apache.spark.sql.test.SharedSparkSession
+import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
@@ -124,6 +125,7 @@ import scala.util.Try
  * Therefore, UDF test cases should have single input and output files but executed by three
  * different types of UDFs. See 'udf/udf-inner-join.sql' as an example.
  */
+@ExtendedSQLTest
 class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
     with SQLQueryTestHelper {
 
@@ -211,9 +213,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
     "explain.sql", // explain
-    "group-analytics.sql", // wait velox to fix issue 3357
-    "decimalArithmeticOperations.sql", // decimal failed ut
-    "udf/udf-union.sql"  // decimal failed ut
+    "group-analytics.sql" // wait velox to fix issue 3357
   ) ++ otherIgnoreList
 
   /** List of supported cases to run with Velox backend, in lower case.
@@ -247,6 +247,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "datetime-parsing-legacy.sql",
     "datetime-parsing.sql",
     "datetime-special.sql",
+    "decimalArithmeticOperations.sql",
     "describe-part-after-analyze.sql",
     "describe-query.sql",
     "describe-table-after-alter-table.sql",

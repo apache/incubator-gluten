@@ -17,17 +17,19 @@
 
 package io.glutenproject
 
-import java.util
-import java.util.{Collections, Objects}
-import scala.language.implicitConversions
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.util.SparkResourcesUtil
+import org.apache.spark.{SparkConf, SparkContext}
+
+import java.util
+import java.util.{Collections, Objects}
+import scala.language.implicitConversions
 
 class GlutenPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
@@ -41,9 +43,6 @@ class GlutenPlugin extends SparkPlugin {
 
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
-    // Set the system properties.
-    // Use appending policy for children with the same name in a arrow struct vector.
-    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = pluginContext.conf()
     setPredefinedConfigs(sc, conf)
     // Initialize Backends API
@@ -57,12 +56,27 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   }
 
   def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
+    // extensions
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       s"${conf.get(SPARK_SESSION_EXTS_KEY)},${GLUTEN_SESSION_EXTENSION_NAME}"
     } else {
       s"${GLUTEN_SESSION_EXTENSION_NAME}"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
+
+    // off-heap bytes
+    if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
+    }
+    val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
+    conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
+    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
+    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val taskCores = conf.getInt("spark.task.cpus", 1)
+    val offHeapPerTask = offHeapSize / (executorCores / taskCores)
+    conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
+
+    // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
     if (BackendsApiManager.getSettings.disableVanillaColumnarReaders()) {
       // FIXME Hongze 22/12/06
       //  BatchScan.scala in shim was not always loaded by class loader.
@@ -74,21 +88,15 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
       conf.set("spark.sql.orc.enableVectorizedReader", "false")
       conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
     }
-    val hdfsUri = sc.hadoopConfiguration.get("fs.defaultFS", "hdfs://localhost:9000")
-    if (!conf.contains(GlutenConfig.SPARK_HDFS_URI)) {
-      conf.set(GlutenConfig.SPARK_HDFS_URI, hdfsUri)
-    }
   }
 }
 
 private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
+
   /**
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    // Set the system properties.
-    // Use appending policy for children with the same name in a arrow struct vector.
-    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = ctx.conf()
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
     if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||

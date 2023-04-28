@@ -19,13 +19,40 @@
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxPlanConverter.h"
 
 using namespace facebook;
+using namespace gluten;
 
 const std::string getFilePath(const std::string& fileName) {
   const std::string currentPath = std::filesystem::current_path().c_str();
   const std::string filePath = currentPath + "/../../../velox/benchmarks/data/" + fileName;
   return filePath;
+}
+
+// Used by unit test and benchmark.
+std::shared_ptr<ResultIterator> GetResultIterator(
+    MemoryAllocator* allocator,
+    std::shared_ptr<Backend> backend,
+    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
+  auto ctxPool = GetDefaultWrappedVeloxAggregateMemoryPool()->addAggregateChild("query_benchmark_result_iterator");
+  auto resultPool = ctxPool->addLeafChild("query_benchmark_result_vector");
+  std::vector<std::shared_ptr<ResultIterator>> inputIter;
+  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, ctxPool);
+  auto veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
+
+  // In test, use setScanInfos to replace the one got from Substrait.
+  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  std::vector<velox::core::PlanNodeId> scanIds;
+  std::vector<velox::core::PlanNodeId> streamIds;
+
+  // Separate the scan ids and stream ids, and get the scan infos.
+  VeloxBackend::getInfoAndIds(
+      veloxPlanConverter->splitInfos(), veloxPlan->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
+
+  auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
+      ctxPool, resultPool, veloxPlan, scanIds, setScanInfos, streamIds, "/tmp/test-spill", backend->GetConfMap());
+  return std::make_shared<ResultIterator>(std::move(wholestageIter), backend);
 }
 
 auto BM = [](::benchmark::State& state,
@@ -50,9 +77,11 @@ auto BM = [](::benchmark::State& state,
     state.PauseTiming();
     auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::CreateBackend());
     state.ResumeTiming();
+
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), scanInfos);
-    auto outputSchema = backend->GetOutputSchema();
+    auto resultIter = GetResultIterator(gluten::DefaultMemoryAllocator().get(), backend, scanInfos);
+    auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
+    auto outputSchema = getOutputSchema(veloxPlan);
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
       auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);

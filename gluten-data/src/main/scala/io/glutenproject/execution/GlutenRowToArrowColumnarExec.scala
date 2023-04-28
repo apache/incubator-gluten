@@ -18,12 +18,10 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
-
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowAbiUtil
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, SpecializedGetters, UnsafeRow}
@@ -32,15 +30,15 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.{broadcast, TaskContext}
+import org.apache.spark.{TaskContext, broadcast}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.utils.SparkArrowUtil
 import io.glutenproject.vectorized._
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.memory.ArrowBuf
-
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.unsafe.Platform
+import org.apache.spark.util.memory.TaskMemoryResources
 
 class RowToColumnConverter(schema: StructType) extends Serializable {
   private val converters = schema.fields.map {
@@ -283,6 +281,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
         case _: StringType =>
         case _: BinaryType =>
         case _: DecimalType =>
+        case _: DateType =>
         case _ => return false
       }
     }
@@ -304,17 +303,45 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
       val converter = new RowToColumnConverter(localSchema)
       val arrowSchema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
       val jniWrapper = new NativeRowToColumnarJniWrapper()
+      val allocator = ArrowBufferAllocators.contextInstance()
+      val cSchema = ArrowSchema.allocateNew(allocator)
+      var closed = false
+      val r2cId = try {
+        if (useNative) {
+          GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+          jniWrapper.init(cSchema.memoryAddress(),
+            NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+        } else {
+          closed = true
+          -1
+        }
+      } finally {
+        cSchema.close()
+      }
+
+
+      TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
+        if (!closed) {
+          jniWrapper.close(r2cId)
+          closed = true
+        }
+      })
+
       if (rowIterator.hasNext) {
         val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
 
           override def hasNext: Boolean = {
-            rowIterator.hasNext
+            val itHasNext = rowIterator.hasNext
+            if (!itHasNext && !closed) {
+              jniWrapper.close(r2cId)
+              closed = true
+            }
+            itHasNext
           }
 
           def nativeConvert(row: UnsafeRow): ColumnarBatch = {
-            val allocator = ArrowBufferAllocators.contextInstance()
             var arrowBuf: ArrowBuf = null
-            TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
               // Remind, remove isOpen here
               if (arrowBuf != null && arrowBuf.refCnt() == 0) {
                 arrowBuf.close()
@@ -355,18 +382,14 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
               rowCount += 1
             }
             numInputRows += rowCount
-            val cSchema = ArrowSchema.allocateNew(allocator)
             try {
-              GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
               val handle = jniWrapper.nativeConvertRowToColumnar(
-                cSchema.memoryAddress(), rowLength.toArray,
-                arrowBuf.memoryAddress(),
-                NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+                r2cId, rowLength.toArray,
+                arrowBuf.memoryAddress())
               GlutenColumnarBatches.create(handle)
             } finally {
               arrowBuf.close()
               arrowBuf = null
-              cSchema.close()
             }
           }
 

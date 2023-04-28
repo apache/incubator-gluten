@@ -18,41 +18,57 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.InitializerApi
+import io.glutenproject.utils.{VeloxSharedlibraryLoaderUbuntu2004, VeloxSharedlibraryLoaderUbuntu2204, VeloxSharedlibraryLoaderCentos8, VeloxSharedlibraryLoaderCentos7, VeloxSharedlibraryLoader}
 import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
-import io.glutenproject.utils.{VeloxDllLoaderUbuntu2004,VeloxDllLoaderUbuntu2204,VeloxDllLoader}
 import org.apache.commons.lang3.StringUtils
-import scala.collection.JavaConverters._
+import org.apache.spark.SparkConf
+
 import scala.sys.process._
 
-import org.apache.spark.SparkConf
+import java.util.Locale
 
 class VeloxInitializerApi extends InitializerApi {
   def loadLibFromJar(load: JniLibLoader): Unit = {
       val system = "cat /etc/os-release".!!
-      if (system.contains("Ubuntu") && system.contains("20.04")) {
-        val loader = new VeloxDllLoaderUbuntu2004
-        loader.loadLib(load)
+      val loader = if (system.contains("Ubuntu") && system.contains("20.04")) {
+        new VeloxSharedlibraryLoaderUbuntu2004
       } else if (system.contains("Ubuntu") && system.contains("22.04")) {
-        val loader = new VeloxDllLoaderUbuntu2204
-        loader.loadLib(load)
+        new VeloxSharedlibraryLoaderUbuntu2204
+      } else if (system.contains("CentOS") && system.contains("8")) {
+        new VeloxSharedlibraryLoaderCentos8
+      } else if (system.contains("CentOS") && system.contains("7")) {
+        new VeloxSharedlibraryLoaderCentos7
+      } else if (system.contains("alinux") && system.contains("3")) {
+        new VeloxSharedlibraryLoaderCentos8
+      } else if (system.contains("Anolis") && system.contains("8")) {
+        new VeloxSharedlibraryLoaderCentos8
+      } else if (system.contains("Anolis") && system.contains("7")) {
+        new VeloxSharedlibraryLoaderCentos7
       }
+      loader.asInstanceOf[VeloxSharedlibraryLoader].loadLib(load)
   }
 
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR, GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)) {
+    if (conf.getBoolean(
+      GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR, GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)) {
       loadLibFromJar(loader)
     }
     loader.newTransaction()
       .loadAndCreateLink("libarrow.so.1100.0.0", "libarrow.so.1100", false)
       .loadAndCreateLink("libparquet.so.1100.0.0", "libparquet.so.1100", false)
       .commit()
-    if (conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false)) {
+    if (conf.get(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
+      .toUpperCase(Locale.ROOT) == GlutenConfig.GLUTEN_QAT_BACKEND_NAME) {
       loader.newTransaction()
         .loadAndCreateLink("libqatzip.so.3.0.1", "libqatzip.so.3", false)
         .commit()
     }
+    // Set the system properties.
+    // Use appending policy for children with the same name in a arrow struct vector.
+    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
+
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
       JniLibLoader.loadFromPath(libPath, true)
@@ -61,8 +77,10 @@ class VeloxInitializerApi extends InitializerApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
+
+    // configs
+
     val initKernel = new GlutenNativeExpressionEvaluator()
-    conf.setAll(GlutenConfig.createGeneratedConf(conf).asScala)
     initKernel.initNative(conf)
   }
 }
