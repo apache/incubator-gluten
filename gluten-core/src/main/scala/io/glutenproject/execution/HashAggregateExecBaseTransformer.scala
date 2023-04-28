@@ -133,7 +133,6 @@ abstract class HashAggregateExecBaseTransformer(
        | DoubleType | StringType | TimestampType | DateType | BinaryType => true
       case d: DecimalType => true
       case a: ArrayType => true
-      case n: NullType => true
       case other => logInfo(s"Type ${dataType} not support"); false
     }
   }
