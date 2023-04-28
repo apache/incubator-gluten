@@ -892,6 +892,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("bit_and/bit_or/bit_xor") {
+    runQueryAndCompare(
+      "select bit_and(n_regionkey), bit_or(n_regionkey), bit_xor(n_regionkey) from nation") {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select bit_and(l_partkey), bit_or(l_suppkey), bit_xor(l_orderkey) from lineitem") {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
   //  test("broadcast hash data clean by expried") {
   //    // expired 10 SECONDS
   //    val (_, sqlStr) = getTPCHSql(2, tpchQueries)
