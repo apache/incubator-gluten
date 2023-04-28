@@ -2774,11 +2774,16 @@ bool LocalExecutor::hasNext()
     bool has_next;
     try
     {
-        if (currentBlock().columns() == 0 || isConsumed())
+        size_t columns = currentBlock().columns();
+        if (columns == 0 || isConsumed())
         {
             auto empty_block = header.cloneEmpty();
             setCurrentBlock(empty_block);
             has_next = executor->pull(currentBlock());
+            if (!has_next)
+            {
+                has_next = checkAndSetDefaultBlock(columns, has_next);
+            }
             produce();
         }
         else
@@ -2836,4 +2841,41 @@ LocalExecutor::LocalExecutor(QueryContext & _query_context)
     : query_context(_query_context)
 {
 }
+
+bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool has_next_blocks)
+{
+    if (current_block_columns > 0 || has_next_blocks)
+    {
+        return has_next_blocks;
+    }
+    auto cols = currentBlock().getColumnsWithTypeAndName();
+    for (size_t i = 0; i < cols.size(); i++)
+    {
+        const DB::ColumnWithTypeAndName col = cols[i];
+        String col_name = col.name;
+        DataTypePtr col_type = col.type;
+        if (col_name.compare(0, 4, "sum#") != 0 &&
+            col_name.compare(0, 4, "max#") != 0 &&
+            col_name.compare(0, 4, "min#") != 0 &&
+            col_name.compare(0, 6, "count#") != 0)
+        {
+            return false;
+        }
+        if (!isInteger(col_type) && !col_type->isNullable())
+        {
+            return false;
+        }
+    }
+    for (size_t i = 0; i < cols.size(); i++)
+    {
+        const DB::ColumnWithTypeAndName col = cols[i];
+        String col_name = col.name;
+        DataTypePtr col_type = col.type;
+        const DB::ColumnPtr & default_col_ptr = col_type->createColumnConst(1, col_type->getDefault());
+        const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
+        currentBlock().setColumn(i, default_col);
+    }
+    return true;
+}
+
 }
