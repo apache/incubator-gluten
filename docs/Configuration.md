@@ -47,7 +47,6 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 | spark.gluten.loadLibFromJar               | Gluten will load dynamic link library from jars for gluten/cpp.                                                                                                                                                                                                                                                  | false                                                |
 
 
-
 Below is an example for spark-default.conf, if you are using conda to install OAP project.
 
 ```
