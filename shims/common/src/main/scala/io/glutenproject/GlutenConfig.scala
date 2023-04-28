@@ -192,7 +192,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
 
   def shuffleSplitDefaultSize: Int =
-    conf.getConfString("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
+    conf.getConfString("spark.gluten.sql.columnar.maxBatchSize", "4096").toInt
 
   def enableCoalesceBatches: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
