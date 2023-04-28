@@ -44,6 +44,10 @@ class ShuffleWriter {
 
   virtual arrow::Status stop() = 0;
 
+  int32_t numPartitions() const {
+    return numPartitions_;
+  }
+
   int64_t totalBytesWritten() const {
     return totalBytesWritten_;
   }
@@ -88,7 +92,7 @@ class ShuffleWriter {
     return combineBuffer_;
   }
 
-  SplitOptions& options() {
+  ShuffleWriterOptions& options() {
     return options_;
   }
 
@@ -124,14 +128,23 @@ class ShuffleWriter {
 
   class Partitioner;
 
+  class PartitionWriterCreator;
+
  protected:
-  ShuffleWriter(int32_t numPartitions, SplitOptions options)
-      : numPartitions_(numPartitions), options_(std::move(options)) {}
+  ShuffleWriter(
+      int32_t numPartitions,
+      std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
+      ShuffleWriterOptions options)
+      : numPartitions_(numPartitions),
+        partitionWriterCreator_(std::move(partitionWriterCreator)),
+        options_(std::move(options)) {}
   virtual ~ShuffleWriter() = default;
 
   int32_t numPartitions_;
+
+  std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
   // options
-  SplitOptions options_;
+  ShuffleWriterOptions options_;
 
   int64_t totalBytesWritten_ = 0;
   int64_t totalBytesEvicted_ = 0;

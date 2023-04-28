@@ -22,6 +22,7 @@
 #include "shuffle/rss/RemotePartitionWriter.h"
 #include "shuffle/type.h"
 
+#include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/utils.h"
 #include "utils/macros.h"
 
@@ -29,13 +30,10 @@ namespace gluten {
 
 class CelebornPartitionWriter : public RemotePartitionWriter {
  public:
-  static arrow::Result<std::shared_ptr<CelebornPartitionWriter>> create(
-      ShuffleWriter* shuffleWriter,
-      int32_t numPartitions);
-
- private:
-  CelebornPartitionWriter(ShuffleWriter* shuffleWriter, int32_t numPartitions)
-      : RemotePartitionWriter(shuffleWriter, numPartitions) {}
+  CelebornPartitionWriter(ShuffleWriter* shuffleWriter, std::shared_ptr<CelebornClient> celebornClient)
+      : RemotePartitionWriter(shuffleWriter) {
+    celebornClient_ = celebornClient;
+  }
 
   arrow::Status init() override;
 
@@ -50,6 +48,16 @@ class CelebornPartitionWriter : public RemotePartitionWriter {
   std::shared_ptr<arrow::io::BufferOutputStream> celebornBufferOs_;
 
   std::shared_ptr<CelebornClient> celebornClient_;
+};
+
+class CelebornPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
+ public:
+  explicit CelebornPartitionWriterCreator(std::shared_ptr<CelebornClient> client);
+
+  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(ShuffleWriter* shuffleWriter) override;
+
+ private:
+  std::shared_ptr<CelebornClient> client_;
 };
 
 } // namespace gluten

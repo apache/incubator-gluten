@@ -32,6 +32,7 @@
 
 #include "memory/ColumnarBatch.h"
 #include "shuffle/ArrowShuffleWriter.h"
+#include "shuffle/LocalPartitionWriter.h"
 #include "utils/macros.h"
 
 void printTrace(void) {
@@ -52,7 +53,7 @@ using arrow::Status;
 
 using gluten::ArrowShuffleWriter;
 using gluten::GlutenException;
-using gluten::SplitOptions;
+using gluten::ShuffleWriterOptions;
 
 namespace gluten {
 
@@ -228,7 +229,10 @@ class BenchmarkShuffleSplit {
 
     const int numPartitions = state.range(0);
 
-    auto options = SplitOptions::defaults();
+    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator =
+        std::make_shared<LocalPartitionWriterCreator>();
+
+    auto options = ShuffleWriterOptions::defaults();
     options.compression_type = compressionType;
     options.buffer_size = kSplitBufferSize;
     options.buffered_write = true;
@@ -245,7 +249,16 @@ class BenchmarkShuffleSplit {
     int64_t splitTime = 0;
     auto startTime = std::chrono::steady_clock::now();
 
-    doSplit(shuffleWriter, elapseRead, numBatches, numRows, splitTime, numPartitions, options, state);
+    doSplit(
+        shuffleWriter,
+        elapseRead,
+        numBatches,
+        numRows,
+        splitTime,
+        numPartitions,
+        partition_writer_creator,
+        options,
+        state);
     auto endTime = std::chrono::steady_clock::now();
     auto totalTime = (endTime - startTime).count();
 
@@ -313,7 +326,8 @@ class BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      SplitOptions options,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+      ShuffleWriterOptions options,
       benchmark::State& state) {}
 
  protected:
@@ -337,7 +351,8 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      SplitOptions options,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+      ShuffleWriterOptions options,
       benchmark::State& state) {
     std::vector<int> localColumnIndices;
     // local_column_indices.push_back(0);
@@ -367,7 +382,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << localSchema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(shuffleWriter, ArrowShuffleWriter::create(numPartitions, options));
+    GLUTEN_ASSIGN_OR_THROW(shuffleWriter, ArrowShuffleWriter::create(numPartitions, partition_writer_creator, options));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 
@@ -417,12 +432,15 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      SplitOptions options,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+      ShuffleWriterOptions options,
       benchmark::State& state) {
     if (state.thread_index() == 0)
       std::cout << schema_->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(shuffleWriter, ArrowShuffleWriter::create(numPartitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        ArrowShuffleWriter::create(numPartitions, std::move(partition_writer_creator), std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 

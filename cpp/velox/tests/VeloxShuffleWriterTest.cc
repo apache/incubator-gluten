@@ -34,6 +34,7 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
+#include "shuffle/LocalPartitionWriter.h"
 
 using namespace facebook;
 
@@ -147,7 +148,9 @@ class VeloxShuffleWriterTest : public ::testing::Test {
     makeInputBatch(hashInputData1, hashSchema_, &hashInputBatch1_);
     makeInputBatch(hashInputData2, hashSchema_, &hashInputBatch2_);
 
-    splitOptions_ = SplitOptions::defaults();
+    shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
+
+    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>();
   }
 
   void TearDown() override {
@@ -187,9 +190,11 @@ class VeloxShuffleWriterTest : public ::testing::Test {
   std::shared_ptr<arrow::internal::TemporaryDir> tmpDir1_;
   std::shared_ptr<arrow::internal::TemporaryDir> tmpDir2_;
 
-  SplitOptions splitOptions_;
+  ShuffleWriterOptions shuffleWriterOptions_;
 
   std::shared_ptr<VeloxShuffleWriter> shuffleWriter_;
+
+  std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator_;
 
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::RecordBatch> inputBatch1_;
@@ -219,10 +224,11 @@ arrow::Status splitRecordBatch(VeloxShuffleWriter& shuffleWriter, const arrow::R
 
 TEST_F(VeloxShuffleWriterTest, TestHashPartitioner) {
   uint32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "hash";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "hash";
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_))
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_))
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *hashInputBatch1_));
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *hashInputBatch2_));
@@ -254,10 +260,10 @@ TEST_F(VeloxShuffleWriterTest, TestHashPartitioner) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestSinglePartPartitioner) {
-  splitOptions_.buffer_size = 10;
-  splitOptions_.partitioning_name = "single";
+  shuffleWriterOptions_.buffer_size = 10;
+  shuffleWriterOptions_.partitioning_name = "single";
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(1, splitOptions_))
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_))
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2_));
@@ -299,9 +305,10 @@ TEST_F(VeloxShuffleWriterTest, TestSinglePartPartitioner) {
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2_));
@@ -366,12 +373,13 @@ TEST_F(VeloxShuffleWriterTest, TestShuffleWriterMemoryLeak) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(17 * 1024 * 1024);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.memory_pool = pool;
-  splitOptions_.write_schema = false;
-  splitOptions_.partitioning_name = "rr";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.memory_pool = pool;
+  shuffleWriterOptions_.write_schema = false;
+  shuffleWriterOptions_.partitioning_name = "rr";
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2_));
@@ -386,8 +394,8 @@ TEST_F(VeloxShuffleWriterTest, TestShuffleWriterMemoryLeak) {
 
 TEST_F(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "range";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "range";
 
   std::shared_ptr<arrow::Array> pidArr0;
   ARROW_ASSIGN_OR_THROW(
@@ -402,7 +410,8 @@ TEST_F(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
   ARROW_ASSIGN_OR_THROW(inputBatch1WPid, inputBatch1_->AddColumn(0, "pid", pidArr0));
   ARROW_ASSIGN_OR_THROW(inputBatch2WPid, inputBatch2_->AddColumn(0, "pid", pidArr1));
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_))
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_))
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1WPid));
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2WPid));
@@ -467,10 +476,11 @@ TEST_F(VeloxShuffleWriterTest, TestSpillFailWithOutOfMemory) {
   auto pool = std::make_shared<MyMemoryPool>(0);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.memory_pool = pool;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.memory_pool = pool;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   auto status = splitRecordBatch(*shuffleWriter_, *inputBatch1_);
 
@@ -484,11 +494,12 @@ TEST_F(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  // split_options_.memory_pool = pool.get();
-  splitOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  // shuffleWriterOptions_.memory_pool = pool.get();
+  shuffleWriterOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   for (int i = 0; i < 100; ++i) {
     ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
@@ -516,9 +527,10 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -588,9 +600,10 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -659,9 +672,10 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -732,9 +746,10 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -803,9 +818,10 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -876,9 +892,10 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -948,9 +965,10 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -1007,8 +1025,8 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
 
 TEST_F(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions) {
   int32_t numPartitions = 5;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "hash";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "hash";
 
   auto hashPartitionKey = arrow::field("hash_partition_key", arrow::int32());
   auto fInt64 = arrow::field("f_int64", arrow::int64());
@@ -1020,7 +1038,8 @@ TEST_F(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions)
   std::shared_ptr<arrow::RecordBatch> inputBatchArr;
   makeInputBatch(inputBatch1Data, rbSchema, &inputBatchArr);
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
 
@@ -1065,11 +1084,12 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompressi
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
-  auto compressionType = arrow::util::Codec::GetCompressionType("lz4");
-  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compressionType.MoveValueUnsafe()));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
+  auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
+  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compression_type.MoveValueUnsafe()));
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
 

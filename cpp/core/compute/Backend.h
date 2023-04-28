@@ -92,9 +92,14 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return std::make_shared<gluten::RowToColumnarConverter>(cSchema);
   }
 
-  virtual std::shared_ptr<ShuffleWriter>
-  makeShuffleWriter(int numPartitions, const SplitOptions& options, const std::string& batchType) {
-    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, ArrowShuffleWriter::create(numPartitions, std::move(options)));
+  virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
+      int numPartitions,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
+      const ShuffleWriterOptions& options,
+      const std::string& batchType) {
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer,
+        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
     return shuffle_writer;
   }
 

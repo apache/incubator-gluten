@@ -464,16 +464,21 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   std::mutex mutex_;
 };
 
-class CelebornClient {
+class RssClient {
+ public:
+  virtual ~RssClient() = default;
+};
+
+class CelebornClient : public RssClient {
  public:
   CelebornClient(JavaVM* vm, jobject javaCelebornShuffleWriter, jmethodID javaCelebornPushPartitionDataMethod)
-      : vm_(vm), java_celeborn_push_partition_data_(javaCelebornPushPartitionDataMethod) {
+      : vm_(vm), javaCelebornPushPartitionData_(javaCelebornPushPartitionDataMethod) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
     }
 
-    java_celeborn_shuffle_writer_ = env->NewGlobalRef(javaCelebornShuffleWriter);
+    javaCelebornShuffleWriter_ = env->NewGlobalRef(javaCelebornShuffleWriter);
   }
 
   ~CelebornClient() {
@@ -483,7 +488,7 @@ class CelebornClient {
                 << "JNIEnv was not attached to current thread" << std::endl;
       return;
     }
-    env->DeleteGlobalRef(java_celeborn_shuffle_writer_);
+    env->DeleteGlobalRef(javaCelebornShuffleWriter_);
   }
 
   void pushPartitonData(int32_t partitionId, char* bytes, int64_t size) {
@@ -493,11 +498,11 @@ class CelebornClient {
     }
     jbyteArray array = env->NewByteArray(size);
     env->SetByteArrayRegion(array, 0, size, reinterpret_cast<jbyte*>(bytes));
-    env->CallIntMethod(java_celeborn_shuffle_writer_, java_celeborn_push_partition_data_, partitionId, array);
+    env->CallIntMethod(javaCelebornShuffleWriter_, javaCelebornPushPartitionData_, partitionId, array);
     checkException(env);
   }
 
   JavaVM* vm_;
-  jobject java_celeborn_shuffle_writer_;
-  jmethodID java_celeborn_push_partition_data_;
+  jobject javaCelebornShuffleWriter_;
+  jmethodID javaCelebornPushPartitionData_;
 };

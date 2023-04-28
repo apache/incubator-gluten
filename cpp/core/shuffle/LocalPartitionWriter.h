@@ -22,6 +22,7 @@
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/ShuffleWriter.h"
 
+#include "PartitionWriterCreator.h"
 #include "utils.h"
 #include "utils/macros.h"
 
@@ -29,13 +30,7 @@ namespace gluten {
 
 class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
  public:
-  static arrow::Result<std::shared_ptr<LocalPartitionWriter>> create(
-      ShuffleWriter* shuffleWriter,
-      int32_t numPartitions);
-
- public:
-  LocalPartitionWriter(ShuffleWriter* shuffleWriter, int32_t numPartitions)
-      : PartitionWriter(shuffleWriter, numPartitions) {}
+  explicit LocalPartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
 
   arrow::Status init() override;
 
@@ -63,4 +58,10 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
   std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
 };
 
+class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
+ public:
+  LocalPartitionWriterCreator();
+
+  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(ShuffleWriter* shuffleWriter) override;
+};
 } // namespace gluten

@@ -6,8 +6,6 @@
 #include "utils/compression.h"
 #include "utils/macros.h"
 
-#include "shuffle/PartitionWriter.h"
-
 #include "arrow/c/bridge.h"
 
 #if defined(__x86_64__)
@@ -81,8 +79,10 @@ bool vectorHasNull(const velox::VectorPtr& vp) {
 // VeloxShuffleWriter
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     uint32_t numPartitions,
-    SplitOptions options) {
-  std::shared_ptr<VeloxShuffleWriter> res(new VeloxShuffleWriter(numPartitions, std::move(options)));
+    std::shared_ptr<PartitionWriterCreator> partition_writer_creator,
+    ShuffleWriterOptions options) {
+  std::shared_ptr<VeloxShuffleWriter> res(
+      new VeloxShuffleWriter(numPartitions, std::move(partition_writer_creator), std::move(options)));
   RETURN_NOT_OK(res->init());
   return res;
 }
@@ -100,7 +100,7 @@ arrow::Status VeloxShuffleWriter::init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  ARROW_ASSIGN_OR_RAISE(partitionWriter_, PartitionWriter::make(this, numPartitions_));
+  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->Make(this));
 
   ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning_name, numPartitions_));
 

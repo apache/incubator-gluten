@@ -15,21 +15,6 @@
  * limitations under the License.
  */
 
-#include "shuffle/PartitionWriter.h"
-#include "shuffle/LocalPartitionWriter.h"
-#include "shuffle/rss/RemotePartitionWriter.h"
+#include "PartitionWriterCreator.h"
 
-namespace gluten {
-
-arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> ShuffleWriter::PartitionWriter::make(
-    ShuffleWriter* shuffleWriter,
-    int32_t numPartitions) {
-  const std::string& partitionWriterType = shuffleWriter->options().partition_writer_type;
-  if (partitionWriterType == "local") {
-    return LocalPartitionWriter::create(shuffleWriter, numPartitions);
-  } else {
-    return RemotePartitionWriter::Make(shuffleWriter, numPartitions);
-  }
-}
-
-} // namespace gluten
+namespace gluten {} // namespace gluten

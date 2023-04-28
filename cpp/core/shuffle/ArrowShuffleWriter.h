@@ -26,7 +26,7 @@
 #include <random>
 
 #include "jni/JniCommon.h"
-#include "shuffle/PartitionWriter.h"
+#include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/utils.h"
@@ -48,7 +48,10 @@ class ArrowShuffleWriter final : public ShuffleWriter {
   };
 
  public:
-  static arrow::Result<std::shared_ptr<ArrowShuffleWriter>> create(uint32_t numPartitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<ArrowShuffleWriter>> create(
+      uint32_t numPartitions,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
+      ShuffleWriterOptions options);
 
   typedef uint32_t row_offset_type;
 
@@ -96,7 +99,11 @@ class ArrowShuffleWriter final : public ShuffleWriter {
   }
 
  protected:
-  ArrowShuffleWriter(int32_t numPartitions, SplitOptions options) : ShuffleWriter(numPartitions, options) {}
+  ArrowShuffleWriter(
+      int32_t numPartitions,
+      std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
+      ShuffleWriterOptions options)
+      : ShuffleWriter(numPartitions, partitionWriterCreator, options) {}
 
   arrow::Status init();
 

@@ -45,7 +45,7 @@ struct ReaderOptions {
   static ReaderOptions defaults();
 };
 
-struct SplitOptions {
+struct ShuffleWriterOptions {
   int64_t offheap_per_task = 0;
   int32_t buffer_size = kDefaultShuffleWriterBufferSize;
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
@@ -65,13 +65,11 @@ struct SplitOptions {
 
   std::shared_ptr<arrow::MemoryPool> memory_pool = getDefaultArrowMemoryPool();
 
-  std::shared_ptr<CelebornClient> celeborn_client;
-
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
   std::string partitioning_name;
 
-  static SplitOptions defaults();
+  static ShuffleWriterOptions defaults();
 };
 
 namespace type {

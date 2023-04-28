@@ -81,8 +81,8 @@ std::string m128iToString(const __m128i var) {
 }
 #endif
 
-SplitOptions SplitOptions::defaults() {
-  return SplitOptions();
+ShuffleWriterOptions ShuffleWriterOptions::defaults() {
+  return ShuffleWriterOptions();
 }
 
 // ----------------------------------------------------------------------
@@ -90,8 +90,10 @@ SplitOptions SplitOptions::defaults() {
 
 arrow::Result<std::shared_ptr<ArrowShuffleWriter>> ArrowShuffleWriter::create(
     uint32_t numPartitions,
-    SplitOptions options) {
-  std::shared_ptr<ArrowShuffleWriter> res(new ArrowShuffleWriter(numPartitions, std::move(options)));
+    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+    ShuffleWriterOptions options) {
+  std::shared_ptr<ArrowShuffleWriter> res(
+      new ArrowShuffleWriter(numPartitions, std::move(partition_writer_creator), std::move(options)));
   RETURN_NOT_OK(res->init());
   return res;
 }
@@ -167,7 +169,7 @@ arrow::Status ArrowShuffleWriter::init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  ARROW_ASSIGN_OR_RAISE(partitionWriter_, PartitionWriter::make(this, numPartitions_));
+  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->Make(this));
 
   ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning_name, numPartitions_));
 

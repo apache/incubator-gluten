@@ -23,13 +23,7 @@ namespace gluten {
 
 class RemotePartitionWriter : public ShuffleWriter::PartitionWriter {
  public:
-  static arrow::Result<std::shared_ptr<RemotePartitionWriter>> Make(
-      ShuffleWriter* shuffleWriter,
-      int32_t numPartitions);
-
- public:
-  RemotePartitionWriter(ShuffleWriter* shuffleWriter, int32_t numPartitions)
-      : PartitionWriter(shuffleWriter, numPartitions) {}
+  explicit RemotePartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
 };
 
 } // namespace gluten

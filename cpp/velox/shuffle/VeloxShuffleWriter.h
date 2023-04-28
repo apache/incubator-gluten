@@ -24,6 +24,7 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
+#include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/utils.h"
@@ -91,7 +92,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     uint64_t value_offset;
   };
 
-  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(uint32_t numPartitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
+      uint32_t numPartitions,
+      std::shared_ptr<PartitionWriterCreator> partition_writer_creator,
+      ShuffleWriterOptions options);
 
   arrow::Status split(ColumnarBatch* cb) override;
 
@@ -160,7 +164,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   }
 
  protected:
-  VeloxShuffleWriter(uint32_t numPartitions, const SplitOptions& options) : ShuffleWriter(numPartitions, options) {}
+  VeloxShuffleWriter(
+      uint32_t numPartitions,
+      std::shared_ptr<PartitionWriterCreator> partition_writer_creator,
+      const ShuffleWriterOptions& options)
+      : ShuffleWriter(numPartitions, partition_writer_creator, options) {}
 
   arrow::Status init();
 
