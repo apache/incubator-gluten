@@ -18,6 +18,7 @@
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
@@ -44,7 +45,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       " before using it", // [not urgent]
       "max_by", // [not urgent]
       "min_by", // [not urgent]
-      "aggregation with filter"
+      "aggregation with filter",
+      // replaceSortAggWithHashAgg is not turned on for CH backend.
+      GLUTEN_TEST + "Test using gluten hash agg to replace vanilla spark sort agg"
     )
     .excludeByPrefix(
       "SPARK-22951", // [not urgent] dropDuplicates
