@@ -120,7 +120,7 @@
         <delta.version>${delta20.version}</delta.version>
         <delta.binary.version>20</delta.binary.version>
         <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>${spark32.shim.version}</shims-spark-artifactId>
+        <sparkshim.artifactId>${spark32.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>
@@ -132,7 +132,7 @@
         <delta.version>${delta22.version}</delta.version>
         <delta.binary.version>22</delta.binary.version>
         <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
-        <shims-spark-artifactId>${spark33.shim.version}</shims-spark-artifactId>
+        <sparkshim.artifactId>${spark33.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>
@@ -251,6 +251,14 @@
             <artifactId>hadoop-client</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
           </exclusion>
@@ -261,6 +269,12 @@
         <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -287,6 +301,14 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.curator</groupId>
@@ -332,6 +354,14 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.curator</groupId>

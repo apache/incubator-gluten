@@ -43,7 +43,7 @@ jbyteArray stringTojbyteArray(JNIEnv* env, const std::string & str);
         const char *nmsg = (env)->GetStringUTFChars(jmsg, NULL);\
         std::string msg = std::string(nmsg);\
         env->ReleaseStringUTFChars(jmsg, nmsg);\
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, msg);\
+        throw DB::Exception::createRuntime(DB::ErrorCodes::LOGICAL_ERROR, msg);\
     }
 
 template <typename ... Args>

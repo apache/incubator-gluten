@@ -77,7 +77,7 @@ if [ $ENABLE_EP_CACHE == "ON" ]; then
     fi
   fi
 else
-  git clean -dfx :/
+  git clean -dffx :/
   rm -rf $ARROW_INSTALL_DIR
   mkdir -p $ARROW_INSTALL_DIR
 fi

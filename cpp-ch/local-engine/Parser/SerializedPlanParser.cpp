@@ -402,8 +402,10 @@ QueryPlanPtr SerializedPlanParser::parseMergeTreeTable(const substrait::ReadRel 
     {
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "part {} to {} not found.", min_block, max_block);
     }
-    auto query = query_context.custom_storage_merge_tree->reader.readFromParts(
+    auto read_step = query_context.custom_storage_merge_tree->reader.readFromParts(
         selected_parts, names_and_types_list.getNames(), query_context.storage_snapshot, *query_info, context, 4096 * 2, 1);
+    QueryPlanPtr query = std::make_unique<QueryPlan>();
+    query->addStep(std::move(read_step));
     if (!not_null_columns.empty())
     {
         auto input_header = query->getCurrentDataStream().header;
@@ -894,13 +896,13 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             query_plan = win_parser->parse(std::move(query_plan), rel, rel_stack);
             break;
         }
-        case substrait::Rel::RelTypeCase::kGroupId: {
+        case substrait::Rel::RelTypeCase::kExpand: {
             rel_stack.push_back(&rel);
-            const auto & expand_rel = rel.group_id();
+            const auto & expand_rel = rel.expand();
             query_plan = parseOp(expand_rel.input(), rel_stack);
             rel_stack.pop_back();
-            auto epand_parser = RelParserFactory::instance().getBuilder(substrait::Rel::RelTypeCase::kGroupId)(this);
-            query_plan = epand_parser->parse(std::move(query_plan), rel, rel_stack);
+            auto expand_parser = RelParserFactory::instance().getBuilder(substrait::Rel::RelTypeCase::kExpand)(this);
+            query_plan = expand_parser->parse(std::move(query_plan), rel, rel_stack);
             break;
         }
         default:
@@ -1122,6 +1124,7 @@ QueryPlanStepPtr SerializedPlanParser::parseAggregate(QueryPlan & plan, const su
             false,
             SortDescription(),
             SortDescription(),
+            false,
             false,
             false);
         return std::move(aggregating_step);
@@ -1744,6 +1747,18 @@ void SerializedPlanParser::parseFunctionArguments(
         const DB::ActionsDAG::Node * extract_expr_node = add_column(std::make_shared<DataTypeString>(), extract_expr);
         parsed_args.emplace_back(json_expr_node);
         parsed_args.emplace_back(extract_expr_node);
+    }
+    else if (function_name == "mapFromArrays")
+    {
+        /// Remove nullable for first arg
+        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
+        auto first_arg = parsed_args.back();
+        auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
+        const auto * first_arg_not_null = &actions_dag->addFunction(
+            assume_not_null_builder, {first_arg}, "assumeNotNull(" + first_arg->result_name + ")");
+        parsed_args.back() = first_arg_not_null;
+
+        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
     }
     else
     {

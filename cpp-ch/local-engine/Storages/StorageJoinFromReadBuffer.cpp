@@ -92,7 +92,7 @@ protected:
         Chunk chunk;
         if (!joinDispatch(join->kind, join->strictness, join->data->maps.front(),
                           [&](auto kind, auto strictness, auto & map) { chunk = createChunk<kind, strictness>(map); }))
-            throw Exception("Logical error: unknown JOIN strictness", ErrorCodes::LOGICAL_ERROR);
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Logical error: unknown JOIN strictness");
         return chunk;
     }
 
@@ -126,8 +126,8 @@ private:
 #undef M
 
             default:
-                throw Exception("Unsupported JOIN keys in StorageJoin. Type: " + toString(static_cast<UInt32>(join->data->type)),
-                                ErrorCodes::UNSUPPORTED_JOIN_KEYS);
+                throw Exception(ErrorCodes::UNSUPPORTED_JOIN_KEYS, "Unsupported JOIN keys in StorageJoin. Type: {}",
+                                toString(static_cast<UInt32>(join->data->type)));
         }
 
         if (!rows_added)
@@ -201,7 +201,7 @@ private:
                     fillAll<Map>(columns, column_indices, it, key_pos, rows_added);
             }
             else
-                throw Exception("This JOIN is not implemented yet", ErrorCodes::NOT_IMPLEMENTED);
+                throw Exception(ErrorCodes::NOT_IMPLEMENTED, "This JOIN is not implemented yet");
 
             if (rows_added >= max_block_size)
             {
@@ -349,7 +349,7 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     sample_block = metadata_snapshot->getSampleBlock();
     for (const auto & key : key_names)
         if (!metadata_snapshot->getColumns().hasPhysical(key))
-            throw Exception{"Key column (" + key + ") does not exist in table declaration.", ErrorCodes::NO_SUCH_COLUMN_IN_TABLE};
+            throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE,"Key column ({}) does not exist in table declaration.", key);
 
     table_join = std::make_shared<TableJoin>(limits, use_nulls, kind, strictness, key_names);
     join = std::make_shared<HashJoin>(table_join, getRightSampleBlock(), overwrite);
@@ -359,7 +359,7 @@ DB::HashJoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::Tab
 {
     auto metadata_snapshot = getInMemoryMetadataPtr();
     if (!analyzed_join->sameStrictnessAndKind(strictness, kind))
-        throw Exception("Table " + getStorageID().getNameForLogs() + " has incompatible type of JOIN.", ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN);
+        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,"Table {} has incompatible type of JOIN.", getStorageID().getNameForLogs());
 
     if ((analyzed_join->forceNullableRight() && !use_nulls) ||
         (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls))
