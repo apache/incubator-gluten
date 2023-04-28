@@ -148,10 +148,13 @@ trait HashJoinLikeExecTransformer
         .forall(types => sameType(types._1, types._2)),
       "Join keys from two sides should have same length and types")
     // Spark has an improvement which would patch integer joins keys to a Long value.
-    // But this improvement would cause extra projet before hash join in velox, disalbe
+    // But this improvement would cause extra projet before hash join in velox, disabling
     // this improvement as below would help reduce the project.
-    val lkeys = leftKeys // HashJoin.rewriteKeyExpr(leftKeys)
-    val rkeys = rightKeys // HashJoin.rewriteKeyExpr(rightKeys)
+    val (lkeys, rkeys) = if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
+      (HashJoin.rewriteKeyExpr(leftKeys), HashJoin.rewriteKeyExpr(rightKeys))
+    } else {
+      (leftKeys, rightKeys)
+    }
     if (exchangeTable) {
       (lkeys, rkeys)
     } else {
