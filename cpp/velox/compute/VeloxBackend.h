@@ -43,11 +43,6 @@ class VeloxBackend final : public Backend {
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
       const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
-  // Used by unit test and benchmark.
-  std::shared_ptr<ResultIterator> GetResultIterator(
-      MemoryAllocator* allocator,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
-
   arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
@@ -67,8 +62,6 @@ class VeloxBackend final : public Backend {
     return iter->GetMetrics(exportNanos);
   }
 
-  std::shared_ptr<arrow::Schema> GetOutputSchema() override;
-
   const facebook::velox::memory::MemoryPool::Options& GetMemoryPoolOptions() const {
     return memPoolOptions_;
   }
@@ -80,50 +73,22 @@ class VeloxBackend final : public Backend {
     return std::make_shared<VeloxParquetDatasource>(file_path, file_name, schema);
   }
 
+  std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
+    return veloxPlan_;
+  }
+
+  static void getInfoAndIds(
+      const std::unordered_map<
+          facebook::velox::core::PlanNodeId,
+          std::shared_ptr<facebook::velox::substrait::SplitInfo>>& splitInfoMap,
+      const std::unordered_set<facebook::velox::core::PlanNodeId>& leafPlanNodeIds,
+      std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      std::vector<facebook::velox::core::PlanNodeId>& scanIds,
+      std::vector<facebook::velox::core::PlanNodeId>& streamIds);
+
  private:
-  void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
-
-  void setInputPlanNode(const ::substrait::ExpandRel& sExpand);
-
-  void setInputPlanNode(const ::substrait::SortRel& sSort);
-
-  void setInputPlanNode(const ::substrait::WindowRel& s);
-
-  void setInputPlanNode(const ::substrait::AggregateRel& sagg);
-
-  void setInputPlanNode(const ::substrait::ProjectRel& sproject);
-
-  void setInputPlanNode(const ::substrait::FilterRel& sfilter);
-
-  void setInputPlanNode(const ::substrait::JoinRel& sJoin);
-
-  void setInputPlanNode(const ::substrait::ReadRel& sread);
-
-  void setInputPlanNode(const ::substrait::Rel& srel);
-
-  void setInputPlanNode(const ::substrait::RelRoot& sroot);
-
-  void toVeloxPlan();
-
-  std::string nextPlanNodeId();
-
-  void cacheOutputSchema(const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode);
-
-  int planNodeId_ = 0;
-
-  std::vector<std::shared_ptr<ResultIterator>> arrowInputIters_;
-
-  std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
-      std::make_shared<facebook::velox::substrait::SubstraitParser>();
-
-  std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
-      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
-          GetDefaultLeafWrappedVeloxMemoryPool().get());
-
-  // Cache for tests/benchmark purpose.
+  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
-  std::shared_ptr<arrow::Schema> outputSchema_;
-
   // Memory pool options used to create mem pool for iterators.
   facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
 };

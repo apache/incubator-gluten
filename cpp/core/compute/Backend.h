@@ -65,6 +65,11 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return ParseProtobuf(data, size, &substraitPlan_);
   }
 
+  // Just for benchmark
+  ::substrait::Plan& getPlan() {
+    return substraitPlan_;
+  }
+
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
@@ -98,10 +103,6 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
   virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) {
-    return nullptr;
-  }
-
-  virtual std::shared_ptr<arrow::Schema> GetOutputSchema() {
     return nullptr;
   }
 

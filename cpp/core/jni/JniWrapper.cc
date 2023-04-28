@@ -934,6 +934,7 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_next(JNIEnv* env, jclas
   if (gluten_batch == nullptr) {
     return -1L;
   }
+
   return gluten_columnarbatch_holder_.Insert(gluten_batch);
   JNI_METHOD_END(-1L)
 }

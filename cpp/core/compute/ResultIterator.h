@@ -53,19 +53,6 @@ class ResultIterator {
     return std::move(next_);
   }
 
-  /// ArrowArrayIterator doesn't support shared ownership. Once this method is
-  /// called, the caller should take it's ownership, and
-  /// ArrowArrayResultIterator will no longer have access to the underlying
-  /// iterator.
-  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
-    ArrowArrayIterator itr = arrow::MakeMapIterator(
-        [](std::shared_ptr<ColumnarBatch> b) -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
-        std::move(*iter_));
-    ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
-    *itr_ptr = std::move(itr);
-    return std::shared_ptr<ArrowArrayIterator>(itr_ptr);
-  }
-
   // For testing and benchmarking.
   void* GetRaw() {
     return raw_iter_;

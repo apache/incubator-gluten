@@ -53,4 +53,8 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   facebook::velox::RowVectorPtr flattened_ = nullptr;
 };
 
+facebook::velox::RowVectorPtr convertBatch(
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
+    std::shared_ptr<ColumnarBatch> cb);
+
 } // namespace gluten
