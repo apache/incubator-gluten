@@ -46,7 +46,7 @@ class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
     res
   }
 
-  TaskMemoryResources.addResourceRecycler(100)((_: TaskContext) => {
+  TaskMemoryResources.addRecycler(100)((_: TaskContext) => {
     closeCurrentBatch()
   })
 

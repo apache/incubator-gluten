@@ -60,7 +60,7 @@ object GlutenExecUtil {
       val row = new UnsafeRow(batch.numCols())
       var closed = false
 
-      TaskMemoryResources.addResourceRecycler(100)(_ => {
+      TaskMemoryResources.addRecycler(100)(_ => {
         if (!closed) {
           jniWrapper.nativeClose(info.instanceID)
           closed = true
@@ -222,7 +222,7 @@ object GlutenExecUtil {
           }
           val newIter = computeAndAddPartitionId(cbIter, partitionKeyExtractor)
 
-          TaskMemoryResources.addResourceRecycler(100) { _ =>
+          TaskMemoryResources.addRecycler(100) { _ =>
             newIter.closeColumnBatch()
           }
 

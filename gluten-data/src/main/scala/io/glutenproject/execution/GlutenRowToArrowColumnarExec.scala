@@ -320,7 +320,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
       }
 
 
-      TaskMemoryResources.addResourceRecycler(100)(_ => {
+      TaskMemoryResources.addRecycler(100)(_ => {
         if (!closed) {
           jniWrapper.close(r2cId)
           closed = true
@@ -341,7 +341,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
 
           def nativeConvert(row: UnsafeRow): ColumnarBatch = {
             var arrowBuf: ArrowBuf = null
-            TaskMemoryResources.addResourceRecycler(100) { _ =>
+            TaskMemoryResources.addRecycler(100) { _ =>
               // Remind, remove isOpen here
               if (arrowBuf != null && arrowBuf.refCnt() == 0) {
                 arrowBuf.close()

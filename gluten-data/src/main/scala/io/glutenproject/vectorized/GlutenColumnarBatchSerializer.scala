@@ -72,7 +72,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         // since the native reader could hold a reference to memory pool that
         // was used to create all buffers read from shuffle reader. The pool
         // should keep alive before all buffers to finish consuming.
-        TaskMemoryResources.addResourceRecycler(50) { _ =>
+        TaskMemoryResources.addRecycler(50) { _ =>
           ShuffleReaderJniWrapper.close(handle)
         }
         handle

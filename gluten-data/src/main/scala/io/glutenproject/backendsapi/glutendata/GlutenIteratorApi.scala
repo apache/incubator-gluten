@@ -120,7 +120,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
       new Iterator[ColumnarBatch] {
         var numBatchesTotal: Long = _
         var numRowsTotal: Long = _
-        TaskMemoryResources.addResourceRecycler(100) { _ =>
+        TaskMemoryResources.addRecycler(100) { _ =>
           if (avgCoalescedNumRows != null && numBatchesTotal > 0) {
             avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
@@ -234,7 +234,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    TaskMemoryResources.addResourceRecycler(100) { _ => resIter.close() }
+    TaskMemoryResources.addRecycler(100) { _ => resIter.close() }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
@@ -310,7 +310,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
       }
     }
 
-    TaskMemoryResources.addResourceRecycler(100)(_ => {
+    TaskMemoryResources.addRecycler(100)(_ => {
       nativeResultIterator.close()
     })
 
