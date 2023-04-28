@@ -23,7 +23,8 @@ import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 public class GlutenNativeExpressionEvaluator extends NativeExpressionEvaluator {
   @Override
-  protected GeneralOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs) throws IOException {
+  protected GeneralOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs)
+      throws IOException {
     return new ColumnarBatchOutIterator(nativeHandle, outAttrs);
   }
 }
