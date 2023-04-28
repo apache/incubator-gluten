@@ -1675,20 +1675,6 @@ void SerializedPlanParser::parseFunctionArguments(
         repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, target_type.getName());
         parsed_args.emplace_back(repeat_times_node);
     }
-    else if (function_name == "leftPadUTF8" || function_name == "rightPadUTF8")
-    {
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
-
-        /// Make sure the second function arguemnt's type is unsigned integer
-        /// TODO: delete this branch after Kyligence/Clickhouse upgraged to 23.2
-        const DB::ActionsDAG::Node * pad_length_node =
-            parseFunctionArgument(actions_dag, required_columns, function_name, args[1]);
-        DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt64>());
-        pad_length_node = ActionsDAGUtil::convertNodeType(actions_dag, pad_length_node, target_type.getName());
-        parsed_args.emplace_back(pad_length_node);
-
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[2]);
-    }
     else if (function_name == "isNaN")
     {
         // the result of isNaN(NULL) is NULL in CH, but false in Spark
