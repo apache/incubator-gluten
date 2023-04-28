@@ -149,6 +149,7 @@ void AggregateRelParser::addPreProjection()
     {
         auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), projection_action);
         projection_step->setStepDescription("Projection before aggregate");
+        steps.emplace_back(projection_step.get());
         plan->addStep(std::move(projection_step));
     }
 }
@@ -209,6 +210,7 @@ void AggregateRelParser::addMergingAggregatedStep()
         settings.aggregation_in_order_max_block_bytes,
         SortDescription(),
         settings.enable_memory_bound_merging_of_aggregation_results);
+    steps.emplace_back(merging_step.get());
     plan->addStep(std::move(merging_step));
 }
 
@@ -252,6 +254,7 @@ void AggregateRelParser::addAggregatingStep()
         false,
         false,
         false);
+    steps.emplace_back(aggregating_step.get());
     plan->addStep(std::move(aggregating_step));
 }
 
@@ -307,6 +310,7 @@ void AggregateRelParser::addPostProjectionForAggregatingResult()
     {
         auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), projection_action);
         projection_step->setStepDescription("Post-projection For Special Aggregate Functions");
+        steps.emplace_back(projection_step.get());
         plan->addStep(std::move(projection_step));
     }
 }
@@ -335,6 +339,7 @@ void AggregateRelParser::addPostProjectionForTypeMismatch()
         {
             QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentDataStream(), convert_action);
             convert_step->setStepDescription("Post-projection For Type Mismatch");
+            steps.emplace_back(convert_step.get());
             plan->addStep(std::move(convert_step));
         }
     }

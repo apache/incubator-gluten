@@ -56,6 +56,10 @@ public abstract class NativeMemoryAllocators {
     return ((NativeMemoryAllocatorManager) TaskResources.getResourceManager(id)).getManaged();
   }
 
+  public static NativeMemoryAllocator contextInstanceForUT() {
+    return NativeMemoryAllocator.getDefaultForUT();
+  }
+
   public static NativeMemoryAllocator createSpillable(Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task");

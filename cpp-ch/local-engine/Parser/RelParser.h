@@ -24,6 +24,10 @@ public:
     virtual DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
         = 0;
+    const std::vector<IQueryPlanStep *>& getSteps() const
+    {
+        return steps;
+    }
 
     static AggregateFunctionPtr getAggregateFunction(
         DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
@@ -46,6 +50,8 @@ protected:
         return plan_parser->parseExpression(action_dag, rel);
     }
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) { return plan_parser->parseLiteral(literal); }
+    // collect all steps for metrics
+    std::vector<IQueryPlanStep *> steps;
 
     const ActionsDAG::Node *
     buildFunctionNode(ActionsDAGPtr action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
@@ -62,6 +68,7 @@ protected:
 
 private:
     SerializedPlanParser * plan_parser;
+
 };
 
 class RelParserFactory

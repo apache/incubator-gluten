@@ -87,7 +87,7 @@ case class LimitTransformer(child: SparkPlan,
 
   override def doValidateInternal(): Boolean = {
     val context = new SubstraitContext
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     val relNode = try {
       getRelNode(context, operatorId, offset, count, child.output, null, true)
     } catch {
@@ -111,7 +111,7 @@ case class LimitTransformer(child: SparkPlan,
       case _ => null
     }
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     val relNode = if (childCtx != null) {
       getRelNode(context, operatorId, offset, count, child.output, childCtx.root, false)
     } else {

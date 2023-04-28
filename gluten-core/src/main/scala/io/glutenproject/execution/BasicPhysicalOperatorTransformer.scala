@@ -21,7 +21,7 @@ import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer, TransformerState}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
@@ -159,7 +159,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
       return true
     }
     val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
       getRelNode(
@@ -196,7 +196,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         null
     }
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     if (condition == null && childCtx != null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
@@ -253,7 +253,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     }
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val relNode = try {
       getRelNode(
         substraitContext, projectList, child.output, operatorId, null, validation = true)
@@ -308,7 +308,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       case _ =>
         null
     }
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     if ((projectList == null || projectList.isEmpty) && childCtx != null) {
       // The computing for this project is not needed.
       // the child may be an input adapter and childCtx is null. In this case we want to

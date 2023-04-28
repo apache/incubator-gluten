@@ -1,0 +1,341 @@
+[{
+  "id": 18,
+  "name": "kProject",
+  "time": 1,
+  "input_wait_time": 5687,
+  "output_wait_time": 35,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 1,
+      "output_rows": 44,
+      "output_bytes": 9483,
+      "input_rows": 44,
+      "input_bytes": 10231
+    }]
+  }]
+}, {
+  "id": 17,
+  "name": "kProject",
+  "time": 2,
+  "input_wait_time": 5695,
+  "output_wait_time": 38,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 2,
+      "output_rows": 44,
+      "output_bytes": 10231,
+      "input_rows": 44,
+      "input_bytes": 10231
+    }]
+  }]
+}, {
+  "id": 16,
+  "name": "kJoin",
+  "time": 9,
+  "input_wait_time": 5709,
+  "output_wait_time": 44,
+  "steps": [{
+    "name": "Expression",
+    "description": "Rename Broadcast Table Name",
+    "processors": []
+  }, {
+    "name": "FilledJoin",
+    "description": "JOIN",
+    "processors": [{
+      "name": "JoiningTransform",
+      "time": 9,
+      "output_rows": 44,
+      "output_bytes": 10231,
+      "input_rows": 44,
+      "input_bytes": 9835
+    }]
+  }]
+}, {
+  "id": 15,
+  "name": "kRead",
+  "time": 0,
+  "input_wait_time": 0,
+  "output_wait_time": 0,
+  "steps": [{
+    "name": "ReadFromPreparedSource",
+    "description": "Read From Java Iter",
+    "processors": []
+  }]
+}, {
+  "id": 14,
+  "name": "kProject",
+  "time": 2,
+  "input_wait_time": 5711,
+  "output_wait_time": 54,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 2,
+      "output_rows": 44,
+      "output_bytes": 9835,
+      "input_rows": 44,
+      "input_bytes": 10539
+    }]
+  }]
+}, {
+  "id": 13,
+  "name": "kProject",
+  "time": 2,
+  "input_wait_time": 5721,
+  "output_wait_time": 57,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 2,
+      "output_rows": 44,
+      "output_bytes": 10539,
+      "input_rows": 44,
+      "input_bytes": 10539
+    }]
+  }]
+}, {
+  "id": 12,
+  "name": "kJoin",
+  "time": 12,
+  "input_wait_time": 5731,
+  "output_wait_time": 64,
+  "steps": [{
+    "name": "Expression",
+    "description": "Rename Broadcast Table Name",
+    "processors": []
+  }, {
+    "name": "FilledJoin",
+    "description": "JOIN",
+    "processors": [{
+      "name": "JoiningTransform",
+      "time": 12,
+      "output_rows": 44,
+      "output_bytes": 10539,
+      "input_rows": 44,
+      "input_bytes": 9075
+    }]
+  }]
+}, {
+  "id": 11,
+  "name": "kRead",
+  "time": 0,
+  "input_wait_time": 0,
+  "output_wait_time": 0,
+  "steps": [{
+    "name": "ReadFromPreparedSource",
+    "description": "Read From Java Iter",
+    "processors": []
+  }]
+}, {
+  "id": 10,
+  "name": "kProject",
+  "time": 2,
+  "input_wait_time": 5731,
+  "output_wait_time": 78,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 2,
+      "output_rows": 44,
+      "output_bytes": 9075,
+      "input_rows": 44,
+      "input_bytes": 9823
+    }]
+  }]
+}, {
+  "id": 9,
+  "name": "kProject",
+  "time": 2,
+  "input_wait_time": 5740,
+  "output_wait_time": 81,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 2,
+      "output_rows": 44,
+      "output_bytes": 9823,
+      "input_rows": 44,
+      "input_bytes": 9823
+    }]
+  }]
+}, {
+  "id": 8,
+  "name": "kJoin",
+  "time": 33,
+  "input_wait_time": 5726,
+  "output_wait_time": 89,
+  "steps": [{
+    "name": "Expression",
+    "description": "Rename Broadcast Table Name",
+    "processors": []
+  }, {
+    "name": "FilledJoin",
+    "description": "JOIN",
+    "processors": [{
+      "name": "JoiningTransform",
+      "time": 33,
+      "output_rows": 44,
+      "output_bytes": 9823,
+      "input_rows": 44,
+      "input_bytes": 1848
+    }]
+  }]
+}, {
+  "id": 7,
+  "name": "kRead",
+  "time": 0,
+  "input_wait_time": 0,
+  "output_wait_time": 0,
+  "steps": [{
+    "name": "ReadFromPreparedSource",
+    "description": "Read From Java Iter",
+    "processors": []
+  }]
+}, {
+  "id": 6,
+  "name": "kProject",
+  "time": 1,
+  "input_wait_time": 5725,
+  "output_wait_time": 124,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 1,
+      "output_rows": 44,
+      "output_bytes": 1848,
+      "input_rows": 44,
+      "input_bytes": 2992
+    }]
+  }]
+}, {
+  "id": 5,
+  "name": "kProject",
+  "time": 3,
+  "input_wait_time": 5728,
+  "output_wait_time": 127,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 3,
+      "output_rows": 44,
+      "output_bytes": 2992,
+      "input_rows": 44,
+      "input_bytes": 3740
+    }]
+  }]
+}, {
+  "id": 4,
+  "name": "kJoin",
+  "time": 6289,
+  "input_wait_time": 5455,
+  "output_wait_time": 138,
+  "steps": [{
+    "name": "Join",
+    "description": "JOIN",
+    "processors": [{
+      "name": "JoiningTransform",
+      "time": 6289,
+      "output_rows": 44,
+      "output_bytes": 3740,
+      "input_rows": 11985,
+      "input_bytes": 299625
+    }]
+  }]
+}, {
+  "id": 3,
+  "name": "kProject",
+  "time": 42,
+  "input_wait_time": 9204,
+  "output_wait_time": 35,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 7,
+      "output_rows": 292,
+      "output_bytes": 17520,
+      "input_rows": 292,
+      "input_bytes": 14892
+    }, {
+      "name": "FillingRightJoinSide",
+      "time": 35,
+      "output_rows": 0,
+      "output_bytes": 0,
+      "input_rows": 292,
+      "input_bytes": 17520
+    }]
+  }]
+}, {
+  "id": 2,
+  "name": "kRead",
+  "time": 530,
+  "input_wait_time": 4688,
+  "output_wait_time": 45,
+  "steps": [{
+    "name": "ReadFromPreparedSource",
+    "description": "Read From Java Iter",
+    "processors": [{
+      "name": "SourceFromJavaIter",
+      "time": 530,
+      "output_rows": 292,
+      "output_bytes": 14892,
+      "input_rows": 0,
+      "input_bytes": 0
+    }]
+  }]
+}, {
+  "id": 1,
+  "name": "kProject",
+  "time": 2,
+  "input_wait_time": 5474,
+  "output_wait_time": 429,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 2,
+      "output_rows": 11985,
+      "output_bytes": 299625,
+      "input_rows": 11985,
+      "input_bytes": 203745
+    }]
+  }]
+}, {
+  "id": 0,
+  "name": "kRead",
+  "time": 811,
+  "input_wait_time": 5326,
+  "output_wait_time": 434,
+  "steps": [{
+    "name": "ReadFromPreparedSource",
+    "description": "Read From Java Iter",
+    "processors": [{
+      "name": "SourceFromJavaIter",
+      "time": 811,
+      "output_rows": 11985,
+      "output_bytes": 203745,
+      "input_rows": 0,
+      "input_bytes": 0
+    }]
+  }]
+}]

@@ -249,7 +249,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
       return false
     }
     val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
     val relNode = try {
       getRelNode(
@@ -277,7 +277,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         null
     }
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     if (sortOrder == null || sortOrder.isEmpty) {
       // The computing for this project is not needed.
       context.registerEmptyRelToOperator(operatorId)

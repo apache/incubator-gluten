@@ -138,7 +138,7 @@ abstract class HashAggregateExecBaseTransformer(
 
   override def doValidateInternal(): Boolean = {
     val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val aggParams = new AggregationParams
     val relNode = {
       try {
@@ -174,7 +174,7 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     val aggParams = new AggregationParams
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
 
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       (getAggRel(context, operatorId, aggParams, childCtx.root), childCtx.outputAttributes, output)

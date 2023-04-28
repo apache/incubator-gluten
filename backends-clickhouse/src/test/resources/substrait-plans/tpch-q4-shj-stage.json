@@ -1,0 +1,205 @@
+{
+  "extensions": [{
+    "extensionFunction": {
+      "name": "equal:i64_i64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 1,
+      "name": "count:req_i32"
+    }
+  }],
+  "relations": [{
+    "root": {
+      "input": {
+        "aggregate": {
+          "common": {
+            "direct": {
+            }
+          },
+          "input": {
+            "project": {
+              "common": {
+                "emit": {
+                  "outputMapping": [2]
+                }
+              },
+              "input": {
+                "project": {
+                  "common": {
+                    "emit": {
+                      "outputMapping": [2, 3]
+                    }
+                  },
+                  "input": {
+                    "join": {
+                      "left": {
+                        "read": {
+                          "common": {
+                            "direct": {
+                            }
+                          },
+                          "baseSchema": {
+                            "names": ["o_orderkey#13", "o_orderpriority#18"],
+                            "struct": {
+                              "types": [{
+                                "i64": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }, {
+                                "string": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }]
+                            }
+                          },
+                          "localFiles": {
+                            "items": [{
+                              "uriFile": "iterator:0"
+                            }]
+                          }
+                        }
+                      },
+                      "right": {
+                        "read": {
+                          "common": {
+                            "direct": {
+                            }
+                          },
+                          "baseSchema": {
+                            "names": ["l_orderkey#22"],
+                            "struct": {
+                              "types": [{
+                                "i64": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }]
+                            }
+                          },
+                          "localFiles": {
+                            "items": [{
+                              "uriFile": "iterator:1"
+                            }]
+                          }
+                        }
+                      },
+                      "expression": {
+                        "scalarFunction": {
+                          "outputType": {
+                            "bool": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          },
+                          "arguments": [{
+                            "value": {
+                              "selection": {
+                                "directReference": {
+                                  "structField": {
+                                  }
+                                }
+                              }
+                            }
+                          }, {
+                            "value": {
+                              "selection": {
+                                "directReference": {
+                                  "structField": {
+                                    "field": 2
+                                  }
+                                }
+                              }
+                            }
+                          }]
+                        }
+                      },
+                      "type": "JOIN_TYPE_LEFT_SEMI",
+                      "advancedExtension": {
+                        "optimization": {
+                          "@type": "/google.protobuf.StringValue",
+                          "value": "JoinParameters:isBHJ\u003d0\nisNullAwareAntiJoin\u003d0\nbuildHashTableId\u003d\nisExistenceJoin\u003d0\n"
+                        },
+                        "enhancement": {
+                          "@type": "/substrait.Type",
+                          "struct": {
+                            "types": [{
+                              "i64": {
+                                "nullability": "NULLABILITY_NULLABLE"
+                              }
+                            }, {
+                              "string": {
+                                "nullability": "NULLABILITY_NULLABLE"
+                              }
+                            }, {
+                              "i64": {
+                                "nullability": "NULLABILITY_NULLABLE"
+                              }
+                            }],
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "expressions": [{
+                    "selection": {
+                      "directReference": {
+                        "structField": {
+                        }
+                      }
+                    }
+                  }, {
+                    "selection": {
+                      "directReference": {
+                        "structField": {
+                          "field": 1
+                        }
+                      }
+                    }
+                  }]
+                }
+              },
+              "expressions": [{
+                "selection": {
+                  "directReference": {
+                    "structField": {
+                      "field": 1
+                    }
+                  }
+                }
+              }]
+            }
+          },
+          "groupings": [{
+            "groupingExpressions": [{
+              "selection": {
+                "directReference": {
+                  "structField": {
+                  }
+                }
+              }
+            }]
+          }],
+          "measures": [{
+            "measure": {
+              "functionReference": 1,
+              "phase": "AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE",
+              "outputType": {
+                "i64": {
+                  "nullability": "NULLABILITY_REQUIRED"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "literal": {
+                    "i32": 1
+                  }
+                }
+              }]
+            }
+          }]
+        }
+      },
+      "names": ["o_orderpriority#18", "count#12"]
+    }
+  }]
+}

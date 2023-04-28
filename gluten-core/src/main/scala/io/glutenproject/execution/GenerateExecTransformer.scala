@@ -96,7 +96,7 @@ case class GenerateExecTransformer(
     val context = new SubstraitContext
     val args = context.registeredFunction
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     val generatorExpr = ExpressionConverter.replaceWithExpressionTransformer(
       generator, child.output)
     val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -135,7 +135,7 @@ case class GenerateExecTransformer(
     }
 
     val args = context.registeredFunction
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     val generatorExpr = ExpressionConverter.replaceWithExpressionTransformer(
       generator, child.output)
     val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)

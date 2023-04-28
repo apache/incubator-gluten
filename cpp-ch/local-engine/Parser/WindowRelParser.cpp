@@ -66,6 +66,7 @@ WindowRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & re
         ;
         auto window_step = std::make_unique<DB::WindowStep>(current_plan->getCurrentDataStream(), win, win.window_functions);
         window_step->setStepDescription("Window step for window '" + win.window_name + "'");
+        steps.emplace_back(window_step.get());
         current_plan->addStep(std::move(window_step));
     }
 
@@ -79,6 +80,7 @@ WindowRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & re
             DB::ActionsDAG::MatchColumnsMode::Name);
         QueryPlanStepPtr convert_step = std::make_unique<DB::ExpressionStep>(current_plan->getCurrentDataStream(), convert_action);
         convert_step->setStepDescription("Convert window Output");
+        steps.emplace_back(convert_step.get());
         current_plan->addStep(std::move(convert_step));
     }
 
@@ -382,6 +384,7 @@ void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const subst
     {
         auto project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), actions_dag);
         project_step->setStepDescription("Add projections before aggregation");
+        steps.emplace_back(project_step.get());
         plan.addStep(std::move(project_step));
     }
 }

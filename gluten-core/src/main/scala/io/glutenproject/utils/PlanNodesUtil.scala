@@ -38,7 +38,7 @@ object PlanNodesUtil {
 
     // input
     val iteratorIndex: Long = context.nextIteratorIndex
-    var operatorId = context.nextOperatorId
+    var operatorId = context.nextOperatorId("ClickHouseBuildSideRelationReadIter")
     val inputIter = LocalFilesBuilder.makeLocalFiles(
       ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
     context.setIteratorNode(iteratorIndex, inputIter)
@@ -53,7 +53,7 @@ object PlanNodesUtil {
       typeList, nameList, null, iteratorIndex, context, operatorId)
 
     // project
-    operatorId = context.nextOperatorId
+    operatorId = context.nextOperatorId("ClickHouseBuildSideRelationProjection")
     val args = context.registeredFunction
     val columnarProjExprs: Seq[ExpressionTransformer] = keys.map(expr => {
       ExpressionConverter
@@ -63,7 +63,8 @@ object PlanNodesUtil {
     for (expr <- columnarProjExprs) {
       projExprNodeList.add(expr.doTransform(args))
     }
-    val projectNode = RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)
+    val projectNode =
+      RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)
 
     val outNames = new java.util.ArrayList[String]()
     for (k <- keys) {

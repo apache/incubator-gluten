@@ -1,0 +1,66 @@
+[{
+  "id": 2,
+  "name": "kProject",
+  "time": 7,
+  "input_wait_time": 7652,
+  "output_wait_time": 16,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 7,
+      "output_rows": 73,
+      "output_bytes": 2336,
+      "input_rows": 73,
+      "input_bytes": 5085
+    }]
+  }]
+}, {
+  "id": 1,
+  "name": "kFilter",
+  "time": 3000,
+  "input_wait_time": 14906,
+  "output_wait_time": 1090,
+  "steps": [{
+    "name": "Filter",
+    "description": "WHERE",
+    "processors": [{
+      "name": "FilterTransform",
+      "time": 2000,
+      "output_rows": 73,
+      "output_bytes": 5304,
+      "input_rows": 20000,
+      "input_bytes": 1451663
+    }]
+  }, {
+    "name": "Expression",
+    "description": "Remove nullable properties",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 1000,
+      "output_rows": 73,
+      "output_bytes": 5085,
+      "input_rows": 73,
+      "input_bytes": 5304
+    }]
+  }]
+}, {
+  "id": 0,
+  "name": "kRead",
+  "time": 2856,
+  "input_wait_time": 4576,
+  "output_wait_time": 2514,
+  "steps": [{
+    "name": "ReadFromStorage",
+    "description": "read local files",
+    "processors": [{
+      "name": "SubstraitFileSource",
+      "time": 2856,
+      "output_rows": 20000,
+      "output_bytes": 1451663,
+      "input_rows": 0,
+      "input_bytes": 0
+    }]
+  }]
+}]

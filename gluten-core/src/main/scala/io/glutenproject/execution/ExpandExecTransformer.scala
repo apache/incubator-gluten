@@ -216,7 +216,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     }
 
     val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
     val relNode = try {
       getRelNode(
@@ -246,7 +246,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         null
     }
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     if (projections == null || projections.isEmpty) {
       // The computing for this Expand is not needed.
       context.registerEmptyRelToOperator(operatorId)

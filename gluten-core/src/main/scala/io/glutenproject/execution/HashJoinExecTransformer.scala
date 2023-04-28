@@ -238,7 +238,8 @@ trait HashJoinLikeExecTransformer
         joinType,
         genJoinParametersBuilder(),
         null, null, streamedPlan.output,
-        buildPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
+        buildPlan.output,
+        substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
     } catch {
       case e: Throwable =>
         logValidateFailure(
@@ -280,7 +281,7 @@ trait HashJoinLikeExecTransformer
     joinParams.isBuildReadRel = isBuildReadRel
 
     // Get the operator id of this Join.
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
     // Register the ReadRel to correct operator Id.
     if (joinParams.isStreamedReadRel) {
