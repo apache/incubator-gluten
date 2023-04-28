@@ -138,6 +138,9 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     /// hash functions
     {"murmur3hash", "murmurHashSpark3_32"},
     {"xxhash64", "xxHashSpark64"},
+    {"sha1", "SHA1"},
+    {"sha2", ""}, /// dummpy mapping
+    {"crc32", "CRC32"},
 
     // in functions
     {"in", "in"},

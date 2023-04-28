@@ -14,27 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Expression, Like}
+import org.apache.spark.sql.catalyst.expressions.Sha2
 import org.apache.spark.sql.types.StringType
 
-/**
- * Transformer for the normal binary expression
- */
+import com.google.common.collect.Lists
+
+/** Transformer for the normal binary expression */
 class BinaryExpressionTransformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer with Logging {
+  extends ExpressionTransformer
+  with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
@@ -52,16 +53,20 @@ class BinaryExpressionTransformer(
   }
 }
 
-class LikeTransformer(substraitExprName: String,
-                      left: ExpressionTransformer,
-                      right: ExpressionTransformer,
-                      original: Expression)
-  extends ExpressionTransformer with Logging {
+class LikeTransformer(
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
     val escapeCharNode = ExpressionBuilder.makeLiteral(
-      original.asInstanceOf[Like].escapeChar.toString, StringType, false)
+      original.asInstanceOf[Like].escapeChar.toString,
+      StringType,
+      false)
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
@@ -72,23 +77,39 @@ class LikeTransformer(substraitExprName: String,
         FunctionConfig.OPT))
 
     // CH backend does not support escapeChar, so skip it here.
-    val expressionNodes = if (BackendsApiManager.getBackendName
-      .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
-      Lists.newArrayList(leftNode, rightNode)
-    } else {
-      Lists.newArrayList(leftNode, rightNode, escapeCharNode)
-    }
+    val expressionNodes =
+      if (
+        BackendsApiManager.getBackendName
+          .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+      ) {
+        Lists.newArrayList(leftNode, rightNode)
+      } else {
+        Lists.newArrayList(leftNode, rightNode, escapeCharNode)
+      }
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
+class Sha2Transformer(
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    original: Sha2)
+  extends ExpressionTransformer
+  with Logging {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    BinaryExpressionTransformer(substraitExprName, left, right, original).doTransform(args)
+  }
+}
+
 object BinaryExpressionTransformer {
 
-  def apply(substraitExprName: String,
-            left: ExpressionTransformer,
-            right: ExpressionTransformer,
-            original: Expression): ExpressionTransformer = {
+  def apply(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
     original match {
       case _: Like => new LikeTransformer(substraitExprName, left, right, original)
       case _ => new BinaryExpressionTransformer(substraitExprName, left, right, original)
