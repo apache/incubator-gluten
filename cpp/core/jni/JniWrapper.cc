@@ -913,15 +913,25 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_OnHeapJniByteInputStream
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL
-Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_make(JNIEnv* env, jclass, jobject jni_in, jlong c_schema) {
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_make(
+    JNIEnv* env,
+    jclass,
+    jobject jni_in,
+    jlong c_schema,
+    jlong alloc_id) {
   JNI_METHOD_START
+  auto* allocator = reinterpret_cast<MemoryAllocator*>(alloc_id);
+  if (allocator == nullptr) {
+    gluten::JniThrow("Memory pool does not exist or has been closed");
+  }
+  auto pool = AsWrappedArrowMemoryPool(allocator);
   std::shared_ptr<arrow::io::InputStream> in = std::make_shared<JavaInputStreamAdaptor>(env, jni_in);
   ReaderOptions options = ReaderOptions::Defaults();
+  options.ipc_read_options.memory_pool = pool.get();
   options.ipc_read_options.use_threads = false;
   std::shared_ptr<arrow::Schema> schema =
       gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
-  auto reader = std::make_shared<Reader>(in, schema, options);
+  auto reader = std::make_shared<Reader>(in, schema, options, pool);
   return shuffle_reader_holder_.Insert(reader);
   JNI_METHOD_END(-1L)
 }
