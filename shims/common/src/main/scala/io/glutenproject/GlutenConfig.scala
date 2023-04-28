@@ -195,7 +195,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
   def enableCoalesceBatches: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
 
   def enableColumnarLimit: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.limit", "true").toBoolean
@@ -281,6 +281,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def softAffinityLogLevel: String =
     conf.getConfString("spark.gluten.soft-affinity.logLevel", "DEBUG")
+
+  // A comma-separated list of classes for the extended columnar pre rules
+  def extendedColumnarPreRules: String =
+    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.pre.rules", "")
+
+  // A comma-separated list of classes for the extended columnar post rules
+  def extendedColumnarPostRules: String =
+    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
 
   def printStackOnValidateFailure: Boolean =
     conf.getConfString("spark.gluten.sql.validate.failure.printStack", "false").toBoolean

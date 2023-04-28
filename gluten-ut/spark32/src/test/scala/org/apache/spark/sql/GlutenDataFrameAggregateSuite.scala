@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.backendsapi.BackendsApiManager
 import org.apache.spark.sql.functions._
 
 class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenSQLTestsTrait {
@@ -169,14 +168,12 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   }
 
   test(GlutenTestConstants.GLUTEN_TEST + "extend with cast expression") {
-    if (BackendsApiManager.getSettings.supportNewExpandContract()) {
-      checkAnswer(
-        decimalData.agg(
-            sum($"a".cast("double")),
-            avg($"b".cast("double")),
-            count_distinct($"a"),
-            count_distinct($"b")),
-        Row(12.0, 1.5, 3, 2))
-    }
+    checkAnswer(
+      decimalData.agg(
+          sum($"a".cast("double")),
+          avg($"b".cast("double")),
+          count_distinct($"a"),
+          count_distinct($"b")),
+      Row(12.0, 1.5, 3, 2))
   }
 }

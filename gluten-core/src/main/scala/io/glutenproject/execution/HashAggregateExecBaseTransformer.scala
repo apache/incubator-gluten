@@ -133,6 +133,7 @@ abstract class HashAggregateExecBaseTransformer(
        | DoubleType | StringType | TimestampType | DateType | BinaryType => true
       case d: DecimalType => true
       case a: ArrayType => true
+      case n: NullType => true
       case other => logInfo(s"Type ${dataType} not support"); false
     }
   }
@@ -494,7 +495,7 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg =>
+        case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg | _: BitXorAgg =>
           mode match {
             case Partial | PartialMerge =>
               val aggBufferAttr = aggregateFunc.inputAggBufferAttributes

@@ -1,3 +1,9 @@
+---
+layout: page
+title: Using S3 with Gluten
+nav_order: 3
+parent: Getting-Started
+---
 Object stores offered by CSPs such as AWS S3 are important for users of Gluten to store their data. This doc will discuss all details of configs, and use cases around using Gluten with object stores. 
 
 ## 1 Local Caching support

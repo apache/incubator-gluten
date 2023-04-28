@@ -1,3 +1,8 @@
+---
+layout: page
+title: Supported Operators and Functions
+nav_order: 5
+---
 # The Operators and Functions Support Progress
 Gluten is still in active development. Here is a list of supported operators and functions.
 

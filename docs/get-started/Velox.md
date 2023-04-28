@@ -1,3 +1,9 @@
+---
+layout: page
+title: Gluten with Velox Backend
+nav_order: 1
+parent: Getting-Started
+---
 Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
 # 1 Prerequisite

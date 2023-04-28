@@ -20,8 +20,12 @@ package io.glutenproject.utils.clickhouse
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 
 class ClickHouseTestSettings extends BackendTestSettings {
+
+  enableSuite[GlutenSessionExtensionSuite]
+  enableSuite[GlutenCustomerExtensionSuite]
 
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(
@@ -213,7 +217,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenHashExpressionsSuite]
     .include(
-      "md5"
+      "md5",
+      "sha1",
+      "sha2",
+      "crc32"
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]

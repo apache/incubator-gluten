@@ -95,3 +95,5 @@ void AbortIfFileNotExists(const std::string& filepath);
 bool EndsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
+
+std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> plan);

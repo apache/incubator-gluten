@@ -1,3 +1,9 @@
+---
+layout: page
+title: New To Gluten
+nav_order: 2
+parent: Developer Overview
+---
 Help users to debug and test with gluten.
 
 For intel internal developer, you could refer to internal wiki  [New Employee Guide](https://wiki.ith.intel.com/display/HPDA/New+Employee+Guide) to get more information such as proxy settings,
@@ -252,16 +258,16 @@ Search `update` in Manage->Settings to turn off update mode
 
 ### Clang format
 
-Now gluten uses clang-format 11 to format source files.
+Now gluten uses clang-format 12 to format source files.
 
 ```bash
-apt-get install clang-format-11
+apt-get install clang-format-12
 ```
 
 Set config in `settings.json`
 
 ```json
-"clang-format.executable": "clang-format-11",
+"clang-format.executable": "clang-format-12",
 "editor.formatOnSave": true,
 ```
 
