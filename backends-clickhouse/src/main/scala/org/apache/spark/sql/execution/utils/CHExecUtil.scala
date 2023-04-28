@@ -157,7 +157,7 @@ object CHExecUtil extends Logging {
 
   private def buildPartitioningOptions(nativePartitioning: NativePartitioning): IteratorOptions = {
     val options = new IteratorOptions
-    options.setBufferSize(GlutenConfig.getConf.shuffleSplitDefaultSize)
+    options.setBufferSize(GlutenConfig.getConf.maxBatchSize)
     options.setName(nativePartitioning.getShortName)
     options.setPartitionNum(nativePartitioning.getNumPartitions)
     options.setExpr(new String(nativePartitioning.getExprList))
