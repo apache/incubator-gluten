@@ -31,11 +31,14 @@ class ResultIterator {
       : iter_(std::move(iter)), next_(nullptr), backend_(std::move(backend)) {}
 
   bool HasNext() {
-    next_ = iter_->next();
+    CheckValid();
+    GetNext();
     return next_ != nullptr;
   }
 
   std::shared_ptr<ColumnarBatch> Next() {
+    CheckValid();
+    GetNext();
     return std::move(next_);
   }
 
@@ -55,6 +58,18 @@ class ResultIterator {
   }
 
  private:
+  void CheckValid() const {
+    if (iter_ == nullptr) {
+      throw GlutenException("ResultIterator: the underlying iterator has expired.");
+    }
+  }
+
+  void GetNext() {
+    if (next_ == nullptr) {
+      next_ = iter_->next();
+    }
+  }
+
   std::unique_ptr<ColumnarBatchIterator> iter_;
   std::shared_ptr<ColumnarBatch> next_;
   std::shared_ptr<Backend> backend_;
