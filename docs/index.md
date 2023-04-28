@@ -40,10 +40,10 @@ Gluten targets to the Spark administrators and Spark users who want to improve t
 ## 1.4 References:
 
 You may click below links for more related information.
-- [Gluten Intro Video at Data AI Summit 2022](https://databricks.com/dataaisummit/session/gazelle-jni-middle-layer-offload-spark-sql-native-engines-execution)
+- [Gluten Intro Video at Data AI Summit 2022](https://www.youtube.com/watch?v=0Q6gHT_N-1U)
 - [Gluten Intro Article at Medium.com](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
 - [Gluten Intro Article at Kyligence.io(in Chinese)](https://cn.kyligence.io/blog/gluten-spark/)
-- [Velox Intro from Meta](https://engineering.fb.com/2022/08/31/open-source/velox/)
+- [Velox Intro from Meta](https://engineering.fb.com/2023/03/09/open-source/velox-open-source-execution-engine/)
 
 
 # 2 Architecture

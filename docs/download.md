@@ -4,10 +4,10 @@ title: Download
 nav_order: 3
 ---
 
-[Gluten For Apache Spark](https://github.com/NVIDIA/spark-rapids) provides a plugin for Apache Spark that double SparkSQL's Performance.
+[Gluten For Apache Spark](https://github.com/oap-project/gluten) provides a plugin for Apache Spark that double SparkSQL's Performance.
 
-## Release XXX
-
+## Release 0.5.0 
+Please see the [Gluten 0.5.0 Release Notes](https://github.com/oap-project/gluten/releases/tag/0.5.0) for more details
 
 ## Archived releases
 
