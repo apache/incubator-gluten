@@ -23,7 +23,7 @@ namespace gluten {
 
 std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator);
 
-std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool();
+std::shared_ptr<arrow::MemoryPool> GetDefaultArrowMemoryPool();
 
 class WrappedArrowMemoryPool final : public arrow::MemoryPool {
  public:

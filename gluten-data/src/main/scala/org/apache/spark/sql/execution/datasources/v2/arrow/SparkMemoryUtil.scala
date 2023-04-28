@@ -27,7 +27,7 @@ object SparkMemoryUtil extends Logging {
     extends Iterator[T] {
     val holder = new GenericRetainer[T]()
 
-    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit]((_: TaskContext) => {
+    TaskMemoryResources.addResourceRecycler(100)((_: TaskContext) => {
       holder.release()
     })
 

@@ -24,8 +24,10 @@ import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.memory.TaskMemoryResources.inSparkTask
 import org.apache.spark.util.{TaskCompletionListener, TaskFailureListener}
+import shaded.parquet.it.unimi.dsi.fastutil.longs.LongComparators
 
-import java.util.UUID
+import java.util
+import java.util.{Collections, Comparator, UUID}
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.JavaConverters._
 
@@ -73,6 +75,7 @@ object TaskMemoryResources extends Logging {
             override def onTaskCompletion(context: TaskContext): Unit = {
               RESOURCE_REGISTRIES.synchronized {
                 val registry = RESOURCE_REGISTRIES.remove(context)
+                registry.runResourceRecyclers(context)
                 registry.releaseAll()
                 context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
               }
@@ -84,12 +87,12 @@ object TaskMemoryResources extends Logging {
     }
   }
 
-  def addLeakSafeTaskCompletionListener[U](f: TaskContext => U): TaskContext = {
+  def addResourceRecycler(priority: Long)(f: TaskContext => Unit): Unit = {
     if (!inSparkTask()) {
       throw new IllegalStateException("Not in a Spark task")
     }
-    getOrCreateTaskMemoryResourceRegistry() // initialize cleaners
-    getLocalTaskContext().addTaskCompletionListener(f)
+    val registry = getOrCreateTaskMemoryResourceRegistry() // initialize cleaners
+    registry.addResourceRecycler(ResourceRecycler(priority, f))
   }
 
   def addAnonymousResourceManager(manager: TaskMemoryResourceManager): Unit = {
@@ -123,6 +126,8 @@ class TaskMemoryResourceRegistry extends Logging {
 
   private val managers = new java.util.LinkedHashMap[String, TaskMemoryResourceManager]()
 
+  private val recyclers = new java.util.HashMap[Long, java.util.List[ResourceRecycler]]
+
   private[memory] def releaseAll(): Unit = {
     managers.values().asScala.toArray.reverse.foreach(m => try {
       m.release()
@@ -155,4 +160,28 @@ class TaskMemoryResourceRegistry extends Logging {
   private[memory] def getSharedMetrics(): TaskMemoryMetrics = {
     sharedMetrics
   }
+
+  private[memory] def addResourceRecycler(recycler: ResourceRecycler) = {
+    if (!recyclers.containsKey(recycler.priority)) {
+      recyclers.put(recycler.priority, new util.ArrayList[ResourceRecycler]())
+    }
+    val list = recyclers.get(recycler.priority)
+    list.add(recycler)
+  }
+
+  private[memory] def runResourceRecyclers(context: TaskContext): Unit = {
+    val recyclerTable: java.util.List[java.util.Map.Entry[Long, java.util.List[ResourceRecycler]]] =
+      new java.util.ArrayList(recyclers.entrySet())
+    Collections.sort(recyclerTable,
+      (o1: java.util.Map.Entry[Long, java.util.List[ResourceRecycler]],
+       o2: java.util.Map.Entry[Long, java.util.List[ResourceRecycler]]) => {
+      val diff = o2.getKey - o1.getKey // descending
+      if (diff > 0) 1 else if (diff < 0) -1 else 0
+    })
+    recyclerTable.forEach { e =>
+      e.getValue.asScala.reverse.foreach(_.f(context)) // LIFO
+    }
+  }
 }
+
+case class ResourceRecycler(priority: Long, f: TaskContext => Unit)

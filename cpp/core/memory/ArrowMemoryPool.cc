@@ -23,7 +23,7 @@ std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* all
   return std::make_shared<WrappedArrowMemoryPool>(allocator);
 }
 
-std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool() {
+std::shared_ptr<arrow::MemoryPool> GetDefaultArrowMemoryPool() {
   static auto static_pool = AsWrappedArrowMemoryPool(DefaultMemoryAllocator().get());
   return static_pool;
 }

@@ -32,6 +32,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.memory.TaskMemoryResources
 
 import java.io._
 import java.nio.ByteBuffer
@@ -69,6 +70,13 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
           JniByteInputStreams.create(in), cSchema.memoryAddress(),
           NativeMemoryAllocators.contextInstance.getNativeInstanceId)
         cSchema.close()
+        // Close shuffle reader instance as lately as the end of task processing,
+        // since the native reader could hold a reference to memory pool that
+        // was used to create all buffers read from shuffle reader. The pool
+        // should keep alive before all buffers to finish consuming.
+        TaskMemoryResources.addResourceRecycler(100) { _ =>
+          ShuffleReaderJniWrapper.close(handle)
+        }
         handle
       }
 
@@ -169,7 +177,6 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
           numOutputRows += numRowsTotal
           if (cb != null) cb.close()
           ShuffleReaderJniWrapper.close(shuffleReaderHandle)
-          allocator.close()
           isClosed = true
         }
       }
