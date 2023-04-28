@@ -170,7 +170,15 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
   // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
-  override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
+  override def nodeName: String = {
+    var fullName = s"WholeStageCodegenTransformer ($transformStageId)"
+    child.foreach(c => {
+      if (c.isInstanceOf[FileSourceScanExecTransformer]) {
+        fullName = c.nodeName + " + " + fullName
+      }
+    })
+    fullName
+  }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
     child.asInstanceOf[TransformSupport].getBuildPlans
