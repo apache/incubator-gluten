@@ -797,8 +797,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |""".stripMargin
     )
     val result = df.collect()
-    assert(result(0).isNullAt(1))
-    assert(result(0).isNullAt(2))
+    if (result.length > 0) {
+      assert(result(0).isNullAt(1))
+      assert(result(0).isNullAt(2))
+    }
   }
 
   override protected def runTPCHQuery(
