@@ -26,6 +26,12 @@ If you need any help or have questions on this product, please contact us:
 
 <a href="mailto:zuochunwei@meituan.com">zuochunwei@meituan.com</a>
 
+<a href="mailto:yangchuan.zy@alibaba-inc.com">yangchuan.zy@alibaba-inc.com</a>
+
+<a href="mailto:xiyu.zk@alibaba-inc.com">xiyu.zk@alibaba-inc.com</a>
+
+<a href="mailto:joey.ljy@alibaba-inc.com">joey.ljy@alibaba-inc.com</a>
+
 ## Issues and Discussions
 We use github to track bugs, feature requests, and answer questions. File an
 [issue](https://github.com/oap-project/gluten/issues) for a bug or feature request.

@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Docker script for Ubuntu 22.04/20.04
-nav_order: 5
+nav_order: 6
 parent: Developer Overview
 ---
 Here is a docker script we verified to build Gluten+Velox backend on Ubuntu22.04/20.04:

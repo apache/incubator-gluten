@@ -13,7 +13,7 @@ We port ClickHouse ( based on version **23.1** ) as a library, called 'libch.so'
 
 The architecture of the ClickHouse backend is shown below:
 
-![ClickHouse-Backend-Architecture](./image/ClickHouse/ClickHouse-Backend-Architecture.png)
+![ClickHouse-Backend-Architecture](../image/ClickHouse/ClickHouse-Backend-Architecture.png)
 
 1. On Spark driver, Spark uses Gluten SparkPlugin to transform the physical plan to the Substrait plan, and then pass the Substrait plan to ClickHouse backend through JNI call on executors.
 2. Based on Spark DataSource V2 interface, implementing a ClickHouse Catalog to support operating the ClickHouse tables, and then using Delta to save some metadata about ClickHouse like the MergeTree parts information, and also provide ACID transactions.
@@ -76,11 +76,11 @@ Otherwise, do:
     - Open ClickHouse repo
     - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-15 as C Compiler, clang++-15 as C++ Compiler:
 
-        ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-1.png)
+        ![ClickHouse-CLion-Toolchains](../image/ClickHouse/CLion-Configuration-1.png)
 
     - Choose File -> Settings -> Build, Execution, Deployment -> CMake:
 
-        ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-2.png)
+        ![ClickHouse-CLion-Toolchains](../image/ClickHouse/CLion-Configuration-2.png)
 
         And then add these options into CMake options:
         ```
@@ -88,7 +88,7 @@ Otherwise, do:
         ```
     - Build 'ch' target on ClickHouse Project with Debug mode or Release mode:
 
-       ![ClickHouse-CLion-Toolchains](./image/ClickHouse/CLion-Configuration-3.png)
+       ![ClickHouse-CLion-Toolchains](../image/ClickHouse/CLion-Configuration-3.png)
 
       If it builds with Release mode successfully, there is a library file called 'libch.so' in path '${CH_SOURCE_DIR}/cmake-build-release/utils/extern-local-engine/'.
    
@@ -119,7 +119,7 @@ The target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch
 
 The prerequisites are the same as the one mentioned above. Compile Gluten with ClickHouse backend through maven:
 
-- for Spark 3.2.2
+- for Spark 3.2.2<span id="deploy-spark-322"></span>
 
 ```
     git clone https://github.com/oap-project/gluten.git
@@ -214,7 +214,7 @@ bin/beeline -u jdbc:hive2://localhost:10000/ -n root
 
 ##### Query local MergeTree files
 
-- Prepare data
+- Prepare data<span id="data-preparation"></span>
 
 Currently, the feature of writing ClickHouse MergeTree parts by Spark is developing, so you need to use command 'clickhouse-local' to generate MergeTree parts data manually. We provide a python script to call the command 'clickhouse-local' to convert parquet data to MergeTree parts:
 
@@ -279,7 +279,7 @@ python3 /path_to_clickhouse_backend_src/utils/local-engine/tool/parquet_to_merge
 
     The DAG is shown on Spark UI as below:
 
-    ![ClickHouse-CLion-Toolchains](./image/ClickHouse/Gluten-ClickHouse-Backend-Q6-DAG.png)
+    ![ClickHouse-CLion-Toolchains](../image/ClickHouse/Gluten-ClickHouse-Backend-Q6-DAG.png)
 
 ##### Query local Parquet files
 

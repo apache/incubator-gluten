@@ -100,14 +100,14 @@ gdb generic_benchmark
   executable file in fact.
 
 6. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
-[gdb-tui](https://sourceware.org/gdb/current/onlinedocs/gdb/TUI.html#TUI)
+[gdb-tui](https://sourceware.org/gdb/onlinedocs/gdb/TUI.html)
 
 7. you can start `generic_benchmark` with specific JSON plan and input files
 - If you omit them, the `example.json, example_lineitem + example_orders` under the directory of `gluten_home/backends-velox/generated-native-benchmark`
   will be used as default.
 - You can also edit the file `example.json` to custom the Substrait plan or specify the inputs files placed in the other directory.
 
-8. get more detail information about benchmarks from [MicroBenchmarks.md](https://github.com/oap-project/gluten/blob/main/docs/developers/MicroBenchmarks.md)
+8. get more detail information about benchmarks from [MicroBenchmarks](./MicroBenchmarks.md)
 
 ## 2 How to debug Java/Scala
 wait to add
@@ -126,7 +126,7 @@ gdb gluten_home/cpp/build/releases/libgluten.so 'core-Executor task l-2000883-16
 Now, both Parquet and DWRF format files are supported, related scripts and files are under the directory of `gluten_home/backends-velox/workload/tpch`.
 The file `README.md` under `gluten_home/backends-velox/workload/tpch` offers some useful help but it's still not enough and exact.
 
-One way of run TPC-H test is to run unit-test by workflow, you can refer to [unitest](https://github.com/oap-project/gluten/blob/main/.github/workflows/unittests.yml#L90)
+One way of run TPC-H test is to run velox-be by workflow, you can refer to [velox_be.yml](https://github.com/oap-project/gluten/blob/main/.github/workflows/velox_be.yml#L90)
 
 Here will explain how to run TPC-H on Velox backend with the Parquet file format.
 1. First step, prepare the datasets, you have two choices.
@@ -145,7 +145,7 @@ Here will explain how to run TPC-H on Velox backend with the Parquet file format
     var gluten_root = "/home/gluten"
     ```
   - Modify `gluten_home/backends-velox/workload/tpch/run_tpch/tpch_parquet.sh`.
-    - Set `GLUTEN_JAR` correctly. Please refer to the section of `Build Gluten with Velox Backend` [Velox](https://github.com/oap-project/gluten/blob/main/docs/Velox.md)
+    - Set `GLUTEN_JAR` correctly. Please refer to the section of [Build Gluten with Velox Backend](../get-started/Velox.md/#2-build-gluten-with-velox-backend)
     - Set `SPARK_HOME` correctly.
     - Set the memory configurations appropriately.
   - Execute `tpch_parquet.sh` using the below command.

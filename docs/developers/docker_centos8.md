@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Docker script for CentOS 8
-nav_order: 6
+nav_order: 7
 parent: Developer Overview
 ---
 Here is a docker script we verified to build Gluten+Velox backend on Centos8:
