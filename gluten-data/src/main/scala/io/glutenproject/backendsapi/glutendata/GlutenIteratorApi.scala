@@ -112,11 +112,10 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
   : Iterator[ColumnarBatch] = {
 
     val beforeInput = System.nanoTime
-    val hasInput = iter.hasNext
     if (collectTime != null) {
       collectTime += System.nanoTime - beforeInput
     }
-    val res = if (hasInput) {
+    val res: Iterator[ColumnarBatch] = {
       new Iterator[ColumnarBatch] {
         var numBatchesTotal: Long = _
         var numRowsTotal: Long = _
@@ -195,8 +194,6 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
           target
         }
       }
-    } else {
-      Iterator.empty
     }
     new CloseableColumnBatchIterator(res)
   }
