@@ -27,16 +27,15 @@ object AggregateFunctionsBuilder {
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    val substraitAggFuncName = ExpressionMappings.aggregate_functions_map.getOrElse(
-      aggregateFunc.getClass, ExpressionMappings.getAggSigOther(aggregateFunc.prettyName))
-    // Check whether Gluten supports this aggregate function.
+    val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (substraitAggFuncName.isEmpty) {
-      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
+      throw new UnsupportedOperationException(s"Could not find valid a substrait mapping name for $aggregateFunc.")
     }
+
     // Check whether each backend supports this aggregate function.
-    if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
-      substraitAggFuncName, aggregateFunc)) {
-      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
+    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(
+      substraitAggFuncName.get, aggregateFunc)) {
+      throw new UnsupportedOperationException(s"Aggregate function not supported for $aggregateFunc.")
     }
 
     val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
@@ -44,7 +43,7 @@ object AggregateFunctionsBuilder {
     ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(
-        substraitAggFuncName,
+        substraitAggFuncName.get,
         inputTypes,
         FunctionConfig.REQ))
   }

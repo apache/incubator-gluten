@@ -19,6 +19,7 @@ package io.glutenproject.expression
 
 import java.util.Locale
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -33,7 +34,6 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 
 object ConverterUtils extends Logging {
 
@@ -349,6 +349,7 @@ object ConverterUtils extends Logging {
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
+
     for (idx <- datatypes.indices) {
       typedFuncName = typedFuncName.concat(getTypeSigName(datatypes(idx)))
       // For the last item, no need to append _.
