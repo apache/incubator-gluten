@@ -38,6 +38,7 @@ trait BackendSettings {
   def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getConf.enableColumnarShuffle
   }
+  def enableJoinKeysRewrite(): Boolean = true
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     case _: InnerLike | RightOuter | FullOuter => true
     case _ => false
