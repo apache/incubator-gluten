@@ -29,6 +29,6 @@ std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxAggregateMemo
 
 std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxAggregateMemoryPool();
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultLeafWrappedVeloxMemoryPool();
+std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultVeloxLeafMemoryPool();
 
 } // namespace gluten

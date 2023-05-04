@@ -447,7 +447,7 @@ std::shared_ptr<velox::memory::MemoryPool> GetDefaultWrappedVeloxAggregateMemory
   return default_pool_root;
 }
 
-std::shared_ptr<velox::memory::MemoryPool> GetDefaultLeafWrappedVeloxMemoryPool() {
+std::shared_ptr<velox::memory::MemoryPool> GetDefaultVeloxLeafMemoryPool() {
   static std::shared_ptr<velox::memory::MemoryPool> default_pool =
       GetDefaultWrappedVeloxAggregateMemoryPool()->addLeafChild("default_pool");
   return default_pool;
