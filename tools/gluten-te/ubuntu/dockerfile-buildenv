@@ -45,7 +45,10 @@ RUN cat /etc/apt/apt.conf || (echo "Apt proxy not set" && true)
 RUN cat /root/.m2/settings.xml
 
 # Install OpenJDK 8 and Maven
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk maven git wget
+
+# Make sure that only jdk 8 is installed
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven git wget
 
 # Install Spark 3.2.2 for UT
 RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
@@ -68,7 +71,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
   libtool \
   zip \
   unzip \
-  tar \
   curl \
   flex \
   bison
@@ -106,9 +108,6 @@ COPY ./vcpkg /tmp/vcpkg
 ENV VCPKG_BINARY_SOURCES=files,/var/cache/vcpkg,read
 RUN VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES}write /tmp/vcpkg/init.sh \
   && rm -rf /tmp/vcpkg
-
-# Configure java
-ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
 
 # Prepare entry command
 
