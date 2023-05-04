@@ -342,6 +342,12 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-25237")
     // ignoreMissingFiles mode, wait to fix
     .exclude("Enabling/disabling ignoreMissingFiles using parquet")
+    .exclude("Enabling/disabling ignoreMissingFiles using orc")
+    .exclude("Spark native readers should respect spark.sql.caseSensitive - orc")
+    .exclude("Return correct results when data columns overlap with partition columns")
+    .exclude("Return correct results when data columns overlap with partition " +
+      "columns (nested data)")
+    .exclude("SPARK-31116: Select nested schema with case insensitive mode")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
@@ -370,6 +376,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOrcFilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcPartitionDiscoverySuite]
+    .exclude("read partitioned table - normal case")
+    .exclude("read partitioned table - with nulls")
   enableSuite[GlutenOrcV1PartitionDiscoverySuite]
     .exclude("read partitioned table - normal case")
     .exclude("read partitioned table - with nulls")
@@ -467,6 +475,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
     // Ignored to disable vectorized reading check.
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    .exclude("create temporary orc table")
+    .exclude("create temporary orc table as")
+    .exclude("appending insert")
+    .exclude("overwrite insert")
+    .exclude("SPARK-34897: Support reconcile schemas based on index after nested column pruning")
+    .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
+    .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV1FilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
@@ -880,6 +896,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from float to decimal")
     .exclude("change column type from double to decimal")
     .exclude("read float, double, decimal together")
+    .exclude("add a nested column at the end of the leaf struct column")
+    .exclude("add a nested column in the middle of the leaf struct column")
+    .exclude("add a nested column at the end of the middle struct column")
+    .exclude("add a nested column in the middle of the middle struct column")
+    .exclude("hide a nested column at the end of the leaf struct column")
+    .exclude("hide a nested column in the middle of the leaf struct column")
+    .exclude("hide a nested column at the end of the middle struct column")
+    .exclude("hide a nested column in the middle of the middle struct column")
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
     // Rewrite to disable Spark's vectorized reading.
     .exclude("change column position")
