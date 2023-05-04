@@ -1,3 +1,4 @@
+#include "FallbackRangePartitioner.h"
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,25 +16,26 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include <jni.h>
-#include <string>
+#include "shuffle/FallbackRangePartitioner.h"
 
 namespace gluten {
-const std::string kGlutenSaveDir = "spark.gluten.saveDir";
+arrow::Status gluten::FallbackRangePartitioner::Compute(
+    const int32_t* pid_arr,
+    const int64_t num_rows,
+    std::vector<uint16_t>& partition_id,
+    std::vector<uint32_t>& partition_id_cnt) {
+  partition_id.resize(num_rows);
+  std::fill(std::begin(partition_id_cnt), std::end(partition_id_cnt), 0);
+  for (auto i = 0; i < num_rows; ++i) {
+    auto pid = pid_arr[i];
+    if (pid >= num_partitions_) {
+      return arrow::Status::Invalid(
+          "Partition id ", std::to_string(pid), " is equal or greater than ", std::to_string(num_partitions_));
+    }
+    partition_id[i] = pid;
+    partition_id_cnt[pid]++;
+  }
+  return arrow::Status::OK();
+}
 
-const std::string kCaseSensitive = "spark.sql.caseSensitive";
-
-const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
-
-const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
-
-const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
-
-const std::string kParquetBlockSize = "parquet.block.size";
-
-const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
-
-std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
 } // namespace gluten

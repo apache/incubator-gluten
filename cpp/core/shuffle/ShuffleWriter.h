@@ -122,6 +122,8 @@ class ShuffleWriter {
 
   class PartitionWriter;
 
+  class Partitioner;
+
  protected:
   ShuffleWriter(int32_t num_partitions, SplitOptions options)
       : num_partitions_(num_partitions), options_(std::move(options)) {}
@@ -154,5 +156,8 @@ class ShuffleWriter {
   std::shared_ptr<arrow::ResizableBuffer> combine_buffer_;
 
   std::shared_ptr<PartitionWriter> partition_writer_;
+
+  std::shared_ptr<Partitioner> partitioner_;
 };
+
 } // namespace gluten

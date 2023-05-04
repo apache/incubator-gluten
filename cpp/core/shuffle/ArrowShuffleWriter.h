@@ -27,12 +27,13 @@
 
 #include "jni/JniCommon.h"
 #include "shuffle/PartitionWriter.h"
+#include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/utils.h"
 #include "substrait/algebra.pb.h"
 
 namespace gluten {
-class ArrowShuffleWriter : public ShuffleWriter {
+class ArrowShuffleWriter final : public ShuffleWriter {
  protected:
   struct BinaryBuff {
     BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c, uint64_t f)
@@ -47,8 +48,7 @@ class ArrowShuffleWriter : public ShuffleWriter {
   };
 
  public:
-  static arrow::Result<std::shared_ptr<ArrowShuffleWriter>>
-  Make(const std::string& short_name, int num_partitions, SplitOptions options = SplitOptions::Defaults());
+  static arrow::Result<std::shared_ptr<ArrowShuffleWriter>> Create(uint32_t num_partitions, SplitOptions options);
 
   typedef uint32_t row_offset_type;
 
@@ -57,14 +57,14 @@ class ArrowShuffleWriter : public ShuffleWriter {
    * partition id. The largest partition buffer will be evicted if memory
    * allocation failure occurs.
    */
-  virtual arrow::Status Split(ColumnarBatch* cb);
+  arrow::Status Split(ColumnarBatch* cb) override;
 
   /**
    * For each partition, merge evicted file into shuffle data file and write any
    * cached record batch to shuffle data file. Close all resources and collect
    * metrics.
    */
-  virtual arrow::Status Stop();
+  arrow::Status Stop() override;
 
   /**
    * Evict specified partition
@@ -76,9 +76,9 @@ class ArrowShuffleWriter : public ShuffleWriter {
   /**
    * Evict for fixed size of partition data from memory
    */
-  arrow::Status EvictFixedSize(int64_t size, int64_t* actual);
+  arrow::Status EvictFixedSize(int64_t size, int64_t* actual) override;
 
-  arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers);
+  arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers) override;
 
   /**
    * Evict the largest partition buffer
@@ -98,13 +98,11 @@ class ArrowShuffleWriter : public ShuffleWriter {
  protected:
   ArrowShuffleWriter(int32_t num_partitions, SplitOptions options) : ShuffleWriter(num_partitions, options) {}
 
-  virtual arrow::Status Init();
+  arrow::Status Init();
 
   arrow::Status InitColumnType();
 
-  virtual arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) = 0;
-
-  virtual arrow::Status DoSplit(const arrow::RecordBatch& rb);
+  arrow::Status DoSplit(const arrow::RecordBatch& rb);
 
   row_offset_type CalculateSplitBatchSize(const arrow::RecordBatch& rb);
 
@@ -146,6 +144,8 @@ class ArrowShuffleWriter : public ShuffleWriter {
       const std::shared_ptr<arrow::Array>& src_arr,
       const std::vector<std::shared_ptr<arrow::ArrayBuilder>>& dst_builders,
       int64_t num_rows);
+
+  arrow::Result<const int32_t*> GetFirstColumn(const arrow::RecordBatch& rb);
 
   arrow::Status CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch);
 
@@ -208,66 +208,6 @@ class ArrowShuffleWriter : public ShuffleWriter {
   arrow::ipc::IpcWriteOptions tiny_bach_write_options_;
 
   std::vector<std::shared_ptr<arrow::DataType>> column_type_id_;
-};
-
-class ArrowRoundRobinShuffleWriter final : public ArrowShuffleWriter {
- public:
-  static arrow::Result<std::shared_ptr<ArrowRoundRobinShuffleWriter>> Create(
-      int32_t num_partitions,
-      SplitOptions options);
-
- private:
-  ArrowRoundRobinShuffleWriter(int32_t num_partitions, SplitOptions options)
-      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
-
-  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
-
-  int32_t pid_selection_ = 0;
-};
-
-class ArrowSinglePartShuffleWriter final : public ArrowShuffleWriter {
- public:
-  static arrow::Result<std::shared_ptr<ArrowSinglePartShuffleWriter>> Create(
-      int32_t num_partitions,
-      SplitOptions options);
-
- private:
-  ArrowSinglePartShuffleWriter(int32_t num_partitions, SplitOptions options)
-      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
-
-  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
-
-  arrow::Status Split(ColumnarBatch* cb) override;
-
-  arrow::Status Init() override;
-};
-
-class ArrowHashShuffleWriter final : public ArrowShuffleWriter {
- public:
-  static arrow::Result<std::shared_ptr<ArrowHashShuffleWriter>> Create(int32_t num_partitions, SplitOptions options);
-
- private:
-  ArrowHashShuffleWriter(int32_t num_partitions, SplitOptions options)
-      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
-
-  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
-
-  arrow::Status Split(ColumnarBatch* cb) override;
-};
-
-class ArrowFallbackRangeShuffleWriter final : public ArrowShuffleWriter {
- public:
-  static arrow::Result<std::shared_ptr<ArrowFallbackRangeShuffleWriter>> Create(
-      int32_t num_partitions,
-      SplitOptions options);
-
-  arrow::Status Split(ColumnarBatch* cb) override;
-
- private:
-  ArrowFallbackRangeShuffleWriter(int32_t num_partitions, SplitOptions options)
-      : ArrowShuffleWriter(num_partitions, std::move(options)) {}
-
-  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 };
 
 } // namespace gluten

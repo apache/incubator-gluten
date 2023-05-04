@@ -187,6 +187,11 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/reader.cc
         shuffle/ArrowShuffleWriter.cc
         operators/writer/ArrowWriter.cc
+        shuffle/Partitioner.cc
+        shuffle/FallbackRangePartitioner.cc
+        shuffle/HashPartitioner.cc
+        shuffle/RoundRobinPartitioner.cc
+        shuffle/SinglePartPartitioner.cc
         shuffle/PartitionWriter.cc
         shuffle/LocalPartitionWriter.cc
         shuffle/rss/RemotePartitionWriter.cc

@@ -38,6 +38,7 @@ trait BackendSettings {
   def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getConf.enableColumnarShuffle
   }
+  def enableJoinKeysRewrite(): Boolean = true
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     case _: InnerLike | RightOuter | FullOuter => true
     case _ => false
@@ -66,6 +67,12 @@ trait BackendSettings {
   def avoidOverwritingFilterTransformer(): Boolean = false
   def fallbackFilterWithoutConjunctiveScan(): Boolean = false
   def rescaleDecimalLiteral(): Boolean = false
+
+  /**
+   * Whether to replace sort agg with hash agg., e.g., sort agg will be used in
+   * spark's planning for string type input.
+   */
+  def replaceSortAggWithHashAgg: Boolean = false
 
   /**
    * Get the config prefix for each backend

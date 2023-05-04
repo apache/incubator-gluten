@@ -69,6 +69,8 @@ struct SplitOptions {
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
+  std::string partitioning_name;
+
   static SplitOptions Defaults();
 };
 

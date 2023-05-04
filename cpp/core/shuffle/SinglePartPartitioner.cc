@@ -15,25 +15,16 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include <jni.h>
-#include <string>
+#include "shuffle/SinglePartPartitioner.h"
 
 namespace gluten {
-const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
-const std::string kCaseSensitive = "spark.sql.caseSensitive";
-
-const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
-
-const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
-
-const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
-
-const std::string kParquetBlockSize = "parquet.block.size";
-
-const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
-
-std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
+arrow::Status gluten::SinglePartPartitioner::Compute(
+    const int32_t* pid_arr,
+    const int64_t num_rows,
+    std::vector<uint16_t>& partition_id,
+    std::vector<uint32_t>& partition_id_cnt) {
+  // nothing is need do here
+  return arrow::Status::OK();
+}
 } // namespace gluten

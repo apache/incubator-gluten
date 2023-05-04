@@ -118,6 +118,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
+      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
+      // We can enable the below test for spark 3.4 and higher versions.
+      "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables"
   )
@@ -266,6 +269,12 @@ class VeloxTestSettings extends BackendTestSettings {
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenBroadcastJoinSuite]
+    .exclude("Shouldn't change broadcast join buildSide if user clearly specified")
+    .exclude("Shouldn't bias towards build right if user didn't specify")
+    .exclude("SPARK-23192: broadcast hint should be retained after using the cached data")
+    .exclude("broadcast hint isn't propagated after a join")
+    .exclude("broadcast join where streamed side's output partitioning is HashPartitioning")
+    .exclude("broadcast join where streamed side's output partitioning is PartitioningCollection")
   enableSuite[GlutenSQLQuerySuite]
     // Unstable. Needs to be fixed.
     .exclude("SPARK-36093: RemoveRedundantAliases should not change expression's name")

@@ -180,7 +180,7 @@ launch.json example
       "type": "cppdbg",
       "request": "launch",
       "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/tests/velox_shuffle_writer_test",
-      "args": ["--gtest_filter=*TestSingleShuffleWriter*"],
+      "args": ["--gtest_filter=*TestSinglePartPartitioner*"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

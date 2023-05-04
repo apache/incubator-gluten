@@ -103,6 +103,9 @@ object VeloxBackendSettings extends BackendSettings {
     GlutenConfig.getConf.isUseColumnarShuffleManager ||
       GlutenConfig.getConf.isUseCelebornShuffleManager
   }
+
+  override def enableJoinKeysRewrite(): Boolean = false
+
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>
       if (super.supportHashBuildJoinTypeOnLeft(t)) {
@@ -167,6 +170,8 @@ object VeloxBackendSettings extends BackendSettings {
   override def recreateJoinExecOnFallback(): Boolean = true
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
   override def rescaleDecimalLiteral(): Boolean = true
+
+  override def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
   /**
    * Get the config prefix for each backend

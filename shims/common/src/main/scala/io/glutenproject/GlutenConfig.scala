@@ -55,6 +55,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarHashAgg: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.hashagg", "true").toBoolean
 
+  // Whether to force to use gluten's hash agg for replacing vanilla spark's sort agg.
+  def forceToUseHashAgg: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.force.hashagg", "true").toBoolean
+
   // enable or disable columnar project
   def enableColumnarProject: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.project", "true").toBoolean
@@ -191,8 +195,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleBatchCompressThreshold: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
 
-  def shuffleSplitDefaultSize: Int =
-    conf.getConfString("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
+  def maxBatchSize: Int =
+    conf.getConfString("spark.gluten.sql.columnar.maxBatchSize", "4096").toInt
 
   def enableCoalesceBatches: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
