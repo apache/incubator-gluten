@@ -79,25 +79,12 @@ bool VectorHasNull(const velox::VectorPtr& vp) {
 } // namespace
 
 // VeloxShuffleWriter
-arrow::Result<std::shared_ptr<VeloxShuffleWriter>>
-VeloxShuffleWriter::Make(const std::string& name, uint32_t num_partitions, SplitOptions options) {
-  std::shared_ptr<VeloxShuffleWriter> shuffle_writer = nullptr;
-  if (name == "hash") {
-    shuffle_writer = VeloxShuffleWriter::Create<VeloxHashShuffleWriter>(num_partitions, options);
-  } else if (name == "rr") {
-    shuffle_writer = VeloxShuffleWriter::Create<VeloxRoundRobinShuffleWriter>(num_partitions, options);
-  } else if (name == "range") {
-    shuffle_writer = VeloxShuffleWriter::Create<VeloxFallbackRangeShuffleWriter>(num_partitions, options);
-  } else if (name == "single") {
-    shuffle_writer = VeloxShuffleWriter::Create<VeloxSinglePartShuffleWriter>(num_partitions, options);
-  }
-
-  if (!shuffle_writer) {
-    return arrow::Status::NotImplemented("Partitioning " + name + " not supported yet.");
-  } else {
-    RETURN_NOT_OK(shuffle_writer->Init());
-    return shuffle_writer;
-  }
+arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::Create(
+    uint32_t num_partitions,
+    SplitOptions options) {
+  std::shared_ptr<VeloxShuffleWriter> res(new VeloxShuffleWriter(num_partitions, std::move(options)));
+  RETURN_NOT_OK(res->Init());
+  return res;
 }
 
 arrow::Status VeloxShuffleWriter::Init() {
@@ -115,13 +102,18 @@ arrow::Status VeloxShuffleWriter::Init() {
 
   ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
 
-  partition_2_row_count_.resize(num_partitions_);
+  ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::Make(options_.partitioning_name, num_partitions_));
 
   // pre-allocated buffer size for each partition, unit is row count
-  partition_2_buffer_size_.resize(num_partitions_);
+  // when partitioner is SinglePart, partial variables don`t need init
+  if (options_.partitioning_name != "single") {
+    partition_2_row_count_.resize(num_partitions_);
+    partition_2_buffer_size_.resize(num_partitions_);
+    partition_buffer_idx_offset_.resize(num_partitions_);
+    partition_2_row_offset_.resize(num_partitions_ + 1);
+  }
 
   partition_buffer_idx_base_.resize(num_partitions_);
-  partition_buffer_idx_offset_.resize(num_partitions_);
 
   partition_cached_recordbatch_.resize(num_partitions_);
   partition_cached_recordbatch_size_.resize(num_partitions_);
@@ -129,15 +121,16 @@ arrow::Status VeloxShuffleWriter::Init() {
   partition_lengths_.resize(num_partitions_);
   raw_partition_lengths_.resize(num_partitions_);
 
-  partition_2_row_offset_.resize(num_partitions_ + 1);
-
   RETURN_NOT_OK(SetCompressType(options_.compression_type));
 
   RETURN_NOT_OK(InitIpcWriteOptions());
 
   // Allocate first buffer for split reducer
-  ARROW_ASSIGN_OR_RAISE(combine_buffer_, arrow::AllocateResizableBuffer(0, options_.memory_pool.get()));
-  RETURN_NOT_OK(combine_buffer_->Resize(0, /*shrink_to_fit =*/false));
+  // when partitioner is SinglePart, don`t need init combine_buffer_
+  if (options_.partitioning_name != "single") {
+    ARROW_ASSIGN_OR_RAISE(combine_buffer_, arrow::AllocateResizableBuffer(0, options_.memory_pool.get()));
+    RETURN_NOT_OK(combine_buffer_->Resize(0, /*shrink_to_fit =*/false));
+  }
 
   return arrow::Status::OK();
 }
@@ -191,10 +184,30 @@ arrow::Status VeloxShuffleWriter::SetCompressType(arrow::Compression::type compr
 
 arrow::Status VeloxShuffleWriter::Split(ColumnarBatch* cb) {
   auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
-  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
-  RETURN_NOT_OK(InitFromRowVector(rv));
-  RETURN_NOT_OK(Partition(rv));
-  RETURN_NOT_OK(DoSplit(rv));
+  if (options_.partitioning_name == "single") {
+    auto vp = veloxColumnBatch->getFlattenedRowVector();
+    RETURN_NOT_OK(InitFromRowVector(*vp));
+    // 1. convert RowVector to RecordBatch
+    ArrowArray arrowArray;
+    velox::exportToArrow(vp, arrowArray, GetDefaultLeafWrappedVeloxMemoryPool().get());
+
+    auto result = arrow::ImportRecordBatch(&arrowArray, schema_);
+    RETURN_NOT_OK(result);
+
+    // 2. call CacheRecordBatch with RecordBatch
+    RETURN_NOT_OK(CacheRecordBatch(0, *(*result)));
+  } else {
+    auto& rv = *veloxColumnBatch->getFlattenedRowVector();
+    RETURN_NOT_OK(InitFromRowVector(rv));
+    ARROW_ASSIGN_OR_RAISE(auto pid_arr, GetFirstColumn(rv));
+    RETURN_NOT_OK(partitioner_->Compute(pid_arr, rv.size(), row_2_partition_, partition_2_row_count_));
+    if (partitioner_->HasPid()) {
+      auto stripped_rv = GetStrippedRowVector(rv);
+      RETURN_NOT_OK(DoSplit(stripped_rv));
+    } else {
+      RETURN_NOT_OK(DoSplit(rv));
+    }
+  }
   return arrow::Status::OK();
 }
 
@@ -714,9 +727,20 @@ arrow::Status VeloxShuffleWriter::VeloxType2ArrowSchema(const velox::TypePtr& ty
 }
 
 arrow::Status VeloxShuffleWriter::InitColumnTypes(const velox::RowVector& rv) {
-  if (velox_column_types_.empty()) {
-    for (size_t i = 0; i < rv.childrenSize(); ++i) {
+  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
+
+  // remove the first column
+  if (partitioner_->HasPid()) {
+    ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
+    // skip the first column
+    for (size_t i = 1; i < rv.childrenSize(); ++i) {
       velox_column_types_.push_back(rv.childAt(i)->type());
+    }
+  } else {
+    if (velox_column_types_.empty()) {
+      for (size_t i = 0; i < rv.childrenSize(); ++i) {
+        velox_column_types_.push_back(rv.childAt(i)->type());
+      }
     }
   }
 
@@ -1196,195 +1220,27 @@ arrow::Status VeloxShuffleWriter::EvictPartition(uint32_t partition_id) {
   return arrow::Status::OK();
 }
 
-// VeloxRoundRobinShuffleWriter
-arrow::Status VeloxRoundRobinShuffleWriter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
-
-  return VeloxShuffleWriter::InitColumnTypes(rv);
-}
-
-arrow::Status VeloxRoundRobinShuffleWriter::Partition(const velox::RowVector& rv) {
-  std::fill(std::begin(partition_2_row_count_), std::end(partition_2_row_count_), 0);
-  row_2_partition_.resize(rv.size());
-  for (auto& pid : row_2_partition_) {
-    pid = pid_selection_;
-    partition_2_row_count_[pid_selection_]++;
-    pid_selection_ = (pid_selection_ + 1) == num_partitions_ ? 0 : (pid_selection_ + 1);
-  }
-  return arrow::Status::OK();
-}
-
-// VeloxSinglePartShuffleWriter
-arrow::Status VeloxSinglePartShuffleWriter::Init() {
-  ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
-  partition_buffer_idx_base_.resize(num_partitions_);
-  partition_cached_recordbatch_.resize(num_partitions_);
-  partition_cached_recordbatch_size_.resize(num_partitions_);
-  partition_lengths_.resize(num_partitions_);
-  raw_partition_lengths_.resize(num_partitions_);
-
-  RETURN_NOT_OK(SetCompressType(options_.compression_type));
-
-  RETURN_NOT_OK(InitIpcWriteOptions());
-
-  return arrow::Status::OK();
-}
-
-arrow::Status VeloxSinglePartShuffleWriter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
-  return VeloxShuffleWriter::InitColumnTypes(rv);
-}
-
-arrow::Status VeloxSinglePartShuffleWriter::Partition(const velox::RowVector& rv) {
-  // nothing is need do here
-  return arrow::Status::OK();
-}
-
-arrow::Status VeloxSinglePartShuffleWriter::Split(ColumnarBatch* cb) {
-  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
-  auto vp = veloxColumnBatch->getFlattenedRowVector();
-  RETURN_NOT_OK(InitFromRowVector(*vp));
-  // 1. convert RowVector to RecordBatch
-  ArrowArray arrowArray;
-  velox::exportToArrow(vp, arrowArray, GetDefaultLeafWrappedVeloxMemoryPool().get());
-
-  auto result = arrow::ImportRecordBatch(&arrowArray, schema_);
-  RETURN_NOT_OK(result);
-
-  // 2. call CacheRecordBatch with RecordBatch
-  RETURN_NOT_OK(CacheRecordBatch(0, *(*result)));
-
-  return arrow::Status::OK();
-}
-
-// VeloxHashShuffleWriter
-arrow::Status VeloxHashShuffleWriter::Partition(const velox::RowVector& rv) {
-  if (rv.childrenSize() == 0) {
-    return arrow::Status::Invalid("RowVector missing partition id column.");
-  }
-
-  auto& firstChild = rv.childAt(0);
-  if (!firstChild->type()->isInteger()) {
-    return arrow::Status::Invalid("RecordBatch field 0 should be integer");
-  }
-
-  // first column is partition key hash value
-  using NativeType = velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType;
-  auto pid_flat_vector = firstChild->asFlatVector<NativeType>();
-  if (pid_flat_vector == nullptr) {
-    return arrow::Status::Invalid("failed to cast rv.column(0), this column should be hash_partition_key");
-  }
-
-  auto num_rows = rv.size();
-  row_2_partition_.resize(num_rows);
-  std::fill(std::begin(partition_2_row_count_), std::end(partition_2_row_count_), 0);
-
-  auto raw_values = pid_flat_vector->rawValues();
-  for (auto i = 0; i < num_rows; ++i) {
-    auto pid = raw_values[i] % num_partitions_;
-#if defined(__x86_64__)
-    // force to generate ASM
-    __asm__(
-        "lea (%[num_partitions],%[pid],1),%[tmp]\n"
-        "test %[pid],%[pid]\n"
-        "cmovs %[tmp],%[pid]\n"
-        : [pid] "+r"(pid)
-        : [num_partitions] "r"(num_partitions_), [tmp] "r"(0));
-#else
-    if (pid < 0) {
-      pid += num_partitions_;
+arrow::Result<const int32_t*> VeloxShuffleWriter::GetFirstColumn(const velox::RowVector& rv) {
+  if (partitioner_->HasPid()) {
+    if (rv.childrenSize() == 0) {
+      return arrow::Status::Invalid("RowVector missing partition id column.");
     }
-#endif
-    row_2_partition_[i] = pid;
-    partition_2_row_count_[pid]++;
-  }
 
-  PrintPartition();
-
-  return arrow::Status::OK();
-}
-
-arrow::Status VeloxHashShuffleWriter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
-
-  // remove the first column
-  ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
-
-  // skip the first column
-  for (size_t i = 1; i < rv.childrenSize(); ++i) {
-    velox_column_types_.push_back(rv.childAt(i)->type());
-  }
-
-  return VeloxShuffleWriter::InitColumnTypes(rv);
-}
-
-arrow::Status VeloxHashShuffleWriter::Split(ColumnarBatch* cb) {
-  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
-  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
-  RETURN_NOT_OK(InitFromRowVector(rv));
-  RETURN_NOT_OK(Partition(rv));
-  auto stripped_rv = GetStrippedRowVector(rv);
-  RETURN_NOT_OK(DoSplit(stripped_rv));
-  return arrow::Status::OK();
-}
-
-// VeloxFallbackRangeShuffleWriter
-arrow::Status VeloxFallbackRangeShuffleWriter::InitColumnTypes(const velox::RowVector& rv) {
-  RETURN_NOT_OK(VeloxType2ArrowSchema(rv.type()));
-
-  // remove the first column
-  ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
-
-  // skip the first column
-  for (size_t i = 1; i < rv.childrenSize(); ++i) {
-    velox_column_types_.push_back(rv.childAt(i)->type());
-  }
-
-  return VeloxShuffleWriter::InitColumnTypes(rv);
-}
-
-arrow::Status VeloxFallbackRangeShuffleWriter::Partition(const velox::RowVector& rv) {
-  if (rv.childrenSize() == 0) {
-    return arrow::Status::Invalid("RowVector missing partition id column.");
-  }
-
-  auto& firstChild = rv.childAt(0);
-  if (!firstChild->type()->isInteger()) {
-    return arrow::Status::Invalid("RowVector field 0 should be integer");
-  }
-
-  using NativeType = velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType;
-  auto pid_flat_vector = firstChild->asFlatVector<NativeType>();
-  if (pid_flat_vector == nullptr) {
-    return arrow::Status::Invalid("failed to cast rv.column(0), this column should be pid key");
-  }
-
-  auto num_rows = rv.size();
-  row_2_partition_.resize(num_rows);
-  std::fill(std::begin(partition_2_row_count_), std::end(partition_2_row_count_), 0);
-
-  auto raw_values = pid_flat_vector->rawValues();
-  for (auto i = 0; i < num_rows; ++i) {
-    uint32_t pid = raw_values[i];
-    if (pid >= num_partitions_) {
-      return arrow::Status::Invalid(
-          "Partition id ", std::to_string(pid), " is equal or greater than ", std::to_string(num_partitions_));
+    auto& firstChild = rv.childAt(0);
+    if (!firstChild->type()->isInteger()) {
+      return arrow::Status::Invalid("RecordBatch field 0 should be integer");
     }
-    row_2_partition_[i] = pid;
-    partition_2_row_count_[pid]++;
+
+    // first column is partition key hash value
+    using NativeType = velox::TypeTraits<velox::TypeKind::INTEGER>::NativeType;
+    auto pid_flat_vector = firstChild->asFlatVector<NativeType>();
+    if (pid_flat_vector == nullptr) {
+      return arrow::Status::Invalid("failed to cast rv.column(0), this column should be pid");
+    }
+    return pid_flat_vector->rawValues();
+  } else {
+    return nullptr;
   }
-
-  return arrow::Status::OK();
-}
-
-arrow::Status VeloxFallbackRangeShuffleWriter::Split(ColumnarBatch* cb) {
-  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
-  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
-  RETURN_NOT_OK(InitFromRowVector(rv));
-  RETURN_NOT_OK(Partition(rv));
-  auto stripped_rv = GetStrippedRowVector(rv);
-  RETURN_NOT_OK(DoSplit(stripped_rv));
-  return arrow::Status::OK();
 }
 
 } // namespace gluten

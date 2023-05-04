@@ -29,6 +29,7 @@
 #include <arm_neon.h>
 #endif
 
+#include "ArrowShuffleWriter.h"
 #include "compute/ProtobufUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
@@ -87,20 +88,13 @@ SplitOptions SplitOptions::Defaults() {
 // ----------------------------------------------------------------------
 // ArrowShuffleWriter
 
-arrow::Result<std::shared_ptr<ArrowShuffleWriter>>
-ArrowShuffleWriter::Make(const std::string& short_name, int num_partitions, SplitOptions options) {
-  if (short_name == "hash") {
-    return ArrowHashShuffleWriter::Create(num_partitions, std::move(options));
-  } else if (short_name == "rr") {
-    return ArrowRoundRobinShuffleWriter::Create(num_partitions, std::move(options));
-  } else if (short_name == "range") {
-    return ArrowFallbackRangeShuffleWriter::Create(num_partitions, std::move(options));
-  } else if (short_name == "single") {
-    return ArrowSinglePartShuffleWriter::Create(1, std::move(options));
-  }
-  return arrow::Status::NotImplemented("Partitioning " + short_name + " not supported yet.");
+arrow::Result<std::shared_ptr<ArrowShuffleWriter>> ArrowShuffleWriter::Create(
+    uint32_t num_partitions,
+    SplitOptions options) {
+  std::shared_ptr<ArrowShuffleWriter> res(new ArrowShuffleWriter(num_partitions, std::move(options)));
+  RETURN_NOT_OK(res->Init());
+  return res;
 }
-
 arrow::Status ArrowShuffleWriter::InitColumnType() {
   ARROW_ASSIGN_OR_RAISE(column_type_id_, ToShuffleWriterTypeId(schema_->fields()));
   std::vector<int32_t> binary_array_idx;
@@ -175,21 +169,26 @@ arrow::Status ArrowShuffleWriter::Init() {
 
   ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
 
-  // pre-computed row count for each partition after the record batch split
-  partition_id_cnt_.resize(num_partitions_);
-  // pre-allocated buffer size for each partition, unit is row count
-  partition_buffer_size_.resize(num_partitions_);
+  ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::Make(options_.partitioning_name, num_partitions_));
+
+  // when partitioner is SinglePart, partial variables don`t need init
+  if (options_.partitioning_name != "single") {
+    // pre-computed row count for each partition after the record batch split
+    partition_id_cnt_.resize(num_partitions_);
+    // pre-allocated buffer size for each partition, unit is row count
+    partition_buffer_size_.resize(num_partitions_);
+    // the offset of each partition during record batch split
+    partition_buffer_idx_offset_.resize(num_partitions_);
+    reducer_offset_offset_.resize(num_partitions_ + 1);
+  }
 
   // start index for each partition when new record batch starts to split
   partition_buffer_idx_base_.resize(num_partitions_);
-  // the offset of each partition during record batch split
-  partition_buffer_idx_offset_.resize(num_partitions_);
 
   partition_cached_recordbatch_.resize(num_partitions_);
   partition_cached_recordbatch_size_.resize(num_partitions_);
   partition_lengths_.resize(num_partitions_);
   raw_partition_lengths_.resize(num_partitions_);
-  reducer_offset_offset_.resize(num_partitions_ + 1);
 
   RETURN_NOT_OK(SetCompressType(options_.compression_type));
 
@@ -202,8 +201,11 @@ arrow::Status ArrowShuffleWriter::Init() {
   tiny_bach_write_options_.codec = nullptr;
 
   // Allocate first buffer for split reducer
-  ARROW_ASSIGN_OR_RAISE(combine_buffer_, arrow::AllocateResizableBuffer(0, options_.memory_pool.get()));
-  RETURN_NOT_OK(combine_buffer_->Resize(0, /*shrink_to_fit =*/false));
+  // when partitioner is SinglePart, don`t need init combine_buffer_
+  if (options_.partitioning_name != "single") {
+    ARROW_ASSIGN_OR_RAISE(combine_buffer_, arrow::AllocateResizableBuffer(0, options_.memory_pool.get()));
+    RETURN_NOT_OK(combine_buffer_->Resize(0, /*shrink_to_fit =*/false));
+  }
 
   return arrow::Status::OK();
 }
@@ -236,12 +238,29 @@ arrow::Status ArrowShuffleWriter::Split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
   ARROW_ASSIGN_OR_RAISE(
       auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
-  if (schema_ == nullptr) {
-    schema_ = rb->schema();
-    RETURN_NOT_OK(InitColumnType());
+  if (!partitioner_->HasPid()) {
+    if (schema_ == nullptr) {
+      schema_ = rb->schema();
+      RETURN_NOT_OK(InitColumnType());
+    }
   }
-  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
-  RETURN_NOT_OK(DoSplit(*rb));
+
+  if (options_.partitioning_name == "single") {
+    RETURN_NOT_OK(CacheRecordBatch(0, *rb));
+  } else {
+    ARROW_ASSIGN_OR_RAISE(auto pid_arr, GetFirstColumn(*rb));
+    RETURN_NOT_OK(partitioner_->Compute(pid_arr, rb->num_rows(), partition_id_, partition_id_cnt_));
+    if (partitioner_->HasPid()) {
+      ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb->RemoveColumn(0));
+      if (schema_ == nullptr) {
+        schema_ = remove_pid->schema();
+        RETURN_NOT_OK(InitColumnType());
+      }
+      RETURN_NOT_OK(DoSplit(*remove_pid));
+    } else {
+      RETURN_NOT_OK(DoSplit(*rb));
+    }
+  }
   EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
 }
@@ -1109,189 +1128,29 @@ arrow::Status ArrowShuffleWriter::AppendList(
   return arrow::Status::OK();
 }
 
-// ----------------------------------------------------------------------
-// ArrowRoundRobinShuffleWriter
-
-arrow::Result<std::shared_ptr<ArrowRoundRobinShuffleWriter>> ArrowRoundRobinShuffleWriter::Create(
-    int32_t num_partitions,
-    SplitOptions options) {
-  std::shared_ptr<ArrowRoundRobinShuffleWriter> res(
-      new ArrowRoundRobinShuffleWriter(num_partitions, std::move(options)));
-  RETURN_NOT_OK(res->Init());
-  return res;
-}
-
-arrow::Status ArrowRoundRobinShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
-  std::fill(std::begin(partition_id_cnt_), std::end(partition_id_cnt_), 0);
-  partition_id_.resize(rb.num_rows());
-  for (auto& pid : partition_id_) {
-    pid = pid_selection_;
-    partition_id_cnt_[pid_selection_]++;
-    pid_selection_ = (pid_selection_ + 1) == num_partitions_ ? 0 : (pid_selection_ + 1);
-  }
-  return arrow::Status::OK();
-}
-
-// ----------------------------------------------------------------------
-// ArrowSinglePartShuffleWriter
-
-arrow::Result<std::shared_ptr<ArrowSinglePartShuffleWriter>> ArrowSinglePartShuffleWriter::Create(
-    int32_t num_partitions,
-    SplitOptions options) {
-  std::shared_ptr<ArrowSinglePartShuffleWriter> res(
-      new ArrowSinglePartShuffleWriter(num_partitions, std::move(options)));
-  RETURN_NOT_OK(res->Init());
-  return res;
-}
-
-arrow::Status ArrowSinglePartShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
-  return arrow::Status::OK();
-}
-
-arrow::Status ArrowSinglePartShuffleWriter::Init() {
-  ARROW_ASSIGN_OR_RAISE(partition_writer_, PartitionWriter::Make(this, num_partitions_));
-  partition_buffer_idx_base_.resize(num_partitions_);
-  partition_cached_recordbatch_.resize(num_partitions_);
-  partition_cached_recordbatch_size_.resize(num_partitions_);
-  partition_lengths_.resize(num_partitions_);
-  raw_partition_lengths_.resize(num_partitions_);
-
-  RETURN_NOT_OK(SetCompressType(options_.compression_type));
-
-  auto& ipc_write_options = options_.ipc_write_options;
-  ipc_write_options.memory_pool = options_.memory_pool.get();
-  ipc_write_options.use_threads = false;
-
-  // initialize tiny batch write options
-  tiny_bach_write_options_ = ipc_write_options;
-  tiny_bach_write_options_.codec = nullptr;
-
-  return arrow::Status::OK();
-}
-
-arrow::Status ArrowSinglePartShuffleWriter::Split(ColumnarBatch* batch) {
-  ARROW_ASSIGN_OR_RAISE(
-      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
-  EVAL_START("split", options_.thread_id)
-  if (schema_ == nullptr) {
-    schema_ = rb->schema();
-    RETURN_NOT_OK(InitColumnType());
-  }
-  RETURN_NOT_OK(CacheRecordBatch(0, *rb));
-  EVAL_END("split", options_.thread_id, options_.task_attempt_id)
-  return arrow::Status::OK();
-}
-
-// ----------------------------------------------------------------------
-// ArrowHashShuffleWriter
-
-arrow::Result<std::shared_ptr<ArrowHashShuffleWriter>> ArrowHashShuffleWriter::Create(
-    int32_t num_partitions,
-    SplitOptions options) {
-  std::shared_ptr<ArrowHashShuffleWriter> res(new ArrowHashShuffleWriter(num_partitions, std::move(options)));
-  RETURN_NOT_OK(res->Init());
-  return res;
-}
-
-arrow::Status ArrowHashShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
-  if (rb.num_columns() == 0) {
-    return arrow::Status::Invalid("Recordbatch missing partition id column.");
-  }
-  if (rb.column(0)->type_id() != arrow::Type::INT32) {
-    return arrow::Status::Invalid(
-        "RecordBatch field 0 should be ", arrow::int32()->ToString(), ", actual is ", rb.column(0)->type()->ToString());
-  }
-  auto num_rows = rb.num_rows();
-  partition_id_.resize(num_rows);
-  std::fill(std::begin(partition_id_cnt_), std::end(partition_id_cnt_), 0);
-  // first column is partition key hash value
-  auto pid_arr = std::dynamic_pointer_cast<arrow::Int32Array>(rb.column(0));
-  if (pid_arr == nullptr) {
-    return arrow::Status::Invalid("failed to cast rb.column(0), this column should be hash_partition_key");
-  }
-  for (auto i = 0; i < num_rows; ++i) {
-    // positive mod
-    auto pid = pid_arr->Value(i) % num_partitions_;
-#if defined(__x86_64__)
-    // force to generate ASM
-    __asm__(
-        "lea (%[num_partitions],%[pid],1),%[tmp]\n"
-        "test %[pid],%[pid]\n"
-        "cmovs %[tmp],%[pid]\n"
-        : [pid] "+r"(pid)
-        : [num_partitions] "r"(num_partitions_), [tmp] "r"(0));
-#else
-    if (pid < 0)
-      pid += num_partitions_;
-#endif
-    partition_id_[i] = pid;
-    partition_id_cnt_[pid]++;
-  }
-  return arrow::Status::OK();
-}
-
-arrow::Status ArrowHashShuffleWriter::Split(ColumnarBatch* batch) {
-  EVAL_START("split", options_.thread_id)
-  ARROW_ASSIGN_OR_RAISE(
-      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
-  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
-  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb->RemoveColumn(0));
-  if (schema_ == nullptr) {
-    schema_ = remove_pid->schema();
-    RETURN_NOT_OK(InitColumnType());
-  }
-  RETURN_NOT_OK(DoSplit(*remove_pid));
-  EVAL_END("split", options_.thread_id, options_.task_attempt_id)
-  return arrow::Status::OK();
-}
-
-// ----------------------------------------------------------------------
-// ArrowFallBackRangeShuffleWriter
-
-arrow::Result<std::shared_ptr<ArrowFallbackRangeShuffleWriter>> ArrowFallbackRangeShuffleWriter::Create(
-    int32_t num_partitions,
-    SplitOptions options) {
-  auto res = std::shared_ptr<ArrowFallbackRangeShuffleWriter>(
-      new ArrowFallbackRangeShuffleWriter(num_partitions, std::move(options)));
-  RETURN_NOT_OK(res->Init());
-  return res;
-}
-
-arrow::Status ArrowFallbackRangeShuffleWriter::Split(ColumnarBatch* batch) {
-  EVAL_START("split", options_.thread_id)
-  ARROW_ASSIGN_OR_RAISE(
-      auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));
-  RETURN_NOT_OK(ComputeAndCountPartitionId(*rb));
-  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb->RemoveColumn(0));
-  if (schema_ == nullptr) {
-    schema_ = remove_pid->schema();
-    RETURN_NOT_OK(InitColumnType());
-  }
-  RETURN_NOT_OK(DoSplit(*remove_pid));
-  EVAL_END("split", options_.thread_id, options_.task_attempt_id)
-  return arrow::Status::OK();
-}
-
-arrow::Status ArrowFallbackRangeShuffleWriter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
-  if (rb.column(0)->type_id() != arrow::Type::INT32) {
-    return arrow::Status::Invalid(
-        "RecordBatch field 0 should be ", arrow::int32()->ToString(), ", actual is ", rb.column(0)->type()->ToString());
-  }
-
-  auto pid_arr = reinterpret_cast<const int32_t*>(rb.column_data(0)->buffers[1]->data());
-  auto num_rows = rb.num_rows();
-  partition_id_.resize(num_rows);
-  std::fill(std::begin(partition_id_cnt_), std::end(partition_id_cnt_), 0);
-  for (auto i = 0; i < num_rows; ++i) {
-    auto pid = pid_arr[i];
-    if (pid >= num_partitions_) {
-      return arrow::Status::Invalid(
-          "Partition id ", std::to_string(pid), " is equal or greater than ", std::to_string(num_partitions_));
+arrow::Result<const int32_t*> ArrowShuffleWriter::GetFirstColumn(const arrow::RecordBatch& rb) {
+  if (partitioner_->HasPid()) {
+    if (rb.num_columns() == 0) {
+      return arrow::Status::Invalid("Recordbatch missing partition id column.");
     }
-    partition_id_[i] = pid;
-    partition_id_cnt_[pid]++;
+
+    if (rb.column(0)->type_id() != arrow::Type::INT32) {
+      return arrow::Status::Invalid(
+          "RecordBatch field 0 should be ",
+          arrow::int32()->ToString(),
+          ", actual is ",
+          rb.column(0)->type()->ToString());
+    }
+
+    auto pid_arr = reinterpret_cast<const int32_t*>(rb.column_data(0)->buffers[1]->data());
+    if (pid_arr == nullptr) {
+      return arrow::Status::Invalid("failed to cast rb.column(0), this column should be pid");
+    }
+
+    return pid_arr;
+  } else {
+    return nullptr;
   }
-  return arrow::Status::OK();
 }
 
 } // namespace gluten

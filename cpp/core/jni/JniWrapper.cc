@@ -730,6 +730,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   auto partitioning_name = JStringToCString(env, partitioning_name_jstr);
 
   auto splitOptions = SplitOptions::Defaults();
+  splitOptions.partitioning_name = partitioning_name;
   splitOptions.buffered_write = true;
   if (buffer_size > 0) {
     splitOptions.buffer_size = buffer_size;
@@ -809,8 +810,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   auto backend = gluten::CreateBackend();
   auto batch = gluten_columnarbatch_holder_.Lookup(firstBatchHandle);
-  auto shuffle_writer =
-      backend->makeShuffleWriter(partitioning_name, num_partitions, std::move(splitOptions), batch->GetType());
+  auto shuffle_writer = backend->makeShuffleWriter(num_partitions, std::move(splitOptions), batch->GetType());
 
   return shuffle_writer_holder_.Insert(shuffle_writer);
   JNI_METHOD_END(-1L)
