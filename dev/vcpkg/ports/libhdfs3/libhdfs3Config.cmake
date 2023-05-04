@@ -1,3 +1,4 @@
+include(CMakeFindDependencyMacro)
 find_dependency(Boost COMPONENTS thread chrono system atomic iostreams)
 find_dependency(LibXml2)
 find_dependency(Protobuf)
