@@ -76,7 +76,7 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
 
  private:
   std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = GetDefaultLeafWrappedVeloxMemoryPool();
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultWrappedArrowMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultArrowMemoryPool();
 };
 
 TEST_F(VeloxRowToColumnarTest, Int_64) {

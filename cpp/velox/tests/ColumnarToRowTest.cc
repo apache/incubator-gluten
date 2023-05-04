@@ -36,7 +36,7 @@ class ColumnarToRowTest : public ::testing::Test {
  public:
   void testRecordBatchEqual(std::shared_ptr<arrow::RecordBatch> input_batch) {
     std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-        std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+        std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
     GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
     GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -84,7 +84,7 @@ class ColumnarToRowTest : public ::testing::Test {
   }
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_ = GetDefaultLeafWrappedVeloxMemoryPool();
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultWrappedArrowMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultArrowMemoryPool();
 };
 
 TEST_F(ColumnarToRowTest, decimal) {
@@ -171,7 +171,7 @@ TEST_F(ColumnarToRowTest, Buffer_int8_int16) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -203,7 +203,7 @@ TEST_F(ColumnarToRowTest, Buffer_int32_int64) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -235,7 +235,7 @@ TEST_F(ColumnarToRowTest, Buffer_float_double) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -265,7 +265,7 @@ TEST_F(ColumnarToRowTest, Buffer_bool_binary) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -294,7 +294,7 @@ TEST_F(ColumnarToRowTest, Buffer_decimal_string) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -325,7 +325,7 @@ TEST_F(ColumnarToRowTest, Buffer_int64_int64_with_null) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -354,7 +354,7 @@ TEST_F(ColumnarToRowTest, Buffer_string) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
 
@@ -386,7 +386,7 @@ TEST_F(ColumnarToRowTest, Buffer_bool) {
   MakeInputBatch(input_data, schema, &input_batch);
 
   std::shared_ptr<ArrowColumnarToRowConverter> columnarToRowConverter =
-      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultWrappedArrowMemoryPool());
+      std::make_shared<ArrowColumnarToRowConverter>(input_batch, GetDefaultArrowMemoryPool());
 
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
   GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());

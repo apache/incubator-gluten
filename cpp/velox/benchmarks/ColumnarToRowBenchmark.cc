@@ -150,7 +150,7 @@ class GoogleBenchmarkColumnarToRow_CacheScan_Benchmark : public GoogleBenchmarkC
     std::cout << " parquet parse done elapsed time = " << elapse_read / 1000000 << " rows = " << num_rows << std::endl;
 
     // reuse the columnarToRowConverter for batches caused system % increase a lot
-    auto arrowPool = GetDefaultWrappedArrowMemoryPool();
+    auto arrowPool = GetDefaultArrowMemoryPool();
     auto ctxPool = GetDefaultLeafWrappedVeloxMemoryPool();
     for (auto _ : state) {
       for (const auto& vector : vectors) {
@@ -200,7 +200,7 @@ class GoogleBenchmarkColumnarToRow_IterateScan_Benchmark : public GoogleBenchmar
     ASSERT_NOT_OK(::parquet::arrow::FileReader::Make(
         arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file), properties, &parquet_reader));
 
-    auto arrowPool = GetDefaultWrappedArrowMemoryPool();
+    auto arrowPool = GetDefaultArrowMemoryPool();
     auto ctxPool = GetDefaultLeafWrappedVeloxMemoryPool();
     for (auto _ : state) {
       ASSERT_NOT_OK(parquet_reader->GetRecordBatchReader(row_group_indices, column_indices, &record_batch_reader));
