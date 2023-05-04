@@ -44,7 +44,7 @@ std::shared_ptr<velox::memory::MemoryUsageTracker> createMemoryUsageTracker(
       auto tracker = velox::memory::MemoryUsageTracker::create(options.capacity, options.checkUsageLeak);
       tracker->setHighUsageCallback([&](velox::memory::MemoryUsageTracker& t) {
         if (t.reservedBytes() >= spillThreshold) {
-          return true;
+          return false; // DEBUG
         }
         return false;
       });
