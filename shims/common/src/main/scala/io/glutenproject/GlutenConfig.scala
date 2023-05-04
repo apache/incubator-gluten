@@ -55,6 +55,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarHashAgg: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.hashagg", "true").toBoolean
 
+  // Whether to force to use gluten's hash agg for replacing vanilla spark's sort agg.
+  def forceToUseHashAgg: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.force.hashagg", "true").toBoolean
+
   // enable or disable columnar project
   def enableColumnarProject: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.project", "true").toBoolean

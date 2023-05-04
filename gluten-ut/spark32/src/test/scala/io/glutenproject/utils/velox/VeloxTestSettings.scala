@@ -118,6 +118,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
+      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
+      // We can enable the below test for spark 3.4 and higher versions.
+      "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables"
   )

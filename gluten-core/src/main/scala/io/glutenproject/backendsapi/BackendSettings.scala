@@ -69,6 +69,12 @@ trait BackendSettings {
   def rescaleDecimalLiteral(): Boolean = false
 
   /**
+   * Whether to replace sort agg with hash agg., e.g., sort agg will be used in
+   * spark's planning for string type input.
+   */
+  def replaceSortAggWithHashAgg: Boolean = false
+
+  /**
    * Get the config prefix for each backend
    */
   def getBackendConfigPrefix(): String
