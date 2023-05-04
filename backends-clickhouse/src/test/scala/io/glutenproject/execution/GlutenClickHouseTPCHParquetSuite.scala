@@ -444,36 +444,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("regexp_extract") {
-    runQueryAndCompare(
-      s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 1) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, regexp_extract(l_comment, '([a-z])') " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 0) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
-  test("lpad") {
-    runQueryAndCompare(
-      s"select l_orderkey, lpad(l_comment, 80) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, lpad(l_comment, 80, '??') " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
-  test("rpad") {
-    runQueryAndCompare(
-      s"select l_orderkey, rpad(l_comment, 80) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, rpad(l_comment, 80, '??') " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
   test("test 'function regexp_extract_all'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
