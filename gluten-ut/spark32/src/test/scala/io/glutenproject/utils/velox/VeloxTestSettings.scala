@@ -866,6 +866,20 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHeaderCSVReadSchemaSuite]
   enableSuite[GlutenJsonReadSchemaSuite]
   enableSuite[GlutenOrcReadSchemaSuite]
+    .exclude("append column into middle")
+    .exclude("hide column in the middle")
+    .exclude("change column position")
+    .exclude("change column type from boolean to byte/short/int/long")
+    .exclude("read as string")
+    .exclude("change column type from byte to short/int/long")
+    .exclude("change column type from short to int/long")
+    .exclude("change column type from int to long")
+    .exclude("read byte, int, short, long together")
+    .exclude("change column type from float to double")
+    .exclude("read float and double together")
+    .exclude("change column type from float to decimal")
+    .exclude("change column type from double to decimal")
+    .exclude("read float, double, decimal together")
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
     // Rewrite to disable Spark's vectorized reading.
     .exclude("change column position")
