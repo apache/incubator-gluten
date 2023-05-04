@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
+
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuite, GlutenDataSourceV2Suite, GlutenFileDataSourceV2FallBackSuite, GlutenLocalScanSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
@@ -109,8 +109,8 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     .exclude(
       /**
-       * Rewrite these tests because the rdd partition is equal to
-       * the configuration "spark.sql.shuffle.partitions".
+       * Rewrite these tests because the rdd partition is equal to the configuration
+       * "spark.sql.shuffle.partitions".
        */
       "repartitionByRange",
       "distributeBy and localSort",
@@ -123,11 +123,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables"
-  )
+    )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
-       // NaN case
+      // NaN case
       "replace nan with float",
       "replace nan with double"
     )
@@ -139,18 +139,36 @@ class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
-    "gluten", "SPARK-29906", "SPARK-30291", "SPARK-30403", "SPARK-30719", "SPARK-31384",
-      "SPARK-30953", "SPARK-31658", "SPARK-32717", "SPARK-32649", "SPARK-34533",
-      "SPARK-34781", "SPARK-35585", "SPARK-32932", "SPARK-33494", "SPARK-33933", "SPARK-31220",
-    "SPARK-35874", "SPARK-39551")
-    .include("Union/Except/Intersect queries",
+      "gluten",
+      "SPARK-29906",
+      "SPARK-30291",
+      "SPARK-30403",
+      "SPARK-30719",
+      "SPARK-31384",
+      "SPARK-30953",
+      "SPARK-31658",
+      "SPARK-32717",
+      "SPARK-32649",
+      "SPARK-34533",
+      "SPARK-34781",
+      "SPARK-35585",
+      "SPARK-32932",
+      "SPARK-33494",
+      "SPARK-33933",
+      "SPARK-31220",
+      "SPARK-35874",
+      "SPARK-39551"
+    )
+    .include(
+      "Union/Except/Intersect queries",
       "Subquery de-correlation in Union queries",
       "force apply AQE",
       "tree string output",
-    "control a plan explain mode in listener vis SQLConf",
-    "AQE should set active session during execution",
-    "No deadlock in UI update",
-    "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join")
+      "control a plan explain mode in listener vis SQLConf",
+      "AQE should set active session during execution",
+      "No deadlock in UI update",
+      "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join"
+    )
 
   enableSuite[GlutenLiteralExpressionSuite]
     .exclude("default")
@@ -254,8 +272,8 @@ class VeloxTestSettings extends BackendTestSettings {
   // spill not supported yet.
   enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
   enableSuite[GlutenSortSuite]
-      // Sort spill is not supported.
-      .exclude("sorting does not crash for large inputs")
+    // Sort spill is not supported.
+    .exclude("sorting does not crash for large inputs")
   enableSuite[GlutenExistenceJoinSuite]
   enableSuite[GlutenDataFrameJoinSuite]
   enableSuite[GlutenJoinSuite]
@@ -287,8 +305,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite to disable plan check for SMJ because SHJ is preferred in Gluten.
     .exclude("SPARK-11111 null-safe join should not use cartesian product")
     // Rewrite to change the information of a caught exception.
-    .exclude(
-      "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
+    .exclude("SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
     // Different exception.
     .exclude("run sql directly on files")
     // Columnar shuffle cannot generate the expected number of partitions if the row of a input
@@ -396,7 +413,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-21791 ORC should support column names with dot")
     .exclude("SPARK-25579 ORC PPD should support column names with dot")
     .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
-    .exclude("SPARK-37728: Reading nested columns with ORC vectorized reader should not )
+    .exclude("SPARK-37728: Reading nested columns with ORC vectorized reader should not")
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
     .exclude("Read/write all timestamp types")
     .exclude("SPARK-37463: read/write Timestamp ntz to Orc with different time zone")
@@ -441,9 +458,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
     .exclude("Non-vectorized reader - without partition data column - select a single complex field with disabled nested schema pruning")
     .exclude("Non-vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
-    .exclude("Spark vectorized reader - without partition data column - select a single complex field")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select a single complex field")
     .exclude("Spark vectorized reader - with partition data column - select a single complex field")
-    .exclude("Non-vectorized reader - without partition data column - select a single complex field")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select a single complex field")
     .exclude("Non-vectorized reader - with partition data column - select a single complex field")
     .exclude("Spark vectorized reader - without partition data column - select a single complex field and its parent struct")
     .exclude("Spark vectorized reader - with partition data column - select a single complex field and its parent struct")
@@ -465,9 +484,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - partial schema intersection - select missing subfield")
     .exclude("Non-vectorized reader - without partition data column - partial schema intersection - select missing subfield")
     .exclude("Non-vectorized reader - with partition data column - partial schema intersection - select missing subfield")
-    .exclude("Spark vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude(
+      "Spark vectorized reader - without partition data column - no unnecessary schema pruning")
     .exclude("Spark vectorized reader - with partition data column - no unnecessary schema pruning")
-    .exclude("Non-vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude(
+      "Non-vectorized reader - without partition data column - no unnecessary schema pruning")
     .exclude("Non-vectorized reader - with partition data column - no unnecessary schema pruning")
     .exclude("Spark vectorized reader - without partition data column - empty schema intersection")
     .exclude("Spark vectorized reader - with partition data column - empty schema intersection")
@@ -500,18 +521,22 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - without partition data column - select nested field in window function")
     .exclude("Spark vectorized reader - with partition data column - select nested field in window function")
     .exclude("Non-vectorized reader - without partition data column - select nested field in window function")
-    .exclude("Non-vectorized reader - with partition data column - select nested field in window function")
+    .exclude(
+      "Non-vectorized reader - with partition data column - select nested field in window function")
     .exclude("Spark vectorized reader - without partition data column - select nested field in window function and then order by")
     .exclude("Spark vectorized reader - with partition data column - select nested field in window function and then order by")
     .exclude("Non-vectorized reader - without partition data column - select nested field in window function and then order by")
     .exclude("Non-vectorized reader - with partition data column - select nested field in window function and then order by")
-    .exclude("Spark vectorized reader - without partition data column - select nested field in Sort")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Sort")
     .exclude("Spark vectorized reader - with partition data column - select nested field in Sort")
     .exclude("Non-vectorized reader - without partition data column - select nested field in Sort")
     .exclude("Non-vectorized reader - with partition data column - select nested field in Sort")
-    .exclude("Spark vectorized reader - without partition data column - select nested field in Expand")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Expand")
     .exclude("Spark vectorized reader - with partition data column - select nested field in Expand")
-    .exclude("Non-vectorized reader - without partition data column - select nested field in Expand")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select nested field in Expand")
     .exclude("Non-vectorized reader - with partition data column - select nested field in Expand")
     .exclude("Spark vectorized reader - without partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
     .exclude("Spark vectorized reader - with partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
@@ -524,7 +549,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Case-sensitive parser - mixed-case schema - select with exact column names")
     .exclude("Case-insensitive parser - mixed-case schema - select with exact column names")
     .exclude("Case-insensitive parser - mixed-case schema - select with lowercase column names")
-    .exclude("Case-insensitive parser - mixed-case schema - select with different-case column names")
+    .exclude(
+      "Case-insensitive parser - mixed-case schema - select with different-case column names")
     .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
     .exclude("Spark vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from array")
     .exclude("Spark vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from array")
@@ -567,9 +593,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
     .exclude("Non-vectorized reader - without partition data column - select a single complex field with disabled nested schema pruning")
     .exclude("Non-vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
-    .exclude("Spark vectorized reader - without partition data column - select a single complex field")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select a single complex field")
     .exclude("Spark vectorized reader - with partition data column - select a single complex field")
-    .exclude("Non-vectorized reader - without partition data column - select a single complex field")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select a single complex field")
     .exclude("Non-vectorized reader - with partition data column - select a single complex field")
     .exclude("Spark vectorized reader - without partition data column - select a single complex field and its parent struct")
     .exclude("Spark vectorized reader - with partition data column - select a single complex field and its parent struct")
@@ -591,9 +619,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - partial schema intersection - select missing subfield")
     .exclude("Non-vectorized reader - without partition data column - partial schema intersection - select missing subfield")
     .exclude("Non-vectorized reader - with partition data column - partial schema intersection - select missing subfield")
-    .exclude("Spark vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude(
+      "Spark vectorized reader - without partition data column - no unnecessary schema pruning")
     .exclude("Spark vectorized reader - with partition data column - no unnecessary schema pruning")
-    .exclude("Non-vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude(
+      "Non-vectorized reader - without partition data column - no unnecessary schema pruning")
     .exclude("Non-vectorized reader - with partition data column - no unnecessary schema pruning")
     .exclude("Spark vectorized reader - without partition data column - empty schema intersection")
     .exclude("Spark vectorized reader - with partition data column - empty schema intersection")
@@ -626,18 +656,22 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - without partition data column - select nested field in window function")
     .exclude("Spark vectorized reader - with partition data column - select nested field in window function")
     .exclude("Non-vectorized reader - without partition data column - select nested field in window function")
-    .exclude("Non-vectorized reader - with partition data column - select nested field in window function")
+    .exclude(
+      "Non-vectorized reader - with partition data column - select nested field in window function")
     .exclude("Spark vectorized reader - without partition data column - select nested field in window function and then order by")
     .exclude("Spark vectorized reader - with partition data column - select nested field in window function and then order by")
     .exclude("Non-vectorized reader - without partition data column - select nested field in window function and then order by")
     .exclude("Non-vectorized reader - with partition data column - select nested field in window function and then order by")
-    .exclude("Spark vectorized reader - without partition data column - select nested field in Sort")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Sort")
     .exclude("Spark vectorized reader - with partition data column - select nested field in Sort")
     .exclude("Non-vectorized reader - without partition data column - select nested field in Sort")
     .exclude("Non-vectorized reader - with partition data column - select nested field in Sort")
-    .exclude("Spark vectorized reader - without partition data column - select nested field in Expand")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Expand")
     .exclude("Spark vectorized reader - with partition data column - select nested field in Expand")
-    .exclude("Non-vectorized reader - without partition data column - select nested field in Expand")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select nested field in Expand")
     .exclude("Non-vectorized reader - with partition data column - select nested field in Expand")
     .exclude("Spark vectorized reader - without partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
     .exclude("Spark vectorized reader - with partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
@@ -650,7 +684,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Case-sensitive parser - mixed-case schema - select with exact column names")
     .exclude("Case-insensitive parser - mixed-case schema - select with exact column names")
     .exclude("Case-insensitive parser - mixed-case schema - select with lowercase column names")
-    .exclude("Case-insensitive parser - mixed-case schema - select with different-case column names")
+    .exclude(
+      "Case-insensitive parser - mixed-case schema - select with different-case column names")
     .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
     .exclude("Spark vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from array")
     .exclude("Spark vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from array")
@@ -761,14 +796,14 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV2SchemaPruningSuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .excludeByPrefix("Spark vectorized reader - ")
-   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
-     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
-     .excludeByPrefix("SPARK-31159")
-     .excludeByPrefix("SPARK-35427")
-   enableSuite[GlutenParquetRebaseDatetimeV2Suite]
-     // jar path and ignore PARQUET_REBASE_MODE_IN_READ
-     .excludeByPrefix("SPARK-31159")
-     .excludeByPrefix("SPARK-35427")
+  enableSuite[GlutenParquetRebaseDatetimeV1Suite]
+    // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
+    .excludeByPrefix("SPARK-31159")
+    .excludeByPrefix("SPARK-35427")
+  enableSuite[GlutenParquetRebaseDatetimeV2Suite]
+    // jar path and ignore PARQUET_REBASE_MODE_IN_READ
+    .excludeByPrefix("SPARK-31159")
+    .excludeByPrefix("SPARK-35427")
   enableSuite[GlutenParquetSchemaInferenceSuite]
   enableSuite[GlutenParquetSchemaSuite]
     // error message mismatch is accepted
@@ -901,7 +936,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSerializationSuite]
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
-      // Rewrite with NaN test cases excluded.
+    // Rewrite with NaN test cases excluded.
     .exclude("cases when literal is max")
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
   enableSuite[GlutenDeprecatedAPISuite]
