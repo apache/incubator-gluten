@@ -59,7 +59,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val offHeapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
 
-  private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
+  private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
