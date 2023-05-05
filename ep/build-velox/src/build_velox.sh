@@ -67,6 +67,12 @@ function compile {
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
   fi
+
+  ARROW_ROOT=$CURRENT_DIR/../../build-arrow/build/arrow_install
+  if [ -d "$ARROW_ROOT" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DArrow_DIR=${ARROW_ROOT} -DParquet_DIR=${ARROW_ROOT}"
+  fi
+
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
@@ -139,13 +145,6 @@ CURRENT_DIR=$(
 )
 if [ "$VELOX_HOME" == "" ]; then
   VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
-fi
-
-ARROW_ROOT=$CURRENT_DIR/../../build-arrow/build/arrow_install
-if [ -d "$ARROW_ROOT" ]; then
-  export CMAKE_PREFIX_PATH="$ARROW_ROOT;${CMAKE_PREFIX_PATH:-}"
-else
-  unset ARROW_ROOT
 fi
 
 BUILD_DIR="$CURRENT_DIR/../build"
