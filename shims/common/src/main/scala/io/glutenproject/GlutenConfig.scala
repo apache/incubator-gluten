@@ -18,8 +18,8 @@ package io.glutenproject
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
 
@@ -77,12 +77,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
-    conf.getConfString("spark.shuffle.manager", "sort")
+    conf
+      .getConfString("spark.shuffle.manager", "sort")
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
   // whether to use CelebornShuffleManager
   def isUseCelebornShuffleManager: Boolean =
-    conf.getConfString("spark.shuffle.manager", "sort")
+    conf
+      .getConfString("spark.shuffle.manager", "sort")
       .equals("org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
@@ -367,9 +369,10 @@ object GlutenConfig {
   val NATIVE_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.enable.native.validation")
       .internal()
-      .doc("This is tmp config to specify whether to enable the native validation based on " +
-        "Substrait plan. After the validations in all backends are correctly implemented, " +
-        "this config should be removed.")
+      .doc(
+        "This is tmp config to specify whether to enable the native validation based on " +
+          "Substrait plan. After the validations in all backends are correctly implemented, " +
+          "this config should be removed.")
       .booleanConf
       .createWithDefault(true)
 
@@ -573,9 +576,10 @@ object GlutenConfig {
   val COLUMNAR_SHUFFLE_PREFER_SPILL_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffle.preferSpill")
       .internal()
-      .doc("Whether to spill the partition buffers when buffers are full. " +
-        "If false, the partition buffers will be cached in memory first, " +
-        "and the cached buffers will be spilled when reach maximum memory.")
+      .doc(
+        "Whether to spill the partition buffers when buffers are full. " +
+          "If false, the partition buffers will be cached in memory first, " +
+          "and the cached buffers will be spilled when reach maximum memory.")
       .booleanConf
       .createWithDefault(true)
 
@@ -588,9 +592,10 @@ object GlutenConfig {
   val COLUMNAR_SHUFFLE_CODEC =
     buildConf("spark.gluten.sql.columnar.shuffle.codec")
       .internal()
-      .doc("By default, the supported codecs are lz4 and zstd. " +
-        "When spark.gluten.sql.columnar.shuffle.codecBackend=qat, the supported codec is gzip. " +
-        "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.")
+      .doc(
+        "By default, the supported codecs are lz4 and zstd. " +
+          "When spark.gluten.sql.columnar.shuffle.codecBackend=qat, the supported codec is gzip. " +
+          "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.")
       .stringConf
       .checkValues(Set("lz4", "zstd", "gzip"))
       .createWithDefault("lz4")
@@ -667,9 +672,10 @@ object GlutenConfig {
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
-      .doc("Must provide default value since non-execution operations " +
-        "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
-        "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
 
@@ -734,7 +740,8 @@ object GlutenConfig {
       .internal()
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValue(logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
+      .checkValue(
+        logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("DEBUG")
 
@@ -743,7 +750,8 @@ object GlutenConfig {
       .internal()
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValue(logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
+      .checkValue(
+        logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("DEBUG")
 
@@ -752,7 +760,8 @@ object GlutenConfig {
       .internal()
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValue(logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
+      .checkValue(
+        logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("INFO")
 
@@ -761,7 +770,8 @@ object GlutenConfig {
       .internal()
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValue(logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
+      .checkValue(
+        logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("DEBUG")
 
