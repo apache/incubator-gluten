@@ -2039,10 +2039,10 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             }
             else if (ch_function_name.starts_with("toDateTime64"))
             {
-                /// In Spark: cast(xx as TIMESTAMP)
-                /// In CH: toDateTime(xx, 6)
+                /// In Spark: cast(x as TIMESTAMP)
+                /// In CH: toDateTime64(OrNull|OrDefault)(x, 6)
                 /// So we must add extra argument: 6
-                args.emplace_back(add_column(std::make_shared<DataTypeUInt32>(), 6));
+                args.emplace_back(add_column(std::make_shared<DataTypeUInt8>(), 6));
             }
 
             const auto * function_node = toFunctionNode(action_dag, ch_function_name, args);

@@ -816,6 +816,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test 'cast null value'") {
+    val sql = "select cast(x as double), cast(x as float), cast(x as string), cast(x as binary)," +
+      "cast(x as long), cast(x as int), cast(x as short), cast(x as byte), cast(x as boolean)," +
+      "cast(x as date), cast(x as timestamp), cast(x as decimal(10, 2)) from " +
+      "(select cast(null as string) as x from range(10) union all " +
+      "select cast(id as string) as x from range(2))"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'max(NULL)/min(NULL) from table'") {
     val sql =
       """
