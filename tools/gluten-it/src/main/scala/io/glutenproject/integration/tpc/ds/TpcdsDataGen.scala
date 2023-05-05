@@ -414,7 +414,7 @@ object TpcdsDataGen {
     StructType(Seq(
       StructField("d_date_sk", LongType),
       StructField("d_date_id", StringType),
-      StructField("d_date", StringType),
+      StructField("d_date", DateType),
       StructField("d_month_seq", LongType),
       StructField("d_week_seq", LongType),
       StructField("d_quarter_seq", LongType),
@@ -465,8 +465,8 @@ object TpcdsDataGen {
     StructType(Seq(
       StructField("i_item_sk", LongType),
       StructField("i_item_id", StringType),
-      StructField("i_rec_start_date", StringType),
-      StructField("i_rec_end_date", StringType),
+      StructField("i_rec_start_date", DateType),
+      StructField("i_rec_end_date", DateType),
       StructField("i_item_desc", StringType),
       StructField("i_current_price", DecimalType(7, 2)),
       StructField("i_wholesale_cost", DecimalType(7, 2)),
@@ -535,8 +535,8 @@ object TpcdsDataGen {
     StructType(Seq(
       StructField("s_store_sk", LongType),
       StructField("s_store_id", StringType),
-      StructField("s_rec_start_date", StringType),
-      StructField("s_rec_end_date", StringType),
+      StructField("s_rec_start_date", DateType),
+      StructField("s_rec_end_date", DateType),
       StructField("s_closed_date_sk", LongType),
       StructField("s_store_name", StringType),
       StructField("s_number_employees", LongType),
