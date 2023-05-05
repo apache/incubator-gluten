@@ -597,8 +597,8 @@ object GlutenConfig {
           "When spark.gluten.sql.columnar.shuffle.codecBackend=qat, the supported codec is gzip. " +
           "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.")
       .stringConf
-      .checkValues(Set("lz4", "zstd", "gzip"))
       .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("LZ4", "ZSTD", "GZIP"))
       .createWithDefault("LZ4")
 
   val COLUMNAR_SHUFFLE_CODEC_BACKEND =
