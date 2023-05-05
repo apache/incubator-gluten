@@ -185,7 +185,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.gluten.sql.columnar.columnarToRow=true \
   --conf spark.executorEnv.LD_PRELOAD=/path_to_clickhouse_library/libch.so\
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
@@ -195,7 +195,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
   --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
-  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
   --conf spark.databricks.delta.snapshotPartitions=1 \
@@ -368,7 +368,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.gluten.sql.columnar.columnarToRow=true \
   --conf spark.executorEnv.LD_PRELOAD=/path_to_clickhouse_library/libch.so\
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
@@ -378,7 +378,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
   --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
-  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
   --conf spark.databricks.delta.snapshotPartitions=1 \
@@ -426,7 +426,7 @@ $my_spark_sql \
   --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
   --conf spark.databricks.delta.stalenessLimit=3600000 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.gluten.sql.columnar.columnarToRow=true \
   --conf spark.gluten.sql.columnar.backend.ch.worker.id=1 \
   --conf spark.gluten.sql.columnar.loadnative=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
@@ -435,7 +435,7 @@ $my_spark_sql \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
-  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.gluten.sql.columnar.union=true \
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=5G \
@@ -542,7 +542,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.serializer=org.apache.spark.serializer.JavaSerializer \
   --conf spark.sql.sources.ignoreDataLocality=true \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.gluten.sql.columnar.columnarToRow=true \
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
@@ -551,7 +551,7 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
   --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
-  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
   --conf spark.databricks.delta.snapshotPartitions=1 \

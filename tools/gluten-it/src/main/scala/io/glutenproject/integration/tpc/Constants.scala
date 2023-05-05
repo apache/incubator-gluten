@@ -11,7 +11,7 @@ object Constants {
 
   val VELOX_CONF: SparkConf = new SparkConf()
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
-    .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
+    .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -20,7 +20,7 @@ object Constants {
 
   val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf()
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
-    .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
+    .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")

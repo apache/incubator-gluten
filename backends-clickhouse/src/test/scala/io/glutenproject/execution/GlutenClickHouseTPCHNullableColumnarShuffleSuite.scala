@@ -203,6 +203,6 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {}
+      ("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")) {}
   }
 }

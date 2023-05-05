@@ -128,7 +128,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
   }
 
   test("TPCDS Q9") {
-    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q9") {
         df =>
           val subqueryAdaptiveSparkPlan = collectWithSubqueries(df.queryExecution.executedPlan) {
@@ -144,7 +144,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
   }
 
   test("TPCDS Q21") {
-    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q21") {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])

@@ -264,7 +264,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
 
     // Validation: SortMergeJoin.
     withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
-      withSQLConf("spark.gluten.sql.columnar.forceshuffledhashjoin" -> "false") {
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
         runQueryAndCompare("select type1.date from type1," +
           " type2 where type1.date = type2.date") {
           checkOperatorMatch[SortMergeJoinExecTransformer]
