@@ -238,44 +238,6 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool nul
     return ch_function_name;
 }
 
-std::string getCastFunctionName(const substrait::Type & type)
-{
-    /// As far as I known, cast type in spark is always nullable, but we can't be sure about it.
-    static constexpr auto is_nullable
-        = [](substrait::Type_Nullability nullability) -> bool { return nullability == substrait::Type_Nullability_NULLABILITY_NULLABLE; };
-
-    std::string ch_function_name;
-    if (type.has_fp64())
-        ch_function_name = is_nullable(type.fp64().nullability()) ? "toFloat64OrNull" : "toFloat64OrDefault";
-    else if (type.has_fp32())
-        ch_function_name = is_nullable(type.fp32().nullability()) ? "toFloat32OrNull" : "toFloat32OrDefault";
-    else if (type.has_string())
-        ch_function_name = "toString"; // toString can handle null input
-    else if (type.has_binary())
-        ch_function_name = "reinterpretAsStringSpark"; // reinterpretAsStringSpark can handle null input
-    else if (type.has_i64())
-        ch_function_name = is_nullable(type.i64().nullability()) ? "toInt64OrNull" : "toInt64OrDefault";
-    else if (type.has_i32())
-        ch_function_name = is_nullable(type.i32().nullability()) ? "toInt32OrNull" : "toInt32OrDefault";
-    else if (type.has_i16())
-        ch_function_name = is_nullable(type.i16().nullability()) ? "toInt16OrNull" : "toInt16OrDefault";
-    else if (type.has_i8())
-        ch_function_name = is_nullable(type.i8().nullability()) ? "toInt8OrNull" : "toInt8OrDefault";
-    else if (type.has_date())
-        ch_function_name = is_nullable(type.date().nullability()) ? "toDate32OrNull" : "toDate32OrDefault";
-    else if (type.has_timestamp())
-        ch_function_name = is_nullable(type.timestamp().nullability()) ? "toDateTime64OrNull" : "toDateTime64OrDefault";
-    else if (type.has_bool_())
-        ch_function_name = is_nullable(type.bool_().nullability()) ? "toUInt8OrNull" : "toUInt8OrDefault";
-    else if (type.has_decimal())
-        ch_function_name = getDecimalFunction(type.decimal(), false);
-    else
-        throw Exception(ErrorCodes::UNKNOWN_TYPE, "Doesn't support cast type {}", type.DebugString());
-
-    /// TODO(taiyang-li): implement cast functions of other types
-    return ch_function_name;
-}
-
 bool SerializedPlanParser::isReadRelFromJava(const substrait::ReadRel & rel)
 {
     assert(rel.has_local_files());
@@ -1135,11 +1097,7 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function {}", function_name);
 
     std::string ch_function_name;
-    if (function_name == "cast")
-    {
-        ch_function_name = getCastFunctionName(output_type);
-    }
-    else if (function_name == "trim")
+    if (function_name == "trim")
     {
         if (args.size() == 1)
         {
@@ -2027,25 +1985,15 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
 
-            std::string ch_function_name = getCastFunctionName(rel.cast().type());
             DB::ActionsDAG::NodeRawConstPtrs args;
+
             const auto & cast_input = rel.cast().input();
             args.emplace_back(parseExpression(action_dag, cast_input));
 
-            if (ch_function_name.starts_with("toDecimal"))
-            {
-                UInt32 scale = rel.cast().type().decimal().scale();
-                args.emplace_back(add_column(std::make_shared<DataTypeUInt32>(), scale));
-            }
-            else if (ch_function_name.starts_with("toDateTime64"))
-            {
-                /// In Spark: cast(x as TIMESTAMP)
-                /// In CH: toDateTime64(OrNull|OrDefault)(x, 6)
-                /// So we must add extra argument: 6
-                args.emplace_back(add_column(std::make_shared<DataTypeUInt8>(), 6));
-            }
+            DataTypePtr dest_type = parseType(rel.cast().type());
+            args.emplace_back(add_column(std::make_shared<DataTypeString>(), dest_type->getName()));
 
-            const auto * function_node = toFunctionNode(action_dag, ch_function_name, args);
+            const auto * function_node = toFunctionNode(action_dag, "CAST", args);
             action_dag->addOrReplaceInOutputs(*function_node);
             return function_node;
         }
@@ -2559,25 +2507,15 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
 
-            std::string ch_function_name = getCastFunctionName(rel.cast().type());
-
+            /// Append input to asts
             ASTs args;
             args.emplace_back(parseArgumentToAST(names, rel.cast().input()));
 
-            if (ch_function_name.starts_with("toDecimal"))
-            {
-                UInt32 scale = rel.cast().type().decimal().scale();
-                args.emplace_back(std::make_shared<ASTLiteral>(scale));
-            }
-            else if (ch_function_name.starts_with("toDateTime64"))
-            {
-                /// In Spark: cast(xx as TIMESTAMP)
-                /// In CH: toDateTime(xx, 6)
-                /// So we must add extra argument: 6
-                args.emplace_back(std::make_shared<ASTLiteral>(6));
-            }
+            /// Append destination type to asts
+            DataTypePtr dest_type = SerializedPlanParser::parseType(rel.cast().type());
+            args.emplace_back(std::make_shared<ASTLiteral>(dest_type->getName()));
 
-            return makeASTFunction(ch_function_name, args);
+            return makeASTFunction("CAST", args);
         }
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
