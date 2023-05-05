@@ -450,10 +450,20 @@ std::shared_ptr<velox::memory::MemoryPool> GetDefaultVeloxAggregateMemoryPool() 
   // See https://github.com/oap-project/gluten/issues/1526
   //   We'd move the instance into a singleton backend instance to avoid
   //   exposing the API to entire process
-  auto be = gluten::CreateBackend();
-  auto veloxBe = std::dynamic_pointer_cast<gluten::VeloxBackend>(be);
-  const facebook::velox::memory::MemoryPool::Options& options = veloxBe->GetMemoryPoolOptions();
-  int64_t spillThreshold = veloxBe->GetSpillThreshold();
+  facebook::velox::memory::MemoryPool::Options options;
+  int64_t spillThreshold;
+  try {
+    auto be = gluten::CreateBackend();
+    auto veloxBe = std::dynamic_pointer_cast<gluten::VeloxBackend>(be);
+    options = veloxBe->GetMemoryPoolOptions();
+    spillThreshold = veloxBe->GetSpillThreshold();
+  } catch (std::exception& e) {
+    // Will optimize the code (probably remove this try-catch) after fixing
+    // https://github.com/oap-project/gluten/issues/1526
+    // We are in test code, using default settings
+    options = {};
+    spillThreshold = std::numeric_limits<int64_t>::max();
+  }
   static std::shared_ptr<WrappedVeloxMemoryPool> default_pool_root = std::make_shared<WrappedVeloxMemoryPool>(
       &velox::memory::MemoryManager::getInstance(),
       "root",
