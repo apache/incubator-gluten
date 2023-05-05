@@ -146,11 +146,17 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-34920: error class"
     )
 
-//  enableSuite[GlutenRegexpExpressionsSuite]
-//    .include(
-//      "SPLIT",
-//      "RLIKE Regular Expression"
-//    )
+  // enableSuite[GlutenRegexpExpressionsSuite]
+  //   .include(
+  //     "SPLIT",
+  //     "RLIKE Regular Expression"
+  //     "RegexExtract"
+  //   )
+
+  enableSuite[GlutenJsonExpressionsSuite]
+    .include(
+      "Length of JSON array"
+    )
 
   enableSuite[GlutenStringExpressionsSuite]
     .include(

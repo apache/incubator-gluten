@@ -117,6 +117,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
      "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
     {"replace", "replaceAll"},
     {"regexp_replace", "replaceRegexpAll"},
+    {"regexp_extract", "regexpExtract"},
     {"regexp_extract_all", "regexpExtractAllSpark"},
     {"chr", "char"},
     {"rlike", "match"},
@@ -194,7 +195,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"get_json_object", "JSON_VALUE"},
     {"to_json", "toJSONString"},
     {"from_json", "JSONExtract"},
-    {"json_tuple", "json_tuple"}
+    {"json_tuple", "json_tuple"},
+    {"json_array_length", "JSONArrayLength"},
 };
 
 static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
