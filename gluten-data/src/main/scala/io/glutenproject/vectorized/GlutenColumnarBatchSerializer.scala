@@ -19,24 +19,22 @@ package io.glutenproject.vectorized
 
 import java.io._
 import java.nio.ByteBuffer
-
 import scala.reflect.ClassTag
-
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowAbiUtil
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorLoader
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.util.memory.TaskMemoryResources
 
 class GlutenColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
   numOutputRows: SQLMetric)
@@ -67,8 +65,16 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.make(
-          JniByteInputStreams.create(in), cSchema.memoryAddress())
+          JniByteInputStreams.create(in), cSchema.memoryAddress(),
+          NativeMemoryAllocators.contextInstance.getNativeInstanceId)
         cSchema.close()
+        // Close shuffle reader instance as lately as the end of task processing,
+        // since the native reader could hold a reference to memory pool that
+        // was used to create all buffers read from shuffle reader. The pool
+        // should keep alive before all buffers finish consuming.
+        TaskMemoryResources.addRecycler(50) { _ =>
+          ShuffleReaderJniWrapper.close(handle)
+        }
         handle
       }
 
@@ -136,7 +142,6 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
           }
           numOutputRows += numRowsTotal
           if (cb != null) cb.close()
-          ShuffleReaderJniWrapper.close(shuffleReaderHandle)
           allocator.close()
           isClosed = true
         }

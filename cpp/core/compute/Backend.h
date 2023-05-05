@@ -65,6 +65,11 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return ParseProtobuf(data, size, &substraitPlan_);
   }
 
+  // Just for benchmark
+  ::substrait::Plan& getPlan() {
+    return substraitPlan_;
+  }
+
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
@@ -87,21 +92,13 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return std::make_shared<gluten::RowToColumnarConverter>(cSchema);
   }
 
-  virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
-      const std::string& partitioning_name,
-      int num_partitions,
-      const SplitOptions& options,
-      const std::string& batchType) {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer, ArrowShuffleWriter::Make(partitioning_name, num_partitions, std::move(options)));
+  virtual std::shared_ptr<ShuffleWriter>
+  makeShuffleWriter(int num_partitions, const SplitOptions& options, const std::string& batchType) {
+    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, ArrowShuffleWriter::Create(num_partitions, std::move(options)));
     return shuffle_writer;
   }
 
-  virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) {
-    return nullptr;
-  }
-
-  virtual std::shared_ptr<arrow::Schema> GetOutputSchema() {
+  virtual std::shared_ptr<Metrics> GetMetrics(ColumnarBatchIterator* raw_iter, int64_t exportNanos) {
     return nullptr;
   }
 

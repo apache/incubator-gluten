@@ -62,7 +62,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   private val blockManager = SparkEnv.get.blockManager
   private val offheapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
-  private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
+  private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
     if (GlutenConfig.getConf.columnarShuffleEnableQat) {
@@ -109,7 +109,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
       } else {
         val handle = GlutenColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == 0) {
-          nativeShuffleWriter = jniWrapper.makeForCeleborn(
+          nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
             offheapPerTask,
             nativeBufferSize,
@@ -129,14 +129,15 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
                   }
                   logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
                   // fixme pass true when being called by self
-                  val pushed = jniWrapper.nativePush(nativeShuffleWriter, size, false)
-                  logInfo(s"Gluten shuffle writer: Spilled $pushed / $size bytes of data")
+                  val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                  logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
                   pushed
                 }
               })
               .getNativeInstanceId,
             handle,
-            context.taskAttemptId()
+            context.taskAttemptId(),
+            "celeborn"
           )
         }
         val startTime = System.nanoTime()

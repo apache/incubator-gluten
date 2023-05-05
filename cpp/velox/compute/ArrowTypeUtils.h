@@ -24,11 +24,7 @@
 
 namespace gluten {
 
-std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& typeName);
-
 std::shared_ptr<arrow::DataType> toArrowType(const facebook::velox::TypePtr& type);
-
-// const char* arrowTypeIdToFormatStr(arrow::Type::type typeId);
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const facebook::velox::RowType>& rowType);
 

@@ -24,9 +24,8 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
-#include "memory/ColumnarBatch.h"
+#include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
-#include "shuffle/type.h"
 #include "shuffle/utils.h"
 
 #include "utils/Print.h"
@@ -74,7 +73,7 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-class VeloxShuffleWriter : public ShuffleWriter {
+class VeloxShuffleWriter final : public ShuffleWriter {
   enum { VALIDITY_BUFFER_INDEX = 0, OFFSET_BUFFER_INDEX = 1, VALUE_BUFFER_INEDX = 2 };
 
  public:
@@ -93,19 +92,15 @@ class VeloxShuffleWriter : public ShuffleWriter {
     uint64_t value_offset;
   };
 
-  template <typename ShuffleWriter>
-  static std::shared_ptr<ShuffleWriter> Create(uint32_t num_partitions, const SplitOptions& options) {
-    return std::make_shared<ShuffleWriter>(num_partitions, options);
-  }
+  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> Create(uint32_t num_partitions, SplitOptions options);
 
-  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>>
-  Make(const std::string& name, uint32_t num_partitions, SplitOptions options = SplitOptions::Defaults());
+  arrow::Status Split(ColumnarBatch* cb) override;
 
-  virtual arrow::Status Split(ColumnarBatch* cb);
+  arrow::Status Stop() override;
 
-  virtual arrow::Status Stop();
+  arrow::Status EvictFixedSize(int64_t size, int64_t* actual) override;
 
-  arrow::Status EvictFixedSize(int64_t size, int64_t* actual);
+  arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers) override;
 
   int64_t RawPartitionBytes() const {
     return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
@@ -168,15 +163,13 @@ class VeloxShuffleWriter : public ShuffleWriter {
  protected:
   VeloxShuffleWriter(uint32_t num_partitions, const SplitOptions& options) : ShuffleWriter(num_partitions, options) {}
 
-  virtual arrow::Status Init();
+  arrow::Status Init();
 
   arrow::Status InitIpcWriteOptions();
 
   arrow::Status InitPartitions(const facebook::velox::RowVector& rv);
 
-  virtual arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv);
-
-  virtual arrow::Status Partition(const facebook::velox::RowVector& rv) = 0;
+  arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv);
 
   arrow::Status VeloxType2ArrowSchema(const facebook::velox::TypePtr& type);
 
@@ -192,10 +185,6 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   arrow::Status DoSplit(const facebook::velox::RowVector& rv);
 
-  std::string NextSpilledFileDir();
-
-  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> GetSchemaPayload();
-
   uint32_t CalculatePartitionBufferSize(const facebook::velox::RowVector& rv);
 
   arrow::Status AllocatePartitionBuffers(uint32_t partition_id, uint32_t new_size);
@@ -203,8 +192,6 @@ class VeloxShuffleWriter : public ShuffleWriter {
   arrow::Status AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
 
   arrow::Status AllocateNew(uint32_t partition_id, uint32_t new_size);
-
-  arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers);
 
   arrow::Status CacheRecordBatch(uint32_t partition_id, const arrow::RecordBatch& rb);
 
@@ -244,15 +231,14 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   arrow::Status SplitListArray(const facebook::velox::RowVector& rv);
 
-  arrow::Result<int32_t> SpillLargestPartition(int64_t* size);
+  arrow::Result<int32_t> EvictLargestPartition(int64_t* size);
 
-  arrow::Status SpillPartition(uint32_t partition_id);
+  arrow::Status EvictPartition(uint32_t partition_id);
+
+  arrow::Result<const int32_t*> GetFirstColumn(const facebook::velox::RowVector& rv);
 
  protected:
   bool support_avx512_ = false;
-
-  // the first column may be stripped if hash split
-  std::shared_ptr<arrow::Schema> schema_;
 
   // store arrow column types
   std::vector<std::shared_ptr<arrow::DataType>> arrow_column_types_; // column_type_id_
@@ -267,7 +253,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
   // subscript: Row ID
   // value: Partition ID
   // TODO: rethink, is uint16_t better?
-  std::vector<uint32_t> row_2_partition_; // note: partition_id_
+  std::vector<uint16_t> row_2_partition_; // note: partition_id_
 
   // Partition ID -> Row Count
   // subscript: Partition ID
@@ -307,92 +293,16 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   typedef uint32_t row_offset_type;
 
-  class PartitionWriter;
-
-  std::vector<std::shared_ptr<PartitionWriter>> partition_writer_;
-
   std::vector<std::vector<uint8_t*>> partition_validity_addrs_;
   std::vector<std::vector<uint8_t*>> partition_fixed_width_value_addrs_;
 
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partition_buffers_;
   std::vector<std::vector<std::shared_ptr<arrow::ArrayBuilder>>> partition_list_builders_;
-
-  // slice the buffer for each reducer's column, in this way we can combine into large page
-  std::shared_ptr<arrow::ResizableBuffer> combine_buffer_;
-
-  // partid
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partition_cached_recordbatch_;
-
-  // partid
-  std::vector<int64_t> partition_cached_recordbatch_size_; // in bytes
 
   std::vector<uint64_t> binary_array_empirical_size_;
 
   std::vector<std::vector<BinaryBuff>> partition_binary_addrs_;
 
   std::vector<bool> input_has_null_;
-
-  int32_t dir_selection_ = 0;
-  std::vector<int32_t> sub_dir_selection_;
-
-  std::vector<std::string> configured_dirs_;
-
-  std::shared_ptr<arrow::io::OutputStream> data_file_os_;
-
-  // shared by all partition writers
-  std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
 }; // class VeloxShuffleWriter
-
-class VeloxRoundRobinShuffleWriter final : public VeloxShuffleWriter {
- public:
-  VeloxRoundRobinShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
-      : VeloxShuffleWriter(num_partitions, std::move(options)) {}
-
-  arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
-
-  arrow::Status Partition(const facebook::velox::RowVector& rv) override;
-
-  uint32_t pid_selection_ = 0;
-}; // class VeloxRoundRobinShuffleWriter
-
-class VeloxSinglePartShuffleWriter final : public VeloxShuffleWriter {
- public:
-  VeloxSinglePartShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
-      : VeloxShuffleWriter(num_partitions, options) {}
-
-  arrow::Status Init() override;
-
-  arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
-
-  arrow::Status Partition(const facebook::velox::RowVector& rv) override;
-
-  arrow::Status Split(ColumnarBatch* cb) override;
-
-  arrow::Status Stop() override;
-}; // class VeloxSinglePartShuffleWriter
-
-class VeloxHashShuffleWriter final : public VeloxShuffleWriter {
- public:
-  VeloxHashShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
-      : VeloxShuffleWriter(num_partitions, options) {}
-
-  arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
-
-  arrow::Status Split(ColumnarBatch* cb) override;
-
-  arrow::Status Partition(const facebook::velox::RowVector& rv) override;
-}; // class VeloxHashShuffleWriter
-
-class VeloxFallbackRangeShuffleWriter final : public VeloxShuffleWriter {
- public:
-  VeloxFallbackRangeShuffleWriter(uint32_t num_partitions, const SplitOptions& options)
-      : VeloxShuffleWriter(num_partitions, options) {}
-
-  arrow::Status InitColumnTypes(const facebook::velox::RowVector& rv) override;
-
-  arrow::Status Split(ColumnarBatch* cb) override;
-
-  arrow::Status Partition(const facebook::velox::RowVector& rv) override;
-}; // class VeloxFallbackRangeShuffleWriter
 
 } // namespace gluten

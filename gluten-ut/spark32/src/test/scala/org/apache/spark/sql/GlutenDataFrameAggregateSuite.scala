@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution.HashAggregateExecBaseTransformer
+import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.functions._
 
 class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenSQLTestsTrait {
@@ -169,14 +170,35 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   }
 
   test(GlutenTestConstants.GLUTEN_TEST + "extend with cast expression") {
-    if (BackendsApiManager.getSettings.supportNewExpandContract()) {
-      checkAnswer(
-        decimalData.agg(
-            sum($"a".cast("double")),
-            avg($"b".cast("double")),
-            count_distinct($"a"),
-            count_distinct($"b")),
-        Row(12.0, 1.5, 3, 2))
+    checkAnswer(
+      decimalData.agg(
+          sum($"a".cast("double")),
+          avg($"b".cast("double")),
+          count_distinct($"a"),
+          count_distinct($"b")),
+      Row(12.0, 1.5, 3, 2))
+  }
+
+  // This test is applicable to velox backend. For CH backend, the replacement is disabled.
+  test(GlutenTestConstants.GLUTEN_TEST
+      + "use gluten hash agg to replace vanilla spark sort agg") {
+
+    withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "false")) {
+      Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
+      // SortAggregateExec is expected to be used for string type input.
+      val df = spark.sql("select max(col1) from t1")
+      checkAnswer(df, Row("D") :: Nil)
+      assert(find(df.queryExecution.executedPlan)(
+        _.isInstanceOf[SortAggregateExec]).isDefined)
+    }
+
+    withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "true")) {
+      Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
+      val df = spark.sql("select max(col1) from t1")
+      checkAnswer(df, Row("D") :: Nil)
+      // Sort agg is expected to be replaced by gluten's hash agg.
+      assert(find(df.queryExecution.executedPlan)(
+        _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
     }
   }
 }

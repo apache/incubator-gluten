@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
@@ -105,18 +105,6 @@ object TransformHints {
 object TagBeforeTransformHits {
   val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
     List(FallbackOneRowRelation, FallbackOnANSIMode, FallbackMultiCodegens)
-  }
-}
-
-case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case agg: HashAggregateExec
-      if agg.child.isInstanceOf[ExpandExec] &&
-        !BackendsApiManager.getSettings.supportNewExpandContract() =>
-      val childExpandExec = agg.child.asInstanceOf[ExpandExec]
-      agg.copy(child = CustomExpandExec(
-        childExpandExec.projections, agg.groupingExpressions,
-        childExpandExec.output, childExpandExec.child))
   }
 }
 
@@ -362,6 +350,23 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                 plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
+        case plan: SortAggregateExec =>
+          if (!BackendsApiManager.getSettings.replaceSortAggWithHashAgg) {
+            TransformHints.tagNotTransformable(plan)
+          }
+          if (!enableColumnarHashAgg) {
+            TransformHints.tagNotTransformable(plan)
+          }
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              .genHashAggregateExecTransformer(
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child)
+          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(plan)
@@ -382,14 +387,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = UnionExecTransformer(plan.children)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
-          }
-        case plan: CustomExpandExec =>
-          if (!enableColumnarExpand) {
-            TransformHints.tagNotTransformable(plan)
-          } else {
-            val transformer = GroupIdExecTransformer(plan.projections,
-              plan.groupExpression, plan.output, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ExpandExec =>

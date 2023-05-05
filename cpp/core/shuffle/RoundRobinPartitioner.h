@@ -15,25 +15,23 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+#pragma once
 
-import io.glutenproject.columnarbatch.ArrowColumnarBatches;
-import io.glutenproject.columnarbatch.GlutenColumnarBatches;
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
+#include "shuffle/Partitioner.h"
 
-import java.util.Iterator;
+namespace gluten {
+class RoundRobinPartitioner final : public ShuffleWriter::Partitioner {
+ public:
+  RoundRobinPartitioner(int32_t num_partitions, bool has_pid) : Partitioner(num_partitions, has_pid) {}
 
-public class ArrowInIterator extends GeneralInIterator {
+  arrow::Status Compute(
+      const int32_t* pid_arr,
+      const int64_t num_rows,
+      std::vector<uint16_t>& partition_id,
+      std::vector<uint32_t>& partition_id_cnt) override;
 
-  public ArrowInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
-  }
+ private:
+  int32_t pid_selection_ = 0;
+};
 
-  public long next() {
-    final ColumnarBatch batch = nextColumnarBatch();
-    final ColumnarBatch offloaded =
-        ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
-    return GlutenColumnarBatches.getNativeHandle(offloaded);
-  }
-}
+} // namespace gluten

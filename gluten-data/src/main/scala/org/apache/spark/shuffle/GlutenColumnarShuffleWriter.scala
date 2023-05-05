@@ -59,7 +59,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val offHeapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
 
-  private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
+  private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
@@ -135,7 +135,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
                   }
                   logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
                   // fixme pass true when being called by self
-                  val spilled = jniWrapper.nativeSpill(nativeShuffleWriter, size, false)
+                  val spilled = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
                   logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                   spilled
                 }

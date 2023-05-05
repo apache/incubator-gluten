@@ -17,29 +17,18 @@
 
 #pragma once
 
-#include <arrow/c/abi.h>
-#include <arrow/c/bridge.h>
-#include <arrow/record_batch.h>
-#include <arrow/util/iterator.h>
-
 #include "memory/ColumnarBatch.h"
+#include "memory/ColumnarBatchIterator.h"
 #include "utils/metrics.h"
 
 namespace gluten {
 
 class Backend;
 
-using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
-using ColumnBatchIterator = arrow::Iterator<std::shared_ptr<ColumnarBatch>>;
-
 class ResultIterator {
  public:
-  template <typename T>
-  explicit ResultIterator(std::unique_ptr<T>&& iter, std::shared_ptr<Backend> backend = nullptr)
-      : raw_iter_(iter.get()),
-        iter_(std::make_unique<ColumnBatchIterator>(Wrapper<T>(std::move(iter)))),
-        next_(nullptr),
-        backend_(std::move(backend)) {}
+  explicit ResultIterator(std::unique_ptr<ColumnarBatchIterator> iter, std::shared_ptr<Backend> backend = nullptr)
+      : iter_(std::move(iter)), next_(nullptr), backend_(std::move(backend)) {}
 
   bool HasNext() {
     CheckValid();
@@ -53,26 +42,9 @@ class ResultIterator {
     return std::move(next_);
   }
 
-  /// ArrowArrayIterator doesn't support shared ownership. Once this method is
-  /// called, the caller should take it's ownership, and
-  /// ArrowArrayResultIterator will no longer have access to the underlying
-  /// iterator.
-  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
-    ArrowArrayIterator itr = arrow::MakeMapIterator(
-        [](std::shared_ptr<ColumnarBatch> b) -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
-        std::move(*iter_));
-    ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
-    *itr_ptr = std::move(itr);
-    return std::shared_ptr<ArrowArrayIterator>(itr_ptr);
-  }
-
   // For testing and benchmarking.
-  void* GetRaw() {
-    return raw_iter_;
-  }
-
-  const void* GetRaw() const {
-    return raw_iter_;
+  ColumnarBatchIterator* GetInputIter() {
+    return iter_.get();
   }
 
   std::shared_ptr<Metrics> GetMetrics();
@@ -88,31 +60,17 @@ class ResultIterator {
  private:
   void CheckValid() const {
     if (iter_ == nullptr) {
-      throw GlutenException("ArrowExecResultIterator: the underlying iterator has expired.");
+      throw GlutenException("ResultIterator: the underlying iterator has expired.");
     }
   }
 
   void GetNext() {
     if (next_ == nullptr) {
-      GLUTEN_ASSIGN_OR_THROW(next_, iter_->Next());
+      next_ = iter_->next();
     }
   }
 
-  template <typename T>
-  class Wrapper {
-   public:
-    explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
-
-    arrow::Result<std::shared_ptr<ColumnarBatch>> Next() {
-      return ptr_->Next();
-    }
-
-   private:
-    std::shared_ptr<T> ptr_;
-  };
-
-  void* raw_iter_;
-  std::unique_ptr<ColumnBatchIterator> iter_;
+  std::unique_ptr<ColumnarBatchIterator> iter_;
   std::shared_ptr<ColumnarBatch> next_;
   std::shared_ptr<Backend> backend_;
   int64_t exportNanos_;

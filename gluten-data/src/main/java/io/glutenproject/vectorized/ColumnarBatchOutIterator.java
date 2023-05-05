@@ -19,16 +19,15 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches;
 import io.glutenproject.metrics.IMetrics;
+import java.io.IOException;
+import java.util.List;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-import java.io.IOException;
-import java.util.List;
-
-public class ArrowOutIterator extends GeneralOutIterator {
+public class ColumnarBatchOutIterator extends GeneralOutIterator {
   private final long handle;
 
-  public ArrowOutIterator(long handle, List<Attribute> outAttrs) throws IOException {
+  public ColumnarBatchOutIterator(long handle, List<Attribute> outAttrs) throws IOException {
     super(outAttrs);
     this.handle = handle;
   }
@@ -36,8 +35,6 @@ public class ArrowOutIterator extends GeneralOutIterator {
   private native boolean nativeHasNext(long nativeHandle);
 
   private native long nativeNext(long nativeHandle);
-
-  private native long nativeCHNext(long nativeHandle);
 
   private native void nativeClose(long nativeHandle);
 

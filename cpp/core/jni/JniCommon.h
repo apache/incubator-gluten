@@ -248,22 +248,6 @@ static inline std::string JStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer, clen);
 }
 
-static inline jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
-  arrow::Status status;
-  // std::shared_ptr<arrow::Buffer> buffer;
-  arrow::Result<std::shared_ptr<arrow::Buffer>> maybe_buffer;
-  maybe_buffer = arrow::ipc::SerializeSchema(*schema.get(), gluten::GetDefaultWrappedArrowMemoryPool().get());
-  if (!status.ok()) {
-    std::string error_message = "Unable to convert schema to byte array, err is " + status.message();
-    throw gluten::GlutenException(error_message);
-  }
-  auto buffer = *std::move(maybe_buffer);
-  jbyteArray out = env->NewByteArray(buffer->size());
-  auto src = reinterpret_cast<const jbyte*>(buffer->data());
-  env->SetByteArrayRegion(out, 0, buffer->size(), src);
-  return out;
-}
-
 static inline arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv* env, jstring codec_jstr) {
   auto codec_u = env->GetStringUTFChars(codec_jstr, JNI_FALSE);
 

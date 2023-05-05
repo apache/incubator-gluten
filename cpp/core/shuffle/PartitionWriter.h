@@ -15,24 +15,31 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+#pragma once
 
-/**
- * Wrapper for ArrowFieldNodeBuilder.
- */
-public class ArrowFieldNodeBuilder {
+#include "shuffle/ShuffleWriter.h"
 
-  public int length;
-  public int nullCount;
+namespace gluten {
 
-  /**
-   * Create an instance of ArrowFieldNodeBuilder.
-   *
-   * @param length    numRows in this Field
-   * @param nullCount numCount in this Fields
-   */
-  public ArrowFieldNodeBuilder(int length, int nullCount) {
-    this.length = length;
-    this.nullCount = nullCount;
-  }
-}
+class ShuffleWriter::PartitionWriter {
+ public:
+  static arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(
+      ShuffleWriter* shuffle_writer,
+      int32_t num_partitions);
+
+ public:
+  PartitionWriter(ShuffleWriter* shuffle_writer, int32_t num_partitions)
+      : shuffle_writer_(shuffle_writer), num_partitions_(num_partitions) {}
+  virtual ~PartitionWriter() = default;
+
+  virtual arrow::Status Init() = 0;
+
+  virtual arrow::Status EvictPartition(int32_t partition_id) = 0;
+
+  virtual arrow::Status Stop() = 0;
+
+  ShuffleWriter* shuffle_writer_;
+  uint32_t num_partitions_;
+};
+
+} // namespace gluten

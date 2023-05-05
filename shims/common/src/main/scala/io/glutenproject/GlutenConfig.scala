@@ -45,7 +45,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
 
-  def enableColumnarProject: Boolean = conf.getConf(COLUMNAR_PROJECT_ENABLED)
+  // Whether to force to use gluten's hash agg for replacing vanilla spark's sort agg.
+  def forceToUseHashAgg: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.force.hashagg", "true").toBoolean
+
+  // enable or disable columnar project
+  def enableColumnarProject: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.project", "true").toBoolean
 
   def enableColumnarFilter: Boolean = conf.getConf(COLUMNAR_FILTER_ENABLED)
 
@@ -124,9 +130,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleBatchCompressThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_BATCH_COMPRESS_THRESHOLD)
 
-  def shuffleSplitDefaultSize: Int = conf.getConf(COLUMNAR_SHUFFLE_SPLIT_DEFAULT_SIZE)
+  def maxBatchSize: Int =
+    conf.getConfString("spark.gluten.sql.columnar.maxBatchSize", "4096").toInt
 
-  def enableCoalesceBatches: Boolean = conf.getConf(COLUMNAR_COALESCE_ENABLED)
+  def enableCoalesceBatches: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
 
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
@@ -181,6 +189,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def validateFailureLogLevel: String = conf.getConf(VALIDATE_FAILURE_LOG_LEVEL)
 
   def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
+
+  // A comma-separated list of classes for the extended columnar pre rules
+  def extendedColumnarPreRules: String =
+    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.pre.rules", "")
+
+  // A comma-separated list of classes for the extended columnar post rules
+  def extendedColumnarPostRules: String =
+    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
 
   def printStackOnValidateFailure: Boolean =
     conf.getConf(VALIDATE_FAILURE_PRINT_STACK_ENABLED)

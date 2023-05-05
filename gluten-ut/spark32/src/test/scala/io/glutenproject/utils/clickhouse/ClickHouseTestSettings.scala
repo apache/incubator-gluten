@@ -18,10 +18,15 @@
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 
 class ClickHouseTestSettings extends BackendTestSettings {
+
+  enableSuite[GlutenSessionExtensionSuite]
+  enableSuite[GlutenCustomerExtensionSuite]
 
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(
@@ -40,7 +45,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       " before using it", // [not urgent]
       "max_by", // [not urgent]
       "min_by", // [not urgent]
-      "aggregation with filter"
+      "aggregation with filter",
+      // replaceSortAggWithHashAgg is not turned on for CH backend.
+      GLUTEN_TEST + "use gluten hash agg to replace vanilla spark sort agg"
     )
     .excludeByPrefix(
       "SPARK-22951", // [not urgent] dropDuplicates
@@ -139,11 +146,17 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-34920: error class"
     )
 
-//  enableSuite[GlutenRegexpExpressionsSuite]
-//    .include(
-//      "SPLIT",
-//      "RLIKE Regular Expression"
-//    )
+  // enableSuite[GlutenRegexpExpressionsSuite]
+  //   .include(
+  //     "SPLIT",
+  //     "RLIKE Regular Expression"
+  //     "RegexExtract"
+  //   )
+
+  enableSuite[GlutenJsonExpressionsSuite]
+    .include(
+      "Length of JSON array"
+    )
 
   enableSuite[GlutenStringExpressionsSuite]
     .include(
@@ -213,7 +226,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenHashExpressionsSuite]
     .include(
-      "md5"
+      "md5",
+      "sha1",
+      "sha2",
+      "crc32"
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]

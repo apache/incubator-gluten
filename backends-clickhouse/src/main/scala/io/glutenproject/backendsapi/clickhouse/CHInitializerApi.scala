@@ -39,7 +39,7 @@ class CHInitializerApi extends InitializerApi {
 
     // Add configs
     conf.set(
-      "spark.gluten.timezone",
+      s"${CHBackendSettings.getBackendConfigPrefix()}.runtime_config.timezone",
       conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
     val initKernel = new CHNativeExpressionEvaluator()
     initKernel.initNative(conf)

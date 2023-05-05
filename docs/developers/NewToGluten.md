@@ -1,3 +1,9 @@
+---
+layout: page
+title: New To Gluten
+nav_order: 2
+parent: Developer Overview
+---
 Help users to debug and test with gluten.
 
 For intel internal developer, you could refer to internal wiki  [New Employee Guide](https://wiki.ith.intel.com/display/HPDA/New+Employee+Guide) to get more information such as proxy settings,
@@ -46,7 +52,7 @@ And then set the environment setting.
 
 # Compile gluten using debug mode
 
-If you just debug java code, you don't need to compile cpp debug mode, just do as [Velox.md](https://github.com/oap-project/gluten/blob/main/docs/Velox.md#2-build-gluten-with-velox-backend)
+If you just debug java code, you don't need to compile cpp debug mode, just do as [build-gluten-with-velox-backend](../get-started/Velox.md#2-build-gluten-with-velox-backend)
 
 If you need to debug cpp code, please compile the backend code and gluten cpp code as debug mode.
 
@@ -72,7 +78,7 @@ Install the linux intellij version, and debug code locally.
 [X11 Forwarding: Setup Instructions for Linux and Mac](https://www.businessnewsdaily.com/11035-how-to-use-x11-forwarding.html)
 
 - Download [intellij linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to linux server
-- Start Idea, bash <idea_dir>/idea.sh
+- Start Idea, `bash <idea_dir>/idea.sh`
 
 Notes: Sometimes, your desktop may stop accidently, left idea running.
 
@@ -174,7 +180,7 @@ launch.json example
       "type": "cppdbg",
       "request": "launch",
       "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/tests/velox_shuffle_writer_test",
-      "args": ["--gtest_filter=*TestSingleShuffleWriter*"],
+      "args": ["--gtest_filter=*TestSinglePartPartitioner*"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -252,16 +258,16 @@ Search `update` in Manage->Settings to turn off update mode
 
 ### Clang format
 
-Now gluten uses clang-format 11 to format source files.
+Now gluten uses clang-format 12 to format source files.
 
 ```bash
-apt-get install clang-format-11
+apt-get install clang-format-12
 ```
 
 Set config in `settings.json`
 
 ```json
-"clang-format.executable": "clang-format-11",
+"clang-format.executable": "clang-format-12",
 "editor.formatOnSave": true,
 ```
 
@@ -341,7 +347,7 @@ wait to attach....
 # Run TPC-H and TPC-DS
 
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
-Refer to [unittest.yml](https://github.com/oap-project/gluten/blob/main/.github/workflows/unittests.yml)
+Refer to [velox_be.yml](https://github.com/oap-project/gluten/blob/main/.github/workflows/velox_be.yml)
 
 # Run gluten+velox on clean machine
 

@@ -1183,7 +1183,7 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     else if (function_name == "extract")
     {
         if (args.size() != 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "Function extract requires two args, function:{}", function.ShortDebugString());
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "Spark function extract requires two args, function:{}", function.ShortDebugString());
 
         // Get the first arg: field
         const auto & extract_field = args.at(0);
@@ -1222,19 +1222,19 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
             else if (field_value == "SECOND")
                 ch_function_name = "toSecond";      // spark: extract(SECOND FROM) or secondwithfraction
             else
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of extract function is wrong.");
+                throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
         }
         else
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of extract function is wrong.");
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
     }
     else if (function_name == "trunc")
     {
         if (args.size() != 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "Function trunc requires two args, function:{}", function.ShortDebugString());
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "Spark function trunc requires two args, function:{}", function.ShortDebugString());
 
         const auto & trunc_field = args.at(0);
         if (!trunc_field.value().has_literal() || !trunc_field.value().literal().has_string())
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of trunc function is wrong.");
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of spark trunc function is wrong.");
 
         const auto & field_value = trunc_field.value().literal().string();
         if (field_value == "YEAR" || field_value == "YYYY" || field_value == "YY")
@@ -1246,7 +1246,28 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         else if (field_value == "WEEK")
             ch_function_name = "toStartOfWeek";
         else
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of trunc function is wrong, value:{}", field_value);
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of spark trunc function is wrong, value:{}", field_value);
+    }
+    else if (function_name == "sha2")
+    {
+        if (args.size() != 2)
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "Spark function sha2 requires two args, function:{}", function.ShortDebugString());
+
+        const auto & bit_length = args.at(1);
+        if (!bit_length.value().has_literal() || !bit_length.value().literal().has_i32())
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of spark sha2 function is wrong.");
+
+        const auto & bit_length_value = bit_length.value().literal().i32();
+        if (bit_length_value == 224)
+            ch_function_name = "SHA224";
+        else if (bit_length_value == 256 || bit_length_value == 0)
+            ch_function_name = "SHA256";
+        else if (bit_length_value == 384)
+            ch_function_name = "SHA384";
+        else if (bit_length_value == 512)
+            ch_function_name = "SHA512";
+        else
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of spark sha2 function is wrong, value:{}", bit_length_value);
     }
     else if (function_name == "check_overflow")
     {
@@ -1492,6 +1513,11 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
             // delete the second arg of trunc
             args.pop_back();
         }
+        else if (startsWith(function_signature, "sha2:"))
+        {
+            // delete the second arg of trunc
+            args.pop_back();
+        }
 
         if (function_signature.find("check_overflow:", 0) != function_signature.npos)
         {
@@ -1648,20 +1674,6 @@ void SerializedPlanParser::parseFunctionArguments(
         DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
         repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, target_type.getName());
         parsed_args.emplace_back(repeat_times_node);
-    }
-    else if (function_name == "leftPadUTF8" || function_name == "rightPadUTF8")
-    {
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
-
-        /// Make sure the second function arguemnt's type is unsigned integer
-        /// TODO: delete this branch after Kyligence/Clickhouse upgraged to 23.2
-        const DB::ActionsDAG::Node * pad_length_node =
-            parseFunctionArgument(actions_dag, required_columns, function_name, args[1]);
-        DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt64>());
-        pad_length_node = ActionsDAGUtil::convertNodeType(actions_dag, pad_length_node, target_type.getName());
-        parsed_args.emplace_back(pad_length_node);
-
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[2]);
     }
     else if (function_name == "isNaN")
     {
@@ -2748,11 +2760,16 @@ bool LocalExecutor::hasNext()
     bool has_next;
     try
     {
-        if (currentBlock().columns() == 0 || isConsumed())
+        size_t columns = currentBlock().columns();
+        if (columns == 0 || isConsumed())
         {
             auto empty_block = header.cloneEmpty();
             setCurrentBlock(empty_block);
             has_next = executor->pull(currentBlock());
+            if (!has_next)
+            {
+                has_next = checkAndSetDefaultBlock(columns, has_next);
+            }
             produce();
         }
         else
@@ -2810,4 +2827,41 @@ LocalExecutor::LocalExecutor(QueryContext & _query_context)
     : query_context(_query_context)
 {
 }
+
+bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool has_next_blocks)
+{
+    if (current_block_columns > 0 || has_next_blocks)
+    {
+        return has_next_blocks;
+    }
+    auto cols = currentBlock().getColumnsWithTypeAndName();
+    for (size_t i = 0; i < cols.size(); i++)
+    {
+        const DB::ColumnWithTypeAndName col = cols[i];
+        String col_name = col.name;
+        DataTypePtr col_type = col.type;
+        if (col_name.compare(0, 4, "sum#") != 0 &&
+            col_name.compare(0, 4, "max#") != 0 &&
+            col_name.compare(0, 4, "min#") != 0 &&
+            col_name.compare(0, 6, "count#") != 0)
+        {
+            return false;
+        }
+        if (!isInteger(col_type) && !col_type->isNullable())
+        {
+            return false;
+        }
+    }
+    for (size_t i = 0; i < cols.size(); i++)
+    {
+        const DB::ColumnWithTypeAndName col = cols[i];
+        String col_name = col.name;
+        DataTypePtr col_type = col.type;
+        const DB::ColumnPtr & default_col_ptr = col_type->createColumnConst(1, col_type->getDefault());
+        const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
+        currentBlock().setColumn(i, default_col);
+    }
+    return true;
+}
+
 }

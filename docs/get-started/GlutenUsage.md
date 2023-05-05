@@ -1,6 +1,11 @@
-### Build parameters
-
-#### Parameters for builddeps-veloxbe.sh
+---
+layout: page
+title: Build Parameters for Velox Backend
+nav_order: 4
+parent: Getting-Started
+---
+# Build parameters
+## Parameters for builddeps-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=Release`.
 
 | Parameters | Description | Default value |
@@ -17,14 +22,14 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_hdfs | build with hdfs lib      | OFF|
 | enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
 
-#### Parameters for get_arrow.sh
+## Parameters for get_arrow.sh
 Please set them via `--`, e.g., `--enable_custom_codec=ON`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | enable_custom_codec | Apply patch to plugin custom codec (used by QAT/IAA) in Arrow cpp IPC module. | OFF |
 
-#### Parameters for build_arrow.sh
+## Parameters for build_arrow.sh
 Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
@@ -33,7 +38,7 @@ Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 | build_type | ARROW build type, CMAKE_BUILD_TYPE        | Release|
 | build_tests | Build arrow with -DARROW_JSON=ON          | OFF           |
 
-#### Parameters for build_velox.sh
+## Parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
@@ -44,7 +49,7 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
 
-#### Maven building parameters
+## Maven building parameters
 To build different backends, there are 3 parameters can be set via `-P` for mvn.
 
 | Parameters               | Description                                                                                      | Activation state by default |
@@ -52,7 +57,7 @@ To build different backends, there are 3 parameters can be set via `-P` for mvn.
 | backends-velox           | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                  | disabled                    |
 | backends-clickhouse      | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.        | disabled                    |
 
-### Gluten jar for deployment
+# Gluten jar for deployment
 
 The gluten jar's name pattern is `gluten-<backend_type>-bundle-spark<sparkbundle.version>_<scala.binary.version>-<os.detected.release>_<os.detected.release.version>-<project.version>.jar`.
 

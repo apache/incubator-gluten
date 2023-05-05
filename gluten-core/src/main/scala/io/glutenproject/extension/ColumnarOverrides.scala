@@ -17,30 +17,30 @@
 
 package io.glutenproject.extension
 
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
+import org.apache.spark.sql.GlutenRemoveRedundantSorts
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, Expression, Murmur3Hash, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, NamedExpression, SortOrder}
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, RangePartitioning}
-import org.apache.spark.sql.catalyst.expressions.{BindReferences, BoundReference}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
@@ -263,6 +263,34 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
         genFilterExec(plan)
       case plan: HashAggregateExec =>
         genHashAggregateExec(plan)
+      case plan: SortAggregateExec =>
+        try {
+          val child = replaceWithTransformerPlan(plan.child)
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance
+              .genHashAggregateExecTransformer(
+            plan.requiredChildDistributionExpressions,
+            plan.groupingExpressions,
+            plan.aggregateExpressions,
+            plan.aggregateAttributes,
+            plan.initialInputBufferOffset,
+            plan.resultExpressions,
+            // If SortAggregateExec is forcibly replaced by HashAggregateExecTransformer,
+            // Sort operator is useless. So just use its child to initialize.
+            child match {
+              case sort: SortExecTransformer =>
+                sort.child
+              case sort: SortExec =>
+                sort.child
+              case other =>
+                other
+            })
+        } catch {
+          case _: Throwable =>
+            logInfo("Fallback to SortAggregateExec instead of forcibly" +
+                " using HashAggregateExecTransformer!")
+            plan
+        }
       case plan: ObjectHashAggregateExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -279,10 +307,6 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
         val children = plan.children.map(replaceWithTransformerPlan)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         UnionExecTransformer(children)
-      case plan: CustomExpandExec =>
-        val child = replaceWithTransformerPlan(plan.child)
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        GroupIdExecTransformer(plan.projections, plan.groupExpression, plan.output, child)
       case plan: ExpandExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -624,18 +648,24 @@ case class ColumnarOverrideRules(session: SparkSession)
     tagBeforeTransformHitsRules :::
     List(
       (_: SparkSession) => FallbackEmptySchemaRelation(),
-      (_: SparkSession) => StoreExpandGroupExpression(),
       (_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(
         this.isTopParentExchange || this.isAdaptiveContext),
-      (_: SparkSession) => RemoveTransformHintRule()) :::
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
+      (_: SparkSession) => RemoveTransformHintRule(),
+      (_: SparkSession) => GlutenRemoveRedundantSorts) :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
+      SparkUtil.extendedColumnarRules(
+        session,
+        GlutenConfig.getConf.extendedColumnarPreRules)
   }
 
   def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
     List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
-      List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf))
+      List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
+      SparkUtil.extendedColumnarRules(
+        session,
+        GlutenConfig.getConf.extendedColumnarPostRules)
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {

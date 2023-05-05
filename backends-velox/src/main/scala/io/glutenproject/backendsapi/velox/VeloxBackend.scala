@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, DwrfReadFormat, ParquetReadFormat}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count}
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -72,14 +72,13 @@ object VeloxBackendSettings extends BackendSettings {
     format match {
       case ParquetReadFormat => validateTypes && validateFilePath
       case DwrfReadFormat => true
+      case OrcReadFormat => true
       case _ => false
     }
   }
 
   override def supportExpandExec(): Boolean = true
-  override def needProjectExpandOutput: Boolean = true
 
-  override def supportNewExpandContract(): Boolean = true
   override def supportSortExec(): Boolean = true
 
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
@@ -105,6 +104,9 @@ object VeloxBackendSettings extends BackendSettings {
     GlutenConfig.getConf.isUseColumnarShuffleManager ||
       GlutenConfig.getConf.isUseCelebornShuffleManager
   }
+
+  override def enableJoinKeysRewrite(): Boolean = false
+
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>
       if (super.supportHashBuildJoinTypeOnLeft(t)) {
@@ -169,6 +171,8 @@ object VeloxBackendSettings extends BackendSettings {
   override def recreateJoinExecOnFallback(): Boolean = true
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
   override def rescaleDecimalLiteral(): Boolean = true
+
+  override def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
   /**
    * Get the config prefix for each backend

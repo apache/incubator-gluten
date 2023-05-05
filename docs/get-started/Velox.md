@@ -1,3 +1,9 @@
+---
+layout: page
+title: Gluten with Velox Backend
+nav_order: 1
+parent: Getting-Started
+---
 Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
 # 1 Prerequisite
@@ -10,30 +16,29 @@ Gluten builds with Spark3.2.x and Spark3.3.3 now but only fully tested in CI wit
 Velox uses the script `setup-ubuntu.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
 So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
-```shell script
+```bash
 ## run as root
 ## install gcc and libraries to build arrow
 apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
 ```
 <b>For x86_64</b>
-```shell script
+```bash
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 ```
 <b>For aarch64</b>
-```shell script
+```bash
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-arm64
 export PATH=$JAVA_HOME/bin:$PATH
 ```
 <b>Get gluten</b>
-```shell script
+```bash
 ## config maven, like proxy in ~/.m2/settings.xml
 
 ## fetch gluten code
 git clone https://github.com/oap-project/gluten.git
-
 ```
 # 2 Build Gluten with Velox Backend
 
@@ -41,7 +46,7 @@ It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
 [Gluten Usage](./GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
 <b>For x86_64 build:</b>
-```shell script
+```bash
 cd /path_to_gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
@@ -50,11 +55,10 @@ cd /path_to_gluten
 ## When you have successfully compiled once and changed some codes then compile again.
 ## you may use following command to skip the arrow, velox and protobuf build
 # ./dev/buildbundle-veloxbe.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
-
 ```
 
 <b>For aarch64 build, set the CPU_TARGET to "aarch64":</b>
-```shell script
+```bash
 export CPU_TARGET="aarch64"
 
 cd /path_to_gluten
@@ -64,8 +68,7 @@ cd /path_to_gluten
 
 <b>Alternatively you may build gluten step by step as below.</b>
 
-```shell script
-
+```bash
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./get_arrow.sh
@@ -94,7 +97,6 @@ cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
-
 ```
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
@@ -104,7 +106,7 @@ Once building successfully, the Jar file will be generated in the directory: pac
 
 You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it as below.
 
-```shell script
+```bash
 step 1: recompile velox, set velox_home in build_velox.sh
 cd /path_to_gluten/ep/build_velox/src
 ./build_velox.sh  --velox_home=/your_specified_velox_path
@@ -122,7 +124,6 @@ cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
-
 ```
 
 ## 2.2 Arrow home directory
@@ -130,7 +131,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 Arrow home can be set as the same of Velox. We will soon switch to upstream Arrow. Currently the shuffle still uses Arrow's IPC interface.
 You can also clone the Arrow source from [OAP/Arrow](https://github.com/oap-project/arrow) to some other folder then specify it as below.
 
-```shell script
+```bash
 step 1: set ARROW_SOURCE_DIR in build_arrow.sh and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./build_arrow.sh
@@ -148,7 +149,6 @@ cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
-
 ```
 
 ## 2.3 HDFS support
@@ -304,7 +304,7 @@ spark.dynamicAllocation.enabled false
 ```
 
 # 3 Coverage
-Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [The Operators and Functions Support Progress](https://github.com/oap-project/gluten/blob/main/docs/SupportProgress.md).
+Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [The Operators and Functions Support Progress](../SupportProgress.md).
 
 > Velox doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)), so as Gluten. Once ANSI mode is enabled in Spark config, Gluten will fallback to Vanilla Spark.
 
@@ -317,13 +317,13 @@ Gluten supports allocating memory on HBM. This feature is optional and is disabl
 
 Gluten will internally build and link to a specific version of Memkind library and [hwloc](https://github.com/open-mpi/hwloc). Other dependencies should be installed on Driver and Worker node first:
 
-```shell script
+```bash
 sudo apt install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
 ```
 
 After the set-up, you can now build Gluten with HBM. Below command is used to enable this feature
 
-```shell script
+```bash
 cd /path_to_gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
@@ -374,7 +374,7 @@ The following tips may help when you are trying to tune against spilling-related
 
 Please refer to the figure below:
 
-![](./image/veloxbe_memory_layout.png)
+![](../image/veloxbe_memory_layout.png)
 
 You can see that the 25% of off-heap memory (controlled by spark.gluten.sql.columnar.backend.velox.memoryCapRatio) is mainly preserved for storing shuffle data which is not controlled by Velox task.
 
@@ -394,24 +394,24 @@ Gluten will internally build and link to a specific version of QATzip library. P
 
 1. Setup ICP_ROOT environment variable. This environment variable is required during building Gluten and running Spark applicaitons. It's recommended to put it in .bashrc on Driver and Worker node.
 
-```shell script
+```bash
 export ICP_ROOT=/path_to_QAT_driver
 ```
 2. **This step is required if your application is running as Non-root user**. The users must be added to the 'qat' group after QAT drvier is installed:
 
-```shell script
+```bash
 sudo usermod -aG qat username # need to relogin
 ```
 Change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf. To set 500MB add a line like this in /etc/security/limits.conf:
 
-```shell script
+```bash
 cat /etc/security/limits.conf |grep qat
 @qat - memlock 500000
 ```
 
 3. Enable huge page as root user. **Note that this step is required to execute each time after system reboot.**
 
-```shell script
+```bash
  echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
  rmmod usdm_drv
  insmod $ICP_ROOT/build/usdm_drv.ko max_huge_pages=1024 max_huge_pages_per_process=32
@@ -419,7 +419,7 @@ cat /etc/security/limits.conf |grep qat
  
 After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
 
-```shell script
+```bash
 cd /path_to_gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
@@ -428,9 +428,9 @@ cd /path_to_gluten
 
 ## 6.2 Enable QAT with Gzip Compression for shuffle compression
 
-1. To enable QAT at run-time, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
+1. To enable QAT at run-time, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](../qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
 
-```shell script
+```bash
 ## run as root
 ## Overwrite QAT configuration file.
 cd /etc
@@ -441,7 +441,7 @@ adf_ctl restart
 
 2. Check QAT status and make sure the status is up
 
-```shell script
+```bash
 adf_ctl status
 ```
 
@@ -505,7 +505,7 @@ Gluten will internally build and link to a specific version of QPL library, but 
 
 **This step is required if your application is running as Non-root user**. Create a group for the users who have privilege to use IAA, and grant group iaa read/write access to the IAA Work-Queues.
 
-```shell script
+```bash
 sudo groupadd iaa
 sudo usermod -aG iaa username # need to relogin
 sudo chgrp -R iaa /dev/iax
@@ -514,7 +514,7 @@ sudo chmod -R g+rw /dev/iax
  
 After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
 
-```shell script
+```bash
 cd /path_to_gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
@@ -525,7 +525,7 @@ cd /path_to_gluten
 
 1. To enable QAT at run-time, first make sure you have configured the IAA Work-Queues correctly, and the file permissions of /dev/iax/wqX.0 are correct.
 
-```shell script
+```bash
 sudo ls -l /dev/iax
 ```
 
@@ -587,7 +587,7 @@ var gluten_root = "/PATH/TO/GLUTEN"
 
 Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
-```shell script
+```bash
 export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --master yarn --deploy-mode client \
@@ -607,12 +607,12 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --conf spark.driver.maxResultSize=32g
 ```
 
-Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
+Refer to [Gluten parameters ](../Configuration.md) for more details of each parameter used by Gluten.
 
 ## 8.3 Result
 *wholestagetransformer* indicates that the offload works.
 
-![TPC-H Q6](./image/TPC-H_Q6_DAG.png)
+![TPC-H Q6](../image/TPC-H_Q6_DAG.png)
 
 ## 8.4 Performance
 

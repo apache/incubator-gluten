@@ -106,6 +106,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
   registerConnector(hiveConnector);
   velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
   velox::dwrf::registerDwrfReaderFactory();
+  velox::dwrf::registerOrcReaderFactory();
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {

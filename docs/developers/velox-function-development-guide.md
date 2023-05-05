@@ -1,3 +1,9 @@
+---
+layout: page
+title: Velox Function Development
+nav_order: 5
+parent: Developer Overview
+---
 # Developer Guide for Implementing Spark Built-in SQL Functions in Velox
 
 In velox, two folders `prestosql` & `sparksql` are holding most sql functions, respective for `presto` and `spark`. At runtime, gluten will firstly check whether the calling function is registered in `sparksql` and will use

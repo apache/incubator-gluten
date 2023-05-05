@@ -22,9 +22,13 @@ import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GlutenMemoryConsumer extends MemoryConsumer {
 
+  private static final Logger LOG =
+          LoggerFactory.getLogger(GlutenMemoryConsumer.class);
   protected final Spiller spiller;
 
   public GlutenMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
@@ -42,13 +46,12 @@ public class GlutenMemoryConsumer extends MemoryConsumer {
   }
 
   public long acquire(long size) {
-    if (size <= 0L) {
-      return 0L;
-    }
+    assert size > 0;
     return acquireMemory(size);
   }
 
   public long free(long size) {
+    assert size > 0;
     freeMemory(size);
     return size;
   }

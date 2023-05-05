@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Vector;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class CHMemoryAllocatorManager implements NativeMemoryAllocatorManager {
 
@@ -31,30 +30,14 @@ public class CHMemoryAllocatorManager implements NativeMemoryAllocatorManager {
   private static final List<NativeMemoryAllocator> LEAKED = new Vector<>();
   private final NativeMemoryAllocator managed;
 
-  private static AtomicLong ACCUMULATED_LEAK_BYTES = new AtomicLong(0L);
-
   public CHMemoryAllocatorManager(NativeMemoryAllocator managed) {
     this.managed = managed;
   }
 
-  private void close() throws Exception {
-    managed.close();
-  }
-
   @Override
   public void release() throws Exception {
-    // close native allocator first
-    close();
-    // detect whether there is the memory leak
-    long currentMemory = managed.listener().currentMemory();
+    managed.close();
     managed.listener().inactivate();
-    if (currentMemory > 0L) {
-      long accumulated = ACCUMULATED_LEAK_BYTES.addAndGet(currentMemory);
-      String errMsg = String.format("Detected leaked native allocator, size: %d, " +
-          "process accumulated leaked size: %d...", currentMemory, accumulated);
-      LOGGER.error(errMsg);
-      throw new UnsupportedOperationException(errMsg);
-    }
   }
 
   @Override

@@ -15,30 +15,21 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+#pragma once
 
-/**
- * ArrowBufBuilder.
- */
-public class ArrowBufBuilder {
+#include "shuffle/Partitioner.h"
 
-  public long nativeInstanceId;
-  public long memoryAddress;
-  public int size;
-  public long capacity;
+namespace gluten {
 
-  /**
-   * Create an instance for ArrowBufBuilder.
-   *
-   * @param nativeInstanceId native ArrowBuf holder.
-   * @param memoryAddress native ArrowBuf data addr.
-   * @param size ArrowBuf size.
-   * @param capacity ArrowBuf rowNums.
-   */
-  public ArrowBufBuilder(long nativeInstanceId, long memoryAddress, int size, long capacity) {
-    this.memoryAddress = memoryAddress;
-    this.size = size;
-    this.capacity = capacity;
-    this.nativeInstanceId = nativeInstanceId;
-  }
-}
+class HashPartitioner final : public ShuffleWriter::Partitioner {
+ public:
+  HashPartitioner(int32_t num_partitions, bool has_pid) : Partitioner(num_partitions, has_pid) {}
+
+  arrow::Status Compute(
+      const int32_t* pid_arr,
+      const int64_t num_rows,
+      std::vector<uint16_t>& partition_id,
+      std::vector<uint32_t>& partition_id_cnt) override;
+};
+
+} // namespace gluten

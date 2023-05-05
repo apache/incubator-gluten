@@ -1,3 +1,8 @@
+
+if (COMPILER_CLANG)
+    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_WRAPPER}")
+endif ()
+
 option(ENABLE_LOCAL_FORMATS "Use ORC/Parquet input formats defined in utils/local-engine/, notice that it is not stable and has some known issues. We suggest setting it to OFF in production environment." OFF)
 if (ENABLE_LOCAL_FORMATS)
     add_definitions(-DENABLE_LOCAL_FORMATS=1)
@@ -62,12 +67,15 @@ add_library(${LOCALENGINE_SHARED_LIB} SHARED
         ${operator_sources}
         ${aggregate_functions_sources}
         ${functions_sources}
-        local_engine_jni.cpp)
+        local_engine_jni.cpp $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
 
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC
         -Wno-shorten-64-to-32)
 
+target_link_libraries (${LOCALENGINE_SHARED_LIB} PRIVATE )
+
 target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
+        clickhouse_new_delete
         clickhouse_aggregate_functions
         clickhouse_common_config
         clickhouse_common_io
@@ -84,6 +92,41 @@ target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
 if (ENABLE_LOCAL_FORMATS)
     target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 endif ()
+
+target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::aws_s3>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::filesystem>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::iostreams>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::program_options>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::regex>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::system>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::context>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::coroutine>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:boost::graph>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:clickhouse_common_io>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:cxx>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:cxxabi>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:common>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_arrow>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_orc>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_icuuc>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_icui18n>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:_icudata>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::curl>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::parquet>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::lz4>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::nuraft>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::zstd>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:ch_contrib::vectorscan>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::XML>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Net>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Net::SSL>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Util>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::JSON>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Crypto>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:Poco::Foundation>
+        -Wl,--exclude-libs,$<TARGET_FILE_NAME:unwind>
+)
 
 #set(CPACK_PACKAGE_VERSION 0.1.0)
 #set(CPACK_GENERATOR "RPM")

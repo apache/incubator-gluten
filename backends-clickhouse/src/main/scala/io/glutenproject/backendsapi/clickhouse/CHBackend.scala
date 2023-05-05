@@ -135,8 +135,6 @@ object CHBackendSettings extends BackendSettings with Logging {
 
   override def supportExpandExec(): Boolean = true
 
-  override def supportNewExpandContract(): Boolean = true
-
   override def excludeScanExecFromCollapsedStage(): Boolean =
     SQLConf.get
       .getConfString(GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT)

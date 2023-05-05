@@ -1,3 +1,9 @@
+---
+layout: page
+title: Docker script for CentOS 8
+nav_order: 7
+parent: Developer Overview
+---
 Here is a docker script we verified to build Gluten+Velox backend on Centos8:
 
 Run on host as root user:

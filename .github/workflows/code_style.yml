@@ -40,6 +40,6 @@ jobs:
       - name: Run clang-format style check for C/C++ programs.
         uses: jidicula/clang-format-action@v3.5.1
         with:
-          clang-format-version: '11'
+          clang-format-version: '12'
           check-path: ${{ matrix.path['check'] }}
           fallback-style: 'Google' # optional

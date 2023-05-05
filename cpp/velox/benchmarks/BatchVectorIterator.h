@@ -21,7 +21,7 @@ class ParquetBatchVectorIterator final : public ParquetBatchIterator {
 #endif
   }
 
-  arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() override {
+  std::shared_ptr<gluten::ColumnarBatch> next() override {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }
@@ -61,7 +61,7 @@ class OrcBatchVectorIterator final : public OrcBatchIterator {
 #endif
   }
 
-  arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() override {
+  std::shared_ptr<gluten::ColumnarBatch> next() override {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }

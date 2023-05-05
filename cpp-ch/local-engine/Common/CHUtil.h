@@ -120,7 +120,6 @@ private:
     inline static const String CH_RUNTIME_SETTINGS = "runtime_settings";
     inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS + ".";
 
-    inline static const String GLUTEN_TIMEZONE_KEY = "spark.gluten.timezone";
     inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
     inline static const String SETTINGs_PATH = "local_engine.settings";
     inline static const std::string SPARK_S3_ACCESS_KEY = "spark.hadoop.fs.s3a.access.key";

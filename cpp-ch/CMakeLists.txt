@@ -7,12 +7,10 @@ set(CH_COMMIT 52be833f CACHE STRING "ClickHouse commit")
 project(libch LANGUAGES C CXX ASM)
 file(GLOB clickhouse_files "${CH_SOURCE_DIR}/*")
 if ("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
-    if ("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
-        if (NOT clickhouse_files)
-            execute_process(COMMAND git clone -b ${CH_BRANCH} --depth 1 https://github.com/${CH_ORG}/ClickHouse.git ${CH_SOURCE_DIR})
-            execute_process(COMMAND git reset --hard ${CH_COMMIT} WORKING_DIRECTORY ${CH_SOURCE_DIR})
-            execute_process(COMMAND git submodule update --init --recursive --force --depth 1 WORKING_DIRECTORY ${CH_SOURCE_DIR})
-        endif()
+    if (NOT clickhouse_files)
+        execute_process(COMMAND git clone -b ${CH_BRANCH} --depth 1 https://github.com/${CH_ORG}/ClickHouse.git ${CH_SOURCE_DIR})
+        execute_process(COMMAND git reset --hard ${CH_COMMIT} WORKING_DIRECTORY ${CH_SOURCE_DIR})
+        execute_process(COMMAND git submodule update --init --recursive --force --depth 1 WORKING_DIRECTORY ${CH_SOURCE_DIR})
     endif()
 else()
     if (NOT clickhouse_files)
@@ -45,7 +43,7 @@ add_custom_command(
         -DENABLE_JEMALLOC=ON
         -DENABLE_MULTITARGET_CODE=ON
         -DENABLE_EXTERN_LOCAL_ENGINE=ON
-        -DENABLE_THINLTO=OFF
+        -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
         cmake --build ${CH_BINARY_DIR} --target ch\"
         OUTPUT _build_ch

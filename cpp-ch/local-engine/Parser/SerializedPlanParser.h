@@ -117,6 +117,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
      "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
     {"replace", "replaceAll"},
     {"regexp_replace", "replaceRegexpAll"},
+    {"regexp_extract", "regexpExtract"},
     {"regexp_extract_all", "regexpExtractAllSpark"},
     {"chr", "char"},
     {"rlike", "match"},
@@ -138,6 +139,9 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     /// hash functions
     {"murmur3hash", "murmurHashSpark3_32"},
     {"xxhash64", "xxHashSpark64"},
+    {"sha1", "SHA1"},
+    {"sha2", ""}, /// dummpy mapping
+    {"crc32", "CRC32"},
 
     // in functions
     {"in", "in"},
@@ -191,7 +195,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"get_json_object", "JSON_VALUE"},
     {"to_json", "toJSONString"},
     {"from_json", "JSONExtract"},
-    {"json_tuple", "json_tuple"}
+    {"json_tuple", "json_tuple"},
+    {"json_array_length", "JSONArrayLength"},
 };
 
 static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
@@ -384,6 +389,7 @@ public:
 private:
     QueryContext query_context;
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
+    bool checkAndSetDefaultBlock(size_t current_block_columns, bool has_next_blocks);
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
