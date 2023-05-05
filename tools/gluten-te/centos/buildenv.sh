@@ -58,8 +58,6 @@ fi
 
 BUILDENV_DOCKER_BUILD_ARGS="$BUILDENV_DOCKER_BUILD_ARGS $BASEDIR"
 
-"$BASEDIR/../../../dev/vcpkg/export-manifest.sh" "$BASEDIR/vcpkg"
-
 docker build $BUILDENV_DOCKER_BUILD_ARGS
 
 # EOF

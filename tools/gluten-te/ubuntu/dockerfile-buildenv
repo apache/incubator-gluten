@@ -44,39 +44,17 @@ RUN env
 RUN cat /etc/apt/apt.conf || (echo "Apt proxy not set" && true)
 RUN cat /root/.m2/settings.xml
 
-# Install OpenJDK 8 and Maven
+## APT dependencies
 
-# Make sure that only jdk 8 is installed
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven git wget
-
-# Install Spark 3.2.2 for UT
-RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
-RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
-
-# Install gluten build dependencies
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  sudo \
-  locales \
-  wget \
-  tar \
-  tzdata \
-  git \
-  ccache \
-  cmake \
-  ninja-build \
-  build-essential \
-  pkg-config \
-  autoconf \
-  libtool \
-  zip \
-  unzip \
-  curl \
-  flex \
-  bison
+# Update, then install essentials
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev
 
 # install HBM dependencies
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libnuma-dev libdaxctl-dev
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
+
+# Install OpenJDK 8 and Maven
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven
 
 # Setup SSH server
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
@@ -103,11 +81,9 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8
 
-# Cache vcpkg depends
-COPY ./vcpkg /tmp/vcpkg
-ENV VCPKG_BINARY_SOURCES=files,/var/cache/vcpkg,read
-RUN VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES}write /tmp/vcpkg/init.sh \
-  && rm -rf /tmp/vcpkg
+# Install Spark 3.2.2
+RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
+RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 
 # Prepare entry command
 
