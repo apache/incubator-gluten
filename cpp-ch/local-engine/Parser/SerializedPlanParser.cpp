@@ -1151,16 +1151,18 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
                 ch_function_name = "toMonth";       // spark: extract(MONTH FROM) or month
             else if (field_value == "WEEK_OF_YEAR")
                 ch_function_name = "toISOWeek";     // spark: extract(WEEK FROM) or weekofyear
-            /*
             else if (field_value == "WEEK_DAY")
-            {
-                /// spark: weekday(t) -> substrait: extract(WEEK_DAY FROM t) -> ch: WEEKDAY(t)
-                /// spark: extract(DAYOFWEEK_ISO FROM t) -> substrait: 1 + extract(WEEK_DAY FROM t) -> ch: 1 + WEEKDAY(t)
-                ch_function_name = "?";
-            }
+                /// Spark WeekDay(date) (0 = Monday, 1 = Tuesday, ..., 6 = Sunday)
+                /// Substrait: extract(WEEK_DAY from date)
+                /// CH: toDayOfWeek(date, 1)
+                ch_function_name = "toDayOfWeek";
             else if (field_value == "DAY_OF_WEEK")
-                ch_function_name = "?";             // spark: extract(DAYOFWEEK FROM) or dayofweek
-            */
+                /// Spark: DayOfWeek(date) (1 = Sunday, 2 = Monday, ..., 7 = Saturday)
+                /// Substrait: extract(DAY_OF_WEEK from date)
+                /// CH: toDayOfWeek(date, 3)
+                /// DAYOFWEEK is alias of function toDayOfWeek.
+                /// This trick is to distinguish between extract fields DAY_OF_WEEK and WEEK_DAY in latter codes
+                ch_function_name = "DAYOFWEEK";
             else if (field_value == "DAY")
                 ch_function_name = "toDayOfMonth";  // spark: extract(DAY FROM) or dayofmonth
             else if (field_value == "DAY_OF_YEAR")
@@ -1448,25 +1450,9 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
             if (args.size() >= 2)
             {
                 /// In Spark: split(str, regex [, limit] )
-                /// In CH: splitByRegexp(regexp, s)
+                /// In CH: splitByRegexp(regexp, str [, limit])
                 std::swap(args[0], args[1]);
             }
-        }
-
-        if (startsWith(function_signature, "extract:"))
-        {
-            // delete the first arg of extract
-            args.erase(args.begin());
-        }
-        else if (startsWith(function_signature, "trunc:"))
-        {
-            // delete the second arg of trunc
-            args.pop_back();
-        }
-        else if (startsWith(function_signature, "sha2:"))
-        {
-            // delete the second arg of trunc
-            args.pop_back();
         }
 
         if (function_signature.find("check_overflow:", 0) != function_signature.npos)
@@ -1518,10 +1504,10 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
                 SerializedPlanParser::parseType(rel.scalar_function().output_type())->getName(),
                 function_node->result_name);
         }
+
         if (function_name == "JSON_VALUE")
-        {
             result_node->function->setResolver(function_builder);
-        }
+
         if (keep_result)
             actions_dag->addOrReplaceInOutputs(*result_node);
     }
@@ -1540,7 +1526,9 @@ void SerializedPlanParser::parseFunctionArguments(
         return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     };
 
+    auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
+    parsed_args.reserve(args.size());
 
     // Some functions need to be handled specially.
     if (function_name == "JSONExtract")
@@ -1721,6 +1709,28 @@ void SerializedPlanParser::parseFunctionArguments(
         parsed_args.back() = first_arg_not_null;
 
         parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
+    }
+    else if (startsWith(function_signature, "extract:"))
+    {
+        /// Skip the first arg of extract in substrait
+        for (int i = 1; i < args.size(); i++)
+            parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[i]);
+
+        /// Append extra mode argument for extract(WEEK_DAY from date) or extract(DAY_OF_WEEK from date) in substrait
+        if (function_name == "toDayOfWeek" || function_name == "DAYOFWEEK")
+        {
+            UInt8 mode = function_name == "toDayOfWeek" ? 1 : 3;
+            auto mode_type = std::make_shared<DataTypeUInt8>();
+            ColumnWithTypeAndName mode_col(mode_type->createColumnConst(1, mode), mode_type, getUniqueName(std::to_string(mode)));
+            const auto & mode_node = actions_dag->addColumn(std::move(mode_col));
+            parsed_args.emplace_back(&mode_node);
+        }
+    }
+    else if (startsWith(function_signature, "trunc:") || startsWith(function_signature, "sha2:"))
+    {
+        /// Skip the last arg of trunc in substrait
+        for (int i = 0; i < args.size() - 1; i++)
+            parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[i]);
     }
     else
     {
