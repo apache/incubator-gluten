@@ -842,6 +842,13 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test 'to_date/to_timestamp'") {
+    val sql = "select to_date(concat('2022-01-0', cast(id+1 as String)), 'yyyy-MM-dd')," +
+      "to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String)), 'yyyy-MM-dd HH:mm:ss') " +
+      "from range(9)"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,

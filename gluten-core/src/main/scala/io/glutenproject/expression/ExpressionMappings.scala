@@ -16,8 +16,8 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.GlutenConfig
+import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -157,6 +157,7 @@ object ExpressionMappings {
   final val ADD_MONTHS = "add_months"
   final val DATE_FORMAT = "date_format"
   final val TRUNC = "trunc"
+  final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -231,9 +232,7 @@ object ExpressionMappings {
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"
 
-  /**
-   * Mapping Spark scalar expression to Substrait function name
-   */
+  /** Mapping Spark scalar expression to Substrait function name */
   val SCALAR_SIGS: Seq[Sig] = Seq(
     Sig[Add](ADD),
     Sig[Subtract](SUBTRACT),
@@ -351,6 +350,7 @@ object ExpressionMappings {
     Sig[AddMonths](ADD_MONTHS),
     Sig[DateFormatClass](DATE_FORMAT),
     Sig[TruncDate](TRUNC),
+    Sig[GetTimestamp](GET_TIMESTAMP),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -406,9 +406,7 @@ object ExpressionMappings {
     Sig[UnscaledValue](UNSCALED_VALUE)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
 
-  /**
-   * Mapping Spark aggregation expression to Substrait function name
-   */
+  /** Mapping Spark aggregation expression to Substrait function name */
   val AGGREGATE_SIGS: Seq[Sig] = Seq(
     Sig[Sum](SUM),
     Sig[Average](AVG),
@@ -429,9 +427,7 @@ object ExpressionMappings {
     Sig[Last](LAST)
   )
 
-  /**
-   * Mapping Spark window expression to Substrait function name
-   */
+  /** Mapping Spark window expression to Substrait function name */
   val WINDOW_SIGS: Seq[Sig] = Seq(
     Sig[Rank](RANK),
     Sig[DenseRank](DENSE_RANK),

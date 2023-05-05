@@ -42,7 +42,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"alias", "alias"},
 
     /// datetime functions
-    {"to_date", "toDate"},
+    {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function:to_date/to_timestamp
     {"quarter", "toQuarter"},
     {"to_unix_timestamp", "toUnixTimestamp"},
     {"unix_timestamp", "toUnixTimestamp"},
