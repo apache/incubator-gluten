@@ -24,7 +24,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.VeloxColumnarRules.OtherWritePostRule
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, Literal, StringTrim}
-import org.apache.spark.sql.types.{IntegerType, LongType, StringType}
+import org.apache.spark.sql.types.{ByteType, IntegerType, LongType, ShortType, StringType}
 
 class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
   /**
@@ -45,15 +45,16 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
     new GlutenNamedStructTransformer(substraitExprName, original, attributeSeq)
   }
 
-  // To align with spark in casting string type input to integer or long type,
-  // add trim node for trimming whitespace. See toInt in UTF8String.java.
+  // To align with spark in casting string type input to integral type,
+  // add trim node for trimming whitespace. See spark's toInt in UTF8String.java.
   override def genCastWithNewChild(c: Cast): Cast = {
+    // Whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
+    val trimStr = " \t\n\u000B\u000C\r\u001C\u001D\u001E\u001F"
     c.dataType match {
-      case IntegerType | LongType =>
+      case ByteType | ShortType | IntegerType | LongType =>
         c.child.dataType match {
           case StringType =>
-            // Trim whitespace, including: ' ', '\n', '\r', '\f'.
-            val trim = StringTrim(c.child, Some(Literal(" \n\r\u000C")))
+            val trim = StringTrim(c.child, Some(Literal(trimStr)))
             c.withNewChildren(Seq(trim)).asInstanceOf[Cast]
           case _ =>
             c
