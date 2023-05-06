@@ -100,6 +100,7 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
   auto properities =
       ::parquet::WriterProperties::Builder().write_batch_size(blockSize)->compression(compressionCodec)->build();
 
+  // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
   std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
   auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
   auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
