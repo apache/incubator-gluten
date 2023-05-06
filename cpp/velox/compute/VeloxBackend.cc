@@ -38,6 +38,7 @@ namespace gluten {
 namespace {
 // Velox configs
 const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
+const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
 } // namespace
 
 VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
@@ -56,7 +57,7 @@ VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& c
   // mem tracker
   int64_t maxMemory;
   {
-    auto got = confMap_.find(kSparkTaskOffHeapMemory); // per task, for creating iterator
+    auto got = confMap_.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
     if (got == confMap_.end()) {
       // not found
       maxMemory = facebook::velox::memory::kMaxMemory;
@@ -66,6 +67,19 @@ VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& c
   }
 
   memPoolOptions_ = {facebook::velox::memory::MemoryAllocator::kMaxAlignment, maxMemory};
+
+  // spill threshold ratio (out of the memory cap)
+  float_t spillThresholdRatio;
+  {
+    auto got = confMap_.find(kSpillThresholdRatio);
+    if (got == confMap_.end()) {
+      // not found
+      spillThresholdRatio = 0.6;
+    } else {
+      spillThresholdRatio = std::stof(got->second);
+    }
+  }
+  spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);
 }
 
 void VeloxBackend::getInfoAndIds(
@@ -101,11 +115,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     inputIters_ = std::move(inputs);
   }
 
-  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator, memPoolOptions_);
+  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator");
   // TODO: wait shuffle split velox to velox, then the input ColumnBatch is RowVector, no need pool to convert
   // https://github.com/oap-project/gluten/issues/1434
-  auto resultPool = GetDefaultLeafWrappedVeloxMemoryPool();
+  auto resultPool = GetDefaultVeloxLeafMemoryPool();
   // auto resultPool = veloxPool->addLeafChild("input_row_vector_pool");
   auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_, resultPool);
   veloxPlan_ = veloxPlanConverter->toVeloxPlan(substraitPlan_);
@@ -136,7 +150,7 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
     auto arrowPool = AsWrappedArrowMemoryPool(allocator);
-    auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator, memPoolOptions_);
+    auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator);
     auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
     return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, ctxVeloxPool);
   } else {
@@ -148,7 +162,7 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
     MemoryAllocator* allocator,
     struct ArrowSchema* cSchema) {
   // TODO: wait to fix task memory pool
-  auto veloxPool = GetDefaultLeafWrappedVeloxMemoryPool();
+  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
   // AsWrappedVeloxAggregateMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
