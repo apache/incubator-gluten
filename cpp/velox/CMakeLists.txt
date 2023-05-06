@@ -239,7 +239,15 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
-find_package(Thrift)
+# TODO: Find shared then static. Only vcpkg provides thrift-config.cmake now,
+#       so try CONFIG mode first.
+find_package(Thrift CONFIG)
+if(NOT Thrift_FOUND)
+  # Prefer the shared library on system.
+  set(ARROW_THRIFT_USE_SHARED ON)
+  find_package(Thrift MODULE)
+endif()
+
 if(Thrift_FOUND)
   target_link_libraries(velox PUBLIC thrift::thrift)
 else()
