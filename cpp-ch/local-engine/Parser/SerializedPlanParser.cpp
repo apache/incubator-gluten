@@ -1681,7 +1681,7 @@ void SerializedPlanParser::parseFunctionArguments(
 
         parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
     }
-    else if (function_name == "trimBothSpark")
+    else if (function_name == "trimBothSpark" || function_name == "trimLeftSpark" || function_name == "trimRightSpark")
     {
         /// In substrait, the first arg is srcStr, the second arg is trimStr
         /// But in CH, the first arg is trimStr, the second arg is srcStr

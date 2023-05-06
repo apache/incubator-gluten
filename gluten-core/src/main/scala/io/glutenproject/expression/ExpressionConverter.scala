@@ -236,6 +236,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     if (substraitExprName.isEmpty) {
       throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
+
+    logDebug(
+      s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass}}" +
+        s"name: $substraitExprName")
+
     // Check whether each backend supports this expression
     if (
       GlutenConfig.getConf.enableAnsiMode ||
@@ -399,12 +404,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         new NormalizeNaNAndZeroTransformer(
           replaceWithExpressionTransformer(n.child, attributeSeq),
           n)
-      case t: StringTrim =>
-        new String2TrimExpressionTransformer(
-          substraitExprName,
-          t.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
-          replaceWithExpressionTransformer(t.srcStr, attributeSeq),
-          t)
       case l: StringTrimLeft =>
         new String2TrimExpressionTransformer(
           substraitExprName,
@@ -417,6 +416,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           r.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
           r)
+      case t: StringTrim =>
+        new String2TrimExpressionTransformer(
+          substraitExprName,
+          t.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          replaceWithExpressionTransformer(t.srcStr, attributeSeq),
+          t)
       case m: HashExpression[_] =>
         new HashExpressionTransformer(
           substraitExprName,
