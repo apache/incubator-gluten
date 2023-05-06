@@ -1987,13 +1987,22 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 
             DB::ActionsDAG::NodeRawConstPtrs args;
 
-            const auto & cast_input = rel.cast().input();
-            args.emplace_back(parseExpression(action_dag, cast_input));
+            const auto & input = rel.cast().input();
+            args.emplace_back(parseExpression(action_dag, input));
 
-            DataTypePtr dest_type = parseType(rel.cast().type());
-            args.emplace_back(add_column(std::make_shared<DataTypeString>(), dest_type->getName()));
+            const auto & substrait_type = rel.cast().type();
+            const ActionsDAG::Node * function_node = nullptr;
+            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
+            if (substrait_type.has_binary())
+                function_node = toFunctionNode(action_dag, "reinterpretAsStringSpark", args);
+            else
+            {
+                DataTypePtr ch_type = parseType(substrait_type);
+                args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
 
-            const auto * function_node = toFunctionNode(action_dag, "CAST", args);
+                function_node = toFunctionNode(action_dag, "CAST", args);
+            }
+
             action_dag->addOrReplaceInOutputs(*function_node);
             return function_node;
         }
@@ -2512,10 +2521,17 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             args.emplace_back(parseArgumentToAST(names, rel.cast().input()));
 
             /// Append destination type to asts
-            DataTypePtr dest_type = SerializedPlanParser::parseType(rel.cast().type());
-            args.emplace_back(std::make_shared<ASTLiteral>(dest_type->getName()));
+            const auto & substrait_type = rel.cast().type();
+            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
+            if (substrait_type.has_binary())
+                return makeASTFunction("reinterpretAsStringSpark", args);
+            else
+            {
+                DataTypePtr ch_type = SerializedPlanParser::parseType(substrait_type);
+                args.emplace_back(std::make_shared<ASTLiteral>(ch_type->getName()));
 
-            return makeASTFunction("CAST", args);
+                return makeASTFunction("CAST", args);
+            }
         }
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
