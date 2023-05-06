@@ -195,7 +195,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
   }
 
   test("TPCDS Q9") {
-    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q9") {
         df =>
           var countSubqueryExec = 0
@@ -213,7 +213,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
   }
 
   test("TPCDS Q21") {
-    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q21") {
         df =>
           val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {

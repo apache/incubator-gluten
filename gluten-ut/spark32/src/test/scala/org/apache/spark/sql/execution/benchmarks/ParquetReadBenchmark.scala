@@ -70,7 +70,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       .set("spark.memory.offHeap.enabled", "true")
       .setIfMissing("spark.memory.offHeap.size", offheapSize)
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")
-      .set("spark.gluten.sql.columnar.columnartorow", "true")
+      .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set("spark.sql.adaptive.enabled", "false")
       .setIfMissing("spark.driver.memory", memorySize)
       .setIfMissing("spark.executor.memory", memorySize)
