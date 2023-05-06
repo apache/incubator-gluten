@@ -21,9 +21,9 @@
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator);
+std::shared_ptr<arrow::MemoryPool> asWrappedArrowMemoryPool(MemoryAllocator* allocator);
 
-std::shared_ptr<arrow::MemoryPool> GetDefaultArrowMemoryPool();
+std::shared_ptr<arrow::MemoryPool> getDefaultArrowMemoryPool();
 
 class WrappedArrowMemoryPool final : public arrow::MemoryPool {
  public:
@@ -31,7 +31,7 @@ class WrappedArrowMemoryPool final : public arrow::MemoryPool {
 
   arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
 
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override;
+  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override;
 
   void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
 

@@ -22,18 +22,18 @@
 #include "shuffle/SinglePartPartitioner.h"
 
 namespace gluten {
-arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> ShuffleWriter::Partitioner::Make(
+arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> ShuffleWriter::Partitioner::make(
     const std::string& name,
-    int32_t num_partitions) {
+    int32_t numPartitions) {
   std::shared_ptr<ShuffleWriter::Partitioner> partitioner = nullptr;
   if (name == "hash") {
-    partitioner = ShuffleWriter::Partitioner::Create<HashPartitioner>(num_partitions, true);
+    partitioner = ShuffleWriter::Partitioner::create<HashPartitioner>(numPartitions, true);
   } else if (name == "rr") {
-    partitioner = ShuffleWriter::Partitioner::Create<RoundRobinPartitioner>(num_partitions, false);
+    partitioner = ShuffleWriter::Partitioner::create<RoundRobinPartitioner>(numPartitions, false);
   } else if (name == "range") {
-    partitioner = ShuffleWriter::Partitioner::Create<FallbackRangePartitioner>(num_partitions, true);
+    partitioner = ShuffleWriter::Partitioner::create<FallbackRangePartitioner>(numPartitions, true);
   } else if (name == "single") {
-    partitioner = ShuffleWriter::Partitioner::Create<SinglePartPartitioner>(num_partitions, false);
+    partitioner = ShuffleWriter::Partitioner::create<SinglePartPartitioner>(numPartitions, false);
   }
 
   if (!partitioner) {

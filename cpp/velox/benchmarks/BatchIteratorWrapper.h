@@ -23,11 +23,11 @@ class BatchIterator : public ColumnarBatchIterator {
 
   virtual ~BatchIterator() = default;
 
-  virtual void CreateReader() = 0;
+  virtual void createReader() = 0;
 
-  virtual std::shared_ptr<arrow::Schema> GetSchema() = 0;
+  virtual std::shared_ptr<arrow::Schema> getSchema() = 0;
 
-  int64_t GetCollectBatchTime() const {
+  int64_t getCollectBatchTime() const {
     return collectBatchTime_;
   }
 
@@ -40,7 +40,7 @@ class ParquetBatchIterator : public BatchIterator {
  public:
   explicit ParquetBatchIterator(const std::string& path) : BatchIterator(getExampleFilePath(path)) {}
 
-  void CreateReader() override {
+  void createReader() override {
     parquet::ArrowReaderProperties properties = parquet::default_arrow_reader_properties();
     GLUTEN_THROW_NOT_OK(parquet::arrow::FileReader::Make(
         arrow::default_memory_pool(), parquet::ParquetFileReader::OpenFile(path_), properties, &fileReader_));
@@ -51,7 +51,7 @@ class ParquetBatchIterator : public BatchIterator {
     std::cout << "schema:\n" << schema->ToString() << std::endl;
   }
 
-  std::shared_ptr<arrow::Schema> GetSchema() override {
+  std::shared_ptr<arrow::Schema> getSchema() override {
     return recordBatchReader_->schema();
   }
 
@@ -64,7 +64,7 @@ class OrcBatchIterator : public BatchIterator {
  public:
   explicit OrcBatchIterator(const std::string& path) : BatchIterator(path) {}
 
-  void CreateReader() override {
+  void createReader() override {
     // Open File
     auto input = arrow::io::ReadableFile::Open(path_);
     GLUTEN_THROW_NOT_OK(input);
@@ -80,7 +80,7 @@ class OrcBatchIterator : public BatchIterator {
     recordBatchReader_ = *recordBatchReader;
   }
 
-  std::shared_ptr<arrow::Schema> GetSchema() override {
+  std::shared_ptr<arrow::Schema> getSchema() override {
     auto schema = fileReader_->ReadSchema();
     GLUTEN_THROW_NOT_OK(schema);
     return *schema;

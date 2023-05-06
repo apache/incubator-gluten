@@ -24,32 +24,32 @@ namespace gluten {
 class ShuffleWriter::Partitioner {
  public:
   template <typename Partitioner>
-  static std::shared_ptr<Partitioner> Create(int32_t num_partitions, bool has_pid) {
-    return std::make_shared<Partitioner>(num_partitions, has_pid);
+  static std::shared_ptr<Partitioner> create(int32_t numPartitions, bool hasPid) {
+    return std::make_shared<Partitioner>(numPartitions, hasPid);
   }
 
-  static arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> Make(
+  static arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> make(
       const std::string& name,
-      int32_t num_partitions);
+      int32_t numPartitions);
   // whether the first column is partition key
-  bool HasPid() {
-    return has_pid_;
+  bool hasPid() {
+    return hasPid_;
   }
 
-  virtual arrow::Status Compute(
-      const int32_t* pid_arr,
-      const int64_t num_rows,
-      std::vector<uint16_t>& partition_id,
-      std::vector<uint32_t>& partition_id_cnt) = 0;
+  virtual arrow::Status compute(
+      const int32_t* pidArr,
+      const int64_t numRows,
+      std::vector<uint16_t>& partitionId,
+      std::vector<uint32_t>& partitionIdCnt) = 0;
 
  protected:
-  Partitioner(int32_t num_partitions, bool has_pid) : num_partitions_(num_partitions), has_pid_(has_pid) {}
+  Partitioner(int32_t numPartitions, bool hasPid) : numPartitions_(numPartitions), hasPid_(hasPid) {}
   virtual ~Partitioner() = default;
 
-  int32_t num_partitions_;
+  int32_t numPartitions_;
 
   // if the first column is partition key
-  bool has_pid_;
+  bool hasPid_;
 };
 
 } // namespace gluten

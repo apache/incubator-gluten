@@ -23,20 +23,20 @@ namespace gluten {
 
 class ShuffleWriter::PartitionWriter {
  public:
-  static arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(
-      ShuffleWriter* shuffle_writer,
-      int32_t num_partitions);
+  static arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(
+      ShuffleWriter* shuffleWriter,
+      int32_t numPartitions);
 
  public:
-  PartitionWriter(ShuffleWriter* shuffle_writer, int32_t num_partitions)
-      : shuffle_writer_(shuffle_writer), num_partitions_(num_partitions) {}
+  PartitionWriter(ShuffleWriter* shuffleWriter, int32_t numPartitions)
+      : shuffle_writer_(shuffleWriter), num_partitions_(numPartitions) {}
   virtual ~PartitionWriter() = default;
 
-  virtual arrow::Status Init() = 0;
+  virtual arrow::Status init() = 0;
 
-  virtual arrow::Status EvictPartition(int32_t partition_id) = 0;
+  virtual arrow::Status evictPartition(int32_t partitionId) = 0;
 
-  virtual arrow::Status Stop() = 0;
+  virtual arrow::Status stop() = 0;
 
   ShuffleWriter* shuffle_writer_;
   uint32_t num_partitions_;

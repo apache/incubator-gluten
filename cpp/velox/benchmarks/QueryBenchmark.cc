@@ -31,11 +31,11 @@ const std::string getFilePath(const std::string& fileName) {
 }
 
 // Used by unit test and benchmark.
-std::shared_ptr<ResultIterator> GetResultIterator(
+std::shared_ptr<ResultIterator> getResultIterator(
     MemoryAllocator* allocator,
     std::shared_ptr<Backend> backend,
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
-  auto ctxPool = GetDefaultVeloxLeafMemoryPool()->addAggregateChild("query_benchmark_result_iterator");
+  auto ctxPool = getDefaultVeloxLeafMemoryPool()->addAggregateChild("query_benchmark_result_iterator");
   auto resultPool = ctxPool->addLeafChild("query_benchmark_result_vector");
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
   auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, ctxPool);
@@ -51,11 +51,11 @@ std::shared_ptr<ResultIterator> GetResultIterator(
       veloxPlanConverter->splitInfos(), veloxPlan->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      ctxPool, resultPool, veloxPlan, scanIds, setScanInfos, streamIds, "/tmp/test-spill", backend->GetConfMap());
+      ctxPool, resultPool, veloxPlan, scanIds, setScanInfos, streamIds, "/tmp/test-spill", backend->getConfMap());
   return std::make_shared<ResultIterator>(std::move(wholestageIter), backend);
 }
 
-auto BM = [](::benchmark::State& state,
+auto bm = [](::benchmark::State& state,
              const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile,
              const std::string& fileFormat) {
@@ -75,15 +75,15 @@ auto BM = [](::benchmark::State& state,
 
   for (auto _ : state) {
     state.PauseTiming();
-    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::CreateBackend());
+    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
     state.ResumeTiming();
 
-    backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = GetResultIterator(gluten::DefaultMemoryAllocator().get(), backend, scanInfos);
+    backend->parsePlan(plan->data(), plan->size());
+    auto resultIter = getResultIterator(gluten::defaultMemoryAllocator().get(), backend, scanInfos);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
     auto outputSchema = getOutputSchema(veloxPlan);
-    while (resultIter->HasNext()) {
-      auto array = resultIter->Next()->exportArrowArray();
+    while (resultIter->hasNext()) {
+      auto array = resultIter->next()->exportArrowArray();
       auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
       if (!maybeBatch.ok()) {
         state.SkipWithError(maybeBatch.status().message().c_str());
@@ -95,7 +95,7 @@ auto BM = [](::benchmark::State& state,
 };
 
 int main(int argc, char** argv) {
-  InitVeloxBackend();
+  initVeloxBackend();
   ::benchmark::Initialize(&argc, argv);
   // Threads cannot work well, use ThreadRange instead.
   // The multi-thread performance is not correct.
@@ -114,10 +114,10 @@ int main(int argc, char** argv) {
   // For ORC debug.
   const auto& lineitemOrcPath = getFilePath("bm_lineitem/orc/");
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("select", BM, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
+    ::benchmark::RegisterBenchmark("select", bm, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
   } else {
     ::benchmark::RegisterBenchmark(
-        "select", BM, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
+        "select", bm, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
   }
 #endif
 

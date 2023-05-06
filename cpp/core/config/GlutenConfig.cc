@@ -27,7 +27,7 @@ std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray 
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
   ::substrait::Plan subPlan;
-  gluten::ParseProtobuf(planData, planSize, &subPlan);
+  gluten::parseProtobuf(planData, planSize, &subPlan);
 
   if (subPlan.has_advanced_extensions()) {
     auto extension = subPlan.advanced_extensions();
@@ -35,17 +35,17 @@ std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray 
       const auto& enhancement = extension.enhancement();
       ::substrait::Expression expression;
       if (!enhancement.UnpackTo(&expression)) {
-        std::string error_message =
+        std::string errorMessage =
             "Can't Unapck the Any object to Expression Literal when passing the spark conf to velox";
-        gluten::JniThrow(error_message);
+        gluten::jniThrow(errorMessage);
       }
       if (expression.has_literal()) {
         auto literal = expression.literal();
         if (literal.has_map()) {
-          auto literal_map = literal.map();
-          auto size = literal_map.key_values_size();
+          auto literalMap = literal.map();
+          auto size = literalMap.key_values_size();
           for (auto i = 0; i < size; i++) {
-            ::substrait::Expression_Literal_Map_KeyValue keyValue = literal_map.key_values(i);
+            ::substrait::Expression_Literal_Map_KeyValue keyValue = literalMap.key_values(i);
             sparkConfs.emplace(keyValue.key().string(), keyValue.value().string());
           }
         }

@@ -37,12 +37,12 @@ static constexpr int32_t kDefaultBatchCompressThreshold = 256;
 // This 0xFFFFFFFF value is the first 4 bytes of a valid IPC message
 static constexpr int32_t kIpcContinuationToken = -1;
 
-const unsigned ONES[] = {1, 1, 1, 1, 1, 1, 1, 1};
+const unsigned kOnes[] = {1, 1, 1, 1, 1, 1, 1, 1};
 
 struct ReaderOptions {
   arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
 
-  static ReaderOptions Defaults();
+  static ReaderOptions defaults();
 };
 
 struct SplitOptions {
@@ -63,7 +63,7 @@ struct SplitOptions {
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
 
-  std::shared_ptr<arrow::MemoryPool> memory_pool = GetDefaultArrowMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> memory_pool = getDefaultArrowMemoryPool();
 
   std::shared_ptr<CelebornClient> celeborn_client;
 
@@ -71,43 +71,43 @@ struct SplitOptions {
 
   std::string partitioning_name;
 
-  static SplitOptions Defaults();
+  static SplitOptions defaults();
 };
 
-namespace Type {
+namespace type {
 /// \brief Data type enumeration for shuffle writer
 ///
 /// This enumeration maps the types of arrow::Type::type with same length
 /// to identical type
 
 enum typeId : int {
-  SHUFFLE_1BYTE,
-  SHUFFLE_2BYTE,
-  SHUFFLE_4BYTE,
-  SHUFFLE_8BYTE,
-  SHUFFLE_DECIMAL128,
-  SHUFFLE_BIT,
-  SHUFFLE_BINARY,
-  SHUFFLE_LARGE_BINARY,
-  SHUFFLE_LIST,
-  SHUFFLE_LARGE_LIST,
-  SHUFFLE_NULL,
-  NUM_TYPES,
-  SHUFFLE_NOT_IMPLEMENTED
+  kShuffle1Byte,
+  kShuffle2Byte,
+  kShuffle4Byte,
+  kShuffle8Byte,
+  kShuffleDecimaL128,
+  kShuffleBit,
+  kShuffleBinary,
+  kShuffleLargeBinary,
+  kShuffleList,
+  kShuffleLargeList,
+  kShuffleNull,
+  kNumTypes,
+  kShuffleNotImplemented
 };
 
-static const typeId all[] = {
-    SHUFFLE_1BYTE,
-    SHUFFLE_2BYTE,
-    SHUFFLE_4BYTE,
-    SHUFFLE_8BYTE,
-    SHUFFLE_DECIMAL128,
-    SHUFFLE_BIT,
-    SHUFFLE_BINARY,
-    SHUFFLE_LARGE_BINARY,
-    SHUFFLE_NULL,
+static const typeId kAll[] = {
+    kShuffle1Byte,
+    kShuffle2Byte,
+    kShuffle4Byte,
+    kShuffle8Byte,
+    kShuffleDecimaL128,
+    kShuffleBit,
+    kShuffleBinary,
+    kShuffleLargeBinary,
+    kShuffleNull,
 };
 
-} // namespace Type
+} // namespace type
 
 } // namespace gluten

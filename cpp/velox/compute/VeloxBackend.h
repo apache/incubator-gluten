@@ -37,7 +37,7 @@ class VeloxBackend final : public Backend {
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& confMap);
 
   // FIXME This is not thread-safe?
-  std::shared_ptr<ResultIterator> GetResultIterator(
+  std::shared_ptr<ResultIterator> getResultIterator(
       MemoryAllocator* allocator,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
@@ -52,26 +52,26 @@ class VeloxBackend final : public Backend {
       struct ArrowSchema* cSchema) override;
 
   std::shared_ptr<ShuffleWriter>
-  makeShuffleWriter(int num_partitions, const SplitOptions& options, const std::string& batchType) override;
+  makeShuffleWriter(int numPartitions, const SplitOptions& options, const std::string& batchType) override;
 
-  std::shared_ptr<Metrics> GetMetrics(ColumnarBatchIterator* raw_iter, int64_t exportNanos) override {
-    auto iter = static_cast<WholeStageResultIterator*>(raw_iter);
-    return iter->GetMetrics(exportNanos);
+  std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
+    auto iter = static_cast<WholeStageResultIterator*>(rawIter);
+    return iter->getMetrics(exportNanos);
   }
 
-  const facebook::velox::memory::MemoryPool::Options& GetMemoryPoolOptions() const {
+  const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
     return memPoolOptions_;
   }
 
-  int64_t GetSpillThreshold() const {
+  int64_t getSpillThreshold() const {
     return spillThreshold_;
   }
 
-  std::shared_ptr<Datasource> GetDatasource(
-      const std::string& file_path,
-      const std::string& file_name,
+  std::shared_ptr<Datasource> getDatasource(
+      const std::string& filePath,
+      const std::string& fileName,
       std::shared_ptr<arrow::Schema> schema) override {
-    return std::make_shared<VeloxParquetDatasource>(file_path, file_name, schema);
+    return std::make_shared<VeloxParquetDatasource>(filePath, fileName, schema);
   }
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {

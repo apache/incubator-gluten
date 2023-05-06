@@ -28,7 +28,7 @@
 #define JNI_METHOD_END(fallback_expr)                                              \
   }                                                                                \
   catch (std::exception & e) {                                                     \
-    env->ThrowNew(gluten::GetJniErrorsState()->RuntimeExceptionClass(), e.what()); \
+    env->ThrowNew(gluten::getJniErrorsState()->runtimeExceptionClass(), e.what()); \
     return fallback_expr;                                                          \
   }
 // macro ended
@@ -40,84 +40,83 @@ class JniPendingException final : public std::runtime_error {
   explicit JniPendingException(const std::string& arg) : runtime_error(arg) {}
 };
 
-static inline void ThrowPendingException(const std::string& message) {
+static inline void throwPendingException(const std::string& message) {
   throw JniPendingException(message);
 }
 
 template <typename T>
-inline T JniGetOrThrow(arrow::Result<T> result) {
+inline T jniGetOrThrow(arrow::Result<T> result) {
   if (!result.status().ok()) {
-    ThrowPendingException(result.status().message());
+    throwPendingException(result.status().message());
   }
   return std::move(result).ValueOrDie();
 }
 
 template <typename T>
-inline T JniGetOrThrow(arrow::Result<T> result, const std::string& message) {
+inline T jniGetOrThrow(arrow::Result<T> result, const std::string& message) {
   if (!result.status().ok()) {
     ThrowPendingException(message + " - " + result.status().message());
   }
   return std::move(result).ValueOrDie();
 }
 
-static inline void JniAssertOkOrThrow(arrow::Status status) {
+static inline void jniAssertOkOrThrow(arrow::Status status) {
   if (!status.ok()) {
-    ThrowPendingException(status.message());
+    throwPendingException(status.message());
   }
 }
 
-static inline void JniAssertOkOrThrow(arrow::Status status, const std::string& message) {
+static inline void jniAssertOkOrThrow(arrow::Status status, const std::string& message) {
   if (!status.ok()) {
-    ThrowPendingException(message + " - " + status.message());
+    throwPendingException(message + " - " + status.message());
   }
 }
 
-static inline void JniThrow(const std::string& message) {
-  ThrowPendingException(message);
+static inline void jniThrow(const std::string& message) {
+  throwPendingException(message);
 }
 
 static struct JniErrorsGlobalState {
  public:
   virtual ~JniErrorsGlobalState() = default;
 
-  void Initialize(JNIEnv* env) {
-    std::lock_guard<std::mutex> lock_guard(mtx_);
-    io_exception_class_ = CreateGlobalClassReference(env, "Ljava/io/IOException;");
-    runtime_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/RuntimeException;");
-    unsupportedoperation_exception_class_ =
-        CreateGlobalClassReference(env, "Ljava/lang/UnsupportedOperationException;");
-    illegal_access_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalAccessException;");
-    illegal_argument_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
+  void initialize(JNIEnv* env) {
+    std::lock_guard<std::mutex> lockGuard(mtx_);
+    ioExceptionClass_ = createGlobalClassReference(env, "Ljava/io/IOException;");
+    runtimeExceptionClass_ = createGlobalClassReference(env, "Ljava/lang/RuntimeException;");
+    unsupportedoperationExceptionClass_ = createGlobalClassReference(env, "Ljava/lang/UnsupportedOperationException;");
+    illegalAccessExceptionClass_ = createGlobalClassReference(env, "Ljava/lang/IllegalAccessException;");
+    illegalArgumentExceptionClass_ = createGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
   }
 
-  jclass RuntimeExceptionClass() {
-    std::lock_guard<std::mutex> lock_guard(mtx_);
-    if (runtime_exception_class_ == nullptr) {
+  jclass runtimeExceptionClass() {
+    std::lock_guard<std::mutex> lockGuard(mtx_);
+    if (runtimeExceptionClass_ == nullptr) {
       throw gluten::GlutenException("Fatal: JniGlobalState::Initialize(...) was not called before using the utility");
     }
-    return runtime_exception_class_;
+    return runtimeExceptionClass_;
   }
 
-  jclass IllegalAccessExceptionClass() {
-    std::lock_guard<std::mutex> lock_guard(mtx_);
-    if (illegal_access_exception_class_ == nullptr) {
+  jclass illegalAccessExceptionClass() {
+    std::lock_guard<std::mutex> lockGuard(mtx_);
+    if (illegalAccessExceptionClass_ == nullptr) {
       throw gluten::GlutenException("Fatal: JniGlobalState::Initialize(...) was not called before using the utility");
     }
-    return illegal_access_exception_class_;
+    return illegalAccessExceptionClass_;
   }
 
  private:
-  jclass io_exception_class_ = nullptr;
-  jclass runtime_exception_class_ = nullptr;
-  jclass unsupportedoperation_exception_class_ = nullptr;
-  jclass illegal_access_exception_class_ = nullptr;
-  jclass illegal_argument_exception_class_ = nullptr;
+  jclass ioExceptionClass_ = nullptr;
+  jclass runtimeExceptionClass_ = nullptr;
+  jclass unsupportedoperationExceptionClass_ = nullptr;
+  jclass illegalAccessExceptionClass_ = nullptr;
+  jclass illegalArgumentExceptionClass_ = nullptr;
   std::mutex mtx_;
 
-} jni_errors_state;
+} jniErrorsState;
 
-static inline JniErrorsGlobalState* GetJniErrorsState() {
-  return &jni_errors_state;
+static inline JniErrorsGlobalState* getJniErrorsState() {
+  return &jniErrorsState;
 }
 
 } // namespace gluten

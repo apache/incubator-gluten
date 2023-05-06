@@ -29,23 +29,23 @@ namespace gluten {
 
 class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
  public:
-  static arrow::Result<std::shared_ptr<LocalPartitionWriter>> Create(
-      ShuffleWriter* shuffle_writer,
-      int32_t num_partitions);
+  static arrow::Result<std::shared_ptr<LocalPartitionWriter>> create(
+      ShuffleWriter* shuffleWriter,
+      int32_t numPartitions);
 
  public:
-  LocalPartitionWriter(ShuffleWriter* shuffle_writer, int32_t num_partitions)
-      : PartitionWriter(shuffle_writer, num_partitions) {}
+  LocalPartitionWriter(ShuffleWriter* shuffleWriter, int32_t numPartitions)
+      : PartitionWriter(shuffleWriter, numPartitions) {}
 
-  arrow::Status Init() override;
+  arrow::Status init() override;
 
-  arrow::Status EvictPartition(int32_t partition_id) override;
+  arrow::Status evictPartition(int32_t partitionId) override;
 
-  arrow::Status Stop() override;
+  arrow::Status stop() override;
 
-  std::string NextSpilledFileDir();
+  std::string nextSpilledFileDir();
 
-  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> GetSchemaPayload(std::shared_ptr<arrow::Schema> schema);
+  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> getSchemaPayload(std::shared_ptr<arrow::Schema> schema);
 
   std::string spilled_file_;
   std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os_;

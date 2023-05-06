@@ -23,30 +23,31 @@
 #include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
+#include "memory/ColumnarBatch.h"
 #include "operators/writer/Datasource.h"
 
 namespace gluten {
 
 class Datasource {
  public:
-  Datasource(const std::string& file_path, const std::string& file_name, std::shared_ptr<arrow::Schema> schema)
-      : file_path_(file_path), file_name_(file_name), schema_(schema) {}
+  Datasource(const std::string& filePath, const std::string& fileName, std::shared_ptr<arrow::Schema> schema)
+      : filePath_(filePath), fileName_(fileName), schema_(schema) {}
 
   virtual ~Datasource() = default;
 
-  virtual void Init(const std::unordered_map<std::string, std::string>& sparkConfs) {}
-  virtual std::shared_ptr<arrow::Schema> InspectSchema() {
+  virtual void init(const std::unordered_map<std::string, std::string>& sparkConfs) {}
+  virtual std::shared_ptr<arrow::Schema> inspectSchema() {
     return nullptr;
   }
-  virtual void Write(const std::shared_ptr<ColumnarBatch>& cb) {}
-  virtual void Close() {}
-  virtual std::shared_ptr<arrow::Schema> GetSchema() {
+  virtual void write(const std::shared_ptr<ColumnarBatch>& cb) {}
+  virtual void close() {}
+  virtual std::shared_ptr<arrow::Schema> getSchema() {
     return nullptr;
   }
 
  private:
-  std::string file_path_;
-  std::string file_name_;
+  std::string filePath_;
+  std::string fileName_;
   std::shared_ptr<arrow::Schema> schema_;
 };
 

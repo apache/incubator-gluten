@@ -29,27 +29,27 @@ namespace gluten {
 
 class CelebornPartitionWriter : public RemotePartitionWriter {
  public:
-  static arrow::Result<std::shared_ptr<CelebornPartitionWriter>> Create(
-      ShuffleWriter* shuffle_writer,
-      int32_t num_partitions);
+  static arrow::Result<std::shared_ptr<CelebornPartitionWriter>> create(
+      ShuffleWriter* shuffleWriter,
+      int32_t numPartitions);
 
  private:
-  CelebornPartitionWriter(ShuffleWriter* shuffle_writer, int32_t num_partitions)
-      : RemotePartitionWriter(shuffle_writer, num_partitions) {}
+  CelebornPartitionWriter(ShuffleWriter* shuffleWriter, int32_t numPartitions)
+      : RemotePartitionWriter(shuffleWriter, numPartitions) {}
 
-  arrow::Status Init() override;
+  arrow::Status init() override;
 
-  arrow::Status EvictPartition(int32_t partition_id) override;
+  arrow::Status evictPartition(int32_t partitionId) override;
 
-  arrow::Status Stop() override;
+  arrow::Status stop() override;
 
-  arrow::Status PushPartition(int32_t partition_id);
+  arrow::Status pushPartition(int32_t partitionId);
 
-  arrow::Status WriteArrowToOutputStream(int32_t partition_id);
+  arrow::Status writeArrowToOutputStream(int32_t partitionId);
 
-  std::shared_ptr<arrow::io::BufferOutputStream> celeborn_buffer_os_;
+  std::shared_ptr<arrow::io::BufferOutputStream> celebornBufferOs_;
 
-  std::shared_ptr<CelebornClient> celeborn_client_;
+  std::shared_ptr<CelebornClient> celebornClient_;
 };
 
 } // namespace gluten

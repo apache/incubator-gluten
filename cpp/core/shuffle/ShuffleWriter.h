@@ -29,9 +29,9 @@ class ShuffleWriter {
   /**
    * Evict fixed size of partition data from memory
    */
-  virtual arrow::Status EvictFixedSize(int64_t size, int64_t* actual) = 0;
+  virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
 
-  virtual arrow::Status Split(ColumnarBatch* cb) = 0;
+  virtual arrow::Status split(ColumnarBatch* cb) = 0;
 
   // Cache the partition buffer/builder as compressed record batch. If reset
   // buffers, the partition buffer/builder will be set to nullptr. Two cases for
@@ -40,84 +40,84 @@ class ShuffleWriter {
   // buffer can hold all data according to partition id. If not, call this
   // method and allocate new buffers. Spill will happen if OOM.
   // 2. Stop the shuffle writer. The record batch will be written to disk immediately.
-  virtual arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers) = 0;
+  virtual arrow::Status createRecordBatchFromBuffer(uint32_t partitionId, bool resetBuffers) = 0;
 
-  virtual arrow::Status Stop() = 0;
+  virtual arrow::Status stop() = 0;
 
-  int64_t TotalBytesWritten() const {
-    return total_bytes_written_;
+  int64_t totalBytesWritten() const {
+    return totalBytesWritten_;
   }
 
-  int64_t TotalBytesEvicted() const {
-    return total_bytes_evicted_;
+  int64_t totalBytesEvicted() const {
+    return totalBytesEvicted_;
   }
 
-  int64_t TotalWriteTime() const {
-    return total_write_time_;
+  int64_t totalWriteTime() const {
+    return totalWriteTime_;
   }
 
-  int64_t TotalEvictTime() const {
-    return total_evict_time_;
+  int64_t totalEvictTime() const {
+    return totalEvictTime_;
   }
 
-  int64_t TotalCompressTime() const {
-    return total_compress_time_;
+  int64_t totalCompressTime() const {
+    return totalCompressTime_;
   }
 
-  const std::vector<int64_t>& PartitionLengths() const {
-    return partition_lengths_;
+  const std::vector<int64_t>& partitionLengths() const {
+    return partitionLengths_;
   }
 
-  const std::vector<int64_t>& RawPartitionLengths() const {
-    return raw_partition_lengths_;
+  const std::vector<int64_t>& rawPartitionLengths() const {
+    return rawPartitionLengths_;
   }
 
-  const std::vector<int64_t>& PartitionCachedRecordbatchSize() const {
-    return partition_cached_recordbatch_size_;
+  const std::vector<int64_t>& partitionCachedRecordbatchSize() const {
+    return partitionCachedRecordbatchSize_;
   }
 
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>>& PartitionCachedRecordbatch() {
-    return partition_cached_recordbatch_;
+  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>>& partitionCachedRecordbatch() {
+    return partitionCachedRecordbatch_;
   }
 
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>>& PartitionBuffer() {
-    return partition_buffers_;
+  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>>& partitionBuffer() {
+    return partitionBuffers_;
   }
 
-  std::shared_ptr<arrow::ResizableBuffer>& CombineBuffer() {
-    return combine_buffer_;
+  std::shared_ptr<arrow::ResizableBuffer>& combineBuffer() {
+    return combineBuffer_;
   }
 
-  SplitOptions& Options() {
+  SplitOptions& options() {
     return options_;
   }
 
-  std::shared_ptr<arrow::Schema>& Schema() {
+  std::shared_ptr<arrow::Schema>& schema() {
     return schema_;
   }
 
-  void SetPartitionLengths(int32_t index, int64_t length) {
-    partition_lengths_[index] = length;
+  void setPartitionLengths(int32_t index, int64_t length) {
+    partitionLengths_[index] = length;
   }
 
-  void SetTotalWriteTime(int64_t total_write_time) {
-    total_write_time_ = total_write_time;
+  void setTotalWriteTime(int64_t totalWriteTime) {
+    totalWriteTime_ = totalWriteTime;
   }
 
-  void SetTotalBytesWritten(int64_t total_bytes_written) {
-    total_bytes_written_ = total_bytes_written;
+  void setTotalBytesWritten(int64_t totalBytesWritten) {
+    totalBytesWritten_ = totalBytesWritten;
   }
 
-  void SetTotalEvictTime(int64_t total_evict_time) {
-    total_evict_time_ = total_evict_time;
+  void setTotalEvictTime(int64_t totalEvictTime) {
+    totalEvictTime_ = totalEvictTime;
   }
 
-  void SetTotalBytesEvicted(int64_t total_bytes_evicted) {
-    total_bytes_evicted_ = total_bytes_evicted;
+  void setTotalBytesEvicted(int64_t totalBytesEvicted) {
+    totalBytesEvicted_ = totalBytesEvicted;
   }
 
-  void SetPartitionCachedRecordbatchSize(int32_t index, int64_t size) {
-    partition_cached_recordbatch_size_[index] = size;
+  void setPartitionCachedRecordbatchSize(int32_t index, int64_t size) {
+    partitionCachedRecordbatchSize_[index] = size;
   }
 
   class PartitionWriter;
@@ -125,37 +125,37 @@ class ShuffleWriter {
   class Partitioner;
 
  protected:
-  ShuffleWriter(int32_t num_partitions, SplitOptions options)
-      : num_partitions_(num_partitions), options_(std::move(options)) {}
+  ShuffleWriter(int32_t numPartitions, SplitOptions options)
+      : numPartitions_(numPartitions), options_(std::move(options)) {}
   virtual ~ShuffleWriter() = default;
 
-  int32_t num_partitions_;
+  int32_t numPartitions_;
   // options
   SplitOptions options_;
 
-  int64_t total_bytes_written_ = 0;
-  int64_t total_bytes_evicted_ = 0;
-  int64_t total_write_time_ = 0;
-  int64_t total_evict_time_ = 0;
-  int64_t total_compress_time_ = 0;
-  int64_t peak_memory_allocated_ = 0;
+  int64_t totalBytesWritten_ = 0;
+  int64_t totalBytesEvicted_ = 0;
+  int64_t totalWriteTime_ = 0;
+  int64_t totalEvictTime_ = 0;
+  int64_t totalCompressTime_ = 0;
+  int64_t peakMemoryAllocated_ = 0;
 
-  std::vector<int64_t> partition_lengths_;
-  std::vector<int64_t> raw_partition_lengths_;
+  std::vector<int64_t> partitionLengths_;
+  std::vector<int64_t> rawPartitionLengths_;
 
   std::shared_ptr<arrow::Schema> schema_;
 
-  std::vector<int64_t> partition_cached_recordbatch_size_; // in bytes
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partition_cached_recordbatch_;
+  std::vector<int64_t> partitionCachedRecordbatchSize_; // in bytes
+  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partitionCachedRecordbatch_;
 
   // col partid
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partition_buffers_;
+  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partitionBuffers_;
 
   // slice the buffer for each reducer's column, in this way we can combine into
   // large page
-  std::shared_ptr<arrow::ResizableBuffer> combine_buffer_;
+  std::shared_ptr<arrow::ResizableBuffer> combineBuffer_;
 
-  std::shared_ptr<PartitionWriter> partition_writer_;
+  std::shared_ptr<PartitionWriter> partitionWriter_;
 
   std::shared_ptr<Partitioner> partitioner_;
 };

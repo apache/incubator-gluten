@@ -19,7 +19,7 @@
 
 namespace gluten {
 
-static const unsigned FILE_NUM = 2;
+static const unsigned kFileNum = 2;
 
 struct OrcTestEntry {
   std::string orcFilename;
@@ -39,7 +39,7 @@ struct OrcTestData {
   std::vector<OrcTestEntry> entries;
 
   OrcTestData() {
-    entries.resize(FILE_NUM);
+    entries.resize(kFileNum);
     entries[0].orcFilename = "example_orders.orc";
     entries[1].orcFilename = "example_lineitem.orc";
   }
@@ -51,17 +51,17 @@ struct OrcTestData {
     }
   }
 
-  void Check() {
+  void check() {
     for (auto& x : entries) {
       x.Assert();
     }
   }
 } orcTestData;
 
-arrow::Status Parquet2Orc(unsigned index, const std::string& parquetFile, const std::string& orcFile) {
+arrow::Status parquet2Orc(unsigned index, const std::string& parquetFile, const std::string& orcFile) {
   ParquetBatchStreamIterator parquetIterator(parquetFile);
 
-  orcTestData.entries[index].writeSchema = parquetIterator.GetSchema();
+  orcTestData.entries[index].writeSchema = parquetIterator.getSchema();
 
   std::shared_ptr<arrow::io::FileOutputStream> outputStream;
 
@@ -80,7 +80,7 @@ arrow::Status Parquet2Orc(unsigned index, const std::string& parquetFile, const 
     }
 
     auto arrowColumnarBatch = std::dynamic_pointer_cast<gluten::ArrowColumnarBatch>(cb);
-    auto recordBatch = arrowColumnarBatch->GetRecordBatch();
+    auto recordBatch = arrowColumnarBatch->getRecordBatch();
 
     // std::cout << "==========\n" << recordBatch->ToString() << std::endl;
 
@@ -100,14 +100,14 @@ arrow::Status Parquet2Orc(unsigned index, const std::string& parquetFile, const 
 }
 
 void testWriteOrc() {
-  std::vector<std::string> inputFiles(FILE_NUM);
+  std::vector<std::string> inputFiles(kFileNum);
   GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
   GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
 
   ASSERT_EQ(inputFiles.size(), orcTestData.entries.size());
 
   for (auto i = 0; i != inputFiles.size(); ++i) {
-    ASSERT_NOT_OK(Parquet2Orc(i, inputFiles[i], orcTestData.entries[i].orcFilename));
+    ASSERT_NOT_OK(parquet2Orc(i, inputFiles[i], orcTestData.entries[i].orcFilename));
   }
 }
 
@@ -149,7 +149,7 @@ class OrcTest : public ::testing::Test {};
 TEST_F(OrcTest, testOrc) {
   testWriteOrc();
   testReadOrc();
-  orcTestData.Check();
+  orcTestData.check();
 }
 
 } // namespace gluten

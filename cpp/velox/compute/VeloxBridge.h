@@ -8,7 +8,7 @@ namespace gluten {
 using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
 
 ARROW_EXPORT
-arrow::Status ExportArrowArray(
+arrow::Status exportArrowArray(
     std::shared_ptr<arrow::Schema> schema,
     std::shared_ptr<ArrowArrayIterator> reader,
     struct ArrowArrayStream* out);

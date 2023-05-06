@@ -30,24 +30,24 @@ class ResultIterator {
   explicit ResultIterator(std::unique_ptr<ColumnarBatchIterator> iter, std::shared_ptr<Backend> backend = nullptr)
       : iter_(std::move(iter)), next_(nullptr), backend_(std::move(backend)) {}
 
-  bool HasNext() {
-    CheckValid();
-    GetNext();
+  bool hasNext() {
+    checkValid();
+    getNext();
     return next_ != nullptr;
   }
 
-  std::shared_ptr<ColumnarBatch> Next() {
-    CheckValid();
-    GetNext();
+  std::shared_ptr<ColumnarBatch> next() {
+    checkValid();
+    getNext();
     return std::move(next_);
   }
 
   // For testing and benchmarking.
-  ColumnarBatchIterator* GetInputIter() {
+  ColumnarBatchIterator* getInputIter() {
     return iter_.get();
   }
 
-  std::shared_ptr<Metrics> GetMetrics();
+  std::shared_ptr<Metrics> getMetrics();
 
   void setExportNanos(int64_t exportNanos) {
     exportNanos_ = exportNanos;
@@ -58,13 +58,13 @@ class ResultIterator {
   }
 
  private:
-  void CheckValid() const {
+  void checkValid() const {
     if (iter_ == nullptr) {
       throw GlutenException("ResultIterator: the underlying iterator has expired.");
     }
   }
 
-  void GetNext() {
+  void getNext() {
     if (next_ == nullptr) {
       next_ = iter_->next();
     }

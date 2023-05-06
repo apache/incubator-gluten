@@ -33,92 +33,92 @@ using namespace facebook;
 
 namespace gluten {
 
-arrow::Status VeloxColumnarToRowConverter::Init() {
-  num_rows_ = rv_->size();
-  num_cols_ = rv_->childrenSize();
+arrow::Status VeloxColumnarToRowConverter::init() {
+  numRows_ = rv_->size();
+  numCols_ = rv_->childrenSize();
 
-  ArrowSchema c_schema{};
-  velox::exportToArrow(rv_, c_schema);
-  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Schema> schema, arrow::ImportSchema(&c_schema));
-  if (num_cols_ != schema->num_fields()) {
+  ArrowSchema cSchema{};
+  velox::exportToArrow(rv_, cSchema);
+  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Schema> schema, arrow::ImportSchema(&cSchema));
+  if (numCols_ != schema->num_fields()) {
     return arrow::Status::Invalid("Mismatch: num_cols_ != schema->num_fields()");
   }
   schema_ = schema;
 
   // The input is Arrow batch. We need to resume Velox Vector here.
-  ResumeVeloxVector();
+  resumeVeloxVector();
 
   // Calculate the initial size
-  nullBitsetWidthInBytes_ = CalculateBitSetWidthInBytes(num_cols_);
-  int64_t fixed_size_per_row = CalculatedFixeSizePerRow(schema_, num_cols_);
+  nullBitsetWidthInBytes_ = calculateBitSetWidthInBytes(numCols_);
+  int64_t fixedSizePerRow = calculatedFixeSizePerRow(schema_, numCols_);
 
   // Initialize the offsets_ , lengths_, buffer_cursor_
-  lengths_.resize(num_rows_, fixed_size_per_row);
-  offsets_.resize(num_rows_, 0);
-  buffer_cursor_.resize(num_rows_, nullBitsetWidthInBytes_ + 8 * num_cols_);
+  lengths_.resize(numRows_, fixedSizePerRow);
+  offsets_.resize(numRows_, 0);
+  bufferCursor_.resize(numRows_, nullBitsetWidthInBytes_ + 8 * numCols_);
 
   // Calculated the lengths_
-  for (int64_t col_idx = 0; col_idx < num_cols_; col_idx++) {
-    std::shared_ptr<arrow::Field> field = schema_->field(col_idx);
+  for (int64_t colIdx = 0; colIdx < numCols_; colIdx++) {
+    std::shared_ptr<arrow::Field> field = schema_->field(colIdx);
     if (arrow::is_binary_like(field->type()->id())) {
-      auto str_views = vecs_[col_idx]->asFlatVector<velox::StringView>()->rawValues();
-      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-        auto length = str_views[row_idx].size();
-        int64_t bytes = RoundNumberOfBytesToNearestWord(length);
-        lengths_[row_idx] += bytes;
+      auto strViews = vecs_[colIdx]->asFlatVector<velox::StringView>()->rawValues();
+      for (int rowIdx = 0; rowIdx < numRows_; rowIdx++) {
+        auto length = strViews[rowIdx].size();
+        int64_t bytes = roundNumberOfBytesToNearestWord(length);
+        lengths_[rowIdx] += bytes;
       }
     }
   }
 
   // Calculated the offsets_  and total memory size based on lengths_
-  int64_t total_memory_size = lengths_[0];
-  for (int64_t rowIdx = 1; rowIdx < num_rows_; rowIdx++) {
+  int64_t totalMemorySize = lengths_[0];
+  for (int64_t rowIdx = 1; rowIdx < numRows_; rowIdx++) {
     offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
-    total_memory_size += lengths_[rowIdx];
+    totalMemorySize += lengths_[rowIdx];
   }
 
-  ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, arrow_pool_.get()));
-  buffer_address_ = buffer_->mutable_data();
-  memset(buffer_address_, 0, sizeof(int8_t) * total_memory_size);
+  ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(totalMemorySize, arrowPool_.get()));
+  bufferAddress_ = buffer_->mutable_data();
+  memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
   return arrow::Status::OK();
 }
 
-void VeloxColumnarToRowConverter::ResumeVeloxVector() {
-  vecs_.reserve(num_cols_);
-  for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
-    vecs_.push_back(rv_->childAt(col_idx));
+void VeloxColumnarToRowConverter::resumeVeloxVector() {
+  vecs_.reserve(numCols_);
+  for (int colIdx = 0; colIdx < numCols_; colIdx++) {
+    vecs_.push_back(rv_->childAt(colIdx));
   }
 }
 
-arrow::Status VeloxColumnarToRowConverter::Write() {
-  for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
+arrow::Status VeloxColumnarToRowConverter::write() {
+  for (int col_idx = 0; col_idx < numCols_; col_idx++) {
     auto vec = vecs_[col_idx];
     bool mayHaveNulls = vec->mayHaveNulls();
 
-    int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
-    auto field_address = (char*)(buffer_address_ + field_offset);
+    int64_t field_offset = getFieldOffset(nullBitsetWidthInBytes_, col_idx);
+    auto field_address = (char*)(bufferAddress_ + field_offset);
 
 #define SERIALIZE_COLUMN(DataType)                                                                  \
   do {                                                                                              \
     if (mayHaveNulls) {                                                                             \
-      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                                       \
+      for (int row_idx = 0; row_idx < numRows_; row_idx++) {                                        \
         if (vec->isNullAt(row_idx)) {                                                               \
-          SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);                     \
+          setNullAt(bufferAddress_, offsets_[row_idx], field_offset, col_idx);                      \
         } else {                                                                                    \
           auto write_address = (char*)(field_address + offsets_[row_idx]);                          \
           velox::row::UnsafeRowSerializer::serialize<velox::DataType>(vec, write_address, row_idx); \
         }                                                                                           \
       }                                                                                             \
     } else {                                                                                        \
-      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                                       \
+      for (int row_idx = 0; row_idx < numRows_; row_idx++) {                                        \
         auto write_address = (char*)(field_address + offsets_[row_idx]);                            \
         velox::row::UnsafeRowSerializer::serialize<velox::DataType>(vec, write_address, row_idx);   \
       }                                                                                             \
     }                                                                                               \
   } while (0)
 
-    auto col_type_id = schema_->field(col_idx)->type()->id();
-    switch (col_type_id) {
+    auto colTypeId = schema_->field(col_idx)->type()->id();
+    switch (colTypeId) {
       // We should keep supported types consistent with that in #buildCheck of GlutenColumnarToRowExec.scala.
       case arrow::Int8Type::type_id: {
         SERIALIZE_COLUMN(TinyintType);
@@ -154,60 +154,60 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
       }
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id: {
-        auto str_views = vec->asFlatVector<velox::StringView>()->rawValues();
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
+        auto strViews = vec->asFlatVector<velox::StringView>()->rawValues();
+        for (int rowIdx = 0; rowIdx < numRows_; rowIdx++) {
+          if (mayHaveNulls && vec->isNullAt(rowIdx)) {
+            setNullAt(bufferAddress_, offsets_[rowIdx], field_offset, col_idx);
           } else {
-            int32_t length = (int32_t)str_views[row_idx].size();
-            auto value = str_views[row_idx].data();
+            int32_t length = (int32_t)strViews[rowIdx].size();
+            auto value = strViews[rowIdx].data();
             // Write the variable value.
-            memcpy(buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx], value, length);
-            int64_t offset_and_size = ((int64_t)buffer_cursor_[row_idx] << 32) | length;
+            memcpy(bufferAddress_ + offsets_[rowIdx] + bufferCursor_[rowIdx], value, length);
+            int64_t offsetAndSize = ((int64_t)bufferCursor_[rowIdx] << 32) | length;
             // Write the offset and size.
-            memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offset_and_size, sizeof(int64_t));
-            buffer_cursor_[row_idx] += length;
+            memcpy(bufferAddress_ + offsets_[rowIdx] + field_offset, &offsetAndSize, sizeof(int64_t));
+            bufferCursor_[rowIdx] += length;
           }
         }
         break;
       }
       case arrow::Decimal128Type::type_id: {
-        for (auto row_idx = 0; row_idx < num_rows_; row_idx++) {
-          bool flag = vec->isNullAt(row_idx);
+        for (auto rowIdx = 0; rowIdx < numRows_; rowIdx++) {
+          bool flag = vec->isNullAt(rowIdx);
           if (vec->typeKind() == velox::TypeKind::SHORT_DECIMAL) {
             auto shortDecimal = vec->asFlatVector<velox::UnscaledShortDecimal>()->rawValues();
             if (!flag) {
               // Get the long value and write the long value
               // Refer to the int64_t() method of Decimal128
-              int64_t long_value = shortDecimal[row_idx].unscaledValue();
-              memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &long_value, sizeof(long));
+              int64_t longValue = shortDecimal[rowIdx].unscaledValue();
+              memcpy(bufferAddress_ + offsets_[rowIdx] + field_offset, &longValue, sizeof(long));
             } else {
-              SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
+              setNullAt(bufferAddress_, offsets_[rowIdx], field_offset, col_idx);
             }
           } else {
             auto longDecimal = vec->asFlatVector<velox::UnscaledLongDecimal>()->rawValues();
             if (flag) {
-              SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
+              setNullAt(bufferAddress_, offsets_[rowIdx], field_offset, col_idx);
             } else {
               int32_t size;
-              velox::int128_t veloxInt128 = longDecimal[row_idx].unscaledValue();
+              velox::int128_t veloxInt128 = longDecimal[rowIdx].unscaledValue();
 
-              velox::int128_t orignal_value = veloxInt128;
+              velox::int128_t orignalValue = veloxInt128;
               int64_t high = veloxInt128 >> 64;
-              uint64_t lower = (uint64_t)orignal_value;
+              uint64_t lower = (uint64_t)orignalValue;
 
-              auto out = ToByteArray(arrow::Decimal128(high, lower), &size);
+              auto out = toByteArray(arrow::Decimal128(high, lower), &size);
               assert(size <= 16);
 
               // write the variable value
-              memcpy(buffer_address_ + buffer_cursor_[row_idx] + offsets_[row_idx], &out[0], size);
+              memcpy(bufferAddress_ + bufferCursor_[rowIdx] + offsets_[rowIdx], &out[0], size);
               // write the offset and size
-              int64_t offsetAndSize = ((int64_t)buffer_cursor_[row_idx] << 32) | size;
-              memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offsetAndSize, sizeof(int64_t));
+              int64_t offsetAndSize = ((int64_t)bufferCursor_[rowIdx] << 32) | size;
+              memcpy(bufferAddress_ + offsets_[rowIdx] + field_offset, &offsetAndSize, sizeof(int64_t));
             }
 
             // Update the cursor of the buffer.
-            buffer_cursor_[row_idx] += 16;
+            bufferCursor_[rowIdx] += 16;
           }
         }
         break;

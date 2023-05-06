@@ -43,7 +43,7 @@ namespace gluten {
 
 std::shared_ptr<velox::memory::MemoryAllocator> VeloxInitializer::asyncDataCache_;
 
-void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) {
+void VeloxInitializer::init(std::unordered_map<std::string, std::string>& conf) {
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
@@ -93,7 +93,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string>& conf) 
   configurationValues.merge(S3Config);
 #endif
 
-  InitCache(conf);
+  initCache(conf);
 
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
@@ -122,7 +122,7 @@ velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
   return velox::memory::MemoryAllocator::getInstance();
 }
 
-void VeloxInitializer::InitCache(std::unordered_map<std::string, std::string>& conf) {
+void VeloxInitializer::initCache(std::unordered_map<std::string, std::string>& conf) {
   auto key = conf.find(kVeloxCacheEnabled);
   if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
     FLAGS_ssd_odirect = true;

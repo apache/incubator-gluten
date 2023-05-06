@@ -32,7 +32,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   std::shared_ptr<ColumnarBatch> next() override;
 
-  std::shared_ptr<Metrics> GetMetrics(int64_t exportNanos) {
+  std::shared_ptr<Metrics> getMetrics(int64_t exportNanos) {
     collectMetrics();
     metrics_->veloxToArrow = exportNanos;
     return metrics_;

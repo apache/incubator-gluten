@@ -13,57 +13,57 @@ namespace gluten {
 #ifdef GLUTEN_PRINT_DEBUG
 
 template <typename T>
-static inline void Print(const T& t) {
+static inline void print(const T& t) {
   std::cout << t;
 }
 
 template <typename T>
-static inline void PrintLF(const T& t) {
+static inline void printLf(const T& t) {
   std::cout << t << std::endl;
 }
 
 template <typename A, typename B>
-static inline void Print(const A& a, const B& b) {
+static inline void print(const A& a, const B& b) {
   std::cout << a << b;
 }
 
 template <typename A, typename B>
-static inline void PrintLF(const A& a, const B& b) {
+static inline void printLf(const A& a, const B& b) {
   std::cout << a << b << std::endl;
 }
 
 template <typename A, typename B>
-static inline void PrintSplit(const A& a, const B& b, const std::string split = ": ") {
+static inline void printSplit(const A& a, const B& b, const std::string split = ": ") {
   std::cout << a << split << b;
 }
 
 template <typename A, typename B>
-static inline void PrintSplitLF(const A& a, const B& b, const std::string split = ": ") {
+static inline void printSplitLf(const A& a, const B& b, const std::string split = ": ") {
   std::cout << a << split << b << std::endl;
 }
 
 template <typename A, typename B>
-static inline void PrintEQ(const A& a, const B& b) {
+static inline void printEq(const A& a, const B& b) {
   std::cout << a << " = " << b;
 }
 
 template <typename A, typename B>
-static inline void PrintEQLF(const A& a, const B& b) {
+static inline void printEqlf(const A& a, const B& b) {
   std::cout << a << " = " << b << std::endl;
 }
 
 template <typename A, typename B>
-static inline void PrintVS(const A& a, const B& b) {
+static inline void printVs(const A& a, const B& b) {
   std::cout << a << " vs " << b;
 }
 
 template <typename A, typename B>
-static inline void PrintVSLF(const A& a, const B& b) {
+static inline void printVslf(const A& a, const B& b) {
   std::cout << a << " vs " << b << std::endl;
 }
 
 template <typename E>
-static inline void PrintElement(const E& e, bool first = false) {
+static inline void printElement(const E& e, bool first = false) {
   if (!first) {
     std::cout << ", ";
   }
@@ -71,7 +71,7 @@ static inline void PrintElement(const E& e, bool first = false) {
 }
 
 template <typename ITERATOR>
-static inline void PrintRange(ITERATOR begin, ITERATOR end) {
+static inline void printRange(ITERATOR begin, ITERATOR end) {
   std::cout << "{ ";
   for (; begin != end; ++begin) {
     std::cout << *begin << " ";
@@ -80,7 +80,7 @@ static inline void PrintRange(ITERATOR begin, ITERATOR end) {
 }
 
 template <typename C>
-static inline void PrintContainer(const C& c, const std::string& containerName = "") {
+static inline void printContainer(const C& c, const std::string& containerName = "") {
   if (!containerName.empty()) {
     std::cout << containerName << " ";
   }
@@ -89,12 +89,12 @@ static inline void PrintContainer(const C& c, const std::string& containerName =
 }
 
 template <typename A, typename B>
-static inline void PrintAB2String(const A& a, const B& b) {
+static inline void printAB2String(const A& a, const B& b) {
   std::cout << a << " = " << b.toString() << std::endl;
 }
 
 template <typename T>
-static inline void Print2String(const T& t, const std::string& prefix = "") {
+static inline void print2String(const T& t, const std::string& prefix = "") {
   if (!prefix.empty()) {
     std::cout << prefix << ": ";
   }
@@ -102,7 +102,7 @@ static inline void Print2String(const T& t, const std::string& prefix = "") {
 }
 
 template <typename ITERATOR>
-static inline void PrintRangeToString(ITERATOR begin, ITERATOR end) {
+static inline void printRangeToString(ITERATOR begin, ITERATOR end) {
   std::cout << "{ ";
   for (; begin != end; ++begin) {
     std::cout << begin->ToString() << " ";
@@ -111,7 +111,7 @@ static inline void PrintRangeToString(ITERATOR begin, ITERATOR end) {
 }
 
 template <typename ITERATOR>
-static inline void PrintRange2String(ITERATOR begin, ITERATOR end) {
+static inline void printRange2String(ITERATOR begin, ITERATOR end) {
   std::cout << "{ ";
   for (; begin != end; ++begin) {
     std::cout << begin->toString() << " ";
@@ -120,7 +120,7 @@ static inline void PrintRange2String(ITERATOR begin, ITERATOR end) {
 }
 
 template <typename C>
-static inline void PrintContainerToString(const C& c, const std::string& containerName = "") {
+static inline void printContainerToString(const C& c, const std::string& containerName = "") {
   if (!containerName.empty()) {
     std::cout << containerName << " ";
   }
@@ -129,7 +129,7 @@ static inline void PrintContainerToString(const C& c, const std::string& contain
 }
 
 template <typename C>
-static inline void PrintContainer2String(const C& c, const std::string& containerName = "") {
+static inline void printContainer2String(const C& c, const std::string& containerName = "") {
   if (!containerName.empty()) {
     std::cout << containerName << " ";
   }
@@ -138,7 +138,7 @@ static inline void PrintContainer2String(const C& c, const std::string& containe
 }
 
 template <typename C>
-static inline void PrintVectorToString(const C& c, const std::string& containerName = "") {
+static inline void printVectorToString(const C& c, const std::string& containerName = "") {
   std::cout << containerName << " = {";
   for (auto& x : c) {
     std::cout << " " << x->ToString();
@@ -147,7 +147,7 @@ static inline void PrintVectorToString(const C& c, const std::string& containerN
 }
 
 template <typename C>
-static inline void PrintVector2String(const C& c, const std::string& containerName = "") {
+static inline void printVector2String(const C& c, const std::string& containerName = "") {
   std::cout << containerName << " = {";
   for (auto& x : c) {
     std::cout << " " << x->toString();
@@ -156,17 +156,17 @@ static inline void PrintVector2String(const C& c, const std::string& containerNa
 }
 
 template <typename V>
-static inline void PrintVectorMapping(const V& v, const std::string& vectorName = "") {
+static inline void printVectorMapping(const V& v, const std::string& vectorName = "") {
   std::cout << vectorName << "\n{\n";
   for (size_t i = 0; i < v.size(); ++i) {
-    Print("\t");
+    print("\t");
     PrintSplitLF(i, v[i], " -> ");
   }
   std::cout << "}" << std::endl;
 }
 
 template <typename V>
-static inline void PrintVectorRange(const V& v, unsigned int begin, unsigned int end) {
+static inline void printVectorRange(const V& v, unsigned int begin, unsigned int end) {
   std::cout << "{";
   auto index = begin;
   for (; index != end; ++index) {

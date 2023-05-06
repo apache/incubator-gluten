@@ -21,14 +21,14 @@
 
 namespace gluten {
 
-arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> ShuffleWriter::PartitionWriter::Make(
-    ShuffleWriter* shuffle_writer,
-    int32_t num_partitions) {
-  const std::string& partition_writer_type = shuffle_writer->Options().partition_writer_type;
-  if (partition_writer_type == "local") {
-    return LocalPartitionWriter::Create(shuffle_writer, num_partitions);
+arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> ShuffleWriter::PartitionWriter::make(
+    ShuffleWriter* shuffleWriter,
+    int32_t numPartitions) {
+  const std::string& partitionWriterType = shuffleWriter->options().partition_writer_type;
+  if (partitionWriterType == "local") {
+    return LocalPartitionWriter::create(shuffleWriter, numPartitions);
   } else {
-    return RemotePartitionWriter::Make(shuffle_writer, num_partitions);
+    return RemotePartitionWriter::Make(shuffleWriter, numPartitions);
   }
 }
 

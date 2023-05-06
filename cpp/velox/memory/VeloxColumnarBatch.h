@@ -29,11 +29,11 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
       : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
 
-  std::string GetType() const override {
+  std::string getType() const override {
     return "velox";
   }
 
-  int64_t GetBytes() override;
+  int64_t getBytes() override;
 
   // TODO https://github.com/oap-project/gluten/issues/1419
   std::shared_ptr<ColumnarBatch> addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) override;
@@ -47,7 +47,7 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   facebook::velox::RowVectorPtr getFlattenedRowVector();
 
  private:
-  void EnsureFlattened();
+  void ensureFlattened();
 
   facebook::velox::RowVectorPtr rowVector_ = nullptr;
   facebook::velox::RowVectorPtr flattened_ = nullptr;

@@ -19,36 +19,36 @@
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator) {
+std::shared_ptr<arrow::MemoryPool> asWrappedArrowMemoryPool(MemoryAllocator* allocator) {
   return std::make_shared<WrappedArrowMemoryPool>(allocator);
 }
 
-std::shared_ptr<arrow::MemoryPool> GetDefaultArrowMemoryPool() {
-  static auto static_pool = AsWrappedArrowMemoryPool(DefaultMemoryAllocator().get());
-  return static_pool;
+std::shared_ptr<arrow::MemoryPool> getDefaultArrowMemoryPool() {
+  static auto staticPool = asWrappedArrowMemoryPool(defaultMemoryAllocator().get());
+  return staticPool;
 }
 
 arrow::Status WrappedArrowMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t** out) {
-  if (!allocator_->AllocateAligned(alignment, size, reinterpret_cast<void**>(out))) {
+  if (!allocator_->allocateAligned(alignment, size, reinterpret_cast<void**>(out))) {
     return arrow::Status::Invalid("WrappedMemoryPool: Error allocating " + std::to_string(size) + " bytes");
   }
   return arrow::Status::OK();
 }
 
-arrow::Status WrappedArrowMemoryPool::Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) {
-  if (!allocator_->ReallocateAligned(*ptr, alignment, old_size, new_size, reinterpret_cast<void**>(ptr))) {
-    return arrow::Status::Invalid("WrappedMemoryPool: Error reallocating " + std::to_string(new_size) + " bytes");
+arrow::Status WrappedArrowMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) {
+  if (!allocator_->reallocateAligned(*ptr, alignment, oldSize, newSize, reinterpret_cast<void**>(ptr))) {
+    return arrow::Status::Invalid("WrappedMemoryPool: Error reallocating " + std::to_string(newSize) + " bytes");
   }
   return arrow::Status::OK();
 }
 
 void WrappedArrowMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignment) {
-  allocator_->Free(buffer, size);
+  allocator_->free(buffer, size);
 }
 
 int64_t WrappedArrowMemoryPool::bytes_allocated() const {
   // fixme use self accountant
-  return allocator_->GetBytes();
+  return allocator_->getBytes();
 }
 
 std::string WrappedArrowMemoryPool::backend_name() const {

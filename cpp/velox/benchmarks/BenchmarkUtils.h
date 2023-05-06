@@ -41,10 +41,10 @@ DECLARE_int32(threads);
 DECLARE_int32(iterations);
 
 /// Initilize the Velox backend with default value.
-void InitVeloxBackend();
+void initVeloxBackend();
 
 /// Initilize the Velox backend.
-void InitVeloxBackend(std::unordered_map<std::string, std::string>& conf);
+void initVeloxBackend(std::unordered_map<std::string, std::string>& conf);
 
 /// Get the location of a file in this project.
 inline std::string getExampleFilePath(const std::string& fileName) {
@@ -87,12 +87,12 @@ std::shared_ptr<facebook::velox::substrait::SplitInfo> getSplitInfos(
     const std::string& datasetPath,
     const std::string& fileFormat);
 
-bool CheckPathExists(const std::string& filepath);
+bool checkPathExists(const std::string& filepath);
 
-void AbortIfFileNotExists(const std::string& filepath);
+void abortIfFileNotExists(const std::string& filepath);
 
 /// Return whether the data ends with suffix.
-bool EndsWith(const std::string& data, const std::string& suffix);
+bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
 

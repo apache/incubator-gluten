@@ -45,25 +45,25 @@ namespace gluten {
 class VeloxParquetDatasource final : public Datasource {
  public:
   VeloxParquetDatasource(
-      const std::string& file_path,
-      const std::string& file_name,
+      const std::string& filePath,
+      const std::string& fileName,
       std::shared_ptr<arrow::Schema> schema)
-      : Datasource(file_path, file_name, schema), file_path_(file_path), file_name_(file_name), schema_(schema) {}
+      : Datasource(filePath, fileName, schema), filePath_(filePath), fileName_(fileName), schema_(schema) {}
 
-  void Init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
-  std::shared_ptr<arrow::Schema> InspectSchema() override;
-  void Write(const std::shared_ptr<ColumnarBatch>& cb) override;
-  void Close() override;
-  std::shared_ptr<arrow::Schema> GetSchema() override {
+  void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
+  std::shared_ptr<arrow::Schema> inspectSchema() override;
+  void write(const std::shared_ptr<ColumnarBatch>& cb) override;
+  void close() override;
+  std::shared_ptr<arrow::Schema> getSchema() override {
     return schema_;
   }
 
  private:
-  std::string file_path_;
-  std::string file_name_;
-  std::string final_path_;
+  std::string filePath_;
+  std::string fileName_;
+  std::string finalPath_;
   std::shared_ptr<arrow::Schema> schema_;
-  std::vector<facebook::velox::RowVectorPtr> row_vecs_;
+  std::vector<facebook::velox::RowVectorPtr> rowVecs_;
   std::shared_ptr<const facebook::velox::Type> type_;
   std::shared_ptr<facebook::velox::dwrf::Writer> writer_;
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;

@@ -48,7 +48,7 @@ class ArrowShuffleWriter final : public ShuffleWriter {
   };
 
  public:
-  static arrow::Result<std::shared_ptr<ArrowShuffleWriter>> Create(uint32_t num_partitions, SplitOptions options);
+  static arrow::Result<std::shared_ptr<ArrowShuffleWriter>> create(uint32_t numPartitions, SplitOptions options);
 
   typedef uint32_t row_offset_type;
 
@@ -57,157 +57,157 @@ class ArrowShuffleWriter final : public ShuffleWriter {
    * partition id. The largest partition buffer will be evicted if memory
    * allocation failure occurs.
    */
-  arrow::Status Split(ColumnarBatch* cb) override;
+  arrow::Status split(ColumnarBatch* cb) override;
 
   /**
    * For each partition, merge evicted file into shuffle data file and write any
    * cached record batch to shuffle data file. Close all resources and collect
    * metrics.
    */
-  arrow::Status Stop() override;
+  arrow::Status stop() override;
 
   /**
    * Evict specified partition
    */
-  arrow::Status EvictPartition(int32_t partition_id);
+  arrow::Status evictPartition(int32_t partitionId);
 
-  arrow::Status SetCompressType(arrow::Compression::type compressed_type);
+  arrow::Status setCompressType(arrow::Compression::type compressedType);
 
   /**
    * Evict for fixed size of partition data from memory
    */
-  arrow::Status EvictFixedSize(int64_t size, int64_t* actual) override;
+  arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
 
-  arrow::Status CreateRecordBatchFromBuffer(uint32_t partition_id, bool reset_buffers) override;
+  arrow::Status createRecordBatchFromBuffer(uint32_t partitionId, bool resetBuffers) override;
 
   /**
    * Evict the largest partition buffer
    * @return partition id. If no partition to evict, return -1
    */
-  arrow::Result<int32_t> EvictLargestPartition(int64_t* size);
+  arrow::Result<int32_t> evictLargestPartition(int64_t* size);
 
-  int64_t RawPartitionBytes() const {
-    return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
+  int64_t rawPartitionBytes() const {
+    return std::accumulate(rawPartitionLengths_.begin(), rawPartitionLengths_.end(), 0LL);
   }
 
   // for testing
-  const std::string& DataFile() const {
+  const std::string& dataFile() const {
     return options_.data_file;
   }
 
  protected:
-  ArrowShuffleWriter(int32_t num_partitions, SplitOptions options) : ShuffleWriter(num_partitions, options) {}
+  ArrowShuffleWriter(int32_t numPartitions, SplitOptions options) : ShuffleWriter(numPartitions, options) {}
 
-  arrow::Status Init();
+  arrow::Status init();
 
-  arrow::Status InitColumnType();
+  arrow::Status initColumnType();
 
-  arrow::Status DoSplit(const arrow::RecordBatch& rb);
+  arrow::Status doSplit(const arrow::RecordBatch& rb);
 
-  row_offset_type CalculateSplitBatchSize(const arrow::RecordBatch& rb);
+  row_offset_type calculateSplitBatchSize(const arrow::RecordBatch& rb);
 
   template <typename T>
-  arrow::Status SplitFixedType(const uint8_t* src_addr, const std::vector<uint8_t*>& dst_addrs);
+  arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs);
 
-  arrow::Status SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb);
+  arrow::Status splitFixedWidthValueBuffer(const arrow::RecordBatch& rb);
 
 #if defined(COLUMNAR_PLUGIN_USE_AVX512)
   arrow::Status SplitFixedWidthValueBufferAVX(const arrow::RecordBatch& rb);
 #endif
-  arrow::Status SplitBoolType(const uint8_t* src_addr, const std::vector<uint8_t*>& dst_addrs);
+  arrow::Status splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs);
 
-  arrow::Status SplitValidityBuffer(const arrow::RecordBatch& rb);
+  arrow::Status splitValidityBuffer(const arrow::RecordBatch& rb);
 
-  arrow::Status SplitBinaryArray(const arrow::RecordBatch& rb);
+  arrow::Status splitBinaryArray(const arrow::RecordBatch& rb);
 
   template <typename T>
-  arrow::Status SplitBinaryType(
-      const uint8_t* src_addr,
-      const T* src_offset_addr,
-      std::vector<BinaryBuff>& dst_addrs,
-      const int binary_idx);
+  arrow::Status splitBinaryType(
+      const uint8_t* srcAddr,
+      const T* srcOffsetAddr,
+      std::vector<BinaryBuff>& dstAddrs,
+      const int binaryIdx);
 
-  arrow::Status SplitListArray(const arrow::RecordBatch& rb);
+  arrow::Status splitListArray(const arrow::RecordBatch& rb);
 
-  arrow::Status AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
+  arrow::Status allocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
 
   template <
       typename T,
       typename ArrayType = typename arrow::TypeTraits<T>::ArrayType,
       typename BuilderType = typename arrow::TypeTraits<T>::BuilderType>
-  arrow::Status AppendBinary(
-      const std::shared_ptr<ArrayType>& src_arr,
-      const std::vector<std::shared_ptr<BuilderType>>& dst_builders,
-      int64_t num_rows);
+  arrow::Status appendBinary(
+      const std::shared_ptr<ArrayType>& srcArr,
+      const std::vector<std::shared_ptr<BuilderType>>& dstBuilders,
+      int64_t numRows);
 
-  arrow::Status AppendList(
-      const std::shared_ptr<arrow::Array>& src_arr,
-      const std::vector<std::shared_ptr<arrow::ArrayBuilder>>& dst_builders,
-      int64_t num_rows);
+  arrow::Status appendList(
+      const std::shared_ptr<arrow::Array>& srcArr,
+      const std::vector<std::shared_ptr<arrow::ArrayBuilder>>& dstBuilders,
+      int64_t numRows);
 
-  arrow::Result<const int32_t*> GetFirstColumn(const arrow::RecordBatch& rb);
+  arrow::Result<const int32_t*> getFirstColumn(const arrow::RecordBatch& rb);
 
-  arrow::Status CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch);
+  arrow::Status cacheRecordBatch(int32_t partitionId, const arrow::RecordBatch& batch);
 
   // Allocate new partition buffer/builder.
   // If successful, will point partition buffer/builder to new ones, otherwise
   // will evict the largest partition and retry
-  arrow::Status AllocateNew(int32_t partition_id, int32_t new_size);
+  arrow::Status allocateNew(int32_t partitionId, int32_t newSize);
 
   // Allocate new partition buffer/builder. May return OOM status.
-  arrow::Status AllocatePartitionBuffers(int32_t partition_id, int32_t new_size);
+  arrow::Status allocatePartitionBuffers(int32_t partitionId, int32_t newSize);
 
   // Check whether support AVX512 instructions
-  bool support_avx512_;
+  bool supportAvx512_;
   // partid
-  std::vector<int32_t> partition_buffer_size_;
+  std::vector<int32_t> partitionBufferSize_;
   // partid, value is reducer batch's offset, output rb rownum < 64k
-  std::vector<row_offset_type> partition_buffer_idx_base_;
+  std::vector<row_offset_type> partitionBufferIdxBase_;
   // partid
   // temp array to hold the destination pointer
-  std::vector<uint8_t*> partition_buffer_idx_offset_;
+  std::vector<uint8_t*> partitionBufferIdxOffset_;
 
   // col partid
-  std::vector<std::vector<uint8_t*>> partition_validity_addrs_;
+  std::vector<std::vector<uint8_t*>> partitionValidityAddrs_;
 
   // col partid
-  std::vector<std::vector<uint8_t*>> partition_fixed_width_value_addrs_;
+  std::vector<std::vector<uint8_t*>> partitionFixedWidthValueAddrs_;
   // col partid, 24 bytes each
-  std::vector<std::vector<BinaryBuff>> partition_binary_addrs_;
+  std::vector<std::vector<BinaryBuff>> partitionBinaryAddrs_;
 
-  std::vector<std::vector<std::shared_ptr<arrow::ArrayBuilder>>> partition_list_builders_;
+  std::vector<std::vector<std::shared_ptr<arrow::ArrayBuilder>>> partitionListBuilders_;
 
   // col fixed + binary
-  std::vector<int32_t> array_idx_;
-  uint16_t fixed_width_col_cnt_;
+  std::vector<int32_t> arrayIdx_;
+  uint16_t fixedWidthColCnt_;
 
   // col
-  std::vector<int32_t> list_array_idx_;
+  std::vector<int32_t> listArrayIdx_;
   // col
 
-  bool empirical_size_calculated_ = false;
+  bool empiricalSizeCalculated_ = false;
   // col
-  std::vector<uint64_t> binary_array_empirical_size_;
+  std::vector<uint64_t> binaryArrayEmpiricalSize_;
 
   // col
-  std::vector<bool> input_has_null_;
+  std::vector<bool> inputHasNull_;
 
   // updated for each input record batch
   // col; value is partition number, part_num < 64k
-  std::vector<uint16_t> partition_id_;
+  std::vector<uint16_t> partitionId_;
   // [num_rows] ; value is offset in input record batch; input rb rownum < 64k
-  std::vector<row_offset_type> reducer_offsets_;
+  std::vector<row_offset_type> reducerOffsets_;
   // [num_partitions]; value is offset of row in record batch; input rb rownum <
   // 64k
-  std::vector<row_offset_type> reducer_offset_offset_;
+  std::vector<row_offset_type> reducerOffsetOffset_;
   // col  ; value is reducer's row number for each input record batch; output rb
   // rownum < 64k
-  std::vector<row_offset_type> partition_id_cnt_;
+  std::vector<row_offset_type> partitionIdCnt_;
 
   // write options for tiny batches
-  arrow::ipc::IpcWriteOptions tiny_bach_write_options_;
+  arrow::ipc::IpcWriteOptions tinyBachWriteOptions_;
 
-  std::vector<std::shared_ptr<arrow::DataType>> column_type_id_;
+  std::vector<std::shared_ptr<arrow::DataType>> columnTypeId_;
 };
 
 } // namespace gluten

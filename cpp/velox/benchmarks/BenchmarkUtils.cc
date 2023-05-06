@@ -39,13 +39,13 @@ std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSi
 
 } // anonymous namespace
 
-void InitVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  gluten::SetBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(conf); });
+void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
+  gluten::setBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(conf); });
   auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(conf);
 }
 
-void InitVeloxBackend() {
-  InitVeloxBackend(bmConfMap);
+void initVeloxBackend() {
+  initVeloxBackend(bmConfMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
@@ -55,7 +55,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string&
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  auto maybePlan = gluten::SubstraitFromJsonToPb("Plan", msgData);
+  auto maybePlan = gluten::substraitFromJsonToPb("Plan", msgData);
   return maybePlan;
 }
 
@@ -78,7 +78,7 @@ std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
   for (auto i = std::filesystem::directory_iterator(fileDir); i != std::filesystem::directory_iterator(); i++) {
     if (!is_directory(i->path())) {
       std::string singleFilePath = i->path().filename().string();
-      if (EndsWith(singleFilePath, "." + fileFormat)) {
+      if (endsWith(singleFilePath, "." + fileFormat)) {
         auto fileAbsolutePath = datasetPath + singleFilePath;
         scanInfo->starts.emplace_back(0);
         scanInfo->lengths.emplace_back(fs::file_size(fileAbsolutePath));
@@ -91,13 +91,13 @@ std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
   return scanInfo;
 }
 
-bool CheckPathExists(const std::string& filepath) {
+bool checkPathExists(const std::string& filepath) {
   std::filesystem::path f{filepath};
   return std::filesystem::exists(f);
 }
 
-void AbortIfFileNotExists(const std::string& filepath) {
-  if (!CheckPathExists(filepath)) {
+void abortIfFileNotExists(const std::string& filepath) {
+  if (!checkPathExists(filepath)) {
     std::cerr << "File path does not exist: " << filepath << std::endl;
     ::benchmark::Shutdown();
     std::exit(EXIT_FAILURE);
@@ -107,12 +107,12 @@ void AbortIfFileNotExists(const std::string& filepath) {
 std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> planNode) {
   ArrowSchema arrowSchema{};
   exportToArrow(
-      velox::BaseVector::create(planNode->outputType(), 0, gluten::GetDefaultVeloxLeafMemoryPool().get()), arrowSchema);
+      velox::BaseVector::create(planNode->outputType(), 0, gluten::getDefaultVeloxLeafMemoryPool().get()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
   return outputSchema;
 }
 
-bool EndsWith(const std::string& data, const std::string& suffix) {
+bool endsWith(const std::string& data, const std::string& suffix) {
   return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
 }
 
@@ -131,8 +131,8 @@ std::shared_ptr<arrow::RecordBatchReader> createReader(const std::string& path) 
 #endif
 
 void setCpu(uint32_t cpuindex) {
-  static const auto total_cores = std::thread::hardware_concurrency();
-  cpuindex = cpuindex % total_cores;
+  static const auto kTotalCores = std::thread::hardware_concurrency();
+  cpuindex = cpuindex % kTotalCores;
   cpu_set_t cs;
   CPU_ZERO(&cs);
   CPU_SET(cpuindex, &cs);

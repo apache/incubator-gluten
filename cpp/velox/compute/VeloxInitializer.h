@@ -36,7 +36,7 @@ namespace gluten {
 class VeloxInitializer {
  public:
   explicit VeloxInitializer(std::unordered_map<std::string, std::string>& conf) {
-    Init(conf);
+    init(conf);
   }
 
   ~VeloxInitializer() {
@@ -45,9 +45,9 @@ class VeloxInitializer {
     }
   }
 
-  void Init(std::unordered_map<std::string, std::string>& conf);
+  void init(std::unordered_map<std::string, std::string>& conf);
 
-  void InitCache(std::unordered_map<std::string, std::string>& conf);
+  void initCache(std::unordered_map<std::string, std::string>& conf);
 
   static facebook::velox::memory::MemoryAllocator* getAsyncDataCache();
 

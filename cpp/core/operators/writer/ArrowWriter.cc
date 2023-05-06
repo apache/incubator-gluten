@@ -32,13 +32,13 @@ arrow::Status ArrowWriter::initWriter(arrow::Schema& schema) {
       WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
 
   // Opt to store Arrow schema for easier reads back into Arrow
-  std::shared_ptr<ArrowWriterProperties> arrow_props = ArrowWriterProperties::Builder().store_schema()->build();
+  std::shared_ptr<ArrowWriterProperties> arrowProps = ArrowWriterProperties::Builder().store_schema()->build();
 
   // Create a writer
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
   ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_));
   ARROW_RETURN_NOT_OK(
-      parquet::arrow::FileWriter::Open(schema, arrow::default_memory_pool(), outfile, props, arrow_props, &writer_));
+      parquet::arrow::FileWriter::Open(schema, arrow::default_memory_pool(), outfile, props, arrowProps, &writer_));
   return arrow::Status::OK();
 }
 

@@ -19,66 +19,66 @@
 
 namespace gluten {
 
-arrow::Result<std::shared_ptr<CelebornPartitionWriter>> CelebornPartitionWriter::Create(
-    ShuffleWriter* shuffle_writer,
-    int32_t num_partitions) {
-  std::shared_ptr<CelebornPartitionWriter> res(new CelebornPartitionWriter(shuffle_writer, num_partitions));
-  RETURN_NOT_OK(res->Init());
+arrow::Result<std::shared_ptr<CelebornPartitionWriter>> CelebornPartitionWriter::create(
+    ShuffleWriter* shuffleWriter,
+    int32_t numPartitions) {
+  std::shared_ptr<CelebornPartitionWriter> res(new CelebornPartitionWriter(shuffleWriter, numPartitions));
+  RETURN_NOT_OK(res->init());
   return res;
 }
 
-arrow::Status CelebornPartitionWriter::Init() {
-  celeborn_client_ = std::move(shuffle_writer_->Options().celeborn_client);
+arrow::Status CelebornPartitionWriter::init() {
+  celebornClient_ = std::move(shuffle_writer_->options().celeborn_client);
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornPartitionWriter::EvictPartition(int32_t partition_id) {
-  int64_t temp_total_time = 0;
-  TIME_NANO_OR_RAISE(temp_total_time, WriteArrowToOutputStream(partition_id));
-  shuffle_writer_->SetTotalWriteTime(shuffle_writer_->TotalWriteTime() + temp_total_time);
-  TIME_NANO_OR_RAISE(temp_total_time, PushPartition(partition_id));
-  shuffle_writer_->SetTotalEvictTime(shuffle_writer_->TotalEvictTime() + temp_total_time);
+arrow::Status CelebornPartitionWriter::evictPartition(int32_t partitionId) {
+  int64_t tempTotalTime = 0;
+  TIME_NANO_OR_RAISE(tempTotalTime, writeArrowToOutputStream(partitionId));
+  shuffle_writer_->setTotalWriteTime(shuffle_writer_->totalWriteTime() + tempTotalTime);
+  TIME_NANO_OR_RAISE(tempTotalTime, pushPartition(partitionId));
+  shuffle_writer_->setTotalEvictTime(shuffle_writer_->totalEvictTime() + tempTotalTime);
   return arrow::Status::OK();
 };
 
-arrow::Status CelebornPartitionWriter::PushPartition(int32_t partition_id) {
-  auto buffer = celeborn_buffer_os_->Finish();
+arrow::Status CelebornPartitionWriter::pushPartition(int32_t partitionId) {
+  auto buffer = celebornBufferOs_->Finish();
   int32_t size = buffer->get()->size();
   char* dst = reinterpret_cast<char*>(buffer->get()->mutable_data());
-  celeborn_client_->PushPartitonData(partition_id, dst, size);
-  shuffle_writer_->PartitionCachedRecordbatch()[partition_id].clear();
-  shuffle_writer_->SetPartitionCachedRecordbatchSize(partition_id, 0);
-  shuffle_writer_->SetPartitionLengths(partition_id, shuffle_writer_->PartitionLengths()[partition_id] + size);
+  celebornClient_->pushPartitonData(partitionId, dst, size);
+  shuffle_writer_->partitionCachedRecordbatch()[partitionId].clear();
+  shuffle_writer_->setPartitionCachedRecordbatchSize(partitionId, 0);
+  shuffle_writer_->setPartitionLengths(partitionId, shuffle_writer_->partitionLengths()[partitionId] + size);
   return arrow::Status::OK();
 };
 
-arrow::Status CelebornPartitionWriter::Stop() {
+arrow::Status CelebornPartitionWriter::stop() {
   // push data and collect metrics
   for (auto pid = 0; pid < num_partitions_; ++pid) {
-    RETURN_NOT_OK(shuffle_writer_->CreateRecordBatchFromBuffer(pid, true));
-    if (shuffle_writer_->PartitionCachedRecordbatchSize()[pid] > 0) {
-      RETURN_NOT_OK(EvictPartition(pid));
+    RETURN_NOT_OK(shuffle_writer_->createRecordBatchFromBuffer(pid, true));
+    if (shuffle_writer_->partitionCachedRecordbatchSize()[pid] > 0) {
+      RETURN_NOT_OK(evictPartition(pid));
     }
-    shuffle_writer_->SetTotalBytesWritten(
-        shuffle_writer_->TotalBytesWritten() + shuffle_writer_->PartitionLengths()[pid]);
+    shuffle_writer_->setTotalBytesWritten(
+        shuffle_writer_->totalBytesWritten() + shuffle_writer_->partitionLengths()[pid]);
   }
-  if (shuffle_writer_->CombineBuffer() != nullptr) {
-    shuffle_writer_->CombineBuffer().reset();
+  if (shuffle_writer_->combineBuffer() != nullptr) {
+    shuffle_writer_->combineBuffer().reset();
   }
-  shuffle_writer_->PartitionBuffer().clear();
+  shuffle_writer_->partitionBuffer().clear();
   return arrow::Status::OK();
 };
 
-arrow::Status CelebornPartitionWriter::WriteArrowToOutputStream(int32_t partition_id) {
+arrow::Status CelebornPartitionWriter::writeArrowToOutputStream(int32_t partitionId) {
   ARROW_ASSIGN_OR_RAISE(
-      celeborn_buffer_os_,
+      celebornBufferOs_,
       arrow::io::BufferOutputStream::Create(
-          shuffle_writer_->Options().buffer_size, shuffle_writer_->Options().memory_pool.get()));
-  int32_t metadata_length = 0; // unused
+          shuffle_writer_->options().buffer_size, shuffle_writer_->options().memory_pool.get()));
+  int32_t metadataLength = 0; // unused
 #ifndef SKIPWRITE
-  for (auto& payload : shuffle_writer_->PartitionCachedRecordbatch()[partition_id]) {
+  for (auto& payload : shuffle_writer_->partitionCachedRecordbatch()[partitionId]) {
     RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(
-        *payload, shuffle_writer_->Options().ipc_write_options, celeborn_buffer_os_.get(), &metadata_length));
+        *payload, shuffle_writer_->options().ipc_write_options, celebornBufferOs_.get(), &metadataLength));
     payload = nullptr;
   }
 #endif
