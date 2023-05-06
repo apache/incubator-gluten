@@ -219,68 +219,22 @@ std::shared_ptr<DB::ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
     return actions_dag;
 }
 
-std::string getDecimalFunction(const substrait::Type_Decimal & decimal, const bool null_on_overflow) {
+std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool null_on_overflow) {
     std::string ch_function_name;
     UInt32 precision = decimal.precision();
     UInt32 scale = decimal.scale();
 
     if (precision <= DataTypeDecimal32::maxPrecision())
-    {
         ch_function_name = "toDecimal32";
-    }
     else if (precision <= DataTypeDecimal64::maxPrecision())
-    {
         ch_function_name = "toDecimal64";
-    }
     else if (precision <= DataTypeDecimal128::maxPrecision())
-    {
         ch_function_name = "toDecimal128";
-    }
     else
-    {
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support decimal type with precision {}", precision);
-    }
 
-    if (null_on_overflow) {
-        ch_function_name = ch_function_name + "OrNull";
-    }
-
-    return ch_function_name;
-}
-
-/// TODO: This function needs to be improved for Decimal/Array/Map/Tuple types.
-std::string getCastFunction(const substrait::Type & type)
-{
-    std::string ch_function_name;
-    if (type.has_fp64())
-        ch_function_name = "toFloat64";
-    else if (type.has_fp32())
-        ch_function_name = "toFloat32";
-    else if (type.has_string())
-        ch_function_name = "toString";
-    else if (type.has_binary())
-        ch_function_name = "reinterpretAsStringSpark";
-    else if (type.has_i64())
-        ch_function_name = "toInt64";
-    else if (type.has_i32())
-        ch_function_name = "toInt32";
-    else if (type.has_i16())
-        ch_function_name = "toInt16";
-    else if (type.has_i8())
-        ch_function_name = "toInt8";
-    else if (type.has_date())
-        ch_function_name = "toDate32";
-    // TODO need complete param: scale
-    else if (type.has_timestamp())
-        ch_function_name = "toDateTime64";
-    else if (type.has_bool_())
-        ch_function_name = "toUInt8";
-    else if (type.has_decimal())
-        ch_function_name = getDecimalFunction(type.decimal(), false);
-    else
-        throw Exception(ErrorCodes::UNKNOWN_TYPE, "doesn't support cast type {}", type.DebugString());
-
-    /// TODO(taiyang-li): implement cast functions of other types
+    if (null_on_overflow)
+      ch_function_name = ch_function_name + "OrNull";
     return ch_function_name;
 }
 
@@ -1143,11 +1097,7 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function {}", function_name);
 
     std::string ch_function_name;
-    if (function_name == "cast")
-    {
-        ch_function_name = getCastFunction(output_type);
-    }
-    else if (function_name == "trim")
+    if (function_name == "trim")
     {
         if (args.size() == 1)
         {
@@ -2035,25 +1985,24 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
 
-            std::string ch_function_name = getCastFunction(rel.cast().type());
             DB::ActionsDAG::NodeRawConstPtrs args;
-            const auto & cast_input = rel.cast().input();
-            args.emplace_back(parseExpression(action_dag, cast_input));
 
-            if (ch_function_name.starts_with("toDecimal"))
+            const auto & input = rel.cast().input();
+            args.emplace_back(parseExpression(action_dag, input));
+
+            const auto & substrait_type = rel.cast().type();
+            const ActionsDAG::Node * function_node = nullptr;
+            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
+            if (substrait_type.has_binary())
+                function_node = toFunctionNode(action_dag, "reinterpretAsStringSpark", args);
+            else
             {
-                UInt32 scale = rel.cast().type().decimal().scale();
-                args.emplace_back(add_column(std::make_shared<DataTypeUInt32>(), scale));
-            }
-            else if (ch_function_name.starts_with("toDateTime64"))
-            {
-                /// In Spark: cast(xx as TIMESTAMP)
-                /// In CH: toDateTime(xx, 6)
-                /// So we must add extra argument: 6
-                args.emplace_back(add_column(std::make_shared<DataTypeUInt32>(), 6));
+                DataTypePtr ch_type = parseType(substrait_type);
+                args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
+
+                function_node = toFunctionNode(action_dag, "CAST", args);
             }
 
-            const auto * function_node = toFunctionNode(action_dag, ch_function_name, args);
             action_dag->addOrReplaceInOutputs(*function_node);
             return function_node;
         }
@@ -2567,25 +2516,22 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
 
-            std::string ch_function_name = getCastFunction(rel.cast().type());
-
+            /// Append input to asts
             ASTs args;
             args.emplace_back(parseArgumentToAST(names, rel.cast().input()));
 
-            if (ch_function_name.starts_with("toDecimal"))
+            /// Append destination type to asts
+            const auto & substrait_type = rel.cast().type();
+            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
+            if (substrait_type.has_binary())
+                return makeASTFunction("reinterpretAsStringSpark", args);
+            else
             {
-                UInt32 scale = rel.cast().type().decimal().scale();
-                args.emplace_back(std::make_shared<ASTLiteral>(scale));
-            }
-            else if (ch_function_name.starts_with("toDateTime64"))
-            {
-                /// In Spark: cast(xx as TIMESTAMP)
-                /// In CH: toDateTime(xx, 6)
-                /// So we must add extra argument: 6
-                args.emplace_back(std::make_shared<ASTLiteral>(6));
-            }
+                DataTypePtr ch_type = SerializedPlanParser::parseType(substrait_type);
+                args.emplace_back(std::make_shared<ASTLiteral>(ch_type->getName()));
 
-            return makeASTFunction(ch_function_name, args);
+                return makeASTFunction("CAST", args);
+            }
         }
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();

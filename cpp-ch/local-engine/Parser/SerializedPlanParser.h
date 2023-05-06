@@ -38,7 +38,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"xor", "xor"},
 
     {"extract", ""},
-    {"cast", ""},
+    {"cast", "CAST"},
     {"alias", "alias"},
 
     /// datetime functions
