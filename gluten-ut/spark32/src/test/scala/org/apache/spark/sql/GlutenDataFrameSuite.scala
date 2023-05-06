@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.WholeStageTransformerExec
+import io.glutenproject.execution.{ProjectExecTransformer, WholeStageTransformerExec}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression}
@@ -33,6 +33,7 @@ import scala.language.implicitConversions
 import scala.util.Random
 
 class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
+
   test(GlutenTestConstants.GLUTEN_TEST + "repartitionByRange") {
     val partitionNum = 10
     withSQLConf(
@@ -295,6 +296,17 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
         checkAnswer(emptyDescription, emptyDescribeResult)
       }
     }
+  }
+
+  test(GLUTEN_TEST +
+      "Allow leading/trailing whitespace in string for casting to integral type") {
+    Seq(" 123", "123 ", " 123 ", "123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C")
+        .toDF("col1").createOrReplaceTempView("t1")
+    val df = spark.sql("select cast(col1 as int) from t1")
+    checkAnswer(df, Row(123) :: Row(123) ::
+        Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Nil)
+    assert(find(df.queryExecution.executedPlan)(
+      _.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 
   private def withExpr(newExpr: Expression): Column = new Column(newExpr)

@@ -45,10 +45,14 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
     new GlutenNamedStructTransformer(substraitExprName, original, attributeSeq)
   }
 
-  // To align with spark in casting string type input to integral type,
-  // add trim node for trimming whitespace. See spark's toInt in UTF8String.java.
+  /**
+   * To align with spark in casting string type input to integral type,
+   * add trim node for trimming whitespace. See spark's toInt in UTF8String.java.
+   */
   override def genCastWithNewChild(c: Cast): Cast = {
     // Whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
+    // The space separator (except ' ', i.e., '\u0020'), line separator &
+    // paragraph separator are not supported to trim, assuming they are rarely used.
     val trimStr = " \t\n\u000B\u000C\r\u001C\u001D\u001E\u001F"
     c.dataType match {
       case ByteType | ShortType | IntegerType | LongType =>
