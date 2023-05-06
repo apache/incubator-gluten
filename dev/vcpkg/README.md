@@ -79,7 +79,7 @@ But you can try installing the following tools.
 Simply run:
 
 ``` sh
-source ./env.sh
+source $GLUTEN_REPO/dev/vcpkg/env.sh
 ```
 
 This script will install all static libraries into the `vcpkg_installed/`
