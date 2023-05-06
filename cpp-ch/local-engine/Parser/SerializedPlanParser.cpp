@@ -1098,38 +1098,11 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
 
     std::string ch_function_name;
     if (function_name == "trim")
-    {
-        if (args.size() == 1)
-        {
-            ch_function_name = "trimBoth";
-        }
-        if (args.size() == 2)
-        {
-            ch_function_name = "sparkTrimBoth";
-        }
-    }
+        ch_function_name = args.size() == 1 ? "trimBoth" : "trimBothSpark";
     else if (function_name == "ltrim")
-    {
-        if (args.size() == 1)
-        {
-            ch_function_name = "trimLeft";
-        }
-        if (args.size() == 2)
-        {
-            ch_function_name = "sparkTrimLeft";
-        }
-    }
+        ch_function_name = args.size() == 1 ? "trimLeft" : "trimLeftSpark";
     else if (function_name == "rtrim")
-    {
-        if (args.size() == 1)
-        {
-            ch_function_name = "trimRight";
-        }
-        if (args.size() == 2)
-        {
-            ch_function_name = "sparkTrimRigth";
-        }
-    }
+        ch_function_name = args.size() == 1 ? "trimRight" : "trimRightSpark";
     else if (function_name == "extract")
     {
         if (args.size() != 2)
@@ -1562,9 +1535,7 @@ void SerializedPlanParser::parseFunctionArguments(
         // Arguments in the format, (<field name>, <value expression>[, <field name>, <value expression> ...])
         // We don't need to care the field names here.
         for (int index = 1; index < args.size();  index += 2)
-        {
             parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[index]);
-        }
     }
     else if (function_name == "has")
     {
@@ -1709,6 +1680,13 @@ void SerializedPlanParser::parseFunctionArguments(
         parsed_args.back() = first_arg_not_null;
 
         parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
+    }
+    else if (function_name == "trimBothSpark")
+    {
+        /// In substrait, the first arg is srcStr, the second arg is trimStr
+        /// But in CH, the first arg is trimStr, the second arg is srcStr
+        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
+        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
     }
     else if (startsWith(function_signature, "extract:"))
     {

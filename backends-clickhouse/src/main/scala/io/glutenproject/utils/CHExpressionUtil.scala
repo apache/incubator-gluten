@@ -40,11 +40,7 @@ object CHExpressionUtil {
     UNSCALED_VALUE -> Set(EMPTY_TYPE)
   )
 
-  final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map(
-    LTRIM -> Seq(STRING_TYPE, STRING_TYPE),
-    RTRIM -> Seq(STRING_TYPE, STRING_TYPE),
-    TRIM -> Seq(STRING_TYPE, STRING_TYPE)
-  )
+  final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map()
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
     STDDEV -> Set(EMPTY_TYPE),

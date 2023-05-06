@@ -849,6 +849,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test 'btrim/ltrim/rtrim'") {
+    val sql = "select btrim(l_comment, 'a'), ltrim(l_comment, 'a'), rtrim(l_comment, 'a') " +
+      "from lineitem limit 10"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
