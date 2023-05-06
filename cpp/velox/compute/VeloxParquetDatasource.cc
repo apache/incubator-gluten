@@ -104,7 +104,7 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
   auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
   auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, queryCtx, properities);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities, queryCtx);
 }
 
 std::shared_ptr<arrow::Schema> VeloxParquetDatasource::InspectSchema() {
