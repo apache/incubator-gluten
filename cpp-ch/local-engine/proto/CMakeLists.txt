@@ -4,7 +4,7 @@ file(GLOB protobuf_files
         )
 
 FOREACH(FIL ${protobuf_files})
-    file(RELATIVE_PATH FIL_RELATIVE ${ClickHouse_SOURCE_DIR}/utils/local-engine/proto/ ${FIL})
+    file(RELATIVE_PATH FIL_RELATIVE ${ClickHouse_SOURCE_DIR}/utils/extern-local-engine/proto/ ${FIL})
     string(REGEX REPLACE "\\.proto" "" FILE_NAME ${FIL_RELATIVE})
     LIST(APPEND SUBSTRAIT_SRCS "${CMAKE_CURRENT_BINARY_DIR}/${FILE_NAME}.pb.cc")
     LIST(APPEND SUBSTRAIT_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/${FILE_NAME}.pb.h")
