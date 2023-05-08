@@ -36,6 +36,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.net.URI
 
@@ -92,9 +93,16 @@ class VeloxParquetFileFormat extends FileFormat with DataSourceRegister with Ser
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            val giv = batch.column(0).asInstanceOf[GlutenIndicatorVector]
-            giv.retain()
-            writeQueue.enqueue(batch)
+            if (batch.column(0).isInstanceOf[GlutenIndicatorVector]) {
+              val giv = batch.column(0).asInstanceOf[GlutenIndicatorVector]
+              giv.retain()
+              writeQueue.enqueue(batch)
+            } else {
+              val offloaded =
+                ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
+              writeQueue.enqueue(offloaded)
+            }
+
           }
 
           override def close(): Unit = {

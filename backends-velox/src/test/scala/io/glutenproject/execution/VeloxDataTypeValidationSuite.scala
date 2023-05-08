@@ -517,4 +517,16 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       assert(df.queryExecution.executedPlan.find(_.isInstanceOf[GlutenColumnarToRowExec]).isDefined)
     }
   }
+
+  test("Velox Parquet Write") {
+    withTempDir { dir =>
+      val write_path = dir.toURI.getPath
+      val data_path = getClass.getResource("/").getPath + "/data-type-validation-data/type1"
+      val df = spark.read.format("parquet").load(data_path)
+      
+      // Timestamp, array and map type is not supported.
+      df.drop("timestamp").drop("array").drop("map").
+        write.mode("append").format("velox").save(write_path)
+    }
+  }
 }
