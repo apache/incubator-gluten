@@ -41,6 +41,20 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       .set("spark.sql.files.openCostInBytes", "134217728")
   }
 
+  tpcdsAllQueries.foreach(
+    sql =>
+      if (!independentTestTpcdsQueries.contains(sql)) {
+        if (excludedTpcdsQueries.contains(sql)) {
+          ignore(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        } else {
+          test(s"TPCDS ${sql.toUpperCase()}") {
+            runTPCDSQuery(sql) { df => }
+          }
+        }
+      })
+
   test("test 'select count(*)'") {
     val df = spark.sql("""
                          |select count(c_customer_sk) from customer
@@ -121,10 +135,6 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
     val result = spark.sql(testSql).collect()
     assert(result(0).getLong(0) == 73049)
-  }
-
-  test("TPCDS Q3") {
-    runTPCDSQuery("q3") { df => }
   }
 
   test(
@@ -281,14 +291,6 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
           assert(reuseExchange.nonEmpty == true)
       }
     }
-  }
-
-  test("TPCDS Q66") {
-    runTPCDSQuery("q66") { df => }
-  }
-
-  test("TPCDS Q76") {
-    runTPCDSQuery("q76") { df => }
   }
 
   test("Gluten-1234: Fix error when executing hash agg after union all") {
