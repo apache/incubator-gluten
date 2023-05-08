@@ -9,6 +9,7 @@ BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
+RUN_SETUP_SCRIPT=ON
 
 LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
 LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
@@ -39,6 +40,10 @@ for arg in "$@"; do
     ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --run_setup_script=*)
+    RUN_SETUP_SCRIPT=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     shift # Remove generic argument from processing
@@ -48,34 +53,8 @@ done
 
 function compile {
   TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
-  if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
-    scripts/setup-ubuntu.sh
-  elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
-    case "$LINUX_VERSION_ID" in
-      8) scripts/setup-centos8.sh ;;
-      7)
-        scripts/setup-centos7.sh
-        set +u
-        export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-        source /opt/rh/devtoolset-9/enable
-        set -u
-      ;;
-      *)
-        echo "Unsupport centos version: $LINUX_VERSION_ID"
-        exit 1
-      ;;
-    esac
-  elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
-    case "$LINUX_VERSION_ID" in
-      3) scripts/setup-centos8.sh ;;
-      *)
-        echo "Unsupport alinux version: $LINUX_VERSION_ID"
-        exit 1
-      ;;
-    esac
-  else
-    echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
-    exit 1
+  if [ $RUN_SETUP_SCRIPT == "ON" ]; then
+    setup
   fi
 
   COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON "
@@ -117,6 +96,38 @@ function check_commit {
 
   if [ -f ${BUILD_DIR}/velox-commit.cache ]; then
     rm -f ${BUILD_DIR}/velox-commit.cache
+  fi
+}
+
+function setup {
+  if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
+    scripts/setup-ubuntu.sh
+  elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
+    case "$LINUX_VERSION_ID" in
+      8) scripts/setup-centos8.sh ;;
+      7)
+        scripts/setup-centos7.sh
+        set +u
+        export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+        source /opt/rh/devtoolset-9/enable
+        set -u
+      ;;
+      *)
+        echo "Unsupport centos version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
+    case "$LINUX_VERSION_ID" in
+      3) scripts/setup-centos8.sh ;;
+      *)
+        echo "Unsupport alinux version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  else
+    echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+    exit 1
   fi
 }
 
