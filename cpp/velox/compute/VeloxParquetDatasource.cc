@@ -32,6 +32,9 @@
 #include "include/arrow/c/bridge.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
+#include "velox/core/Context.h"
+#include "velox/core/QueryConfig.h"
+#include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -96,7 +99,12 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
   auto properities =
       ::parquet::WriterProperties::Builder().write_batch_size(blockSize)->compression(compressionCodec)->build();
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities);
+  // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
+  std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
+  auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
+  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
+
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities, queryCtx);
 }
 
 std::shared_ptr<arrow::Schema> VeloxParquetDatasource::InspectSchema() {
