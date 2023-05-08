@@ -1,7 +1,7 @@
 #pragma once
 
-#include "arrow/util/iterator.h"
 #include "arrow/c/bridge.h"
+#include "arrow/util/iterator.h"
 
 namespace gluten {
 

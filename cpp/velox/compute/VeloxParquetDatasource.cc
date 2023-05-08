@@ -26,10 +26,10 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
+#include "arrow/c/bridge.h"
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
-#include "arrow/c/bridge.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
 #include "velox/dwio/common/Options.h"

@@ -23,8 +23,8 @@
 #include <arrow/util/decimal.h>
 
 #include "ArrowTypeUtils.h"
-#include "arrow/c/helpers.h"
 #include "arrow/c/bridge.h"
+#include "arrow/c/helpers.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowSerializers.h"
 #include "velox/vector/arrow/Bridge.h"

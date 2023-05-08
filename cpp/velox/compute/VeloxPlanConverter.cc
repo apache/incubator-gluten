@@ -20,10 +20,10 @@
 
 #include "ArrowTypeUtils.h"
 #include "VeloxBridge.h"
+#include "arrow/c/bridge.h"
 #include "compute/ResultIterator.h"
 #include "compute/RowVectorStream.h"
 #include "config/GlutenConfig.h"
-#include "arrow/c/bridge.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;
