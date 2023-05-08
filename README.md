@@ -93,17 +93,17 @@ spark-shell
 
 <img src="https://github.com/facebookincubator/velox/raw/main/static/logo.svg" width="200">
 
-If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](./docs/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
+If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](./docs/get-started/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
 
 ### 3.2.2 Build and Install Gluten with ClickHouse backend
 
 ![logo](./docs/image/ClickHouse/logo.png)
 
-If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
+If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
 ### 3.2.3 Build script parameters
 
-[Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
+[Gluten Usage](./docs/get-started/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
 ### 3.2.4 Jar conflicts
 
