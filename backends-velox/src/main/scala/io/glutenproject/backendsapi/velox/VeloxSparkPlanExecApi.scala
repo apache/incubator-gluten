@@ -50,7 +50,6 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
    * add trim node for trimming space or whitespace. See spark's Cast.scala.
    */
   override def genCastWithNewChild(c: Cast): Cast = {
-    val trimSpaceStr = " "
     // Whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
     // The space separator (except ' ', i.e., '\u0020', supported), line separator &
     // paragraph separator are not supported to trim, assuming they are rarely used.
@@ -58,14 +57,6 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
     c.dataType match {
       case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
         c
-      case FloatType | DoubleType | _: DecimalType =>
-        c.child.dataType match {
-          case StringType =>
-            val trim = StringTrim(c.child, Some(Literal(trimSpaceStr)))
-            c.withNewChildren(Seq(trim)).asInstanceOf[Cast]
-          case _ =>
-            c
-        }
       case _ =>
         c.child.dataType match {
           case StringType =>
