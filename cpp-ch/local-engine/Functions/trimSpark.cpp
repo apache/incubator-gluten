@@ -132,9 +132,10 @@ namespace
 
             const UInt8 * start;
             size_t length;
+            std::unordered_set<char> trim_set(trim_str.begin(), trim_str.end());
             for (size_t i = 0; i < rows; ++i)
             {
-                trim(reinterpret_cast<const UInt8 *>(&data[prev_offset]), offsets[i] - prev_offset - 1, start, length, trim_str);
+                trim(reinterpret_cast<const UInt8 *>(&data[prev_offset]), offsets[i] - prev_offset - 1, start, length, trim_set);
                 res_data.resize(res_data.size() + length + 1);
                 memcpySmallAllowReadWriteOverflow15(&res_data[res_offset], start, length);
                 res_offset += length + 1;
@@ -145,12 +146,10 @@ namespace
             }
         }
 
-        void trim(const UInt8 * data, size_t size, const UInt8 *& res_data, size_t & res_size, const String & trim_str) const
+        void trim(const UInt8 * data, size_t size, const UInt8 *& res_data, size_t & res_size, const std::unordered_set<char> & trim_set) const
         {
             const char * char_data = reinterpret_cast<const char *>(data);
             const char * char_end = char_data + size;
-
-            std::unordered_set<char> trim_set(trim_str.begin(), trim_str.end());
 
             if constexpr (TrimMode::trim_left)
                 while (char_data < char_end && trim_set.count(*char_data))
