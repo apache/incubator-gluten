@@ -54,7 +54,7 @@ class VeloxParquetDatasource final : public Datasource {
   std::shared_ptr<arrow::Schema> InspectSchema() override;
   void Write(const std::shared_ptr<ColumnarBatch>& cb) override;
   void Close() override;
-  std::shared_ptr<arrow::Schema> GetSchema() {
+  std::shared_ptr<arrow::Schema> GetSchema() override {
     return schema_;
   }
 
@@ -62,8 +62,6 @@ class VeloxParquetDatasource final : public Datasource {
   std::string file_path_;
   std::string file_name_;
   std::string final_path_;
-  int32_t count_ = 0;
-  int64_t num_rbs_ = 0;
   std::shared_ptr<arrow::Schema> schema_;
   std::vector<facebook::velox::RowVectorPtr> row_vecs_;
   std::shared_ptr<const facebook::velox::Type> type_;

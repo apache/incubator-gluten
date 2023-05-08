@@ -26,7 +26,7 @@
 #include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
-#include "include/arrow/c/bridge.h"
+#include "arrow/c/bridge.h"
 #include "shuffle/ArrowShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"

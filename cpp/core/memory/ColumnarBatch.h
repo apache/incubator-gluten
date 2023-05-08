@@ -21,7 +21,7 @@
 
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
-#include "include/arrow/c/bridge.h"
+#include "arrow/c/bridge.h"
 #include "operators/writer/ArrowWriter.h"
 #include "utils/exception.h"
 

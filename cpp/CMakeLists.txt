@@ -88,7 +88,17 @@ add_compile_options(-Werror)
 add_compile_options(-Wno-error=parentheses)
 add_compile_options(-Wno-error=unused-function)
 add_compile_options(-Wno-error=unused-variable)
-add_compile_options(-Wno-error=unused-but-set-variable)
+
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  add_compile_options(-Wno-error=unused-but-set-variable)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  # Experimental
+  add_compile_options(-Wno-implicit-int-float-conversion)
+  add_compile_options(-Wno-nullability-completeness)
+  add_compile_options(-Wno-mismatched-tags)
+else()
+  message("Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
+endif()
 
 #
 # Dependencies
@@ -96,8 +106,6 @@ add_compile_options(-Wno-error=unused-but-set-variable)
 
 
 include(ConfigArrow)
-
-include_directories(build/releases)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

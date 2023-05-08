@@ -23,7 +23,7 @@
 #include "compute/ResultIterator.h"
 #include "compute/RowVectorStream.h"
 #include "config/GlutenConfig.h"
-#include "include/arrow/c/bridge.h"
+#include "arrow/c/bridge.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;

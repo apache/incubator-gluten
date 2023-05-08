@@ -8,7 +8,7 @@
 
 #include "shuffle/PartitionWriter.h"
 
-#include "include/arrow/c/bridge.h"
+#include "arrow/c/bridge.h"
 
 #if defined(__x86_64__)
 #include <immintrin.h>

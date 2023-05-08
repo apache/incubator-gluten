@@ -395,7 +395,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
       for_each(
           batches.begin(),
           batches.end(),
-          [&shuffle_writer, &split_time, &options](std::shared_ptr<arrow::RecordBatch>& record_batch) {
+          [&shuffle_writer, &split_time](std::shared_ptr<arrow::RecordBatch>& record_batch) {
             TIME_NANO_OR_THROW(split_time, shuffle_writer->Split(RecordBatchToColumnarBatch(record_batch).get()));
           });
       // std::cout << " split done memory allocated = " <<
