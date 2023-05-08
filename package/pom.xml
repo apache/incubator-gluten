@@ -82,15 +82,6 @@
                   <shadedPattern>io.glutenproject.shaded.com.google.protobuf</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.apache.arrow</pattern>
-                  <shadedPattern>io.glutenproject.shaded.org.apache.arrow</shadedPattern>
-                  <!--arrow's C wrapper refers to the original class path, so we should not relocate here-->
-                  <excludes>
-                    <exclude>org.apache.arrow.c.*</exclude>
-                    <exclude>org.apache.arrow.c.jni.*</exclude>
-                  </excludes>
-                </relocation>
-                <relocation>
                   <pattern>com.google.flatbuffers</pattern>
                   <shadedPattern>io.glutenproject.shaded.com.google.flatbuffers</shadedPattern>
                 </relocation>
