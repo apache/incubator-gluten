@@ -102,7 +102,6 @@ class VeloxParquetFileFormat extends FileFormat with DataSourceRegister with Ser
                 ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
               writeQueue.enqueue(offloaded)
             }
-
           }
 
           override def close(): Unit = {
