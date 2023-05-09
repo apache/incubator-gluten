@@ -192,7 +192,7 @@ JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_na
     jbyte * plan_buf_addr = env->GetByteArrayElements(conf_plan, nullptr);
     std::string plan_str;
     plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
-    local_engine::BackendInitializerUtil::init(plan_str);
+    local_engine::BackendInitializerUtil::init(&plan_str);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 

@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.hive.HiveSimpleUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, IntegerType, LongType, ShortType}
 
@@ -226,17 +227,61 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     } else false
   }
 
+  def replacePythonUDFWithExpressionTransformer(
+      udf: PythonUDF,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    logDebug(s"replacePythonUDFWithExpressionTransformer udf name: ${udf.name}")
+    val substraitExprName = UDFMappings.pythonUDFMap.get(udf.name)
+    substraitExprName match {
+      case Some(name) =>
+        PythonUDFTransformer(
+          name,
+          udf.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          udf)
+      case None =>
+        throw new UnsupportedOperationException(s"Not supported python udf: $udf.")
+    }
+  }
+
+  def replaceScalaUDFWithExpressionTransformer(
+      udf: ScalaUDF,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    val substraitExprName = UDFMappings.scalaUDFMap.get(udf.udfName.get)
+    substraitExprName match {
+      case Some(name) =>
+        ScalaUDFTransformer(
+          name,
+          udf.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          udf)
+      case None =>
+        throw new UnsupportedOperationException(s"Not supported scala udf: $udf.")
+    }
+  }
+
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    logDebug(
+      s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass}} " +
+        s"name: ${expr.prettyName}")
+
+    if (expr.isInstanceOf[PythonUDF]) {
+      return replacePythonUDFWithExpressionTransformer(expr.asInstanceOf[PythonUDF], attributeSeq)
+    }
+
+    if (expr.isInstanceOf[ScalaUDF]) {
+      return replaceScalaUDFWithExpressionTransformer(expr.asInstanceOf[ScalaUDF], attributeSeq)
+    }
+
+    if (HiveSimpleUDFTransformer.isHiveSimpleUDF(expr)) {
+      return HiveSimpleUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
+    }
+
+    // Check whether Gluten supports this expression
     val substraitExprName = ExpressionMappings.expressionsMap.get(expr.getClass)
     if (substraitExprName.isEmpty) {
       throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
-
-    logDebug(
-      s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass}}" +
-        s"name: $substraitExprName")
 
     // Check whether each backend supports this expression
     if (

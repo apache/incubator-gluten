@@ -20,6 +20,8 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
+import io.glutenproject.expression.UDFMappings
+
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkConf
 
@@ -68,6 +70,9 @@ class ContextInitializer extends ContextApi {
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
     System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
+
+    // Load supported hive/python/scala udfs
+    UDFMappings.loadFromSparkConf(conf)
 
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.

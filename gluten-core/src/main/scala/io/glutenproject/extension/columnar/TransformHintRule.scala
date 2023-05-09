@@ -23,8 +23,6 @@ import io.glutenproject.execution._
 import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.catalyst.expressions.aggregate.Count
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -37,6 +35,8 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.python.EvalPythonExec
+import org.apache.spark.api.python.EvalPythonExecTransformer
 
 import scala.util.control.Breaks.{break, breakable}
 
@@ -575,6 +575,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.outer, plan.generatorOutput, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
+        case plan: EvalPythonExec=>
+          val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
+          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+
         case _: AQEShuffleReadExec =>
           TransformHints.tagTransformable(plan)
         case plan: TakeOrderedAndProjectExec =>

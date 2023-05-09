@@ -63,7 +63,7 @@ TEST(TestFunction, In)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
 
-    auto arg = ColumnSet::create(set->getTotalRowCount(), set);
+    auto arg = ColumnSet::create(set->getTotalRowCount(), FutureSet(set));
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -105,7 +105,7 @@ TEST(TestFunction, NotIn1)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
 
-    auto arg = ColumnSet::create(set->getTotalRowCount(), set);
+    auto arg = ColumnSet::create(set->getTotalRowCount(), FutureSet(set));
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -146,7 +146,7 @@ TEST(TestFunction, NotIn2)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
 
-    auto arg = ColumnSet::create(set->getTotalRowCount(), set);
+    auto arg = ColumnSet::create(set->getTotalRowCount(), FutureSet(set));
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};

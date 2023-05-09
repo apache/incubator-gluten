@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
 import io.glutenproject.execution.CHBroadcastBuildSideCache
+import io.glutenproject.expression.UDFMappings
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.SparkConf
@@ -49,6 +50,10 @@ class CHContextApi extends ContextApi with Logging {
       s"${CHBackendSettings.getBackendConfigPrefix()}.runtime_config" +
         s".local_engine.settings.log_processors_profiles",
       "true")
+
+    // Load supported hive/python/scala udfs
+    UDFMappings.loadFromSparkConf(conf)
+
     val initKernel = new CHNativeExpressionEvaluator()
     initKernel.initNative(conf)
   }

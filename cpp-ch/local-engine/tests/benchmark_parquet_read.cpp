@@ -30,7 +30,7 @@ static void BM_ParquetReadString(benchmark::State & state)
     for (auto _ : state)
     {
         auto in = std::make_unique<ReadBufferFromFile>(file);
-        auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings);
+        auto format = std::make_shared<ParquetBlockInputFormat>(in.get(), nullptr, header, format_settings, 1, 8192);
         auto pipeline = QueryPipeline(std::move(format));
         auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
         while (reader->pull(res))
@@ -54,7 +54,7 @@ static void BM_ParquetReadDate32(benchmark::State & state)
     for (auto _ : state)
     {
         auto in = std::make_unique<ReadBufferFromFile>(file);
-        auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings);
+        auto format = std::make_shared<ParquetBlockInputFormat>(in.get(), nullptr, header, format_settings, 1, 8192);
         auto pipeline = QueryPipeline(std::move(format));
         auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
         while (reader->pull(res))

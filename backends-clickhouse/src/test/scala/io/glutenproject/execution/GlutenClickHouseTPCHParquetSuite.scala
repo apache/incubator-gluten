@@ -43,6 +43,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+      .set("spark.gluten.supported.scala.udfs", "my_add")
+      .set("spark.gluten.supported.hive.udfs", "my_add")
   }
 
   override protected val createNullableTables = true
@@ -928,6 +930,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
                 | select id from test_tbl lateral view
                 | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test 'scala udf'") {
+    spark.udf.register("my_add", (x: Long, y: Long) => x + y)
+    runQueryAndCompare("select my_add(id, id+1) from range(10)")(
+      checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  ignore("test 'hive udf'") {
+    val jarPath = "backends-clickhouse/src/test/resources/udfs/hive-test-udfs.jar"
+    val jarUrl = s"file://${System.getProperty("user.dir")}/$jarPath"
+    spark.sql(s"CREATE FUNCTION my_add as " +
+      "'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
+    runQueryAndCompare("select my_add(id, id+1) from range(10)")(
+      checkOperatorMatch[ProjectExecTransformer])
   }
 
   override protected def runTPCHQuery(

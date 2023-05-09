@@ -34,6 +34,15 @@ add_headers_and_sources(operator Operator)
 add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
 
+# Add udf sources files in sub directories to functions_sources
+option(ENABLE_LOCAL_UDFS "Build udfs in 'local-engine/Functions/*_udf' subdirectories" ON)
+if (ENABLE_LOCAL_UDFS)
+    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Functions/*_udf)
+    foreach(child ${children})
+        add_headers_and_sources(functions ${child})
+    endforeach()
+endif ()
+
 include_directories(
         ${JNI_INCLUDE_DIRS}
         ${CMAKE_CURRENT_BINARY_DIR}/proto
@@ -100,15 +109,15 @@ if (ENABLE_LOCAL_FORMATS)
     target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 endif ()
 
-if (ENABLE_JEMALLOC)
-    target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
-        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map -Wl,-Bsymbolic-functions)
-else()
-    target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
-        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
-endif()
-
 if (ENABLE_TESTS)
     add_subdirectory(tests)
+else ()
+    if (ENABLE_JEMALLOC)
+        target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
+            -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map -Wl,-Bsymbolic-functions)
+    else()
+        target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
+            -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
+    endif()
 endif ()
 
