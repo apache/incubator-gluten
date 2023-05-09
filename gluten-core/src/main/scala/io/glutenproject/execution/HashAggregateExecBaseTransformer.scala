@@ -441,11 +441,10 @@ abstract class HashAggregateExecBaseTransformer(
       val mode = exp.mode
       val aggregateFunc = exp.aggregateFunction
       aggregateFunc match {
-        case Average(_, _) =>
+        case _: Average | _: First | _: Last =>
           mode match {
             case Partial | PartialMerge =>
-              val avg = aggregateFunc.asInstanceOf[Average]
-              val aggBufferAttr = avg.inputAggBufferAttributes
+              val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
               for (index <- aggBufferAttr.indices) {
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
                 aggregateAttr += attr

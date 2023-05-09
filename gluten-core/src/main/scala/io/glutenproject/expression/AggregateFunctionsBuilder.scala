@@ -38,6 +38,14 @@ object AggregateFunctionsBuilder {
       throw new UnsupportedOperationException(s"Aggregate function not supported for $aggregateFunc.")
     }
 
+    aggregateFunc match {
+      case first @ First(_, ignoreNull) =>
+        if (ignoreNull) substraitAggFuncName = ExpressionMappings.FIRST_IGNORE_NULL
+      case last @ Last(_, ignoreNulls) =>
+        if (ignoreNulls) substraitAggFuncName = ExpressionMappings.LAST_IGNORE_NULL
+      case _ =>
+    }
+
     val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
 
     ExpressionBuilder.newScalarFunction(

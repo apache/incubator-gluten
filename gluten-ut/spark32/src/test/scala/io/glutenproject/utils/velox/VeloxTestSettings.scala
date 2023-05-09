@@ -122,7 +122,8 @@ class VeloxTestSettings extends BackendTestSettings {
       // We can enable the below test for spark 3.4 and higher versions.
       "Gluten - describe",
       // decimal failed ut.
-      "SPARK-22271: mean overflows and returns null for some decimal variables"
+      "SPARK-22271: mean overflows and returns null for some decimal variables",
+      "SPARK-34165: Add count_distinct to summary"
     )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
@@ -235,10 +236,13 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
     // Spill not supported yet.
     .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
+    .exclude("SPARK-21258: complex object in combination with spilling")
     .exclude("NaN and -0.0 in window partition keys") // NaN case
     // Rewrite with NaN test cases excluded.
     .exclude("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window")
     .exclude("corr, covar_pop, stddev_pop functions in specific window")
+    // https://github.com/oap-project/gluten/pull/1606
+    .exclude("last/first with ignoreNulls", "last/first on descending ordered window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
     .exclude("CreateMap")

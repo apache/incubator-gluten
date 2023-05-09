@@ -62,8 +62,8 @@ case class GlutenHashAggregateExecTransformer(
     for (expr <- aggregateExpressions) {
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
-        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
-             _: Corr | _: CovPopulation | _: CovSample =>
+        case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
+             _: VariancePop | _: Corr | _: CovPopulation | _: CovSample =>
           expr.mode match {
             case Partial | PartialMerge =>
               return true
@@ -107,10 +107,9 @@ case class GlutenHashAggregateExecTransformer(
           throw new UnsupportedOperationException(s"${expr.mode} not supported.")
       }
       expr.aggregateFunction match {
-        case _: Average =>
-          // Select sum from Velox Struct.
+        case _: Average | _: First | _: Last =>
+          // Select first and second aggregate buffer from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
-          // Select count from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
           colIdx += 1
         case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
@@ -177,6 +176,12 @@ case class GlutenHashAggregateExecTransformer(
         structTypeNodes.add(ConverterUtils.getTypeNode(
           GlutenDecimalUtil.getAvgSumDataType(avg), nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+      case first: First =>
+        structTypeNodes.add(ConverterUtils.getTypeNode(first.dataType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(BooleanType, nullable = true))
+      case last: Last =>
+        structTypeNodes.add(ConverterUtils.getTypeNode(last.dataType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(BooleanType, nullable = true))
       case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
         structTypeNodes.add(ConverterUtils
@@ -226,66 +231,47 @@ case class GlutenHashAggregateExecTransformer(
     // This is a special handling for PartialMerge in the execution of distinct.
     // Use Partial phase instead for this aggregation.
     val modeKeyWord = modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
+
+    def generateMergeCompanionNode(): Unit = {
+      aggregateMode match {
+        case Partial =>
+          val partialNode = ExpressionBuilder.makeAggregateFunction(
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+            childrenNodeList,
+            modeKeyWord,
+            getIntermediateTypeNode(aggregateFunction))
+          aggregateNodeList.add(partialNode)
+        case PartialMerge =>
+          val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+            VeloxAggregateFunctionsBuilder
+              .create(args, aggregateFunction, mixedPartialAndMerge),
+            childrenNodeList,
+            modeKeyWord,
+            getIntermediateTypeNode(aggregateFunction))
+          aggregateNodeList.add(aggFunctionNode)
+        case Final =>
+          val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+            childrenNodeList,
+            modeKeyWord,
+            ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+          aggregateNodeList.add(aggFunctionNode)
+        case other =>
+          throw new UnsupportedOperationException(s"$other is not supported.")
+      }
+    }
+
     aggregateFunction match {
-      case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
-           _: Corr | _: CovPopulation | _: CovSample =>
-        aggregateMode match {
-          case Partial =>
-            val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
-              childrenNodeList,
-              modeKeyWord,
-              getIntermediateTypeNode(aggregateFunction))
-            aggregateNodeList.add(partialNode)
-          case PartialMerge =>
-            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder
-                .create(args, aggregateFunction, mixedPartialAndMerge),
-              childrenNodeList,
-              modeKeyWord,
-              getIntermediateTypeNode(aggregateFunction))
-            aggregateNodeList.add(aggFunctionNode)
-          case Final =>
-            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-            aggregateNodeList.add(aggFunctionNode)
-          case other =>
-            throw new UnsupportedOperationException(s"$other is not supported.")
-        }
       case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
-        aggregateMode match {
-          case Partial =>
-            val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
-              childrenNodeList,
-              modeKeyWord,
-              getIntermediateTypeNode(aggregateFunction))
-            aggregateNodeList.add(partialNode)
-          case PartialMerge =>
-            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder
-                .create(args, aggregateFunction, mixedPartialAndMerge),
-              childrenNodeList,
-              modeKeyWord,
-              getIntermediateTypeNode(aggregateFunction))
-            aggregateNodeList.add(aggFunctionNode)
-          case Final =>
-            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-            aggregateNodeList.add(aggFunctionNode)
-          case other =>
-            throw new UnsupportedOperationException(s"$other is not supported.")
-        }
+        generateMergeCompanionNode()
+      case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
+           _: Corr | _: CovPopulation | _: CovSample | _: First | _: Last =>
+        generateMergeCompanionNode()
       case _ =>
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
           VeloxAggregateFunctionsBuilder.create(
-            args, aggregateFunction, aggregateMode == PartialMerge && mixedPartialAndMerge),
+            args, aggregateFunction,
+            aggregateMode == PartialMerge && mixedPartialAndMerge),
           childrenNodeList,
           modeKeyWord,
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
@@ -302,11 +288,12 @@ case class GlutenHashAggregateExecTransformer(
     groupingExpressions.foreach(expression => {
       typeNodeList.add(ConverterUtils.getTypeNode(expression.dataType, expression.nullable))
     })
+
     aggregateExpressions.foreach(expression => {
       val aggregateFunction = expression.aggregateFunction
       aggregateFunction match {
-        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
-             _: Corr | _: CovPopulation | _: CovSample =>
+        case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop |
+             _: VarianceSamp | _: VariancePop | _: Corr | _: CovPopulation | _: CovSample =>
           expression.mode match {
             case Partial | PartialMerge =>
               typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
@@ -408,6 +395,22 @@ case class GlutenHashAggregateExecTransformer(
                 ExpressionConverter
                   .replaceWithExpressionTransformer(attr, originalInputAttributes)
                   .doTransform(args)
+                }).asJava)
+              exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
+            case other =>
+              throw new UnsupportedOperationException(s"$other is not supported.")
+          }
+        case _: First | _: Last =>
+          aggregateExpression.mode match {
+            case PartialMerge | Final =>
+              assert(functionInputAttributes.size == 2,
+                s"${aggregateExpression.mode.toString} of First/Last expects two input attributes.")
+              // Use a Velox function to combine the intermediate columns into struct.
+              val childNodes = new util.ArrayList[ExpressionNode](
+                functionInputAttributes.toList.map(attr => {
+                  ExpressionConverter
+                    .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                    .doTransform(args)
                 }).asJava)
               exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
             case other =>
@@ -588,8 +591,8 @@ case class GlutenHashAggregateExecTransformer(
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
-        case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
-             _: Corr | _: CovPopulation | _: CovSample
+        case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
+             _: VariancePop | _: Corr | _: CovPopulation | _: CovSample
           if aggExpr.mode == PartialMerge | aggExpr.mode == Final =>
           // Only occupies one column due to intermediate results are combined
           // by previous projection.
@@ -745,13 +748,21 @@ object VeloxAggregateFunctionsBuilder {
              forMergeCompanion: Boolean = false): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    val sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+    var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (sigName.isEmpty) {
       throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
 
     // Use companion function for partial-merge aggregation functions on count distinct.
     val substraitAggFuncName = if (!forMergeCompanion) sigName.get else sigName.get + "_merge"
+
+    aggregateFunc match {
+      case First(_, ignoreNulls) =>
+        if (ignoreNulls) sigName = ExpressionMappings.FIRST_IGNORE_NULL
+      case Last(_, ignoreNulls) =>
+        if (ignoreNulls) sigName = ExpressionMappings.LAST_IGNORE_NULL
+      case _ =>
+    }
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
