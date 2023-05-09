@@ -2,6 +2,8 @@
 
 set -eu
 
+GLUTEN_IT_JVM_ARGS=${$GLUTEN_IT_JVM_ARGS:-"-Xmx2G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log"}
+
 BASEDIR=$(dirname $0)
 
 BUILD_DIR=$BASEDIR/../target
@@ -12,4 +14,4 @@ if [[ ! -e $JAR_PATH ]]; then
   exit 1
 fi
 
-java -Xmx24G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp $JAR_PATH io.glutenproject.integration.tpc.Tpc $@
+java $GLUTEN_IT_JVM_ARGS -cp $JAR_PATH io.glutenproject.integration.tpc.Tpc $@
