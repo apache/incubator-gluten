@@ -106,7 +106,6 @@ static inline void PrintRangeToString(ITERATOR begin, ITERATOR end) {
   std::cout << "{ ";
   for (; begin != end; ++begin) {
     std::cout << begin->ToString() << " ";
-    ++begin;
   }
   std::cout << "}";
 }
@@ -116,7 +115,6 @@ static inline void PrintRange2String(ITERATOR begin, ITERATOR end) {
   std::cout << "{ ";
   for (; begin != end; ++begin) {
     std::cout << begin->toString() << " ";
-    ++begin;
   }
   std::cout << "}";
 }

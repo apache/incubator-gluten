@@ -26,10 +26,10 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
+#include "arrow/c/bridge.h"
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
-#include "include/arrow/c/bridge.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
 #include "velox/core/Context.h"
@@ -114,7 +114,7 @@ std::shared_ptr<arrow::Schema> VeloxParquetDatasource::InspectSchema() {
 
   // Creates a file system: local, hdfs or s3.
   auto fs = velox::filesystems::getFileSystem(file_path_, nullptr);
-  std::shared_ptr<velox::ReadFile> readFile{std::move(fs->openFileForRead(file_path_))};
+  std::shared_ptr<velox::ReadFile> readFile{fs->openFileForRead(file_path_)};
 
   std::unique_ptr<velox::dwio::common::Reader> reader =
       velox::dwio::common::getReaderFactory(reader_options.getFileFormat())

@@ -16,7 +16,7 @@
  */
 
 #include <jni.h>
-#include "include/arrow/c/bridge.h"
+#include "arrow/c/bridge.h"
 
 #include <glog/logging.h>
 #include <jni/JniCommon.h>

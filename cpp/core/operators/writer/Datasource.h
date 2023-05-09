@@ -32,6 +32,8 @@ class Datasource {
   Datasource(const std::string& file_path, const std::string& file_name, std::shared_ptr<arrow::Schema> schema)
       : file_path_(file_path), file_name_(file_name), schema_(schema) {}
 
+  virtual ~Datasource() = default;
+
   virtual void Init(const std::unordered_map<std::string, std::string>& sparkConfs) {}
   virtual std::shared_ptr<arrow::Schema> InspectSchema() {
     return nullptr;

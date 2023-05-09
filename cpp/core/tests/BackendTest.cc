@@ -64,8 +64,9 @@ class DummyBackend final : public Backend {
 
 TEST(TestExecBackend, CreateBackend) {
   SetBackendFactory([] { return std::make_shared<DummyBackend>(); });
-  auto backend = CreateBackend();
-  ASSERT_EQ(typeid(*backend), typeid(DummyBackend));
+  auto backendP = CreateBackend();
+  auto& backend = *backendP.get();
+  ASSERT_EQ(typeid(backend), typeid(DummyBackend));
 }
 
 TEST(TestExecBackend, GetResultIterator) {
