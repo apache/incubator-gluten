@@ -93,7 +93,7 @@ spark-shell
 
 <img src="https://github.com/facebookincubator/velox/raw/main/static/logo.svg" width="200">
 
-If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](./docs/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
+If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](docs/get-started/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
 
 ### 3.2.2 Build and Install Gluten with ClickHouse backend
 
