@@ -19,7 +19,7 @@ See offical Gluten build guidance https://github.com/oap-project/gluten#how-to-u
 ```sh
 cd gluten/tools/gluten-it
 mvn clean package
-java -Xmx5G -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc
+sbin/gluten-it.sh
 ```
 
 ## Usage
