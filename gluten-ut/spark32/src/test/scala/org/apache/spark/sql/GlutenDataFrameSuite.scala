@@ -299,14 +299,36 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
   }
 
   test(GLUTEN_TEST +
-      "Allow leading/trailing whitespace in string for casting to integral type") {
+      "Allow leading/trailing whitespace in string before casting") {
+    def checkResult(df: DataFrame, expectedResult: Seq[Row]): Unit = {
+      checkAnswer(df, expectedResult)
+      assert(find(df.queryExecution.executedPlan)(
+        _.isInstanceOf[ProjectExecTransformer]).isDefined)
+    }
+
     Seq(" 123", "123 ", " 123 ", "123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C")
         .toDF("col1").createOrReplaceTempView("t1")
-    val df = spark.sql("select cast(col1 as int) from t1")
-    checkAnswer(df, Row(123) :: Row(123) ::
-        Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Nil)
-    assert(find(df.queryExecution.executedPlan)(
-      _.isInstanceOf[ProjectExecTransformer]).isDefined)
+    val expectedIntResult = Row(123) :: Row(123) ::
+        Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Nil
+    var df = spark.sql("select cast(col1 as int) from t1")
+    checkResult(df, expectedIntResult)
+    df = spark.sql("select cast(col1 as long) from t1")
+    checkResult(df, expectedIntResult)
+
+    Seq(" 123.5", "123.5 ", " 123.5 ", "123.5\n\n\n", "123.5\r\r\r", "123.5\f\f\f", "123.5\u000C")
+        .toDF("col1").createOrReplaceTempView("t1")
+    val expectedFloatResult = Row(123.5) :: Row(123.5) ::
+        Row(123.5) :: Row(123.5) :: Row(123.5) :: Row(123.5) :: Row(123.5) :: Nil
+    df = spark.sql("select cast(col1 as float) from t1")
+    checkResult(df, expectedFloatResult)
+    df = spark.sql("select cast(col1 as double) from t1")
+    checkResult(df, expectedFloatResult)
+
+    val rawData = Seq(" abc", "abc ", " abc ", "abc\n\n\n", "abc\r\r\r", "abc\f\f\f", "abc\u000C")
+    rawData.toDF("col1").createOrReplaceTempView("t1")
+    val expectedBinaryResult = rawData.map(d => Row(d.getBytes())).seq
+    df = spark.sql("select cast(col1 as binary) from t1")
+    checkResult(df, expectedBinaryResult)
   }
 
   private def withExpr(newExpr: Expression): Column = new Column(newExpr)
