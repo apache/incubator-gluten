@@ -23,8 +23,8 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.VeloxColumnarRules.OtherWritePostRule
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, Literal, StringTrim}
-import org.apache.spark.sql.types.{ArrayType, BinaryType, ByteType, CalendarIntervalType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, NullType, ObjectType, ShortType, StringType, StructType, UserDefinedType}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Literal, StringTrim}
+import org.apache.spark.sql.types.{ArrayType, BinaryType, MapType, StringType, StructType, UserDefinedType}
 
 class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
   /**
