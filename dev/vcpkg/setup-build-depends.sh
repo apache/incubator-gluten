@@ -4,6 +4,23 @@ set -e
 
 ## Install functions begin
 
+install_centos_any_maven() {
+    if [ -z "$(which mvn)" ]; then
+        maven_install_dir=/opt/maven-3.6.3
+        if [ -d /opt/maven-3.6.3 ]; then
+            echo "Failed to install maven: ${maven_install_dir} is exists" >&2
+            exit 1
+        fi
+
+        cd /tmp
+        wget https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
+        tar -xvf apache-maven-3.6.3-bin.tar.gz
+        rm apache-maven-3.6.3-bin.tar.gz
+        mv apache-maven-3.6.3 "${maven_install_dir}"
+        ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
+    fi
+}
+
 install_centos_7() {
     yum -y install epel-release centos-release-scl
     yum -y install \
@@ -33,6 +50,8 @@ install_centos_7() {
         cd
         rm -rf /tmp/flex
     fi
+
+    install_centos_any_maven
 }
 
 install_centos_8() {
@@ -42,6 +61,8 @@ install_centos_8() {
         gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
+
+    install_centos_any_maven
 }
 
 install_ubuntu_20.04() {
