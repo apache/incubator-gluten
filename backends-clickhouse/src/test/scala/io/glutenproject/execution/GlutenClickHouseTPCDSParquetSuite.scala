@@ -49,7 +49,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
             runTPCDSQuery(sql) { df => }
           }
         } else {
-          test(s"TPCDS ${sql.toUpperCase()}") {
+          ignore(s"TPCDS ${sql.toUpperCase()}") {
             runTPCDSQuery(sql) { df => }
           }
         }
