@@ -20,13 +20,11 @@ package io.glutenproject.vectorized;
 import io.glutenproject.columnarbatch.ArrowColumnarBatches;
 import io.glutenproject.columnarbatch.GlutenColumnarBatches;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
+import java.util.Iterator;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-import java.util.Iterator;
-
-public class ArrowInIterator extends GeneralInIterator {
-
-  public ArrowInIterator(Iterator<ColumnarBatch> delegated) {
+public class ColumnarBatchInIterator extends GeneralInIterator {
+  public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {
     super(delegated);
   }
 

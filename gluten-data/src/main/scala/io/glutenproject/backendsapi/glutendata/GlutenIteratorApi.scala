@@ -112,15 +112,14 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
   : Iterator[ColumnarBatch] = {
 
     val beforeInput = System.nanoTime
-    val hasInput = iter.hasNext
     if (collectTime != null) {
       collectTime += System.nanoTime - beforeInput
     }
-    val res = if (hasInput) {
+    val res: Iterator[ColumnarBatch] = {
       new Iterator[ColumnarBatch] {
         var numBatchesTotal: Long = _
         var numRowsTotal: Long = _
-        TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
+        TaskMemoryResources.addRecycler(100) { _ =>
           if (avgCoalescedNumRows != null && numBatchesTotal > 0) {
             avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
@@ -195,8 +194,6 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
           target
         }
       }
-    } else {
-      Iterator.empty
     }
     new CloseableColumnBatchIterator(res)
   }
@@ -228,13 +225,13 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
     val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
       new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ArrowInIterator(iter.asJava)
+        new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val transKernel = new GlutenNativeExpressionEvaluator()
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
+    TaskMemoryResources.addRecycler(100) { _ => resIter.close() }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
@@ -287,7 +284,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
     val transKernel = new GlutenNativeExpressionEvaluator()
     val columnarNativeIterator =
       new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ArrowInIterator(iter.asJava)
+        new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
       transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator,
@@ -310,7 +307,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
       }
     }
 
-    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
+    TaskMemoryResources.addRecycler(100)(_ => {
       nativeResultIterator.close()
     })
 

@@ -15,30 +15,19 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+#pragma once
 
-/**
- * ArrowBufBuilder.
- */
-public class ArrowBufBuilder {
+#include "ColumnarBatch.h"
 
-  public long nativeInstanceId;
-  public long memoryAddress;
-  public int size;
-  public long capacity;
+namespace gluten {
 
-  /**
-   * Create an instance for ArrowBufBuilder.
-   *
-   * @param nativeInstanceId native ArrowBuf holder.
-   * @param memoryAddress native ArrowBuf data addr.
-   * @param size ArrowBuf size.
-   * @param capacity ArrowBuf rowNums.
-   */
-  public ArrowBufBuilder(long nativeInstanceId, long memoryAddress, int size, long capacity) {
-    this.memoryAddress = memoryAddress;
-    this.size = size;
-    this.capacity = capacity;
-    this.nativeInstanceId = nativeInstanceId;
-  }
-}
+class ColumnarBatchIterator {
+ public:
+  ColumnarBatchIterator() {}
+
+  virtual ~ColumnarBatchIterator() = default;
+
+  // null means stream end
+  virtual std::shared_ptr<ColumnarBatch> next() = 0;
+};
+} // namespace gluten

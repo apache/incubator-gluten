@@ -32,8 +32,6 @@ object CHExpressionUtil {
   final val STRING_TYPE = "string"
 
   final val CH_EXPR_BLACKLIST_TYPE_EXISTS: Map[String, Set[String]] = Map(
-    REGEXP_EXTRACT -> Set(EMPTY_TYPE),
-    JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
     UNIX_TIMESTAMP -> Set(DATE_TYPE),
@@ -42,11 +40,7 @@ object CHExpressionUtil {
     UNSCALED_VALUE -> Set(EMPTY_TYPE)
   )
 
-  final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map(
-    LTRIM -> Seq(STRING_TYPE, STRING_TYPE),
-    RTRIM -> Seq(STRING_TYPE, STRING_TYPE),
-    TRIM -> Seq(STRING_TYPE, STRING_TYPE)
-  )
+  final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map()
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
     STDDEV -> Set(EMPTY_TYPE),

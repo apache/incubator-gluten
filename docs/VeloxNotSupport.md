@@ -85,3 +85,6 @@ Exception occurs when Velox TableScan is used to read files with unsupported com
 
 ### Describe() method in DataFrame can not work (wrong result)
 The df.describe() method can not work in Gluten with spark 3.2 and spark 3.3, which is a bug in vanilla spark. Already fixed in vanilla spark 3.3 [here](https://github.com/apache/spark/pull/40914). And we will keep this issue in spark3.2 and 3.3. And it will be fixed after upgrading the spark version to 3.4.
+
+### Parquet Write supported configurations.
+Currently, parquet write only support spark.sql.parquet.compression.codec and parquet.block.size two configurations. Other configurations will not take effect. 

@@ -175,7 +175,7 @@ class GlutenColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch
           val row = new UnsafeRow(batch.numCols())
           var closed = false
 
-          TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
+          TaskMemoryResources.addRecycler(100)(_ => {
             if (!closed) {
               jniWrapper.nativeClose(info.instanceID)
               closed = true

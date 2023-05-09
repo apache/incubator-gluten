@@ -22,7 +22,7 @@ public class ShuffleReaderJniWrapper {
   private ShuffleReaderJniWrapper() {
   }
 
-  public static native long make(JniByteInputStream jniIn, long cSchema);
+  public static native long make(JniByteInputStream jniIn, long cSchema, long allocatorId);
 
   public static native long next(long handle);
 

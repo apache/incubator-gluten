@@ -276,7 +276,7 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
           }
           break;
         } else {
-          return arrow::Status::Invalid("Unsupported data type: " + typevec[col_index]);
+          return arrow::Status::Invalid("Unsupported data type: " + std::to_string(typevec[col_index]));
         }
       }
     }

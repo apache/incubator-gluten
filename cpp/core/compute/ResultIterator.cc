@@ -22,7 +22,7 @@ namespace gluten {
 
 std::shared_ptr<Metrics> ResultIterator::GetMetrics() {
   if (backend_) {
-    return backend_->GetMetrics(raw_iter_, exportNanos_);
+    return backend_->GetMetrics(GetInputIter(), exportNanos_);
   }
   return nullptr;
 }

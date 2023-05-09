@@ -26,12 +26,15 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
+#include "arrow/c/bridge.h"
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
-#include "include/arrow/c/bridge.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
+#include "velox/core/Context.h"
+#include "velox/core/QueryConfig.h"
+#include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -42,8 +45,7 @@ namespace gluten {
 void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::CreateBackend());
 
-  auto veloxPool =
-      AsWrappedVeloxAggregateMemoryPool(gluten::DefaultMemoryAllocator().get(), backend->GetMemoryPoolOptions());
+  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(gluten::DefaultMemoryAllocator().get());
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
   // Construct the file path and writer
@@ -97,7 +99,12 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
   auto properities =
       ::parquet::WriterProperties::Builder().write_batch_size(blockSize)->compression(compressionCodec)->build();
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities);
+  // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
+  std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
+  auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
+  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
+
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities, queryCtx);
 }
 
 std::shared_ptr<arrow::Schema> VeloxParquetDatasource::InspectSchema() {
@@ -107,7 +114,7 @@ std::shared_ptr<arrow::Schema> VeloxParquetDatasource::InspectSchema() {
 
   // Creates a file system: local, hdfs or s3.
   auto fs = velox::filesystems::getFileSystem(file_path_, nullptr);
-  std::shared_ptr<velox::ReadFile> readFile{std::move(fs->openFileForRead(file_path_))};
+  std::shared_ptr<velox::ReadFile> readFile{fs->openFileForRead(file_path_)};
 
   std::unique_ptr<velox::dwio::common::Reader> reader =
       velox::dwio::common::getReaderFactory(reader_options.getFileFormat())

@@ -38,7 +38,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   import testImplicits._
 
   override def sparkConf: SparkConf = {
-    super.sparkConf.set("spark.gluten.sql.columnar.forceshuffledhashjoin", "false")
+    super.sparkConf.set("spark.gluten.sql.columnar.forceShuffledHashJoin", "false")
       .set(SQLConf.SHUFFLE_PARTITIONS.key, "5")
   }
 

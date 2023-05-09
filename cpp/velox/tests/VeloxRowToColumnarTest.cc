@@ -41,8 +41,7 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    auto vp =
-        velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultLeafWrappedVeloxMemoryPool().get());
+    auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultVeloxLeafMemoryPool().get());
     return std::dynamic_pointer_cast<velox::RowVector>(vp);
   }
 
@@ -75,8 +74,8 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
   }
 
  private:
-  std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = GetDefaultLeafWrappedVeloxMemoryPool();
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultWrappedArrowMemoryPool();
+  std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = GetDefaultVeloxLeafMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultArrowMemoryPool();
 };
 
 TEST_F(VeloxRowToColumnarTest, Int_64) {

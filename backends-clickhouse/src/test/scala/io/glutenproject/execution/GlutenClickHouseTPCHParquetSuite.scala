@@ -405,7 +405,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     checkLengthAndPlan(df, 10)
   }
 
-  // TODO: fix memory leak
   test("test 'function regexp_replace'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
@@ -413,6 +412,36 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("regexp_extract") {
+    runQueryAndCompare(
+      s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 1) " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, regexp_extract(l_comment, '([a-z])') " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 0) " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("lpad") {
+    runQueryAndCompare(
+      s"select l_orderkey, lpad(l_comment, 80) " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, lpad(l_comment, 80, '??') " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("rpad") {
+    runQueryAndCompare(
+      s"select l_orderkey, rpad(l_comment, 80) " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, rpad(l_comment, 80, '??') " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'function regexp_extract_all'") {
@@ -787,18 +816,54 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test 'cast null value'") {
+    val sql = "select cast(x as double), cast(x as float), cast(x as string), cast(x as binary)," +
+      "cast(x as long), cast(x as int), cast(x as short), cast(x as byte), cast(x as boolean)," +
+      "cast(x as date), cast(x as timestamp), cast(x as decimal(10, 2)) from " +
+      "(select cast(null as string) as x from range(10) union all " +
+      "select cast(id as string) as x from range(2))"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'max(NULL)/min(NULL) from table'") {
-    val df = spark.sql(
+    val sql =
       """
         |select
         | l_linenumber, max(NULL), min(NULL)
         | from lineitem where l_linenumber = 3 and l_orderkey < 3
         | group by l_linenumber limit 1
         |""".stripMargin
-    )
-    val result = df.collect()
-    assert(result(0).isNullAt(1))
-    assert(result(0).isNullAt(2))
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test 'dayofweek/weekday'") {
+    val sql = "select l_orderkey, l_shipdate, weekday(l_shipdate), dayofweek(l_shipdate) " +
+      "from lineitem limit 10"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'to_date/to_timestamp'") {
+    val sql = "select to_date(concat('2022-01-0', cast(id+1 as String)), 'yyyy-MM-dd')," +
+      "to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String)), 'yyyy-MM-dd HH:mm:ss') " +
+      "from range(9)"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'btrim/ltrim/rtrim/trim'") {
+    runQueryAndCompare(
+      "select l_comment, btrim(l_comment), btrim(l_comment, 'abcd') " +
+        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select l_comment, ltrim(l_comment), ltrim('abcd', l_comment) " +
+        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select l_comment, rtrim(l_comment), rtrim('abcd', l_comment) " +
+        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select l_comment, trim(l_comment), trim('abcd' from l_comment), " +
+        "trim(BOTH 'abcd' from l_comment), trim(LEADING 'abcd' from l_comment), " +
+        "trim(TRAILING 'abcd' from l_comment) from lineitem limit 10")(
+      checkOperatorMatch[ProjectExecTransformer])
   }
 
   override protected def runTPCHQuery(

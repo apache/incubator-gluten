@@ -24,7 +24,7 @@ cat tpch_convert_parquet_dwrf.scala  | ${SPARK_HOME}/bin/spark-shell            
  --conf spark.sql.parquet.columnarReaderBatchSize=${batchsize} \
  --conf spark.sql.inMemoryColumnarStorage.batchSize=${batchsize} \
  --conf spark.sql.execution.arrow.maxRecordsPerBatch=${batchsize} \
- --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+ --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
  --conf spark.sql.broadcastTimeout=4800 \
  --conf spark.driver.maxResultSize=4g \
  --conf spark.sql.adaptive.enabled=true \

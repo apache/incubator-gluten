@@ -24,12 +24,17 @@ namespace gluten {
 
 class Reader {
  public:
-  Reader(std::shared_ptr<arrow::io::InputStream> in, std::shared_ptr<arrow::Schema> schema, ReaderOptions options);
+  Reader(
+      std::shared_ptr<arrow::io::InputStream> in,
+      std::shared_ptr<arrow::Schema> schema,
+      ReaderOptions options,
+      std::shared_ptr<arrow::MemoryPool> pool);
 
   arrow::Result<std::shared_ptr<ColumnarBatch>> Next();
   arrow::Status Close();
 
  private:
+  std::shared_ptr<arrow::MemoryPool> pool_;
   std::shared_ptr<arrow::io::InputStream> in_;
   ReaderOptions options_;
   std::shared_ptr<arrow::Schema> schema_;

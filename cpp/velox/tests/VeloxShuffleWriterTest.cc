@@ -87,10 +87,10 @@ class MyMemoryPool final : public arrow::MemoryPool {
 
 class VeloxShuffleWriterTest : public ::testing::Test {
  protected:
-  void SetUp() {
+  void SetUp() override {
     const std::string tmp_dir_prefix = "columnar-shuffle-test";
-    ARROW_ASSIGN_OR_THROW(tmp_dir_1_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
-    ARROW_ASSIGN_OR_THROW(tmp_dir_2_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
+    ARROW_ASSIGN_OR_THROW(tmp_dir_1_, arrow::internal::TemporaryDir::Make(tmp_dir_prefix))
+    ARROW_ASSIGN_OR_THROW(tmp_dir_2_, arrow::internal::TemporaryDir::Make(tmp_dir_prefix))
     auto config_dirs = tmp_dir_1_->path().ToString() + "," + tmp_dir_2_->path().ToString();
 
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", config_dirs.c_str(), 1);
@@ -218,8 +218,7 @@ std::shared_ptr<ColumnarBatch> RecordBatch2VeloxColumnarBatch(const arrow::Recor
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  auto vp =
-      velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultLeafWrappedVeloxMemoryPool().get());
+  auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultVeloxLeafMemoryPool().get());
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 

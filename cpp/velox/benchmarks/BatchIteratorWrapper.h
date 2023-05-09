@@ -4,6 +4,7 @@
 
 #include "compute/ResultIterator.h"
 #include "memory/ColumnarBatch.h"
+#include "memory/ColumnarBatchIterator.h"
 
 #include <arrow/adapters/orc/adapter.h>
 #include <arrow/c/bridge.h>
@@ -16,13 +17,11 @@ namespace gluten {
 
 using GetInputFunc = std::shared_ptr<gluten::ResultIterator>(const std::string&);
 
-class BatchIterator {
+class BatchIterator : public ColumnarBatchIterator {
  public:
   explicit BatchIterator(const std::string& path) : path_(path) {}
 
   virtual ~BatchIterator() = default;
-
-  virtual arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() = 0;
 
   virtual void CreateReader() = 0;
 

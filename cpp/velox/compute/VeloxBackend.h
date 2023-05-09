@@ -54,13 +54,17 @@ class VeloxBackend final : public Backend {
   std::shared_ptr<ShuffleWriter>
   makeShuffleWriter(int num_partitions, const SplitOptions& options, const std::string& batchType) override;
 
-  std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
+  std::shared_ptr<Metrics> GetMetrics(ColumnarBatchIterator* raw_iter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResultIterator*>(raw_iter);
     return iter->GetMetrics(exportNanos);
   }
 
   const facebook::velox::memory::MemoryPool::Options& GetMemoryPoolOptions() const {
     return memPoolOptions_;
+  }
+
+  int64_t GetSpillThreshold() const {
+    return spillThreshold_;
   }
 
   std::shared_ptr<Datasource> GetDatasource(
@@ -88,6 +92,7 @@ class VeloxBackend final : public Backend {
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
   // Memory pool options used to create mem pool for iterators.
   facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
+  int64_t spillThreshold_ = std::numeric_limits<int64_t>::max();
 };
 
 } // namespace gluten

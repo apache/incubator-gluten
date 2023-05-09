@@ -98,7 +98,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return shuffle_writer;
   }
 
-  virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) {
+  virtual std::shared_ptr<Metrics> GetMetrics(ColumnarBatchIterator* raw_iter, int64_t exportNanos) {
     return nullptr;
   }
 

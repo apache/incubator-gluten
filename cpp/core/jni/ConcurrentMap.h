@@ -59,7 +59,7 @@ class ConcurrentMap {
     map_.clear();
   }
 
-  size_t Size() const {
+  size_t Size() {
     std::lock_guard<std::mutex> lock(mtx_);
     return map_.size();
   }

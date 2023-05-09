@@ -264,7 +264,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
 
     // Validation: SortMergeJoin.
     withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
-      withSQLConf("spark.gluten.sql.columnar.forceshuffledhashjoin" -> "false") {
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
         runQueryAndCompare("select type1.date from type1," +
           " type2 where type1.date = type2.date") {
           checkOperatorMatch[SortMergeJoinExecTransformer]
@@ -515,6 +515,18 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       }
       checkAnswer(df.repartition(20), expected)
       assert(df.queryExecution.executedPlan.find(_.isInstanceOf[GlutenColumnarToRowExec]).isDefined)
+    }
+  }
+
+  test("Velox Parquet Write") {
+    withTempDir { dir =>
+      val write_path = dir.toURI.getPath
+      val data_path = getClass.getResource("/").getPath + "/data-type-validation-data/type1"
+      val df = spark.read.format("parquet").load(data_path)
+
+      // Timestamp and map type is not supported.
+      df.drop("timestamp").drop("map").
+        write.mode("append").format("velox").save(write_path)
     }
   }
 }

@@ -21,10 +21,6 @@ else()
     endif()
 endif()
 
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/local-engine/proto/substrait")
-    execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/../gluten-core/src/main/resources/substrait/proto/substrait ${CMAKE_CURRENT_SOURCE_DIR}/local-engine/proto/substrait)
-endif ()
-
 if (NOT EXISTS "${CH_SOURCE_DIR}/utils/extern-local-engine/")
     execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/local-engine ${CH_SOURCE_DIR}/utils/extern-local-engine)
 endif ()

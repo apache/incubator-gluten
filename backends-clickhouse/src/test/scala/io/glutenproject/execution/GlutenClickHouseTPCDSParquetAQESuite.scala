@@ -125,7 +125,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
   }
 
   test("TPCDS Q9") {
-    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q9") {
         df =>
           val subqueryAdaptiveSparkPlan = collectWithSubqueries(df.queryExecution.executedPlan) {
@@ -142,7 +142,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
 
   test("TPCDS Q9 with coalesce batch true") {
     withSQLConf(
-      ("spark.gluten.sql.columnar.columnartorow", "true"),
+      ("spark.gluten.sql.columnar.columnarToRow", "true"),
       ("spark.gluten.sql.columnar.coalesce.batches", "true")) {
       runTPCDSQuery("q9") {
         df =>
@@ -159,7 +159,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
   }
 
   test("TPCDS Q21") {
-    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q21") {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])

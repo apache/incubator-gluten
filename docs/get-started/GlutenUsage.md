@@ -48,6 +48,7 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | enable_s3  | Build Velox with -DENABLE_S3              | OFF           |
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
+| run_setup_script | Run Velox setup script before build | ON           |
 
 ## Maven building parameters
 To build different backends, there are 3 parameters can be set via `-P` for mvn.

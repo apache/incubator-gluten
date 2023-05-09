@@ -33,9 +33,9 @@ class DummyBackend final : public Backend {
   }
 
  private:
-  class DummyResultIterator {
+  class DummyResultIterator : public ColumnarBatchIterator {
    public:
-    arrow::Result<std::shared_ptr<ColumnarBatch>> Next() {
+    std::shared_ptr<ColumnarBatch> next() override {
       if (!has_next_) {
         return nullptr;
       }
@@ -44,11 +44,11 @@ class DummyBackend final : public Backend {
       std::unique_ptr<arrow::ArrayBuilder> tmp;
       std::unique_ptr<arrow::DoubleBuilder> builder;
       std::shared_ptr<arrow::Array> array;
-      RETURN_NOT_OK(arrow::MakeBuilder(arrow::default_memory_pool(), arrow::float64(), &tmp));
+      GLUTEN_THROW_NOT_OK(arrow::MakeBuilder(arrow::default_memory_pool(), arrow::float64(), &tmp));
       builder.reset(arrow::internal::checked_cast<arrow::DoubleBuilder*>(tmp.release()));
 
-      RETURN_NOT_OK(builder->Append(1000));
-      RETURN_NOT_OK(builder->Finish(&array));
+      GLUTEN_THROW_NOT_OK(builder->Append(1000));
+      GLUTEN_THROW_NOT_OK(builder->Finish(&array));
       std::vector<std::shared_ptr<arrow::Field>> ret_types = {arrow::field("res", arrow::float64())};
       auto batch = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
       std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
@@ -64,8 +64,9 @@ class DummyBackend final : public Backend {
 
 TEST(TestExecBackend, CreateBackend) {
   SetBackendFactory([] { return std::make_shared<DummyBackend>(); });
-  auto backend = CreateBackend();
-  ASSERT_EQ(typeid(*backend), typeid(DummyBackend));
+  auto backendP = CreateBackend();
+  auto& backend = *backendP.get();
+  ASSERT_EQ(typeid(backend), typeid(DummyBackend));
 }
 
 TEST(TestExecBackend, GetResultIterator) {

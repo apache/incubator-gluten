@@ -74,11 +74,8 @@ arrow::Status Parquet2Orc(unsigned index, const std::string& parquetFile, const 
 
   while (true) {
     // 1. read from Parquet
-    auto columnarBatch = parquetIterator.Next();
-    EXPECT_TRUE(columnarBatch.ok());
-
-    auto& cb = *columnarBatch;
-    if (!cb) {
+    auto cb = parquetIterator.next();
+    if (cb == nullptr) {
       break;
     }
 

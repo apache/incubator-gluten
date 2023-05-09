@@ -16,7 +16,7 @@
  */
 
 #include <jni.h>
-#include "include/arrow/c/bridge.h"
+#include "arrow/c/bridge.h"
 
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
@@ -89,7 +89,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
 
   // A query context used for function validation.
   velox::core::QueryCtx queryCtx;
-  auto pool = gluten::GetDefaultLeafWrappedVeloxMemoryPool().get();
+  auto pool = gluten::GetDefaultVeloxLeafMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 

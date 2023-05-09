@@ -38,11 +38,11 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"xor", "xor"},
 
     {"extract", ""},
-    {"cast", ""},
+    {"cast", "CAST"},
     {"alias", "alias"},
 
     /// datetime functions
-    {"to_date", "toDate"},
+    {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
     {"quarter", "toQuarter"},
     {"to_unix_timestamp", "toUnixTimestamp"},
     {"unix_timestamp", "toUnixTimestamp"},
@@ -108,15 +108,16 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"substring", "substring"},
     {"lower", "lower"},
     {"upper", "upper"},
-    {"trim", ""},
-    {"ltrim", ""},
-    {"rtrim", ""},
+    {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
+    {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
+    {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
     {"concat", "concat"},
     {"strpos", "position"},
     {"char_length",
      "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
     {"replace", "replaceAll"},
     {"regexp_replace", "replaceRegexpAll"},
+    {"regexp_extract", "regexpExtract"},
     {"regexp_extract_all", "regexpExtractAllSpark"},
     {"chr", "char"},
     {"rlike", "match"},
@@ -194,7 +195,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"get_json_object", "JSON_VALUE"},
     {"to_json", "toJSONString"},
     {"from_json", "JSONExtract"},
-    {"json_tuple", "json_tuple"}
+    {"json_tuple", "json_tuple"},
+    {"json_array_length", "JSONArrayLength"},
 };
 
 static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};

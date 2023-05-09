@@ -107,8 +107,7 @@ void AbortIfFileNotExists(const std::string& filepath) {
 std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> planNode) {
   ArrowSchema arrowSchema{};
   exportToArrow(
-      velox::BaseVector::create(planNode->outputType(), 0, gluten::GetDefaultLeafWrappedVeloxMemoryPool().get()),
-      arrowSchema);
+      velox::BaseVector::create(planNode->outputType(), 0, gluten::GetDefaultVeloxLeafMemoryPool().get()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
   return outputSchema;
 }

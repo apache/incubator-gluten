@@ -219,68 +219,22 @@ std::shared_ptr<DB::ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
     return actions_dag;
 }
 
-std::string getDecimalFunction(const substrait::Type_Decimal & decimal, const bool null_on_overflow) {
+std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool null_on_overflow) {
     std::string ch_function_name;
     UInt32 precision = decimal.precision();
     UInt32 scale = decimal.scale();
 
     if (precision <= DataTypeDecimal32::maxPrecision())
-    {
         ch_function_name = "toDecimal32";
-    }
     else if (precision <= DataTypeDecimal64::maxPrecision())
-    {
         ch_function_name = "toDecimal64";
-    }
     else if (precision <= DataTypeDecimal128::maxPrecision())
-    {
         ch_function_name = "toDecimal128";
-    }
     else
-    {
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support decimal type with precision {}", precision);
-    }
 
-    if (null_on_overflow) {
-        ch_function_name = ch_function_name + "OrNull";
-    }
-
-    return ch_function_name;
-}
-
-/// TODO: This function needs to be improved for Decimal/Array/Map/Tuple types.
-std::string getCastFunction(const substrait::Type & type)
-{
-    std::string ch_function_name;
-    if (type.has_fp64())
-        ch_function_name = "toFloat64";
-    else if (type.has_fp32())
-        ch_function_name = "toFloat32";
-    else if (type.has_string())
-        ch_function_name = "toString";
-    else if (type.has_binary())
-        ch_function_name = "reinterpretAsStringSpark";
-    else if (type.has_i64())
-        ch_function_name = "toInt64";
-    else if (type.has_i32())
-        ch_function_name = "toInt32";
-    else if (type.has_i16())
-        ch_function_name = "toInt16";
-    else if (type.has_i8())
-        ch_function_name = "toInt8";
-    else if (type.has_date())
-        ch_function_name = "toDate32";
-    // TODO need complete param: scale
-    else if (type.has_timestamp())
-        ch_function_name = "toDateTime64";
-    else if (type.has_bool_())
-        ch_function_name = "toUInt8";
-    else if (type.has_decimal())
-        ch_function_name = getDecimalFunction(type.decimal(), false);
-    else
-        throw Exception(ErrorCodes::UNKNOWN_TYPE, "doesn't support cast type {}", type.DebugString());
-
-    /// TODO(taiyang-li): implement cast functions of other types
+    if (null_on_overflow)
+      ch_function_name = ch_function_name + "OrNull";
     return ch_function_name;
 }
 
@@ -1143,43 +1097,12 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function {}", function_name);
 
     std::string ch_function_name;
-    if (function_name == "cast")
-    {
-        ch_function_name = getCastFunction(output_type);
-    }
-    else if (function_name == "trim")
-    {
-        if (args.size() == 1)
-        {
-            ch_function_name = "trimBoth";
-        }
-        if (args.size() == 2)
-        {
-            ch_function_name = "sparkTrimBoth";
-        }
-    }
+    if (function_name == "trim")
+        ch_function_name = args.size() == 1 ? "trimBoth" : "trimBothSpark";
     else if (function_name == "ltrim")
-    {
-        if (args.size() == 1)
-        {
-            ch_function_name = "trimLeft";
-        }
-        if (args.size() == 2)
-        {
-            ch_function_name = "sparkTrimLeft";
-        }
-    }
+        ch_function_name = args.size() == 1 ? "trimLeft" : "trimLeftSpark";
     else if (function_name == "rtrim")
-    {
-        if (args.size() == 1)
-        {
-            ch_function_name = "trimRight";
-        }
-        if (args.size() == 2)
-        {
-            ch_function_name = "sparkTrimRigth";
-        }
-    }
+        ch_function_name = args.size() == 1 ? "trimRight" : "trimRightSpark";
     else if (function_name == "extract")
     {
         if (args.size() != 2)
@@ -1201,16 +1124,18 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
                 ch_function_name = "toMonth";       // spark: extract(MONTH FROM) or month
             else if (field_value == "WEEK_OF_YEAR")
                 ch_function_name = "toISOWeek";     // spark: extract(WEEK FROM) or weekofyear
-            /*
             else if (field_value == "WEEK_DAY")
-            {
-                /// spark: weekday(t) -> substrait: extract(WEEK_DAY FROM t) -> ch: WEEKDAY(t)
-                /// spark: extract(DAYOFWEEK_ISO FROM t) -> substrait: 1 + extract(WEEK_DAY FROM t) -> ch: 1 + WEEKDAY(t)
-                ch_function_name = "?";
-            }
+                /// Spark WeekDay(date) (0 = Monday, 1 = Tuesday, ..., 6 = Sunday)
+                /// Substrait: extract(WEEK_DAY from date)
+                /// CH: toDayOfWeek(date, 1)
+                ch_function_name = "toDayOfWeek";
             else if (field_value == "DAY_OF_WEEK")
-                ch_function_name = "?";             // spark: extract(DAYOFWEEK FROM) or dayofweek
-            */
+                /// Spark: DayOfWeek(date) (1 = Sunday, 2 = Monday, ..., 7 = Saturday)
+                /// Substrait: extract(DAY_OF_WEEK from date)
+                /// CH: toDayOfWeek(date, 3)
+                /// DAYOFWEEK is alias of function toDayOfWeek.
+                /// This trick is to distinguish between extract fields DAY_OF_WEEK and WEEK_DAY in latter codes
+                ch_function_name = "DAYOFWEEK";
             else if (field_value == "DAY")
                 ch_function_name = "toDayOfMonth";  // spark: extract(DAY FROM) or dayofmonth
             else if (field_value == "DAY_OF_YEAR")
@@ -1498,25 +1423,9 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
             if (args.size() >= 2)
             {
                 /// In Spark: split(str, regex [, limit] )
-                /// In CH: splitByRegexp(regexp, s)
+                /// In CH: splitByRegexp(regexp, str [, limit])
                 std::swap(args[0], args[1]);
             }
-        }
-
-        if (startsWith(function_signature, "extract:"))
-        {
-            // delete the first arg of extract
-            args.erase(args.begin());
-        }
-        else if (startsWith(function_signature, "trunc:"))
-        {
-            // delete the second arg of trunc
-            args.pop_back();
-        }
-        else if (startsWith(function_signature, "sha2:"))
-        {
-            // delete the second arg of trunc
-            args.pop_back();
         }
 
         if (function_signature.find("check_overflow:", 0) != function_signature.npos)
@@ -1568,10 +1477,10 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
                 SerializedPlanParser::parseType(rel.scalar_function().output_type())->getName(),
                 function_node->result_name);
         }
+
         if (function_name == "JSON_VALUE")
-        {
             result_node->function->setResolver(function_builder);
-        }
+
         if (keep_result)
             actions_dag->addOrReplaceInOutputs(*result_node);
     }
@@ -1590,7 +1499,9 @@ void SerializedPlanParser::parseFunctionArguments(
         return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     };
 
+    auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
+    parsed_args.reserve(args.size());
 
     // Some functions need to be handled specially.
     if (function_name == "JSONExtract")
@@ -1624,9 +1535,7 @@ void SerializedPlanParser::parseFunctionArguments(
         // Arguments in the format, (<field name>, <value expression>[, <field name>, <value expression> ...])
         // We don't need to care the field names here.
         for (int index = 1; index < args.size();  index += 2)
-        {
             parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[index]);
-        }
     }
     else if (function_name == "has")
     {
@@ -1674,20 +1583,6 @@ void SerializedPlanParser::parseFunctionArguments(
         DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
         repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, target_type.getName());
         parsed_args.emplace_back(repeat_times_node);
-    }
-    else if (function_name == "leftPadUTF8" || function_name == "rightPadUTF8")
-    {
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
-
-        /// Make sure the second function arguemnt's type is unsigned integer
-        /// TODO: delete this branch after Kyligence/Clickhouse upgraged to 23.2
-        const DB::ActionsDAG::Node * pad_length_node =
-            parseFunctionArgument(actions_dag, required_columns, function_name, args[1]);
-        DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt64>());
-        pad_length_node = ActionsDAGUtil::convertNodeType(actions_dag, pad_length_node, target_type.getName());
-        parsed_args.emplace_back(pad_length_node);
-
-        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[2]);
     }
     else if (function_name == "isNaN")
     {
@@ -1785,6 +1680,35 @@ void SerializedPlanParser::parseFunctionArguments(
         parsed_args.back() = first_arg_not_null;
 
         parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
+    }
+    else if (function_name == "trimBothSpark" || function_name == "trimLeftSpark" || function_name == "trimRightSpark")
+    {
+        /// In substrait, the first arg is srcStr, the second arg is trimStr
+        /// But in CH, the first arg is trimStr, the second arg is srcStr
+        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
+        parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
+    }
+    else if (startsWith(function_signature, "extract:"))
+    {
+        /// Skip the first arg of extract in substrait
+        for (int i = 1; i < args.size(); i++)
+            parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[i]);
+
+        /// Append extra mode argument for extract(WEEK_DAY from date) or extract(DAY_OF_WEEK from date) in substrait
+        if (function_name == "toDayOfWeek" || function_name == "DAYOFWEEK")
+        {
+            UInt8 mode = function_name == "toDayOfWeek" ? 1 : 3;
+            auto mode_type = std::make_shared<DataTypeUInt8>();
+            ColumnWithTypeAndName mode_col(mode_type->createColumnConst(1, mode), mode_type, getUniqueName(std::to_string(mode)));
+            const auto & mode_node = actions_dag->addColumn(std::move(mode_col));
+            parsed_args.emplace_back(&mode_node);
+        }
+    }
+    else if (startsWith(function_signature, "trunc:") || startsWith(function_signature, "sha2:"))
+    {
+        /// Skip the last arg of trunc in substrait
+        for (int i = 0; i < args.size() - 1; i++)
+            parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[i]);
     }
     else
     {
@@ -2049,25 +1973,24 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
 
-            std::string ch_function_name = getCastFunction(rel.cast().type());
             DB::ActionsDAG::NodeRawConstPtrs args;
-            const auto & cast_input = rel.cast().input();
-            args.emplace_back(parseExpression(action_dag, cast_input));
 
-            if (ch_function_name.starts_with("toDecimal"))
+            const auto & input = rel.cast().input();
+            args.emplace_back(parseExpression(action_dag, input));
+
+            const auto & substrait_type = rel.cast().type();
+            const ActionsDAG::Node * function_node = nullptr;
+            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
+            if (substrait_type.has_binary())
+                function_node = toFunctionNode(action_dag, "reinterpretAsStringSpark", args);
+            else
             {
-                UInt32 scale = rel.cast().type().decimal().scale();
-                args.emplace_back(add_column(std::make_shared<DataTypeUInt32>(), scale));
-            }
-            else if (ch_function_name.starts_with("toDateTime64"))
-            {
-                /// In Spark: cast(xx as TIMESTAMP)
-                /// In CH: toDateTime(xx, 6)
-                /// So we must add extra argument: 6
-                args.emplace_back(add_column(std::make_shared<DataTypeUInt32>(), 6));
+                DataTypePtr ch_type = parseType(substrait_type);
+                args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
+
+                function_node = toFunctionNode(action_dag, "CAST", args);
             }
 
-            const auto * function_node = toFunctionNode(action_dag, ch_function_name, args);
             action_dag->addOrReplaceInOutputs(*function_node);
             return function_node;
         }
@@ -2581,25 +2504,22 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
 
-            std::string ch_function_name = getCastFunction(rel.cast().type());
-
+            /// Append input to asts
             ASTs args;
             args.emplace_back(parseArgumentToAST(names, rel.cast().input()));
 
-            if (ch_function_name.starts_with("toDecimal"))
+            /// Append destination type to asts
+            const auto & substrait_type = rel.cast().type();
+            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
+            if (substrait_type.has_binary())
+                return makeASTFunction("reinterpretAsStringSpark", args);
+            else
             {
-                UInt32 scale = rel.cast().type().decimal().scale();
-                args.emplace_back(std::make_shared<ASTLiteral>(scale));
-            }
-            else if (ch_function_name.starts_with("toDateTime64"))
-            {
-                /// In Spark: cast(xx as TIMESTAMP)
-                /// In CH: toDateTime(xx, 6)
-                /// So we must add extra argument: 6
-                args.emplace_back(std::make_shared<ASTLiteral>(6));
-            }
+                DataTypePtr ch_type = SerializedPlanParser::parseType(substrait_type);
+                args.emplace_back(std::make_shared<ASTLiteral>(ch_type->getName()));
 
-            return makeASTFunction(ch_function_name, args);
+                return makeASTFunction("CAST", args);
+            }
         }
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();

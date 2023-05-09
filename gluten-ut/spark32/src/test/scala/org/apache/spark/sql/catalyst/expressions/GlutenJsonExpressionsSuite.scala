@@ -15,24 +15,9 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package org.apache.spark.sql.catalyst.expressions
 
-/**
- * Wrapper for ArrowFieldNodeBuilder.
- */
-public class ArrowFieldNodeBuilder {
+import org.apache.spark.sql.GlutenTestsTrait
 
-  public int length;
-  public int nullCount;
-
-  /**
-   * Create an instance of ArrowFieldNodeBuilder.
-   *
-   * @param length    numRows in this Field
-   * @param nullCount numCount in this Fields
-   */
-  public ArrowFieldNodeBuilder(int length, int nullCount) {
-    this.length = length;
-    this.nullCount = nullCount;
-  }
+class GlutenJsonExpressionsSuite extends JsonExpressionsSuite with GlutenTestsTrait {
 }
