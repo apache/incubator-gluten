@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -exu
+
 BASEDIR=$(dirname $0)
 source "$BASEDIR/builddeps-veloxbe.sh"
 
