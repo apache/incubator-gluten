@@ -2,7 +2,7 @@
 
 set -eu
 
-GLUTEN_IT_JVM_ARGS=${$GLUTEN_IT_JVM_ARGS:-"-Xmx2G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log"}
+GLUTEN_IT_JVM_ARGS=${GLUTEN_IT_JVM_ARGS:-"-Xmx2G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log"}
 
 BASEDIR=$(dirname $0)
 
