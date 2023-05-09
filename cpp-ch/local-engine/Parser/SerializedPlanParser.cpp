@@ -2220,10 +2220,14 @@ DB::QueryPlanPtr SerializedPlanParser::parseJoin(substrait::JoinRel join, DB::Qu
     if (join_opt_info.is_broadcast)
     {
         auto storage_join = BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key);
+        if (!storage_join)
+            throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "can't find broadcast build table {}", join_opt_info.storage_join_key);
+
         ActionsDAGPtr project = ActionsDAG::makeConvertingActions(
             right->getCurrentDataStream().header.getColumnsWithTypeAndName(),
             storage_join->getRightSampleBlock().getColumnsWithTypeAndName(),
             ActionsDAG::MatchColumnsMode::Position);
+
         if (project)
         {
             QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), project);
