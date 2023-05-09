@@ -99,11 +99,11 @@ If you would like to build and try Gluten with **Velox** backend, please follow 
 
 ![logo](./docs/image/ClickHouse/logo.png)
 
-If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
+If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
 ### 3.2.3 Build script parameters
 
-[Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
+[Gluten Usage](docs/get-started/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
 ### 3.2.4 Jar conflicts
 
