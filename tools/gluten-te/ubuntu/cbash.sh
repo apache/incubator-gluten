@@ -43,4 +43,15 @@ CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS $EXTRA_DOCKER_OPTIONS"
 CBASH_BASH_ARGS="$*"
 BASH_ARGS="$CBASH_BASH_ARGS"
 
-docker run $CBASH_DOCKER_RUN_ARGS $DOCKER_TARGET_IMAGE_BUILDENV_WITH_OS_IMAGE bash -c "cd /opt/gluten && $BASH_ARGS"
+PROXY_ENV=
+if [ -n "$HTTP_PROXY_HOST" ] && [ -n "$HTTP_PROXY_PORT" ]; then
+  echo "HTTP proxy is set with host: $HTTP_PROXY_HOST and port: $HTTP_PROXY_PORT"
+  http_proxy="http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"
+  https_proxy="http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"
+  PROXY_ENV="-e http_proxy=${http_proxy} -e https_proxy=${https_proxy} "
+
+else
+  echo "HTTP proxy is not set"
+fi
+
+docker run $CBASH_DOCKER_RUN_ARGS $PROXY_ENV $DOCKER_TARGET_IMAGE_BUILDENV_WITH_OS_IMAGE bash -c "cd /opt/gluten && $BASH_ARGS"
