@@ -836,6 +836,36 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("test 'dayofweek/weekday'") {
+    val sql = "select l_orderkey, l_shipdate, weekday(l_shipdate), dayofweek(l_shipdate) " +
+      "from lineitem limit 10"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'to_date/to_timestamp'") {
+    val sql = "select to_date(concat('2022-01-0', cast(id+1 as String)), 'yyyy-MM-dd')," +
+      "to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String)), 'yyyy-MM-dd HH:mm:ss') " +
+      "from range(9)"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'btrim/ltrim/rtrim/trim'") {
+    runQueryAndCompare(
+      "select l_comment, btrim(l_comment), btrim(l_comment, 'abcd') " +
+        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select l_comment, ltrim(l_comment), ltrim('abcd', l_comment) " +
+        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select l_comment, rtrim(l_comment), rtrim('abcd', l_comment) " +
+        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select l_comment, trim(l_comment), trim('abcd' from l_comment), " +
+        "trim(BOTH 'abcd' from l_comment), trim(LEADING 'abcd' from l_comment), " +
+        "trim(TRAILING 'abcd' from l_comment) from lineitem limit 10")(
+      checkOperatorMatch[ProjectExecTransformer])
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,

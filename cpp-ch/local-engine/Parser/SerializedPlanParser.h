@@ -42,7 +42,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"alias", "alias"},
 
     /// datetime functions
-    {"to_date", "toDate"},
+    {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
     {"quarter", "toQuarter"},
     {"to_unix_timestamp", "toUnixTimestamp"},
     {"unix_timestamp", "toUnixTimestamp"},
@@ -108,9 +108,9 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"substring", "substring"},
     {"lower", "lower"},
     {"upper", "upper"},
-    {"trim", ""},
-    {"ltrim", ""},
-    {"rtrim", ""},
+    {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
+    {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
+    {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
     {"concat", "concat"},
     {"strpos", "position"},
     {"char_length",
