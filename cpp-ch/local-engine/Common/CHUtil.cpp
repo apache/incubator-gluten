@@ -33,6 +33,7 @@
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
+#include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <substrait/algebra.pb.h>
 #include <substrait/plan.pb.h>
@@ -537,6 +538,10 @@ void BackendInitializerUtil::initSettings()
     settings.set("input_format_parquet_allow_missing_columns", true);
     settings.set("input_format_parquet_case_insensitive_column_matching", true);
     settings.set("input_format_parquet_import_nested", true);
+    settings.set("output_format_parquet_version", "1.0");
+    settings.set("output_format_parquet_compression_method", "snappy");
+    settings.set("output_format_parquet_string_as_string", true);
+    settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
 }
@@ -593,6 +598,8 @@ extern void registerAllFunctions();
 void BackendInitializerUtil::registerAllFactories()
 {
     registerReadBufferBuilders();
+    registerWriteBufferBuilders();
+
     LOG_INFO(logger, "Register read buffer builders.");
 
     registerRelParsers();
@@ -617,9 +624,9 @@ void BackendInitializerUtil::initCompiledExpressionCache()
 #endif
 }
 
-void BackendInitializerUtil::init(const std::string & plan)
+void BackendInitializerUtil::init(const std::string & conf_plan)
 {
-    initConfig(plan);
+    initConfig(conf_plan);
     initLoggers();
 
     initEnvs();

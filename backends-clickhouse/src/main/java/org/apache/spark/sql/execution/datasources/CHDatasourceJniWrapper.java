@@ -15,23 +15,15 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package org.apache.spark.sql.execution.datasources;
 
-import io.glutenproject.execution.SparkRowIterator;
-import io.glutenproject.row.SparkRowInfo;
+public class CHDatasourceJniWrapper {
 
-public class BlockNativeConverter {
+    public native long nativeInitFileWriterWrapper(String filePath);
 
-  // for ch columnar -> spark row
-  public native SparkRowInfo convertColumnarToRow(long blockAddress);
+    //  public native void inspectSchema(long instanceId, long cSchemaAddress);
 
-  // for ch columnar -> spark row
-  public native void freeMemory(long address, long size);
+    public native void write(long instanceId, long blockAddress);
 
-  // for spark row -> ch columnar
-  public native long convertSparkRowsToCHColumn(SparkRowIterator iter, String[] names,
-    byte[][] types);
-
-  // for spark row -> ch columnar
-  public native void freeBlock(long blockAddress);
+    public native void close(long instanceId);
 }

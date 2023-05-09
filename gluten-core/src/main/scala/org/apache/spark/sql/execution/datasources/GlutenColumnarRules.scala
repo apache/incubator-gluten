@@ -15,23 +15,24 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution
+package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.{LogicalPlanSelector, QueryPlanSelector}
+import io.glutenproject.execution.GlutenColumnarToRowExecBase
+import io.glutenproject.utils.LogicalPlanSelector
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.command.{DataWritingCommand, DataWritingCommandExec}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 class FakeRow(val batch: ColumnarBatch) extends InternalRow {
@@ -82,86 +83,90 @@ class FakeRow(val batch: ColumnarBatch) extends InternalRow {
 }
 
 case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy {
-  override def apply(plan: LogicalPlan): Seq[SparkPlan] = LogicalPlanSelector.maybeNil(session,
-    plan) {plan match {
-    case ColumnarToFakeRowLogicAdaptor(child: LogicalPlan) =>
-      Seq(ColumnarToFakeRowAdaptor(planLater(child)))
-    case other =>
-      Nil
-  }}
+  override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+    LogicalPlanSelector.maybeNil(session, plan) {
+      plan match {
+        case FakeRowLogicAdaptor(child: LogicalPlan) =>
+          Seq(FakeRowAdaptor(planLater(child)))
+        case other =>
+          Nil
+      }
+    }
 }
 
-private case class ColumnarToFakeRowLogicAdaptor(child: LogicalPlan)
-  extends OrderPreservingUnaryNode {
+private case class FakeRowLogicAdaptor(child: LogicalPlan) extends OrderPreservingUnaryNode {
   override def output: Seq[Attribute] = child.output
 
   // For spark 3.2.
-  protected def withNewChildInternal(newChild: LogicalPlan): ColumnarToFakeRowLogicAdaptor =
+  protected def withNewChildInternal(newChild: LogicalPlan): FakeRowLogicAdaptor =
     copy(child = newChild)
 }
 
 /**
- * To wrap children's columnar output within `FakeRow`s. This is usually used in data writing
- * since Spark doesn't expose APIs to write columnar data as of now.
+ * Whether the child is columnar or not, this operator will convert the columnar output to FakeRow,
+ * which is consumable by native parquet/orc writer
+ *
+ * This is usually used in data writing since Spark doesn't expose APIs to write columnar data as of
+ * now.
  */
-case class ColumnarToFakeRowAdaptor(child: SparkPlan) extends ColumnarToRowTransition {
+case class FakeRowAdaptor(child: SparkPlan) extends UnaryExecNode {
   if (child.logicalLink.isDefined) {
-    setLogicalLink(ColumnarToFakeRowLogicAdaptor(child.logicalLink.get))
+    setLogicalLink(FakeRowLogicAdaptor(child.logicalLink.get))
   }
 
   override def output: Seq[Attribute] = child.output
 
   override protected def doExecute(): RDD[InternalRow] = {
-    child.executeColumnar().map { cb => new FakeRow(cb) }
-  }
-
-  // For spark 3.2.
-  protected def withNewChildInternal(newChild: SparkPlan): ColumnarToFakeRowAdaptor =
-    copy(child = newChild)
-}
-
-case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(
-      "LoadArrowData does not support the execute() code path.")
-  }
-
-  override def nodeName: String = "LoadArrowData"
-
-  override def supportsColumnar: Boolean = true
-
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    child.executeColumnar().mapPartitions { itr =>
-      BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(
-        itr.map { cb =>
-          ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-        })
+    if (child.supportsColumnar) {
+      child.executeColumnar().map(cb => new FakeRow(cb))
+    } else {
+      val r2c = BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
+      r2c.executeColumnar().map(cb => new FakeRow(cb))
     }
   }
 
-  override def output: Seq[Attribute] = {
-    child.output
-  }
-
-  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+  // For spark 3.2.
+  protected def withNewChildInternal(newChild: SparkPlan): FakeRowAdaptor =
     copy(child = newChild)
 }
 
 object GlutenColumnarRules {
-  // Load when fallback to vanilla columnar to row
-  // Remove it when supports all the spark type velox columnar to row
-  case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
-    override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-      case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeExec) =>
-        c2r // AdaptiveSparkPlanExec.scala:536
-      case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
-        c2r // AdaptiveSparkPlanExec.scala:546
-      case ColumnarToRowExec(child) => ColumnarToRowExec(LoadArrowData(child))
+
+  // TODO: support Insert clause
+
+  def isGlutenInsertInto(cmd: DataWritingCommand): Boolean = {
+    cmd match {
+      case command: InsertIntoHadoopFsRelationCommand =>
+        command.fileFormat.isInstanceOf[GlutenParquetFileFormat]
+      case _ => false
     }
   }
 
-  object DummyRule extends Rule[SparkPlan] {
-    def apply(p: SparkPlan): SparkPlan = p
+  case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
+    override def apply(p: SparkPlan): SparkPlan = p match {
+      case rc @ DataWritingCommandExec(cmd, child) if isGlutenInsertInto(cmd) =>
+        child match {
+          // if the child is columnar, we can just wrap&transfer the columnar data
+          case c2r: GlutenColumnarToRowExecBase =>
+            rc.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
+          // If the child is aqe, we make aqe "support columnar",
+          // then aqe itself will guarantee to generate columnar outputs.
+          // So FakeRowAdaptor will always consumes columnar data,
+          // thus taking no risk to downgrade performance
+          case aqe: AdaptiveSparkPlanExec =>
+            rc.withNewChildren(
+              Array(
+                FakeRowAdaptor(
+                  AdaptiveSparkPlanExec(
+                    aqe.inputPlan,
+                    aqe.context,
+                    aqe.preprocessingRules,
+                    aqe.isSubquery,
+                    supportsColumnar = true
+                  ))))
+          case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
+        }
+      case plan: SparkPlan => plan.withNewChildren(plan.children.map(apply))
+    }
   }
 }

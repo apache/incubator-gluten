@@ -19,7 +19,7 @@ package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-public class BlockNativeWriter {
+public class CHBlockWriterJniWrapper {
   private long instance = 0;
 
   private native long nativeCreateInstance();

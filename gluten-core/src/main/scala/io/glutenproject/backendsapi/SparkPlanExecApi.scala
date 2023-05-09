@@ -182,14 +182,14 @@ trait SparkPlanExecApi {
   def genExtendedStrategies(): List[SparkSession => Strategy]
 
   /**
-   * Generate extended columnar pre-rules. Currently only for Velox backend.
+   * Generate extended columnar pre-rules.
    *
    * @return
    */
   def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]]
 
   /**
-   * Generate extended columnar post-rules. Currently only for Velox backend.
+   * Generate extended columnar post-rules.
    *
    * @return
    */

@@ -38,11 +38,11 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskMemoryResources
 
-case class GlutenColumnarToRowExec(child: SparkPlan)
+case class VeloxColumnarToRowExec(child: SparkPlan)
   extends GlutenColumnarToRowExecBase(child = child) {
-  private val LOG = LoggerFactory.getLogger(classOf[GlutenColumnarToRowExec])
+  private val LOG = LoggerFactory.getLogger(classOf[VeloxColumnarToRowExec])
 
-  override def nodeName: String = "GlutenColumnarToRowExec"
+  override def nodeName: String = "VeloxColumnarToRowExec"
 
   override def buildCheck(): Unit = {
     val schema = child.schema
@@ -67,7 +67,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
             case _: DecimalType =>
             case _ =>
               throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-                  s"GlutenColumnarToRowExec/ArrowColumnarToRowConverter.")
+                  s"VeloxColumnarToRowExec.")
           }
         }
       case _ =>
@@ -89,7 +89,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
             case _: DecimalType =>
             case _ =>
               throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-                  s"GlutenColumnarToRowExec/VeloxColumnarToRowConverter")
+                  s"VeloxColumnarToRowExec")
 
           }
         }
@@ -115,7 +115,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  protected def withNewChildInternal(newChild: SparkPlan): GlutenColumnarToRowExec =
+  protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarToRowExec =
     copy(child = newChild)
 }
 

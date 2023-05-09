@@ -26,6 +26,7 @@ add_subdirectory(proto)
 add_headers_and_sources(builder Builder)
 add_headers_and_sources(parser Parser)
 add_headers_and_sources(storages Storages)
+add_headers_and_sources(storages Storages/Output)
 add_headers_and_sources(common Common)
 add_headers_and_sources(external External)
 add_headers_and_sources(shuffle Shuffle)
@@ -63,7 +64,6 @@ add_library(${LOCALENGINE_SHARED_LIB} SHARED
         ${external_sources}
         ${shuffle_sources}
         ${jni_sources}
-        ${substrait_source}
         ${operator_sources}
         ${aggregate_functions_sources}
         ${functions_sources}
@@ -73,6 +73,7 @@ target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC
         -Wno-shorten-64-to-32)
 
 target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
+
         clickhouse_new_delete
         clickhouse_aggregate_functions
         clickhouse_common_config

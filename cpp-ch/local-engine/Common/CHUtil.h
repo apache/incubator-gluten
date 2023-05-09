@@ -94,7 +94,7 @@ public:
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void init(const std::string & plan);
+    static void init(const std::string & conf_plan);
 
 private:
     friend class BackendFinalizerUtil;

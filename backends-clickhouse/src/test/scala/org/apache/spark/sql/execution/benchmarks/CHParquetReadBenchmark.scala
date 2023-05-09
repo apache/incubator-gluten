@@ -24,7 +24,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.utils.UTSystemParameters
-import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock, JniLibLoader}
+import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock, JniLibLoader}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.Benchmark
@@ -180,7 +180,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
       _ =>
         val resultRDD: RDD[Long] = nativeFileScanRDD.mapPartitionsInternal {
           batches =>
-            val jniWrapper = new BlockNativeConverter()
+            val jniWrapper = new CHBlockConverterJniWrapper()
             batches.map {
               batch =>
                 CHNativeBlock

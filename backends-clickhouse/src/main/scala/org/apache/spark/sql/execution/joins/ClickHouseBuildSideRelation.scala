@@ -97,7 +97,7 @@ case class ClickHouseBuildSideRelation(
 
     try {
       // convert columnar to row
-      val converter = new BlockNativeConverter()
+      val converter = new CHBlockConverterJniWrapper()
       asScalaIterator(expressionEval).flatMap {
         block =>
           val batch = new CHNativeBlock(block)

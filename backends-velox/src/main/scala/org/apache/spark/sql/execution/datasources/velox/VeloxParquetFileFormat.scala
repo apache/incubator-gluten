@@ -20,7 +20,6 @@ package org.apache.spark.sql.execution.datasources.velox
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenIndicatorVector}
 
 import java.io.IOException
-import io.glutenproject.execution.FakeRow
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{GlutenArrowAbiUtil, GlutenArrowUtil, VeloxDatasourceUtil}
@@ -31,7 +30,7 @@ import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
+import org.apache.spark.sql.execution.datasources.{FakeRow, GlutenParquetFileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
@@ -40,7 +39,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.net.URI
 
-class VeloxParquetFileFormat extends FileFormat with DataSourceRegister with Serializable {
+class VeloxParquetFileFormat extends GlutenParquetFileFormat
+  with DataSourceRegister with Serializable {
 
   override def inferSchema(sparkSession: SparkSession,
                            options: Map[String, String],

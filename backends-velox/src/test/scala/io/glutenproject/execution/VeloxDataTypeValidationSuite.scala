@@ -26,7 +26,7 @@ import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util.GenericArrayData
-import org.apache.spark.sql.execution.GlutenColumnarToRowExec
+import org.apache.spark.sql.execution.VeloxColumnarToRowExec
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtil
 import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, MapType, StructField, StructType, TimestampType}
@@ -497,7 +497,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
         expected = df.collect()
       }
       checkAnswer(df.repartition(10), expected)
-      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[GlutenColumnarToRowExec]).isDefined)
+      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[VeloxColumnarToRowExec]).isDefined)
     }
   }
 
@@ -514,7 +514,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
         expected = df.collect()
       }
       checkAnswer(df.repartition(20), expected)
-      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[GlutenColumnarToRowExec]).isDefined)
+      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[VeloxColumnarToRowExec]).isDefined)
     }
   }
 

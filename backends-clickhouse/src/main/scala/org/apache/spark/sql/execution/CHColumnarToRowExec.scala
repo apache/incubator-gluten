@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.GlutenColumnarToRowExecBase
-import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
+import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
@@ -32,7 +32,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.concurrent.duration.NANOSECONDS
 
-case class BlockGlutenColumnarToRowExec(child: SparkPlan)
+case class CHColumnarToRowExec(child: SparkPlan)
   extends GlutenColumnarToRowExecBase(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"
 
@@ -82,7 +82,7 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
 
   override def output: Seq[Attribute] = child.output
 
-  protected def withNewChildInternal(newChild: SparkPlan): BlockGlutenColumnarToRowExec =
+  protected def withNewChildInternal(newChild: SparkPlan): CHColumnarToRowExec =
     copy(child = newChild)
 }
 
@@ -102,7 +102,7 @@ class CHColumnarToRowRDD(
 
   private def f: Iterator[ColumnarBatch] => Iterator[InternalRow] = {
     batches =>
-      val jniWrapper = new BlockNativeConverter()
+      val jniWrapper = new CHBlockConverterJniWrapper()
 
       batches.flatMap {
         batch =>

@@ -33,7 +33,7 @@ public class ExpressionEvaluatorJniWrapper {
   /**
    * Call initNative to initialize native computing.
    */
-  native void nativeInitNative(byte[] subPlan);
+  native void nativeInitNative(byte[] confAsPlan);
 
   /**
    * Call finalizeNative to finalize native computing.
