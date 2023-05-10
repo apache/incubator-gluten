@@ -95,12 +95,12 @@ public:
         auto cache_base_path = context->getConfigRef().getString("s3.local_cache.cache_path", "/tmp/gluten/local_cache");
         if (!fs::exists(cache_base_path))
             fs::create_directories(cache_base_path);
-
+        file_cache_settings.base_path = cache_base_path;
         new_settings = DB::ReadSettings();
         new_settings.enable_filesystem_cache = context->getConfigRef().getBool("s3.local_cache.enabled", false);
         if (new_settings.enable_filesystem_cache)
         {
-            auto cache = DB::FileCacheFactory::instance().getOrCreate(cache_base_path, file_cache_settings, "s3_local_cache");
+            auto cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
             cache->initialize();
 
             new_settings.remote_fs_cache = cache;
@@ -119,9 +119,9 @@ public:
         size_t object_size = DB::S3::getObjectSize(*client, bucket, key, "");
 
         auto read_buffer_creator
-            = [bucket, this](const std::string & path, size_t read_until_position) -> std::shared_ptr<DB::ReadBufferFromFileBase>
+            = [bucket, this](const std::string & path, size_t read_until_position) -> std::unique_ptr<DB::ReadBufferFromFileBase>
         {
-            return std::make_shared<DB::ReadBufferFromS3>(
+            return std::make_unique<DB::ReadBufferFromS3>(
                 shared_client,
                 bucket,
                 path,
@@ -134,11 +134,12 @@ public:
                 /* restricted_seek */ true);
         };
 
+        DB::StoredObjects stored_objects{DB::StoredObject{key, object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(read_buffer_creator), DB::StoredObjects{DB::StoredObject{key, object_size}}, new_settings);
+            std::move(read_buffer_creator), stored_objects, new_settings, nullptr);
 
-        auto & pool_reader = context->getThreadPoolReader(DB::Context::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
-        auto async_reader = std::make_unique<DB::AsynchronousReadIndirectBufferFromRemoteFS>(pool_reader, new_settings, std::move(s3_impl));
+        auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
+        auto async_reader = std::make_unique<DB::AsynchronousReadIndirectBufferFromRemoteFS>(pool_reader, new_settings, std::move(s3_impl), nullptr, nullptr);
 
         async_reader->setReadUntilEnd();
         if (new_settings.remote_fs_prefetch)
@@ -195,10 +196,11 @@ private:
             config.getString(config_prefix + ".secret_access_key", ""),
             config.getString(config_prefix + ".server_side_encryption_customer_key_base64", ""),
             {},
-            {.use_environment_credentials
-             = config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
-             .use_insecure_imds_request
-             = config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))});
+            {},
+            {
+                .use_environment_credentials=config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
+                .use_insecure_imds_request=config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))
+            });
         return shared_client;
     }
 };

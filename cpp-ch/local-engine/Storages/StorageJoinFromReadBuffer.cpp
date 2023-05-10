@@ -7,6 +7,7 @@
 #include <Interpreters/castColumn.h>
 #include <Interpreters/joinDispatch.h>
 #include <Processors/ISource.h>
+#include <Interpreters/Context.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/ProfileInfo.h>
 #include <Common/Exception.h>
