@@ -19,6 +19,7 @@
 
 #include <jni.h>
 #include <string>
+#include <unordered_map>
 
 namespace gluten {
 const std::string kGlutenSaveDir = "spark.gluten.saveDir";

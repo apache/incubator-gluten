@@ -30,19 +30,19 @@ class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
   VeloxColumnarToRowConverter(
       facebook::velox::RowVectorPtr rv,
-      std::shared_ptr<arrow::MemoryPool> arrow_pool,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> velox_pool)
-      : ColumnarToRowConverter(arrow_pool), rv_(rv), velox_pool_(velox_pool) {}
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
+      : ColumnarToRowConverter(arrowPool), rv_(rv), veloxPool_(veloxPool) {}
 
-  arrow::Status Init() override;
+  arrow::Status init() override;
 
-  arrow::Status Write() override;
+  arrow::Status write() override;
 
  private:
-  void ResumeVeloxVector();
+  void resumeVeloxVector();
 
   facebook::velox::RowVectorPtr rv_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> velox_pool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::vector<facebook::velox::VectorPtr> vecs_;
   std::shared_ptr<arrow::Schema> schema_;
 };

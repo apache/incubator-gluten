@@ -36,7 +36,7 @@ RowVectorPtr addColumnToVector(int32_t index, RowVectorPtr vector, RowVectorPtr 
 }
 } // namespace
 
-void VeloxColumnarBatch::EnsureFlattened() {
+void VeloxColumnarBatch::ensureFlattened() {
   if (flattened_ != nullptr) {
     return;
   }
@@ -58,20 +58,20 @@ void VeloxColumnarBatch::EnsureFlattened() {
 
 std::shared_ptr<ArrowSchema> VeloxColumnarBatch::exportArrowSchema() {
   auto out = std::make_shared<ArrowSchema>();
-  EnsureFlattened();
+  ensureFlattened();
   velox::exportToArrow(flattened_, *out);
   return out;
 }
 
 std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   auto out = std::make_shared<ArrowArray>();
-  EnsureFlattened();
-  velox::exportToArrow(flattened_, *out, GetDefaultVeloxLeafMemoryPool().get());
+  ensureFlattened();
+  velox::exportToArrow(flattened_, *out, getDefaultVeloxLeafMemoryPool().get());
   return out;
 }
 
-int64_t VeloxColumnarBatch::GetBytes() {
-  EnsureFlattened();
+int64_t VeloxColumnarBatch::getBytes() {
+  ensureFlattened();
   return flattened_->estimateFlatSize();
 }
 
@@ -99,14 +99,14 @@ velox::RowVectorPtr VeloxColumnarBatch::getRowVector() const {
 }
 
 velox::RowVectorPtr VeloxColumnarBatch::getFlattenedRowVector() {
-  EnsureFlattened();
+  ensureFlattened();
   return flattened_;
 }
 
 velox::RowVectorPtr convertBatch(
     std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
     std::shared_ptr<ColumnarBatch> cb) {
-  if (cb->GetType() != "velox") {
+  if (cb->getType() != "velox") {
     auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), pool.get());
     return std::dynamic_pointer_cast<velox::RowVector>(vp);
   } else {

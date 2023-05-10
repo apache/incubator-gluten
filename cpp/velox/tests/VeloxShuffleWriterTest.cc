@@ -52,13 +52,13 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
-    if (new_size > capacity_) {
-      return arrow::Status::OutOfMemory("malloc of size ", new_size, " failed");
+  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
+    if (newSize > capacity_) {
+      return arrow::Status::OutOfMemory("malloc of size ", newSize, " failed");
     }
     // auto old_ptr = *ptr;
-    RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
-    stats_.UpdateAllocatedBytes(new_size - old_size);
+    RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, ptr));
+    stats_.UpdateAllocatedBytes(newSize - oldSize);
     return arrow::Status::OK();
   }
 
@@ -88,12 +88,12 @@ class MyMemoryPool final : public arrow::MemoryPool {
 class VeloxShuffleWriterTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    const std::string tmp_dir_prefix = "columnar-shuffle-test";
-    ARROW_ASSIGN_OR_THROW(tmp_dir_1_, arrow::internal::TemporaryDir::Make(tmp_dir_prefix))
-    ARROW_ASSIGN_OR_THROW(tmp_dir_2_, arrow::internal::TemporaryDir::Make(tmp_dir_prefix))
-    auto config_dirs = tmp_dir_1_->path().ToString() + "," + tmp_dir_2_->path().ToString();
+    const std::string tmpDirPrefix = "columnar-shuffle-test";
+    ARROW_ASSIGN_OR_THROW(tmpDir1_, arrow::internal::TemporaryDir::Make(tmpDirPrefix))
+    ARROW_ASSIGN_OR_THROW(tmpDir2_, arrow::internal::TemporaryDir::Make(tmpDirPrefix))
+    auto configDirs = tmpDir1_->path().ToString() + "," + tmpDir2_->path().ToString();
 
-    setenv("NATIVESQL_SPARK_LOCAL_DIRS", config_dirs.c_str(), 1);
+    setenv("NATIVESQL_SPARK_LOCAL_DIRS", configDirs.c_str(), 1);
 
     std::vector<std::shared_ptr<arrow::Field>> fields = {
         arrow::field("f_int8_a", arrow::int8()),
@@ -107,7 +107,7 @@ class VeloxShuffleWriterTest : public ::testing::Test {
 
     schema_ = arrow::schema(fields);
 
-    const std::vector<std::string> input_data_1 = {
+    const std::vector<std::string> inputData1 = {
         "[1, 2, 3, null, 4, null, 5, 6, null, 7]",
         "[1, -1, null, null, -2, 2, null, null, 3, -3]",
         "[1, 2, 3, 4, null, 5, 6, 7, 8, null]",
@@ -117,7 +117,7 @@ class VeloxShuffleWriterTest : public ::testing::Test {
         R"(["alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"])",
         R"(["alice", "bob", null, null, "Alice", "Bob", null, "alicE", null, "boB"])"};
 
-    const std::vector<std::string> input_data_2 = {
+    const std::vector<std::string> inputData2 = {
         "[null, null]",
         "[1, -1]",
         "[100, null]",
@@ -127,37 +127,27 @@ class VeloxShuffleWriterTest : public ::testing::Test {
         R"(["bob", "alicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealice"])",
         R"([null, null])"};
 
-    MakeInputBatch(input_data_1, schema_, &input_batch_1_);
-    MakeInputBatch(input_data_2, schema_, &input_batch_2_);
+    makeInputBatch(inputData1, schema_, &inputBatch1_);
+    makeInputBatch(inputData2, schema_, &inputBatch2_);
 
-    auto hash_partition_key = arrow::field("hash_partition_key", arrow::int32());
-    fields.insert(fields.begin(), hash_partition_key);
-    hash_schema_ = arrow::schema(fields);
+    auto hashPartitionKey = arrow::field("hash_partition_key", arrow::int32());
+    fields.insert(fields.begin(), hashPartitionKey);
+    hashSchema_ = arrow::schema(fields);
 
-    const std::vector<std::string> hash_key_1 = {"[1, 2, 2, 2, 2, 1, 1, 1, 2, 1]"};
-    const std::vector<std::string> hash_key_2 = {"[2, 2]"};
+    const std::vector<std::string> hashKey1 = {"[1, 2, 2, 2, 2, 1, 1, 1, 2, 1]"};
+    const std::vector<std::string> hashKey2 = {"[2, 2]"};
 
-    std::vector<std::string> hash_input_data_1;
-    std::vector<std::string> hash_input_data_2;
+    std::vector<std::string> hashInputData1;
+    std::vector<std::string> hashInputData2;
 
-    std::merge(
-        hash_key_1.begin(),
-        hash_key_1.end(),
-        input_data_1.begin(),
-        input_data_1.end(),
-        back_inserter(hash_input_data_1));
+    std::merge(hashKey1.begin(), hashKey1.end(), inputData1.begin(), inputData1.end(), back_inserter(hashInputData1));
 
-    std::merge(
-        hash_key_2.begin(),
-        hash_key_2.end(),
-        input_data_2.begin(),
-        input_data_2.end(),
-        back_inserter(hash_input_data_2));
+    std::merge(hashKey2.begin(), hashKey2.end(), inputData2.begin(), inputData2.end(), back_inserter(hashInputData2));
 
-    MakeInputBatch(hash_input_data_1, hash_schema_, &hash_input_batch_1_);
-    MakeInputBatch(hash_input_data_2, hash_schema_, &hash_input_batch_2_);
+    makeInputBatch(hashInputData1, hashSchema_, &hashInputBatch1_);
+    makeInputBatch(hashInputData2, hashSchema_, &hashInputBatch2_);
 
-    split_options_ = SplitOptions::Defaults();
+    splitOptions_ = SplitOptions::defaults();
   }
 
   void TearDown() override {
@@ -166,94 +156,94 @@ class VeloxShuffleWriterTest : public ::testing::Test {
     }
   }
 
-  static void CheckFileExists(const std::string& file_name) {
-    ASSERT_EQ(*arrow::internal::FileExists(*arrow::internal::PlatformFilename::FromString(file_name)), true);
+  static void checkFileExists(const std::string& fileName) {
+    ASSERT_EQ(*arrow::internal::FileExists(*arrow::internal::PlatformFilename::FromString(fileName)), true);
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> TakeRows(
-      const std::shared_ptr<arrow::RecordBatch>& input_batch,
-      const std::string& json_idx) {
-    std::shared_ptr<arrow::Array> take_idx;
-    ARROW_ASSIGN_OR_THROW(take_idx, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), json_idx));
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> takeRows(
+      const std::shared_ptr<arrow::RecordBatch>& inputBatch,
+      const std::string& jsonIdx) {
+    std::shared_ptr<arrow::Array> takeIdx;
+    ARROW_ASSIGN_OR_THROW(takeIdx, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), jsonIdx));
 
     auto cntx = arrow::compute::ExecContext();
     std::shared_ptr<arrow::RecordBatch> res;
     ARROW_ASSIGN_OR_RAISE(
         arrow::Datum result,
-        arrow::compute::Take(arrow::Datum(input_batch), arrow::Datum(take_idx), arrow::compute::TakeOptions{}, &cntx));
+        arrow::compute::Take(arrow::Datum(inputBatch), arrow::Datum(takeIdx), arrow::compute::TakeOptions{}, &cntx));
     return result.record_batch();
   }
 
-  arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchReader>> GetRecordBatchStreamReader(
-      const std::string& file_name) {
+  arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchReader>> getRecordBatchStreamReader(
+      const std::string& fileName) {
     if (file_ != nullptr && !file_->closed()) {
       RETURN_NOT_OK(file_->Close());
     }
-    ARROW_ASSIGN_OR_RAISE(file_, arrow::io::ReadableFile::Open(file_name))
+    ARROW_ASSIGN_OR_RAISE(file_, arrow::io::ReadableFile::Open(fileName))
     ARROW_ASSIGN_OR_RAISE(auto file_reader, arrow::ipc::RecordBatchStreamReader::Open(file_))
     return file_reader;
   }
 
-  std::shared_ptr<arrow::internal::TemporaryDir> tmp_dir_1_;
-  std::shared_ptr<arrow::internal::TemporaryDir> tmp_dir_2_;
+  std::shared_ptr<arrow::internal::TemporaryDir> tmpDir1_;
+  std::shared_ptr<arrow::internal::TemporaryDir> tmpDir2_;
 
-  SplitOptions split_options_;
+  SplitOptions splitOptions_;
 
-  std::shared_ptr<VeloxShuffleWriter> shuffle_writer_;
+  std::shared_ptr<VeloxShuffleWriter> shuffleWriter_;
 
   std::shared_ptr<arrow::Schema> schema_;
-  std::shared_ptr<arrow::RecordBatch> input_batch_1_;
-  std::shared_ptr<arrow::RecordBatch> input_batch_2_;
+  std::shared_ptr<arrow::RecordBatch> inputBatch1_;
+  std::shared_ptr<arrow::RecordBatch> inputBatch2_;
 
   // hash batch first column is partition key hash value named
   // hash_partition_key
-  std::shared_ptr<arrow::Schema> hash_schema_;
-  std::shared_ptr<arrow::RecordBatch> hash_input_batch_1_;
-  std::shared_ptr<arrow::RecordBatch> hash_input_batch_2_;
+  std::shared_ptr<arrow::Schema> hashSchema_;
+  std::shared_ptr<arrow::RecordBatch> hashInputBatch1_;
+  std::shared_ptr<arrow::RecordBatch> hashInputBatch2_;
 
   std::shared_ptr<arrow::io::ReadableFile> file_;
 };
 
-std::shared_ptr<ColumnarBatch> RecordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {
+std::shared_ptr<ColumnarBatch> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultVeloxLeafMemoryPool().get());
+  auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::getDefaultVeloxLeafMemoryPool().get());
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
-arrow::Status SplitRecordBatch(VeloxShuffleWriter& shuffle_writer, const arrow::RecordBatch& rb) {
-  auto cb = RecordBatch2VeloxColumnarBatch(rb);
-  return shuffle_writer.Split(cb.get());
+arrow::Status splitRecordBatch(VeloxShuffleWriter& shuffleWriter, const arrow::RecordBatch& rb) {
+  auto cb = recordBatch2VeloxColumnarBatch(rb);
+  return shuffleWriter.split(cb.get());
 }
 
 TEST_F(VeloxShuffleWriterTest, TestHashPartitioner) {
-  uint32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "hash";
+  uint32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "hash";
 
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_))
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *hash_input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *hash_input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *hash_input_batch_1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *hashInputBatch1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *hashInputBatch2_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *hashInputBatch1_));
 
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
 
   // verify data file
-  CheckFileExists(shuffle_writer_->DataFile());
+  checkFileExists(shuffleWriter_->dataFile());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify schema
-  ASSERT_EQ(*file_reader->schema(), *schema_);
+  ASSERT_EQ(*fileReader->schema(), *schema_);
 
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
 
   for (const auto& rb : batches) {
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
@@ -264,35 +254,35 @@ TEST_F(VeloxShuffleWriterTest, TestHashPartitioner) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestSinglePartPartitioner) {
-  split_options_.buffer_size = 10;
-  split_options_.partitioning_name = "single";
+  splitOptions_.buffer_size = 10;
+  splitOptions_.partitioning_name = "single";
 
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(1, split_options_))
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(1, splitOptions_))
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
 
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
   // verify data file
-  CheckFileExists(shuffle_writer_->DataFile());
+  checkFileExists(shuffleWriter_->dataFile());
 
   // verify output temporary files
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 1);
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify schema
-  ASSERT_EQ(*file_reader->schema(), *schema_);
+  ASSERT_EQ(*fileReader->schema(), *schema_);
 
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
 
-  std::vector<arrow::RecordBatch*> expected = {input_batch_1_.get(), input_batch_2_.get(), input_batch_1_.get()};
+  std::vector<arrow::RecordBatch*> expected = {inputBatch1_.get(), inputBatch2_.get(), inputBatch1_.get()};
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
@@ -308,38 +298,38 @@ TEST_F(VeloxShuffleWriterTest, TestSinglePartPartitioner) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
 
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *schema_);
+  ASSERT_EQ(*fileReader->schema(), *schema_);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  std::shared_ptr<arrow::RecordBatch> res_batch_1;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_1_, "[0, 2, 4, 6, 8]"))
-  ARROW_ASSIGN_OR_THROW(res_batch_1, TakeRows(input_batch_2_, "[0]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  std::shared_ptr<arrow::RecordBatch> resBatch1;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatch1_, "[0, 2, 4, 6, 8]"))
+  ARROW_ASSIGN_OR_THROW(resBatch1, takeRows(inputBatch2_, "[0]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get(), resBatch1.get(), resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
@@ -351,16 +341,16 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_1_, "[1, 3, 5, 7, 9]"))
-  ARROW_ASSIGN_OR_THROW(res_batch_1, TakeRows(input_batch_2_, "[1]"))
-  expected = {res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatch1_, "[1, 3, 5, 7, 9]"))
+  ARROW_ASSIGN_OR_THROW(resBatch1, takeRows(inputBatch2_, "[1]"))
+  expected = {resBatch0.get(), resBatch1.get(), resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *schema_);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *schema_);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
@@ -375,72 +365,72 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
 TEST_F(VeloxShuffleWriterTest, TestShuffleWriterMemoryLeak) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(17 * 1024 * 1024);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.memory_pool = pool;
-  split_options_.write_schema = false;
-  split_options_.partitioning_name = "rr";
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.memory_pool = pool;
+  splitOptions_.write_schema = false;
+  splitOptions_.partitioning_name = "rr";
 
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2_));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
 
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
   ASSERT_TRUE(pool->bytes_allocated() == 0);
-  shuffle_writer_.reset();
+  shuffleWriter_.reset();
   ASSERT_TRUE(pool->bytes_allocated() == 0);
 }
 
 TEST_F(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "range";
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "range";
 
-  std::shared_ptr<arrow::Array> pid_arr_0;
+  std::shared_ptr<arrow::Array> pidArr0;
   ARROW_ASSIGN_OR_THROW(
-      pid_arr_0, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]"));
-  std::shared_ptr<arrow::Array> pid_arr_1;
-  ARROW_ASSIGN_OR_THROW(pid_arr_1, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1]"));
+      pidArr0, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]"));
+  std::shared_ptr<arrow::Array> pidArr1;
+  ARROW_ASSIGN_OR_THROW(pidArr1, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1]"));
 
-  std::shared_ptr<arrow::Schema> schema_w_pid;
-  std::shared_ptr<arrow::RecordBatch> input_batch_1_w_pid;
-  std::shared_ptr<arrow::RecordBatch> input_batch_2_w_pid;
-  ARROW_ASSIGN_OR_THROW(schema_w_pid, schema_->AddField(0, arrow::field("pid", arrow::int32())));
-  ARROW_ASSIGN_OR_THROW(input_batch_1_w_pid, input_batch_1_->AddColumn(0, "pid", pid_arr_0));
-  ARROW_ASSIGN_OR_THROW(input_batch_2_w_pid, input_batch_2_->AddColumn(0, "pid", pid_arr_1));
+  std::shared_ptr<arrow::Schema> schemaWPid;
+  std::shared_ptr<arrow::RecordBatch> inputBatch1WPid;
+  std::shared_ptr<arrow::RecordBatch> inputBatch2WPid;
+  ARROW_ASSIGN_OR_THROW(schemaWPid, schema_->AddField(0, arrow::field("pid", arrow::int32())));
+  ARROW_ASSIGN_OR_THROW(inputBatch1WPid, inputBatch1_->AddColumn(0, "pid", pidArr0));
+  ARROW_ASSIGN_OR_THROW(inputBatch2WPid, inputBatch2_->AddColumn(0, "pid", pidArr1));
 
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_))
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_w_pid));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_w_pid));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_w_pid));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1WPid));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2WPid));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1WPid));
 
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *schema_);
+  ASSERT_EQ(*fileReader->schema(), *schema_);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  std::shared_ptr<arrow::RecordBatch> res_batch_1;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_1_, "[0, 2, 4, 6, 8]"))
-  ARROW_ASSIGN_OR_THROW(res_batch_1, TakeRows(input_batch_2_, "[0]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  std::shared_ptr<arrow::RecordBatch> resBatch1;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatch1_, "[0, 2, 4, 6, 8]"))
+  ARROW_ASSIGN_OR_THROW(resBatch1, takeRows(inputBatch2_, "[0]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get(), resBatch1.get(), resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
@@ -452,16 +442,16 @@ TEST_F(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_1_, "[1, 3, 5, 7, 9]"))
-  ARROW_ASSIGN_OR_THROW(res_batch_1, TakeRows(input_batch_2_, "[1]"))
-  expected = {res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatch1_, "[1, 3, 5, 7, 9]"))
+  ARROW_ASSIGN_OR_THROW(resBatch1, takeRows(inputBatch2_, "[1]"))
+  expected = {resBatch0.get(), resBatch1.get(), resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *schema_);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *schema_);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
@@ -476,87 +466,87 @@ TEST_F(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
 TEST_F(VeloxShuffleWriterTest, TestSpillFailWithOutOfMemory) {
   auto pool = std::make_shared<MyMemoryPool>(0);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.memory_pool = pool;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.memory_pool = pool;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  auto status = SplitRecordBatch(*shuffle_writer_, *input_batch_1_);
+  auto status = splitRecordBatch(*shuffleWriter_, *inputBatch1_);
 
   // should return OOM status because there's no partition buffer to spill
   ASSERT_TRUE(status.IsOutOfMemory());
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
 TEST_F(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(9 * 1024 * 1024);
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
   // split_options_.memory_pool = pool.get();
-  split_options_.compression_type = arrow::Compression::UNCOMPRESSED;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  splitOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
   for (int i = 0; i < 100; ++i) {
-    ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
-    ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_2_));
-    ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_1_));
+    ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
+    ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch2_));
+    ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatch1_));
   }
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
-  auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
-  auto f_arr_bool = arrow::field("f_bool", arrow::list(arrow::boolean()));
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::int32()));
-  auto f_arr_double = arrow::field("f_double", arrow::list(arrow::float64()));
+  auto fArrStr = arrow::field("f_arr", arrow::list(arrow::utf8()));
+  auto fArrBool = arrow::field("f_bool", arrow::list(arrow::boolean()));
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::int32()));
+  auto fArrDouble = arrow::field("f_double", arrow::list(arrow::float64()));
 
-  auto rb_schema = arrow::schema({f_arr_str, f_arr_bool, f_arr_int32, f_arr_double});
+  auto rbSchema = arrow::schema({fArrStr, fArrBool, fArrInt32, fArrDouble});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([["alice0", "bob1"], ["alice2"], ["bob3"], ["Alice4", "Bob5", "AlicE6"], ["boB7"], ["ALICE8", "BOB9"]])",
       R"([[true, null], [true, true, true], [false], [true], [false], [false]])",
       R"([[1, 2, 3], [9, 8], [null], [3, 1], [0], [1, 9, null]])",
       R"([[0.26121], [-9.12123, 6.111111], [8.121], [7.21, null], [3.2123, 6,1121], [null]])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  std::shared_ptr<arrow::RecordBatch> res_batch_1;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2, 4]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  std::shared_ptr<arrow::RecordBatch> resBatch1;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2, 4]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -564,19 +554,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3, 5]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3, 5]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -585,49 +575,49 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
-  auto f_arr_str = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
+  auto fArrStr = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
 
-  auto rb_schema = arrow::schema({f_arr_str, f_arr_int32});
+  auto rbSchema = arrow::schema({fArrStr, fArrInt32});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([[["alice0", "bob1"]], [["alice2"], ["bob3"]], [["Alice4", "Bob5", "AlicE6"]], [["boB7"], ["ALICE8", "BOB9"]]])",
       R"([[[1, 2, 3]], [[9, 8], [null]], [[3, 1], [0]], [[1, 9, null]]])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -635,19 +625,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -656,49 +646,49 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
-  auto f_arr_str = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
+  auto fArrStr = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
 
-  auto rb_schema = arrow::schema({f_arr_str, f_arr_int32});
+  auto rbSchema = arrow::schema({fArrStr, fArrInt32});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([[["alice0", "bob1"]], [["alice2"], ["bob3"]], [["Alice4", "Bob5", "AlicE6"]], [["boB7"], ["ALICE8", "BOB9"]]])",
       R"([[[1, 2, 3]], [[9, 8], [null]], [[3, 1], [0]], [[1, 9, null]]])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -706,19 +696,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -727,51 +717,51 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_list_struct = arrow::field(
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
+  auto fArrListStruct = arrow::field(
       "f_list_struct",
       arrow::list(arrow::struct_({arrow::field("a", arrow::int32()), arrow::field("b", arrow::utf8())})));
 
-  auto rb_schema = arrow::schema({f_arr_int32, f_arr_list_struct});
+  auto rbSchema = arrow::schema({fArrInt32, fArrListStruct});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([[[1, 2, 3]], [[9, 8], [null]], [[3, 1], [0]], [[1, 9, null]]])",
       R"([[{"a": 4, "b": null}], [{"a": 42, "b": null}, {"a": null, "b": "foo2"}], [{"a": 43, "b": "foo3"}], [{"a": 44, "b": "foo4"}]])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -779,19 +769,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -800,49 +790,49 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_list_map = arrow::field("f_list_map", arrow::list(arrow::map(arrow::utf8(), arrow::utf8())));
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
+  auto fArrListMap = arrow::field("f_list_map", arrow::list(arrow::map(arrow::utf8(), arrow::utf8())));
 
-  auto rb_schema = arrow::schema({f_arr_int32, f_arr_list_map});
+  auto rbSchema = arrow::schema({fArrInt32, fArrListMap});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([[[1, 2, 3]], [[9, 8], [null]], [[3, 1], [0]], [[1, 9, null]]])",
       R"([[[["key1", "val_aa1"]]], [[["key1", "val_bb1"]], [["key2", "val_bb2"]]], [[["key1", "val_cc1"]]], [[["key1", "val_dd1"]]]])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -850,19 +840,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -871,51 +861,51 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_struct_list = arrow::field(
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
+  auto fArrStructList = arrow::field(
       "f_struct_list",
       arrow::struct_({arrow::field("a", arrow::list(arrow::int32())), arrow::field("b", arrow::utf8())}));
 
-  auto rb_schema = arrow::schema({f_arr_int32, f_arr_struct_list});
+  auto rbSchema = arrow::schema({fArrInt32, fArrStructList});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([[[1, 2, 3]], [[9, 8], [null]], [[3, 1], [0]], [[1, 9, null]]])",
       R"([{"a": [1,1,1,1], "b": null}, {"a": null, "b": "foo2"}, {"a": [3,3,3,3], "b": "foo3"}, {"a": [4,4,4,4], "b": "foo4"}])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -923,19 +913,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -945,49 +935,49 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_map = arrow::field("f_map", arrow::map(arrow::utf8(), arrow::utf8()));
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
+  auto fArrMap = arrow::field("f_map", arrow::map(arrow::utf8(), arrow::utf8()));
 
-  auto rb_schema = arrow::schema({f_arr_int32, f_arr_map});
+  auto rbSchema = arrow::schema({fArrInt32, fArrMap});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([[[1, 2, 3]], [[9, 8], [null]], [[3, 1], [0]], [[1, 9, null]]])",
       R"([[["key1", "val_aa1"]], [["key1", "val_bb1"], ["key2", "val_bb2"]], [["key1", "val_cc1"]], [["key1", "val_dd1"]]])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -995,19 +985,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -1016,41 +1006,41 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
 }
 
 TEST_F(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions) {
-  int32_t num_partitions = 5;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "hash";
+  int32_t numPartitions = 5;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "hash";
 
-  auto hash_partition_key = arrow::field("hash_partition_key", arrow::int32());
-  auto f_int64 = arrow::field("f_int64", arrow::int64());
-  auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
+  auto hashPartitionKey = arrow::field("hash_partition_key", arrow::int32());
+  auto fInt64 = arrow::field("f_int64", arrow::int64());
+  auto fArrStr = arrow::field("f_arr", arrow::list(arrow::utf8()));
 
-  auto rb_schema = arrow::schema({hash_partition_key, f_int64, f_arr_str});
-  auto data_schema = arrow::schema({f_int64, f_arr_str});
-  const std::vector<std::string> input_batch_1_data = {R"([1, 2])", R"([1, 2])", R"([["alice0", "bob1"], ["alice2"]])"};
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_batch_1_data, rb_schema, &input_batch_arr);
+  auto rbSchema = arrow::schema({hashPartitionKey, fInt64, fArrStr});
+  auto dataSchema = arrow::schema({fInt64, fArrStr});
+  const std::vector<std::string> inputBatch1Data = {R"([1, 2])", R"([1, 2])", R"([["alice0", "bob1"], ["alice2"]])"};
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputBatch1Data, rbSchema, &inputBatchArr);
 
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
 
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
 
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 5);
 
-  CheckFileExists(shuffle_writer_->DataFile());
+  checkFileExists(shuffleWriter_->dataFile());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
-  ASSERT_EQ(*file_reader->schema(), *data_schema);
+  ASSERT_EQ(*fileReader->schema(), *dataSchema);
 
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
 
   for (const auto& rb : batches) {
-    ASSERT_EQ(rb->num_columns(), data_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), dataSchema->num_fields());
     for (auto i = 0; i < rb->num_columns(); ++i) {
       ASSERT_EQ(rb->column(i)->length(), rb->num_rows());
     }
@@ -1058,55 +1048,55 @@ TEST_F(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions)
 }
 
 TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompression) {
-  auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
-  auto f_arr_bool = arrow::field("f_bool", arrow::list(arrow::boolean()));
-  auto f_arr_int32 = arrow::field("f_int32", arrow::list(arrow::int32()));
-  auto f_arr_double = arrow::field("f_double", arrow::list(arrow::float64()));
+  auto fArrStr = arrow::field("f_arr", arrow::list(arrow::utf8()));
+  auto fArrBool = arrow::field("f_bool", arrow::list(arrow::boolean()));
+  auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::int32()));
+  auto fArrDouble = arrow::field("f_double", arrow::list(arrow::float64()));
 
-  auto rb_schema = arrow::schema({f_arr_str, f_arr_bool, f_arr_int32, f_arr_double});
+  auto rbSchema = arrow::schema({fArrStr, fArrBool, fArrInt32, fArrDouble});
 
-  const std::vector<std::string> input_data_arr = {
+  const std::vector<std::string> inputDataArr = {
       R"([["alice0", "bob1"], ["alice2"], ["bob3"], ["Alice4", "Bob5", "AlicE6"], ["boB7"], ["ALICE8", "BOB9"]])",
       R"([[true, null], [true, true, true], [false], [true], [false], [false]])",
       R"([[1, 2, 3], [9, 8], [null], [3, 1], [0], [1, 9, null]])",
       R"([[0.26121], [-9.12123, 6.111111], [8.121], [7.21, null], [3.2123, 6,1121], [null]])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch_arr;
-  MakeInputBatch(input_data_arr, rb_schema, &input_batch_arr);
+  std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+  makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
-  int32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-  split_options_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffle_writer_, VeloxShuffleWriter::Create(num_partitions, split_options_));
-  auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
-  ASSERT_NOT_OK(shuffle_writer_->SetCompressType(compression_type.MoveValueUnsafe()));
-  ASSERT_NOT_OK(SplitRecordBatch(*shuffle_writer_, *input_batch_arr));
-  ASSERT_NOT_OK(shuffle_writer_->Stop());
+  int32_t numPartitions = 2;
+  splitOptions_.buffer_size = 4;
+  splitOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(numPartitions, splitOptions_));
+  auto compressionType = arrow::util::Codec::GetCompressionType("lz4");
+  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compressionType.MoveValueUnsafe()));
+  ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
+  std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
 
   // verify partition lengths
-  const auto& lengths = shuffle_writer_->PartitionLengths();
+  const auto& lengths = shuffleWriter_->partitionLengths();
   ASSERT_EQ(lengths.size(), 2);
   ASSERT_EQ(*file_->GetSize(), lengths[0] + lengths[1]);
 
   // verify schema
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
 
   // prepare first block expected result
-  std::shared_ptr<arrow::RecordBatch> res_batch_0;
-  std::shared_ptr<arrow::RecordBatch> res_batch_1;
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[0, 2, 4]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get()};
+  std::shared_ptr<arrow::RecordBatch> resBatch0;
+  std::shared_ptr<arrow::RecordBatch> resBatch1;
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[0, 2, 4]"))
+  std::vector<arrow::RecordBatch*> expected = {resBatch0.get()};
 
   // verify first block
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
@@ -1114,19 +1104,19 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompressi
   }
 
   // prepare second block expected result
-  ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_arr, "[1, 3, 5]"))
-  expected = {res_batch_0.get()};
+  ARROW_ASSIGN_OR_THROW(resBatch0, takeRows(inputBatchArr, "[1, 3, 5]"))
+  expected = {resBatch0.get()};
 
   // verify second block
   batches.clear();
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(shuffle_writer_->DataFile()));
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
+  ASSERT_EQ(*fileReader->schema(), *rbSchema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+  ASSERT_NOT_OK(fileReader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
   for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), rbSchema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }

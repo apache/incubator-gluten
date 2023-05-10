@@ -21,13 +21,13 @@
 namespace gluten {
 
 arrow::Result<std::shared_ptr<RemotePartitionWriter>> RemotePartitionWriter::Make(
-    ShuffleWriter* shuffle_writer,
-    int32_t num_partitions) {
-  const std::string& partition_writer_type = shuffle_writer->Options().partition_writer_type;
-  if (partition_writer_type == "celeborn") {
-    return CelebornPartitionWriter::Create(shuffle_writer, num_partitions);
+    ShuffleWriter* shuffleWriter,
+    int32_t numPartitions) {
+  const std::string& partitionWriterType = shuffleWriter->options().partition_writer_type;
+  if (partitionWriterType == "celeborn") {
+    return CelebornPartitionWriter::create(shuffleWriter, numPartitions);
   }
-  return arrow::Status::NotImplemented("Partition Writer Type " + partition_writer_type + " not supported yet.");
+  return arrow::Status::NotImplemented("Partition Writer Type " + partitionWriterType + " not supported yet.");
 }
 
 } // namespace gluten

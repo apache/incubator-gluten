@@ -30,16 +30,16 @@ class Reader {
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool);
 
-  arrow::Result<std::shared_ptr<ColumnarBatch>> Next();
-  arrow::Status Close();
+  arrow::Result<std::shared_ptr<ColumnarBatch>> next();
+  arrow::Status close();
 
  private:
   std::shared_ptr<arrow::MemoryPool> pool_;
   std::shared_ptr<arrow::io::InputStream> in_;
   ReaderOptions options_;
   std::shared_ptr<arrow::Schema> schema_;
-  std::unique_ptr<arrow::ipc::Message> first_message_;
-  bool first_message_consumed_ = false;
+  std::unique_ptr<arrow::ipc::Message> firstMessage_;
+  bool firstMessageConsumed_ = false;
 };
 
 } // namespace gluten

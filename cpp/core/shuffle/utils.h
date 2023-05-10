@@ -17,12 +17,15 @@
 
 #pragma once
 
+#include <arrow/array.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/localfs.h>
 #include <arrow/filesystem/path_util.h>
 #include <arrow/ipc/writer.h>
+#include <arrow/type.h>
 #include <arrow/util/io_util.h>
 
+#include <bits/stdc++.h>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <chrono>
@@ -46,36 +49,36 @@ namespace gluten {
                    eval_start                                           \
             << " " << thread_id << " " << task_attempt_id << std::endl;
 
-static inline std::string GenerateUUID() {
+static inline std::string generateUuid() {
   boost::uuids::random_generator generator;
   return boost::uuids::to_string(generator());
 }
 
-static inline std::string GetSpilledShuffleFileDir(const std::string& configured_dir, int32_t sub_dir_id) {
+static inline std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId) {
   auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
   std::stringstream ss;
-  ss << std::setfill('0') << std::setw(2) << std::hex << sub_dir_id;
-  auto dir = arrow::fs::internal::ConcatAbstractPath(configured_dir, ss.str());
+  ss << std::setfill('0') << std::setw(2) << std::hex << subDirId;
+  auto dir = arrow::fs::internal::ConcatAbstractPath(configuredDir, ss.str());
   return dir;
 }
 
-static inline arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
-  auto joined_dirs_c = std::getenv("NATIVESQL_SPARK_LOCAL_DIRS");
-  if (joined_dirs_c != nullptr && strcmp(joined_dirs_c, "") > 0) {
-    auto joined_dirs = std::string(joined_dirs_c);
+static inline arrow::Result<std::vector<std::string>> getConfiguredLocalDirs() {
+  auto joinedDirsC = std::getenv("NATIVESQL_SPARK_LOCAL_DIRS");
+  if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
+    auto joinedDirs = std::string(joinedDirsC);
     std::string delimiter = ",";
 
     size_t pos;
     std::vector<std::string> res;
-    while ((pos = joined_dirs.find(delimiter)) != std::string::npos) {
-      auto dir = joined_dirs.substr(0, pos);
+    while ((pos = joinedDirs.find(delimiter)) != std::string::npos) {
+      auto dir = joinedDirs.substr(0, pos);
       if (dir.length() > 0) {
         res.push_back(std::move(dir));
       }
-      joined_dirs.erase(0, pos + delimiter.length());
+      joinedDirs.erase(0, pos + delimiter.length());
     }
-    if (joined_dirs.length() > 0) {
-      res.push_back(std::move(joined_dirs));
+    if (joinedDirs.length() > 0) {
+      res.push_back(std::move(joinedDirs));
     }
     return res;
   } else {
@@ -84,7 +87,7 @@ static inline arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
   }
 }
 
-static inline arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) {
+static inline arrow::Result<std::string> createTempShuffleFile(const std::string& dir) {
   if (dir.length() == 0) {
     return arrow::Status::Invalid("Failed to create spilled file, got empty path.");
   }
@@ -96,23 +99,23 @@ static inline arrow::Result<std::string> CreateTempShuffleFile(const std::string
   }
 
   bool exist = true;
-  std::string file_path;
+  std::string filePath;
   while (exist) {
-    file_path = arrow::fs::internal::ConcatAbstractPath(dir, "temp_shuffle_" + GenerateUUID());
-    ARROW_ASSIGN_OR_RAISE(auto file_info, fs->GetFileInfo(file_path));
+    filePath = arrow::fs::internal::ConcatAbstractPath(dir, "temp_shuffle_" + generateUuid());
+    ARROW_ASSIGN_OR_RAISE(auto file_info, fs->GetFileInfo(filePath));
     if (file_info.type() == arrow::fs::FileType::NotFound) {
       exist = false;
-      ARROW_ASSIGN_OR_RAISE(auto s, fs->OpenOutputStream(file_path));
+      ARROW_ASSIGN_OR_RAISE(auto s, fs->OpenOutputStream(filePath));
       RETURN_NOT_OK(s->Close());
     }
   }
-  return file_path;
+  return filePath;
 }
 
-static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToShuffleWriterTypeId(
+static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields) {
-  std::vector<std::shared_ptr<arrow::DataType>> shuffle_writer_type_id;
-  std::pair<std::string, arrow::Type::type> field_type_not_implemented;
+  std::vector<std::shared_ptr<arrow::DataType>> shuffleWriterTypeId;
+  std::pair<std::string, arrow::Type::type> fieldTypeNotImplemented;
   for (auto field : fields) {
     switch (field->type()->id()) {
       case arrow::BooleanType::type_id:
@@ -142,17 +145,17 @@ static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToShu
       case arrow::LargeListType::type_id:
       case arrow::Decimal128Type::type_id:
       case arrow::NullType::type_id:
-        shuffle_writer_type_id.push_back(field->type());
+        shuffleWriterTypeId.push_back(field->type());
         break;
       default:
         RETURN_NOT_OK(arrow::Status::NotImplemented(
             "Field type not implemented in ColumnarShuffle, type is ", field->type()->ToString()));
     }
   }
-  return shuffle_writer_type_id;
+  return shuffleWriterTypeId;
 }
 
-static inline int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
+static inline int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array) {
   const auto& buffers = array->data()->buffers;
   return std::accumulate(
       std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {

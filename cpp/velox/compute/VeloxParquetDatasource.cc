@@ -42,36 +42,36 @@ using namespace facebook;
 
 namespace gluten {
 
-void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::CreateBackend());
+void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
+  auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
 
-  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(gluten::DefaultMemoryAllocator().get());
+  auto veloxPool = asWrappedVeloxAggregateMemoryPool(gluten::defaultMemoryAllocator().get());
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
   // Construct the file path and writer
-  std::string local_path = "";
-  if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
-    local_path = file_path_.substr(5);
+  std::string localPath = "";
+  if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
+    localPath = filePath_.substr(5);
   } else {
     throw std::runtime_error("The path is not local file path when Write data with parquet format in velox backend!");
   }
 
-  auto pos = local_path.find("_temporary", 0);
-  std::string dir_path = local_path.substr(0, pos - 1);
+  auto pos = localPath.find("_temporary", 0);
+  std::string dirPath = localPath.substr(0, pos - 1);
 
-  final_path_ = dir_path + "/" + file_name_;
-  std::string command = "touch " + final_path_;
+  finalPath_ = dirPath + "/" + fileName_;
+  std::string command = "touch " + finalPath_;
   auto ret = system(command.c_str());
   (void)(ret); // suppress warning
 
-  ArrowSchema c_schema{};
-  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &c_schema);
+  ArrowSchema cSchema{};
+  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
   if (!status.ok()) {
     throw std::runtime_error("Failed to export from Arrow record batch");
   }
 
-  type_ = velox::importFromArrow(c_schema);
-  auto sink = std::make_unique<velox::dwio::common::LocalFileSink>(final_path_);
+  type_ = velox::importFromArrow(cSchema);
+  auto sink = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
 
   auto blockSize = 1024;
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
@@ -107,31 +107,31 @@ void VeloxParquetDatasource::Init(const std::unordered_map<std::string, std::str
   parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities, queryCtx);
 }
 
-std::shared_ptr<arrow::Schema> VeloxParquetDatasource::InspectSchema() {
-  velox::dwio::common::ReaderOptions reader_options(pool_.get());
+std::shared_ptr<arrow::Schema> VeloxParquetDatasource::inspectSchema() {
+  velox::dwio::common::ReaderOptions readerOptions(pool_.get());
   auto format = velox::dwio::common::FileFormat::PARQUET;
-  reader_options.setFileFormat(format);
+  readerOptions.setFileFormat(format);
 
   // Creates a file system: local, hdfs or s3.
-  auto fs = velox::filesystems::getFileSystem(file_path_, nullptr);
-  std::shared_ptr<velox::ReadFile> readFile{fs->openFileForRead(file_path_)};
+  auto fs = velox::filesystems::getFileSystem(filePath_, nullptr);
+  std::shared_ptr<velox::ReadFile> readFile{fs->openFileForRead(filePath_)};
 
   std::unique_ptr<velox::dwio::common::Reader> reader =
-      velox::dwio::common::getReaderFactory(reader_options.getFileFormat())
+      velox::dwio::common::getReaderFactory(readerOptions.getFileFormat())
           ->createReader(
               std::make_unique<velox::dwio::common::BufferedInput>(
                   std::make_shared<velox::dwio::common::ReadFileInputStream>(readFile), *pool_.get()),
-              reader_options);
+              readerOptions);
   return toArrowSchema(reader->rowType());
 }
 
-void VeloxParquetDatasource::Close() {
+void VeloxParquetDatasource::close() {
   if (parquetWriter_ != nullptr) {
     parquetWriter_->close();
   }
 }
 
-void VeloxParquetDatasource::Write(const std::shared_ptr<ColumnarBatch>& cb) {
+void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
     parquetWriter_->write(veloxBatch->getFlattenedRowVector());
@@ -140,21 +140,21 @@ void VeloxParquetDatasource::Write(const std::shared_ptr<ColumnarBatch>& cb) {
     auto rb = arrow::ImportRecordBatch(cb->exportArrowArray().get(), cb->exportArrowSchema().get()).ValueOrDie();
     std::vector<velox::VectorPtr> vecs;
 
-    for (int col_idx = 0; col_idx < rb->num_columns(); col_idx++) {
-      auto array = rb->column(col_idx);
-      ArrowArray c_array{};
-      ArrowSchema c_schema{};
-      arrow::Status status = arrow::ExportArray(*array, &c_array, &c_schema);
+    for (int colIdx = 0; colIdx < rb->num_columns(); colIdx++) {
+      auto array = rb->column(colIdx);
+      ArrowArray cArray{};
+      ArrowSchema cSchema{};
+      arrow::Status status = arrow::ExportArray(*array, &cArray, &cSchema);
       if (!status.ok()) {
         throw std::runtime_error("Failed to export from Arrow record batch");
       }
 
-      velox::VectorPtr vec = velox::importFromArrowAsOwner(c_schema, c_array, pool_.get());
+      velox::VectorPtr vec = velox::importFromArrowAsOwner(cSchema, cArray, pool_.get());
       vecs.push_back(vec);
     }
 
-    auto row_vec = std::make_shared<velox::RowVector>(pool_.get(), type_, nullptr, rb->num_rows(), vecs, 0);
-    parquetWriter_->write(row_vec);
+    auto rowVec = std::make_shared<velox::RowVector>(pool_.get(), type_, nullptr, rb->num_rows(), vecs, 0);
+    parquetWriter_->write(rowVec);
   }
 }
 

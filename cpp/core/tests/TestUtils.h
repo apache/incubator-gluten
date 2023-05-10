@@ -56,47 +56,47 @@
   ARROW_ASSIGN_OR_THROW_IMPL(ARROW_ASSIGN_OR_THROW_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
 
 template <typename T>
-arrow::Status Equals(const T& expected, const T& actual) {
+arrow::Status equals(const T& expected, const T& actual) {
   if (expected.Equals(actual)) {
     return arrow::Status::OK();
   }
-  std::stringstream pp_expected;
-  std::stringstream pp_actual;
+  std::stringstream ppExpected;
+  std::stringstream ppActual;
   arrow::PrettyPrintOptions options(/*indent=*/2);
   options.window = 50;
-  ASSERT_NOT_OK(PrettyPrint(expected, options, &pp_expected));
-  ASSERT_NOT_OK(PrettyPrint(actual, options, &pp_actual));
-  if (pp_expected.str() == pp_actual.str()) {
+  ASSERT_NOT_OK(PrettyPrint(expected, options, &ppExpected));
+  ASSERT_NOT_OK(PrettyPrint(actual, options, &ppActual));
+  if (ppExpected.str() == ppActual.str()) {
     return arrow::Status::OK();
   }
   return arrow::Status::Invalid(
       "Expected RecordBatch is ",
-      pp_expected.str(),
+      ppExpected.str(),
       " with schema ",
       expected.schema()->ToString(),
       ", while actual is ",
-      pp_actual.str(),
+      ppActual.str(),
       " with schema ",
       actual.schema()->ToString());
 }
 
-inline void MakeInputBatch(
-    std::vector<std::string> input_data,
+inline void makeInputBatch(
+    std::vector<std::string> inputData,
     std::shared_ptr<arrow::Schema> sch,
-    std::shared_ptr<arrow::RecordBatch>* input_batch) {
+    std::shared_ptr<arrow::RecordBatch>* inputBatch) {
   // prepare input record Batch
-  std::vector<std::shared_ptr<arrow::Array>> array_list;
+  std::vector<std::shared_ptr<arrow::Array>> arrayList;
   int length = -1;
   int i = 0;
-  for (auto& data : input_data) {
+  for (auto& data : inputData) {
     std::shared_ptr<arrow::Array> a0;
     ARROW_ASSIGN_OR_THROW(a0, arrow::ipc::internal::json::ArrayFromJSON(sch->field(i++)->type(), data.c_str()));
     if (length == -1) {
       length = a0->length();
     }
     assert(length == a0->length());
-    array_list.push_back(a0);
+    arrayList.push_back(a0);
   }
 
-  *input_batch = arrow::RecordBatch::Make(sch, length, array_list);
+  *inputBatch = arrow::RecordBatch::Make(sch, length, arrayList);
 }

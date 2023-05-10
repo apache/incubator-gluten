@@ -19,17 +19,17 @@
 
 namespace gluten {
 
-arrow::Status gluten::RoundRobinPartitioner::Compute(
-    const int32_t* pid_arr,
-    const int64_t num_rows,
-    std::vector<uint16_t>& partition_id,
-    std::vector<uint32_t>& partition_id_cnt) {
-  std::fill(std::begin(partition_id_cnt), std::end(partition_id_cnt), 0);
-  partition_id.resize(num_rows);
-  for (auto& pid : partition_id) {
-    pid = pid_selection_;
-    partition_id_cnt[pid_selection_]++;
-    pid_selection_ = (pid_selection_ + 1) == num_partitions_ ? 0 : (pid_selection_ + 1);
+arrow::Status gluten::RoundRobinPartitioner::compute(
+    const int32_t* pidArr,
+    const int64_t numRows,
+    std::vector<uint16_t>& partitionId,
+    std::vector<uint32_t>& partitionIdCnt) {
+  std::fill(std::begin(partitionIdCnt), std::end(partitionIdCnt), 0);
+  partitionId.resize(numRows);
+  for (auto& pid : partitionId) {
+    pid = pidSelection_;
+    partitionIdCnt[pidSelection_]++;
+    pidSelection_ = (pidSelection_ + 1) == numPartitions_ ? 0 : (pidSelection_ + 1);
   }
   return arrow::Status::OK();
 }

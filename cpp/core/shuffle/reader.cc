@@ -23,7 +23,7 @@
 
 namespace gluten {
 
-ReaderOptions ReaderOptions::Defaults() {
+ReaderOptions ReaderOptions::defaults() {
   return {};
 }
 
@@ -33,35 +33,35 @@ Reader::Reader(
     ReaderOptions options,
     std::shared_ptr<arrow::MemoryPool> pool)
     : pool_(pool), in_(std::move(in)), options_(std::move(options)), schema_(std::move(schema)) {
-  GLUTEN_ASSIGN_OR_THROW(first_message_, arrow::ipc::ReadMessage(in_.get()))
-  if (first_message_ == nullptr) {
+  GLUTEN_ASSIGN_OR_THROW(firstMessage_, arrow::ipc::ReadMessage(in_.get()))
+  if (firstMessage_ == nullptr) {
     throw GlutenException("Failed to read message from shuffle.");
   }
-  if (first_message_->type() == arrow::ipc::MessageType::SCHEMA) {
-    GLUTEN_ASSIGN_OR_THROW(schema_, arrow::ipc::ReadSchema(*first_message_, nullptr))
-    first_message_consumed_ = true;
+  if (firstMessage_->type() == arrow::ipc::MessageType::SCHEMA) {
+    GLUTEN_ASSIGN_OR_THROW(schema_, arrow::ipc::ReadSchema(*firstMessage_, nullptr))
+    firstMessageConsumed_ = true;
   }
 }
 
-arrow::Result<std::shared_ptr<ColumnarBatch>> Reader::Next() {
-  std::shared_ptr<arrow::RecordBatch> arrow_batch;
-  std::unique_ptr<arrow::ipc::Message> message_to_read;
-  if (!first_message_consumed_) {
-    message_to_read = std::move(first_message_);
-    first_message_consumed_ = true;
+arrow::Result<std::shared_ptr<ColumnarBatch>> Reader::next() {
+  std::shared_ptr<arrow::RecordBatch> arrowBatch;
+  std::unique_ptr<arrow::ipc::Message> messageToRead;
+  if (!firstMessageConsumed_) {
+    messageToRead = std::move(firstMessage_);
+    firstMessageConsumed_ = true;
   } else {
-    GLUTEN_ASSIGN_OR_THROW(message_to_read, arrow::ipc::ReadMessage(in_.get()))
+    GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
   }
-  if (message_to_read == nullptr) {
+  if (messageToRead == nullptr) {
     return nullptr;
   }
   GLUTEN_ASSIGN_OR_THROW(
-      arrow_batch, arrow::ipc::ReadRecordBatch(*message_to_read, schema_, nullptr, options_.ipc_read_options))
-  std::shared_ptr<ColumnarBatch> gluten_batch = std::make_shared<ArrowColumnarBatch>(arrow_batch);
-  return gluten_batch;
+      arrowBatch, arrow::ipc::ReadRecordBatch(*messageToRead, schema_, nullptr, options_.ipc_read_options))
+  std::shared_ptr<ColumnarBatch> glutenBatch = std::make_shared<ArrowColumnarBatch>(arrowBatch);
+  return glutenBatch;
 }
 
-arrow::Status Reader::Close() {
+arrow::Status Reader::close() {
   return arrow::Status::OK();
 }
 

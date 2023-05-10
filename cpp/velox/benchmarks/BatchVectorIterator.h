@@ -7,8 +7,8 @@ namespace gluten {
 class ParquetBatchVectorIterator final : public ParquetBatchIterator {
  public:
   explicit ParquetBatchVectorIterator(const std::string& path) : ParquetBatchIterator(path) {
-    CreateReader();
-    CollectBatches();
+    createReader();
+    collectBatches();
 
     iter_ = batches_.begin();
 #ifdef GLUTEN_PRINT_DEBUG
@@ -29,7 +29,7 @@ class ParquetBatchVectorIterator final : public ParquetBatchIterator {
   }
 
  private:
-  void CollectBatches() {
+  void collectBatches() {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
     auto endTime = std::chrono::steady_clock::now();
@@ -47,8 +47,8 @@ inline std::shared_ptr<gluten::ResultIterator> getParquetInputFromBatchVector(co
 class OrcBatchVectorIterator final : public OrcBatchIterator {
  public:
   explicit OrcBatchVectorIterator(const std::string& path) : OrcBatchIterator(path) {
-    CreateReader();
-    CollectBatches();
+    createReader();
+    collectBatches();
 
     iter_ = batches_.begin();
 #ifdef GLUTEN_PRINT_DEBUG
@@ -69,7 +69,7 @@ class OrcBatchVectorIterator final : public OrcBatchIterator {
   }
 
  private:
-  void CollectBatches() {
+  void collectBatches() {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
     auto endTime = std::chrono::steady_clock::now();

@@ -29,7 +29,7 @@ class VeloxRowToColumnarConverter final : public RowToColumnarConverter {
  public:
   VeloxRowToColumnarConverter(
       struct ArrowSchema* cSchema,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> memory_pool);
+      std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool);
 
   std::shared_ptr<ColumnarBatch> convert(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
 

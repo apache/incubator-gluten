@@ -31,19 +31,19 @@ class MemoryAllocator {
  public:
   virtual ~MemoryAllocator() = default;
 
-  virtual bool Allocate(int64_t size, void** out) = 0;
-  virtual bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
-  virtual bool AllocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
+  virtual bool allocate(int64_t size, void** out) = 0;
+  virtual bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
+  virtual bool allocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
 
-  virtual bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) = 0;
-  virtual bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) = 0;
+  virtual bool reallocate(void* p, int64_t size, int64_t newSize, void** out) = 0;
+  virtual bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) = 0;
 
-  virtual bool Free(void* p, int64_t size) = 0;
+  virtual bool free(void* p, int64_t size) = 0;
 
-  virtual bool ReserveBytes(int64_t size) = 0;
-  virtual bool UnreserveBytes(int64_t size) = 0;
+  virtual bool reserveBytes(int64_t size) = 0;
+  virtual bool unreserveBytes(int64_t size) = 0;
 
-  virtual int64_t GetBytes() const = 0;
+  virtual int64_t getBytes() const = 0;
 };
 
 class AllocationListener {
@@ -51,7 +51,7 @@ class AllocationListener {
   virtual ~AllocationListener() = default;
 
   // Value of diff can be either positive or negative
-  virtual void AllocationChanged(int64_t diff) = 0;
+  virtual void allocationChanged(int64_t diff) = 0;
 
  protected:
   AllocationListener() = default;
@@ -63,23 +63,23 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
       : delegated_(delegated), listener_(std::move(listener)) {}
 
  public:
-  bool Allocate(int64_t size, void** out) override;
+  bool allocate(int64_t size, void** out) override;
 
-  bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
+  bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
 
-  bool AllocateAligned(uint16_t alignment, int64_t size, void** out) override;
+  bool allocateAligned(uint16_t alignment, int64_t size, void** out) override;
 
-  bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
+  bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
 
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
+  bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) override;
 
-  bool Free(void* p, int64_t size) override;
+  bool free(void* p, int64_t size) override;
 
-  bool ReserveBytes(int64_t size) override;
+  bool reserveBytes(int64_t size) override;
 
-  bool UnreserveBytes(int64_t size) override;
+  bool unreserveBytes(int64_t size) override;
 
-  int64_t GetBytes() const override;
+  int64_t getBytes() const override;
 
  private:
   MemoryAllocator* delegated_;
@@ -89,28 +89,28 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
 
 class StdMemoryAllocator final : public MemoryAllocator {
  public:
-  bool Allocate(int64_t size, void** out) override;
+  bool allocate(int64_t size, void** out) override;
 
-  bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
+  bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
 
-  bool AllocateAligned(uint16_t alignment, int64_t size, void** out) override;
+  bool allocateAligned(uint16_t alignment, int64_t size, void** out) override;
 
-  bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
+  bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
 
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
+  bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) override;
 
-  bool Free(void* p, int64_t size) override;
+  bool free(void* p, int64_t size) override;
 
-  bool ReserveBytes(int64_t size) override;
+  bool reserveBytes(int64_t size) override;
 
-  bool UnreserveBytes(int64_t size) override;
+  bool unreserveBytes(int64_t size) override;
 
-  int64_t GetBytes() const override;
+  int64_t getBytes() const override;
 
  private:
   std::atomic_int64_t bytes_{0};
 };
 
-std::shared_ptr<MemoryAllocator> DefaultMemoryAllocator();
+std::shared_ptr<MemoryAllocator> defaultMemoryAllocator();
 
 } // namespace gluten

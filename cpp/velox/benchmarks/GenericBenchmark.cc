@@ -40,8 +40,8 @@ using namespace gluten;
 DEFINE_bool(skip_input, false, "Skip specifying input files.");
 DEFINE_bool(gen_orc_input, false, "Generate orc files from parquet as input files.");
 
-static const std::string parquetSuffix = ".parquet";
-static const std::string orcSuffix = ".orc";
+static const std::string kParquetSuffix = ".parquet";
+static const std::string kOrcSuffix = ".orc";
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
@@ -66,7 +66,7 @@ auto BM_Generic = [](::benchmark::State& state,
   int64_t collectBatchTime = 0;
 
   for (auto _ : state) {
-    auto backend = gluten::CreateBackend();
+    auto backend = gluten::createBackend();
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
     std::vector<BatchIterator*> inputItersRaw;
     if (!inputFiles.empty()) {
@@ -76,13 +76,13 @@ auto BM_Generic = [](::benchmark::State& state,
           inputIters.end(),
           std::back_inserter(inputItersRaw),
           [](std::shared_ptr<gluten::ResultIterator> iter) {
-            return static_cast<BatchIterator*>(iter->GetInputIter());
+            return static_cast<BatchIterator*>(iter->getInputIter());
           });
     }
 
-    backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(
-        gluten::DefaultMemoryAllocator().get(), "/tmp/test-spill", std::move(inputIters), conf);
+    backend->parsePlan(plan->data(), plan->size());
+    auto resultIter = backend->getResultIterator(
+        gluten::defaultMemoryAllocator().get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
     auto outputSchema = getOutputSchema(veloxPlan);
     ArrowWriter writer{FLAGS_write_file};
@@ -91,8 +91,8 @@ auto BM_Generic = [](::benchmark::State& state,
       GLUTEN_THROW_NOT_OK(writer.initWriter(*(outputSchema.get())));
     }
     state.ResumeTiming();
-    while (resultIter->HasNext()) {
-      auto array = resultIter->Next()->exportArrowArray();
+    while (resultIter->hasNext()) {
+      auto array = resultIter->next()->exportArrowArray();
       state.PauseTiming();
       auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
       if (!maybeBatch.ok()) {
@@ -115,10 +115,10 @@ auto BM_Generic = [](::benchmark::State& state,
 
     collectBatchTime +=
         std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIterator* iter) {
-          return sum + iter->GetCollectBatchTime();
+          return sum + iter->getCollectBatchTime();
         });
 
-    auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->GetInputIter());
+    auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->getInputIter());
     const auto& task = rawIter->task_;
     const auto& planNode = rawIter->veloxPlan_;
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
@@ -139,7 +139,7 @@ class OrcFileGuard {
   explicit OrcFileGuard(const std::vector<std::string>& inputFiles) {
     orcFiles_.resize(inputFiles.size());
     for (auto i = 0; i != inputFiles.size(); ++i) {
-      GLUTEN_ASSIGN_OR_THROW(orcFiles_[i], CreateOrcFile(inputFiles[i]));
+      GLUTEN_ASSIGN_OR_THROW(orcFiles_[i], createOrcFile(inputFiles[i]));
     }
   }
 
@@ -149,12 +149,12 @@ class OrcFileGuard {
     }
   }
 
-  const std::vector<std::string>& GetOrcFiles() {
+  const std::vector<std::string>& getOrcFiles() {
     return orcFiles_;
   }
 
  private:
-  arrow::Result<std::string> CreateOrcFile(const std::string& inputFile) {
+  arrow::Result<std::string> createOrcFile(const std::string& inputFile) {
     ParquetBatchStreamIterator parquetIterator(inputFile);
 
     std::string outputFile = inputFile;
@@ -166,7 +166,7 @@ class OrcFileGuard {
     // If any suffix is found, replace it with ".orc"
     pos = outputFile.find_first_of(".");
     if (pos != std::string::npos) {
-      outputFile = outputFile.substr(0, pos) + orcSuffix;
+      outputFile = outputFile.substr(0, pos) + kOrcSuffix;
     } else {
       return arrow::Status::Invalid("Invalid input file: " + inputFile);
     }
@@ -188,7 +188,7 @@ class OrcFileGuard {
       }
 
       auto arrowColumnarBatch = std::dynamic_pointer_cast<gluten::ArrowColumnarBatch>(cb);
-      auto recordBatch = arrowColumnarBatch->GetRecordBatch();
+      auto recordBatch = arrowColumnarBatch->getRecordBatch();
 
       // 2. write to Orc
       if (!(writer->Write(*recordBatch)).ok()) {
@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
   std::shared_ptr<OrcFileGuard> orcFileGuard;
 
   conf.insert({gluten::kSparkBatchSize, FLAGS_batch_size});
-  InitVeloxBackend(conf);
+  initVeloxBackend(conf);
 
   try {
     if (argc < 2) {
@@ -232,12 +232,12 @@ int main(int argc, char** argv) {
       GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
     } else {
       substraitJsonFile = argv[1];
-      AbortIfFileNotExists(substraitJsonFile);
+      abortIfFileNotExists(substraitJsonFile);
       std::cout << "Using substrait json file: " << std::endl << substraitJsonFile << std::endl;
       std::cout << "Using " << argc - 2 << " input data file(s): " << std::endl;
       for (auto i = 2; i < argc; ++i) {
         inputFiles.emplace_back(argv[i]);
-        AbortIfFileNotExists(inputFiles.back());
+        abortIfFileNotExists(inputFiles.back());
         std::cout << inputFiles.back() << std::endl;
       }
     }
@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
     GENERIC_BENCHMARK("SkipInput", nullptr);
   } else if (FLAGS_gen_orc_input) {
     orcFileGuard = std::make_shared<OrcFileGuard>(inputFiles);
-    inputFiles = orcFileGuard->GetOrcFiles();
+    inputFiles = orcFileGuard->getOrcFiles();
     GENERIC_BENCHMARK("OrcInputFromBatchVector", getOrcInputFromBatchVector);
     GENERIC_BENCHMARK("OrcInputFromBatchStream", getOrcInputFromBatchStream);
   } else {

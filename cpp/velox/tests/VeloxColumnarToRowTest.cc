@@ -36,44 +36,44 @@ using namespace facebook::velox;
 namespace gluten {
 class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBase {
  public:
-  RowVectorPtr RecordBatch2VeloxRowVector(const arrow::RecordBatch& rb) {
+  RowVectorPtr recordBatch2VeloxRowVector(const arrow::RecordBatch& rb) {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::GetDefaultVeloxLeafMemoryPool().get());
+    auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::getDefaultVeloxLeafMemoryPool().get());
     return std::dynamic_pointer_cast<velox::RowVector>(vp);
   }
 
-  void testRecordBatchEqual(std::shared_ptr<arrow::RecordBatch> input_batch) {
-    auto row = RecordBatch2VeloxRowVector(*input_batch);
+  void testRecordBatchEqual(std::shared_ptr<arrow::RecordBatch> inputBatch) {
+    auto row = recordBatch2VeloxRowVector(*inputBatch);
     auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool_, veloxPool_);
-    GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-    GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+    GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+    GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-    int64_t num_rows = input_batch->num_rows();
+    int64_t numRows = inputBatch->num_rows();
 
-    uint8_t* address = columnarToRowConverter->GetBufferAddress();
-    auto length_vec = columnarToRowConverter->GetLengths();
+    uint8_t* address = columnarToRowConverter->getBufferAddress();
+    auto lengthVec = columnarToRowConverter->getLengths();
 
-    long arr[length_vec.size()];
-    for (int i = 0; i < length_vec.size(); i++) {
-      arr[i] = length_vec[i];
+    long arr[lengthVec.size()];
+    for (int i = 0; i < lengthVec.size(); i++) {
+      arr[i] = lengthVec[i];
     }
     long* lengthPtr = arr;
 
     ArrowSchema cSchema;
-    GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*input_batch->schema(), &cSchema));
-    auto row_to_columnar_converter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, veloxPool_);
+    GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*inputBatch->schema(), &cSchema));
+    auto rowToColumnarConverter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, veloxPool_);
 
-    auto cb = row_to_columnar_converter->convert(num_rows, lengthPtr, address);
+    auto cb = rowToColumnarConverter->convert(numRows, lengthPtr, address);
     auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
     // std::cout << "From rowbuffer to Column, rb->ToString():\n" << rb->ToString() << std::endl;
     velox::test::assertEqualVectors(row, vp);
   }
 
  private:
-  std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = GetDefaultVeloxLeafMemoryPool();
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = GetDefaultArrowMemoryPool();
+  std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = getDefaultVeloxLeafMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = getDefaultArrowMemoryPool();
 };
 
 TEST_F(VeloxColumnarToRowTest, timestamp) {
@@ -83,361 +83,361 @@ TEST_F(VeloxColumnarToRowTest, timestamp) {
   auto row = makeRowVector({
       makeFlatVector<Timestamp>(timeValues),
   });
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto converter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
 
-  JniAssertOkOrThrow(
-      converter->Init(),
+  jniAssertOkOrThrow(
+      converter->init(),
       "Native convert columnar to row: Init "
       "ColumnarToRowConverter failed");
-  JniAssertOkOrThrow(converter->Write(), "Native convert columnar to row: ColumnarToRowConverter write failed");
+  jniAssertOkOrThrow(converter->write(), "Native convert columnar to row: ColumnarToRowConverter write failed");
 }
 
 TEST_F(VeloxColumnarToRowTest, Int_64) {
-  const std::vector<std::string> input_data = {"[1, 2, 3]"};
+  const std::vector<std::string> inputData = {"[1, 2, 3]"};
 
-  auto f_int64 = field("f_int64", arrow::int64());
-  auto schema = arrow::schema({f_int64});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
-  testRecordBatchEqual(input_batch);
+  auto fInt64 = field("f_int64", arrow::int64());
+  auto schema = arrow::schema({fInt64});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
+  testRecordBatchEqual(inputBatch);
 }
 
 TEST_F(VeloxColumnarToRowTest, basic) {
-  auto f_int8 = field("f_int8_a", arrow::int8());
-  auto f_int16 = field("f_int16", arrow::int16());
-  auto f_int32 = field("f_int32", arrow::int32());
-  auto f_int64 = field("f_int64", arrow::int64());
-  auto f_double = field("f_double", arrow::float64());
-  auto f_float = field("f_float", arrow::float32());
-  auto f_bool = field("f_bool", arrow::boolean());
-  auto f_string = field("f_string", arrow::utf8());
-  auto f_binary = field("f_binary", arrow::binary());
-  auto f_decimal = field("f_decimal128", arrow::decimal(10, 2));
+  auto fInt8 = field("f_int8_a", arrow::int8());
+  auto fInt16 = field("f_int16", arrow::int16());
+  auto fInt32 = field("f_int32", arrow::int32());
+  auto fInt64 = field("f_int64", arrow::int64());
+  auto fDouble = field("f_double", arrow::float64());
+  auto fFloat = field("f_float", arrow::float32());
+  auto fBool = field("f_bool", arrow::boolean());
+  auto fString = field("f_string", arrow::utf8());
+  auto fBinary = field("f_binary", arrow::binary());
+  auto fDecimal = field("f_decimal128", arrow::decimal(10, 2));
 
-  auto schema = arrow::schema({f_int8, f_int16, f_int32, f_int64, f_float, f_double, f_binary});
+  auto schema = arrow::schema({fInt8, fInt16, fInt32, fInt64, fFloat, fDouble, fBinary});
 
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[1, 1]", "[1, 1]", "[1, 1]", "[1, 1]", "[3.5, 3.5]", "[1, 1]", R"(["abc", "abc"])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
-  testRecordBatchEqual(input_batch);
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
+  testRecordBatchEqual(inputBatch);
 }
 
 TEST_F(VeloxColumnarToRowTest, Int_64_twoColumn) {
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[1, 2]",
       "[1, 2]",
   };
 
-  auto f_int64_col0 = field("f_int64", arrow::int64());
-  auto f_int64_col1 = field("f_int64", arrow::int64());
-  auto schema = arrow::schema({f_int64_col0, f_int64_col1});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto fInt64Col0 = field("f_int64", arrow::int64());
+  auto fInt64Col1 = field("f_int64", arrow::int64());
+  auto schema = arrow::schema({fInt64Col0, fInt64Col1});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  testRecordBatchEqual(input_batch);
+  testRecordBatchEqual(inputBatch);
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_int8_int16) {
-  auto f_int8 = field("f_int8_a", arrow::int8());
-  auto f_int16 = field("f_int16", arrow::int16());
+  auto fInt8 = field("f_int8_a", arrow::int8());
+  auto fInt16 = field("f_int16", arrow::int16());
 
   std::cout << "---------verify f_int8, f_int16---------" << std::endl;
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[1, 2]",
       "[1, 2]",
   };
 
-  auto schema = arrow::schema({f_int8, f_int16});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fInt8, fInt16});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
 
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {
+  uint8_t expectArr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_int32_int64) {
-  auto f_int32 = field("f_int32", arrow::int32());
-  auto f_int64 = field("f_int64", arrow::int64());
+  auto fInt32 = field("f_int32", arrow::int32());
+  auto fInt64 = field("f_int64", arrow::int64());
 
   std::cout << "---------verify f_int32, f_int64---------" << std::endl;
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[1, 2]",
       "[1, 2]",
   };
 
-  auto schema = arrow::schema({f_int32, f_int64});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fInt32, fInt64});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {
+  uint8_t expectArr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_float_double) {
-  auto f_float = field("f_float", arrow::float32());
-  auto f_double = field("f_double", arrow::float64());
+  auto fFloat = field("f_float", arrow::float32());
+  auto fDouble = field("f_double", arrow::float64());
 
   std::cout << "---------verify f_float, f_double---------" << std::endl;
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[1.0, 2.0]",
       "[1.0, 2.0]",
   };
 
-  auto schema = arrow::schema({f_float, f_double});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fFloat, fDouble});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 240, 63,
-                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   64};
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  uint8_t expectArr[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 240, 63,
+                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   64};
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_bool_binary) {
-  auto f_bool = field("f_bool", arrow::boolean());
-  auto f_binary = field("f_binary", arrow::binary());
+  auto fBool = field("f_bool", arrow::boolean());
+  auto fBinary = field("f_binary", arrow::binary());
 
   std::cout << "---------verify f_bool, f_binary---------" << std::endl;
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[false, true]",
       R"(["aa", "bb"])",
   };
 
-  auto schema = arrow::schema({f_bool, f_binary});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fBool, fBinary});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {
+  uint8_t expectArr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 24, 0, 0, 0, 97, 97, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 24, 0, 0, 0, 98, 98, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_decimal_string) {
-  auto f_string = field("f_string", arrow::utf8());
+  auto fString = field("f_string", arrow::utf8());
 
   std::cout << "---------verify f_string---------" << std::endl;
-  const std::vector<std::string> input_data = {R"(["aa", "bb"])"};
+  const std::vector<std::string> inputData = {R"(["aa", "bb"])"};
 
-  auto schema = arrow::schema({f_string});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fString});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {0,  0,  0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0, 0, 0,
-                          97, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0};
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  uint8_t expectArr[] = {0,  0,  0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0, 0, 0,
+                         97, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0};
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_int64_int64_with_null) {
-  auto f_int64 = field("f_int64", arrow::int64());
+  auto fInt64 = field("f_int64", arrow::int64());
 
   std::cout << "---------verify f_int64, f_int64 with null ---------" << std::endl;
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[null,2]",
       "[null,2]",
   };
 
-  auto schema = arrow::schema({f_int64, f_int64});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fInt64, fInt64});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {
+  uint8_t expectArr[] = {
       3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_string) {
-  auto f_binary = field("f_binary", arrow::binary());
-  auto f_string = field("f_string", arrow::utf8());
+  auto fBinary = field("f_binary", arrow::binary());
+  auto fString = field("f_string", arrow::utf8());
 
   std::cout << "---------verify f_string---------" << std::endl;
-  const std::vector<std::string> input_data = {R"(["aa", "bb"])"};
+  const std::vector<std::string> inputData = {R"(["aa", "bb"])"};
 
-  auto schema = arrow::schema({f_string});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fString});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {
+  uint8_t expectArr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0, 0, 0, 97, 97, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0, 0, 0, 98, 98, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, Buffer_bool) {
-  auto f_bool = field("f_bool", arrow::boolean());
-  auto f_binary = field("f_binary", arrow::binary());
+  auto fBool = field("f_bool", arrow::boolean());
+  auto fBinary = field("f_binary", arrow::binary());
 
   std::cout << "---------verify f_bool---------" << std::endl;
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[false, true]",
 
   };
 
-  auto schema = arrow::schema({f_bool});
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  auto schema = arrow::schema({fBool});
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  auto row = RecordBatch2VeloxRowVector(*input_batch);
-  auto arrowPool = GetDefaultArrowMemoryPool();
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto row = recordBatch2VeloxRowVector(*inputBatch);
+  auto arrowPool = getDefaultArrowMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(row, arrowPool, veloxPool);
 
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Init());
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->Write());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->init());
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write());
 
-  uint8_t* address = columnarToRowConverter->GetBufferAddress();
+  uint8_t* address = columnarToRowConverter->getBufferAddress();
 
-  uint8_t expect_arr[] = {
+  uint8_t expectArr[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
   };
-  for (int i = 0; i < sizeof(expect_arr); i++) {
+  for (int i = 0; i < sizeof(expectArr); i++) {
     std::cout << "*(address+" << i << "): " << (uint16_t) * (address + i) << std::endl;
-    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expect_arr + i) << std::endl;
-    ASSERT_EQ(*(address + i), *(expect_arr + i));
+    std::cout << "*(expect_arr+" << i << "): " << (uint16_t) * (expectArr + i) << std::endl;
+    ASSERT_EQ(*(address + i), *(expectArr + i));
   }
 }
 
 TEST_F(VeloxColumnarToRowTest, _allTypes) {
-  auto f_int8 = field("f_int8_a", arrow::int8());
-  auto f_int16 = field("f_int16", arrow::int16());
-  auto f_int32 = field("f_int32", arrow::int32());
-  auto f_int64 = field("f_int64", arrow::int64());
-  auto f_double = field("f_double", arrow::float64());
-  auto f_float = field("f_float", arrow::float32());
-  auto f_bool = field("f_bool", arrow::boolean());
-  auto f_string = field("f_string", arrow::utf8());
-  auto f_binary = field("f_binary", arrow::binary());
+  auto fInt8 = field("f_int8_a", arrow::int8());
+  auto fInt16 = field("f_int16", arrow::int16());
+  auto fInt32 = field("f_int32", arrow::int32());
+  auto fInt64 = field("f_int64", arrow::int64());
+  auto fDouble = field("f_double", arrow::float64());
+  auto fFloat = field("f_float", arrow::float32());
+  auto fBool = field("f_bool", arrow::boolean());
+  auto fString = field("f_string", arrow::utf8());
+  auto fBinary = field("f_binary", arrow::binary());
 
-  auto schema = arrow::schema({f_bool, f_int8, f_int16, f_int32, f_int64, f_float, f_double, f_binary});
+  auto schema = arrow::schema({fBool, fInt8, fInt16, fInt32, fInt64, fFloat, fDouble, fBinary});
 
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[true, true]", "[1, 1]", "[1, 1]", "[1, 1]", "[1, 1]", "[3.5, 3.5]", "[1, 1]", R"(["abc", "abc"])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
 
-  testRecordBatchEqual(input_batch);
+  testRecordBatchEqual(inputBatch);
 }
 
 TEST_F(VeloxColumnarToRowTest, _allTypes_18rows) {
-  auto f_int8 = field("f_int8_a", arrow::int8());
-  auto f_int16 = field("f_int16", arrow::int16());
-  auto f_int32 = field("f_int32", arrow::int32());
-  auto f_int64 = field("f_int64", arrow::int64());
-  auto f_double = field("f_double", arrow::float64());
-  auto f_float = field("f_float", arrow::float32());
-  auto f_bool = field("f_bool", arrow::boolean());
-  auto f_string = field("f_string", arrow::utf8());
-  auto f_binary = field("f_binary", arrow::binary());
+  auto fInt8 = field("f_int8_a", arrow::int8());
+  auto fInt16 = field("f_int16", arrow::int16());
+  auto fInt32 = field("f_int32", arrow::int32());
+  auto fInt64 = field("f_int64", arrow::int64());
+  auto fDouble = field("f_double", arrow::float64());
+  auto fFloat = field("f_float", arrow::float32());
+  auto fBool = field("f_bool", arrow::boolean());
+  auto fString = field("f_string", arrow::utf8());
+  auto fBinary = field("f_binary", arrow::binary());
 
-  auto schema = arrow::schema({f_bool, f_int8, f_int16, f_int32, f_int64, f_float, f_double, f_binary});
+  auto schema = arrow::schema({fBool, fInt8, fInt16, fInt32, fInt64, fFloat, fDouble, fBinary});
 
-  const std::vector<std::string> input_data = {
+  const std::vector<std::string> inputData = {
       "[true, "
       "true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,"
       "true]",
@@ -450,8 +450,8 @@ TEST_F(VeloxColumnarToRowTest, _allTypes_18rows) {
       "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",
       R"(["abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc", "abc"])"};
 
-  std::shared_ptr<arrow::RecordBatch> input_batch;
-  MakeInputBatch(input_data, schema, &input_batch);
-  testRecordBatchEqual(input_batch);
+  std::shared_ptr<arrow::RecordBatch> inputBatch;
+  makeInputBatch(inputData, schema, &inputBatch);
+  testRecordBatchEqual(inputBatch);
 }
 } // namespace gluten

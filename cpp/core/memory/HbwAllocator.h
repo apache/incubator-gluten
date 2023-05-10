@@ -23,25 +23,25 @@ namespace gluten {
 
 class HbwMemoryAllocator final : public MemoryAllocator {
  public:
-  static std::shared_ptr<MemoryAllocator> NewInstance();
+  static std::shared_ptr<MemoryAllocator> newInstance();
 
-  bool Allocate(int64_t size, void** out) override;
+  bool allocate(int64_t size, void** out) override;
 
-  bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
+  bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
 
-  bool AllocateAligned(uint16_t alignment, int64_t size, void** out) override;
+  bool allocateAligned(uint16_t alignment, int64_t size, void** out) override;
 
-  bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
+  bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
 
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
+  bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) override;
 
-  bool Free(void* p, int64_t size) override;
+  bool free(void* p, int64_t size) override;
 
-  bool ReserveBytes(int64_t size) override;
+  bool reserveBytes(int64_t size) override;
 
-  bool UnreserveBytes(int64_t size) override;
+  bool unreserveBytes(int64_t size) override;
 
-  int64_t GetBytes() const override;
+  int64_t getBytes() const override;
 
  private:
   std::atomic_int64_t bytes_{0};

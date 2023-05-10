@@ -38,31 +38,31 @@ class Backend : public std::enable_shared_from_this<Backend> {
   Backend(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~Backend() = default;
 
-  virtual std::shared_ptr<ResultIterator> GetResultIterator(
+  virtual std::shared_ptr<ResultIterator> getResultIterator(
       MemoryAllocator* allocator,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
-  bool ParsePlan(const uint8_t* data, int32_t size) {
-    return ParsePlan(data, size, -1, -1, -1);
+  bool parsePlan(const uint8_t* data, int32_t size) {
+    return parsePlan(data, size, -1, -1, -1);
   }
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
-  bool ParsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
+  bool parsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
 #ifdef GLUTEN_PRINT_DEBUG
     auto buf = std::make_shared<arrow::Buffer>(data, size);
-    auto maybe_plan_json = SubstraitFromPbToJson("Plan", *buf);
-    if (maybe_plan_json.status().ok()) {
+    auto maybePlanJson = substraitFromPbToJson("Plan", *buf);
+    if (maybePlanJson.status().ok()) {
       std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
       std::cout << "Task stageId: " << stageId << ", partitionId: " << partitionId << ", taskId: " << taskId << "; "
-                << maybe_plan_json.ValueOrDie() << std::endl;
+                << maybePlanJson.ValueOrDie() << std::endl;
     } else {
-      std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
+      std::cout << "Error parsing substrait plan to json: " << maybePlanJson.status().ToString() << std::endl;
     }
 #endif
-    return ParseProtobuf(data, size, &substraitPlan_);
+    return parseProtobuf(data, size, &substraitPlan_);
   }
 
   // Just for benchmark
@@ -76,14 +76,14 @@ class Backend : public std::enable_shared_from_this<Backend> {
   virtual arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) {
-    auto memory_pool = AsWrappedArrowMemoryPool(allocator);
-    std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
-    std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
+    auto memoryPool = asWrappedArrowMemoryPool(allocator);
+    std::shared_ptr<ArrowSchema> cSchema = cb->exportArrowSchema();
+    std::shared_ptr<ArrowArray> cArray = cb->exportArrowArray();
     ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
-    ArrowSchemaRelease(c_schema.get());
-    ArrowArrayRelease(c_array.get());
-    return std::make_shared<ArrowColumnarToRowConverter>(rb, memory_pool);
+        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(cArray.get(), cSchema.get()));
+    ArrowSchemaRelease(cSchema.get());
+    ArrowArrayRelease(cArray.get());
+    return std::make_shared<ArrowColumnarToRowConverter>(rb, memoryPool);
   }
 
   virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
@@ -93,21 +93,21 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
   virtual std::shared_ptr<ShuffleWriter>
-  makeShuffleWriter(int num_partitions, const SplitOptions& options, const std::string& batchType) {
-    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, ArrowShuffleWriter::Create(num_partitions, std::move(options)));
+  makeShuffleWriter(int numPartitions, const SplitOptions& options, const std::string& batchType) {
+    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, ArrowShuffleWriter::create(numPartitions, std::move(options)));
     return shuffle_writer;
   }
 
-  virtual std::shared_ptr<Metrics> GetMetrics(ColumnarBatchIterator* raw_iter, int64_t exportNanos) {
+  virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) {
     return nullptr;
   }
 
   virtual std::shared_ptr<Datasource>
-  GetDatasource(const std::string& file_path, const std::string& file_name, std::shared_ptr<arrow::Schema> schema) {
-    return std::make_shared<Datasource>(file_path, file_name, schema);
+  getDatasource(const std::string& filePath, const std::string& fileName, std::shared_ptr<arrow::Schema> schema) {
+    return std::make_shared<Datasource>(filePath, fileName, schema);
   }
 
-  std::unordered_map<std::string, std::string> GetConfMap() {
+  std::unordered_map<std::string, std::string> getConfMap() {
     return confMap_;
   }
 
@@ -117,8 +117,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
   std::unordered_map<std::string, std::string> confMap_;
 };
 
-void SetBackendFactory(std::function<std::shared_ptr<Backend>()> factory);
+void setBackendFactory(std::function<std::shared_ptr<Backend>()> factory);
 
-std::shared_ptr<Backend> CreateBackend();
+std::shared_ptr<Backend> createBackend();
 
 } // namespace gluten

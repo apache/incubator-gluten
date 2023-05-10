@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <jni.h>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -31,35 +32,35 @@ namespace gluten {
 template <typename Holder>
 class ConcurrentMap {
  public:
-  ConcurrentMap() : module_id_(init_module_id_) {}
+  ConcurrentMap() : moduleId_(kInitModuleId) {}
 
-  jlong Insert(Holder holder) {
+  jlong insert(Holder holder) {
     std::lock_guard<std::mutex> lock(mtx_);
-    jlong result = module_id_++;
+    jlong result = moduleId_++;
     map_.insert(std::pair<jlong, Holder>(result, holder));
     return result;
   }
 
-  void Erase(jlong module_id) {
+  void erase(jlong moduleId) {
     std::lock_guard<std::mutex> lock(mtx_);
-    map_.erase(module_id);
+    map_.erase(moduleId);
   }
 
-  Holder Lookup(jlong module_id) {
+  Holder lookup(jlong moduleId) {
     std::lock_guard<std::mutex> lock(mtx_);
-    auto it = map_.find(module_id);
+    auto it = map_.find(moduleId);
     if (it != map_.end()) {
       return it->second;
     }
     return nullptr;
   }
 
-  void Clear() {
+  void clear() {
     std::lock_guard<std::mutex> lock(mtx_);
     map_.clear();
   }
 
-  size_t Size() {
+  size_t size() {
     std::lock_guard<std::mutex> lock(mtx_);
     return map_.size();
   }
@@ -67,9 +68,9 @@ class ConcurrentMap {
  private:
   // Initialize the module id starting value to a number greater than zero
   // to allow for easier debugging of uninitialized java variables.
-  static constexpr int init_module_id_ = 4;
+  static constexpr int kInitModuleId = 4;
 
-  int64_t module_id_;
+  int64_t moduleId_;
   std::mutex mtx_;
 
   // map from module ids returned to Java and module pointers

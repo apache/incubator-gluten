@@ -46,64 +46,64 @@ class ExportedArrayStreamByArray {
 
   explicit ExportedArrayStreamByArray(struct ArrowArrayStream* stream) : stream_(stream) {}
 
-  arrow::Status GetSchema(struct ArrowSchema* out_schema) {
-    return ExportSchema(*schema(), out_schema);
+  arrow::Status getSchema(struct ArrowSchema* outSchema) {
+    return ExportSchema(*schema(), outSchema);
   }
 
-  arrow::Status GetNext(struct ArrowArray* out_array) {
+  arrow::Status getNext(struct ArrowArray* outArray) {
     std::shared_ptr<ArrowArray> array;
     RETURN_NOT_OK(reader()->Next().Value(&array));
     if (array == nullptr) {
       // End of stream
-      ArrowArrayMarkReleased(out_array);
+      ArrowArrayMarkReleased(outArray);
     } else {
-      ArrowArrayMove(array.get(), out_array);
+      ArrowArrayMove(array.get(), outArray);
     }
     return arrow::Status::OK();
   }
 
-  const char* GetLastError() {
-    const auto& last_error = private_data()->last_error_;
-    return last_error.empty() ? nullptr : last_error.c_str();
+  const char* getLastError() {
+    const auto& lastError = privateData()->last_error_;
+    return lastError.empty() ? nullptr : lastError.c_str();
   }
 
-  void Release() {
+  void release() {
     if (ArrowArrayStreamIsReleased(stream_)) {
       return;
     }
-    DCHECK_NE(private_data(), nullptr);
-    delete private_data();
+    DCHECK_NE(privateData(), nullptr);
+    delete privateData();
 
     ArrowArrayStreamMarkReleased(stream_);
   }
 
   // C-compatible callbacks
 
-  static int StaticGetSchema(struct ArrowArrayStream* stream, struct ArrowSchema* out_schema) {
+  static int staticGetSchema(struct ArrowArrayStream* stream, struct ArrowSchema* outSchema) {
     ExportedArrayStreamByArray self{stream};
-    return self.ToCError(self.GetSchema(out_schema));
+    return self.toCError(self.getSchema(outSchema));
   }
 
-  static int StaticGetNext(struct ArrowArrayStream* stream, struct ArrowArray* out_array) {
+  static int staticGetNext(struct ArrowArrayStream* stream, struct ArrowArray* outArray) {
     ExportedArrayStreamByArray self{stream};
-    return self.ToCError(self.GetNext(out_array));
+    return self.toCError(self.getNext(outArray));
   }
 
-  static void StaticRelease(struct ArrowArrayStream* stream) {
-    ExportedArrayStreamByArray{stream}.Release();
+  static void staticRelease(struct ArrowArrayStream* stream) {
+    ExportedArrayStreamByArray{stream}.release();
   }
 
-  static const char* StaticGetLastError(struct ArrowArrayStream* stream) {
-    return ExportedArrayStreamByArray{stream}.GetLastError();
+  static const char* staticGetLastError(struct ArrowArrayStream* stream) {
+    return ExportedArrayStreamByArray{stream}.getLastError();
   }
 
  private:
-  int ToCError(const arrow::Status& status) {
+  int toCError(const arrow::Status& status) {
     if (ARROW_PREDICT_TRUE(status.ok())) {
-      private_data()->last_error_.clear();
+      privateData()->last_error_.clear();
       return 0;
     }
-    private_data()->last_error_ = status.ToString();
+    privateData()->last_error_ = status.ToString();
     switch (status.code()) {
       case arrow::StatusCode::IOError:
         return EIO;
@@ -116,16 +116,16 @@ class ExportedArrayStreamByArray {
     }
   }
 
-  PrivateData* private_data() {
+  PrivateData* privateData() {
     return reinterpret_cast<PrivateData*>(stream_->private_data);
   }
 
   const std::shared_ptr<gluten::ArrowArrayIterator> reader() {
-    return private_data()->reader_;
+    return privateData()->reader_;
   }
 
   const std::shared_ptr<arrow::Schema> schema() {
-    return private_data()->schema_;
+    return privateData()->schema_;
   }
 
   struct ArrowArrayStream* stream_;
@@ -133,14 +133,14 @@ class ExportedArrayStreamByArray {
 
 } // namespace
 
-arrow::Status ExportArrowArray(
+arrow::Status exportArrowArray(
     std::shared_ptr<arrow::Schema> schema,
     std::shared_ptr<gluten::ArrowArrayIterator> reader,
     struct ArrowArrayStream* out) {
-  out->get_schema = ExportedArrayStreamByArray::StaticGetSchema;
-  out->get_next = ExportedArrayStreamByArray::StaticGetNext;
-  out->get_last_error = ExportedArrayStreamByArray::StaticGetLastError;
-  out->release = ExportedArrayStreamByArray::StaticRelease;
+  out->get_schema = ExportedArrayStreamByArray::staticGetSchema;
+  out->get_next = ExportedArrayStreamByArray::staticGetNext;
+  out->get_last_error = ExportedArrayStreamByArray::staticGetLastError;
+  out->release = ExportedArrayStreamByArray::staticRelease;
   out->private_data = new ExportedArrayStreamByArray::PrivateData{std::move(reader), std::move(schema)};
   return arrow::Status::OK();
 }

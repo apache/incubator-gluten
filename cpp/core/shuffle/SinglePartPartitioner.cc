@@ -19,11 +19,11 @@
 
 namespace gluten {
 
-arrow::Status gluten::SinglePartPartitioner::Compute(
-    const int32_t* pid_arr,
-    const int64_t num_rows,
-    std::vector<uint16_t>& partition_id,
-    std::vector<uint32_t>& partition_id_cnt) {
+arrow::Status gluten::SinglePartPartitioner::compute(
+    const int32_t* pidArr,
+    const int64_t numRows,
+    std::vector<uint16_t>& partitionId,
+    std::vector<uint32_t>& partitionIdCnt) {
   // nothing is need do here
   return arrow::Status::OK();
 }

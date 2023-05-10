@@ -106,20 +106,20 @@ void VeloxBackend::getInfoAndIds(
   }
 }
 
-std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
+std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
     MemoryAllocator* allocator,
-    const std::string& spill_dir,
+    const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
   if (inputs.size() > 0) {
     inputIters_ = std::move(inputs);
   }
 
-  auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator);
+  auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator");
   // TODO: wait shuffle split velox to velox, then the input ColumnBatch is RowVector, no need pool to convert
   // https://github.com/oap-project/gluten/issues/1434
-  auto resultPool = GetDefaultVeloxLeafMemoryPool();
+  auto resultPool = getDefaultVeloxLeafMemoryPool();
   // auto resultPool = veloxPool->addLeafChild("input_row_vector_pool");
   auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_, resultPool);
   veloxPlan_ = veloxPlanConverter->toVeloxPlan(substraitPlan_);
@@ -135,11 +135,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        ctxPool, resultPool, veloxPlan_, streamIds, spill_dir, sessionConf);
+        ctxPool, resultPool, veloxPlan_, streamIds, spillDir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        ctxPool, resultPool, veloxPlan_, scanIds, scanInfos, streamIds, spill_dir, sessionConf);
+        ctxPool, resultPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
@@ -149,8 +149,8 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
     std::shared_ptr<ColumnarBatch> cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
-    auto arrowPool = AsWrappedArrowMemoryPool(allocator);
-    auto veloxPool = AsWrappedVeloxAggregateMemoryPool(allocator);
+    auto arrowPool = asWrappedArrowMemoryPool(allocator);
+    auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
     auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
     return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, ctxVeloxPool);
   } else {
@@ -162,18 +162,18 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
     MemoryAllocator* allocator,
     struct ArrowSchema* cSchema) {
   // TODO: wait to fix task memory pool
-  auto veloxPool = GetDefaultVeloxLeafMemoryPool();
+  auto veloxPool = getDefaultVeloxLeafMemoryPool();
   // AsWrappedVeloxAggregateMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
 std::shared_ptr<ShuffleWriter>
-VeloxBackend::makeShuffleWriter(int num_partitions, const SplitOptions& options, const std::string& batchType) {
+VeloxBackend::makeShuffleWriter(int numPartitions, const SplitOptions& options, const std::string& batchType) {
   if (batchType == "velox") {
-    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, VeloxShuffleWriter::Create(num_partitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, VeloxShuffleWriter::create(numPartitions, std::move(options)));
     return shuffle_writer;
   } else {
-    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, ArrowShuffleWriter::Create(num_partitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, ArrowShuffleWriter::create(numPartitions, std::move(options)));
     return shuffle_writer;
   }
 }

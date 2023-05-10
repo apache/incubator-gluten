@@ -24,8 +24,8 @@ using namespace facebook::velox;
 namespace gluten {
 VeloxRowToColumnarConverter::VeloxRowToColumnarConverter(
     struct ArrowSchema* cSchema,
-    std::shared_ptr<memory::MemoryPool> memory_pool)
-    : RowToColumnarConverter(cSchema), pool_(memory_pool) {
+    std::shared_ptr<memory::MemoryPool> memoryPool)
+    : RowToColumnarConverter(cSchema), pool_(memoryPool) {
   rowType_ = importFromArrow(*cSchema);
   ArrowSchemaRelease(cSchema);
 }

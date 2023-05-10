@@ -7,7 +7,7 @@ namespace gluten {
 class ParquetBatchStreamIterator final : public ParquetBatchIterator {
  public:
   explicit ParquetBatchStreamIterator(const std::string& path) : ParquetBatchIterator(path) {
-    CreateReader();
+    createReader();
 #ifdef GLUTEN_PRINT_DEBUG
     std::cout << "ParquetBatchStreamIterator open file: " << path << std::endl;
 #endif
@@ -35,7 +35,7 @@ inline std::shared_ptr<gluten::ResultIterator> getParquetInputFromBatchStream(co
 class OrcBatchStreamIterator final : public OrcBatchIterator {
  public:
   explicit OrcBatchStreamIterator(const std::string& path) : OrcBatchIterator(path) {
-    CreateReader();
+    createReader();
   }
 
   std::shared_ptr<gluten::ColumnarBatch> next() override {

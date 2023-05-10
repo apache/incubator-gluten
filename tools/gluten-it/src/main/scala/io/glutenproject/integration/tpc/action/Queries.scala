@@ -15,7 +15,7 @@ case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, ite
       iteration =>
         println(s"Running tests (iteration $iteration)...")
         val runQueryIds = queryIds match {
-          case Array("__all__") =>
+          case Array() =>
             allQueries
           case _ =>
             queryIds

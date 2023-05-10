@@ -33,7 +33,7 @@
 
 using namespace facebook;
 
-static std::unordered_map<std::string, std::string> sparkConfs_;
+static std::unordered_map<std::string, std::string> sparkConfs;
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,22 +41,22 @@ extern "C" {
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   JNIEnv* env;
-  if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+  if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
     return JNI_ERR;
   }
   // logging
   google::InitGoogleLogging("gluten");
-  gluten::GetJniErrorsState()->Initialize(env);
+  gluten::getJniErrorsState()->initialize(env);
 
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
-  return JNI_VERSION;
+  return jniVersion;
 }
 
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
-  vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
+  vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
@@ -64,11 +64,11 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
     jobject obj,
     jbyteArray planArray) {
   JNI_METHOD_START
-  sparkConfs_ = gluten::getConfMap(env, planArray);
+  sparkConfs = gluten::getConfMap(env, planArray);
   // FIXME this is not thread-safe. The function can be called twice
   //   within Spark local-mode, one from Driver, another from Executor.
-  gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs_); });
-  static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs_);
+  gluten::setBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs); });
+  static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs);
   JNI_METHOD_END()
 }
 
@@ -85,11 +85,11 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
   ::substrait::Plan subPlan;
-  gluten::ParseProtobuf(planData, planSize, &subPlan);
+  gluten::parseProtobuf(planData, planSize, &subPlan);
 
   // A query context used for function validation.
   velox::core::QueryCtx queryCtx;
-  auto pool = gluten::GetDefaultVeloxLeafMemoryPool().get();
+  auto pool = gluten::getDefaultVeloxLeafMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 

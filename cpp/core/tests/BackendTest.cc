@@ -23,23 +23,23 @@ namespace gluten {
 
 class DummyBackend final : public Backend {
  public:
-  std::shared_ptr<ResultIterator> GetResultIterator(
+  std::shared_ptr<ResultIterator> getResultIterator(
       MemoryAllocator* allocator,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) override {
-    auto res_iter = std::make_unique<DummyResultIterator>();
-    return std::make_shared<ResultIterator>(std::move(res_iter));
+    auto resIter = std::make_unique<DummyResultIterator>();
+    return std::make_shared<ResultIterator>(std::move(resIter));
   }
 
  private:
   class DummyResultIterator : public ColumnarBatchIterator {
    public:
     std::shared_ptr<ColumnarBatch> next() override {
-      if (!has_next_) {
+      if (!hasNext_) {
         return nullptr;
       }
-      has_next_ = false;
+      hasNext_ = false;
 
       std::unique_ptr<arrow::ArrayBuilder> tmp;
       std::unique_ptr<arrow::DoubleBuilder> builder;
@@ -49,8 +49,8 @@ class DummyBackend final : public Backend {
 
       GLUTEN_THROW_NOT_OK(builder->Append(1000));
       GLUTEN_THROW_NOT_OK(builder->Finish(&array));
-      std::vector<std::shared_ptr<arrow::Field>> ret_types = {arrow::field("res", arrow::float64())};
-      auto batch = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
+      std::vector<std::shared_ptr<arrow::Field>> retTypes = {arrow::field("res", arrow::float64())};
+      auto batch = arrow::RecordBatch::Make(arrow::schema(retTypes), 1, {array});
       std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
       std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
       GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get(), cSchema.get()));
@@ -58,25 +58,25 @@ class DummyBackend final : public Backend {
     }
 
    private:
-    bool has_next_ = true;
+    bool hasNext_ = true;
   };
 };
 
 TEST(TestExecBackend, CreateBackend) {
-  SetBackendFactory([] { return std::make_shared<DummyBackend>(); });
-  auto backendP = CreateBackend();
+  setBackendFactory([] { return std::make_shared<DummyBackend>(); });
+  auto backendP = createBackend();
   auto& backend = *backendP.get();
   ASSERT_EQ(typeid(backend), typeid(DummyBackend));
 }
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->GetResultIterator(DefaultMemoryAllocator().get(), "/tmp/test-spill", {}, {});
-  ASSERT_TRUE(iter->HasNext());
-  auto next = iter->Next();
+  auto iter = backend->getResultIterator(defaultMemoryAllocator().get(), "/tmp/test-spill", {}, {});
+  ASSERT_TRUE(iter->hasNext());
+  auto next = iter->next();
   ASSERT_NE(next, nullptr);
-  ASSERT_FALSE(iter->HasNext());
-  next = iter->Next();
+  ASSERT_FALSE(iter->hasNext());
+  next = iter->next();
   ASSERT_EQ(next, nullptr);
 }
 

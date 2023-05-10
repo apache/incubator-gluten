@@ -19,21 +19,21 @@
 #include "shuffle/FallbackRangePartitioner.h"
 
 namespace gluten {
-arrow::Status gluten::FallbackRangePartitioner::Compute(
-    const int32_t* pid_arr,
-    const int64_t num_rows,
-    std::vector<uint16_t>& partition_id,
-    std::vector<uint32_t>& partition_id_cnt) {
-  partition_id.resize(num_rows);
-  std::fill(std::begin(partition_id_cnt), std::end(partition_id_cnt), 0);
-  for (auto i = 0; i < num_rows; ++i) {
-    auto pid = pid_arr[i];
-    if (pid >= num_partitions_) {
+arrow::Status gluten::FallbackRangePartitioner::compute(
+    const int32_t* pidArr,
+    const int64_t numRows,
+    std::vector<uint16_t>& partitionId,
+    std::vector<uint32_t>& partitionIdCnt) {
+  partitionId.resize(numRows);
+  std::fill(std::begin(partitionIdCnt), std::end(partitionIdCnt), 0);
+  for (auto i = 0; i < numRows; ++i) {
+    auto pid = pidArr[i];
+    if (pid >= numPartitions_) {
       return arrow::Status::Invalid(
-          "Partition id ", std::to_string(pid), " is equal or greater than ", std::to_string(num_partitions_));
+          "Partition id ", std::to_string(pid), " is equal or greater than ", std::to_string(numPartitions_));
     }
-    partition_id[i] = pid;
-    partition_id_cnt[pid]++;
+    partitionId[i] = pid;
+    partitionIdCnt[pid]++;
   }
   return arrow::Status::OK();
 }

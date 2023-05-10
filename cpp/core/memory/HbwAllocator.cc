@@ -24,7 +24,7 @@
 
 namespace gluten {
 
-std::shared_ptr<MemoryAllocator> HbwMemoryAllocator::NewInstance() {
+std::shared_ptr<MemoryAllocator> HbwMemoryAllocator::newInstance() {
   auto memkindHbwNodes = std::getenv("MEMKIND_HBW_NODES");
   if (memkindHbwNodes == nullptr) {
     std::cout << "MEMKIND_HBW_NODES not set. Use StdMemoryAllocator." << std::endl;
@@ -34,19 +34,19 @@ std::shared_ptr<MemoryAllocator> HbwMemoryAllocator::NewInstance() {
   return std::make_shared<HbwMemoryAllocator>();
 }
 
-bool HbwMemoryAllocator::Allocate(int64_t size, void** out) {
+bool HbwMemoryAllocator::allocate(int64_t size, void** out) {
   *out = hbw_malloc(size);
   bytes_ += size;
   return true;
 }
 
-bool HbwMemoryAllocator::AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) {
+bool HbwMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, void** out) {
   *out = hbw_calloc(nmemb, size);
   bytes_ += size;
   return true;
 }
 
-bool HbwMemoryAllocator::AllocateAligned(uint16_t alignment, int64_t size, void** out) {
+bool HbwMemoryAllocator::allocateAligned(uint16_t alignment, int64_t size, void** out) {
   if (hbw_posix_memalign(out, alignment, size) != 0) {
     return false;
   }
@@ -54,13 +54,13 @@ bool HbwMemoryAllocator::AllocateAligned(uint16_t alignment, int64_t size, void*
   return true;
 }
 
-bool HbwMemoryAllocator::Reallocate(void* p, int64_t size, int64_t new_size, void** out) {
+bool HbwMemoryAllocator::reallocate(void* p, int64_t size, int64_t new_size, void** out) {
   *out = hbw_realloc(p, new_size);
   bytes_ += (new_size - size);
   return true;
 }
 
-bool HbwMemoryAllocator::ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) {
+bool HbwMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) {
   if (new_size <= 0) {
     return false;
   }
@@ -75,23 +75,23 @@ bool HbwMemoryAllocator::ReallocateAligned(void* p, uint16_t alignment, int64_t 
   return true;
 }
 
-bool HbwMemoryAllocator::Free(void* p, int64_t size) {
+bool HbwMemoryAllocator::free(void* p, int64_t size) {
   hbw_free(p);
   bytes_ -= size;
   return true;
 }
 
-bool HbwMemoryAllocator::ReserveBytes(int64_t size) {
+bool HbwMemoryAllocator::reserveBytes(int64_t size) {
   bytes_ += size;
   return true;
 }
 
-bool HbwMemoryAllocator::UnreserveBytes(int64_t size) {
+bool HbwMemoryAllocator::unreserveBytes(int64_t size) {
   bytes_ -= size;
   return true;
 }
 
-int64_t HbwMemoryAllocator::GetBytes() const {
+int64_t HbwMemoryAllocator::getBytes() const {
   return bytes_;
 }
 
