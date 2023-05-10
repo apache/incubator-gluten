@@ -222,7 +222,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "left semi join",
       "multiple-key equi-join is hash-join",
       "full outer join",
-      "test case sensitive for BHJ"
+      GlutenTestConstants.GLUTEN_TEST + "test case sensitive for BHJ"
     )
 
   enableSuite[GlutenHashExpressionsSuite]
