@@ -56,10 +56,7 @@ bool CustomStorageMergeTree::partIsAssignedToBackgroundOperation(const MergeTree
 {
     throw std::runtime_error("not implement");
 }
-MutationCommands CustomStorageMergeTree::getFirstAlterMutationCommandsForPart(const MergeTreeData::DataPartPtr & /*part*/) const
-{
-    return {};
-}
+
 std::string CustomStorageMergeTree::getName() const
 {
     throw std::runtime_error("not implement");

@@ -10,6 +10,7 @@
 #include <Interpreters/castColumn.h>
 #include <Interpreters/joinDispatch.h>
 #include <Processors/ISource.h>
+#include <Interpreters/Context.h>
 
 namespace DB
 {

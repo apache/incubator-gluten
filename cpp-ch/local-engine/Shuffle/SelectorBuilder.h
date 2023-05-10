@@ -11,6 +11,8 @@
 #include <substrait/plan.pb.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ExpressionActions.h>
+#include <Common/PODArray.h>
+
 namespace local_engine
 {
 
