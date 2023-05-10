@@ -65,6 +65,7 @@ void JniErrorsGlobalState::throwException(JNIEnv * env,jclass exception_class, c
     if (exception_class)
     {
         std::string error_msg = message + "\n" + stack_trace;
+        std::cerr << "Re-throwing a java exception for native exception..." << std::endl;
         env->ThrowNew(exception_class, error_msg.c_str());
     }
     else
