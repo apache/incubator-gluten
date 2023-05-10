@@ -1,4 +1,7 @@
 #!/bin/bash
+
+set -eux
+
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
 THIRDPARTY_LIB="$GLUTEN_DIR/package/target/thirdparty-lib"
