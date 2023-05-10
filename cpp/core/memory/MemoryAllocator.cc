@@ -174,7 +174,7 @@ int64_t StdMemoryAllocator::getBytes() const {
 
 std::shared_ptr<MemoryAllocator> defaultMemoryAllocator() {
 #if defined(GLUTEN_ENABLE_HBM)
-  static std::shared_ptr<MemoryAllocator> alloc = HbwMemoryAllocator::NewInstance();
+  static std::shared_ptr<MemoryAllocator> alloc = HbwMemoryAllocator::newInstance();
 #else
   static std::shared_ptr<MemoryAllocator> alloc = std::make_shared<StdMemoryAllocator>();
 #endif
