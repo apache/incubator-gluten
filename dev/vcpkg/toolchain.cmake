@@ -12,3 +12,6 @@ include($ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 
 set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++ -static-libgcc")
 set(CMAKE_SHARED_LINKER_FLAGS "-static-libstdc++ -static-libgcc")
+
+# Disable boost new version warning for FindBoost module
+set(Boost_NO_WARN_NEW_VERSIONS ON)
