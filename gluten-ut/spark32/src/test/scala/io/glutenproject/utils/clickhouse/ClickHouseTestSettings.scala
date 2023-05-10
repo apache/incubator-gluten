@@ -221,7 +221,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "inner join where, one match per row",
       "left semi join",
       "multiple-key equi-join is hash-join",
-      "full outer join"
+      "full outer join",
+      "test case sensitive for BHJ"
     )
 
   enableSuite[GlutenHashExpressionsSuite]

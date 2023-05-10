@@ -40,4 +40,18 @@ class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
     // NaN is not supported currently, just skip.
     "NaN and -0.0 in join keys"
   )
+
+  test("test case sensitive for BHJ") {
+    spark.sql("create table t_bhj(a int, b int, C int) using parquet")
+    spark.sql("insert overwrite t_bhj select id as a, (id+1) as b, (id+2) as c from range(3)")
+    val sql =
+      """
+        |select /*+ BROADCAST(t1) */ t0.a, t0.b
+        |from t_bhj as t0 join t_bhj as t1 on t0.a = t1.a and t0.b = t1.b and t0.c = t1.c
+        |group by t0.a, t0.b
+        |order by t0.a, t0.b
+        |""".stripMargin
+        val df = spark.sql(sql)
+    checkAnswer(df, Seq(Row(0, 1), Row(1, 2), Row(2, 3)))
+  }
 }
