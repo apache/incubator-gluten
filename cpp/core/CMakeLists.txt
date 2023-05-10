@@ -141,7 +141,13 @@ if(USE_AVX512)
 endif()
 
 # Set up Proto
-set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
+if (NOT DEFINED VELOX_HOME)
+  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)
+  message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
+endif()
+
+set(PROTO_OUTPUT_DIR "${VELOX_HOME}/velox/substrait/proto/")
+
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
 file(GLOB PROTO_FILES ${proto_directory}/*.proto
                       ${substrait_proto_directory}/*.proto
@@ -162,7 +168,7 @@ set(CODEGEN_HEADERS
     third_party/
     )
 set(THIRD_PARTY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE} ${VELOX_HOME})
 file(MAKE_DIRECTORY ${root_directory}/releases/include)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/common/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/third_party/)
@@ -254,16 +260,17 @@ else()
                         LINK_PUBLIC ${PROTOBUF_LIBRARY})
 endif()
 
-add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
-                   COMMAND ${PROTOC_BIN}
-                           --proto_path
-                           ${proto_directory}/
-                           --cpp_out
-                           ${PROTO_OUTPUT_DIR}
-                           ${PROTO_FILES}
-                   DEPENDS  ${PROTO_DIR}
-                   COMMENT "Running PROTO compiler"
-                   VERBATIM)
+#add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
+#                   COMMAND ${PROTOC_BIN}
+#                           --proto_path
+#                           ${proto_directory}/
+#                           --cpp_out
+#                           ${PROTO_OUTPUT_DIR}
+#                           ${PROTO_FILES}
+#                   DEPENDS  ${PROTO_DIR}
+#                   COMMENT "Running PROTO compiler"
+#                   VERBATIM)
+
 add_custom_target(jni_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)
 target_include_directories(gluten PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})

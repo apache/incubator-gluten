@@ -51,6 +51,8 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
+include_directories(SYSTEM "${VELOX_HOME}/velox/external/xxhash/")
+
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
 
 function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
