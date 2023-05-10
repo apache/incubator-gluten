@@ -306,7 +306,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
         _.isInstanceOf[ProjectExecTransformer]).isDefined)
     }
 
-    Seq(" 123", "123 ", " 123 ", "123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C")
+    Seq(" 123", "123 ", " 123 ", "\u2000123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C")
         .toDF("col1").createOrReplaceTempView("t1")
     val expectedIntResult = Row(123) :: Row(123) ::
         Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Nil
@@ -324,7 +324,8 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
     df = spark.sql("select cast(col1 as double) from t1")
     checkResult(df, expectedFloatResult)
 
-    val rawData = Seq(" abc", "abc ", " abc ", "abc\n\n\n", "abc\r\r\r", "abc\f\f\f", "abc\u000C")
+    val rawData = Seq(" abc", "abc ", " abc ", "\u2000abc\n\n\n",
+      "abc\r\r\r", "abc\f\f\f", "abc\u000C")
     rawData.toDF("col1").createOrReplaceTempView("t1")
     val expectedBinaryResult = rawData.map(d => Row(d.getBytes())).seq
     df = spark.sql("select cast(col1 as binary) from t1")

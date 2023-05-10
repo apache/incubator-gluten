@@ -24,7 +24,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.VeloxColumnarRules.OtherWritePostRule
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Literal, StringTrim}
-import org.apache.spark.sql.types.{ArrayType, BinaryType, MapType, StringType, StructType, UserDefinedType}
+import org.apache.spark.sql.types.{ArrayType, BinaryType, DecimalType, DoubleType, FloatType, MapType, StringType, StructType, UserDefinedType}
 
 class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
   /**
@@ -50,18 +50,34 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
    * add trim node for trimming space or whitespace. See spark's Cast.scala.
    */
   override def genCastWithNewChild(c: Cast): Cast = {
-    // Whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
-    // The space separator (except ' ', i.e., '\u0020', supported), line separator &
-    // paragraph separator are not supported to trim, assuming they are rarely used.
+    // Common whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
     val trimWhitespaceStr = " \t\n\u000B\u000C\u000D\u001C\u001D\u001E\u001F"
+    // Space separator.
+    val trimSpaceSepStr = "\u1680\u2008\u2009\u200A\u205F\u3000" +
+        ('\u2000' to '\u2006').toList.mkString
+    // Line separator.
+    val trimLineSepStr = "\u2028"
+    // Paragraph separator.
+    val trimParaSepStr = "\u2029"
+    // Needs to be trimmed for casting to float/double/decimal
+    val trimSpaceStr = ('\u0000' to '\u0020').toList.mkString
     c.dataType match {
       case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
         c
+      case FloatType | DoubleType | _: DecimalType =>
+        c.child.dataType match {
+          case StringType =>
+            val trimNode = StringTrim(c.child, Some(Literal(trimSpaceStr)))
+            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
+          case _ =>
+            c
+        }
       case _ =>
         c.child.dataType match {
           case StringType =>
-            val trim = StringTrim(c.child, Some(Literal(trimWhitespaceStr)))
-            c.withNewChildren(Seq(trim)).asInstanceOf[Cast]
+            val trimNode = StringTrim(c.child, Some(Literal(trimWhitespaceStr +
+                trimSpaceSepStr + trimLineSepStr + trimParaSepStr)))
+            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
           case _ =>
             c
         }
