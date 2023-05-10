@@ -51,7 +51,6 @@ class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
         |group by t0.a, t0.b
         |order by t0.a, t0.b
         |""".stripMargin
-        val df = spark.sql(sql)
-    checkAnswer(df, Seq(Row(0, 1), Row(1, 2), Row(2, 3)))
+    checkAnswer(spark.sql(sql), Seq(Row(0, 1), Row(1, 2), Row(2, 3)))
   }
 }
