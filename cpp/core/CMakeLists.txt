@@ -260,17 +260,6 @@ else()
                         LINK_PUBLIC ${PROTOBUF_LIBRARY})
 endif()
 
-#add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
-#                   COMMAND ${PROTOC_BIN}
-#                           --proto_path
-#                           ${proto_directory}/
-#                           --cpp_out
-#                           ${PROTO_OUTPUT_DIR}
-#                           ${PROTO_FILES}
-#                   DEPENDS  ${PROTO_DIR}
-#                   COMMENT "Running PROTO compiler"
-#                   VERBATIM)
-
 add_custom_target(jni_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)
 target_include_directories(gluten PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
