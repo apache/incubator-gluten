@@ -51,7 +51,7 @@ using arrow::RecordBatchReader;
 using arrow::Status;
 using gluten::ArrowShuffleWriter;
 using gluten::GlutenException;
-using gluten::SplitOptions;
+using gluten::ShuffleWriterOptions;
 
 namespace gluten {
 

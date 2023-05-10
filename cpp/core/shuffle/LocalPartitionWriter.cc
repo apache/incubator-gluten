@@ -136,25 +136,17 @@ class LocalPartitionWriter::LocalPartitionWriterInstance {
   bool spilledFileOpened_ = false;
 };
 
-arrow::Result<std::shared_ptr<LocalPartitionWriter>> LocalPartitionWriter::create(
-    ShuffleWriter* shuffleWriter,
-    int32_t numPartitions) {
-  std::shared_ptr<LocalPartitionWriter> res(new LocalPartitionWriter(shuffleWriter, numPartitions));
-  RETURN_NOT_OK(res->init());
-  return res;
-}
-
 arrow::Status LocalPartitionWriter::init() {
-  partition_writer_instance_.resize(num_partitions_);
+  partition_writer_instance_.resize(shuffleWriter_->numPartitions());
   ARROW_ASSIGN_OR_RAISE(configured_dirs_, getConfiguredLocalDirs());
   sub_dir_selection_.assign(configured_dirs_.size(), 0);
 
   // Both data_file and shuffle_index_file should be set through jni.
   // For test purpose, Create a temporary subdirectory in the system temporary
   // dir with prefix "columnar-shuffle"
-  if (shuffle_writer_->options().data_file.length() == 0) {
+  if (shuffleWriter_->options().data_file.length() == 0) {
     std::string dataFileTemp;
-    ARROW_ASSIGN_OR_RAISE(shuffle_writer_->options().data_file, createTempShuffleFile(configured_dirs_[0]));
+    ARROW_ASSIGN_OR_RAISE(shuffleWriter_->options().data_file, createTempShuffleFile(configured_dirs_[0]));
   }
   return arrow::Status::OK();
 }
@@ -162,7 +154,7 @@ arrow::Status LocalPartitionWriter::init() {
 std::string LocalPartitionWriter::nextSpilledFileDir() {
   auto spilledFileDir = getSpilledShuffleFileDir(configured_dirs_[dir_selection_], sub_dir_selection_[dir_selection_]);
   sub_dir_selection_[dir_selection_] =
-      (sub_dir_selection_[dir_selection_] + 1) % shuffle_writer_->options().num_sub_dirs;
+      (sub_dir_selection_[dir_selection_] + 1) % shuffleWriter_->options().num_sub_dirs;
   dir_selection_ = (dir_selection_ + 1) % configured_dirs_.size();
   return spilledFileDir;
 }
@@ -175,18 +167,18 @@ arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> LocalPartitionWriter::get
   schema_payload_ = std::make_shared<arrow::ipc::IpcPayload>();
   arrow::ipc::DictionaryFieldMapper dictFileMapper; // unused
   RETURN_NOT_OK(arrow::ipc::GetSchemaPayload(
-      *schema, shuffle_writer_->options().ipc_write_options, dictFileMapper, schema_payload_.get()));
+      *schema, shuffleWriter_->options().ipc_write_options, dictFileMapper, schema_payload_.get()));
   return schema_payload_;
 }
 
 arrow::Status LocalPartitionWriter::evictPartition(int32_t partitionId) {
   if (partition_writer_instance_[partitionId] == nullptr) {
     partition_writer_instance_[partitionId] =
-        std::make_shared<LocalPartitionWriterInstance>(this, shuffle_writer_, partitionId);
+        std::make_shared<LocalPartitionWriterInstance>(this, shuffleWriter_, partitionId);
   }
   int64_t tempTotalEvictTime = 0;
   TIME_NANO_OR_RAISE(tempTotalEvictTime, partition_writer_instance_[partitionId]->spill());
-  shuffle_writer_->setTotalEvictTime(tempTotalEvictTime);
+  shuffleWriter_->setTotalEvictTime(tempTotalEvictTime);
 
   return arrow::Status::OK();
 }
@@ -194,44 +186,52 @@ arrow::Status LocalPartitionWriter::evictPartition(int32_t partitionId) {
 arrow::Status LocalPartitionWriter::stop() {
   // open data file output stream
   std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(shuffle_writer_->options().data_file, true));
-  if (shuffle_writer_->options().buffered_write) {
+  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(shuffleWriter_->options().data_file, true));
+  if (shuffleWriter_->options().buffered_write) {
     ARROW_ASSIGN_OR_RAISE(
         data_file_os_,
-        arrow::io::BufferedOutputStream::Create(16384, shuffle_writer_->options().memory_pool.get(), fout));
+        arrow::io::BufferedOutputStream::Create(16384, shuffleWriter_->options().memory_pool.get(), fout));
   } else {
     data_file_os_ = fout;
   }
 
   // stop PartitionWriter and collect metrics
-  for (auto pid = 0; pid < num_partitions_; ++pid) {
-    RETURN_NOT_OK(shuffle_writer_->createRecordBatchFromBuffer(pid, true));
-    if (shuffle_writer_->partitionCachedRecordbatchSize()[pid] > 0) {
+  for (auto pid = 0; pid < shuffleWriter_->numPartitions(); ++pid) {
+    RETURN_NOT_OK(shuffleWriter_->createRecordBatchFromBuffer(pid, true));
+    if (shuffleWriter_->partitionCachedRecordbatchSize()[pid] > 0) {
       if (partition_writer_instance_[pid] == nullptr) {
-        partition_writer_instance_[pid] = std::make_shared<LocalPartitionWriterInstance>(this, shuffle_writer_, pid);
+        partition_writer_instance_[pid] = std::make_shared<LocalPartitionWriterInstance>(this, shuffleWriter_, pid);
       }
     }
     if (partition_writer_instance_[pid] != nullptr) {
       const auto& writer = partition_writer_instance_[pid];
       int64_t tempTotalWriteTime = 0;
       TIME_NANO_OR_RAISE(tempTotalWriteTime, writer->writeCachedRecordBatchAndClose());
-      shuffle_writer_->setTotalWriteTime(tempTotalWriteTime);
-      shuffle_writer_->setPartitionLengths(pid, writer->partition_length);
-      shuffle_writer_->setTotalBytesWritten(shuffle_writer_->totalBytesWritten() + writer->partition_length);
-      shuffle_writer_->setTotalBytesEvicted(shuffle_writer_->totalBytesEvicted() + writer->bytes_spilled);
+      shuffleWriter_->setTotalWriteTime(tempTotalWriteTime);
+      shuffleWriter_->setPartitionLengths(pid, writer->partition_length);
+      shuffleWriter_->setTotalBytesWritten(shuffleWriter_->totalBytesWritten() + writer->partition_length);
+      shuffleWriter_->setTotalBytesEvicted(shuffleWriter_->totalBytesEvicted() + writer->bytes_spilled);
     } else {
-      shuffle_writer_->setPartitionLengths(pid, 0);
+      shuffleWriter_->setPartitionLengths(pid, 0);
     }
   }
-  if (shuffle_writer_->combineBuffer() != nullptr) {
-    shuffle_writer_->combineBuffer().reset();
+  if (shuffleWriter_->combineBuffer() != nullptr) {
+    shuffleWriter_->combineBuffer().reset();
   }
   this->schema_payload_.reset();
-  shuffle_writer_->partitionBuffer().clear();
+  shuffleWriter_->partitionBuffer().clear();
 
   // close data file output Stream
   RETURN_NOT_OK(data_file_os_->Close());
   return arrow::Status::OK();
 }
 
+LocalPartitionWriterCreator::LocalPartitionWriterCreator() : PartitionWriterCreator() {}
+
+arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> LocalPartitionWriterCreator::Make(
+    ShuffleWriter* shuffleWriter) {
+  std::shared_ptr<LocalPartitionWriter> res(new LocalPartitionWriter(shuffleWriter));
+  RETURN_NOT_OK(res->init());
+  return res;
+}
 } // namespace gluten

@@ -16,18 +16,5 @@
  */
 
 #include "shuffle/rss/RemotePartitionWriter.h"
-#include "shuffle/rss/CelebornPartitionWriter.h"
 
-namespace gluten {
-
-arrow::Result<std::shared_ptr<RemotePartitionWriter>> RemotePartitionWriter::Make(
-    ShuffleWriter* shuffleWriter,
-    int32_t numPartitions) {
-  const std::string& partitionWriterType = shuffleWriter->options().partition_writer_type;
-  if (partitionWriterType == "celeborn") {
-    return CelebornPartitionWriter::create(shuffleWriter, numPartitions);
-  }
-  return arrow::Status::NotImplemented("Partition Writer Type " + partitionWriterType + " not supported yet.");
-}
-
-} // namespace gluten
+namespace gluten {} // namespace gluten

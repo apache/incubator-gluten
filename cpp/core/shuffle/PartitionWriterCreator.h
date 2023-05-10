@@ -17,22 +17,17 @@
 
 #pragma once
 
+#include "shuffle/PartitionWriter.h"
 #include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
 
-class ShuffleWriter::PartitionWriter {
+class ShuffleWriter::PartitionWriterCreator {
  public:
-  PartitionWriter(ShuffleWriter* shuffleWriter) : shuffleWriter_(shuffleWriter) {}
-  virtual ~PartitionWriter() = default;
+  PartitionWriterCreator() = default;
+  virtual ~PartitionWriterCreator() = default;
 
-  virtual arrow::Status init() = 0;
-
-  virtual arrow::Status evictPartition(int32_t partitionId) = 0;
-
-  virtual arrow::Status stop() = 0;
-
-  ShuffleWriter* shuffleWriter_;
+  virtual arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(ShuffleWriter* shuffleWriter) = 0;
 };
 
 } // namespace gluten

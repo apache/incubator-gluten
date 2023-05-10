@@ -167,13 +167,20 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
-std::shared_ptr<ShuffleWriter>
-VeloxBackend::makeShuffleWriter(int numPartitions, const SplitOptions& options, const std::string& batchType) {
+std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
+    int numPartitions,
+    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+    const ShuffleWriterOptions& options,
+    const std::string& batchType) {
   if (batchType == "velox") {
-    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, VeloxShuffleWriter::create(numPartitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer,
+        VeloxShuffleWriter::create(numPartitions, std::move(partition_writer_creator), std::move(options)));
     return shuffle_writer;
   } else {
-    GLUTEN_ASSIGN_OR_THROW(auto shuffle_writer, ArrowShuffleWriter::create(numPartitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffle_writer,
+        ArrowShuffleWriter::create(numPartitions, std::move(partition_writer_creator), std::move(options)));
     return shuffle_writer;
   }
 }

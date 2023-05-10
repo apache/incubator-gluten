@@ -26,6 +26,8 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
+#include "shuffle/LocalPartitionWriter.h"
+
 void printTrace(void) {
   char** strings;
   size_t i, size;
@@ -139,7 +141,8 @@ class ArrowShuffleWriterTest : public ::testing::Test {
         {hashPartitionKey, fNa, fInt8A, fInt8B, fInt32, fUint64, fDouble, fBool, fString, fNullableString, fDecimal});
     makeInputBatch(hashInputData1_, hashSchema_, &hashInputBatch1_);
     makeInputBatch(hashInputData2_, hashSchema_, &hashInputBatch2_);
-    splitOptions_ = SplitOptions::defaults();
+    shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
+    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>();
   }
 
   void TearDown() override {
@@ -185,7 +188,8 @@ class ArrowShuffleWriterTest : public ::testing::Test {
 
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<ArrowShuffleWriter> shuffleWriter_;
-  SplitOptions splitOptions_;
+  std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator_;
+  ShuffleWriterOptions shuffleWriterOptions_;
 
   std::shared_ptr<arrow::RecordBatch> inputBatch1_;
   std::shared_ptr<arrow::RecordBatch> inputBatch2_;
@@ -239,10 +243,10 @@ std::shared_ptr<ColumnarBatch> recordBatchToColumnarBatch(std::shared_ptr<arrow:
 }
 
 TEST_F(ArrowShuffleWriterTest, TestSinglePartPartitioner) {
-  splitOptions_.buffer_size = 10;
-  splitOptions_.partitioning_name = "single";
+  shuffleWriterOptions_.buffer_size = 10;
+  shuffleWriterOptions_.partitioning_name = "single";
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(1, splitOptions_))
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_))
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch1_).get()));
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch2_).get()));
@@ -285,10 +289,11 @@ TEST_F(ArrowShuffleWriterTest, TestSinglePartPartitioner) {
 
 TEST_F(ArrowShuffleWriterTest, TestRoundRobinPartitioner) {
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch1_).get()));
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch2_).get()));
@@ -353,12 +358,13 @@ TEST_F(ArrowShuffleWriterTest, TestShuffleWriterMemoryLeak) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(17 * 1024 * 1024);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.memory_pool = pool;
-  splitOptions_.write_schema = false;
-  splitOptions_.partitioning_name = "rr";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.memory_pool = pool;
+  shuffleWriterOptions_.write_schema = false;
+  shuffleWriterOptions_.partitioning_name = "rr";
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch1_).get()));
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch2_).get()));
@@ -373,10 +379,11 @@ TEST_F(ArrowShuffleWriterTest, TestShuffleWriterMemoryLeak) {
 
 TEST_F(ArrowShuffleWriterTest, TestHashPartitioner) {
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "hash";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "hash";
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_))
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_))
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(hashInputBatch1_).get()));
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(hashInputBatch2_).get()));
@@ -409,8 +416,8 @@ TEST_F(ArrowShuffleWriterTest, TestHashPartitioner) {
 
 TEST_F(ArrowShuffleWriterTest, TestFallbackRangePartitioner) {
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "range";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "range";
 
   std::shared_ptr<arrow::Array> pidArr0;
   ARROW_ASSIGN_OR_THROW(
@@ -425,7 +432,8 @@ TEST_F(ArrowShuffleWriterTest, TestFallbackRangePartitioner) {
   ARROW_ASSIGN_OR_THROW(inputBatch1WPid, inputBatch1_->AddColumn(0, "pid", pidArr0));
   ARROW_ASSIGN_OR_THROW(inputBatch2WPid, inputBatch2_->AddColumn(0, "pid", pidArr1));
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_))
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_))
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch1WPid).get()));
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch2WPid).get()));
@@ -490,10 +498,11 @@ TEST_F(ArrowShuffleWriterTest, TestSpillFailWithOutOfMemory) {
   auto pool = std::make_shared<MyMemoryPool>(0);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.memory_pool = pool;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.memory_pool = pool;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   auto status = shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch1_).get());
   // should return OOM status because there's no partition buffer to spill
@@ -506,11 +515,12 @@ TEST_F(ArrowShuffleWriterTest, TestSpillLargestPartition) {
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  // split_options_.memory_pool = pool.get();
-  splitOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  // shuffleWriterOptions_.memory_pool = pool.get();
+  shuffleWriterOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   for (int i = 0; i < 100; ++i) {
     ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatch1_).get()));
@@ -540,9 +550,10 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -612,9 +623,10 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -683,9 +695,10 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -756,9 +769,10 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -827,9 +841,10 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -900,9 +915,10 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -971,9 +987,10 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -1030,8 +1047,8 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
 
 TEST_F(ArrowShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions) {
   int32_t numPartitions = 5;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "hash";
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "hash";
 
   auto hashPartitionKey = arrow::field("hash_partition_key", arrow::int32());
   auto fUint64 = arrow::field("f_uint64", arrow::uint64());
@@ -1043,7 +1060,8 @@ TEST_F(ArrowShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions)
   std::shared_ptr<arrow::RecordBatch> inputBatchArr;
   makeInputBatch(inputBatch1Data, rbSchema, &inputBatchArr);
 
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
 
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
 
@@ -1090,11 +1108,12 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompressi
   makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
 
   int32_t numPartitions = 2;
-  splitOptions_.buffer_size = 4;
-  splitOptions_.partitioning_name = "rr";
-  ARROW_ASSIGN_OR_THROW(shuffleWriter_, ArrowShuffleWriter::create(numPartitions, splitOptions_));
-  auto compressionType = arrow::util::Codec::GetCompressionType("lz4");
-  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compressionType.MoveValueUnsafe()));
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
+  auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
+  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compression_type.MoveValueUnsafe()));
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
 

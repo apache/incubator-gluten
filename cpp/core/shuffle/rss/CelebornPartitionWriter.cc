@@ -19,25 +19,16 @@
 
 namespace gluten {
 
-arrow::Result<std::shared_ptr<CelebornPartitionWriter>> CelebornPartitionWriter::create(
-    ShuffleWriter* shuffleWriter,
-    int32_t numPartitions) {
-  std::shared_ptr<CelebornPartitionWriter> res(new CelebornPartitionWriter(shuffleWriter, numPartitions));
-  RETURN_NOT_OK(res->init());
-  return res;
-}
-
 arrow::Status CelebornPartitionWriter::init() {
-  celebornClient_ = std::move(shuffle_writer_->options().celeborn_client);
   return arrow::Status::OK();
 }
 
 arrow::Status CelebornPartitionWriter::evictPartition(int32_t partitionId) {
   int64_t tempTotalTime = 0;
   TIME_NANO_OR_RAISE(tempTotalTime, writeArrowToOutputStream(partitionId));
-  shuffle_writer_->setTotalWriteTime(shuffle_writer_->totalWriteTime() + tempTotalTime);
+  shuffleWriter_->setTotalWriteTime(shuffleWriter_->totalWriteTime() + tempTotalTime);
   TIME_NANO_OR_RAISE(tempTotalTime, pushPartition(partitionId));
-  shuffle_writer_->setTotalEvictTime(shuffle_writer_->totalEvictTime() + tempTotalTime);
+  shuffleWriter_->setTotalEvictTime(shuffleWriter_->totalEvictTime() + tempTotalTime);
   return arrow::Status::OK();
 };
 
@@ -46,26 +37,25 @@ arrow::Status CelebornPartitionWriter::pushPartition(int32_t partitionId) {
   int32_t size = buffer->get()->size();
   char* dst = reinterpret_cast<char*>(buffer->get()->mutable_data());
   celebornClient_->pushPartitonData(partitionId, dst, size);
-  shuffle_writer_->partitionCachedRecordbatch()[partitionId].clear();
-  shuffle_writer_->setPartitionCachedRecordbatchSize(partitionId, 0);
-  shuffle_writer_->setPartitionLengths(partitionId, shuffle_writer_->partitionLengths()[partitionId] + size);
+  shuffleWriter_->partitionCachedRecordbatch()[partitionId].clear();
+  shuffleWriter_->setPartitionCachedRecordbatchSize(partitionId, 0);
+  shuffleWriter_->setPartitionLengths(partitionId, shuffleWriter_->partitionLengths()[partitionId] + size);
   return arrow::Status::OK();
 };
 
 arrow::Status CelebornPartitionWriter::stop() {
   // push data and collect metrics
-  for (auto pid = 0; pid < num_partitions_; ++pid) {
-    RETURN_NOT_OK(shuffle_writer_->createRecordBatchFromBuffer(pid, true));
-    if (shuffle_writer_->partitionCachedRecordbatchSize()[pid] > 0) {
+  for (auto pid = 0; pid < shuffleWriter_->numPartitions(); ++pid) {
+    RETURN_NOT_OK(shuffleWriter_->createRecordBatchFromBuffer(pid, true));
+    if (shuffleWriter_->partitionCachedRecordbatchSize()[pid] > 0) {
       RETURN_NOT_OK(evictPartition(pid));
     }
-    shuffle_writer_->setTotalBytesWritten(
-        shuffle_writer_->totalBytesWritten() + shuffle_writer_->partitionLengths()[pid]);
+    shuffleWriter_->setTotalBytesWritten(shuffleWriter_->totalBytesWritten() + shuffleWriter_->partitionLengths()[pid]);
   }
-  if (shuffle_writer_->combineBuffer() != nullptr) {
-    shuffle_writer_->combineBuffer().reset();
+  if (shuffleWriter_->combineBuffer() != nullptr) {
+    shuffleWriter_->combineBuffer().reset();
   }
-  shuffle_writer_->partitionBuffer().clear();
+  shuffleWriter_->partitionBuffer().clear();
   return arrow::Status::OK();
 };
 
@@ -73,16 +63,26 @@ arrow::Status CelebornPartitionWriter::writeArrowToOutputStream(int32_t partitio
   ARROW_ASSIGN_OR_RAISE(
       celebornBufferOs_,
       arrow::io::BufferOutputStream::Create(
-          shuffle_writer_->options().buffer_size, shuffle_writer_->options().memory_pool.get()));
+          shuffleWriter_->options().buffer_size, shuffleWriter_->options().memory_pool.get()));
   int32_t metadataLength = 0; // unused
 #ifndef SKIPWRITE
-  for (auto& payload : shuffle_writer_->partitionCachedRecordbatch()[partitionId]) {
+  for (auto& payload : shuffleWriter_->partitionCachedRecordbatch()[partitionId]) {
     RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(
-        *payload, shuffle_writer_->options().ipc_write_options, celebornBufferOs_.get(), &metadataLength));
+        *payload, shuffleWriter_->options().ipc_write_options, celebornBufferOs_.get(), &metadataLength));
     payload = nullptr;
   }
 #endif
   return arrow::Status::OK();
+}
+
+CelebornPartitionWriterCreator::CelebornPartitionWriterCreator(std::shared_ptr<CelebornClient> client)
+    : PartitionWriterCreator(), client_(client) {}
+
+arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> CelebornPartitionWriterCreator::Make(
+    ShuffleWriter* shuffleWriter) {
+  std::shared_ptr<CelebornPartitionWriter> res(new CelebornPartitionWriter(shuffleWriter, client_));
+  RETURN_NOT_OK(res->init());
+  return res;
 }
 
 } // namespace gluten

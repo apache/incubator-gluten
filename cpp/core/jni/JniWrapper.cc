@@ -29,8 +29,11 @@
 #include "operators/writer/Datasource.h"
 
 #include <arrow/c/bridge.h>
+#include "shuffle/LocalPartitionWriter.h"
+#include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/reader.h"
+#include "shuffle/rss/CelebornPartitionWriter.h"
 
 namespace types {
 class ExpressionList;
@@ -707,7 +710,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jlong firstBatchHandle,
     jlong taskAttemptId,
     jint pushBufferMaxSize,
-    jobject celebornPartitionPusher,
+    jobject partitionPusher,
     jstring partitionWriterTypeJstr) {
   JNI_METHOD_START
   if (partitioningNameJstr == nullptr) {
@@ -717,18 +720,18 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   auto partitioningName = jStringToCString(env, partitioningNameJstr);
 
-  auto splitOptions = SplitOptions::defaults();
-  splitOptions.partitioning_name = partitioningName;
-  splitOptions.buffered_write = true;
+  auto shuffleWriterOptions = ShuffleWriterOptions::defaults();
+  shuffleWriterOptions.partitioning_name = partitioningName;
+  shuffleWriterOptions.buffered_write = true;
   if (bufferSize > 0) {
-    splitOptions.buffer_size = bufferSize;
+    shuffleWriterOptions.buffer_size = bufferSize;
   }
-  splitOptions.offheap_per_task = offheapPerTask;
+  shuffleWriterOptions.offheap_per_task = offheapPerTask;
 
   if (compressionTypeJstr != NULL) {
     auto compressionTypeResult = getCompressionType(env, compressionTypeJstr);
     if (compressionTypeResult.status().ok()) {
-      splitOptions.compression_type = compressionTypeResult.MoveValueUnsafe();
+      shuffleWriterOptions.compression_type = compressionTypeResult.MoveValueUnsafe();
     }
   }
 
@@ -736,7 +739,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   if (allocator == nullptr) {
     gluten::jniThrow("Memory pool does not exist or has been closed");
   }
-  splitOptions.memory_pool = asWrappedArrowMemoryPool(allocator);
+  shuffleWriterOptions.memory_pool = asWrappedArrowMemoryPool(allocator);
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -746,17 +749,20 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   } else {
     jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
     jlong sid = env->CallLongMethod(thread, midGetid);
-    splitOptions.thread_id = (int64_t)sid;
+    shuffleWriterOptions.thread_id = (int64_t)sid;
   }
 
-  splitOptions.task_attempt_id = (int64_t)taskAttemptId;
-  splitOptions.batch_compress_threshold = batchCompressThreshold;
+  shuffleWriterOptions.task_attempt_id = (int64_t)taskAttemptId;
+  shuffleWriterOptions.batch_compress_threshold = batchCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);
   env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
+
+  std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator;
+
   if (partitionWriterType == "local") {
-    splitOptions.partition_writer_type = "local";
+    shuffleWriterOptions.partition_writer_type = "local";
     if (dataFileJstr == NULL) {
       gluten::jniThrow(std::string("Shuffle DataFile can't be null"));
     }
@@ -764,41 +770,45 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
       gluten::jniThrow(std::string("Shuffle DataFile can't be null"));
     }
 
-    splitOptions.write_schema = writeSchema;
-    splitOptions.prefer_evict = preferEvict;
+    shuffleWriterOptions.write_schema = writeSchema;
+    shuffleWriterOptions.prefer_evict = preferEvict;
 
     if (numSubDirs > 0) {
-      splitOptions.num_sub_dirs = numSubDirs;
+      shuffleWriterOptions.num_sub_dirs = numSubDirs;
     }
 
     auto dataFileC = env->GetStringUTFChars(dataFileJstr, JNI_FALSE);
-    splitOptions.data_file = std::string(dataFileC);
+    shuffleWriterOptions.data_file = std::string(dataFileC);
     env->ReleaseStringUTFChars(dataFileJstr, dataFileC);
 
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", localDirs, 1);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
+    partition_writer_creator = std::make_shared<LocalPartitionWriterCreator>();
   } else if (partitionWriterType == "celeborn") {
-    splitOptions.partition_writer_type = "celeborn";
+    shuffleWriterOptions.partition_writer_type = "celeborn";
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =
         getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[B)I");
     if (pushBufferMaxSize > 0) {
-      splitOptions.push_buffer_max_size = pushBufferMaxSize;
+      shuffleWriterOptions.push_buffer_max_size = pushBufferMaxSize;
     }
     JavaVM* vm;
     if (env->GetJavaVM(&vm) != JNI_OK) {
       gluten::jniThrow("Unable to get JavaVM instance");
     }
     std::shared_ptr<CelebornClient> celebornClient =
-        std::make_shared<CelebornClient>(vm, celebornPartitionPusher, celebornPushPartitionDataMethod);
-    splitOptions.celeborn_client = std::move(celebornClient);
+        std::make_shared<CelebornClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
+    partition_writer_creator = std::make_shared<CelebornPartitionWriterCreator>(std::move(celebornClient));
+  } else {
+    gluten::jniThrow("Unrecognizable partition writer type: " + partitionWriterType);
   }
 
   auto backend = gluten::createBackend();
   auto batch = glutenColumnarbatchHolder.lookup(firstBatchHandle);
-  auto shuffleWriter = backend->makeShuffleWriter(numPartitions, std::move(splitOptions), batch->getType());
+  auto shuffleWriter = backend->makeShuffleWriter(
+      numPartitions, std::move(partition_writer_creator), std::move(shuffleWriterOptions), batch->getType());
 
   return shuffleWriterHolder.insert(shuffleWriter);
   JNI_METHOD_END(-1L)
