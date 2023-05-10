@@ -39,7 +39,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       // Currently, it can not support to read multiple partitioned file in one task.
-      //      .set("spark.sql.files.maxPartitionBytes", "134217728")
+      .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.memory.offHeap.size", "4g")
