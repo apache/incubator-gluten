@@ -17,11 +17,9 @@
 
 #include "BenchmarkUtils.h"
 
-#include <velox/dwio/common/Options.h>
-
-#include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
+#include "velox/dwio/common/Options.h"
 
 using namespace facebook;
 namespace fs = std::filesystem;

@@ -16,9 +16,9 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <compute/VeloxBackend.h>
 
 #include "BenchmarkUtils.h"
-#include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 
 using namespace facebook;
