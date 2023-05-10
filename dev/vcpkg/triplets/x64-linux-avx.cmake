@@ -19,3 +19,6 @@ endif()
 if(PORT MATCHES "folly")
     set(VCPKG_CMAKE_CONFIGURE_OPTIONS "-DFOLLY_NO_EXCEPTION_TRACER=ON")
 endif()
+
+# Avoid build both release and debug
+set(VCPKG_BUILD_TYPE "release")
