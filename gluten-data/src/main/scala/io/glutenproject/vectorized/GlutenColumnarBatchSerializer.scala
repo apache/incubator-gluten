@@ -59,13 +59,14 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         .contextInstance()
         .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
 
+      private val jniByteInputStream = JniByteInputStreams.create(in)
+
       private val shuffleReaderHandle = {
         val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         val arrowSchema =
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        val handle = ShuffleReaderJniWrapper.make(
-          JniByteInputStreams.create(in), cSchema.memoryAddress(),
+        val handle = ShuffleReaderJniWrapper.make(jniByteInputStream, cSchema.memoryAddress(),
           NativeMemoryAllocators.contextInstance.getNativeInstanceId)
         cSchema.close()
         // Close shuffle reader instance as lately as the end of task processing,
@@ -141,6 +142,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
+          jniByteInputStream.close()
           if (cb != null) cb.close()
           allocator.close()
           isClosed = true
