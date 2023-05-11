@@ -1088,8 +1088,8 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompressi
   shuffleWriterOptions_.partitioning_name = "rr";
   ARROW_ASSIGN_OR_THROW(
       shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
-  auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
-  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compression_type.MoveValueUnsafe()));
+  auto compressionType = arrow::util::Codec::GetCompressionType("lz4");
+  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compressionType.MoveValueUnsafe()));
   ASSERT_NOT_OK(splitRecordBatch(*shuffleWriter_, *inputBatchArr));
   ASSERT_NOT_OK(shuffleWriter_->stop());
 

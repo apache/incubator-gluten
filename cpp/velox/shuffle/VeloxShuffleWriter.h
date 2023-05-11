@@ -56,11 +56,11 @@ namespace gluten {
 
 #else // VELOX_SHUFFLE_WRITER_PRINT
 
-#define VsPrint(...)
-#define VsPrintLF(...)
-#define VsPrintSplit(...)
-#define VsPrintSplitLF(...)
-#define VsPrintVectorRange(...)
+#define VsPrint(...) // NOLINT
+#define VsPrintLF(...) // NOLINT
+#define VsPrintSplit(...) // NOLINT
+#define VsPrintSplitLF(...) // NOLINT
+#define VsPrintVectorRange(...) // NOLINT
 #define VS_PRINT(a)
 #define VS_PRINTLF(a)
 #define VS_PRINT_FUNCTION_NAME()
@@ -94,7 +94,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
-      std::shared_ptr<PartitionWriterCreator> partition_writer_creator,
+      std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options);
 
   arrow::Status split(ColumnarBatch* cb) override;
@@ -166,9 +166,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
  protected:
   VeloxShuffleWriter(
       uint32_t numPartitions,
-      std::shared_ptr<PartitionWriterCreator> partition_writer_creator,
+      std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options)
-      : ShuffleWriter(numPartitions, partition_writer_creator, options) {}
+      : ShuffleWriter(numPartitions, partitionWriterCreator, options) {}
 
   arrow::Status init();
 

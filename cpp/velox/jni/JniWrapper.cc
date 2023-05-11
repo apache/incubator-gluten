@@ -59,7 +59,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative( // NOLINT
     JNIEnv* env,
     jobject obj,
     jbyteArray planArray) {
@@ -72,12 +72,12 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenprovject_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative(
+JNIEXPORT void JNICALL Java_io_glutenprovject_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative( // NOLINT
     JNIEnv* env){JNI_METHOD_START
                      // TODO Release resources allocated for single executor/driver
                      JNI_METHOD_END()}
 
-JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate( // NOLINT
     JNIEnv* env,
     jobject obj,
     jbyteArray planArray) {

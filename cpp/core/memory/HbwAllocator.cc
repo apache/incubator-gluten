@@ -54,24 +54,24 @@ bool HbwMemoryAllocator::allocateAligned(uint16_t alignment, int64_t size, void*
   return true;
 }
 
-bool HbwMemoryAllocator::reallocate(void* p, int64_t size, int64_t new_size, void** out) {
-  *out = hbw_realloc(p, new_size);
-  bytes_ += (new_size - size);
+bool HbwMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void** out) {
+  *out = hbw_realloc(p, newSize);
+  bytes_ += (newSize - size);
   return true;
 }
 
-bool HbwMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) {
-  if (new_size <= 0) {
+bool HbwMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) {
+  if (newSize <= 0) {
     return false;
   }
-  void* reallocated_p = nullptr;
-  if (hbw_posix_memalign(&reallocated_p, alignment, new_size) != 0) {
+  void* reallocatedP = nullptr;
+  if (hbw_posix_memalign(&reallocatedP, alignment, newSize) != 0) {
     return false;
   }
-  memcpy(reallocated_p, p, std::min(size, new_size));
+  memcpy(reallocatedP, p, std::min(size, newSize));
   hbw_free(p);
-  *out = reallocated_p;
-  bytes_ += (new_size - size);
+  *out = reallocatedP;
+  bytes_ += (newSize - size);
   return true;
 }
 

@@ -78,7 +78,7 @@ arrow::Status CelebornPartitionWriter::writeArrowToOutputStream(int32_t partitio
 CelebornPartitionWriterCreator::CelebornPartitionWriterCreator(std::shared_ptr<CelebornClient> client)
     : PartitionWriterCreator(), client_(client) {}
 
-arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> CelebornPartitionWriterCreator::Make(
+arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> CelebornPartitionWriterCreator::make(
     ShuffleWriter* shuffleWriter) {
   std::shared_ptr<CelebornPartitionWriter> res(new CelebornPartitionWriter(shuffleWriter, client_));
   RETURN_NOT_OK(res->init());

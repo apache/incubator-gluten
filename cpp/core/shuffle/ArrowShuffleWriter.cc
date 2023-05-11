@@ -90,10 +90,10 @@ ShuffleWriterOptions ShuffleWriterOptions::defaults() {
 
 arrow::Result<std::shared_ptr<ArrowShuffleWriter>> ArrowShuffleWriter::create(
     uint32_t numPartitions,
-    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
     ShuffleWriterOptions options) {
   std::shared_ptr<ArrowShuffleWriter> res(
-      new ArrowShuffleWriter(numPartitions, std::move(partition_writer_creator), std::move(options)));
+      new ArrowShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options)));
   RETURN_NOT_OK(res->init());
   return res;
 }
@@ -169,7 +169,7 @@ arrow::Status ArrowShuffleWriter::init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->Make(this));
+  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(this));
 
   ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning_name, numPartitions_));
 

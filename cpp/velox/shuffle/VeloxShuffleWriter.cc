@@ -79,10 +79,10 @@ bool vectorHasNull(const velox::VectorPtr& vp) {
 // VeloxShuffleWriter
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     uint32_t numPartitions,
-    std::shared_ptr<PartitionWriterCreator> partition_writer_creator,
+    std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
     ShuffleWriterOptions options) {
   std::shared_ptr<VeloxShuffleWriter> res(
-      new VeloxShuffleWriter(numPartitions, std::move(partition_writer_creator), std::move(options)));
+      new VeloxShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options)));
   RETURN_NOT_OK(res->init());
   return res;
 }
@@ -100,7 +100,7 @@ arrow::Status VeloxShuffleWriter::init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->Make(this));
+  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(this));
 
   ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning_name, numPartitions_));
 

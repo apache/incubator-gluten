@@ -53,7 +53,7 @@ class VeloxBackend final : public Backend {
 
   std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       const std::string& batchType) override;
 
