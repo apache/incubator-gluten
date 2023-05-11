@@ -298,6 +298,8 @@ endif()
 
 target_link_libraries(gluten
     PUBLIC Arrow::arrow Arrow::parquet)
+target_link_libraries(gluten
+        PUBLIC atomic)
 
 install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})

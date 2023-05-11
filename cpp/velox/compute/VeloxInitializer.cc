@@ -82,7 +82,7 @@ void VeloxInitializer::init(std::unordered_map<std::string, std::string>& conf) 
         {"hive.s3.use-instance-credentials", useInstanceCredentials},
     });
   } else {
-    S3Config.insert({
+    s3Config.insert({
         {"hive.s3.aws-access-key", awsAccessKey},
         {"hive.s3.aws-secret-key", awsSecretKey},
         {"hive.s3.endpoint", awsEndpoint},
