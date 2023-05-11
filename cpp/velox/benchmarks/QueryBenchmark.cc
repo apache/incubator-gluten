@@ -36,12 +36,15 @@ const std::string getFilePath(const std::string& fileName) {
 std::shared_ptr<ResultIterator> getResultIterator(
     MemoryAllocator* allocator,
     std::shared_ptr<Backend> backend,
-    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
-  auto ctxPool = getDefaultVeloxLeafMemoryPool()->addAggregateChild("query_benchmark_result_iterator");
-  auto resultPool = ctxPool->addLeafChild("query_benchmark_result_vector");
+    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos,
+    std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
+  auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
+  auto ctxPool = veloxPool->addAggregateChild("query_benchmark_result_iterator");
+  auto resultPool = getDefaultVeloxLeafMemoryPool();
+
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, ctxPool);
-  auto veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
+  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, resultPool);
+  veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.
   std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
@@ -57,7 +60,7 @@ std::shared_ptr<ResultIterator> getResultIterator(
   return std::make_shared<ResultIterator>(std::move(wholestageIter), backend);
 }
 
-auto bm = [](::benchmark::State& state,
+auto BM = [](::benchmark::State& state,
              const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile,
              const std::string& fileFormat) {
@@ -67,7 +70,11 @@ auto bm = [](::benchmark::State& state,
   std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
   for (const auto& datasetPath : datasetPaths) {
-    scanInfos.emplace_back(getSplitInfos(datasetPath, fileFormat));
+    if (std::filesystem::is_directory(datasetPath)) {
+      scanInfos.emplace_back(getSplitInfos(datasetPath, fileFormat));
+    } else {
+      scanInfos.emplace_back(getSplitInfosFromFile(datasetPath, fileFormat));
+    }
   }
 
   for (auto _ : state) {
@@ -76,8 +83,8 @@ auto bm = [](::benchmark::State& state,
     state.ResumeTiming();
 
     backend->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
-    auto resultIter = getResultIterator(gluten::defaultMemoryAllocator().get(), backend, scanInfos);
-    auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
+    std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan;
+    auto resultIter = getResultIterator(gluten::defaultMemoryAllocator().get(), backend, scanInfos, veloxPlan);
     auto outputSchema = toArrowSchema(veloxPlan->outputType());
     while (resultIter->hasNext()) {
       auto array = resultIter->next()->exportArrowArray();
@@ -90,6 +97,8 @@ auto bm = [](::benchmark::State& state,
     }
   }
 };
+
+#define orc_reader_decimal 1
 
 int main(int argc, char** argv) {
   initVeloxBackend();
@@ -109,12 +118,17 @@ int main(int argc, char** argv) {
   }
 #else
   // For ORC debug.
-  const auto& lineitemOrcPath = getFilePath("bm_lineitem/orc/");
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("select", bm, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
+    auto lineitemOrcPath = getFilePath("bm_lineitem/orc/");
+#if orc_reader_decimal == 0
+    ::benchmark::RegisterBenchmark("select", BM, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
+#else
+    auto fileName = lineitemOrcPath + "short_decimal_nonull.orc";
+    ::benchmark::RegisterBenchmark("select", BM, std::vector<std::string>{fileName}, "select_decimal.json", "orc");
+#endif
   } else {
     ::benchmark::RegisterBenchmark(
-        "select", bm, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
+        "select", BM, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
   }
 #endif
 

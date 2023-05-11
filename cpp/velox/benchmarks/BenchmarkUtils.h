@@ -84,6 +84,10 @@ std::shared_ptr<facebook::velox::substrait::SplitInfo> getSplitInfos(
     const std::string& datasetPath,
     const std::string& fileFormat);
 
+std::shared_ptr<facebook::velox::substrait::SplitInfo> getSplitInfosFromFile(
+    const std::string& fileName,
+    const std::string& fileFormat);
+
 bool checkPathExists(const std::string& filepath);
 
 void abortIfFileNotExists(const std::string& filepath);
