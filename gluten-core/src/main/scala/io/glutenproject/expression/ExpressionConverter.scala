@@ -391,11 +391,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case s: org.apache.spark.sql.execution.ScalarSubquery =>
         new ScalarSubqueryTransformer(s.plan, s.exprId, s)
       case c: Cast =>
+        // Add trim node, as necessary.
+        val newCast =
+          BackendsApiManager.getSparkPlanExecApiInstance.genCastWithNewChild(c)
         new CastTransformer(
-          replaceWithExpressionTransformer(c.child, attributeSeq),
-          c.dataType,
-          c.timeZoneId,
-          c)
+          replaceWithExpressionTransformer(newCast.child, attributeSeq),
+          newCast.dataType,
+          newCast.timeZoneId,
+          newCast)
       case k: KnownFloatingPointNormalized =>
         new KnownFloatingPointNormalizedTransformer(
           replaceWithExpressionTransformer(k.child, attributeSeq),
