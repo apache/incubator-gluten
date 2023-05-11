@@ -282,6 +282,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
         case _: BinaryType =>
         case _: DecimalType =>
         case _: DateType =>
+        case _: TimestampType =>
         case _ => return false
       }
     }

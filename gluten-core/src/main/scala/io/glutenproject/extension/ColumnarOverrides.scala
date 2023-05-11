@@ -68,7 +68,10 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
     val project = ProjectExec(
       Seq(Alias(hashExpression, "hash_partition_key")()) ++ child.output, child)
     AddTransformHintRule().apply(project)
-    replaceWithTransformerPlan(project)
+    TransformHints.getHint(project) match {
+      case TRANSFORM_SUPPORTED() => replaceWithTransformerPlan(project)
+      case TRANSFORM_UNSUPPORTED() => project
+    }
   }
 
   /**
