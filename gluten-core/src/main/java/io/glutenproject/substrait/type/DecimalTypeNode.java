@@ -22,9 +22,9 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class DecimalTypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
-  private final int precision;
-  private final int scale;
+  public final Boolean nullable;
+  public final int precision;
+  public final int scale;
 
   public DecimalTypeNode(Boolean nullable, int precision, int scale) {
     this.nullable = nullable;

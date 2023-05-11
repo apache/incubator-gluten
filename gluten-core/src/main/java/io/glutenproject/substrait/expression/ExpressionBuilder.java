@@ -20,6 +20,7 @@ package io.glutenproject.substrait.expression;
 import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.type.*;
 
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
@@ -151,7 +152,7 @@ public class ExpressionBuilder {
     return new MapLiteralNode(map, typeNode);
   }
 
-  public static StructLiteralNode makeStructLiteral(GenericInternalRow row, TypeNode typeNode) {
+  public static StructLiteralNode makeStructLiteral(InternalRow row, TypeNode typeNode) {
     return new StructLiteralNode(row, typeNode);
   }
 
@@ -159,44 +160,56 @@ public class ExpressionBuilder {
     if (obj == null) {
       return makeNullLiteral(typeNode);
     }
-
     if (typeNode instanceof BooleanTypeNode) {
       return makeBooleanLiteral((Boolean) obj, typeNode);
-    } else if (typeNode instanceof I8TypeNode) {
+    }
+    if (typeNode instanceof I8TypeNode) {
       return makeByteLiteral((Byte) obj, typeNode);
-    } else if (typeNode instanceof I16TypeNode) {
+    }
+    if (typeNode instanceof I16TypeNode) {
       return makeShortLiteral((Short) obj, typeNode);
-    } else if (typeNode instanceof I32TypeNode) {
+    }
+    if (typeNode instanceof I32TypeNode) {
       return makeIntLiteral((Integer) obj, typeNode);
-    } else if (typeNode instanceof I64TypeNode) {
+    }
+    if (typeNode instanceof I64TypeNode) {
       return makeLongLiteral((Long) obj, typeNode);
-    } else if (typeNode instanceof FP32TypeNode) {
+    }
+    if (typeNode instanceof FP32TypeNode) {
       return makeFloatLiteral((Float) obj, typeNode);
-    } else if (typeNode instanceof FP64TypeNode) {
+    }
+    if (typeNode instanceof FP64TypeNode) {
       return makeDoubleLiteral((Double) obj, typeNode);
-    } else if (typeNode instanceof DateTypeNode) {
+    }
+    if (typeNode instanceof DateTypeNode) {
       return makeDateLiteral((Integer) obj, typeNode);
-    } else if (typeNode instanceof TimestampTypeNode) {
+    }
+    if (typeNode instanceof TimestampTypeNode) {
       return makeTimestampLiteral((Long) obj, typeNode);
-    } else if (typeNode instanceof StringTypeNode) {
+    }
+    if (typeNode instanceof StringTypeNode) {
       return makeStringLiteral(obj.toString(), typeNode);
-    } else if (typeNode instanceof BinaryTypeNode) {
+    }
+    if (typeNode instanceof BinaryTypeNode) {
       return makeBinaryLiteral((byte[]) obj, typeNode);
-    } else if (typeNode instanceof DecimalTypeNode) {
+    }
+    if (typeNode instanceof DecimalTypeNode) {
       Decimal decimal = (Decimal) obj;
       checkDecimalScale(decimal.scale());
       return makeDecimalLiteral(decimal, typeNode);
-    } else if (typeNode instanceof ListNode) {
-      return makeListLiteral((GenericArrayData) obj, typeNode);
-    } else if (typeNode instanceof MapNode) {
-      return makeMapLiteral((ArrayBasedMapData) obj, typeNode);
-    } else if (typeNode instanceof StructNode) {
-      return makeStructLiteral((GenericInternalRow) obj, typeNode);
-    } else {
-      throw new UnsupportedOperationException(
-          String.format("Type not supported: %s, obj: %s, class: %s",
-              typeNode.toString(), obj.toString(), obj.getClass().toString()));
     }
+    if (typeNode instanceof ListNode) {
+      return makeListLiteral((GenericArrayData) obj, typeNode);
+    }
+    if (typeNode instanceof MapNode) {
+      return makeMapLiteral((ArrayBasedMapData) obj, typeNode);
+    }
+    if (typeNode instanceof StructNode) {
+      return makeStructLiteral((InternalRow) obj, typeNode);
+    }
+    throw new UnsupportedOperationException(
+        String.format("Type not supported: %s, obj: %s, class: %s",
+            typeNode.toString(), obj.toString(), obj.getClass().toString()));
   }
 
   public static LiteralNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
