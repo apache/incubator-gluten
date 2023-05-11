@@ -11,7 +11,6 @@ class TpcdsSuite(
   val testConf: SparkConf,
   val baselineConf: SparkConf,
   val extraSparkConf: Map[String, String],
-  val fixedWidthAsDouble: Boolean,
   val logLevel: Level,
   val errorOnMemLeak: Boolean,
   val enableUi: Boolean,
@@ -24,7 +23,7 @@ class TpcdsSuite(
   val disableWscg: Boolean,
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(
-  actions, testConf, baselineConf, extraSparkConf, fixedWidthAsDouble,
+  actions, testConf, baselineConf, extraSparkConf,
   logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
   cpus, offHeapSize, disableAqe, disableBhj, disableWscg,
   shufflePartitions, minimumScanPartitions) {
@@ -37,20 +36,11 @@ class TpcdsSuite(
     scale, cpus, dataWritePath(scale), typeModifiers(), genPartitionedData)
 
   override private[tpc] def queryResource(): String = {
-    if (fixedWidthAsDouble) {
-      // date -> string, decimal -> double
-      "/tpcds-queries-nodecimal-nodate"
-    } else {
-      "/tpcds-queries"
-    }
+    "/tpcds-queries"
   }
 
   override protected def typeModifiers(): List[TypeModifier] = {
-    if (fixedWidthAsDouble) {
-      List(Constants.TYPE_MODIFIER_DATE_AS_STRING, Constants.TYPE_MODIFIER_DECIMAL_AS_DOUBLE)
-    } else {
-      List()
-    }
+    List()
   }
 
   override private[tpc] def allQueryIds(): Array[String] = ALL_QUERY_IDS

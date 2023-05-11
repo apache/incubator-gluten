@@ -45,10 +45,14 @@ class TpcdsDataGen(val spark: SparkSession, scale: Double, partitions: Int, dir:
       case "web_page" => TpcdsDataGen.webPageSchema
       case "web_site" => TpcdsDataGen.webSiteSchema
     }
-    val partitionBy: List[String] = if (!genPartitionedData) List[String]() else name match {
-      case "catalog_sales" => List("cs_sold_date_sk")
-      case "web_sales" => List("ws_sold_date_sk")
-      case _ => List[String]()
+    val partitionBy: List[String] = if (!genPartitionedData) {
+      List[String]()
+    } else {
+      name match {
+        case "catalog_sales" => List("cs_sold_date_sk")
+        case "web_sales" => List("ws_sold_date_sk")
+        case _ => List[String]()
+      }
     }
 
     writeParquetTable(name, t, schema, partitionBy)
