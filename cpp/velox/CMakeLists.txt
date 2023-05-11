@@ -51,6 +51,8 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
+include_directories(SYSTEM "${VELOX_HOME}/velox/external/xxhash/")
+
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
 
 function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
@@ -112,7 +114,6 @@ macro(ADD_VELOX_DEPENDENCIES)
   endif()
 
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
-  add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
 
   add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
   add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
@@ -154,9 +155,14 @@ macro(ADD_VELOX_DEPENDENCIES)
 endmacro()
 
 macro(find_libhdfs3)
-  # Find the libhdfs3 library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-  find_library(LIBHDFS3_LIBRARY NAMES hdfs3 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  find_package(libhdfs3 CONFIG)
+  if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
+    set(LIBHDFS3_LIBRARY HDFS::hdfs3)
+  else()
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+    find_library(LIBHDFS3_LIBRARY NAMES hdfs3 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  endif()
+
   if (NOT LIBHDFS3_LIBRARY)
     message(FATAL_ERROR "LIBHDFS3 Library Not Found")
   else()
@@ -165,7 +171,13 @@ macro(find_libhdfs3)
 endmacro()
 
 macro(find_re2)
-  find_library(RE2_LIBRARY NAMES re2 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  find_package(re2 CONFIG)
+  if(re2_FOUND AND TARGET re2::re2)
+    set(RE2_LIBRARY re2::re2)
+  else()
+    find_library(RE2_LIBRARY NAMES re2 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  endif()
+
   if (NOT RE2_LIBRARY)
      message(FATAL_ERROR "RE2 Library Not Found")
   else()
@@ -198,6 +210,11 @@ set(VELOX_SRCS
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
+if(ENABLE_GLUTEN_VCPKG)
+  # Hide symbols of static dependencies
+  target_link_options(velox PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+endif()
+
 target_include_directories(velox PUBLIC
     ${CMAKE_SYSTEM_INCLUDE_PATH}
     ${JNI_INCLUDE_DIRS}
@@ -217,7 +234,12 @@ set_target_properties(velox PROPERTIES
 ## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
-find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+
+if(ENABLE_GLUTEN_VCPKG)
+  find_package(gflags REQUIRED COMPONENTS static CONFIG)
+else()
+  find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+endif()
 
 target_include_directories(velox PUBLIC
         ${GTEST_INCLUDE_DIRS}
@@ -229,6 +251,20 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
+if(ENABLE_GLUTEN_VCPKG)
+  find_package(Thrift CONFIG)
+else()
+  # Prefer the shared library on system.
+  set(ARROW_THRIFT_USE_SHARED ON)
+  find_package(Thrift)
+endif()
+
+if(Thrift_FOUND)
+  target_link_libraries(velox PUBLIC thrift::thrift)
+else()
+  add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
+endif()
+
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
@@ -236,9 +272,7 @@ endif()
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
   find_libhdfs3()
-  add_library(libhdfs3 SHARED IMPORTED)
-  set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
-  target_link_libraries(velox PUBLIC libhdfs3)
+  target_link_libraries(velox PUBLIC "${LIBHDFS3_LIBRARY}")
 endif()
 
 if(BUILD_BENCHMARKS)

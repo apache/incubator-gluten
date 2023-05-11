@@ -27,7 +27,7 @@ class ShuffleWriter::PartitionWriterCreator {
   PartitionWriterCreator() = default;
   virtual ~PartitionWriterCreator() = default;
 
-  virtual arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(ShuffleWriter* shuffleWriter) = 0;
+  virtual arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) = 0;
 };
 
 } // namespace gluten

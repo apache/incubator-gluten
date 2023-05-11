@@ -17,6 +17,8 @@
 
 package io.glutenproject.expression
 
+import java.util.Locale
+
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -26,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -76,11 +79,16 @@ object ConverterUtils extends Logging {
   }
 
   def getShortAttributeName(attr: Attribute): String = {
-    val subIndex = attr.name.indexOf("(")
-    if (subIndex != -1) {
-      attr.name.substring(0, subIndex)
-    } else {
+    val name = if (SQLConf.get.caseSensitiveAnalysis) {
       attr.name
+    } else {
+      attr.name.toLowerCase(Locale.ROOT)
+    }
+    val subIndex = name.indexOf("(")
+    if (subIndex != -1) {
+      name.substring(0, subIndex)
+    } else {
+      name
     }
   }
 
@@ -89,7 +97,7 @@ object ConverterUtils extends Logging {
   }
 
   def isNullable(nullability: Type.Nullability): Boolean = {
-    return nullability == Type.Nullability.NULLABILITY_NULLABLE
+    nullability == Type.Nullability.NULLABILITY_NULLABLE
   }
 
   def parseFromSubstraitType(substraitType: Type): (DataType, Boolean) = {

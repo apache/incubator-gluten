@@ -1,0 +1,94 @@
+diff --git a/daxctl/lib/meson.build b/daxctl/lib/meson.build
+index b79c6e5..ca5f114 100644
+--- a/daxctl/lib/meson.build
++++ b/daxctl/lib/meson.build
+@@ -42,3 +42,4 @@ custom_target(
+ )
+ 
+ install_data('daxctl.conf', install_dir : datadir / 'daxctl')
++install_headers('../libdaxctl.h', subdir : 'daxctl')
+diff --git a/meson.build b/meson.build
+index 990d621..a3e4e53 100644
+--- a/meson.build
++++ b/meson.build
+@@ -30,10 +30,6 @@ prefixdir = get_option('prefix')
+ if not prefixdir.startswith('/')
+         error('Prefix is not absolute: "@0@"'.format(prefixdir))
+ endif
+-if prefixdir != rootprefixdir and rootprefixdir != '/' and not prefixdir.strip('/').startswith(rootprefixdir.strip('/') + '/')
+-  error('Prefix is not below root prefix (now rootprefix=@0@ prefix=@1@)'.format(
+-	rootprefixdir, prefixdir))
+-endif
+ 
+ libdir = join_paths(prefixdir, get_option('libdir'))
+ rootlibdir = get_option('rootlibdir')
+@@ -140,9 +136,7 @@ versiondep = declare_dependency(
+ )
+ 
+ kmod = dependency('libkmod')
+-libudev = dependency('libudev')
+ uuid = dependency('uuid')
+-json = dependency('json-c')
+ if get_option('libtracefs').enabled()
+   traceevent = dependency('libtraceevent')
+   tracefs = dependency('libtracefs')
+@@ -170,25 +164,6 @@ cc = meson.get_compiler('c')
+ # keyutils lacks pkgconfig
+ keyutils = cc.find_library('keyutils', required : get_option('keyutils'))
+ 
+-# iniparser lacks pkgconfig and its header files are either at '/usr/include' or '/usr/include/iniparser'
+-# Use the path provided by user via meson configure -Diniparserdir=<somepath>
+-# if thats not provided then try searching for 'iniparser.h' in default system include path
+-# and if that not found then as a last resort try looking at '/usr/include/iniparser'
+-iniparser_headers = ['iniparser.h', 'dictionary.h']
+-
+-message('Looking for iniparser include headers', iniparser_headers)
+-
+-iniparserdir = include_directories(includedir / get_option('iniparserdir'), is_system:true)
+-iniparser = cc.find_library('iniparser', required : (get_option('iniparserdir') != '') ,
+-	  has_headers :iniparser_headers ,header_include_directories : iniparserdir)
+-
+-if not iniparser.found()
+-   iniparserdir = include_directories(includedir / 'iniparser', is_system:true)
+-   iniparser = cc.find_library('iniparser', required : true, has_headers : iniparser_headers,
+-	     header_include_directories : iniparserdir)
+-endif
+-iniparser = declare_dependency(include_directories: iniparserdir, dependencies:iniparser)
+-
+ conf = configuration_data()
+ check_headers = [
+   ['HAVE_DLFCN_H', 'dlfcn.h'],
+@@ -268,13 +243,6 @@ foreach ident : ['secure_getenv', '__secure_getenv']
+   conf.set10('HAVE_' + ident.to_upper(), cc.has_function(ident))
+ endforeach
+ 
+-conf.set10('HAVE_JSON_U64',
+-  cc.has_function('json_object_new_uint64',
+-    prefix : '''#include <json-c/json.h>''',
+-    dependencies : json,
+-  )
+-)
+-
+ ndctlconf_dir = sysconfdir / 'ndctl.conf.d'
+ ndctlconf = ndctlconf_dir / 'monitor.conf'
+ conf.set_quoted('NDCTL_CONF_FILE', ndctlconf)
+@@ -317,19 +285,6 @@ ccan = static_library('ccan',
+ ccan_dep = declare_dependency(link_with : ccan)
+ 
+ subdir('daxctl/lib')
+-subdir('ndctl/lib')
+-subdir('cxl/lib')
+-subdir('util')
+-subdir('ndctl')
+-subdir('daxctl')
+-subdir('cxl')
+-if get_option('docs').enabled()
+-  subdir('Documentation/ndctl')
+-  subdir('Documentation/daxctl')
+-  subdir('Documentation/cxl')
+-endif
+-subdir('test')
+-subdir('contrib')
+ 
+ # only support spec file generation from git builds
+ if version_tag == ''

@@ -1,0 +1,13 @@
+diff --git a/Makefile.am b/Makefile.am
+index 94937c29..dd5437c3 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -735,7 +735,7 @@ endif
+
+ include autohbw/Makefile.mk
+ include test/Makefile.mk
+-include examples/Makefile.mk
++# include examples/Makefile.mk
+ include src/Makefile.mk
+ include tiering/Makefile.mk
+ include utils/memory_matrix/Makefile.mk

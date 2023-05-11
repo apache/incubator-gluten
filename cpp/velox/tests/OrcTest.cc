@@ -1,4 +1,4 @@
-
+#include "arrow/c/abi.h"
 #include "benchmarks/BatchStreamIterator.h"
 #include "benchmarks/BenchmarkUtils.h"
 
@@ -7,7 +7,6 @@
 #include <arrow/adapters/orc/adapter.h>
 #include <arrow/io/file.h>
 
-#include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
 #include <arrow/record_batch.h>
 #include <arrow/type_fwd.h>

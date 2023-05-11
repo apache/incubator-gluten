@@ -39,7 +39,7 @@ arrow::Status gluten::HashPartitioner::compute(
         : [num_partitions] "r"(numPartitions_), [tmp] "r"(0));
 #else
     if (pid < 0) {
-      pid += num_partitions_;
+      pid += numPartitions_;
     }
 #endif
     partitionId[i] = pid;

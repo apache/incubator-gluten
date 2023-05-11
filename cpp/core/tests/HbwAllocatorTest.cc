@@ -23,15 +23,15 @@
 
 class TestHbwAllocator : public ::testing::Test {
  protected:
-  void CheckBytesAndFree(void*& buf, int64_t size) {
+  void checkBytesAndFree(void*& buf, int64_t size) {
     ASSERT_NE(buf, nullptr);
-    ASSERT_EQ(allocator->getBytes(), size);
-    allocator->free(buf, size);
-    ASSERT_EQ(allocator->getBytes(), 0);
+    ASSERT_EQ(allocator_->getBytes(), size);
+    allocator_->free(buf, size);
+    ASSERT_EQ(allocator_->getBytes(), 0);
     buf = nullptr;
   }
 
-  std::shared_ptr<gluten::MemoryAllocator> allocator;
+  std::shared_ptr<gluten::MemoryAllocator> allocator_;
 };
 
 class TestHbwAllocatorEnabled : public TestHbwAllocator {
@@ -41,7 +41,7 @@ class TestHbwAllocatorEnabled : public TestHbwAllocator {
   }
 
   TestHbwAllocatorEnabled() {
-    allocator = gluten::defaultMemoryAllocator();
+    allocator_ = gluten::defaultMemoryAllocator();
   }
 };
 
@@ -52,43 +52,43 @@ class TestHbwAllocatorDisabled : public TestHbwAllocator {
   }
 
   TestHbwAllocatorDisabled() {
-    allocator = gluten::defaultMemoryAllocator();
+    allocator_ = gluten::defaultMemoryAllocator();
   }
 };
 
 TEST_F(TestHbwAllocatorEnabled, TestHbwEnabled) {
-  auto ptr = std::dynamic_pointer_cast<gluten::HbwMemoryAllocator>(allocator);
+  auto ptr = std::dynamic_pointer_cast<gluten::HbwMemoryAllocator>(allocator_);
   ASSERT_NE(ptr, nullptr);
 }
 
 TEST_F(TestHbwAllocatorDisabled, TestHbwDisabled) {
   unsetenv("MEMKIND_HBW_NODES");
-  allocator = gluten::defaultMemoryAllocator();
-  auto ptr = std::dynamic_pointer_cast<gluten::StdMemoryAllocator>(allocator);
+  allocator_ = gluten::defaultMemoryAllocator();
+  auto ptr = std::dynamic_pointer_cast<gluten::StdMemoryAllocator>(allocator_);
   ASSERT_NE(ptr, nullptr);
 }
 
 TEST_F(TestHbwAllocatorEnabled, TestAllocateHbm) {
   setenv("MEMKIND_HBW_NODES", "0", 1);
-  allocator = gluten::defaultMemoryAllocator();
+  allocator_ = gluten::defaultMemoryAllocator();
 
   const size_t size = 1024 * 1024; // 1M of data
   void* buf = nullptr;
 
-  allocator->allocate(size, &buf);
-  CheckBytesAndFree(buf, size);
+  allocator_->allocate(size, &buf);
+  checkBytesAndFree(buf, size);
 
-  allocator->allocateAligned(64, size, &buf);
-  CheckBytesAndFree(buf, size);
+  allocator_->allocateAligned(64, size, &buf);
+  checkBytesAndFree(buf, size);
 
-  allocator->allocateZeroFilled(1, size, &buf);
-  CheckBytesAndFree(buf, size);
+  allocator_->allocateZeroFilled(1, size, &buf);
+  checkBytesAndFree(buf, size);
 
-  allocator->allocate(size, &buf);
-  allocator->reallocate(buf, size, size << 1, &buf);
-  CheckBytesAndFree(buf, size << 1);
+  allocator_->allocate(size, &buf);
+  allocator_->reallocate(buf, size, size << 1, &buf);
+  checkBytesAndFree(buf, size << 1);
 
-  allocator->allocate(size, &buf);
-  allocator->reallocateAligned(buf, 64, size, size << 1, &buf);
-  CheckBytesAndFree(buf, size << 1);
+  allocator_->allocate(size, &buf);
+  allocator_->reallocateAligned(buf, 64, size, size << 1, &buf);
+  checkBytesAndFree(buf, size << 1);
 }

@@ -19,8 +19,8 @@
 
 #include <benchmark/benchmark.h>
 
+#include <compute/VeloxBackend.h>
 #include <velox/common/memory/Memory.h>
-
 #include <velox/dwio/common/tests/utils/DataFiles.h>
 #include <velox/substrait/SubstraitToVeloxPlan.h>
 #include <cstdlib>
