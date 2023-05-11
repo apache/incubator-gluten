@@ -1,0 +1,7 @@
+{
+    global:
+      Java_io_glutenproject*;
+      JNI_OnLoad;
+      JNI_OnUnload;
+    local: *;
+};
