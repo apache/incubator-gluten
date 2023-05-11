@@ -141,19 +141,19 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   void printPartitionBuffer() const {
     VS_PRINT_FUNCTION_SPLIT_LINE();
     VS_PRINT_VECTOR_MAPPING(partition_2_buffer_size_);
-    VS_PRINT_VECTOR_MAPPING(partition_buffer_idx_base_);
+    VS_PRINT_VECTOR_MAPPING(partitionBufferIdxBase_);
   }
 
   void printPartition2Row() const {
     VS_PRINT_FUNCTION_SPLIT_LINE();
-    VS_PRINT_VECTOR_MAPPING(partition_2_row_offset_);
+    VS_PRINT_VECTOR_MAPPING(partition2RowOffset_);
 
 #if VELOX_SHUFFLE_WRITER_PRINT
-    for (auto pid = 0; pid < num_partitions_; ++pid) {
-      auto begin = partition_2_row_offset_[pid];
-      auto end = partition_2_row_offset_[pid + 1];
+    for (auto pid = 0; pid < numPartitions_; ++pid) {
+      auto begin = partition2RowOffset_[pid];
+      auto end = partition2RowOffset_[pid + 1];
       VsPrint("partition", pid);
-      VsPrintVectorRange(row_offset_2_row_id_, begin, end);
+      VsPrintVectorRange(rowOffset2RowId_, begin, end);
     }
 #endif
   }
@@ -274,13 +274,13 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // elements num: Partition num + 1
   // subscript: Partition ID
   // value: the row offset of this Partition
-  std::vector<uint32_t> partition2RowOffset_; // note: reducer_offset_offset_
+  std::vector<uint32_t> partition2RowOffset_; // note: reducerOffsetOffset_
 
   // Row offset -> Row ID
   // elements num: Row Num
   // subscript: Row offset
   // value: Row ID
-  std::vector<uint32_t> rowOffset2RowId_; // note: reducer_offsets_
+  std::vector<uint32_t> rowOffset2RowId_; // note: reducerOffsets_
 
   uint32_t fixedWidthColumnCount_ = 0;
 
