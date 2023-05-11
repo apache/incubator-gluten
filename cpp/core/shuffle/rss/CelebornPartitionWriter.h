@@ -54,7 +54,7 @@ class CelebornPartitionWriterCreator : public ShuffleWriter::PartitionWriterCrea
  public:
   explicit CelebornPartitionWriterCreator(std::shared_ptr<CelebornClient> client);
 
-  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(ShuffleWriter* shuffleWriter) override;
+  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
 
  private:
   std::shared_ptr<CelebornClient> client_;

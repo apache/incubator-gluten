@@ -90,10 +90,10 @@ ShuffleWriterOptions ShuffleWriterOptions::defaults() {
 
 arrow::Result<std::shared_ptr<ArrowShuffleWriter>> ArrowShuffleWriter::create(
     uint32_t numPartitions,
-    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
     ShuffleWriterOptions options) {
   std::shared_ptr<ArrowShuffleWriter> res(
-      new ArrowShuffleWriter(numPartitions, std::move(partition_writer_creator), std::move(options)));
+      new ArrowShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options)));
   RETURN_NOT_OK(res->init());
   return res;
 }
@@ -169,7 +169,7 @@ arrow::Status ArrowShuffleWriter::init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->Make(this));
+  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(this));
 
   ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning_name, numPartitions_));
 
@@ -784,58 +784,58 @@ arrow::Status ArrowShuffleWriter::splitFixedWidthValueBuffer(const arrow::Record
       case 64:
 #ifdef PROCESSAVX
         std::transform(
-            dst_addrs.begin(),
-            dst_addrs.end(),
-            partition_buffer_idx_base_.begin(),
-            partition_buffer_idx_offset_.begin(),
+            dstAddrs.begin(),
+            dstAddrs.end(),
+            partitionBufferIdxBase_.begin(),
+            partitionBufferIdxOffset_.begin(),
             [](uint8_t* x, row_offset_type y) { return x + y * sizeof(uint64_t); });
-        for (auto pid = 0; pid < num_partitions_; pid++) {
-          auto dst_pid_base = reinterpret_cast<uint64_t*>(partition_buffer_idx_offset_[pid]); /*32k*/
-          auto r = reducer_offset_offset_[pid]; /*8k*/
-          auto size = reducer_offset_offset_[pid + 1];
+        for (auto pid = 0; pid < numPartitions_; pid++) {
+          auto dstPidBase = reinterpret_cast<uint64_t*>(partitionBufferIdxOffset_[pid]); /*32k*/
+          auto r = reducerOffsetOffset_[pid]; /*8k*/
+          auto size = reducerOffsetOffset_[pid + 1];
 #if 1
-          for (r; r < size && (((uint64_t)dst_pid_base & 0x1f) > 0); r++) {
-            auto src_offset = reducer_offsets_[r]; /*16k*/
-            *dst_pid_base = reinterpret_cast<uint64_t*>(src_addr)[src_offset]; /*64k*/
-            _mm_prefetch(&(src_addr)[src_offset * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            dst_pid_base += 1;
+          for (r; r < size && (((uint64_t)dstPidBase & 0x1f) > 0); r++) {
+            auto srcOffset = reducerOffsets_[r]; /*16k*/
+            *dstPidBase = reinterpret_cast<uint64_t*>(srcAddr)[srcOffset]; /*64k*/
+            _mm_prefetch(&(srcAddr)[srcOffset * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            dstPidBase += 1;
           }
 #if 0
           for (r; r+4<size; r+=4)                              
           {                                                                                    
-            auto src_offset = reducer_offsets_[r];                                 /*16k*/ 
-            __m128i src_ld = _mm_loadl_epi64((__m128i*)(&reducer_offsets_[r]));    
-            __m128i src_offset_4x = _mm_cvtepu16_epi32(src_ld);
+            auto srcOffset = reducerOffsets_[r];                                 /*16k*/
+            __m128i srcLd = _mm_loadl_epi64((__m128i*)(&reducerOffsets_[r]));
+            __m128i srcOffset4x = _mm_cvtepu16_epi32(srcLd);
             
-            __m256i src_4x = _mm256_i32gather_epi64((const long long int*)src_addr,src_offset_4x,8);
-            //_mm256_store_si256((__m256i*)dst_pid_base,src_4x); 
-            _mm_stream_si128((__m128i*)dst_pid_base,src_2x);
+            __m256i src4x = _mm256_i32gather_epi64((const long long int*)srcAddr,srcOffset4x,8);
+            //_mm256_store_si256((__m256i*)dstPidBase,src4x);
+            _mm_stream_si128((__m128i*)dstPidBase,src2x);
                                                          
-            _mm_prefetch(&(src_addr)[(uint32_t)reducer_offsets_[r]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            _mm_prefetch(&(src_addr)[(uint32_t)reducer_offsets_[r+1]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            _mm_prefetch(&(src_addr)[(uint32_t)reducer_offsets_[r+2]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            _mm_prefetch(&(src_addr)[(uint32_t)reducer_offsets_[r+3]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            dst_pid_base+=4;                                                                   
+            _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r+1]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r+2]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r+3]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            dstPidBase+=4;
           }
 #endif
           for (r; r + 2 < size; r += 2) {
-            __m128i src_offset_2x = _mm_cvtsi32_si128(*((int32_t*)(reducer_offsets_.data() + r)));
-            src_offset_2x = _mm_shufflelo_epi16(src_offset_2x, 0x98);
+            __m128i srcOffset2x = _mm_cvtsi32_si128(*((int32_t*)(reducerOffsets_.data() + r)));
+            srcOffset2x = _mm_shufflelo_epi16(srcOffset2x, 0x98);
 
-            __m128i src_2x = _mm_i32gather_epi64((const long long int*)src_addr, src_offset_2x, 8);
-            _mm_store_si128((__m128i*)dst_pid_base, src_2x);
-            //_mm_stream_si128((__m128i*)dst_pid_base,src_2x);
+            __m128i src2x = _mm_i32gather_epi64((const long long int*)srcAddr, srcOffset2x, 8);
+            _mm_store_si128((__m128i*)dstPidBase, src2x);
+            //_mm_stream_si128((__m128i*)dstPidBase,src2x);
 
-            _mm_prefetch(&(src_addr)[(uint32_t)reducer_offsets_[r] * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            _mm_prefetch(&(src_addr)[(uint32_t)reducer_offsets_[r + 1] * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            dst_pid_base += 2;
+            _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r] * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r + 1] * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            dstPidBase += 2;
           }
 #endif
           for (r; r < size; r++) {
-            auto src_offset = reducer_offsets_[r]; /*16k*/
-            *dst_pid_base = reinterpret_cast<const uint64_t*>(src_addr)[src_offset]; /*64k*/
-            _mm_prefetch(&(src_addr)[src_offset * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            dst_pid_base += 1;
+            auto srcOffset = reducerOffsets_[r]; /*16k*/
+            *dstPidBase = reinterpret_cast<const uint64_t*>(srcAddr)[srcOffset]; /*64k*/
+            _mm_prefetch(&(srcAddr)[srcOffset * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            dstPidBase += 1;
           }
         }
         break;
@@ -846,7 +846,7 @@ arrow::Status ArrowShuffleWriter::splitFixedWidthValueBuffer(const arrow::Record
 #if defined(__x86_64__)
       case 128: // arrow::Decimal128Type::type_id
         // too bad gcc generates movdqa even we use __m128i_u data type.
-        // SplitFixedType<__m128i_u>(src_addr, dst_addrs);
+        // splitFixedType<__m128i_u>(srcAddr, dstAddrs);
         {
           std::transform(
               dstAddrs.begin(),
@@ -870,7 +870,7 @@ arrow::Status ArrowShuffleWriter::splitFixedWidthValueBuffer(const arrow::Record
         }
 #elif defined(__aarch64__)
       case 128:
-        RETURN_NOT_OK(SplitFixedType<uint32x4_t>(src_addr, dst_addrs));
+        RETURN_NOT_OK(splitFixedType<uint32x4_t>(srcAddr, dstAddrs));
 #endif
         break;
       case 1: // arrow::BooleanType::type_id:

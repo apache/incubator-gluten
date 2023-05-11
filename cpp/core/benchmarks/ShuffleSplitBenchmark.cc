@@ -229,7 +229,7 @@ class BenchmarkShuffleSplit {
 
     const int numPartitions = state.range(0);
 
-    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator =
+    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
         std::make_shared<LocalPartitionWriterCreator>();
 
     auto options = ShuffleWriterOptions::defaults();
@@ -256,7 +256,7 @@ class BenchmarkShuffleSplit {
         numRows,
         splitTime,
         numPartitions,
-        partition_writer_creator,
+        partitionWriterCreator,
         options,
         state);
     auto endTime = std::chrono::steady_clock::now();
@@ -326,7 +326,7 @@ class BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options,
       benchmark::State& state) {}
 
@@ -351,7 +351,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options,
       benchmark::State& state) {
     std::vector<int> localColumnIndices;
@@ -382,7 +382,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << localSchema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(shuffleWriter, ArrowShuffleWriter::create(numPartitions, partition_writer_creator, options));
+    GLUTEN_ASSIGN_OR_THROW(shuffleWriter, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator, options));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 
@@ -432,7 +432,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partition_writer_creator,
+      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options,
       benchmark::State& state) {
     if (state.thread_index() == 0)
@@ -440,7 +440,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
 
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
-        ArrowShuffleWriter::create(numPartitions, std::move(partition_writer_creator), std::move(options)));
+        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 

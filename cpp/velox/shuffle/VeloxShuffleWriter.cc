@@ -79,10 +79,10 @@ bool vectorHasNull(const velox::VectorPtr& vp) {
 // VeloxShuffleWriter
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     uint32_t numPartitions,
-    std::shared_ptr<PartitionWriterCreator> partition_writer_creator,
+    std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
     ShuffleWriterOptions options) {
   std::shared_ptr<VeloxShuffleWriter> res(
-      new VeloxShuffleWriter(numPartitions, std::move(partition_writer_creator), std::move(options)));
+      new VeloxShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options)));
   RETURN_NOT_OK(res->init());
   return res;
 }
@@ -100,7 +100,7 @@ arrow::Status VeloxShuffleWriter::init() {
   // split record batch size should be less than 32k
   ARROW_CHECK_LE(options_.buffer_size, 32 * 1024);
 
-  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->Make(this));
+  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(this));
 
   ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning_name, numPartitions_));
 
@@ -220,16 +220,16 @@ arrow::Status VeloxShuffleWriter::stop() {
 }
 
 arrow::Status VeloxShuffleWriter::createPartition2Row(uint32_t rowNum) {
-  // calc partition_2_row_offset_
+  // calc partition2RowOffset_
   partition2RowOffset_[0] = 0;
   for (auto pid = 1; pid <= numPartitions_; ++pid) {
     partition2RowOffset_[pid] = partition2RowOffset_[pid - 1] + partition2RowCount_[pid - 1];
   }
 
-  // get a copy of partition_2_row_offset_
+  // get a copy of partition2RowOffset_
   auto partition2RowOffsetCopy = partition2RowOffset_;
 
-  // calc row_offset_2_row_id_
+  // calc rowOffset2RowId_
   rowOffset2RowId_.resize(rowNum);
   for (auto row = 0; row < rowNum; ++row) {
     auto pid = row2Partition_[row];
@@ -346,58 +346,58 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       case 64:
 #ifdef PROCESSAVX
         std::transform(
-            dst_addrs.begin(),
-            dst_addrs.end(),
-            partition_buffer_idx_base_.begin(),
-            partition_buffer_idx_offset_.begin(),
+            dstAddrs.begin(),
+            dstAddrs.end(),
+            partitionBufferIdxBase_.begin(),
+            partitionBufferIdxOffset_.begin(),
             [](uint8_t* x, row_offset_type y) { return x + y * sizeof(uint64_t); });
-        for (auto pid = 0; pid < num_partitions_; pid++) {
-          auto dst_pid_base = reinterpret_cast<uint64_t*>(partition_buffer_idx_offset_[pid]); /*32k*/
-          auto r = partition_2_row_offset_[pid]; /*8k*/
-          auto size = partition_2_row_offset_[pid + 1];
+        for (auto pid = 0; pid < numPartitions_; pid++) {
+          auto dstPidBase = reinterpret_cast<uint64_t*>(partitionBufferIdxOffset_[pid]); /*32k*/
+          auto r = partition2RowOffset_[pid]; /*8k*/
+          auto size = partition2RowOffset_[pid + 1];
 #if 1
-          for (r; r < size && (((uint64_t)dst_pid_base & 0x1f) > 0); r++) {
-            auto src_offset = row_offset_2_row_id_[r]; /*16k*/
-            *dst_pid_base = reinterpret_cast<uint64_t*>(src_addr)[src_offset]; /*64k*/
-            _mm_prefetch(&(src_addr)[src_offset * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            dst_pid_base += 1;
+          for (r; r < size && (((uint64_t)dstPidBase & 0x1f) > 0); r++) {
+            auto srcOffset = rowOffset2RowId_[r]; /*16k*/
+            *dstPidBase = reinterpret_cast<uint64_t*>(srcAddr)[srcOffset]; /*64k*/
+            _mm_prefetch(&(srcAddr)[srcOffset * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            dstPidBase += 1;
           }
 #if 0
           for (r; r+4<size; r+=4)                              
           {                                                                                    
-            auto src_offset = row_offset_2_row_id_[r];                                 /*16k*/ 
-            __m128i src_ld = _mm_loadl_epi64((__m128i*)(&row_offset_2_row_id_[r]));    
-            __m128i src_offset_4x = _mm_cvtepu16_epi32(src_ld);
+            auto srcOffset = rowOffset2RowId_[r];                                 /*16k*/
+            __m128i srcLd = _mm_loadl_epi64((__m128i*)(&rowOffset2RowId_[r]));
+            __m128i srcOffset4x = _mm_cvtepu16_epi32(srcLd);
             
-            __m256i src_4x = _mm256_i32gather_epi64((const long long int*)src_addr,src_offset_4x,8);
-            //_mm256_store_si256((__m256i*)dst_pid_base,src_4x); 
-            _mm_stream_si128((__m128i*)dst_pid_base,src_2x);
+            __m256i src4x = _mm256_i32gather_epi64((const long long int*)srcAddr,srcOffset4x,8);
+            //_mm256_store_si256((__m256i*)dstPidBase,src4x);
+            _mm_stream_si128((__m128i*)dstPidBase,src2x);
                                                          
-            _mm_prefetch(&(src_addr)[(uint32_t)row_offset_2_row_id_[r]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            _mm_prefetch(&(src_addr)[(uint32_t)row_offset_2_row_id_[r+1]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            _mm_prefetch(&(src_addr)[(uint32_t)row_offset_2_row_id_[r+2]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            _mm_prefetch(&(src_addr)[(uint32_t)row_offset_2_row_id_[r+3]*sizeof(uint64_t)+64], _MM_HINT_T2);              
-            dst_pid_base+=4;                                                                   
+            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+1]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+2]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+3]*sizeof(uint64_t)+64], _MM_HINT_T2);
+            dstPidBase+=4;
           }
 #endif
           for (r; r + 2 < size; r += 2) {
-            __m128i src_offset_2x = _mm_cvtsi32_si128(*((int32_t*)(row_offset_2_row_id_.data() + r)));
-            src_offset_2x = _mm_shufflelo_epi16(src_offset_2x, 0x98);
+            __m128i srcOffset2x = _mm_cvtsi32_si128(*((int32_t*)(rowOffset2RowId_.data() + r)));
+            srcOffset2x = _mm_shufflelo_epi16(srcOffset2x, 0x98);
 
-            __m128i src_2x = _mm_i32gather_epi64((const long long int*)src_addr, src_offset_2x, 8);
-            _mm_store_si128((__m128i*)dst_pid_base, src_2x);
-            //_mm_stream_si128((__m128i*)dst_pid_base,src_2x);
+            __m128i src2x = _mm_i32gather_epi64((const long long int*)srcAddr, srcOffset2x, 8);
+            _mm_store_si128((__m128i*)dstPidBase, src2x);
+            //_mm_stream_si128((__m128i*)dstPidBase,src2x);
 
-            _mm_prefetch(&(src_addr)[(uint32_t)row_offset_2_row_id_[r] * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            _mm_prefetch(&(src_addr)[(uint32_t)row_offset_2_row_id_[r + 1] * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            dst_pid_base += 2;
+            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r] * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r + 1] * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            dstPidBase += 2;
           }
 #endif
           for (r; r < size; r++) {
-            auto src_offset = row_offset_2_row_id_[r]; /*16k*/
-            *dst_pid_base = reinterpret_cast<const uint64_t*>(src_addr)[src_offset]; /*64k*/
-            _mm_prefetch(&(src_addr)[src_offset * sizeof(uint64_t) + 64], _MM_HINT_T2);
-            dst_pid_base += 1;
+            auto srcOffset = rowOffset2RowId_[r]; /*16k*/
+            *dstPidBase = reinterpret_cast<const uint64_t*>(srcAddr)[srcOffset]; /*64k*/
+            _mm_prefetch(&(srcAddr)[srcOffset * sizeof(uint64_t) + 64], _MM_HINT_T2);
+            dstPidBase += 1;
           }
         }
         break;
@@ -408,7 +408,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 #if defined(__x86_64__)
       case 128: // arrow::Decimal128Type::type_id
         // too bad gcc generates movdqa even we use __m128i_u data type.
-        // SplitFixedType<__m128i_u>(src_addr, dst_addrs);
+        // splitFixedType<__m128i_u>(srcAddr, dstAddrs);
         {
           std::transform(
               dstAddrs.begin(),
@@ -452,24 +452,24 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       case 128:
         if (column->type()->isShortDecimal()) {
           std::transform(
-              dst_addrs.begin(),
-              dst_addrs.end(),
-              partition_buffer_idx_base_.begin(),
-              partition_buffer_idx_offset_.begin(),
+              dstAddrs.begin(),
+              dstAddrs.end(),
+              partitionBufferIdxBase_.begin(),
+              partitionBufferIdxOffset_.begin(),
               [](uint8_t* x, uint32_t y) { return x + y * sizeof(uint32x4_t); });
-          for (uint32_t pid = 0; pid < num_partitions_; ++pid) {
-            auto dst_pid_base = reinterpret_cast<uint32x4_t*>(partition_buffer_idx_offset_[pid]);
-            auto pos = partition_2_row_offset_[pid];
-            auto end = partition_2_row_offset_[pid + 1];
+          for (uint32_t pid = 0; pid < numPartitions_; ++pid) {
+            auto dstPidBase = reinterpret_cast<uint32x4_t*>(partitionBufferIdxOffset_[pid]);
+            auto pos = partition2RowOffset_[pid];
+            auto end = partition2RowOffset_[pid + 1];
             for (; pos < end; ++pos) {
-              auto row_id = row_offset_2_row_id_[pos];
-              const uint64_t value = reinterpret_cast<const uint64_t*>(src_addr)[row_id]; // copy
-              memcpy(dst_pid_base, &value, sizeof(uint64_t));
-              dst_pid_base += 1;
+              auto row_id = rowOffset2RowId_[pos];
+              const uint64_t value = reinterpret_cast<const uint64_t*>(srcAddr)[row_id]; // copy
+              memcpy(dstPidBase, &value, sizeof(uint64_t));
+              dstPidBase += 1;
             }
           }
         } else if (column->type()->isLongDecimal()) {
-          RETURN_NOT_OK(SplitFixedType<uint32x4_t>(src_addr, dst_addrs));
+          RETURN_NOT_OK(splitFixedType<uint32x4_t>(srcAddr, dstAddrs));
         } else {
           return arrow::Status::Invalid(
               "Column type " + schema_->field(colIdx)->type()->ToString() + " is not supported.");
@@ -524,7 +524,7 @@ arrow::Status VeloxShuffleWriter::splitBoolType(const uint8_t* srcAddr, const st
         uint8_t src = 0;
         auto srcOffset = rowOffset2RowId_[r]; /*16k*/
         src = srcAddr[srcOffset >> 3];
-        // PREFETCHT0((&(src_addr)[(src_offset >> 3) + 64]));
+        // PREFETCHT0((&(srcAddr)[(srcOffset >> 3) + 64]));
         dst = src >> (srcOffset & 7) | 0xfe; // get the bit in bit 0, other bits set to 1
 
         srcOffset = rowOffset2RowId_[r + 1]; /*16k*/
@@ -569,7 +569,7 @@ arrow::Status VeloxShuffleWriter::splitBoolType(const uint8_t* srcAddr, const st
 #if defined(__x86_64__)
         src = __rolb(src, dstIdxByte);
 #else
-        src = rotateLeft(src, dst_idx_byte);
+        src = rotateLeft(src, dstIdxByte);
 #endif
         dst = dst & src; // only take the useful bit.
       }

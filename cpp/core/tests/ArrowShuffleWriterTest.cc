@@ -1112,8 +1112,8 @@ TEST_F(ArrowShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompressi
   shuffleWriterOptions_.partitioning_name = "rr";
   ARROW_ASSIGN_OR_THROW(
       shuffleWriter_, ArrowShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_));
-  auto compression_type = arrow::util::Codec::GetCompressionType("lz4");
-  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compression_type.MoveValueUnsafe()));
+  auto compressionType = arrow::util::Codec::GetCompressionType("lz4");
+  ASSERT_NOT_OK(shuffleWriter_->setCompressType(compressionType.MoveValueUnsafe()));
   ASSERT_NOT_OK(shuffleWriter_->split(recordBatchToColumnarBatch(inputBatchArr).get()));
   ASSERT_NOT_OK(shuffleWriter_->stop());
 

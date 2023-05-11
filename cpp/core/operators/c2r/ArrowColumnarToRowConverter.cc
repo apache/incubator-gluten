@@ -254,7 +254,7 @@ arrow::Status ArrowColumnarToRowConverter::fillBuffer(
 #if defined(__x86_64__)
           auto shift = _tzcnt_u32(typewidth[colIndex]);
 #else
-          auto shift = __builtin_ctz((uint32_t)typewidth[col_index]);
+          auto shift = __builtin_ctz((uint32_t)typewidth[colIndex]);
 #endif
           auto bufferAddressTmp = bufferAddress + fieldOffset;
           for (auto j = rowStart; j < rowStart + batchRows; j++) {

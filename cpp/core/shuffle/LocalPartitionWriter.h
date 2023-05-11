@@ -62,6 +62,6 @@ class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator
  public:
   LocalPartitionWriterCreator();
 
-  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> Make(ShuffleWriter* shuffleWriter) override;
+  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
 };
 } // namespace gluten

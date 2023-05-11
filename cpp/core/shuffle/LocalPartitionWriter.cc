@@ -228,7 +228,7 @@ arrow::Status LocalPartitionWriter::stop() {
 
 LocalPartitionWriterCreator::LocalPartitionWriterCreator() : PartitionWriterCreator() {}
 
-arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> LocalPartitionWriterCreator::Make(
+arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> LocalPartitionWriterCreator::make(
     ShuffleWriter* shuffleWriter) {
   std::shared_ptr<LocalPartitionWriter> res(new LocalPartitionWriter(shuffleWriter));
   RETURN_NOT_OK(res->init());
