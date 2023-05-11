@@ -1,0 +1,12 @@
+{
+  global:
+    extern "C++" {
+        *gluten::*;
+        *facebook::velox::*;
+    };
+
+    Java_io_gluten*;
+  local:
+    # Hide symbols of static dependencies
+    *;
+};

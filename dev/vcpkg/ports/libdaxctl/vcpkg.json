@@ -1,0 +1,7 @@
+{
+  "name": "libdaxctl",
+  "version": "76.1",
+  "homepage": "https://github.com/pmem/ndctl",
+  "description": " A 'device memory' enabling project encompassing tools and libraries for CXL, NVDIMMs, DAX, memory tiering and other platform memory device topics.",
+  "dependencies": ["libuuid", "libkmod"]
+}

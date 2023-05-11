@@ -1,0 +1,98 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "builtin-baseline": "a7b6122f6b6504d16d96117336a0562693579933",
+  "dependencies": ["jemalloc"],
+  "default-features": ["arrow", "velox", "velox-s3", "velox-hdfs"],
+  "features": {
+    "arrow": {
+      "description": "Apache Arrow",
+      "dependencies": [
+        "libevent",
+        "libdwarf",
+        "openssl",
+        "orc",
+        "protobuf",
+        "rapidjson",
+        "snappy",
+        "xsimd",
+        "zlib",
+        "zstd",
+        "thrift",
+        "jemalloc"
+      ]
+    },
+    "velox": {
+      "description": "Velox backend",
+      "dependencies": [
+        "libevent",
+        "openssl",
+        "zstd",
+        "lz4",
+        "double-conversion",
+        "bzip2",
+        "curl",
+        "libxml2",
+        "libuuid",
+        "lzo",
+        "re2",
+        "gflags",
+        "glog",
+        "snappy",
+        "libdwarf",
+        "fmt",
+        {
+          "name": "folly",
+          "features": ["zstd", "lz4", "lzma", "snappy"]
+        },
+        "boost-atomic",
+        "boost-process",
+        "boost-context",
+        "boost-date-time",
+        "boost-filesystem",
+        "boost-program-options",
+        "boost-regex",
+        "boost-system",
+        "boost-thread",
+        "boost-multiprecision",
+        "boost-stacktrace",
+        "boost-uuid",
+        "boost-circular-buffer",
+        "boost-format",
+        "gtest",
+        "xsimd",
+        "protobuf",
+        "benchmark",
+        "jemalloc"
+      ]
+    },
+    "velox-s3": {
+      "description": "Velox S3 Support",
+      "dependencies": [
+        {
+          "name": "aws-sdk-cpp",
+          "features": [
+            "identity-management",
+            "s3",
+            "sts",
+            "cognito-identity"
+          ]
+        }
+      ]
+    },
+    "velox-hdfs": {
+      "description": "Velox HDFS Support",
+      "dependencies": [
+        "libhdfs3"
+      ]
+    },
+    "hbm": {
+      "description": "HBM",
+      "dependencies": [
+        "memkind"
+      ]
+    }
+  },
+  "overrides": [
+    { "name": "fmt", "version": "8.0.1" }
+  ]
+}

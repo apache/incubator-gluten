@@ -53,7 +53,7 @@ done
 
 function compile {
   TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
-  if [ $RUN_SETUP_SCRIPT == "ON" ]; then
+  if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     setup
   fi
 
@@ -67,14 +67,29 @@ function compile {
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
   fi
+
+  ARROW_ROOT=$CURRENT_DIR/../../build-arrow/build/arrow_install
+  if [ -d "$ARROW_ROOT" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DArrow_DIR=${ARROW_ROOT} -DParquet_DIR=${ARROW_ROOT}"
+  fi
+
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
   make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
-  echo "INSTALL xsimd gtest."
-  cd _build/$COMPILE_TYPE/_deps
-  sudo cmake --install xsimd-build/
-  sudo cmake --install gtest-build/
+
+  # Install deps to system as needed
+  if [ -d "_build/$COMPILE_TYPE/_deps" ]; then
+    cd _build/$COMPILE_TYPE/_deps
+    if [ -d xsimd-build ]; then
+      echo "INSTALL xsimd."
+      sudo cmake --install xsimd-build/
+    fi
+    if [ -d gtest-build ]; then
+      echo "INSTALL gtest."
+      sudo cmake --install gtest-build/
+    fi
+  fi
 }
 
 function check_commit {
