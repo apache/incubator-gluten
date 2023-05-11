@@ -175,8 +175,8 @@ endif()
 # Subdirectories
 #
 
+add_subdirectory(core)
+
 if(BUILD_VELOX_BACKEND)
   add_subdirectory(velox)
 endif()
-
-add_subdirectory(core)
