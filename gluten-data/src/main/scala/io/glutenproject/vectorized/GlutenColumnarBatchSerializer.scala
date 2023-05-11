@@ -60,26 +60,22 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
 
       private lazy val jniByteInputStream = JniByteInputStreams.create(in)
+      private lazy val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
 
       private lazy val shuffleReaderHandle = {
-        val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
-        try {
-          val arrowSchema =
-            SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-          GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-          val handle = ShuffleReaderJniWrapper.make(jniByteInputStream, cSchema.memoryAddress(),
-            NativeMemoryAllocators.contextInstance.getNativeInstanceId)
-          // Close shuffle reader instance as lately as the end of task processing,
-          // since the native reader could hold a reference to memory pool that
-          // was used to create all buffers read from shuffle reader. The pool
-          // should keep alive before all buffers finish consuming.
-          TaskMemoryResources.addRecycler(50) { _ =>
-            ShuffleReaderJniWrapper.close(handle)
-          }
-          handle
-        } finally {
-          cSchema.close()
+        val arrowSchema =
+          SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
+        GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+        val handle = ShuffleReaderJniWrapper.make(jniByteInputStream, cSchema.memoryAddress(),
+          NativeMemoryAllocators.contextInstance.getNativeInstanceId)
+        // Close shuffle reader instance as lately as the end of task processing,
+        // since the native reader could hold a reference to memory pool that
+        // was used to create all buffers read from shuffle reader. The pool
+        // should keep alive before all buffers finish consuming.
+        TaskMemoryResources.addRecycler(50) { _ =>
+          ShuffleReaderJniWrapper.close(handle)
         }
+        handle
       }
 
       private var vectors: Array[ColumnVector] = _
@@ -145,6 +141,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
+          cSchema.close()
           jniByteInputStream.close()
           if (cb != null) cb.close()
           allocator.close()
