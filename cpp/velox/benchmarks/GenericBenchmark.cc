@@ -28,6 +28,7 @@
 #include "BatchStreamIterator.h"
 #include "BatchVectorIterator.h"
 #include "BenchmarkUtils.h"
+#include "compute/ArrowTypeUtils.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
@@ -78,7 +79,7 @@ auto BM_Generic = [](::benchmark::State& state,
     auto resultIter = backend->getResultIterator(
         gluten::defaultMemoryAllocator().get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
-    auto outputSchema = getOutputSchema(veloxPlan);
+    auto outputSchema = toArrowSchema(veloxPlan->outputType());
     ArrowWriter writer{FLAGS_write_file};
     state.PauseTiming();
     if (!FLAGS_write_file.empty()) {

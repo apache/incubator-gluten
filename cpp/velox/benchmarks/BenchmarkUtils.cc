@@ -102,14 +102,6 @@ void abortIfFileNotExists(const std::string& filepath) {
   }
 }
 
-std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> planNode) {
-  ArrowSchema arrowSchema{};
-  exportToArrow(
-      velox::BaseVector::create(planNode->outputType(), 0, gluten::getDefaultVeloxLeafMemoryPool().get()), arrowSchema);
-  GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
-  return outputSchema;
-}
-
 bool endsWith(const std::string& data, const std::string& suffix) {
   return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
 }

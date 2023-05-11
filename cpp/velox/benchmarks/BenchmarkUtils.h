@@ -19,9 +19,6 @@
 
 #include <benchmark/benchmark.h>
 
-#include <compute/VeloxBackend.h>
-// #include <arrow/type.h>
-#include <velox/dwio/common/tests/utils/DataFiles.h>
 #include <velox/substrait/SubstraitToVeloxPlan.h>
 #include <cstdlib>
 #include <filesystem>
@@ -96,5 +93,3 @@ void abortIfFileNotExists(const std::string& filepath);
 bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
-
-std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> plan);

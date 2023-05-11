@@ -15,41 +15,24 @@
  * limitations under the License.
  */
 
+#include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
+
 #include "ArrowTypeUtils.h"
+#include "memory/VeloxMemoryPool.h"
+#include "utils/exception.h"
+#include "velox/vector/BaseVector.h"
+#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
 
 namespace gluten {
 
-std::shared_ptr<arrow::DataType> toArrowType(const velox::TypePtr& type) {
-  switch (type->kind()) {
-    case velox::TypeKind::INTEGER:
-      return arrow::int32();
-    case velox::TypeKind::BIGINT:
-      return arrow::int64();
-    case velox::TypeKind::REAL:
-      return arrow::float32();
-    case velox::TypeKind::DOUBLE:
-      return arrow::float64();
-    case velox::TypeKind::VARCHAR:
-      return arrow::utf8();
-    case velox::TypeKind::VARBINARY:
-      return arrow::utf8();
-    case velox::TypeKind::TIMESTAMP:
-      return arrow::timestamp(arrow::TimeUnit::MICRO);
-    default:
-      throw std::runtime_error("Type conversion is not supported.");
-  }
-}
-
 std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const velox::RowType>& rowType) {
-  std::vector<std::shared_ptr<arrow::Field>> fields;
-  auto size = rowType->size();
-  fields.reserve(size);
-  for (auto i = 0; i < size; ++i) {
-    fields.push_back(arrow::field(rowType->nameOf(i), toArrowType(rowType->childAt(i))));
-  }
-  return arrow::schema(fields);
+  ArrowSchema arrowSchema{};
+  exportToArrow(velox::BaseVector::create(rowType, 0, getDefaultVeloxLeafMemoryPool().get()), arrowSchema);
+  GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
+  return outputSchema;
 }
 
 } // namespace gluten

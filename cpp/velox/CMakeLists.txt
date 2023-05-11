@@ -204,7 +204,6 @@ set(VELOX_SRCS
     compute/VeloxPlanConverter.cc
     compute/VeloxRowToColumnarConverter.cc
     compute/VeloxParquetDatasource.cc
-    compute/VeloxBridge.cc
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
     )

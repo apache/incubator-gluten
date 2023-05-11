@@ -16,9 +16,10 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <compute/VeloxBackend.h>
 
 #include "BenchmarkUtils.h"
+#include "compute/ArrowTypeUtils.h"
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 
 using namespace facebook;
@@ -76,7 +77,7 @@ auto bm = [](::benchmark::State& state,
     backend->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
     auto resultIter = getResultIterator(gluten::defaultMemoryAllocator().get(), backend, scanInfos);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
-    auto outputSchema = getOutputSchema(veloxPlan);
+    auto outputSchema = toArrowSchema(veloxPlan->outputType());
     while (resultIter->hasNext()) {
       auto array = resultIter->next()->exportArrowArray();
       auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
