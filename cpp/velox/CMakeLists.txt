@@ -38,7 +38,7 @@ set(SYSTEM_LOCAL_LIB_PATH "/usr/local/lib" CACHE PATH "System Local Lib dir")
 set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 dir")
 
 if (NOT DEFINED VELOX_HOME)
-  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)
+  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep CACHE INTERNAL "VELOX_HOME")
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
 

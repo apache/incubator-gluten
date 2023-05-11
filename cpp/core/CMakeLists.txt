@@ -140,12 +140,6 @@ if(USE_AVX512)
   endif ()
 endif()
 
-# Set up Proto
-if (NOT DEFINED VELOX_HOME)
-  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)
-  message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
-endif()
-
 set(PROTO_OUTPUT_DIR "${VELOX_HOME}/velox/substrait/proto/")
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
@@ -168,7 +162,12 @@ set(CODEGEN_HEADERS
     third_party/
     )
 set(THIRD_PARTY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE} ${VELOX_HOME})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE})
+
+if(BUILD_VELOX_BACKEND)
+  include_directories(${VELOX_HOME})
+endif()
+
 file(MAKE_DIRECTORY ${root_directory}/releases/include)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/common/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/third_party/)
