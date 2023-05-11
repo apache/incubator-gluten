@@ -9,7 +9,7 @@ LINUX_OS=$(. /etc/os-release && echo ${ID})
 VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 
 # compile gluten jar
-$GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_test=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
+$GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
