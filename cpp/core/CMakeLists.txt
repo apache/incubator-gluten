@@ -298,5 +298,4 @@ install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
         DESTINATION ${LIBHDFS3_DESTINATION})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libprotobuf.so.13
-        DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
