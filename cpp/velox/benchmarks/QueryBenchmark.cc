@@ -60,12 +60,7 @@ auto bm = [](::benchmark::State& state,
              const std::string& jsonFile,
              const std::string& fileFormat) {
   const auto& filePath = getFilePath("plan/" + jsonFile);
-  auto maybePlan = getPlanFromFile(filePath);
-  if (!maybePlan.ok()) {
-    state.SkipWithError(maybePlan.status().message().c_str());
-    return;
-  }
-  auto plan = std::move(maybePlan).ValueOrDie();
+  auto plan = getPlanFromFile(filePath);
 
   std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
@@ -78,7 +73,7 @@ auto bm = [](::benchmark::State& state,
     auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
     state.ResumeTiming();
 
-    backend->parsePlan(plan->data(), plan->size());
+    backend->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
     auto resultIter = getResultIterator(gluten::defaultMemoryAllocator().get(), backend, scanInfos);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
     auto outputSchema = getOutputSchema(veloxPlan);

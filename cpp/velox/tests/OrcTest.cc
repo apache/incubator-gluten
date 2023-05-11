@@ -100,8 +100,8 @@ arrow::Status parquet2Orc(unsigned index, const std::string& parquetFile, const 
 
 void testWriteOrc() {
   std::vector<std::string> inputFiles(kFileNum);
-  GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
-  GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
+  inputFiles[0] = getGeneratedFilePath("example_orders");
+  inputFiles[1] = getGeneratedFilePath("example_lineitem");
 
   ASSERT_EQ(inputFiles.size(), orcTestData.entries.size());
 

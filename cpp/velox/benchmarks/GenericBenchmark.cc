@@ -55,13 +55,7 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   const auto& filePath = getExampleFilePath(substraitJsonFile);
-  auto maybePlan = getPlanFromFile(filePath);
-  if (!maybePlan.ok()) {
-    state.SkipWithError(maybePlan.status().message().c_str());
-    return;
-  }
-  auto plan = std::move(maybePlan).ValueOrDie();
-
+  auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
   int64_t collectBatchTime = 0;
 
@@ -80,7 +74,7 @@ auto BM_Generic = [](::benchmark::State& state,
           });
     }
 
-    backend->parsePlan(plan->data(), plan->size());
+    backend->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
     auto resultIter = backend->getResultIterator(
         gluten::defaultMemoryAllocator().get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
@@ -227,9 +221,9 @@ int main(int argc, char** argv) {
                 << std::endl;
       std::cout << "Running example..." << std::endl;
       inputFiles.resize(2);
-      GLUTEN_ASSIGN_OR_THROW(substraitJsonFile, getGeneratedFilePath("example.json"));
-      GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
-      GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
+      substraitJsonFile = getGeneratedFilePath("example.json");
+      inputFiles[0] = getGeneratedFilePath("example_orders");
+      inputFiles[1] = getGeneratedFilePath("example_lineitem");
     } else {
       substraitJsonFile = argv[1];
       abortIfFileNotExists(substraitJsonFile);

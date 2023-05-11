@@ -21,6 +21,8 @@
 #include <google/protobuf/util/type_resolver_util.h>
 #include <fstream>
 
+#include "utils/exception.h"
+
 namespace gluten {
 
 // Common for both projector and filters.
@@ -43,7 +45,7 @@ inline google::protobuf::util::TypeResolver* getGeneratedTypeResolver() {
   return typeResolver.get();
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> substraitFromJsonToPb(std::string_view typeName, std::string_view json) {
+std::string substraitFromJsonToPb(std::string_view typeName, std::string_view json) {
   std::string typeUrl = "/substrait." + std::string(typeName);
 
   google::protobuf::io::ArrayInputStream jsonStream{json.data(), static_cast<int>(json.size())};
@@ -55,22 +57,22 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> substraitFromJsonToPb(std::string_
       google::protobuf::util::JsonToBinaryStream(getGeneratedTypeResolver(), typeUrl, &jsonStream, &outStream);
 
   if (!status.ok()) {
-    return arrow::Status::Invalid("JsonToBinaryStream returned ", status);
+    throw GlutenException("JsonToBinaryStream returned " + status.ToString());
   }
-  return arrow::Buffer::FromString(std::move(out));
+  return out;
 }
 
-arrow::Result<std::string> substraitFromPbToJson(std::string_view typeName, const arrow::Buffer& buf) {
+std::string substraitFromPbToJson(std::string_view typeName, const uint8_t* data, int32_t size) {
   std::string typeUrl = "/substrait." + std::string(typeName);
 
-  google::protobuf::io::ArrayInputStream bufStream{buf.data(), static_cast<int>(buf.size())};
+  google::protobuf::io::ArrayInputStream bufStream{data, size};
 
   std::string out;
   google::protobuf::io::StringOutputStream outStream{&out};
 
   auto status = google::protobuf::util::BinaryToJsonStream(getGeneratedTypeResolver(), typeUrl, &bufStream, &outStream);
   if (!status.ok()) {
-    return arrow::Status::Invalid("BinaryToJsonStream returned ", status);
+    throw GlutenException("BinaryToJsonStream returned " + status.ToString());
   }
   return out;
 }

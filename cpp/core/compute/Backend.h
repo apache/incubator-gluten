@@ -44,25 +44,20 @@ class Backend : public std::enable_shared_from_this<Backend> {
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
-  bool parsePlan(const uint8_t* data, int32_t size) {
-    return parsePlan(data, size, -1, -1, -1);
+  void parsePlan(const uint8_t* data, int32_t size) {
+    parsePlan(data, size, -1, -1, -1);
   }
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
-  bool parsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
+  void parsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
 #ifdef GLUTEN_PRINT_DEBUG
-    auto buf = std::make_shared<arrow::Buffer>(data, size);
-    auto maybePlanJson = substraitFromPbToJson("Plan", *buf);
-    if (maybePlanJson.status().ok()) {
-      std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
-      std::cout << "Task stageId: " << stageId << ", partitionId: " << partitionId << ", taskId: " << taskId << "; "
-                << maybePlanJson.ValueOrDie() << std::endl;
-    } else {
-      std::cout << "Error parsing substrait plan to json: " << maybePlanJson.status().ToString() << std::endl;
-    }
+    auto jsonPlan = substraitFromPbToJson("Plan", data, size);
+    std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
+    std::cout << "Task stageId: " << stageId << ", partitionId: " << partitionId << ", taskId: " << taskId << "; "
+              << jsonPlan << std::endl;
 #endif
-    return parseProtobuf(data, size, &substraitPlan_);
+    GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
   }
 
   // Just for benchmark

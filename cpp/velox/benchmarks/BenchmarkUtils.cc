@@ -46,15 +46,15 @@ void initVeloxBackend() {
   initVeloxBackend(bmConfMap);
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
+std::string getPlanFromFile(const std::string& filePath) {
   // Read json file and resume the binary data.
   std::ifstream msgJson(filePath);
   std::stringstream buffer;
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  auto maybePlan = gluten::substraitFromJsonToPb("Plan", msgData);
-  return maybePlan;
+  return gluten::substraitFromJsonToPb("Plan", msgData);
+  ;
 }
 
 std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
