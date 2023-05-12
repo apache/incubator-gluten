@@ -25,7 +25,7 @@ if (NOT EXISTS "${CH_SOURCE_DIR}/utils/extern-local-engine/")
     execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/local-engine ${CH_SOURCE_DIR}/utils/extern-local-engine)
 endif ()
 
-execute_process(COMMAND find ./cpp-ch/local-engine -regex '.*\.\(c\|cpp\|h\)' -exec clang-format-15 --verbose -i --style=file -i {} \;)
+execute_process(COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/local-engine -regex '.*\.\(c\|cpp\|h\)' -exec clang-format-15 --verbose -i --style=file -i {} \;)
 
 set(CH_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
