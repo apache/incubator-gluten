@@ -1,5 +1,5 @@
 #include "OrcFormatFile.h"
-
+// clang-format off
 #if USE_ORC
 #include <memory>
 #include <Formats/FormatFactory.h>
@@ -12,6 +12,7 @@
 #include <DataTypes/NestedUtils.h>
 #include <Formats/FormatSettings.h>
 
+// clang-format on
 namespace DB
 {
 namespace ErrorCodes
@@ -19,12 +20,11 @@ namespace ErrorCodes
     extern const int CANNOT_READ_ALL_DATA;
 }
 }
-#endif
+#    endif
 
 namespace local_engine
 {
-
-#if USE_LOCAL_FORMATS
+#    if USE_LOCAL_FORMATS
 ORCBlockInputFormat::ORCBlockInputFormat(
     DB::ReadBuffer & in_, DB::Block header_, const DB::FormatSettings & format_settings_, const std::vector<StripeInformation> & stripes_)
     : IInputFormat(std::move(header_), in_), format_settings(format_settings_), stripes(stripes_)
@@ -147,7 +147,7 @@ std::shared_ptr<arrow::RecordBatchReader> ORCBlockInputFormat::fetchNextStripe()
     file_reader->Seek(strip.start_row);
     return stepOneStripe();
 }
-#endif
+#    endif
 
 OrcFormatFile::OrcFormatFile(
     DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
@@ -172,25 +172,28 @@ FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & he
 
     auto format_settings = DB::getFormatSettings(context);
 
-#if USE_LOCAL_FORMATS
+#    if USE_LOCAL_FORMATS
     format_settings.orc.import_nested = true;
     auto input_format = std::make_shared<local_engine::ORCBlockInputFormat>(*file_format->read_buffer, header, format_settings, stripes);
-#else
+#    else
     std::vector<int> total_stripe_indices(total_stripes);
     std::iota(total_stripe_indices.begin(), total_stripe_indices.end(), 0);
 
     std::vector<int> required_stripe_indices(stripes.size());
-    for (size_t i = 0 ; i < stripes.size(); ++i)
+    for (size_t i = 0; i < stripes.size(); ++i)
         required_stripe_indices[i] = stripes[i].index;
 
     std::vector<int> skip_stripe_indices;
-    std::set_difference(total_stripe_indices.begin(), total_stripe_indices.end(),
-        required_stripe_indices.begin(), required_stripe_indices.end(),
+    std::set_difference(
+        total_stripe_indices.begin(),
+        total_stripe_indices.end(),
+        required_stripe_indices.begin(),
+        required_stripe_indices.end(),
         std::back_inserter(skip_stripe_indices));
 
     format_settings.orc.skip_stripes = std::unordered_set<int>(skip_stripe_indices.begin(), skip_stripe_indices.end());
     auto input_format = std::make_shared<DB::ORCBlockInputFormat>(*file_format->read_buffer, header, format_settings);
-#endif
+#    endif
     file_format->input = input_format;
     return file_format;
 }
@@ -227,8 +230,7 @@ std::vector<StripeInformation> OrcFormatFile::collectRequiredStripes(UInt64 & to
 
 std::vector<StripeInformation> OrcFormatFile::collectRequiredStripes(DB::ReadBuffer * read_buffer, UInt64 & total_stripes)
 {
-    DB::FormatSettings format_settings
-    {
+    DB::FormatSettings format_settings{
         .seekable_read = true,
     };
     std::atomic<int> is_stopped{0};

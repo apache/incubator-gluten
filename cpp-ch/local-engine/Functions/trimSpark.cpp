@@ -22,7 +22,6 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
 struct TrimModeLeft
 {
     static constexpr auto name = "trimLeftSpark";
@@ -47,7 +46,6 @@ struct TrimModeBoth
 
 namespace
 {
-
     template <typename TrimMode>
     class TrimSparkFunction : public IFunction
     {
@@ -146,7 +144,8 @@ namespace
             }
         }
 
-        void trim(const UInt8 * data, size_t size, const UInt8 *& res_data, size_t & res_size, const std::unordered_set<char> & trim_set) const
+        void
+        trim(const UInt8 * data, size_t size, const UInt8 *& res_data, size_t & res_size, const std::unordered_set<char> & trim_set) const
         {
             const char * char_data = reinterpret_cast<const char *>(data);
             const char * char_end = char_data + size;

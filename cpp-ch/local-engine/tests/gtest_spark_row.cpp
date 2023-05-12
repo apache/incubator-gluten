@@ -1,19 +1,19 @@
-#include <gtest/gtest.h>
-#include <Parser/CHColumnToSparkRow.h>
-#include <Parser/SparkRowToCHColumn.h>
-#include <DataTypes/DataTypesNumber.h>
-#include <DataTypes/DataTypesDecimal.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeDate.h>
+#include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime.h>
 #include <DataTypes/DataTypeDateTime64.h>
-#include <DataTypes/DataTypeDate32.h>
-#include <DataTypes/DataTypeDate.h>
+#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeString.h>
+#include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesDecimal.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
+#include <Parser/CHColumnToSparkRow.h>
+#include <Parser/SparkRowToCHColumn.h>
+#include <gtest/gtest.h>
 
 using namespace local_engine;
 using namespace DB;
@@ -32,7 +32,7 @@ static SparkRowAndBlock mockSparkRowInfoAndBlock(const DataTypeAndFields & type_
 {
     /// Initialize types
     ColumnsWithTypeAndName columns(type_and_fields.size());
-    for (size_t i=0; i<type_and_fields.size(); ++i)
+    for (size_t i = 0; i < type_and_fields.size(); ++i)
     {
         columns[i].type = type_and_fields[i].type;
         columns[i].name = String(1, 'a' + i);
@@ -41,7 +41,7 @@ static SparkRowAndBlock mockSparkRowInfoAndBlock(const DataTypeAndFields & type_
 
     /// Initialize columns
     auto mutable_colums = block.mutateColumns();
-    for (size_t i=0; i<mutable_colums.size(); ++i)
+    for (size_t i = 0; i < mutable_colums.size(); ++i)
         mutable_colums[i]->insert(type_and_fields[i].field);
     block.setColumns(std::move(mutable_colums));
 
@@ -268,7 +268,7 @@ TEST(SparkRow, StructTypes)
     EXPECT_TRUE(
         spark_row_info->getTotalBytes()
         == 8 + 2 * 8 + BackingDataLengthCalculator(type_and_fields[0].type).calculate(type_and_fields[0].field)
-        + BackingDataLengthCalculator(type_and_fields[1].type).calculate(type_and_fields[1].field));
+            + BackingDataLengthCalculator(type_and_fields[1].type).calculate(type_and_fields[1].field));
 }
 
 TEST(SparkRow, ArrayTypes)
@@ -290,8 +290,7 @@ TEST(SparkRow, ArrayTypes)
     assertReadConsistentWithWritten(*spark_row_info, *block, type_and_fields);
     EXPECT_TRUE(
         spark_row_info->getTotalBytes()
-        == 8 + 2 * 8
-            + BackingDataLengthCalculator(type_and_fields[0].type).calculate(type_and_fields[0].field)
+        == 8 + 2 * 8 + BackingDataLengthCalculator(type_and_fields[0].type).calculate(type_and_fields[0].field)
             + BackingDataLengthCalculator(type_and_fields[1].type).calculate(type_and_fields[1].field));
 }
 
@@ -375,18 +374,18 @@ TEST(SparkRow, StructArrayTypes)
         {std::make_shared<DataTypeTuple>(DataTypes{array_type}),
          []() -> Field
          {
-            Array array{Int32(1)};
-            Tuple tuple(1);
-            tuple[0] = std::move(array);
-            return std::move(tuple);
+             Array array{Int32(1)};
+             Tuple tuple(1);
+             tuple[0] = std::move(array);
+             return std::move(tuple);
          }()},
         {std::make_shared<DataTypeArray>(tuple_type),
          []() -> Field
          {
-            Tuple tuple{Int64(2)};
-            Array array(1);
-            array[0] = std::move(tuple);
-            return std::move(array);
+             Tuple tuple{Int64(2)};
+             Array array(1);
+             array[0] = std::move(tuple);
+             return std::move(array);
          }()},
     };
 
@@ -398,7 +397,6 @@ TEST(SparkRow, StructArrayTypes)
         spark_row_info->getTotalBytes()
         == 8 + 2 * 8 + BackingDataLengthCalculator(type_and_fields[0].type).calculate(type_and_fields[0].field)
             + BackingDataLengthCalculator(type_and_fields[1].type).calculate(type_and_fields[1].field));
-
 }
 
 TEST(SparkRow, ArrayMapTypes)
@@ -410,24 +408,24 @@ TEST(SparkRow, ArrayMapTypes)
         {std::make_shared<DataTypeArray>(map_type),
          []() -> Field
          {
-            Map map(1);
-            map[0] = std::move(Tuple{Int32(1),Int32(2)});
+             Map map(1);
+             map[0] = std::move(Tuple{Int32(1), Int32(2)});
 
-            Array array(1);
-            array[0] = std::move(map);
-            return std::move(array);
+             Array array(1);
+             array[0] = std::move(map);
+             return std::move(array);
          }()},
         {std::make_shared<DataTypeMap>(std::make_shared<DataTypeInt32>(), array_type),
          []() -> Field
          {
-            Array array{Int32(4)};
-            Tuple tuple(2);
-            tuple[0] = Int32(3);
-            tuple[1] = std::move(array);
+             Array array{Int32(4)};
+             Tuple tuple(2);
+             tuple[0] = Int32(3);
+             tuple[1] = std::move(array);
 
-            Map map(1);
-            map[0] = std::move(tuple);
-            return std::move(map);
+             Map map(1);
+             map[0] = std::move(tuple);
+             return std::move(map);
          }()},
     };
 
@@ -460,4 +458,3 @@ TEST(SparkRow, NullableComplexTypes)
     assertReadConsistentWithWritten(*spark_row_info, *block, type_and_fields);
     EXPECT_TRUE(spark_row_info->getTotalBytes() == 8 + 3 * 8);
 }
-

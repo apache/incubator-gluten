@@ -3,11 +3,11 @@
 #include "config.h"
 
 #if USE_PARQUET
-
+// clang-format off
 #include <memory>
 #include <IO/ReadBuffer.h>
 #include <Storages/SubstraitSource/FormatFile.h>
-
+// clang-format on
 namespace local_engine
 {
 struct RowGroupInfomation
@@ -21,7 +21,8 @@ struct RowGroupInfomation
 class ParquetFormatFile : public FormatFile
 {
 public:
-    explicit ParquetFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
+    explicit ParquetFormatFile(
+        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
     ~ParquetFormatFile() override = default;
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
     std::optional<size_t> getTotalRows() override;

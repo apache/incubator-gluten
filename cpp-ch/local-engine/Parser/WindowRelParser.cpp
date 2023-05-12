@@ -7,22 +7,22 @@
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Names.h>
 #include <Core/SortDescription.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <IO/WriteBufferFromString.h>
+#include <Interpreters/ActionsDAG.h>
 #include <Interpreters/WindowDescription.h>
 #include <Parser/RelParser.h>
 #include <Parser/SortRelParser.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/WindowStep.h>
-#include <Common/logger_useful.h>
 #include <base/sort.h>
 #include <base/types.h>
 #include <google/protobuf/util/json_util.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <Interpreters/ActionsDAG.h>
-#include <DataTypes/DataTypesNumber.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -35,7 +35,6 @@ namespace ErrorCodes
 }
 namespace local_engine
 {
-
 WindowRelParser::WindowRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
 {
 }
@@ -146,16 +145,16 @@ DB::WindowFrame WindowRelParser::parseWindowFrame(const substrait::Expression::W
     return win_frame;
 }
 
-DB::WindowFrame::FrameType WindowRelParser::parseWindowFrameType(const std::string & function_name, const substrait::Expression::WindowFunction & window_function)
+DB::WindowFrame::FrameType
+WindowRelParser::parseWindowFrameType(const std::string & function_name, const substrait::Expression::WindowFunction & window_function)
 {
     // It's weird! The frame type only could be rows in spark for rank(). But in clickhouse
     // it's should be range. If run rank() over rows frame, the result is different. The rank number
     // is different for the same values.
-    static const std::unordered_map<std::string, substrait::WindowType> special_function_frame_type
-        = {
-            {"rank", substrait::RANGE},
-            {"dense_rank", substrait::RANGE},
-        };
+    static const std::unordered_map<std::string, substrait::WindowType> special_function_frame_type = {
+        {"rank", substrait::RANGE},
+        {"dense_rank", substrait::RANGE},
+    };
 
     substrait::WindowType frame_type;
     auto iter = special_function_frame_type.find(function_name);
@@ -301,8 +300,7 @@ WindowFunctionDescription WindowRelParser::parseWindowFunctionDescription(
     return description;
 }
 
-void WindowRelParser::tryAddProjectionBeforeWindow(
-    QueryPlan & plan, const substrait::WindowRel & win_rel)
+void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const substrait::WindowRel & win_rel)
 {
     auto header = plan.getCurrentDataStream().header;
     ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(header.getColumnsWithTypeAndName());
@@ -393,6 +391,5 @@ void registerWindowRelParser(RelParserFactory & factory)
 {
     auto builder = [](SerializedPlanParser * plan_paser) { return std::make_shared<WindowRelParser>(plan_paser); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kWindow, builder);
-
 }
 }

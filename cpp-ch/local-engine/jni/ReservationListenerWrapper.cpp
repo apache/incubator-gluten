@@ -32,7 +32,6 @@ void ReservationListenerWrapper::reserveOrThrow(int64_t size)
     GET_JNIENV(env)
     safeCallVoidMethod(env, listener, reservation_listener_reserve_or_throw, size);
     CLEAN_JNIENV
-
 }
 
 void ReservationListenerWrapper::free(int64_t size)

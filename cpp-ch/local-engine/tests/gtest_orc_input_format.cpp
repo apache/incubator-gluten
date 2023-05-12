@@ -22,12 +22,10 @@ public:
         const DB::FormatSettings & format_settings_,
         const std::vector<local_engine::StripeInformation> & stripes_)
         : local_engine::ORCBlockInputFormat(in_, header_, format_settings_, stripes_)
-    {}
-
-    DB::Chunk callGenerate()
     {
-        return generate();
     }
+
+    DB::Chunk callGenerate() { return generate(); }
 };
 
 static std::string orc_file_path = "./utils/local-engine/tests/data/lineitem.orc";
@@ -98,7 +96,7 @@ static DB::Block buildLineitemHeader()
     return header;
 }
 
-std::vector<local_engine::StripeInformation> collectRequiredStripes(DB::ReadBuffer* read_buffer)
+std::vector<local_engine::StripeInformation> collectRequiredStripes(DB::ReadBuffer * read_buffer)
 {
     std::vector<local_engine::StripeInformation> stripes;
     DB::FormatSettings format_settings;
@@ -123,7 +121,6 @@ std::vector<local_engine::StripeInformation> collectRequiredStripes(DB::ReadBuff
         total_num_rows += stripe_metadata->getNumberOfRows();
     }
     return stripes;
-
 }
 
 TEST(OrcInputFormat, CallGenerate)

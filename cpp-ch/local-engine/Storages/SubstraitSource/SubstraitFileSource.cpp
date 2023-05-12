@@ -1,14 +1,10 @@
 #include <functional>
 #include <memory>
 
+#include <substrait/plan.pb.h>
 #include <magic_enum.hpp>
 #include <Poco/URI.h>
-#include <substrait/plan.pb.h>
 
-#include <Common/CHUtil.h>
-#include <Common/Exception.h>
-#include <Common/StringUtils.h>
-#include <Common/typeid_cast.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/ColumnsNumber.h>
@@ -17,9 +13,13 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <IO/ReadBufferFromString.h>
 #include <Interpreters/castColumn.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <Storages/SubstraitSource/FormatFile.h>
 #include <QueryPipeline/Pipe.h>
+#include <Storages/SubstraitSource/FormatFile.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Common/CHUtil.h>
+#include <Common/Exception.h>
+#include <Common/StringUtils.h>
+#include <Common/typeid_cast.h>
 
 namespace DB
 {
@@ -31,7 +31,6 @@ namespace ErrorCodes
 }
 namespace local_engine
 {
-
 // When run query "select count(*) from t", there is no any column to be read.
 // The number of rows is the only needed information. To handle these cases, we
 // build blocks with a const virtual column to indicate how many rows is in it.
@@ -42,10 +41,9 @@ static DB::Block getRealHeader(const DB::Block & header)
     return BlockUtil::buildRowCountHeader();
 }
 
-SubstraitFileSource::SubstraitFileSource(DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos)
-    : DB::ISource(getRealHeader(header_), false)
-    , context(context_)
-    , output_header(header_)
+SubstraitFileSource::SubstraitFileSource(
+    DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos)
+    : DB::ISource(getRealHeader(header_), false), context(context_), output_header(header_)
 {
     /**
      * We may query part fields of a struct column. For example, we have a column c in type
@@ -77,7 +75,7 @@ SubstraitFileSource::SubstraitFileSource(DB::ContextPtr context_, const DB::Bloc
 
 DB::Chunk SubstraitFileSource::generate()
 {
-    while(true)
+    while (true)
     {
         if (!tryPrepareReader())
         {
@@ -227,8 +225,7 @@ DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataType
     {
         if (!type->isNullable())
         {
-            throw DB::Exception(
-                DB::ErrorCodes::LOGICAL_ERROR, "Partition column is null value,but column data type is not nullable.");
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Partition column is null value,but column data type is not nullable.");
         }
         auto nested_type = static_cast<const DB::DataTypeNullable &>(*type).getNestedType();
         auto column = nested_type->createColumnConstWithDefaultValue(rows);
@@ -243,29 +240,29 @@ DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataType
 
 #define BUILD_INT_FIELD(type) \
     [](DB::ReadBuffer & in, const String &) \
-    {\
-        type value = 0;\
-        DB::readIntText(value, in);\
-        return DB::Field(value);\
+    { \
+        type value = 0; \
+        DB::readIntText(value, in); \
+        return DB::Field(value); \
     }
 
 #define BUILD_FP_FIELD(type) \
     [](DB::ReadBuffer & in, const String &) \
-    {\
-        type value = 0.0;\
-        DB::readFloatText(value, in);\
-        return DB::Field(value);\
+    { \
+        type value = 0.0; \
+        DB::readFloatText(value, in); \
+        return DB::Field(value); \
     }
 
 DB::Field FileReaderWrapper::buildFieldFromString(const String & str_value, DB::DataTypePtr type)
 {
-    using FieldBuilder =  std::function<DB::Field(DB::ReadBuffer &, const String &)>;
+    using FieldBuilder = std::function<DB::Field(DB::ReadBuffer &, const String &)>;
     static std::map<int, FieldBuilder> field_builders
-        = {{magic_enum::enum_integer(DB::TypeIndex::Int8), BUILD_INT_FIELD(Int8) },
-           {magic_enum::enum_integer(DB::TypeIndex::Int16), BUILD_INT_FIELD(Int16) },
-           {magic_enum::enum_integer(DB::TypeIndex::Int32), BUILD_INT_FIELD(Int32) },
-           {magic_enum::enum_integer(DB::TypeIndex::Int64), BUILD_INT_FIELD(Int64) },
-           {magic_enum::enum_integer(DB::TypeIndex::Float32), BUILD_FP_FIELD(DB::Float32) },
+        = {{magic_enum::enum_integer(DB::TypeIndex::Int8), BUILD_INT_FIELD(Int8)},
+           {magic_enum::enum_integer(DB::TypeIndex::Int16), BUILD_INT_FIELD(Int16)},
+           {magic_enum::enum_integer(DB::TypeIndex::Int32), BUILD_INT_FIELD(Int32)},
+           {magic_enum::enum_integer(DB::TypeIndex::Int64), BUILD_INT_FIELD(Int64)},
+           {magic_enum::enum_integer(DB::TypeIndex::Float32), BUILD_FP_FIELD(DB::Float32)},
            {magic_enum::enum_integer(DB::TypeIndex::Float64), BUILD_FP_FIELD(DB::Float64)},
            {magic_enum::enum_integer(DB::TypeIndex::String), [](DB::ReadBuffer &, const String & val) { return DB::Field(val); }},
            {magic_enum::enum_integer(DB::TypeIndex::Date),
@@ -292,11 +289,7 @@ DB::Field FileReaderWrapper::buildFieldFromString(const String & str_value, DB::
 }
 
 ConstColumnsFileReader::ConstColumnsFileReader(FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & header_, size_t block_size_)
-    : FileReaderWrapper(file_)
-    , context(context_)
-    , header(header_)
-    , remained_rows(0)
-    , block_size(block_size_)
+    : FileReaderWrapper(file_), context(context_), header(header_), remained_rows(0), block_size(block_size_)
 {
     auto rows = file->getTotalRows();
     if (!rows)
@@ -348,11 +341,9 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
     return true;
 }
 
-NormalFileReader::NormalFileReader(FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & to_read_header_, const DB::Block & output_header_)
-    : FileReaderWrapper(file_)
-    , context(context_)
-    , to_read_header(to_read_header_)
-    , output_header(output_header_)
+NormalFileReader::NormalFileReader(
+    FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & to_read_header_, const DB::Block & output_header_)
+    : FileReaderWrapper(file_), context(context_), to_read_header(to_read_header_), output_header(output_header_)
 {
     input_format = file->createInputFormat(to_read_header);
     DB::Pipe pipe(input_format->input);

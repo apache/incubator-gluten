@@ -1,23 +1,22 @@
 #pragma once
 
-#include <DataTypes/DataTypeAggregateFunction.h>
 #include <AggregateFunctions/IAggregateFunction.h>
 #include <Columns/ColumnAggregateFunction.h>
-#include <Common/typeid_cast.h>
+#include <DataTypes/DataTypeAggregateFunction.h>
 #include <Common/assert_cast.h>
+#include <Common/typeid_cast.h>
 
 
 namespace DB
 {
-    namespace ErrorCodes
-    {
-        extern const int ILLEGAL_TYPE_OF_ARGUMENT;
-    }
+namespace ErrorCodes
+{
+    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+}
 }
 
 namespace local_engine
 {
-
 using namespace DB;
 
 struct Settings;
@@ -35,70 +34,41 @@ private:
 
 public:
     AggregateFunctionPartialMerge(const AggregateFunctionPtr & nested_, const DataTypePtr & argument, const Array & params_)
-        : IAggregateFunctionHelper<AggregateFunctionPartialMerge>({argument}, params_, createResultType(nested_))
-        , nested_func(nested_)
+        : IAggregateFunctionHelper<AggregateFunctionPartialMerge>({argument}, params_, createResultType(nested_)), nested_func(nested_)
     {
         const DataTypeAggregateFunction * data_type = typeid_cast<const DataTypeAggregateFunction *>(argument.get());
 
         if (!data_type || !nested_func->haveSameStateRepresentation(*data_type->getFunction()))
-            throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type {} of argument for aggregate function {}, "
-                            "expected {} or equivalent type", argument->getName(), getName(), getStateType()->getName());
+            throw Exception(
+                ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                "Illegal type {} of argument for aggregate function {}, "
+                "expected {} or equivalent type",
+                argument->getName(),
+                getName(),
+                getStateType()->getName());
     }
 
-    String getName() const override
-    {
-        return nested_func->getName() + "PartialMerge";
-    }
+    String getName() const override { return nested_func->getName() + "PartialMerge"; }
 
-    static DataTypePtr createResultType(const AggregateFunctionPtr & nested_)
-    {
-        return nested_->getResultType();
-    }
+    static DataTypePtr createResultType(const AggregateFunctionPtr & nested_) { return nested_->getResultType(); }
 
-    const DataTypePtr & getResultType() const override
-    {
-        return nested_func->getResultType();
-    }
+    const DataTypePtr & getResultType() const override { return nested_func->getResultType(); }
 
-    bool isVersioned() const override
-    {
-        return nested_func->isVersioned();
-    }
+    bool isVersioned() const override { return nested_func->isVersioned(); }
 
-    size_t getDefaultVersion() const override
-    {
-        return nested_func->getDefaultVersion();
-    }
+    size_t getDefaultVersion() const override { return nested_func->getDefaultVersion(); }
 
-    DataTypePtr getStateType() const override
-    {
-        return nested_func->getStateType();
-    }
+    DataTypePtr getStateType() const override { return nested_func->getStateType(); }
 
-    void create(AggregateDataPtr __restrict place) const override
-    {
-        nested_func->create(place);
-    }
+    void create(AggregateDataPtr __restrict place) const override { nested_func->create(place); }
 
-    void destroy(AggregateDataPtr __restrict place) const noexcept override
-    {
-        nested_func->destroy(place);
-    }
+    void destroy(AggregateDataPtr __restrict place) const noexcept override { nested_func->destroy(place); }
 
-    bool hasTrivialDestructor() const override
-    {
-        return nested_func->hasTrivialDestructor();
-    }
+    bool hasTrivialDestructor() const override { return nested_func->hasTrivialDestructor(); }
 
-    size_t sizeOfData() const override
-    {
-        return nested_func->sizeOfData();
-    }
+    size_t sizeOfData() const override { return nested_func->sizeOfData(); }
 
-    size_t alignOfData() const override
-    {
-        return nested_func->alignOfData();
-    }
+    size_t alignOfData() const override { return nested_func->alignOfData(); }
 
     void add(AggregateDataPtr __restrict place, const IColumn ** columns, size_t row_num, Arena * arena) const override
     {
@@ -125,10 +95,7 @@ public:
         nested_func->insertResultInto(place, to, arena);
     }
 
-    bool allocatesMemoryInArena() const override
-    {
-        return nested_func->allocatesMemoryInArena();
-    }
+    bool allocatesMemoryInArena() const override { return nested_func->allocatesMemoryInArena(); }
 
     AggregateFunctionPtr getNestedFunction() const override { return nested_func; }
 };

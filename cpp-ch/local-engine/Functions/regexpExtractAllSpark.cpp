@@ -25,7 +25,6 @@ using namespace DB;
 
 namespace local_engine
 {
-
 namespace
 {
     class FunctionRegexpExtractAllSpark : public IFunction

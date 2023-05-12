@@ -5,7 +5,6 @@
 
 namespace DB
 {
-
 namespace ErrorCodes
 {
     extern const int ILLEGAL_COLUMN;
@@ -15,7 +14,6 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
 using namespace DB;
 
 // Spark-specific version of PositionImpl
@@ -26,7 +24,7 @@ struct PositionSparkImpl
     static constexpr bool supports_start_pos = true;
     static constexpr auto name = Name::name;
 
-    static ColumnNumbers getArgumentsThatAreAlwaysConstant() { return {};}
+    static ColumnNumbers getArgumentsThatAreAlwaysConstant() { return {}; }
 
     using ResultType = UInt64;
 
@@ -39,7 +37,6 @@ struct PositionSparkImpl
         PaddedPODArray<UInt64> & res,
         [[maybe_unused]] ColumnUInt8 * res_null)
     {
-
         /// `res_null` serves as an output parameter for implementing an XYZOrNull variant.
         assert(!res_null);
 
@@ -67,13 +64,12 @@ struct PositionSparkImpl
             // The result is 0 if start_pos is 0, in compliance with Spark semantics
             if (start != 0 && pos + needle.size() < begin + offsets[i])
             {
-                auto res_pos = 1 + Impl::countChars(reinterpret_cast<const char *>(begin + offsets[i - 1]), reinterpret_cast<const char *>(pos));
+                auto res_pos
+                    = 1 + Impl::countChars(reinterpret_cast<const char *>(begin + offsets[i - 1]), reinterpret_cast<const char *>(pos));
                 if (res_pos < start)
                 {
                     pos = reinterpret_cast<const UInt8 *>(Impl::advancePos(
-                        reinterpret_cast<const char *>(pos),
-                        reinterpret_cast<const char *>(begin + offsets[i]),
-                        start - res_pos));
+                        reinterpret_cast<const char *>(pos), reinterpret_cast<const char *>(begin + offsets[i]), start - res_pos));
                     continue;
                 }
                 // The result is 1 if needle is empty, in compliance with Spark semantics
@@ -92,11 +88,7 @@ struct PositionSparkImpl
     }
 
     /// Search for substring in string.
-    static void constantConstantScalar(
-        std::string data,
-        std::string needle,
-        UInt64 start_pos,
-        UInt64 & res)
+    static void constantConstantScalar(std::string data, std::string needle, UInt64 start_pos, UInt64 & res)
     {
         size_t start_byte = Impl::advancePos(data.data(), data.data() + data.size(), start_pos - 1) - data.data();
         res = data.find(needle, start_byte);
@@ -250,8 +242,7 @@ struct PositionSparkImpl
 
                 const char * beg = Impl::advancePos(haystack.data(), haystack.data() + haystack.size(), start - 1);
                 size_t pos = searcher.search(
-                                reinterpret_cast<const UInt8 *>(beg),
-                                 reinterpret_cast<const UInt8 *>(haystack.data()) + haystack.size())
+                                 reinterpret_cast<const UInt8 *>(beg), reinterpret_cast<const UInt8 *>(haystack.data()) + haystack.size())
                     - reinterpret_cast<const UInt8 *>(haystack.data());
 
                 if (pos != haystack.size())

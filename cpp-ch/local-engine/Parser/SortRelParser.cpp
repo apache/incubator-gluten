@@ -14,10 +14,9 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
-SortRelParser::SortRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
-{}
+SortRelParser::SortRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+{
+}
 
 DB::QueryPlanPtr
 SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
@@ -27,11 +26,7 @@ SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, st
     auto sort_descr = parseSortDescription(sort_rel.sorts(), query_plan->getCurrentDataStream().header);
     const auto & settings = getContext()->getSettingsRef();
     auto sorting_step = std::make_unique<DB::SortingStep>(
-        query_plan->getCurrentDataStream(),
-        sort_descr,
-        limit,
-        SortingStep::Settings(*getContext()),
-        false);
+        query_plan->getCurrentDataStream(), sort_descr, limit, SortingStep::Settings(*getContext()), false);
     sorting_step->setStepDescription("Sorting step");
     query_plan->addStep(std::move(sorting_step));
     return query_plan;
@@ -89,10 +84,7 @@ size_t SortRelParser::parseLimit(std::list<const substrait::Rel *> & rel_stack_)
 
 void registerSortRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser)
-    {
-        return std::make_shared<SortRelParser>(plan_parser);
-    };
+    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<SortRelParser>(plan_parser); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kSort, builder);
 }
 }

@@ -2,7 +2,6 @@
 
 namespace local_engine
 {
-
 StorageMergeTreeFactory & StorageMergeTreeFactory::instance()
 {
     static StorageMergeTreeFactory ret;

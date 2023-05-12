@@ -15,7 +15,6 @@ namespace ErrorCodes
 using namespace DB;
 namespace local_engine
 {
-
 namespace
 {
     /// The difference between reinterpretAsStringSpark and reinterpretAsString is that reinterpretAsStringSpark:

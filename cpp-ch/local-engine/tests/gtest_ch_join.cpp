@@ -1,22 +1,22 @@
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parsers/ASTIdentifier.h>
+#include <Processors/Executors/PipelineExecutor.h>
+#include <Processors/QueryPlan/ExpressionStep.h>
+#include <Processors/QueryPlan/JoinStep.h>
+#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
+#include <Processors/QueryPlan/ReadFromPreparedSource.h>
+#include <Processors/Sources/SourceFromSingleChunk.h>
+#include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Storages/CustomMergeTreeSink.h>
+#include <Storages/StorageJoinFromReadBuffer.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
-#include <Storages/CustomMergeTreeSink.h>
-#include <Processors/Executors/PipelineExecutor.h>
 #include <Common/MergeTreeTool.h>
-#include <Processors/Sources/SourceFromSingleChunk.h>
-#include <Processors/QueryPlan/ReadFromPreparedSource.h>
-#include <Processors/QueryPlan/JoinStep.h>
-#include <Processors/QueryPlan/ExpressionStep.h>
-#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Parsers/ASTIdentifier.h>
-#include <Storages/StorageJoinFromReadBuffer.h>
 
-#include <Interpreters/TableJoin.h>
 #include <Interpreters/HashJoin.h>
+#include <Interpreters/TableJoin.h>
 #include <substrait/plan.pb.h>
 
 
@@ -42,8 +42,8 @@ TEST(TestJoin, simple)
     column1->insert(6);
     column1->insert(8);
 
-    ColumnsWithTypeAndName columns = {ColumnWithTypeAndName(std::move(column0),int_type, "colA"),
-                                      ColumnWithTypeAndName(std::move(column1),int_type, "colB")};
+    ColumnsWithTypeAndName columns
+        = {ColumnWithTypeAndName(std::move(column0), int_type, "colA"), ColumnWithTypeAndName(std::move(column1), int_type, "colB")};
     Block left(columns);
 
     auto column3 = int_type->createColumn();
@@ -58,8 +58,8 @@ TEST(TestJoin, simple)
     column4->insert(5);
     column4->insert(9);
 
-    ColumnsWithTypeAndName columns2 = {ColumnWithTypeAndName(std::move(column3),int_type, "colD"),
-                                      ColumnWithTypeAndName(std::move(column4),int_type, "colC")};
+    ColumnsWithTypeAndName columns2
+        = {ColumnWithTypeAndName(std::move(column3), int_type, "colD"), ColumnWithTypeAndName(std::move(column4), int_type, "colC")};
     Block right(columns2);
 
     auto left_table = std::make_shared<SourceFromSingleChunk>(left);
@@ -85,13 +85,14 @@ TEST(TestJoin, simple)
     auto left_keys = left.getNamesAndTypesList();
     join->addJoinedColumnsAndCorrectTypes(left_keys, true);
     std::cerr << "after join:\n";
-    for (const auto& key : left_keys)
+    for (const auto & key : left_keys)
     {
-        std::cerr << key.dump() <<std::endl;
+        std::cerr << key.dump() << std::endl;
     }
     ActionsDAGPtr left_convert_actions = nullptr;
     ActionsDAGPtr right_convert_actions = nullptr;
-    std::tie(left_convert_actions, right_convert_actions) = join->createConvertingActions(left.getColumnsWithTypeAndName(), right.getColumnsWithTypeAndName());
+    std::tie(left_convert_actions, right_convert_actions)
+        = join->createConvertingActions(left.getColumnsWithTypeAndName(), right.getColumnsWithTypeAndName());
 
     if (right_convert_actions)
     {
@@ -108,13 +109,10 @@ TEST(TestJoin, simple)
     }
     auto hash_join = std::make_shared<HashJoin>(join, right_plan.getCurrentDataStream().header);
 
-    QueryPlanStepPtr join_step = std::make_unique<JoinStep>(
-        left_plan.getCurrentDataStream(),
-        right_plan.getCurrentDataStream(),
-        hash_join,
-        8192, 1, false);
+    QueryPlanStepPtr join_step
+        = std::make_unique<JoinStep>(left_plan.getCurrentDataStream(), right_plan.getCurrentDataStream(), hash_join, 8192, 1, false);
 
-    std::cerr<< "join step:" <<join_step->getOutputStream().header.dumpStructure() << std::endl;
+    std::cerr << "join step:" << join_step->getOutputStream().header.dumpStructure() << std::endl;
 
     std::vector<QueryPlanPtr> plans;
     plans.emplace_back(std::make_unique<QueryPlan>(std::move(left_plan)));
@@ -124,7 +122,8 @@ TEST(TestJoin, simple)
     query_plan.unitePlans(std::move(join_step), {std::move(plans)});
     std::cerr << query_plan.getCurrentDataStream().header.dumpStructure() << std::endl;
     ActionsDAGPtr project = std::make_shared<ActionsDAG>(query_plan.getCurrentDataStream().header.getNamesAndTypesList());
-    project->project({NameWithAlias("colA", "colA"),NameWithAlias("colB", "colB"),NameWithAlias("colD", "colD"),NameWithAlias("colC", "colC")});
+    project->project(
+        {NameWithAlias("colA", "colA"), NameWithAlias("colB", "colB"), NameWithAlias("colD", "colD"), NameWithAlias("colC", "colC")});
     QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(query_plan.getCurrentDataStream(), project);
     query_plan.addStep(std::move(project_step));
     auto pipeline = query_plan.buildQueryPipeline(QueryPlanOptimizationSettings(), BuildQueryPipelineSettings());
@@ -154,8 +153,8 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
     column1->insert(6);
     column1->insert(8);
 
-    ColumnsWithTypeAndName columns = {ColumnWithTypeAndName(std::move(column0),int_type, "colA"),
-                                      ColumnWithTypeAndName(std::move(column1),int_type, "colB")};
+    ColumnsWithTypeAndName columns
+        = {ColumnWithTypeAndName(std::move(column0), int_type, "colA"), ColumnWithTypeAndName(std::move(column1), int_type, "colB")};
     Block left(columns);
 
     auto column3 = int_type->createColumn();
@@ -170,8 +169,8 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
     column4->insert(5);
     column4->insert(9);
 
-    ColumnsWithTypeAndName columns2 = {ColumnWithTypeAndName(std::move(column3),int_type, "colD"),
-                                       ColumnWithTypeAndName(std::move(column4),int_type, "colC")};
+    ColumnsWithTypeAndName columns2
+        = {ColumnWithTypeAndName(std::move(column3), int_type, "colD"), ColumnWithTypeAndName(std::move(column4), int_type, "colC")};
     Block right(columns2);
     std::string buf;
     WriteBufferFromString write_buf(buf);
@@ -196,7 +195,8 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
     auto storage_snapshot = std::make_shared<StorageSnapshot>(*join_storage, metadata);
     auto left_table = std::make_shared<SourceFromSingleChunk>(left);
     SelectQueryInfo query_info;
-    auto right_table = join_storage->read(right.getNames(), storage_snapshot, query_info, global_context, QueryProcessingStage::Enum::FetchColumns, 8192, 1);
+    auto right_table = join_storage->read(
+        right.getNames(), storage_snapshot, query_info, global_context, QueryProcessingStage::Enum::FetchColumns, 8192, 1);
     QueryPlan left_plan;
     left_plan.addStep(std::make_unique<ReadFromPreparedSource>(Pipe(left_table)));
 
@@ -211,16 +211,14 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
 
     auto hash_join = join_storage->getJoinLocked(join, global_context);
 
-    QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(
-        left_plan.getCurrentDataStream(),
-        hash_join,
-        8192);
+    QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(left_plan.getCurrentDataStream(), hash_join, 8192);
 
     join_step->setStepDescription("JOIN");
     left_plan.addStep(std::move(join_step));
 
     ActionsDAGPtr project = std::make_shared<ActionsDAG>(left_plan.getCurrentDataStream().header.getNamesAndTypesList());
-    project->project({NameWithAlias("colA", "colA"),NameWithAlias("colB", "colB"),NameWithAlias("colD", "colD"),NameWithAlias("colC", "colC")});
+    project->project(
+        {NameWithAlias("colA", "colA"), NameWithAlias("colB", "colB"), NameWithAlias("colD", "colD"), NameWithAlias("colC", "colC")});
     QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left_plan.getCurrentDataStream(), project);
     left_plan.addStep(std::move(project_step));
     auto pipeline = left_plan.buildQueryPipeline(QueryPlanOptimizationSettings(), BuildQueryPipelineSettings());
@@ -230,4 +228,3 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
     executor.pull(res);
     debug::headBlock(res);
 }
-

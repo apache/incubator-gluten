@@ -1,9 +1,9 @@
 #include <stdexcept>
-#include <jni/jni_error.h>
-#include <jni/jni_common.h>
 #include <jni.h>
+#include <jni/jni_common.h>
+#include <jni/jni_error.h>
 #include <Poco/Logger.h>
-#include "Common/Exception.h"
+#include <Common/Exception.h>
 #include <Common/logger_useful.h>
 
 namespace local_engine
@@ -60,7 +60,8 @@ void JniErrorsGlobalState::throwException(JNIEnv * env, const std::exception & e
     throwRuntimeException(env, e.what(), DB::getExceptionStackTraceString(e));
 }
 
-void JniErrorsGlobalState::throwException(JNIEnv * env,jclass exception_class, const std::string & message, const std::string & stack_trace)
+void JniErrorsGlobalState::throwException(
+    JNIEnv * env, jclass exception_class, const std::string & message, const std::string & stack_trace)
 {
     if (exception_class)
     {
@@ -73,10 +74,9 @@ void JniErrorsGlobalState::throwException(JNIEnv * env,jclass exception_class, c
         // This will cause a coredump
         throw std::runtime_error("Not found java runtime exception class");
     }
-
 }
 
-void JniErrorsGlobalState::throwRuntimeException(JNIEnv * env,const std::string & message, const std::string & stack_trace)
+void JniErrorsGlobalState::throwRuntimeException(JNIEnv * env, const std::string & message, const std::string & stack_trace)
 {
     throwException(env, runtime_exception_class, message, stack_trace);
 }

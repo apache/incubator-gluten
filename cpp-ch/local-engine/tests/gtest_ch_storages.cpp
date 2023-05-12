@@ -1,14 +1,14 @@
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <gtest/gtest.h>
-#include <Common/DebugUtils.h>
-#include <Storages/CustomMergeTreeSink.h>
 #include <Parsers/ASTFunction.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Common/MergeTreeTool.h>
+#include <Storages/CustomMergeTreeSink.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
+#include <Common/DebugUtils.h>
+#include <Common/MergeTreeTool.h>
 
 using namespace DB;
 using namespace local_engine;
@@ -149,14 +149,17 @@ TEST(TestBatchParquetFileSource, local_file)
 
     substrait::ReadRel::LocalFiles files;
     substrait::ReadRel::LocalFiles::FileOrFiles * file = files.add_items();
-    file->set_uri_file("file:///home/admin1/Documents/data/tpch/parquet/lineitem/part-00000-f83d0a59-2bff-41bc-acde-911002bf1b33-c000.snappy.parquet");
+    file->set_uri_file(
+        "file:///home/admin1/Documents/data/tpch/parquet/lineitem/part-00000-f83d0a59-2bff-41bc-acde-911002bf1b33-c000.snappy.parquet");
     substrait::ReadRel::LocalFiles::FileOrFiles::ParquetReadOptions parquet_format;
     file->mutable_parquet()->CopyFrom(parquet_format);
     file = files.add_items();
-    file->set_uri_file("file:///home/admin1/Documents/data/tpch/parquet/lineitem/part-00001-f83d0a59-2bff-41bc-acde-911002bf1b33-c000.snappy.parquet");
+    file->set_uri_file(
+        "file:///home/admin1/Documents/data/tpch/parquet/lineitem/part-00001-f83d0a59-2bff-41bc-acde-911002bf1b33-c000.snappy.parquet");
     file->mutable_parquet()->CopyFrom(parquet_format);
     file = files.add_items();
-    file->set_uri_file("file:///home/admin1/Documents/data/tpch/parquet/lineitem/part-00002-f83d0a59-2bff-41bc-acde-911002bf1b33-c000.snappy.parquet");
+    file->set_uri_file(
+        "file:///home/admin1/Documents/data/tpch/parquet/lineitem/part-00002-f83d0a59-2bff-41bc-acde-911002bf1b33-c000.snappy.parquet");
     file->mutable_parquet()->CopyFrom(parquet_format);
 
     const auto * type_string = "columns format version: 1\n"
@@ -239,15 +242,8 @@ TEST(TestWrite, MergeTreeWriteTest)
     auto names_and_types_list = NamesAndTypesList::parse(type_string);
     auto metadata = local_engine::buildMetaData(names_and_types_list, global_context);
 
-    local_engine::CustomStorageMergeTree custom_merge_tree(DB::StorageID("default", "test"),
-                                                           "tmp/test-write/",
-                                                           *metadata,
-                                                           false,
-                                                           global_context,
-                                                           "",
-                                                           param,
-                                                           std::move(settings)
-    );
+    local_engine::CustomStorageMergeTree custom_merge_tree(
+        DB::StorageID("default", "test"), "tmp/test-write/", *metadata, false, global_context, "", param, std::move(settings));
 
     substrait::ReadRel::LocalFiles files;
     substrait::ReadRel::LocalFiles::FileOrFiles * file = files.add_items();
@@ -258,13 +254,14 @@ TEST(TestWrite, MergeTreeWriteTest)
 
     QueryPipelineBuilder query_pipeline_builder;
     query_pipeline_builder.init(Pipe(source));
-    query_pipeline_builder.setSinks([&](const Block &, Pipe::StreamType type) -> ProcessorPtr
-                                    {
-                                        if (type != Pipe::StreamType::Main)
-                                            return nullptr;
+    query_pipeline_builder.setSinks(
+        [&](const Block &, Pipe::StreamType type) -> ProcessorPtr
+        {
+            if (type != Pipe::StreamType::Main)
+                return nullptr;
 
-                                        return std::make_shared<local_engine::CustomMergeTreeSink>(custom_merge_tree, metadata, global_context);
-                                    });
+            return std::make_shared<local_engine::CustomMergeTreeSink>(custom_merge_tree, metadata, global_context);
+        });
     auto executor = query_pipeline_builder.execute();
     executor->execute(1);
 }

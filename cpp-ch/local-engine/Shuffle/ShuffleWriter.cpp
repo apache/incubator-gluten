@@ -7,8 +7,8 @@ using namespace DB;
 
 namespace local_engine
 {
-
-ShuffleWriter::ShuffleWriter(jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size)
+ShuffleWriter::ShuffleWriter(
+    jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size)
 {
     compression_enable = enable_compression;
     write_buffer = std::make_unique<WriteBufferFromJavaOutputStream>(output_stream, buffer, customize_buffer_size);

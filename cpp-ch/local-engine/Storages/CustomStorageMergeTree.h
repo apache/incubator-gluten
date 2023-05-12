@@ -49,10 +49,7 @@ protected:
     void movePartitionToTable(const StoragePtr & dest_table, const ASTPtr & partition, ContextPtr context) override;
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     MutationCommands getFirstAlterMutationCommandsForPart(const DataPartPtr & part) const override;
-    void attachRestoredParts(MutableDataPartsVector && parts) override
-    {
-        throw std::runtime_error("not implement");
-    };
+    void attachRestoredParts(MutableDataPartsVector && parts) override { throw std::runtime_error("not implement"); };
 };
 
 }

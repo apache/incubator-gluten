@@ -1,10 +1,10 @@
-#include <Functions/FunctionFactory.h>
-#include <Parser/SerializedPlanParser.h>
-#include <Common/DebugUtils.h>
 #include <Columns/ColumnSet.h>
 #include <DataTypes/DataTypeSet.h>
+#include <Functions/FunctionFactory.h>
 #include <Interpreters/Set.h>
+#include <Parser/SerializedPlanParser.h>
 #include <gtest/gtest.h>
+#include <Common/DebugUtils.h>
 
 TEST(TestFuntion, Hash)
 {
@@ -24,8 +24,8 @@ TEST(TestFuntion, Hash)
     column1->insert("Y");
     column1->insert("Z");
 
-    ColumnsWithTypeAndName columns = {ColumnWithTypeAndName(std::move(column0),type0, "string0"),
-                                      ColumnWithTypeAndName(std::move(column1),type0, "string0")};
+    ColumnsWithTypeAndName columns
+        = {ColumnWithTypeAndName(std::move(column0), type0, "string0"), ColumnWithTypeAndName(std::move(column1), type0, "string0")};
     Block block(columns);
     std::cerr << "input:\n";
     debug::headBlock(block);
@@ -65,8 +65,8 @@ TEST(TestFunction, In)
 
     auto arg = ColumnSet::create(set->getTotalRowCount(), set);
 
-    ColumnsWithTypeAndName columns = {ColumnWithTypeAndName(std::move(column1),type0, "string0"),
-                                      ColumnWithTypeAndName(std::move(arg),type_set, "__set")};
+    ColumnsWithTypeAndName columns
+        = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
     Block block(columns);
     std::cerr << "input:\n";
     debug::headBlock(block);
@@ -107,8 +107,8 @@ TEST(TestFunction, NotIn1)
 
     auto arg = ColumnSet::create(set->getTotalRowCount(), set);
 
-    ColumnsWithTypeAndName columns = {ColumnWithTypeAndName(std::move(column1),type0, "string0"),
-                                      ColumnWithTypeAndName(std::move(arg),type_set, "__set")};
+    ColumnsWithTypeAndName columns
+        = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
     Block block(columns);
     std::cerr << "input:\n";
     debug::headBlock(block);
@@ -148,8 +148,8 @@ TEST(TestFunction, NotIn2)
 
     auto arg = ColumnSet::create(set->getTotalRowCount(), set);
 
-    ColumnsWithTypeAndName columns = {ColumnWithTypeAndName(std::move(column1),type0, "string0"),
-                                      ColumnWithTypeAndName(std::move(arg),type_set, "__set")};
+    ColumnsWithTypeAndName columns
+        = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
     Block block(columns);
     std::cerr << "input:\n";
     debug::headBlock(block);

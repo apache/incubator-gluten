@@ -1,15 +1,15 @@
-#include <benchmark/benchmark.h>
-#include <parquet/arrow/reader.h>
-#include <base/types.h>
 #include <Core/Block.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <IO/ReadBufferFromFile.h>
-#include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
-#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
-#include <QueryPipeline/QueryPipeline.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SparkRowToCHColumn.h>
+#include <Processors/Executors/PullingPipelineExecutor.h>
+#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <QueryPipeline/QueryPipeline.h>
+#include <base/types.h>
+#include <benchmark/benchmark.h>
+#include <parquet/arrow/reader.h>
 
 #include <string>
 #include <vector>
@@ -29,7 +29,7 @@ static Block getLineitemHeader(const NameTypes & name_types)
 {
     auto & factory = DataTypeFactory::instance();
     ColumnsWithTypeAndName columns(name_types.size());
-    for (size_t i=0; i<columns.size(); ++i)
+    for (size_t i = 0; i < columns.size(); ++i)
     {
         columns[i].name = name_types[i].name;
         columns[i].type = factory.get(name_types[i].type);
@@ -48,7 +48,7 @@ static void readParquetFile(const Block & header, const String & file, Block & b
         return;
 }
 
-static void BM_CHColumnToSparkRow_Lineitem(benchmark::State& state)
+static void BM_CHColumnToSparkRow_Lineitem(benchmark::State & state)
 {
     const NameTypes name_types = {
         {"l_orderkey", "Nullable(Int64)"},
@@ -84,7 +84,7 @@ static void BM_CHColumnToSparkRow_Lineitem(benchmark::State& state)
 }
 
 
-static void BM_SparkRowToCHColumn_Lineitem(benchmark::State& state)
+static void BM_SparkRowToCHColumn_Lineitem(benchmark::State & state)
 {
     const NameTypes name_types = {
         {"l_orderkey", "Nullable(Int64)"},
@@ -113,8 +113,8 @@ static void BM_SparkRowToCHColumn_Lineitem(benchmark::State& state)
 
     CHColumnToSparkRow spark_row_converter;
     auto spark_row_info = spark_row_converter.convertCHColumnToSparkRow(in_block);
-    for (auto _ : state)
-        [[maybe_unused]] auto out_block = SparkRowToCHColumn::convertSparkRowInfoToCHColumn(*spark_row_info, header);
+    for (auto _ : state) [[maybe_unused]]
+        auto out_block = SparkRowToCHColumn::convertSparkRowInfoToCHColumn(*spark_row_info, header);
 }
 
 BENCHMARK(BM_CHColumnToSparkRow_Lineitem)->Unit(benchmark::kMillisecond)->Iterations(10);

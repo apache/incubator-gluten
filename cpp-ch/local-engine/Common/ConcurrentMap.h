@@ -1,38 +1,45 @@
 #pragma once
 
-#include <unordered_map>
 #include <mutex>
+#include <unordered_map>
 
 namespace local_engine
 {
 template <typename K, typename V>
-class ConcurrentMap {
+class ConcurrentMap
+{
 public:
-    void insert(const K& key, const V& value) {
+    void insert(const K & key, const V & value)
+    {
         std::lock_guard lock{mutex};
         map.insert({key, value});
     }
 
-    V get(const K& key) {
+    V get(const K & key)
+    {
         std::lock_guard lock{mutex};
         auto it = map.find(key);
-        if (it == map.end()) {
+        if (it == map.end())
+        {
             return nullptr;
         }
         return it->second;
     }
 
-    void erase(const K& key) {
+    void erase(const K & key)
+    {
         std::lock_guard lock{mutex};
         map.erase(key);
     }
 
-    void clear() {
+    void clear()
+    {
         std::lock_guard lock{mutex};
         map.clear();
     }
 
-    size_t size() const {
+    size_t size() const
+    {
         std::lock_guard lock{mutex};
         return map.size();
     }
@@ -42,4 +49,3 @@ private:
     mutable std::mutex mutex;
 };
 }
-

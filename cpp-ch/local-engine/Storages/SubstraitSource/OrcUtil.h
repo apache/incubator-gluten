@@ -5,29 +5,29 @@
 /// there are destructor not be overrided warnings in orc lib, ignore them
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsuggest-destructor-override"
-#include <orc/Reader.hh>
 #include <orc/OrcFile.hh>
+#include <orc/Reader.hh>
 #pragma GCC diagnostic pop
-#include <orc/Exceptions.hh>
 #include <memory>
+#include <orc/Exceptions.hh>
 
-namespace local_engine{
+namespace local_engine
+{
+class ArrowInputFile : public orc::InputStream
+{
+public:
+    explicit ArrowInputFile(const std::shared_ptr<arrow::io::RandomAccessFile> & file_) : file(file_) { }
 
-class ArrowInputFile : public orc::InputStream {
- public:
-  explicit ArrowInputFile(const std::shared_ptr<arrow::io::RandomAccessFile>& file_)
-      : file(file_) {}
+    uint64_t getLength() const override;
 
-  uint64_t getLength() const override;
+    uint64_t getNaturalReadSize() const override;
 
-  uint64_t getNaturalReadSize() const override;
+    void read(void * buf, uint64_t length, uint64_t offset) override;
 
-  void read(void* buf, uint64_t length, uint64_t offset) override;
+    const std::string & getName() const override;
 
-  const std::string& getName() const override;
-
- private:
-  std::shared_ptr<arrow::io::RandomAccessFile> file;
+private:
+    std::shared_ptr<arrow::io::RandomAccessFile> file;
 };
 
 class OrcUtil

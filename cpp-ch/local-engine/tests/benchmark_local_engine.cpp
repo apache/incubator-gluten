@@ -1,43 +1,39 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <Poco/Util/MapConfiguration.h>
 #include <Builder/SerializedPlanBuilder.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>
-#include <Parser/SparkRowToCHColumn.h>
-#include <Parser/CHColumnToSparkRow.h>
-#include <Storages/CustomStorageMergeTree.h>
-#include <Storages/CustomMergeTreeSink.h>
-#include <Interpreters/TreeRewriter.h>
 #include <Interpreters/TableJoin.h>
 #include <Interpreters/TreeRewriter.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/SparkRowToCHColumn.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/Formats/IOutputFormat.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
+#include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Shuffle/ShuffleReader.h>
 #include <Shuffle/ShuffleSplitter.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/CustomMergeTreeSink.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/SelectQueryInfo.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <Common/logger_useful.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <benchmark/benchmark.h>
+#include <substrait/plan.pb.h>
+#include <Poco/Util/MapConfiguration.h>
 #include <Common/DebugUtils.h>
 #include <Common/Logger.h>
 #include <Common/MergeTreeTool.h>
 #include <Common/PODArray_fwd.h>
 #include <Common/Stopwatch.h>
-#include <substrait/plan.pb.h>
+#include <Common/logger_useful.h>
 #include "testConfig.h"
 
 #if defined(__SSE2__)
@@ -793,8 +789,8 @@ DB::ContextMutablePtr global_context;
             else
             {
                 for (size_t i = 0; i < SIMD_BYTES; ++i)
-                    if (filt_pos[i])
-                        [[maybe_unused]] auto x = data_pos[i];
+                    if (filt_pos[i]) [[maybe_unused]]
+                        auto x = data_pos[i];
             }
 
             filt_pos += SIMD_BYTES;
@@ -1072,8 +1068,8 @@ DB::ContextMutablePtr global_context;
 }
 
 // compress benchmark
-#include <optional>
 #include <cstring>
+#include <optional>
 #include <base/types.h>
 
 #include <Compression/CompressionInfo.h>

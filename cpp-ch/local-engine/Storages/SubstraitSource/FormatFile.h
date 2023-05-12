@@ -1,15 +1,15 @@
 #pragma once
 
+#include <memory>
 #include <optional>
 #include <vector>
-#include <memory>
 
-#include <substrait/plan.pb.h>
 #include <Core/Block.h>
 #include <IO/ReadBuffer.h>
 #include <Interpreters/Context.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <substrait/plan.pb.h>
 
 namespace local_engine
 {
@@ -54,7 +54,6 @@ protected:
     ReadBufferBuilderPtr read_buffer_builder;
     std::vector<String> partition_keys;
     std::map<String, String> partition_values;
-
 };
 using FormatFilePtr = std::shared_ptr<FormatFile>;
 using FormatFiles = std::vector<FormatFilePtr>;
@@ -62,6 +61,7 @@ using FormatFiles = std::vector<FormatFilePtr>;
 class FormatFileUtil
 {
 public:
-    static FormatFilePtr createFile(DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file);
+    static FormatFilePtr
+    createFile(DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file);
 };
 }

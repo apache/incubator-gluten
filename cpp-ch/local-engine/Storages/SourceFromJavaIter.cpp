@@ -1,14 +1,13 @@
 #include "SourceFromJavaIter.h"
 #include <Columns/ColumnNullable.h>
-#include <Processors/Transforms/AggregatingTransform.h>
-#include <Common/Exception.h>
-#include <Common/DebugUtils.h>
-#include <Common/JNIUtils.h>
-#include <Columns/ColumnNullable.h>
-#include <jni/jni_common.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypesNumber.h>
+#include <Processors/Transforms/AggregatingTransform.h>
+#include <jni/jni_common.h>
 #include <Common/CHUtil.h>
+#include <Common/DebugUtils.h>
+#include <Common/Exception.h>
+#include <Common/JNIUtils.h>
 
 namespace local_engine
 {
@@ -24,9 +23,7 @@ static DB::Block getRealHeader(const DB::Block & header)
     return BlockUtil::buildRowCountHeader();
 }
 SourceFromJavaIter::SourceFromJavaIter(DB::Block header, jobject java_iter_)
-    : DB::ISource(getRealHeader(header))
-    , java_iter(java_iter_)
-    , original_header(header)
+    : DB::ISource(getRealHeader(header)), java_iter(java_iter_), original_header(header)
 {
 }
 DB::Chunk SourceFromJavaIter::generate()

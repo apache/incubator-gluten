@@ -1,6 +1,6 @@
 #pragma once
-#include <Processors/ISource.h>
 #include <jni.h>
+#include <Processors/ISource.h>
 
 namespace local_engine
 {

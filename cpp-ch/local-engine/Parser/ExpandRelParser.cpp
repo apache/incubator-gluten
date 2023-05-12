@@ -1,15 +1,15 @@
 #include "ExpandRelParser.h"
-#include <Operator/ExpandStep.h>
-#include <Parser/RelParser.h>
-#include <Parser/SerializedPlanParser.h>
-#include <Processors/QueryPlan/QueryPlan.h>
-#include <Common/logger_useful.h>
-#include <Poco/Logger.h>
+#include <vector>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <Processors/QueryPlan/ExpressionStep.h>
-#include <vector>
+#include <Operator/ExpandStep.h>
 #include <Parser/ExpandField.h>
+#include <Parser/RelParser.h>
+#include <Parser/SerializedPlanParser.h>
+#include <Processors/QueryPlan/ExpressionStep.h>
+#include <Processors/QueryPlan/QueryPlan.h>
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -20,10 +20,9 @@ namespace ErrorCodes
 }
 namespace local_engine
 {
-
-ExpandRelParser::ExpandRelParser(SerializedPlanParser * plan_parser_)
-    : RelParser(plan_parser_)
-{}
+ExpandRelParser::ExpandRelParser(SerializedPlanParser * plan_parser_) : RelParser(plan_parser_)
+{
+}
 
 void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
 {
@@ -34,7 +33,7 @@ void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
 }
 
 DB::QueryPlanPtr
-ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel*> & rel_stack)
+ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
     const auto & expand_rel = rel.expand();
     const auto & header = query_plan->getCurrentDataStream().header;
@@ -48,18 +47,20 @@ ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     expand_kinds.reserve(expand_rel.fields_size());
     expand_fields.reserve(expand_rel.fields_size());
 
-    for (const auto & projections: expand_rel.fields())
+    for (const auto & projections : expand_rel.fields())
     {
         auto expand_col_size = projections.switching_field().duplicates_size();
-    
+
         std::vector<ExpandFieldKind> kinds;
         std::vector<DB::Field> fields;
 
         kinds.reserve(expand_col_size);
         fields.reserve(expand_col_size);
 
-        if (types.empty()) types.resize(expand_col_size, nullptr);
-        if (names.empty()) names.resize(expand_col_size);
+        if (types.empty())
+            types.resize(expand_col_size, nullptr);
+        if (names.empty())
+            names.resize(expand_col_size);
 
         for (int i = 0; i < expand_col_size; ++i)
         {
@@ -111,10 +112,7 @@ ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
 
 void registerExpandRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser)
-    {
-        return std::make_shared<ExpandRelParser>(plan_parser);
-    };
+    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<ExpandRelParser>(plan_parser); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kExpand, builder);
 }
 }

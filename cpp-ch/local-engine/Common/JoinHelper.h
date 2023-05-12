@@ -15,5 +15,3 @@ JoinOptimizationInfo parseJoinOptimizationInfo(const std::string & optimization)
 
 
 }
-
-

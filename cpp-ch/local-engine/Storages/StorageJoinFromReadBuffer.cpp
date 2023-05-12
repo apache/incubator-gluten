@@ -2,18 +2,17 @@
 
 #include <Compression/CompressedReadBuffer.h>
 #include <Formats/NativeReader.h>
-#include <QueryPipeline/ProfileInfo.h>
 #include <Interpreters/HashJoin.h>
 #include <Interpreters/TableJoin.h>
-#include <QueryPipeline/Pipe.h>
-#include <Common/Exception.h>
 #include <Interpreters/castColumn.h>
 #include <Interpreters/joinDispatch.h>
 #include <Processors/ISource.h>
+#include <QueryPipeline/Pipe.h>
+#include <QueryPipeline/ProfileInfo.h>
+#include <Common/Exception.h>
 
 namespace DB
 {
-
 namespace ErrorCodes
 {
     extern const int NOT_IMPLEMENTED;
@@ -90,8 +89,11 @@ protected:
             return {};
 
         Chunk chunk;
-        if (!joinDispatch(join->kind, join->strictness, join->data->maps.front(),
-                          [&](auto kind, auto strictness, auto & map) { chunk = createChunk<kind, strictness>(map); }))
+        if (!joinDispatch(
+                join->kind,
+                join->strictness,
+                join->data->maps.front(),
+                [&](auto kind, auto strictness, auto & map) { chunk = createChunk<kind, strictness>(map); }))
             throw Exception(ErrorCodes::LOGICAL_ERROR, "Logical error: unknown JOIN strictness");
         return chunk;
     }
@@ -118,16 +120,18 @@ private:
 
         switch (join->data->type)
         {
-#define M(TYPE)                                           \
-    case HashJoin::Type::TYPE:                                \
+#define M(TYPE) \
+    case HashJoin::Type::TYPE: \
         rows_added = fillColumns<KIND, STRICTNESS>(*maps.TYPE, mut_columns); \
         break;
             APPLY_FOR_JOIN_VARIANTS_LIMITED(M)
 #undef M
 
             default:
-                throw Exception(ErrorCodes::UNSUPPORTED_JOIN_KEYS, "Unsupported JOIN keys in StorageJoin. Type: {}",
-                                toString(static_cast<UInt32>(join->data->type)));
+                throw Exception(
+                    ErrorCodes::UNSUPPORTED_JOIN_KEYS,
+                    "Unsupported JOIN keys in StorageJoin. Type: {}",
+                    toString(static_cast<UInt32>(join->data->type)));
         }
 
         if (!rows_added)
@@ -214,8 +218,12 @@ private:
     }
 
     template <typename Map>
-    static void fillOne(MutableColumns & columns, const ColumnNumbers & column_indices, typename Map::const_iterator & it,
-                        const std::optional<size_t> & key_pos, size_t & rows_added)
+    static void fillOne(
+        MutableColumns & columns,
+        const ColumnNumbers & column_indices,
+        typename Map::const_iterator & it,
+        const std::optional<size_t> & key_pos,
+        size_t & rows_added)
     {
         for (size_t j = 0; j < columns.size(); ++j)
             if (j == key_pos)
@@ -226,8 +234,12 @@ private:
     }
 
     template <typename Map>
-    static void fillAll(MutableColumns & columns, const ColumnNumbers & column_indices, typename Map::const_iterator & it,
-                        const std::optional<size_t> & key_pos, size_t & rows_added)
+    static void fillAll(
+        MutableColumns & columns,
+        const ColumnNumbers & column_indices,
+        typename Map::const_iterator & it,
+        const std::optional<size_t> & key_pos,
+        size_t & rows_added)
     {
         for (auto ref_it = it->getMapped().begin(); ref_it.ok(); ++ref_it)
         {
@@ -247,13 +259,12 @@ using namespace DB;
 
 namespace local_engine
 {
-
-void StorageJoinFromReadBuffer::rename(const String &  /*new_path_to_table_data*/, const DB::StorageID &  /*new_table_id*/)
+void StorageJoinFromReadBuffer::rename(const String & /*new_path_to_table_data*/, const DB::StorageID & /*new_table_id*/)
 {
     throw std::runtime_error("unsupported operation");
 }
 DB::SinkToStoragePtr
-StorageJoinFromReadBuffer::write(const DB::ASTPtr &  /*query*/, const DB::StorageMetadataPtr &  /*ptr*/, DB::ContextPtr  /*context*/)
+StorageJoinFromReadBuffer::write(const DB::ASTPtr & /*query*/, const DB::StorageMetadataPtr & /*ptr*/, DB::ContextPtr /*context*/)
 {
     throw std::runtime_error("unsupported operation");
 }
@@ -274,9 +285,9 @@ void StorageJoinFromReadBuffer::finishInsert()
 DB::Pipe StorageJoinFromReadBuffer::read(
     const DB::Names & column_names,
     const DB::StorageSnapshotPtr & storage_snapshot,
-    DB::SelectQueryInfo &  /*query_info*/,
+    DB::SelectQueryInfo & /*query_info*/,
     DB::ContextPtr context,
-    DB::QueryProcessingStage::Enum  /*processed_stage*/,
+    DB::QueryProcessingStage::Enum /*processed_stage*/,
     size_t max_block_size,
     size_t /*num_streams*/)
 {
@@ -336,20 +347,21 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const ConstraintsDescription & constraints_,
     const String & comment,
     const bool overwrite_,
-    const String & relative_path_) : StorageSetOrJoinBase{nullptr, relative_path_, table_id_, columns_, constraints_, comment, false}
-        , key_names(key_names_)
-        , use_nulls(use_nulls_)
-        , limits(limits_)
-        , kind(kind_)
-        , strictness(strictness_)
-        , overwrite(overwrite_)
-        , in(std::move(in_))
+    const String & relative_path_)
+    : StorageSetOrJoinBase{nullptr, relative_path_, table_id_, columns_, constraints_, comment, false}
+    , key_names(key_names_)
+    , use_nulls(use_nulls_)
+    , limits(limits_)
+    , kind(kind_)
+    , strictness(strictness_)
+    , overwrite(overwrite_)
+    , in(std::move(in_))
 {
     auto metadata_snapshot = getInMemoryMetadataPtr();
     sample_block = metadata_snapshot->getSampleBlock();
     for (const auto & key : key_names)
         if (!metadata_snapshot->getColumns().hasPhysical(key))
-            throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE,"Key column ({}) does not exist in table declaration.", key);
+            throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE, "Key column ({}) does not exist in table declaration.", key);
 
     table_join = std::make_shared<TableJoin>(limits, use_nulls, kind, strictness, key_names);
     join = std::make_shared<HashJoin>(table_join, getRightSampleBlock(), overwrite);
@@ -359,10 +371,10 @@ DB::HashJoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::Tab
 {
     auto metadata_snapshot = getInMemoryMetadataPtr();
     if (!analyzed_join->sameStrictnessAndKind(strictness, kind))
-        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,"Table {} has incompatible type of JOIN.", getStorageID().getNameForLogs());
+        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "Table {} has incompatible type of JOIN.", getStorageID().getNameForLogs());
 
-    if ((analyzed_join->forceNullableRight() && !use_nulls) ||
-        (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls))
+    if ((analyzed_join->forceNullableRight() && !use_nulls)
+        || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls))
         throw Exception(
             ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",

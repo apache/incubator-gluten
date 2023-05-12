@@ -1,5 +1,4 @@
 #include "ExpandStep.h"
-#include "ExpandTransorm.h"
 #include <memory>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
@@ -7,18 +6,18 @@
 #include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesNumber.h>
+#include <Operator/ExpandTransorm.h>
 #include <Processors/IProcessor.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Common/logger_useful.h>
 #include <Poco/Logger.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {
 static DB::ITransformingStep::Traits getTraits()
 {
-    return DB::ITransformingStep::Traits
-    {
+    return DB::ITransformingStep::Traits{
         {
             .returns_single_stream = true,
             .preserves_number_of_streams = false,
@@ -26,26 +25,18 @@ static DB::ITransformingStep::Traits getTraits()
         },
         {
             .preserves_number_of_rows = false,
-        }
-    };
+        }};
 }
 
-ExpandStep::ExpandStep(
-    const DB::DataStream & input_stream_,
-    const ExpandField & project_set_exprs_)
-    : DB::ITransformingStep(
-        input_stream_,
-        buildOutputHeader(input_stream_.header, project_set_exprs_),
-        getTraits())
+ExpandStep::ExpandStep(const DB::DataStream & input_stream_, const ExpandField & project_set_exprs_)
+    : DB::ITransformingStep(input_stream_, buildOutputHeader(input_stream_.header, project_set_exprs_), getTraits())
     , project_set_exprs(project_set_exprs_)
 {
     header = input_stream_.header;
     output_header = getOutputStream().header;
 }
 
-DB::Block ExpandStep::buildOutputHeader(
-    const DB::Block & input_header,
-    const ExpandField & project_set_exprs_)
+DB::Block ExpandStep::buildOutputHeader(const DB::Block & input_header, const ExpandField & project_set_exprs_)
 {
     DB::ColumnsWithTypeAndName cols;
     const auto & types = project_set_exprs_.getTypes();
@@ -66,7 +57,8 @@ DB::Block ExpandStep::buildOutputHeader(
 void ExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
 {
     DB::QueryPipelineProcessorsCollector collector(pipeline, this);
-    auto build_transform = [&](DB::OutputPortRawPtrs outputs){
+    auto build_transform = [&](DB::OutputPortRawPtrs outputs)
+    {
         DB::Processors new_processors;
         for (auto & output : outputs)
         {

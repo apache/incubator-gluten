@@ -1,7 +1,7 @@
 #pragma once
-#include <stdint.h>
-#include <jni.h>
 #include <memory>
+#include <jni.h>
+#include <stdint.h>
 
 namespace local_engine
 {

@@ -1,18 +1,18 @@
 #include "SparkRowToCHColumn.h"
 #include <memory>
+#include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <Columns/ColumnVector.h>
-#include <Columns/ColumnNullable.h>
+#include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
-#include <DataTypes/DataTypeDateTime64.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Functions/FunctionHelpers.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <Core/ColumnsWithTypeAndName.h>
-#include <DataTypes/DataTypesNumber.h>
 
 namespace DB
 {
@@ -53,8 +53,7 @@ ALWAYS_INLINE static void writeRowToColumns(std::vector<MutableColumnPtr> & colu
     }
 }
 
-std::unique_ptr<Block>
-SparkRowToCHColumn::convertSparkRowInfoToCHColumn(const SparkRowInfo & spark_row_info, const Block & header)
+std::unique_ptr<Block> SparkRowToCHColumn::convertSparkRowInfoToCHColumn(const SparkRowInfo & spark_row_info, const Block & header)
 {
     auto block = std::make_unique<Block>();
     const auto num_rows = spark_row_info.getNumRows();
@@ -118,7 +117,7 @@ VariableLengthDataReader::VariableLengthDataReader(const DataTypePtr & type_)
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "VariableLengthDataReader doesn't support type {}", type->getName());
 }
 
-Field VariableLengthDataReader::read(const char *buffer, size_t length) const
+Field VariableLengthDataReader::read(const char * buffer, size_t length) const
 {
     if (which.isStringOrFixedString())
         return std::move(readString(buffer, length));
@@ -265,7 +264,7 @@ Field VariableLengthDataReader::readMap(const char * buffer, size_t length) cons
     return std::move(map);
 }
 
-Field VariableLengthDataReader::readStruct(const char * buffer, size_t  /*length*/) const
+Field VariableLengthDataReader::readStruct(const char * buffer, size_t /*length*/) const
 {
     /// 内存布局：null_bitmap(字节数与字段数成正比) | values(num_fields * 8B) | backing data
     const auto * tuple_type = typeid_cast<const DataTypeTuple *>(type_without_nullable.get());
@@ -277,7 +276,7 @@ Field VariableLengthDataReader::readStruct(const char * buffer, size_t  /*length
     const auto len_null_bitmap = calculateBitSetWidthInBytes(num_fields);
 
     Tuple tuple(num_fields);
-    for (size_t i=0; i<num_fields; ++i)
+    for (size_t i = 0; i < num_fields; ++i)
     {
         const auto & field_type = field_types[i];
         if (isBitSet(buffer, i))

@@ -1,9 +1,9 @@
 #pragma once
-#include <IO/ReadBuffer.h>
-#include <Formats/NativeReader.h>
-#include <Compression/CompressedReadBuffer.h>
-#include <Common/BlockIterator.h>
 #include <jni.h>
+#include <Compression/CompressedReadBuffer.h>
+#include <Formats/NativeReader.h>
+#include <IO/ReadBuffer.h>
+#include <Common/BlockIterator.h>
 
 
 namespace local_engine
@@ -13,7 +13,7 @@ class ShuffleReader : BlockIterator
 {
 public:
     explicit ShuffleReader(std::unique_ptr<DB::ReadBuffer> in_, bool compressed);
-    DB::Block* read();
+    DB::Block * read();
     ~ShuffleReader();
     static jclass input_stream_class;
     static jmethodID input_stream_read;
@@ -37,7 +37,6 @@ private:
     size_t buffer_size;
     int readFromJava();
     bool nextImpl() override;
-
 };
 
 }

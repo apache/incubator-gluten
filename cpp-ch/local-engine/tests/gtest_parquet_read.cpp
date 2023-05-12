@@ -1,25 +1,25 @@
-#include <gtest/gtest.h>
-#include <parquet/arrow/reader.h>
-#include <DataTypes/DataTypesNumber.h>
-#include <DataTypes/DataTypesDecimal.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeDate.h>
+#include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime.h>
 #include <DataTypes/DataTypeDateTime64.h>
-#include <DataTypes/DataTypeDate32.h>
-#include <DataTypes/DataTypeDate.h>
 #include <DataTypes/DataTypeFactory.h>
+#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeString.h>
+#include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesDecimal.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <IO/ReadBufferFromFile.h>
-#include <Storages/ch_parquet/OptimizedParquetBlockInputFormat.h>
-#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
-#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
-#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
-#include <Storages/ch_parquet/arrow/reader.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
+#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <QueryPipeline/QueryPipeline.h>
+#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
+#include <Storages/ch_parquet/OptimizedParquetBlockInputFormat.h>
+#include <Storages/ch_parquet/arrow/reader.h>
+#include <gtest/gtest.h>
+#include <parquet/arrow/reader.h>
 #include <Common/DebugUtils.h>
 
 using namespace DB;
@@ -65,7 +65,9 @@ static void readSchema(const String & path)
     check_type("f_map_array", "Nullable(Map(String, Nullable(Array(Nullable(Int64)))))");
     check_type("f_map_struct", "Nullable(Map(String, Nullable(Tuple(a Nullable(String), b Nullable(Int64)))))");
     check_type("f_struct", "Nullable(Tuple(a Nullable(String), b Nullable(Int64)))");
-    check_type("f_struct_struct", "Nullable(Tuple(a Nullable(String), b Nullable(Int64), c Nullable(Tuple(x Nullable(String), y Nullable(Int64)))))");
+    check_type(
+        "f_struct_struct",
+        "Nullable(Tuple(a Nullable(String), b Nullable(Int64), c Nullable(Tuple(x Nullable(String), y Nullable(Int64)))))");
     check_type("f_struct_array", "Nullable(Tuple(a Nullable(String), b Nullable(Int64), c Nullable(Array(Nullable(Int64)))))");
     check_type("f_struct_map", "Nullable(Tuple(a Nullable(String), b Nullable(Int64), c Nullable(Map(String, Nullable(Int64)))))");
 }
@@ -277,4 +279,3 @@ TEST(ParquetRead, ReadDataNull)
     readData<ParquetSchemaReader, ParquetBlockInputFormat>(path, fields);
     readData<OptimizedParquetSchemaReader, OptimizedParquetBlockInputFormat>(path, fields);
 }
-

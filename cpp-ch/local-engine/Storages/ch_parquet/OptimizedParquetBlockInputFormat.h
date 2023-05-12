@@ -3,18 +3,23 @@
 #include <Common/Config.h>
 
 #if USE_PARQUET && USE_LOCAL_FORMATS
-
+// clang-format off
+#include <Formats/FormatSettings.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Processors/Formats/ISchemaReader.h>
-#include <Formats/FormatSettings.h>
+// clang-format on
+namespace ch_parquet::arrow
+{
+class FileReader;
+}
 
-namespace ch_parquet::arrow { class FileReader; }
-
-namespace arrow { class Buffer; }
+namespace arrow
+{
+class Buffer;
+}
 
 namespace DB
 {
-
 class OptimizedArrowColumnToCHColumn;
 
 class OptimizedParquetBlockInputFormat : public IInputFormat
@@ -34,10 +39,7 @@ private:
 protected:
     void prepareReader();
 
-    void onCancel() override
-    {
-        is_stopped = 1;
-    }
+    void onCancel() override { is_stopped = 1; }
 
     std::unique_ptr<ch_parquet::arrow::FileReader> file_reader;
     int row_group_total = 0;

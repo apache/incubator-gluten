@@ -1,8 +1,8 @@
 #include "BroadCastJoinBuilder.h"
 #include <Parser/SerializedPlanParser.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/ThreadPool.h>
 #include <Common/JNIUtils.h>
+#include <Common/ThreadPool.h>
 
 namespace DB
 {
@@ -46,10 +46,7 @@ void BroadCastJoinBuilder::buildJoinIfNotExist(
         std::lock_guard build_lock(join_lock_mutex);
         if (!storage_join_map.contains(key))
         {
-            StorageJoinContext context
-            {
-                key, input, io_buffer_size, key_names_, kind_, strictness_, columns_
-            };
+            StorageJoinContext context{key, input, io_buffer_size, key_names_, kind_, strictness_, columns_};
             // use another thread, exclude broadcast memory allocation from current memory tracker
             auto func = [context]() -> void
             {
@@ -99,7 +96,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> BroadCastJoinBuilder::getJoin(const s
         return std::shared_ptr<StorageJoinFromReadBuffer>();
     }
 }
- void BroadCastJoinBuilder::buildJoinIfNotExist(
+void BroadCastJoinBuilder::buildJoinIfNotExist(
     const std::string & key,
     jobject input,
     size_t io_buffer_size,

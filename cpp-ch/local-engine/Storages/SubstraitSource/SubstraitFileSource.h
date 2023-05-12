@@ -1,25 +1,24 @@
 #pragma once
 
-#include <base/types.h>
+#include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Field.h>
-#include <Columns/IColumn.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
-#include <Processors/ISource.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
+#include <Processors/ISource.h>
 #include <QueryPipeline/QueryPipeline.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <base/types.h>
 
 namespace local_engine
 {
-
 class FileReaderWrapper
 {
 public:
-    explicit FileReaderWrapper(FormatFilePtr file_) : file(file_) {}
+    explicit FileReaderWrapper(FormatFilePtr file_) : file(file_) { }
     virtual ~FileReaderWrapper() = default;
     virtual bool pull(DB::Chunk & chunk) = 0;
 
@@ -51,7 +50,7 @@ private:
 class EmptyFileReader : public FileReaderWrapper
 {
 public:
-    explicit EmptyFileReader(FormatFilePtr file_) : FileReaderWrapper(file_) {}
+    explicit EmptyFileReader(FormatFilePtr file_) : FileReaderWrapper(file_) { }
     ~EmptyFileReader() override = default;
     bool pull(DB::Chunk &) override { return false; }
 };
@@ -59,9 +58,11 @@ public:
 class ConstColumnsFileReader : public FileReaderWrapper
 {
 public:
-    ConstColumnsFileReader(FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & header_, size_t block_size_ = DEFAULT_BLOCK_SIZE);
+    ConstColumnsFileReader(
+        FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & header_, size_t block_size_ = DEFAULT_BLOCK_SIZE);
     ~ConstColumnsFileReader() override = default;
     bool pull(DB::Chunk & chunk) override;
+
 private:
     DB::ContextPtr context;
     DB::Block header;
@@ -75,12 +76,11 @@ public:
     SubstraitFileSource(DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
     ~SubstraitFileSource() override = default;
 
-    String getName() const override
-    {
-        return "SubstraitFileSource";
-    }
+    String getName() const override { return "SubstraitFileSource"; }
+
 protected:
     DB::Chunk generate() override;
+
 private:
     DB::ContextPtr context;
     DB::Block output_header;
