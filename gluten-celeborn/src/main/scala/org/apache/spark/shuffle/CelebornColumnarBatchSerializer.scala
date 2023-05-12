@@ -26,7 +26,6 @@ import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.celeborn.client.read.RssInputStream
 
-import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
@@ -64,9 +63,9 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
         .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
 
       private lazy val jniByteInputStream = JniByteInputStreams.create(in)
-      private lazy val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
 
       private lazy val shuffleReaderHandle = {
+        val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         val arrowSchema =
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
@@ -77,13 +76,11 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
         // was used to create all buffers read from shuffle reader. The pool
         // should keep alive before all buffers to finish consuming.
         TaskMemoryResources.addRecycler(50) { _ =>
+          cSchema.close()
           ShuffleReaderJniWrapper.close(handle)
         }
         handle
       }
-
-      // Make sure Stream closed after task closed
-      TaskContext.get().addTaskCompletionListener[Unit](_ => close())
 
       private var cb: ColumnarBatch = _
 
@@ -180,7 +177,6 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
-          cSchema.close()
           jniByteInputStream.close()
           if (cb != null) cb.close()
           allocator.close()
