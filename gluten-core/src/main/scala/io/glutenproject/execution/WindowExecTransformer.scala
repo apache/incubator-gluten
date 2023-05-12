@@ -131,7 +131,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     val windowExpressions = new util.ArrayList[WindowFunctionNode]()
     windowExpression.map { windowExpr =>
         val aliasExpr = windowExpr.asInstanceOf[Alias]
-        val columnName = s"${aliasExpr.name}#${aliasExpr.exprId.id}"
+        val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
           case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
