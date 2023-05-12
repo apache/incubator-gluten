@@ -19,7 +19,9 @@ package io.glutenproject.vectorized
 
 import java.io._
 import java.nio.ByteBuffer
+
 import scala.reflect.ClassTag
+
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -27,6 +29,8 @@ import io.glutenproject.utils.GlutenArrowAbiUtil
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorLoader
+
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
@@ -77,6 +81,9 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         }
         handle
       }
+
+      // Make sure Stream closed after task closed
+      TaskContext.get().addTaskCompletionListener[Unit](_ => close())
 
       private var vectors: Array[ColumnVector] = _
       private var cb: ColumnarBatch = _
