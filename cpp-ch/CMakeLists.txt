@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
-set(CH_SOURCE_DIR ${CMAKE_SOURCE_DIR}/ClickHouse CACHE STRING "ClickHouse source dir")
-set(CH_ORG Kyligence CACHE STRING "ClickHouse org")
-set(CH_BRANCH clickhouse_backend_rebase_master CACHE STRING "ClickHouse branch name")
-set(CH_COMMIT 876fb650 CACHE STRING "ClickHouse commit")
+
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/clickhouse.version CH_VERSION)
+
+set(CH_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ClickHouse CACHE STRING "ClickHouse source dir")
+
+string(REGEX REPLACE ".*CH_ORG=([^\n]+).*" "\\1" CH_ORG "${CH_VERSION}")
+string(REGEX REPLACE ".*CH_BRANCH=([^\n]+).*" "\\1" CH_BRANCH "${CH_VERSION}")
+string(REGEX REPLACE ".*CH_COMMIT=([^\n]+).*" "\\1" CH_COMMIT "${CH_VERSION}")
+
+message("CH_ORG=${CH_ORG}")
+message("CH_BRANCH=${CH_BRANCH}")
+message("CH_COMMIT=${CH_COMMIT}")
 
 project(libch LANGUAGES C CXX ASM)
 file(GLOB clickhouse_files "${CH_SOURCE_DIR}/*")
