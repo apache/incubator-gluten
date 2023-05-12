@@ -63,9 +63,9 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
 
       private lazy val jniByteInputStream = JniByteInputStreams.create(in)
+      private lazy val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
 
       private lazy val shuffleReaderHandle = {
-        val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         val arrowSchema =
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
@@ -76,7 +76,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         // was used to create all buffers read from shuffle reader. The pool
         // should keep alive before all buffers finish consuming.
         TaskMemoryResources.addRecycler(50) { _ =>
-          cSchema.close()
+          close()
           ShuffleReaderJniWrapper.close(handle)
         }
         handle
@@ -145,6 +145,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
+          cSchema.close()
           jniByteInputStream.close()
           if (cb != null) cb.close()
           allocator.close()
