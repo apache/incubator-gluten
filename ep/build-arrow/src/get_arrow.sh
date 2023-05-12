@@ -65,4 +65,15 @@ if [ $ENABLE_CUSTOM_CODEC == ON ]; then
   git apply --reverse --check $CURRENT_DIR/custom-codec.patch >/dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
 fi
 
+cat > cpp/src/parquet/symbols.map <<EOF
+{
+  global:
+    extern "C++" {
+      *parquet::*;
+    };
+  local:
+    *;
+};
+EOF
+
 echo "Arrow-get finished."
