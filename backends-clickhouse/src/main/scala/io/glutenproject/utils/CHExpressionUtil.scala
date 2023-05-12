@@ -47,6 +47,9 @@ object CHExpressionUtil {
     VAR_SAMP -> Set(EMPTY_TYPE),
     VAR_POP -> Set(EMPTY_TYPE),
     BLOOM_FILTER_AGG -> Set(EMPTY_TYPE),
+    BIT_OR_AGG -> Set(EMPTY_TYPE),
+    BIT_AND_AGG -> Set(EMPTY_TYPE),
+    BIT_XOR_AGG -> Set(EMPTY_TYPE),
     CORR -> Set(EMPTY_TYPE),
     COVAR_POP -> Set(EMPTY_TYPE),
     COVAR_SAMP -> Set(EMPTY_TYPE)
