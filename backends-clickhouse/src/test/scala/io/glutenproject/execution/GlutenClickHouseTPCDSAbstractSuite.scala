@@ -26,8 +26,10 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
 import org.apache.commons.io.FileUtils
+import org.apache.spark.sql.types.{StructField, StructType}
 
 import java.io.File
+import java.util
 
 import scala.io.Source
 import scala.language.postfixOps
@@ -63,41 +65,26 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
         })
 
   protected val excludedTpcdsQueries: Set[String] = Set(
-    "q4",
-    "q5",
-    "q8",
-    "q14a",
-    "q14b",
-    "q16",
-    "q17",
-    "q18",
-    "q24a",
-    "q24b",
-    "q27",
-    "q31",
-    "q32",
-    "q36",
-    "q39a",
-    "q39b",
-    "q47",
-    "q49",
-    "q57",
-    "q61",
-    "q64",
-    "q67",
-    "q70",
-    "q71",
-    "q74",
-    "q75",
-    "q77",
-    "q78",
-    "q80",
-    "q83",
-    "q86",
-    "q90",
-    "q92",
-    "q94",
-    "q99"
+    "q5", // attribute binding failed.
+    "q14a", // inconsistent results
+    "q14b", // inconsistent results
+    "q17", // inconsistent results
+    "q18", // inconsistent results
+    "q31", // inconsistent results
+    "q32", // attribute binding failed.
+    "q36", // attribute binding failed.
+    "q49", // inconsistent results
+    "q61", // inconsistent results
+    "q64", // fatal
+    "q67", // inconsistent results
+    "q70", // attribute binding failed.
+    "q71", // inconsistent results, unstable order
+    "q77", // inconsistent results
+    "q78", // inconsistent results
+    "q80", // fatal
+    "q83", // decimal error
+    "q90", // inconsistent results(decimal)
+    "q92", // attribute binding failed.
   )
 
   protected val independentTestTpcdsQueries: Set[String] = Set("q9", "q21")
@@ -208,12 +195,21 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
 
     if (compareResult) {
+      var index = 0
+      val fields = new util.ArrayList[StructField]()
+      for (elem <- df.schema.iterator) {
+        fields.add(
+          StructField.apply(
+            elem.name + index, elem.dataType, elem.nullable, elem.metadata))
+        index += +1
+      }
+
       var expectedAnswer: Seq[Row] = null
       withSQLConf(vanillaSparkConfs(): _*) {
         expectedAnswer = spark.read
           .option("delimiter", "|-|")
           .option("nullValue", "null")
-          .schema(df.schema)
+          .schema(StructType.apply(fields))
           .csv(queriesResults + "/" + queryNum + ".out")
           .toDF()
           .collect()
