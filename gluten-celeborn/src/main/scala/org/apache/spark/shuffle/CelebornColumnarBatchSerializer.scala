@@ -25,6 +25,8 @@ import io.glutenproject.vectorized.{JniByteInputStreams, ShuffleReaderJniWrapper
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.celeborn.client.read.RssInputStream
+
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
@@ -79,6 +81,9 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
         }
         handle
       }
+
+      // Make sure Stream closed after task closed
+      TaskContext.get().addTaskCompletionListener[Unit](_ => close())
 
       private var cb: ColumnarBatch = _
 
