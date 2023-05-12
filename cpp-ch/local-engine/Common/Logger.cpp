@@ -1,15 +1,15 @@
 #include "Logger.h"
 
 #include <Loggers/Loggers.h>
-#include <Poco/ConsoleChannel.h>
-#include <Poco/AutoPtr.h>
 #include <Poco/AsyncChannel.h>
+#include <Poco/AutoPtr.h>
+#include <Poco/ConsoleChannel.h>
 #include <Poco/SimpleFileChannel.h>
 
 
-using Poco::ConsoleChannel;
-using Poco::AutoPtr;
 using Poco::AsyncChannel;
+using Poco::AutoPtr;
+using Poco::ConsoleChannel;
 
 void local_engine::Logger::initConsoleLogger(const std::string & level)
 {

@@ -1,10 +1,10 @@
 #pragma once
 #include <Interpreters/JoinUtils.h>
 #include <Parsers/ASTTablesInSelectQuery.h>
+#include <Storages/StorageJoin.h>
 #include <Storages/StorageSet.h>
 #include <Storages/TableLockHolder.h>
 #include <Common/RWLock.h>
-#include <Storages/StorageJoin.h>
 
 namespace DB
 {
@@ -15,7 +15,6 @@ namespace local_engine
 {
 class StorageJoinFromReadBuffer : public DB::StorageSetOrJoinBase
 {
-
 public:
     StorageJoinFromReadBuffer(
         std::unique_ptr<DB::ReadBuffer> in_,
@@ -59,6 +58,7 @@ public:
         }
         return block;
     }
+
 protected:
     void restore();
 
@@ -72,8 +72,8 @@ private:
     const DB::Names key_names;
     bool use_nulls;
     DB::SizeLimits limits;
-    DB::JoinKind kind;                    /// LEFT | INNER ...
-    DB::JoinStrictness strictness;        /// ANY | ALL
+    DB::JoinKind kind; /// LEFT | INNER ...
+    DB::JoinStrictness strictness; /// ANY | ALL
     bool overwrite;
 
     std::shared_ptr<DB::TableJoin> table_join;
@@ -87,5 +87,3 @@ private:
     mutable std::mutex mutate_mutex;
 };
 }
-
-

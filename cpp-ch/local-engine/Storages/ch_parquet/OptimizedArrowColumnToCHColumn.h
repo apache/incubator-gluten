@@ -1,21 +1,22 @@
 #pragma once
 
-#include "config.h"
+#include <config.h>
 #include <Common/Config.h>
 
 #if USE_LOCAL_FORMATS
+// clang-format off
 #if USE_ARROW || USE_ORC || USE_PARQUET
 
 #include <unordered_map>
-#include <DataTypes/IDataType.h>
-#include <Core/ColumnWithTypeAndName.h>
 #include <Core/Block.h>
+#include <Core/ColumnWithTypeAndName.h>
+#include <DataTypes/IDataType.h>
 #include <arrow/table.h>
 
+// clang-format on
 
 namespace DB
 {
-
 class Block;
 class Chunk;
 
@@ -25,10 +26,7 @@ public:
     using NameToColumnPtr = std::unordered_map<std::string, std::shared_ptr<arrow::ChunkedArray>>;
 
     OptimizedArrowColumnToCHColumn(
-        const Block & header_,
-        const std::string & format_name_,
-        bool import_nested_,
-        bool allow_missing_columns_);
+        const Block & header_, const std::string & format_name_, bool import_nested_, bool allow_missing_columns_);
 
     void arrowTableToCHChunk(Chunk & res, std::shared_ptr<arrow::Table> & table);
 
@@ -57,5 +55,5 @@ private:
 
 }
 
-#endif
+#    endif
 #endif

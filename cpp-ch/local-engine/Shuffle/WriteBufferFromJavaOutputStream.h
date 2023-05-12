@@ -1,7 +1,7 @@
 #pragma once
-#include <IO/WriteBuffer.h>
-#include <IO/BufferWithOwnMemory.h>
 #include <jni.h>
+#include <IO/BufferWithOwnMemory.h>
+#include <IO/WriteBuffer.h>
 
 namespace local_engine
 {

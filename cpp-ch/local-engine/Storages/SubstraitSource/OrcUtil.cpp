@@ -1,12 +1,13 @@
 #include "OrcUtil.h"
+#include <IO/Operators.h>
+#include <IO/WriteBufferFromString.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <arrow/result.h>
 #include <arrow/status.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/Exception.h>
-#include <IO/WriteBufferFromString.h>
-#include <IO/Operators.h>
 
+// clang-format off
 
 #define ORC_THROW_NOT_OK(s)                   \
   do {                                        \
@@ -44,7 +45,7 @@
   ORC_BEGIN_CATCH_NOT_OK(_s); \
   ORC_END_CATCH_NOT_OK
 
-
+// clang-format on
 namespace DB
 {
 namespace ErrorCodes
@@ -89,7 +90,6 @@ arrow::Status innerCreateOrcReader(std::shared_ptr<arrow::io::RandomAccessFile> 
     ORC_CATCH_NOT_OK(*orc_reader = std::move(orc::createReader(std::move(io_wrapper), options)));
 
     return arrow::Status::OK();
-
 }
 
 std::unique_ptr<orc::Reader> OrcUtil::createOrcReader(std::shared_ptr<arrow::io::RandomAccessFile> file_)
@@ -153,7 +153,7 @@ void OrcUtil::getFileReaderAndSchema(
         fields.reserve(schema->num_fields());
         for (int i = 0; i < schema->num_fields(); ++i)
         {
-            const auto& field = schema->field(i);
+            const auto & field = schema->field(i);
             auto name = field->name();
             boost::to_lower(name);
             fields.push_back(field->WithName(name));

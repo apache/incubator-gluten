@@ -11,7 +11,7 @@ bool BlockCoalesceOperator::isFull()
 {
     return block_buffer.size() >= buf_size;
 }
-DB::Block* BlockCoalesceOperator::releaseBlock()
+DB::Block * BlockCoalesceOperator::releaseBlock()
 {
     clearCache();
     cached_block = new DB::Block(block_buffer.releaseColumns());
@@ -30,4 +30,3 @@ void BlockCoalesceOperator::clearCache()
     }
 }
 }
-

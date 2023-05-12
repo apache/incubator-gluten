@@ -1,13 +1,13 @@
 #pragma once
 
-#include <boost/core/noncopyable.hpp>
+#include <exception>
 #include <mutex>
 #include <jni.h>
-#include <exception>
-#include <Common/Exception.h>
 #include <IO/WriteBufferFromString.h>
-#include <jni/jni_common.h>
+#include <boost/core/noncopyable.hpp>
 #include <boost/stacktrace.hpp>
+#include <jni/jni_common.h>
+#include <Common/Exception.h>
 
 #include <sstream>
 namespace local_engine
@@ -16,6 +16,7 @@ class JniErrorsGlobalState : boost::noncopyable
 {
 protected:
     JniErrorsGlobalState() = default;
+
 public:
     ~JniErrorsGlobalState() = default;
 
@@ -41,31 +42,30 @@ private:
     jclass unsupportedoperation_exception_class = nullptr;
     jclass illegal_access_exception_class = nullptr;
     jclass illegal_argument_exception_class = nullptr;
-
 };
 //
 
 #define LOCAL_ENGINE_JNI_METHOD_START \
-    try {
-
+    try \
+    {
 #define LOCAL_ENGINE_JNI_METHOD_END(env, ret) \
-    }\
-    catch(DB::Exception & e)\
-    {\
-        local_engine::JniErrorsGlobalState::instance().throwException(env, e);\
-        return ret;\
-    }\
-    catch (std::exception & e)\
-    {\
-        local_engine::JniErrorsGlobalState::instance().throwException(env, e);\
-        return ret;\
-    }\
-    catch (...)\
-    {\
-        DB::WriteBufferFromOwnString ostr;\
-        auto trace = boost::stacktrace::stacktrace();\
-        boost::stacktrace::detail::to_string(&trace.as_vector()[0], trace.size());\
-        local_engine::JniErrorsGlobalState::instance().throwRuntimeException(env, "Unknow Exception", ostr.str().c_str());\
-        return ret;\
+    } \
+    catch (DB::Exception & e) \
+    { \
+        local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
+        return ret; \
+    } \
+    catch (std::exception & e) \
+    { \
+        local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
+        return ret; \
+    } \
+    catch (...) \
+    { \
+        DB::WriteBufferFromOwnString ostr; \
+        auto trace = boost::stacktrace::stacktrace(); \
+        boost::stacktrace::detail::to_string(&trace.as_vector()[0], trace.size()); \
+        local_engine::JniErrorsGlobalState::instance().throwRuntimeException(env, "Unknow Exception", ostr.str().c_str()); \
+        return ret; \
     }
 }

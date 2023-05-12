@@ -28,28 +28,31 @@
 #include "parquet/schema.h"
 #include "parquet/types.h"
 
-#include "arrow/array.h"
-#include "arrow/chunked_array.h"
-#include "arrow/array/builder_binary.h"
-#include "arrow/type.h"
 #include <Core/ColumnWithTypeAndName.h>
+#include "arrow/array.h"
+#include "arrow/array/builder_binary.h"
+#include "arrow/chunked_array.h"
+#include "arrow/type.h"
 
-namespace arrow {
-
+namespace arrow
+{
 class Array;
 class ChunkedArray;
 
-namespace BitUtil {
+namespace BitUtil
+{
     class BitReader;
-}  // namespace BitUtil
+} // namespace BitUtil
 
-namespace util {
+namespace util
+{
     class RleDecoder;
-}  // namespace util
+} // namespace util
 
-}  // namespace arrow
+} // namespace arrow
 
-namespace parquet{
+namespace parquet
+{
 class Decryptor;
 class Page;
 }
@@ -89,15 +92,22 @@ private:
     int16_t max_level_;
 };
 
-struct CryptoContext {
-    CryptoContext(bool start_with_dictionary_page, int16_t rg_ordinal, int16_t col_ordinal,
-                  std::shared_ptr<Decryptor> meta, std::shared_ptr<Decryptor> data)
-        : start_decrypt_with_dictionary_page(start_with_dictionary_page),
-        row_group_ordinal(rg_ordinal),
-        column_ordinal(col_ordinal),
-        meta_decryptor(std::move(meta)),
-        data_decryptor(std::move(data)) {}
-    CryptoContext() {}
+struct CryptoContext
+{
+    CryptoContext(
+        bool start_with_dictionary_page,
+        int16_t rg_ordinal,
+        int16_t col_ordinal,
+        std::shared_ptr<Decryptor> meta,
+        std::shared_ptr<Decryptor> data)
+        : start_decrypt_with_dictionary_page(start_with_dictionary_page)
+        , row_group_ordinal(rg_ordinal)
+        , column_ordinal(col_ordinal)
+        , meta_decryptor(std::move(meta))
+        , data_decryptor(std::move(data))
+    {
+    }
+    CryptoContext() { }
 
     bool start_decrypt_with_dictionary_page = false;
     int16_t row_group_ordinal = -1;
@@ -107,18 +117,22 @@ struct CryptoContext {
 };
 
 }
-namespace parquet{
+namespace parquet
+{
 using namespace ch_parquet;
 // Abstract page iterator interface. This way, we can feed column pages to the
 // ColumnReader through whatever mechanism we choose
-class PARQUET_EXPORT PageReader {
+class PARQUET_EXPORT PageReader
+{
 public:
     virtual ~PageReader() = default;
 
     static std::unique_ptr<PageReader> Open(
-        std::shared_ptr<ArrowInputStream> stream, int64_t total_num_rows,
-        Compression::type codec, ::arrow::MemoryPool* pool = ::arrow::default_memory_pool(),
-        const CryptoContext* ctx = NULLPTR);
+        std::shared_ptr<ArrowInputStream> stream,
+        int64_t total_num_rows,
+        Compression::type codec,
+        ::arrow::MemoryPool * pool = ::arrow::default_memory_pool(),
+        const CryptoContext * ctx = NULLPTR);
 
     // @returns: shared_ptr<Page>(nullptr) on EOS, std::shared_ptr<Page>
     // containing new Page otherwise
@@ -127,22 +141,22 @@ public:
     virtual void set_max_page_header_size(uint32_t size) = 0;
 };
 }
-namespace ch_parquet{
-
-class PARQUET_EXPORT ColumnReader {
+namespace ch_parquet
+{
+class PARQUET_EXPORT ColumnReader
+{
 public:
     virtual ~ColumnReader() = default;
 
-    static std::shared_ptr<ColumnReader> Make(
-        const ColumnDescriptor* descr, std::unique_ptr<PageReader> pager,
-        ::arrow::MemoryPool* pool = ::arrow::default_memory_pool());
+    static std::shared_ptr<ColumnReader>
+    Make(const ColumnDescriptor * descr, std::unique_ptr<PageReader> pager, ::arrow::MemoryPool * pool = ::arrow::default_memory_pool());
 
     // Returns true if there are still values in this column.
     virtual bool HasNext() = 0;
 
     virtual Type::type type() const = 0;
 
-    virtual const ColumnDescriptor* descr() const = 0;
+    virtual const ColumnDescriptor * descr() const = 0;
 
     // Get the encoding that can be exposed by this reader. If it returns
     // dictionary encoding, then ReadBatchWithDictionary can be used to read data.
@@ -160,7 +174,8 @@ protected:
 
 // API to read values from a single column. This is a main client facing API.
 template <typename DType>
-class TypedColumnReader : public ColumnReader {
+class TypedColumnReader : public ColumnReader
+{
 public:
     typedef typename DType::c_type T;
 
@@ -181,8 +196,7 @@ public:
     // This API is the same for both V1 and V2 of the DataPage
     //
     // @returns: actual number of levels read (see values_read for number of values read)
-    virtual int64_t ReadBatch(int64_t batch_size, int16_t* def_levels, int16_t* rep_levels,
-                              T* values, int64_t* values_read) = 0;
+    virtual int64_t ReadBatch(int64_t batch_size, int16_t * def_levels, int16_t * rep_levels, T * values, int64_t * values_read) = 0;
 
     /// Read a batch of repetition levels, definition levels, and values from the
     /// column and leave spaces for null entries on the lowest level in the values
@@ -221,10 +235,17 @@ public:
     ///
     /// \deprecated Since 4.0.0
     ARROW_DEPRECATED("Doesn't handle nesting correctly and unused outside of unit tests.")
-    virtual int64_t ReadBatchSpaced(int64_t batch_size, int16_t* def_levels,
-                                    int16_t* rep_levels, T* values, uint8_t* valid_bits,
-                                    int64_t valid_bits_offset, int64_t* levels_read,
-                                    int64_t* values_read, int64_t* null_count) = 0;
+    virtual int64_t ReadBatchSpaced(
+        int64_t batch_size,
+        int16_t * def_levels,
+        int16_t * rep_levels,
+        T * values,
+        uint8_t * valid_bits,
+        int64_t valid_bits_offset,
+        int64_t * levels_read,
+        int64_t * values_read,
+        int64_t * null_count)
+        = 0;
 
     // Skip reading levels
     // Returns the number of levels skipped
@@ -255,25 +276,33 @@ public:
     // indices read
     //
     // \note API EXPERIMENTAL
-    virtual int64_t ReadBatchWithDictionary(int64_t batch_size, int16_t* def_levels,
-                                            int16_t* rep_levels, int32_t* indices,
-                                            int64_t* indices_read, const T** dict,
-                                            int32_t* dict_len) = 0;
+    virtual int64_t ReadBatchWithDictionary(
+        int64_t batch_size,
+        int16_t * def_levels,
+        int16_t * rep_levels,
+        int32_t * indices,
+        int64_t * indices_read,
+        const T ** dict,
+        int32_t * dict_len)
+        = 0;
 };
 
-namespace internal {
-using namespace parquet::internal;
+namespace internal
+{
+    using namespace parquet::internal;
 
     /// \brief Stateful column reader that delimits semantic records for both flat
     /// and nested columns
     ///
     /// \note API EXPERIMENTAL
     /// \since 1.3.0
-    class RecordReader {
+    class RecordReader
+    {
     public:
         static std::shared_ptr<RecordReader> Make(
-            const ColumnDescriptor* descr, LevelInfo leaf_info,
-            ::arrow::MemoryPool* pool = ::arrow::default_memory_pool(),
+            const ColumnDescriptor * descr,
+            LevelInfo leaf_info,
+            ::arrow::MemoryPool * pool = ::arrow::default_memory_pool(),
             const bool read_dictionary = false);
 
         virtual ~RecordReader() = default;
@@ -308,17 +337,13 @@ using namespace parquet::internal;
         virtual void DebugPrintState() = 0;
 
         /// \brief Decoded definition levels
-        int16_t* def_levels() const {
-            return reinterpret_cast<int16_t*>(def_levels_->mutable_data());
-        }
+        int16_t * def_levels() const { return reinterpret_cast<int16_t *>(def_levels_->mutable_data()); }
 
         /// \brief Decoded repetition levels
-        int16_t* rep_levels() const {
-            return reinterpret_cast<int16_t*>(rep_levels_->mutable_data());
-        }
+        int16_t * rep_levels() const { return reinterpret_cast<int16_t *>(rep_levels_->mutable_data()); }
 
         /// \brief Decoded values, including nulls, if any
-        uint8_t* values() const { return values_->mutable_data(); }
+        uint8_t * values() const { return values_->mutable_data(); }
 
         /// \brief Number of values written including nulls (if any)
         int64_t values_written() const { return values_written_; }
@@ -369,7 +394,7 @@ using namespace parquet::internal;
     class CHStringArray : public ::arrow::BinaryArray
     {
     public:
-        CHStringArray(DB::ColumnWithTypeAndName column, std::shared_ptr<::arrow::Array> fake_array) : BinaryArray(fake_array -> data())
+        CHStringArray(DB::ColumnWithTypeAndName column, std::shared_ptr<::arrow::Array> fake_array) : BinaryArray(fake_array->data())
         {
             this->column = column;
         }
@@ -377,19 +402,21 @@ using namespace parquet::internal;
         DB::ColumnWithTypeAndName column;
     };
 
-    class BinaryRecordReader : virtual public RecordReader {
+    class BinaryRecordReader : virtual public RecordReader
+    {
     public:
         virtual std::vector<std::shared_ptr<::arrow::Array>> GetBuilderChunks() = 0;
     };
 
     /// \brief Read records directly to dictionary-encoded Arrow form (int32
     /// indices). Only valid for BYTE_ARRAY columns
-    class DictionaryRecordReader : virtual public RecordReader {
+    class DictionaryRecordReader : virtual public RecordReader
+    {
     public:
         virtual std::shared_ptr<::arrow::ChunkedArray> GetResult() = 0;
     };
 
-}  // namespace internal
+} // namespace internal
 
 using BoolReader = TypedColumnReader<BooleanType>;
 using Int32Reader = TypedColumnReader<Int32Type>;
@@ -400,4 +427,4 @@ using DoubleReader = TypedColumnReader<DoubleType>;
 using ByteArrayReader = TypedColumnReader<ByteArrayType>;
 using FixedLenByteArrayReader = TypedColumnReader<FLBAType>;
 
-}  // namespace parquet
+} // namespace parquet

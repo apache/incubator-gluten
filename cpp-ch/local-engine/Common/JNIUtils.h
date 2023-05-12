@@ -15,10 +15,10 @@ public:
 
 #define GET_JNIENV(env) \
     int attached; \
-    JNIEnv * (env) = JNIUtils::getENV(&attached);
+    JNIEnv *(env) = JNIUtils::getENV(&attached);
 
 #define CLEAN_JNIENV \
-    if (attached) [[unlikely]]\
+    if (attached) [[unlikely]] \
     { \
         JNIUtils::detachCurrentThread(); \
     }

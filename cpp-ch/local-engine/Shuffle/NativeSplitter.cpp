@@ -2,19 +2,18 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <string>
+#include <Core/Block.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Common/Exception.h>
+#include <base/types.h>
 #include <boost/asio/detail/eventfd_select_interrupter.hpp>
 #include <jni/jni_common.h>
+#include <Poco/Logger.h>
+#include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
-#include <Core/Block.h>
-#include <base/types.h>
-#include <Poco/Logger.h>
 #include <Common/logger_useful.h>
-#include <Poco/StringTokenizer.h>
-#include <string>
 
 namespace local_engine
 {
@@ -180,8 +179,7 @@ std::unique_ptr<NativeSplitter> NativeSplitter::create(const std::string & short
     }
 }
 
-HashNativeSplitter::HashNativeSplitter(NativeSplitter::Options options_, jobject input)
-    : NativeSplitter(options_, input)
+HashNativeSplitter::HashNativeSplitter(NativeSplitter::Options options_, jobject input) : NativeSplitter(options_, input)
 {
     Poco::StringTokenizer exprs_list(options_.exprs_buffer, ",");
     std::vector<size_t> hash_fields;

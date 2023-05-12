@@ -1,18 +1,18 @@
 #pragma once
-#include <jni.h>
 #include <memory>
 #include <mutex>
 #include <stack>
-#include <Shuffle/ShuffleSplitter.h>
-#include <Common/BlockIterator.h>
+#include <jni.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <Core/NamesAndTypes.h>
 #include <Core/Defines.h>
+#include <Core/NamesAndTypes.h>
+#include <DataTypes/Serializations/ISerialization.h>
 #include <Interpreters/Context_fwd.h>
 #include <Processors/Chunk.h>
-#include <base/types.h>
-#include <DataTypes/Serializations/ISerialization.h>
 #include <Shuffle/SelectorBuilder.h>
+#include <Shuffle/ShuffleSplitter.h>
+#include <base/types.h>
+#include <Common/BlockIterator.h>
 
 namespace local_engine
 {
@@ -89,9 +89,11 @@ private:
 class RangePartitionNativeSplitter : public NativeSplitter
 {
     void computePartitionId(DB::Block & block) override;
+
 public:
     RangePartitionNativeSplitter(NativeSplitter::Options options_, jobject input);
     ~RangePartitionNativeSplitter() override = default;
+
 private:
     std::unique_ptr<RangeSelectorBuilder> selector_builder;
 };

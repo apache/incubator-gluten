@@ -1,6 +1,7 @@
 #include "OptimizedArrowColumnToCHColumn.h"
 
 #if USE_LOCAL_FORMATS
+// clang-format off
 #if USE_ARROW || USE_ORC || USE_PARQUET
 
 #include <algorithm>
@@ -36,7 +37,7 @@
 #include <Common/Stopwatch.h>
 #include <Common/quoteString.h>
 
-#include "arrow/column_reader.h"
+#include <arrow/column_reader.h>
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -62,10 +63,9 @@
         M(arrow::Type::INT32, DB::UInt32) \
         M(arrow::Type::UINT64, DB::UInt64) \
         M(arrow::Type::INT64, DB::UInt64)
-
+// clang-format on
 namespace DB
 {
-
 namespace ErrorCodes
 {
     extern const int UNKNOWN_TYPE;
@@ -185,12 +185,16 @@ static ColumnWithTypeAndName readColumnWithDate32Data(std::shared_ptr<arrow::Chu
         const auto * raw_data = reinterpret_cast<const Int32 *>(buffer->data());
         column_data.insert_assume_reserved(raw_data, raw_data + chunk.length());
 
-        const Int32* p_end = raw_data + chunk.length();
-        for (Int32* p = const_cast<Int32*>(raw_data); p < p_end; ++p)
+        const Int32 * p_end = raw_data + chunk.length();
+        for (Int32 * p = const_cast<Int32 *>(raw_data); p < p_end; ++p)
         {
             if (unlikely(*p > DATE_LUT_MAX_EXTEND_DAY_NUM))
-                throw Exception{ErrorCodes::VALUE_IS_OUT_OF_RANGE_OF_DATA_TYPE,
-                        "Input value {} of a column \"{}\" is greater than max allowed Date value, which is {}", *p, column_name, DATE_LUT_MAX_DAY_NUM};
+                throw Exception{
+                    ErrorCodes::VALUE_IS_OUT_OF_RANGE_OF_DATA_TYPE,
+                    "Input value {} of a column \"{}\" is greater than max allowed Date value, which is {}",
+                    *p,
+                    column_name,
+                    DATE_LUT_MAX_DAY_NUM};
         }
     }
     return {std::move(internal_column), std::move(internal_type), column_name};
@@ -237,7 +241,8 @@ static ColumnWithTypeAndName readColumnWithTimestampData(std::shared_ptr<arrow::
 }
 
 template <typename DecimalType, typename DecimalArray>
-static ColumnWithTypeAndName readColumnWithDecimalDataImpl(std::shared_ptr<arrow::ChunkedArray> & arrow_column, const String & column_name, DataTypePtr internal_type)
+static ColumnWithTypeAndName
+readColumnWithDecimalDataImpl(std::shared_ptr<arrow::ChunkedArray> & arrow_column, const String & column_name, DataTypePtr internal_type)
 {
     auto internal_column = internal_type->createColumn();
     auto & column = assert_cast<ColumnDecimal<DecimalType> &>(*internal_column);
@@ -249,7 +254,8 @@ static ColumnWithTypeAndName readColumnWithDecimalDataImpl(std::shared_ptr<arrow
         auto & chunk = dynamic_cast<DecimalArray &>(*(arrow_column->chunk(chunk_i)));
         for (size_t value_i = 0, length = static_cast<size_t>(chunk.length()); value_i < length; ++value_i)
         {
-            column_data.emplace_back(chunk.IsNull(value_i) ? DecimalType(0) : *reinterpret_cast<const DecimalType *>(chunk.Value(value_i))); // TODO: copy column
+            column_data.emplace_back(
+                chunk.IsNull(value_i) ? DecimalType(0) : *reinterpret_cast<const DecimalType *>(chunk.Value(value_i))); // TODO: copy column
         }
     }
     return {std::move(internal_column), internal_type, column_name};
@@ -309,13 +315,12 @@ static ColumnPtr readColumnWithIndexesData(std::shared_ptr<arrow::ChunkedArray> 
 {
     switch (arrow_column->type()->id())
     {
-#    define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
-            case ARROW_NUMERIC_TYPE: \
-            { \
-                    return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, "").column; \
+#        define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
+            case ARROW_NUMERIC_TYPE: { \
+                return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, "").column; \
             }
         FOR_ARROW_INDEXES_TYPES(DISPATCH)
-#    undef DISPATCH
+#        undef DISPATCH
         default:
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "Unsupported type for indexes in LowCardinality: {}.", arrow_column->type()->name());
     }
@@ -345,7 +350,8 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
     const auto column_name = arrow_field->name();
     if (is_nullable)
     {
-        auto nested_column = readColumnFromArrowColumn(arrow_field->WithNullable(false), arrow_column, format_name, dictionary_values, read_ints_as_dates);
+        auto nested_column
+            = readColumnFromArrowColumn(arrow_field->WithNullable(false), arrow_column, format_name, dictionary_values, read_ints_as_dates);
         auto nullmap_column = readByteMapFromArrowColumn(arrow_column);
         auto nullable_type = std::make_shared<DataTypeNullable>(std::move(nested_column.type));
         auto nullable_column = ColumnNullable::create(nested_column.column, nullmap_column);
@@ -375,15 +381,13 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
         // ClickHouse writes Date as arrow UINT16 and DateTime as arrow UINT32,
         // so, read UINT16 as Date and UINT32 as DateTime to perform correct conversion
         // between Date and DateTime further.
-        case arrow::Type::UINT16:
-        {
+        case arrow::Type::UINT16: {
             auto column = readColumnWithNumericData<UInt16>(arrow_column, column_name);
             if (read_ints_as_dates)
                 column.type = std::make_shared<DataTypeDate>();
             return column;
         }
-        case arrow::Type::UINT32:
-        {
+        case arrow::Type::UINT32: {
             auto column = readColumnWithNumericData<UInt32>(arrow_column, column_name);
             if (read_ints_as_dates)
                 column.type = std::make_shared<DataTypeDateTime>();
@@ -395,8 +399,7 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
             return readColumnWithDecimalData<arrow::Decimal128Array>(arrow_column, column_name);
         case arrow::Type::DECIMAL256:
             return readColumnWithDecimalData<arrow::Decimal256Array>(arrow_column, column_name);
-        case arrow::Type::MAP:
-        {
+        case arrow::Type::MAP: {
             const auto arrow_nested_field = arrow_field->type()->field(0);
             auto arrow_nested_column = getNestedArrowColumn(arrow_column);
             auto nested_column
@@ -409,8 +412,7 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
             auto map_type = std::make_shared<DataTypeMap>(tuple_type->getElements()[0], tuple_type->getElements()[1]);
             return {std::move(map_column), std::move(map_type), column_name};
         }
-        case arrow::Type::LIST:
-        {
+        case arrow::Type::LIST: {
             const auto arrow_nested_field = arrow_field->type()->field(0);
             auto arrow_nested_column = getNestedArrowColumn(arrow_column);
             auto nested_column
@@ -420,8 +422,7 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
             auto array_type = std::make_shared<DataTypeArray>(nested_column.type);
             return {std::move(array_column), std::move(array_type), column_name};
         }
-        case arrow::Type::STRUCT:
-        {
+        case arrow::Type::STRUCT: {
             auto arrow_type = arrow_field->type();
             auto * arrow_struct_type = assert_cast<arrow::StructType *>(arrow_type.get());
             std::vector<arrow::ArrayVector> nested_arrow_columns(arrow_struct_type->num_fields());
@@ -451,8 +452,7 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
             auto tuple_type = std::make_shared<DataTypeTuple>(std::move(tuple_types), std::move(tuple_names));
             return {std::move(tuple_column), std::move(tuple_type), column_name};
         }
-        case arrow::Type::DICTIONARY:
-        {
+        case arrow::Type::DICTIONARY: {
             auto & dict_values = dictionary_values[column_name];
             /// Load dictionary values only once and reuse it.
             if (!dict_values)
@@ -467,12 +467,14 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
                 auto * arrow_dict_type = assert_cast<arrow::DictionaryType *>(arrow_field->type().get());
                 auto arrow_dict_field = arrow::field("dict", arrow_dict_type->value_type());
                 auto arrow_dict_column = std::make_shared<arrow::ChunkedArray>(dict_array);
-                auto dict_column = readColumnFromArrowColumn(arrow_dict_field, arrow_dict_column, format_name, dictionary_values, read_ints_as_dates);
+                auto dict_column
+                    = readColumnFromArrowColumn(arrow_dict_field, arrow_dict_column, format_name, dictionary_values, read_ints_as_dates);
 
                 /// We should convert read column to ColumnUnique.
                 auto tmp_lc_column = DataTypeLowCardinality(dict_column.type).createColumn();
                 auto tmp_dict_column = IColumn::mutate(assert_cast<ColumnLowCardinality *>(tmp_lc_column.get())->getDictionaryPtr());
-                static_cast<IColumnUnique *>(tmp_dict_column.get())->uniqueInsertRangeFrom(*dict_column.column, 0, dict_column.column->size());
+                static_cast<IColumnUnique *>(tmp_dict_column.get())
+                    ->uniqueInsertRangeFrom(*dict_column.column, 0, dict_column.column->size());
                 dict_column.column = std::move(tmp_dict_column);
                 dict_values = std::make_shared<ColumnWithTypeAndName>(std::move(dict_column));
             }
@@ -490,16 +492,20 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
             auto lc_type = std::make_shared<DataTypeLowCardinality>(dict_values->type);
             return {std::move(lc_column), std::move(lc_type), column_name};
         }
-#    define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
-        case ARROW_NUMERIC_TYPE: \
-            return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, column_name);
-        FOR_ARROW_NUMERIC_TYPES(DISPATCH)
-#    undef DISPATCH
+#        define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
+            case ARROW_NUMERIC_TYPE: \
+                return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, column_name);
+            FOR_ARROW_NUMERIC_TYPES(DISPATCH)
+#        undef DISPATCH
             // TODO: read JSON as a string?
             // TODO: read UUID as a string?
         default:
-            throw Exception(ErrorCodes::UNKNOWN_TYPE,
-                    "Unsupported {} type '{}' of an input column '{}'.", format_name, arrow_column->type()->name(), column_name);
+            throw Exception(
+                ErrorCodes::UNKNOWN_TYPE,
+                "Unsupported {} type '{}' of an input column '{}'.",
+                format_name,
+                arrow_column->type()->name(),
+                column_name);
     }
 }
 
@@ -519,7 +525,7 @@ Block OptimizedArrowColumnToCHColumn::arrowSchemaToCHHeader(const arrow::Schema 
     for (const auto & field : schema.fields())
     {
         /// Create empty arrow column by it's type and convert it to ClickHouse column.
-        arrow::MemoryPool* pool = arrow::default_memory_pool();
+        arrow::MemoryPool * pool = arrow::default_memory_pool();
         std::unique_ptr<arrow::ArrayBuilder> array_builder;
         arrow::Status status = MakeBuilder(pool, field->type(), &array_builder);
         checkStatus(status, field->name(), format_name);
@@ -683,5 +689,5 @@ std::vector<size_t> OptimizedArrowColumnToCHColumn::getMissingColumns(const arro
 
 }
 
-#endif
+#    endif
 #endif

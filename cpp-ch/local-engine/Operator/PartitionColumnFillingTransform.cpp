@@ -20,9 +20,10 @@ namespace ErrorCodes
 namespace local_engine
 {
 template <typename Type>
-requires(
-    std::is_same_v<Type, Int8> || std::is_same_v<Type, UInt16> || std::is_same_v<Type, Int16> || std::is_same_v<Type, Int32> || std::is_same_v<Type, Int64>)
-    ColumnPtr createIntPartitionColumn(DataTypePtr column_type, std::string partition_value)
+    requires(
+        std::is_same_v<Type, Int8> || std::is_same_v<Type, UInt16> || std::is_same_v<Type, Int16> || std::is_same_v<Type, Int32>
+        || std::is_same_v<Type, Int64>)
+ColumnPtr createIntPartitionColumn(DataTypePtr column_type, std::string partition_value)
 {
     Type value;
     auto value_buffer = ReadBufferFromString(partition_value);
@@ -31,8 +32,8 @@ requires(
 }
 
 template <typename Type>
-requires(std::is_same_v<Type, Float32> || std::is_same_v<Type, Float64>) ColumnPtr
-    createFloatPartitionColumn(DataTypePtr column_type, std::string partition_value)
+    requires(std::is_same_v<Type, Float32> || std::is_same_v<Type, Float64>)
+ColumnPtr createFloatPartitionColumn(DataTypePtr column_type, std::string partition_value)
 {
     Type value;
     auto value_buffer = ReadBufferFromString(partition_value);

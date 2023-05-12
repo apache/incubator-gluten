@@ -1,16 +1,16 @@
 #include "SelectorBuilder.h"
 #include <memory>
 #include <mutex>
+#include <Functions/FunctionFactory.h>
+#include <Parser/SerializedPlanParser.h>
+#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
+#include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Base64Decoder.h>
 #include <Poco/JSON/JSON.h>
 #include <Poco/JSON/Parser.h>
 #include <Poco/MemoryStream.h>
 #include <Poco/StreamCopier.h>
 #include <Common/Exception.h>
-#include <Parser/SerializedPlanParser.h>
-#include <Functions/FunctionFactory.h>
-#include <Processors/QueryPlan/QueryPlan.h>
-#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 
 namespace DB
 {
@@ -22,7 +22,6 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
 PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
 {
     auto rows = selector.size();
@@ -42,8 +41,10 @@ PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t
         partition_selector[partition_row_idx_start_points[selector[i]] - 1] = i;
         partition_row_idx_start_points[selector[i]]--;
     }
-    return PartitionInfo{.partition_selector = std::move(partition_selector), .partition_start_points = partition_row_idx_start_points,
-                         .partition_num = partition_num};
+    return PartitionInfo{
+        .partition_selector = std::move(partition_selector),
+        .partition_start_points = partition_row_idx_start_points,
+        .partition_num = partition_num};
 }
 
 PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
@@ -59,9 +60,7 @@ PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
 }
 
 HashSelectorBuilder::HashSelectorBuilder(
-    UInt32 parts_num_,
-    const std::vector<size_t> & exprs_index_,
-    const std::string & hash_function_name_)
+    UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_)
     : parts_num(parts_num_), exprs_index(exprs_index_), hash_function_name(hash_function_name_)
 {
 }
@@ -95,12 +94,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 }
 
 
-static std::map<int, std::pair<int, int>> direction_map = {
-        {1, {1, -1}},
-        {2, {1, 1}},
-        {3, {-1, 1}},
-        {4, {-1, -1}}
-};
+static std::map<int, std::pair<int, int>> direction_map = {{1, {1, -1}}, {2, {1, 1}}, {3, {-1, 1}}, {4, {-1, -1}}};
 
 RangeSelectorBuilder::RangeSelectorBuilder(const std::string & option, const size_t partition_num_)
 {
@@ -188,7 +182,7 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 {
                     col->insert(field_value.convert<DB::Int32>());
                 }
-                else if(type_name == "Int64")
+                else if (type_name == "Int64")
                 {
                     col->insert(field_value.convert<DB::Int64>());
                 }
@@ -215,7 +209,7 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 }
             }
         }
-        auto col_name = "sort_col_"  + std::to_string(i);
+        auto col_name = "sort_col_" + std::to_string(i);
         columns.emplace_back(std::move(col), data_type, col_name);
     }
     range_bounds_block = DB::Block(columns);
@@ -232,11 +226,10 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
     const auto & expressions = projection_plan_pb->relations().at(0).root().input().project().expressions();
     std::vector<substrait::Expression> exprs;
     exprs.reserve(expressions.size());
-    for (const auto & expression: expressions)
+    for (const auto & expression : expressions)
         exprs.emplace_back(expression);
 
-    auto projection_actions_dag
-        = plan_parser.expressionsToActionsDAG(exprs, block, block);
+    auto projection_actions_dag = plan_parser.expressionsToActionsDAG(exprs, block, block);
     projection_expression_actions = std::make_unique<DB::ExpressionActions>(projection_actions_dag);
     has_init_actions_dag = true;
 }
@@ -278,7 +271,7 @@ int RangeSelectorBuilder::compareRow(
     const DB::Columns & bound_columns,
     size_t bound_row)
 {
-    for(size_t i = 0, n = required_columns.size(); i < n; ++i)
+    for (size_t i = 0, n = required_columns.size(); i < n; ++i)
     {
         auto lpos = required_columns[i];
         auto rpos = i;
@@ -295,12 +288,7 @@ int RangeSelectorBuilder::compareRow(
 // If there were elements in range[l,r] that are larger then the row
 // the return the min element's index. otherwise return -1
 int RangeSelectorBuilder::binarySearchBound(
-    const DB::Columns & bound_columns,
-    Int64 l,
-    Int64 r,
-    const DB::Columns & columns,
-    const std::vector<size_t> & used_cols,
-    size_t row)
+    const DB::Columns & bound_columns, Int64 l, Int64 r, const DB::Columns & columns, const std::vector<size_t> & used_cols, size_t row)
 {
     if (l > r)
     {
@@ -327,7 +315,6 @@ int RangeSelectorBuilder::binarySearchBound(
             return static_cast<int>(m);
         }
         return cmp_ret;
-
     }
     else
     {

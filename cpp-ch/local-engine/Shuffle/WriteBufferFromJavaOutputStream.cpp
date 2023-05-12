@@ -1,6 +1,6 @@
 #include "WriteBufferFromJavaOutputStream.h"
-#include <Common/JNIUtils.h>
 #include <jni/jni_common.h>
+#include <Common/JNIUtils.h>
 
 namespace local_engine
 {
@@ -15,7 +15,7 @@ void WriteBufferFromJavaOutputStream::nextImpl()
     while (offset() - bytes_write > 0)
     {
         size_t copy_num = std::min(offset() - bytes_write, buffer_size);
-        env->SetByteArrayRegion(buffer, 0 , copy_num, reinterpret_cast<const jbyte *>(this->working_buffer.begin() + bytes_write));
+        env->SetByteArrayRegion(buffer, 0, copy_num, reinterpret_cast<const jbyte *>(this->working_buffer.begin() + bytes_write));
         safeCallVoidMethod(env, output_stream, output_stream_write, buffer, 0, copy_num);
         bytes_write += copy_num;
     }

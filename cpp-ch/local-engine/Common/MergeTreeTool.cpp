@@ -1,8 +1,8 @@
 #include "MergeTreeTool.h"
-#include <IO/ReadHelpers.h>
-#include <IO/WriteHelpers.h>
 #include <IO/ReadBufferFromString.h>
+#include <IO/ReadHelpers.h>
 #include <IO/WriteBufferFromString.h>
+#include <IO/WriteHelpers.h>
 
 using namespace DB;
 
@@ -12,7 +12,7 @@ std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(DB::NamesAndTypesList
 {
     std::shared_ptr<DB::StorageInMemoryMetadata> metadata = std::make_shared<DB::StorageInMemoryMetadata>();
     ColumnsDescription columns_description;
-    for (const auto &item : columns)
+    for (const auto & item : columns)
     {
         columns_description.add(ColumnDescription(item.name, item.type));
     }
@@ -31,7 +31,7 @@ std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings()
     return settings;
 }
 
-std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList& names_and_types_list)
+std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list)
 {
     std::unique_ptr<SelectQueryInfo> query_info = std::make_unique<SelectQueryInfo>();
     query_info->query = std::make_shared<ASTSelectQuery>();

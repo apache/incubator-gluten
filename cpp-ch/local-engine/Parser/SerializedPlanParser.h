@@ -4,22 +4,21 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/SortDescription.h>
 #include <DataTypes/DataTypeFactory.h>
+#include <DataTypes/Serializations/ISerialization.h>
+#include <Interpreters/Aggregator.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <Interpreters/Aggregator.h>
 #include <QueryPipeline/Pipe.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/IStorage.h>
 #include <Storages/SourceFromJavaIter.h>
 #include <arrow/ipc/writer.h>
+#include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
-#include <DataTypes/Serializations/ISerialization.h>
-#include <base/types.h>
-#include <Core/SortDescription.h>
 
 namespace local_engine
 {
@@ -215,6 +214,7 @@ class SerializedPlanParser
 {
     friend class RelParser;
     friend class ASTParser;
+
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
     static void initFunctionEnv();
@@ -225,7 +225,7 @@ public:
     DB::QueryPlanPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
     DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel);
-    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input, std::vector<String>& not_nullable_columns);
+    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input, std::vector<String> & not_nullable_columns);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static DB::Block parseNameStruct(const substrait::NamedStruct & struct_);
@@ -237,9 +237,7 @@ public:
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
-        const std::vector<substrait::Expression> & expressions,
-        const DB::Block & header,
-        const DB::Block & read_schema);
+        const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -321,11 +319,9 @@ private:
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
 
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
-    void wrapNullable(std::vector<String> columns, ActionsDAGPtr actionsDag,
-                      std::map<std::string, std::string>& nullable_measure_names);
+    void wrapNullable(std::vector<String> columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
 
-    static Aggregator::Params getAggregateParam(const Names & keys,
-                                                const AggregateDescriptions & aggregates)
+    static Aggregator::Params getAggregateParam(const Names & keys, const AggregateDescriptions & aggregates)
     {
         Settings settings;
         return Aggregator::Params(
@@ -348,8 +344,7 @@ private:
             false);
     }
 
-    static Aggregator::Params
-    getMergedAggregateParam(const Names & keys, const AggregateDescriptions & aggregates)
+    static Aggregator::Params getMergedAggregateParam(const Names & keys, const AggregateDescriptions & aggregates)
     {
         Settings settings;
         return Aggregator::Params(keys, aggregates, false, settings.max_threads, settings.max_block_size);
@@ -364,7 +359,6 @@ private:
     std::vector<jobject> input_iters;
     const substrait::ProjectRel * last_project = nullptr;
     ContextPtr context;
-
 };
 
 struct SparkBuffer

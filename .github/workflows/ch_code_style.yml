@@ -15,38 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-name: Clickhouse Backend Trigger
+name: CH Backend Code style checks
 
 on:
-  pull_request_target:
-    paths:
-      - '.github/**'
-      - 'pom.xml'
-      - 'backends-clickhouse/**'
-      - 'gluten-core/**'
-      - 'gluten-ut/**'
-      - 'shims/**'
-      - 'tools/gluten-it/**'
-      - 'tools/gluten-te/**'
-      - 'cpp-ch/**'
+  pull_request
+
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
-  add-comment:
-    needs: ch-formatting-check
-    if: ${{ success() }}
+  ch-formatting-check:
+    name: CH Formatting Check
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - check: 'cpp-ch'
+            exclude: ''
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        
-      - name: Add comment to PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COMMENT="Run Gluten Clickhouse CI"
-          URL=$(jq -r .pull_request.comments_url "$GITHUB_EVENT_PATH")
-          curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST -d "{\"body\":\"$COMMENT\"}" "${URL}"
+      - uses: actions/checkout@v2
+      - name: Run clang-format style check for C/C++ programs.
+        uses: jidicula/clang-format-action@v4.11.0
+        with:
+          clang-format-version: '15'
+          check-path: ${{ matrix.path['check'] }}
+          fallback-style: 'Google' # optional
+          include-regex: '.*\.\(c\|cpp\|h\)'

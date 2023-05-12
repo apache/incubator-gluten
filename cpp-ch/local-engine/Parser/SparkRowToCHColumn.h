@@ -6,13 +6,13 @@
 #include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parser/CHColumnToSparkRow.h>
+#include <Parser/SerializedPlanParser.h>
 #include <base/StringRef.h>
-#include <Common/JNIUtils.h>
-#include <substrait/type.pb.h>
+#include <base/types.h>
 #include <jni/jni_common.h>
-#include "base/types.h"
+#include <substrait/type.pb.h>
+#include <Common/JNIUtils.h>
 
 namespace DB
 {
@@ -33,8 +33,7 @@ struct SparkRowToCHColumnHelper
     MutableColumns mutable_columns;
     UInt64 rows;
 
-    SparkRowToCHColumnHelper(vector<string> & names, vector<string> & types)
-        : data_types(names.size())
+    SparkRowToCHColumnHelper(vector<string> & names, vector<string> & types) : data_types(names.size())
     {
         assert(names.size() == types.size());
 
@@ -79,8 +78,7 @@ public:
     static std::unique_ptr<Block> convertSparkRowInfoToCHColumn(const SparkRowInfo & spark_row_info, const Block & header);
 
     // case 2: provided with a sequence of spark UnsafeRow, convert them to a Block
-    static Block *
-    convertSparkRowItrToCHColumn(jobject java_iter, vector<string> & names, vector<string> & types)
+    static Block * convertSparkRowItrToCHColumn(jobject java_iter, vector<string> & names, vector<string> & types)
     {
         SparkRowToCHColumnHelper helper(names, types);
 
@@ -88,8 +86,8 @@ public:
         while (safeCallBooleanMethod(env, java_iter, spark_row_interator_hasNext))
         {
             jobject rows_buf = safeCallObjectMethod(env, java_iter, spark_row_iterator_nextBatch);
-            auto * rows_buf_ptr = static_cast<char*>(env->GetDirectBufferAddress(rows_buf));
-            int len = *(reinterpret_cast<int*>(rows_buf_ptr));
+            auto * rows_buf_ptr = static_cast<char *>(env->GetDirectBufferAddress(rows_buf));
+            int len = *(reinterpret_cast<int *>(rows_buf_ptr));
 
             // len = -1 means reaching the buf's end.
             // len = 0 indicates no columns in the this row. e.g. count(1)/count(*)
@@ -122,7 +120,7 @@ private:
 class VariableLengthDataReader
 {
 public:
-    explicit VariableLengthDataReader(const DataTypePtr& type_);
+    explicit VariableLengthDataReader(const DataTypePtr & type_);
     virtual ~VariableLengthDataReader() = default;
 
     virtual Field read(const char * buffer, size_t length) const;
@@ -183,10 +181,7 @@ public:
         }
     }
 
-    const DataTypes & getFieldTypes() const
-    {
-        return field_types;
-    }
+    const DataTypes & getFieldTypes() const { return field_types; }
 
     bool supportRawData(int ordinal) const
     {
@@ -224,7 +219,7 @@ public:
         return isBitSet(buffer, ordinal);
     }
 
-    const char* getRawDataForFixedNumber(int ordinal) const
+    const char * getRawDataForFixedNumber(int ordinal) const
     {
         assertIndexIsValid(ordinal);
         return reinterpret_cast<const char *>(getFieldOffset(ordinal));
@@ -328,7 +323,8 @@ public:
             return std::move(variable_length_data_reader->readUnalignedBytes(buffer + offset, size));
         }
         else
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "SparkRowReader::getStringRef doesn't support type {}", field_types[ordinal]->getName());
+            throw Exception(
+                ErrorCodes::UNKNOWN_TYPE, "SparkRowReader::getStringRef doesn't support type {}", field_types[ordinal]->getName());
     }
 
     Field getField(int ordinal) const

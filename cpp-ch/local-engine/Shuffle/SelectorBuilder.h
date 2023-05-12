@@ -1,19 +1,18 @@
 #pragma once
-#include <Core/ColumnWithTypeAndName.h>
-#include <Functions/IFunction.h>
-#include <Processors/Chunk.h>
-#include <base/types.h>
-#include <Core/SortDescription.h>
-#include <Core/Block.h>
-#include <Common/BlockIterator.h>
 #include <memory>
 #include <vector>
-#include <substrait/plan.pb.h>
+#include <Core/Block.h>
+#include <Core/ColumnWithTypeAndName.h>
+#include <Core/SortDescription.h>
+#include <Functions/IFunction.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ExpressionActions.h>
+#include <Processors/Chunk.h>
+#include <base/types.h>
+#include <substrait/plan.pb.h>
+#include <Common/BlockIterator.h>
 namespace local_engine
 {
-
 struct PartitionInfo
 {
     DB::IColumn::Selector partition_selector;
@@ -26,8 +25,9 @@ struct PartitionInfo
 class RoundRobinSelectorBuilder
 {
 public:
-    explicit RoundRobinSelectorBuilder(size_t parts_num_) : parts_num(parts_num_) {}
+    explicit RoundRobinSelectorBuilder(size_t parts_num_) : parts_num(parts_num_) { }
     PartitionInfo build(DB::Block & block);
+
 private:
     size_t parts_num;
     Int32 pid_selection = 0;
@@ -36,11 +36,9 @@ private:
 class HashSelectorBuilder
 {
 public:
-    explicit HashSelectorBuilder(
-        UInt32 parts_num_,
-        const std::vector<size_t> & exprs_index_,
-        const std::string & hash_function_name_);
+    explicit HashSelectorBuilder(UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_);
     PartitionInfo build(DB::Block & block);
+
 private:
     UInt32 parts_num;
     std::vector<size_t> exprs_index;
@@ -53,6 +51,7 @@ class RangeSelectorBuilder
 public:
     explicit RangeSelectorBuilder(const std::string & options_, const size_t partition_num_);
     PartitionInfo build(DB::Block & block);
+
 private:
     DB::SortDescription sort_descriptions;
     std::vector<size_t> sorting_key_columns;

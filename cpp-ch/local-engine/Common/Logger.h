@@ -12,5 +12,3 @@ public:
     static void initFileLogger(Poco::Util::AbstractConfiguration & config, const std::string & cmd_name);
 };
 }
-
-

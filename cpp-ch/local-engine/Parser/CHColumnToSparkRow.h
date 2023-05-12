@@ -23,7 +23,8 @@ class SparkRowInfo : public boost::noncopyable
 
 public:
     explicit SparkRowInfo(const DB::Block & block);
-    explicit SparkRowInfo(const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size);
+    explicit SparkRowInfo(
+        const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size);
 
     const DB::DataTypes & getDataTypes() const;
 
@@ -131,6 +132,7 @@ public:
 
     /// Only support String/FixedString/Decimal128
     int64_t writeUnalignedBytes(size_t row_idx, const char * src, size_t size, int64_t parent_offset);
+
 private:
     int64_t writeArray(size_t row_idx, const DB::Array & array, int64_t parent_offset);
     int64_t writeMap(size_t row_idx, const DB::Map & map, int64_t parent_offset);

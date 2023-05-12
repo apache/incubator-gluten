@@ -2,29 +2,28 @@
 #include <boost/algorithm/string/case_conv.hpp>
 
 #if USE_PARQUET && USE_LOCAL_FORMATS
-
-#include <Formats/FormatFactory.h>
-#include <Storages/ch_parquet/arrow/reader.h>
-#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+// clang-format off
 #include <DataTypes/NestedUtils.h>
-
+#include <Formats/FormatFactory.h>
+#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
+#include <Storages/ch_parquet/arrow/reader.h>
+// clang-format on
 namespace DB
 {
-
 namespace ErrorCodes
 {
     extern const int BAD_ARGUMENTS;
     extern const int CANNOT_READ_ALL_DATA;
 }
-
+// clang-format off
 #define THROW_ARROW_NOT_OK(status)                                     \
     do                                                                 \
     {                                                                  \
         if (::arrow::Status _s = (status); !_s.ok())                   \
             throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
     } while (false)
-
+// clang-format on
 OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_)
     : IInputFormat(std::move(header_), in_), format_settings(format_settings_)
 {
@@ -47,8 +46,7 @@ Chunk OptimizedParquetBlockInputFormat::generate()
     std::shared_ptr<arrow::Table> table;
     arrow::Status read_status = file_reader->ReadRowGroup(row_group_current, column_indices, &table);
     if (!read_status.ok())
-        throw ParsingException(ErrorCodes::CANNOT_READ_ALL_DATA, "Error while reading Parquet data: {}",
-                               read_status.ToString());
+        throw ParsingException(ErrorCodes::CANNOT_READ_ALL_DATA, "Error while reading Parquet data: {}", read_status.ToString());
 
     if (format_settings.use_lowercase_column_name)
         table = *table->RenameColumns(column_names);
@@ -124,7 +122,7 @@ static void getFileReaderAndSchema(
         fields.reserve(schema->num_fields());
         for (int i = 0; i < schema->num_fields(); ++i)
         {
-            const auto& field = schema->field(i);
+            const auto & field = schema->field(i);
             auto name = field->name();
             boost::to_lower(name);
             fields.push_back(field->WithName(name));
@@ -143,7 +141,8 @@ void OptimizedParquetBlockInputFormat::prepareReader()
     row_group_total = file_reader->num_row_groups();
     row_group_current = 0;
 
-    arrow_column_to_ch_column = std::make_unique<OptimizedArrowColumnToCHColumn>(getPort().getHeader(), "Parquet", format_settings.parquet.import_nested, format_settings.parquet.allow_missing_columns);
+    arrow_column_to_ch_column = std::make_unique<OptimizedArrowColumnToCHColumn>(
+        getPort().getHeader(), "Parquet", format_settings.parquet.import_nested, format_settings.parquet.allow_missing_columns);
     missing_columns = arrow_column_to_ch_column->getMissingColumns(*schema);
 
     std::unordered_set<String> nested_table_names;
@@ -170,7 +169,8 @@ void OptimizedParquetBlockInputFormat::prepareReader()
     }
 }
 
-OptimizedParquetSchemaReader::OptimizedParquetSchemaReader(ReadBuffer & in_, const FormatSettings & format_settings_) : ISchemaReader(in_), format_settings(format_settings_)
+OptimizedParquetSchemaReader::OptimizedParquetSchemaReader(ReadBuffer & in_, const FormatSettings & format_settings_)
+    : ISchemaReader(in_), format_settings(format_settings_)
 {
 }
 

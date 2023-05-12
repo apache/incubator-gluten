@@ -2,10 +2,10 @@
 #include <set>
 #include <vector>
 #include <Core/Block.h>
+#include <Parser/ExpandField.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <Processors/Port.h>
-#include <Parser/ExpandField.h>
 namespace local_engine
 {
 // For handling substrait expand node.
@@ -19,15 +19,13 @@ class ExpandTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    ExpandTransform(
-        const DB::Block & input_,
-        const DB::Block & output_,
-        const ExpandField & project_set_exprs_);
+    ExpandTransform(const DB::Block & input_, const DB::Block & output_, const ExpandField & project_set_exprs_);
 
     Status prepare() override;
     void work() override;
 
     DB::String getName() const override { return "ExpandTransform"; }
+
 private:
     ExpandField project_set_exprs;
     bool has_input = false;

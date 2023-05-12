@@ -1,12 +1,11 @@
 #include "JoinHelper.h"
-#include <IO/ReadHelpers.h>
 #include <IO/ReadBufferFromString.h>
+#include <IO/ReadHelpers.h>
 
 using namespace DB;
 
 namespace local_engine
 {
-
 JoinOptimizationInfo parseJoinOptimizationInfo(const std::string & optimization)
 {
     JoinOptimizationInfo info;

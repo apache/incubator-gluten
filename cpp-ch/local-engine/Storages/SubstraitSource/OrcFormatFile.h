@@ -1,7 +1,7 @@
 #pragma once
 #include <config.h>
 #include <Common/Config.h>
-
+// clang-format off
 #if USE_ORC
 #include <memory>
 #include <IO/ReadBuffer.h>
@@ -17,9 +17,9 @@
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #endif
 
+// clang-format on
 namespace local_engine
 {
-
 struct StripeInformation
 {
     UInt64 index;
@@ -29,9 +29,9 @@ struct StripeInformation
     UInt64 start_row;
 };
 
-
+// clang-format off
 #if USE_LOCAL_FORMATS
-
+// clang-format on
 // local engine's orc block input formatter
 // the behavior of generate is different from DB::ORCBlockInputFormat
 class ORCBlockInputFormat : public DB::IInputFormat
@@ -53,8 +53,8 @@ protected:
     DB::Chunk generate() override;
 
     void onCancel() override { is_stopped = 1; }
-private:
 
+private:
     // TODO: check that this class implements every part of its parent
 
     std::unique_ptr<arrow::adapters::orc::ORCFileReader> file_reader;
@@ -81,13 +81,12 @@ private:
 
     std::shared_ptr<arrow::RecordBatchReader> fetchNextStripe();
 };
-
+// clang-format off
 #endif
-
+// clang-format on
 class OrcFormatFile : public FormatFile
 {
 public:
-
     explicit OrcFormatFile(
         DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
     ~OrcFormatFile() override = default;

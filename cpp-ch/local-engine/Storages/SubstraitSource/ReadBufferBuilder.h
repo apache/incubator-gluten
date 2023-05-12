@@ -1,20 +1,21 @@
 #pragma once
-#include <substrait/plan.pb.h>
 #include <functional>
 #include <memory>
 #include <IO/ReadBuffer.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/Context_fwd.h>
 #include <boost/core/noncopyable.hpp>
+#include <substrait/plan.pb.h>
 namespace local_engine
 {
 class ReadBufferBuilder
 {
 public:
-    explicit ReadBufferBuilder(DB::ContextPtr context_) : context(context_) {}
+    explicit ReadBufferBuilder(DB::ContextPtr context_) : context(context_) { }
     virtual ~ReadBufferBuilder() = default;
     /// build a new read buffer
     virtual std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) = 0;
+
 protected:
     DB::ContextPtr context;
 };

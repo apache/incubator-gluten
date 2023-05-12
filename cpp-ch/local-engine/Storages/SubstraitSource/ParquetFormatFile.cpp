@@ -1,5 +1,5 @@
 #include "ParquetFormatFile.h"
-
+// clang-format off
 #if USE_PARQUET
 
 #include <memory>
@@ -16,7 +16,7 @@
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 
-
+// clang-format on
 namespace DB
 {
 namespace ErrorCodes
@@ -27,7 +27,8 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-ParquetFormatFile::ParquetFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
+ParquetFormatFile::ParquetFormatFile(
+    DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
     : FormatFile(context_, file_info_, read_buffer_builder_)
 {
 }
@@ -50,8 +51,9 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         required_row_groups = collectRequiredRowGroups(total_row_groups);
 
     auto format_settings = DB::getFormatSettings(context);
-
+// clang-format off
 #if USE_LOCAL_FORMATS
+    // clang-format on
     format_settings.parquet.import_nested = true;
 
     std::vector<int> row_group_indices;
@@ -61,8 +63,9 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 
     auto input_format
         = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
+// clang-format off
 #else
-
+    // clang-format on
     std::vector<int> total_row_group_indices(total_row_groups);
     std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
 
@@ -71,14 +74,18 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         required_row_group_indices[i] = required_row_groups[i].index;
 
     std::vector<int> skip_row_group_indices;
-    std::set_difference(total_row_group_indices.begin(), total_row_group_indices.end(),
-        required_row_group_indices.begin(), required_row_group_indices.end(),
+    std::set_difference(
+        total_row_group_indices.begin(),
+        total_row_group_indices.end(),
+        required_row_group_indices.begin(),
+        required_row_group_indices.end(),
         std::back_inserter(skip_row_group_indices));
 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
     auto input_format = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
+// clang-format off
 #endif
-
+    // clang-format on
     res->input = input_format;
     return res;
 }
@@ -112,8 +119,7 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(int 
 
 std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups)
 {
-    DB::FormatSettings format_settings
-    {
+    DB::FormatSettings format_settings{
         .seekable_read = true,
     };
     std::atomic<int> is_stopped{0};
@@ -137,7 +143,7 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
             offset = static_cast<UInt64>(row_group_meta->ColumnChunk(0)->file_offset());
 
         /// Current row group has intersection with the required range.
-        if (file_info.start() <=  offset && offset < file_info.start() + file_info.length())
+        if (file_info.start() <= offset && offset < file_info.start() + file_info.length())
         {
             RowGroupInfomation info;
             info.index = i;
@@ -149,7 +155,6 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
         }
     }
     return row_group_metadatas;
-
 }
 }
 #endif

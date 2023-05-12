@@ -1,22 +1,21 @@
 #include "DebugUtils.h"
+#include <Columns/ColumnNullable.h>
+#include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeDate.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <Formats/FormatSettings.h>
 #include <Functions/FunctionHelpers.h>
 #include <IO/WriteBufferFromString.h>
-#include <Columns/ColumnString.h>
-#include <Columns/ColumnNullable.h>
 
 namespace debug
 {
-
 void headBlock(const DB::Block & block, size_t count)
 {
     std::cerr << "============Block============" << std::endl;
     std::cerr << block.dumpStructure() << std::endl;
     // print header
-    for (const auto& name : block.getNames())
+    for (const auto & name : block.getNames())
         std::cerr << name << "\t";
     std::cerr << std::endl;
 

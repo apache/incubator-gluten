@@ -8,15 +8,9 @@ class PartitionColumnFillingTransform : public DB::ISimpleTransform
 {
 public:
     PartitionColumnFillingTransform(
-        const DB::Block & input_,
-        const DB::Block & output_,
-        const String & partition_col_name_,
-        const String & partition_col_value_);
+        const DB::Block & input_, const DB::Block & output_, const String & partition_col_name_, const String & partition_col_value_);
     void transform(DB::Chunk & chunk) override;
-    String getName() const override
-    {
-        return "PartitionColumnFillingTransform";
-    }
+    String getName() const override { return "PartitionColumnFillingTransform"; }
 
 private:
     DB::ColumnPtr createPartitionColumn();
@@ -28,5 +22,3 @@ private:
 };
 
 }
-
-

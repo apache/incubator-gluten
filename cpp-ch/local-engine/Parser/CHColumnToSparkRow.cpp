@@ -1,19 +1,19 @@
 #include "CHColumnToSparkRow.h"
 #include <Columns/ColumnArray.h>
+#include <Columns/ColumnConst.h>
+#include <Columns/ColumnDecimal.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
-#include <Columns/ColumnDecimal.h>
-#include <Columns/ColumnConst.h>
 #include <Columns/IColumn.h>
 #include <Core/Types.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeLowCardinality.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
-#include <DataTypes/DataTypeString.h>
 #include <DataTypes/ObjectUtils.h>
 #include <Common/Exception.h>
 
@@ -68,11 +68,7 @@ ALWAYS_INLINE bool isBitSet(const char * bitmap, int32_t index)
 }
 
 static void writeFixedLengthNonNullableValue(
-    char * buffer_address,
-    int64_t field_offset,
-    const ColumnWithTypeAndName & col,
-    int64_t num_rows,
-    const std::vector<int64_t> & offsets)
+    char * buffer_address, int64_t field_offset, const ColumnWithTypeAndName & col, int64_t num_rows, const std::vector<int64_t> & offsets)
 {
     FixedLengthDataWriter writer(col.type);
     for (size_t i = 0; i < static_cast<size_t>(num_rows); i++)
@@ -235,7 +231,8 @@ static void writeValue(
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "Doesn't support type {} for writeValue", col.type->getName());
 }
 
-SparkRowInfo::SparkRowInfo(const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size)
+SparkRowInfo::SparkRowInfo(
+    const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size)
     : types(types)
     , num_rows(row_size)
     , num_cols(col_size)
@@ -301,7 +298,10 @@ SparkRowInfo::SparkRowInfo(const DB::ColumnsWithTypeAndName & cols, const DB::Da
         total_bytes += lengths[i];
 }
 
-SparkRowInfo::SparkRowInfo(const Block & block) : SparkRowInfo(block.getColumnsWithTypeAndName(), block.getDataTypes(), block.columns(), block.rows()){}
+SparkRowInfo::SparkRowInfo(const Block & block)
+    : SparkRowInfo(block.getColumnsWithTypeAndName(), block.getDataTypes(), block.columns(), block.rows())
+{
+}
 
 const DB::DataTypes & SparkRowInfo::getDataTypes() const
 {
@@ -389,7 +389,7 @@ std::unique_ptr<SparkRowInfo> CHColumnToSparkRow::convertCHColumnToSparkRow(cons
         nested_col = nullable_col->getNestedColumnPtr();
     }
 
-    auto checkAndGetTupleDataTypes = [] (const DB::ColumnPtr& column) -> DB::DataTypes
+    auto checkAndGetTupleDataTypes = [](const DB::ColumnPtr & column) -> DB::DataTypes
     {
         DB::DataTypes data_types;
         if (column->getDataType() != DB::TypeIndex::Tuple)
@@ -404,7 +404,7 @@ std::unique_ptr<SparkRowInfo> CHColumnToSparkRow::convertCHColumnToSparkRow(cons
             const auto & field_col = tuple_col->getColumn(i);
             if (field_col.isNullable())
             {
-                const auto & field_nested_col= assert_cast<const ColumnNullable &>(field_col).getNestedColumn();
+                const auto & field_nested_col = assert_cast<const ColumnNullable &>(field_col).getNestedColumn();
                 if (field_nested_col.getDataType() != DB::TypeIndex::String)
                 {
                     data_types.clear();
@@ -479,7 +479,8 @@ BackingDataLengthCalculator::BackingDataLengthCalculator(const DataTypePtr & typ
     : type_without_nullable(removeNullable(type_)), which(type_without_nullable)
 {
     if (!isFixedLengthDataType(type_without_nullable) && !isVariableLengthDataType(type_without_nullable))
-        throw Exception(ErrorCodes::UNKNOWN_TYPE, "Doesn't support type {} for BackingDataLengthCalculator", type_without_nullable->getName());
+        throw Exception(
+            ErrorCodes::UNKNOWN_TYPE, "Doesn't support type {} for BackingDataLengthCalculator", type_without_nullable->getName());
 }
 
 int64_t BackingDataLengthCalculator::calculate(const Field & field) const
@@ -566,7 +567,8 @@ int64_t BackingDataLengthCalculator::calculate(const Field & field) const
         return res;
     }
 
-    throw Exception(ErrorCodes::UNKNOWN_TYPE, "Doesn't support type {} for BackingBufferLengthCalculator", type_without_nullable->getName());
+    throw Exception(
+        ErrorCodes::UNKNOWN_TYPE, "Doesn't support type {} for BackingBufferLengthCalculator", type_without_nullable->getName());
 }
 
 int64_t BackingDataLengthCalculator::getArrayElementSize(const DataTypePtr & nested_type)
@@ -678,8 +680,10 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
             if (elem.isNull())
                 bitSet(buffer_address + offset + start + 8, i);
             else
-//                 writer.write(elem, buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
-                writer.unsafeWrite(reinterpret_cast<const char *>(&elem.get<char>()), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+                //                 writer.write(elem, buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+                writer.unsafeWrite(
+                    reinterpret_cast<const char *>(&elem.get<char>()),
+                    buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
         }
     }
     else

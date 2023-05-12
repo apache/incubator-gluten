@@ -1,6 +1,8 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <AggregateFunctions/AggregateFunctionCombinatorFactory.h>
+#include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
 #include <Columns/ColumnNullable.h>
@@ -19,29 +21,27 @@
 #include <DataTypes/NestedUtils.h>
 #include <DataTypes/Serializations/ISerialization.h>
 #include <Functions/CastOverloadResolver.h>
-#include <Functions/FunctionsConversion.h>
 #include <Functions/FunctionFactory.h>
+#include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
-#include <AggregateFunctions/AggregateFunctionCombinatorFactory.h>
-#include <AggregateFunctions/registerAggregateFunctions.h>
 #include <IO/ReadBufferFromFile.h>
-#include <Interpreters/castColumn.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
+#include <Interpreters/castColumn.h>
+#include <Parser/RelParser.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
-#include <Common/Config/ConfigProcessor.h>
-#include <Common/logger_useful.h>
-#include <Poco/Logger.h>
-#include <Poco/Util/MapConfiguration.h>
-#include <Common/typeid_cast.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <substrait/algebra.pb.h>
 #include <substrait/plan.pb.h>
-#include <Parser/SerializedPlanParser.h>
-#include <Parser/RelParser.h>
+#include <Poco/Logger.h>
+#include <Poco/Util/MapConfiguration.h>
+#include <Common/Config/ConfigProcessor.h>
 #include <Common/Logger.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Common/logger_useful.h>
+#include <Common/typeid_cast.h>
 
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -160,7 +160,8 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                     {
                         // Should all field columns have the same null map ?
                         DB::DataTypePtr null_type = std::make_shared<DB::DataTypeNullable>(element_types[i]);
-                        named_column_array_of_element.column = DB::ColumnNullable::create(named_column_array_of_element.column, null_map_col);
+                        named_column_array_of_element.column
+                            = DB::ColumnNullable::create(named_column_array_of_element.column, null_map_col);
                         named_column_array_of_element.type = null_type;
                     }
                     if (recursively)
@@ -202,7 +203,7 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                     if (null_map_col && !element_types[i]->isNullable())
                     {
                         // Should all field columns have the same null map ?
-                        new_element_col.column =  DB::ColumnNullable::create(new_element_col.column, null_map_col);
+                        new_element_col.column = DB::ColumnNullable::create(new_element_col.column, null_map_col);
                         new_element_col.type = std::make_shared<DB::DataTypeNullable>(new_element_col.type);
                     }
                     if (recursively)
@@ -237,8 +238,7 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
 std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
 {
     std::string plan_str;
-    DB::QueryPlan::ExplainPlanOptions buf_opt
-    {
+    DB::QueryPlan::ExplainPlanOptions buf_opt{
         .header = true,
         .actions = true,
         .indexes = true,
@@ -249,7 +249,7 @@ std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
     return plan_str;
 }
 
-std::vector<MergeTreeUtil::Path> MergeTreeUtil::getAllMergeTreeParts(const Path &storage_path)
+std::vector<MergeTreeUtil::Path> MergeTreeUtil::getAllMergeTreeParts(const Path & storage_path)
 {
     if (!fs::exists(storage_path))
     {
@@ -282,9 +282,9 @@ DB::NamesAndTypesList MergeTreeUtil::getSchemaFromMergeTreePart(const fs::path &
 
 
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
-    : block(block_)
-    , case_insentive(case_insentive_)
-{}
+    : block(block_), case_insentive(case_insentive_)
+{
+}
 
 std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColumn(const String & column_name)
 {
@@ -312,7 +312,7 @@ std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColum
 std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColumn(
     const String & original_column_name, const String & column_name_prefix, const String & column_name_suffix)
 {
-     auto table_iter = nested_tables.find(column_name_prefix);
+    auto table_iter = nested_tables.find(column_name_prefix);
     if (table_iter == nested_tables.end())
     {
         return {};
@@ -350,7 +350,6 @@ std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColum
 
 const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB::Block & in_block, const std::string & name) const
 {
-
     if (case_insentive)
     {
         std::string final_name = name;
@@ -397,7 +396,7 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string &plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
 
@@ -423,7 +422,7 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
         const auto & key_values = expression.literal().map().key_values();
         for (const auto & key_value : key_values)
         {
-             if (!key_value.has_key() || !key_value.has_value())
+            if (!key_value.has_key() || !key_value.has_value())
                 continue;
 
             const auto & key = key_value.key();
@@ -445,7 +444,7 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
     return ch_backend_conf;
 }
 
-void BackendInitializerUtil::initConfig(const std::string &plan)
+void BackendInitializerUtil::initConfig(const std::string & plan)
 {
     /// Parse input substrait plan, and get native conf map from it.
     backend_conf_map = getBackendConfMap(plan);
@@ -605,7 +604,7 @@ void BackendInitializerUtil::registerAllFactories()
 
 void BackendInitializerUtil::initCompiledExpressionCache()
 {
-    #if USE_EMBEDDED_COMPILER
+#if USE_EMBEDDED_COMPILER
     /// 128 MB
     constexpr size_t compiled_expression_cache_size_default = 1024 * 1024 * 128;
     size_t compiled_expression_cache_size = config->getUInt64("compiled_expression_cache_size", compiled_expression_cache_size_default);

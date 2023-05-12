@@ -1,21 +1,20 @@
 #pragma once
 #include <filesystem>
+#include <Builder/BroadCastJoinBuilder.h>
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
-#include <Common/logger_useful.h>
 #include <DataTypes/Serializations/ISerialization.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
 #include <Storages/IStorage.h>
-#include <Builder/BroadCastJoinBuilder.h>
 #include <base/types.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {
-
 class BlockUtil
 {
 public:
@@ -34,7 +33,7 @@ public:
     static constexpr UInt64 FLAT_NESTED_TABLE = 2;
     // flatten the struct and array(struct) columns.
     // It's different from Nested::flattend()
-    static DB::Block flattenBlock(const DB::Block & block, UInt64 flags = FLAT_STRUCT|FLAT_NESTED_TABLE, bool recursively = false);
+    static DB::Block flattenBlock(const DB::Block & block, UInt64 flags = FLAT_STRUCT | FLAT_NESTED_TABLE, bool recursively = false);
 };
 
 /// Use this class to extract element columns from columns of nested type in a block, e.g. named Tuple.
@@ -45,6 +44,7 @@ class NestedColumnExtractHelper
 public:
     explicit NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_);
     std::optional<DB::ColumnWithTypeAndName> extractColumn(const String & column_name);
+
 private:
     std::optional<DB::ColumnWithTypeAndName>
     extractColumn(const String & original_column_name, const String & column_name_prefix, const String & column_name_suffix);
@@ -126,9 +126,7 @@ private:
     inline static const std::string SPARK_S3_SECRET_KEY = "spark.hadoop.fs.s3a.secret.key";
     inline static const std::string SPARK_S3_ENDPOINT = "spark.hadoop.fs.s3a.endpoint";
     inline static const std::map<std::string, std::string> S3_CONFIGS
-        = {{SPARK_S3_ACCESS_KEY, "s3.access_key_id"},
-           {SPARK_S3_SECRET_KEY, "s3.secret_access_key"},
-           {SPARK_S3_ENDPOINT, "s3.endpoint"}};
+        = {{SPARK_S3_ACCESS_KEY, "s3.access_key_id"}, {SPARK_S3_SECRET_KEY, "s3.secret_access_key"}, {SPARK_S3_ENDPOINT, "s3.endpoint"}};
 
     inline static std::once_flag init_flag;
     inline static std::map<std::string, std::string> backend_conf_map;

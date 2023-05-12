@@ -1,6 +1,5 @@
 #include <fstream>
 #include <iostream>
-#include <Poco/Util/MapConfiguration.h>
 #include <Builder/SerializedPlanBuilder.h>
 #include <Columns/ColumnVector.h>
 #include <DataTypes/DataTypesNumber.h>
@@ -15,19 +14,19 @@
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/Formats/Impl/CSVRowOutputFormat.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/CustomMergeTreeSink.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/SelectQueryInfo.h>
-#include <Storages/CustomStorageMergeTree.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
+#include <Poco/Util/MapConfiguration.h>
+#include <Common/DebugUtils.h>
+#include <Common/Logger.h>
 #include "testConfig.h"
-#include "Common/Logger.h"
-#include "Common/DebugUtils.h"
 
 using namespace local_engine;
 using namespace dbms;
@@ -43,7 +42,7 @@ TEST(TestSelect, ReadRel)
                         .column("type_string", "String")
                         .build();
     dbms::SerializedPlanBuilder plan_builder;
-    auto plan = plan_builder.read(TEST_DATA(/data/iris.parquet), std::move(schema)).build();
+    auto plan = plan_builder.read(TEST_DATA(/ data / iris.parquet), std::move(schema)).build();
 
     ASSERT_TRUE(plan->relations(0).root().input().has_read());
     ASSERT_EQ(plan->relations_size(), 1);
@@ -67,7 +66,7 @@ TEST(TestSelect, ReadDate)
     dbms::SerializedSchemaBuilder schema_builder;
     auto * schema = schema_builder.column("date", "Date").build();
     dbms::SerializedPlanBuilder plan_builder;
-    auto plan = plan_builder.read(TEST_DATA(/data/date.parquet), std::move(schema)).build();
+    auto plan = plan_builder.read(TEST_DATA(/ data / date.parquet), std::move(schema)).build();
 
     ASSERT_TRUE(plan->relations(0).root().input().has_read());
     ASSERT_EQ(plan->relations_size(), 1);
@@ -106,7 +105,7 @@ TEST(TestSelect, TestFilter)
     auto * type_0 = dbms::scalarFunction(dbms::EQUAL_TO, {dbms::selection(5), dbms::literal("类型1")});
 
     auto * filter = dbms::scalarFunction(dbms::AND, {less_exp, type_0});
-    auto plan = plan_builder.registerSupportedFunctions().filter(filter).read(TEST_DATA(/data/iris.parquet), std::move(schema)).build();
+    auto plan = plan_builder.registerSupportedFunctions().filter(filter).read(TEST_DATA(/ data / iris.parquet), std::move(schema)).build();
     ASSERT_EQ(plan->relations_size(), 1);
     local_engine::LocalExecutor local_executor;
     local_engine::SerializedPlanParser parser(SerializedPlanParser::global_context);
@@ -141,7 +140,7 @@ TEST(TestSelect, TestAgg)
     auto plan = plan_builder.registerSupportedFunctions()
                     .aggregate({}, {measure})
                     .filter(less_exp)
-                    .read(TEST_DATA(/data/iris.parquet), std::move(schema))
+                    .read(TEST_DATA(/ data / iris.parquet), std::move(schema))
                     .build();
     ASSERT_EQ(plan->relations_size(), 1);
     local_engine::LocalExecutor local_executor;
@@ -244,29 +243,28 @@ TEST(TESTUtil, TestByteToLong)
 
 TEST(TestSimpleAgg, TestGenerate)
 {
-//    dbms::SerializedSchemaBuilder schema_builder;
-//    auto * schema = schema_builder.column("l_orderkey", "I64")
-//                        .column("l_partkey", "I64")
-//                        .column("l_suppkey", "I64")
-//                        .build();
-//    dbms::SerializedPlanBuilder plan_builder;
-//    auto * measure = dbms::measureFunction(dbms::SUM, {dbms::selection(6)});
-//    auto plan
-//        = plan_builder.registerSupportedFunctions()
-//              .aggregate({}, {measure})
-//              .read(
-//                  //"/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
-//                  "/data0/tpch100_zhichao/parquet_origin/lineitem/part-00087-066b93b4-39e1-4d46-83ab-d7752096b599-c000.snappy.parquet",
-//                  std::move(schema))
-//              .build();
+    //    dbms::SerializedSchemaBuilder schema_builder;
+    //    auto * schema = schema_builder.column("l_orderkey", "I64")
+    //                        .column("l_partkey", "I64")
+    //                        .column("l_suppkey", "I64")
+    //                        .build();
+    //    dbms::SerializedPlanBuilder plan_builder;
+    //    auto * measure = dbms::measureFunction(dbms::SUM, {dbms::selection(6)});
+    //    auto plan
+    //        = plan_builder.registerSupportedFunctions()
+    //              .aggregate({}, {measure})
+    //              .read(
+    //                  //"/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
+    //                  "/data0/tpch100_zhichao/parquet_origin/lineitem/part-00087-066b93b4-39e1-4d46-83ab-d7752096b599-c000.snappy.parquet",
+    //                  std::move(schema))
+    //              .build();
     local_engine::SerializedPlanParser parser(local_engine::SerializedPlanParser::global_context);
-////    auto query_plan = parser.parse(std::move(plan));
+    ////    auto query_plan = parser.parse(std::move(plan));
 
     //std::ifstream t("/home/hongbin/develop/experiments/221011_substrait_agg_on_empty_table.json");
     //std::ifstream t("/home/hongbin/develop/experiments/221101_substrait_agg_on_simple_table_last_phrase.json");
     std::ifstream t("/home/hongbin/develop/experiments/221102_substrait_agg_and_countdistinct_second_phrase.json");
-    std::string str((std::istreambuf_iterator<char>(t)),
-                    std::istreambuf_iterator<char>());
+    std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
     auto query_plan = parser.parseJson(str);
     local_engine::LocalExecutor local_executor;
     local_executor.execute(std::move(query_plan));

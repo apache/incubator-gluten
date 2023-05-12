@@ -5,7 +5,6 @@
 
 namespace local_engine
 {
-
 enum ExpandFieldKind
 {
     EXPAND_FIELD_KIND_SELECTION,
@@ -20,9 +19,10 @@ public:
         const std::vector<std::string> & names_,
         const std::vector<DB::DataTypePtr> & types_,
         const std::vector<std::vector<ExpandFieldKind>> & kinds_,
-        const std::vector<std::vector<DB::Field>> & fields_):
-        names(names_), types(types_), kinds(kinds_), fields(fields_)
-    {}
+        const std::vector<std::vector<DB::Field>> & fields_)
+        : names(names_), types(types_), kinds(kinds_), fields(fields_)
+    {
+    }
 
     const std::vector<std::string> & getNames() const { return names; }
     const std::vector<DB::DataTypePtr> & getTypes() const { return types; }

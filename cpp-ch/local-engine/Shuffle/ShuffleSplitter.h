@@ -4,9 +4,9 @@
 #include <Formats/NativeWriter.h>
 #include <Functions/IFunction.h>
 #include <IO/WriteBufferFromFile.h>
+#include <Shuffle/SelectorBuilder.h>
 #include <Common/PODArray.h>
 #include <Common/PODArray_fwd.h>
-#include <Shuffle/SelectorBuilder.h>
 
 
 namespace local_engine
@@ -128,6 +128,7 @@ public:
     static std::unique_ptr<ShuffleSplitter> create(SplitOptions && options);
     explicit RangeSplitter(SplitOptions options_);
     void computeAndCountPartitionId(DB::Block & block) override;
+
 private:
     std::unique_ptr<RangeSelectorBuilder> selector_builder;
 };

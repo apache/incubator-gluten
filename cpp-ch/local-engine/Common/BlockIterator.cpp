@@ -39,4 +39,3 @@ void BlockIterator::setCurrentBlock(DB::Block & block)
     cached_block = block;
 }
 }
-

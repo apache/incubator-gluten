@@ -1,15 +1,15 @@
 #pragma once
 
-#include "config.h"
 #include <Common/Config.h>
+#include "config.h"
 
 #if USE_PARQUET && USE_LOCAL_FORMATS
-
+// clang-format off
 #include <Common/ChunkBuffer.h>
-#include "ch_parquet/OptimizedParquetBlockInputFormat.h"
 #include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
+#include "ch_parquet/OptimizedParquetBlockInputFormat.h"
 #include "ch_parquet/arrow/reader.h"
-
+// clang-format on
 namespace arrow
 {
 class RecordBatchReader;
@@ -21,7 +21,11 @@ namespace local_engine
 class ArrowParquetBlockInputFormat : public DB::OptimizedParquetBlockInputFormat
 {
 public:
-    ArrowParquetBlockInputFormat(DB::ReadBuffer & in, const DB::Block & header, const DB::FormatSettings & formatSettings, const std::vector<int> & row_group_indices_ = {});
+    ArrowParquetBlockInputFormat(
+        DB::ReadBuffer & in,
+        const DB::Block & header,
+        const DB::FormatSettings & formatSettings,
+        const std::vector<int> & row_group_indices_ = {});
 
 private:
     DB::Chunk generate() override;

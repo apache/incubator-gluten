@@ -39,11 +39,11 @@ public:
             .registerFunction(EQUAL_TO, "equal");
         return *this;
     }
-    SerializedPlanBuilder& registerFunction(int id, const std::string & name);
-    SerializedPlanBuilder& filter(substrait::Expression* condition);
-    SerializedPlanBuilder& project(std::vector<substrait::Expression*> projections);
-    SerializedPlanBuilder& aggregate(std::vector<int32_t> keys, std::vector<substrait::AggregateRel_Measure *> aggregates);
-    SerializedPlanBuilder& read(const std::string & path, SchemaPtr schema);
+    SerializedPlanBuilder & registerFunction(int id, const std::string & name);
+    SerializedPlanBuilder & filter(substrait::Expression * condition);
+    SerializedPlanBuilder & project(std::vector<substrait::Expression *> projections);
+    SerializedPlanBuilder & aggregate(std::vector<int32_t> keys, std::vector<substrait::AggregateRel_Measure *> aggregates);
+    SerializedPlanBuilder & read(const std::string & path, SchemaPtr schema);
     SerializedPlanBuilder & readMergeTree(
         const std::string & database,
         const std::string & table,
@@ -75,7 +75,8 @@ class SerializedSchemaBuilder
 public:
     SerializedSchemaBuilder();
     SchemaPtr build();
-    SerializedSchemaBuilder& column(const std::string & name, const std::string & type, bool nullable = false);
+    SerializedSchemaBuilder & column(const std::string & name, const std::string & type, bool nullable = false);
+
 private:
     std::map<std::string, std::string> type_map;
     std::map<std::string, bool> nullability_map;
@@ -89,10 +90,10 @@ using MeasureList = std::vector<substrait::AggregateRel_Measure *>;
 substrait::Expression * scalarFunction(int32_t id, ExpressionList args);
 substrait::AggregateRel_Measure * measureFunction(int32_t id, ExpressionList args);
 
-substrait::Expression* literal(double_t value);
-substrait::Expression* literal(int32_t value);
-substrait::Expression* literal(const std::string & value);
-substrait::Expression* literalDate(int32_t value);
+substrait::Expression * literal(double_t value);
+substrait::Expression * literal(int32_t value);
+substrait::Expression * literal(const std::string & value);
+substrait::Expression * literalDate(int32_t value);
 
 substrait::Expression * selection(int32_t field_id);
 

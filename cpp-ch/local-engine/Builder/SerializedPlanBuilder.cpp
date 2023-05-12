@@ -1,9 +1,9 @@
 #include "SerializedPlanBuilder.h"
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionHelpers.h>
 
@@ -17,7 +17,6 @@ namespace ErrorCodes
 
 namespace dbms
 {
-
 using namespace DB;
 SchemaPtr SerializedSchemaBuilder::build()
 {
@@ -176,7 +175,9 @@ SerializedPlanBuilder & SerializedPlanBuilder::readMergeTree(
 {
     substrait::Rel * rel = new substrait::Rel();
     auto * read = rel->mutable_read();
-    read->mutable_extension_table()->mutable_detail()->set_value(local_engine::MergeTreeTable{.database=database,.table=table,.relative_path=relative_path,.min_block=min_block,.max_block=max_block}.toString());
+    read->mutable_extension_table()->mutable_detail()->set_value(local_engine::MergeTreeTable{
+        .database = database, .table = table, .relative_path = relative_path, .min_block = min_block, .max_block = max_block}
+                                                                     .toString());
     read->set_allocated_base_schema(schema);
     setInputToPrev(rel);
     this->prev_rel = rel;
@@ -193,7 +194,8 @@ SerializedPlanBuilder::SerializedPlanBuilder() : plan(std::make_unique<substrait
 {
 }
 
-SerializedPlanBuilder & SerializedPlanBuilder::aggregate(std::vector<int32_t>  /*keys*/, std::vector<substrait::AggregateRel_Measure *> aggregates)
+SerializedPlanBuilder &
+SerializedPlanBuilder::aggregate(std::vector<int32_t> /*keys*/, std::vector<substrait::AggregateRel_Measure *> aggregates)
 {
     substrait::Rel * rel = new substrait::Rel();
     auto * agg = rel->mutable_aggregate();
@@ -277,7 +279,7 @@ std::shared_ptr<substrait::Type> SerializedPlanBuilder::buildType(const DB::Data
         const auto * ch_tuple_type = checkAndGetDataType<DataTypeTuple>(ch_type_without_nullable.get());
         const auto & ch_field_types = ch_tuple_type->getElements();
         res->mutable_struct_()->set_nullability(type_nullability);
-        for (const auto & ch_field_type: ch_field_types)
+        for (const auto & ch_field_type : ch_field_types)
             res->mutable_struct_()->mutable_types()->Add(std::move(*buildType(ch_field_type)));
     }
     else if (which.isArray())
@@ -358,7 +360,7 @@ substrait::Expression * literal(const std::string & value)
     return rel;
 }
 
-substrait::Expression* literalDate(int32_t value)
+substrait::Expression * literalDate(int32_t value)
 {
     substrait::Expression * rel = new substrait::Expression();
     auto * literal = rel->mutable_literal();

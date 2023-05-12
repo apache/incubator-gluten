@@ -5,9 +5,9 @@
 #include <DataTypes/IDataType.h>
 #include <Interpreters/WindowDescription.h>
 #include <Parser/RelParser.h>
-#include <Common/logger_useful.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
+#include <Common/logger_useful.h>
 namespace local_engine
 {
 class WindowRelParser : public RelParser
@@ -15,7 +15,8 @@ class WindowRelParser : public RelParser
 public:
     explicit WindowRelParser(SerializedPlanParser * plan_paser_);
     ~WindowRelParser() override = default;
-    DB::QueryPlanPtr parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    DB::QueryPlanPtr
+    parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
 
 private:
     DB::QueryPlanPtr current_plan;
@@ -50,7 +51,6 @@ private:
         const DB::DataTypes & arg_types);
 
     void tryAddProjectionBeforeWindow(QueryPlan & plan, const substrait::WindowRel & win_rel);
-
 };
 
 

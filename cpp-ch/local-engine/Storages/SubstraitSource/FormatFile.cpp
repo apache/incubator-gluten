@@ -1,11 +1,11 @@
 #include "FormatFile.h"
 
 #include <memory>
+#include <IO/ReadBufferFromFile.h>
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
-#include <IO/ReadBufferFromFile.h>
-
+// clang-format off
 #if USE_PARQUET
 #include <Storages/SubstraitSource/ParquetFormatFile.h>
 #endif
@@ -13,7 +13,7 @@
 #if USE_ORC
 #include <Storages/SubstraitSource/OrcFormatFile.h>
 #endif
-
+// clang-format on
 
 namespace DB
 {
@@ -36,7 +36,8 @@ FormatFile::FormatFile(
     }
 }
 
-FormatFilePtr FormatFileUtil::createFile(DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
+FormatFilePtr FormatFileUtil::createFile(
+    DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
 {
 #if USE_PARQUET
     if (file.has_parquet())

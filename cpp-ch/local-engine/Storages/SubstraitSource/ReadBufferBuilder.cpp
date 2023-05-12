@@ -1,20 +1,20 @@
 #include <memory>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include "IO/ReadSettings.h"
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <Storages/HDFS/ReadBufferFromHDFS.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>
+#include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/S3Common.h>
 #include <Interpreters/Context_fwd.h>
-#include <sys/stat.h>
-#include <Poco/URI.h>
+#include <Storages/HDFS/ReadBufferFromHDFS.h>
+#include <Storages/StorageS3Settings.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <aws/core/client/DefaultRetryStrategy.h>
 #include <aws/s3/S3Client.h>
-#include <Storages/StorageS3Settings.h>
-#include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
+#include <sys/stat.h>
+#include <Poco/URI.h>
+#include "IO/ReadSettings.h"
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -23,10 +23,10 @@
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
 
+#include <IO/S3/getObjectInfo.h>
 #include <aws/s3/model/CopyObjectRequest.h>
 #include <aws/s3/model/DeleteObjectsRequest.h>
 #include <aws/s3/model/ListObjectsV2Request.h>
-#include <IO/S3/getObjectInfo.h>
 
 namespace DB
 {
@@ -38,7 +38,6 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
 class LocalFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
@@ -79,8 +78,7 @@ public:
             uri_path += ":" + std::to_string(file_uri.getPort());
         DB::ReadSettings read_settings;
         read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-            uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
-            read_settings);
+            uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(), read_settings);
         return read_buffer;
     }
 };
@@ -120,8 +118,8 @@ public:
         std::string key = file_uri.getPath().substr(1);
         size_t object_size = DB::S3::getObjectSize(*client, bucket, key, "");
 
-        auto read_buffer_creator =
-            [bucket, this](const std::string & path, size_t read_until_position) -> std::shared_ptr<DB::ReadBufferFromFileBase>
+        auto read_buffer_creator
+            = [bucket, this](const std::string & path, size_t read_until_position) -> std::shared_ptr<DB::ReadBufferFromFileBase>
         {
             return std::make_shared<DB::ReadBufferFromS3>(
                 shared_client,
@@ -197,10 +195,10 @@ private:
             config.getString(config_prefix + ".secret_access_key", ""),
             config.getString(config_prefix + ".server_side_encryption_customer_key_base64", ""),
             {},
-            {
-                .use_environment_credentials=config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
-                .use_insecure_imds_request=config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))
-            });
+            {.use_environment_credentials
+             = config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
+             .use_insecure_imds_request
+             = config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))});
         return shared_client;
     }
 };

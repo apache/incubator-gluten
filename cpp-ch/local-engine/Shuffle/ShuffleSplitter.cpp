@@ -12,8 +12,8 @@
 #include <IO/WriteHelpers.h>
 #include <Parser/SerializedPlanParser.h>
 #include <boost/algorithm/string/case_conv.hpp>
-#include <Common/DebugUtils.h>
 #include <Poco/StringTokenizer.h>
+#include <Common/DebugUtils.h>
 
 namespace local_engine
 {
@@ -95,7 +95,6 @@ void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
             spillPartition(i);
         }
     }
-
 }
 void ShuffleSplitter::init()
 {
@@ -261,7 +260,8 @@ void ColumnsBuffer::add(DB::Block & block, int start, int end)
     }
 }
 
-void ColumnsBuffer::appendSelective(size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length)
+void ColumnsBuffer::appendSelective(
+    size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length)
 {
     if (header.columns() == 0)
         header = source.cloneEmpty();
@@ -277,7 +277,8 @@ void ColumnsBuffer::appendSelective(size_t column_idx, const DB::Block & source,
     }
     if (!accumulated_columns[column_idx]->onlyNull())
     {
-        accumulated_columns[column_idx]->insertRangeSelective(*source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
+        accumulated_columns[column_idx]->insertRangeSelective(
+            *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
     }
     else
     {

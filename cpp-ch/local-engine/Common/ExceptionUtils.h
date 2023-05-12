@@ -1,6 +1,6 @@
 #pragma once
-#include <Common/logger_useful.h>
 #include <Common/Exception.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {

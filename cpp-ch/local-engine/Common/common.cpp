@@ -16,7 +16,7 @@ char * createExecutor(const std::string & plan_string)
     auto query_plan = parser.parse(plan_string);
     local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context);
     executor->execute(std::move(query_plan));
-    return reinterpret_cast<char* >(executor);
+    return reinterpret_cast<char *>(executor);
 }
 
 bool executorHasNext(char * executor_address)

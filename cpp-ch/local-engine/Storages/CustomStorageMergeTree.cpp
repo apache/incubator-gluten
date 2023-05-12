@@ -2,7 +2,6 @@
 
 namespace local_engine
 {
-
 CustomStorageMergeTree::CustomStorageMergeTree(
     const StorageID & table_id_,
     const String & relative_data_path_,
@@ -12,7 +11,7 @@ CustomStorageMergeTree::CustomStorageMergeTree(
     const String & date_column_name,
     const MergingParams & merging_params_,
     std::unique_ptr<MergeTreeSettings> storage_settings_,
-    bool  /*has_force_restore_data_flag*/)
+    bool /*has_force_restore_data_flag*/)
     : MergeTreeData(
         table_id_,
         metadata_,

@@ -1,25 +1,22 @@
-#include "ExpandTransorm.h"
 #include <memory>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
 #include <Columns/IColumn.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Processors/IProcessor.h>
+#include "ExpandTransorm.h"
 
-#include "Common/Exception.h"
-#include <Common/logger_useful.h>
 #include <Poco/Logger.h>
+#include <Common/Exception.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {
-ExpandTransform::ExpandTransform(
-    const DB::Block & input_,
-    const DB::Block & output_,
-    const ExpandField & project_set_exprs_)
-    : DB::IProcessor({input_}, {output_})
-    , project_set_exprs(project_set_exprs_)
-{}
+ExpandTransform::ExpandTransform(const DB::Block & input_, const DB::Block & output_, const ExpandField & project_set_exprs_)
+    : DB::IProcessor({input_}, {output_}), project_set_exprs(project_set_exprs_)
+{
+}
 
 ExpandTransform::Status ExpandTransform::prepare()
 {
@@ -79,7 +76,7 @@ void ExpandTransform::work()
             const auto & type = project_set_exprs.getTypes()[j];
             const auto & kind = project_set_exprs.getKinds()[i][j];
             const auto & field = project_set_exprs.getFields()[i][j];
-            
+
             if (kind == EXPAND_FIELD_KIND_SELECTION)
             {
                 const auto & original_col = original_cols[field.get<Int32>()];
@@ -95,9 +92,11 @@ void ExpandTransform::work()
                 }
                 else
                 {
-                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR,
+                    throw DB::Exception(
+                        DB::ErrorCodes::LOGICAL_ERROR,
                         "Miss match nullable, column {} is nullable, but type {} is not nullable",
-                        original_col->getName(), type->getName());
+                        original_col->getName(),
+                        type->getName());
                 }
             }
             else

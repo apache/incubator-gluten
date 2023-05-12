@@ -2,7 +2,6 @@
 
 namespace local_engine
 {
-
 JNIEnv * JNIUtils::getENV(int * attach)
 {
     if (vm == nullptr)
