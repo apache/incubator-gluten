@@ -24,9 +24,9 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.types.{StructField, StructType}
 
 import org.apache.commons.io.FileUtils
-import org.apache.spark.sql.types.{StructField, StructType}
 
 import java.io.File
 import java.util
@@ -84,7 +84,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q80", // fatal
     "q83", // decimal error
     "q90", // inconsistent results(decimal)
-    "q92", // attribute binding failed.
+    "q92" // attribute binding failed.
   )
 
   protected val independentTestTpcdsQueries: Set[String] = Set("q9", "q21")
@@ -195,13 +195,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
 
     if (compareResult) {
-      var index = 0
       val fields = new util.ArrayList[StructField]()
-      for (elem <- df.schema.iterator) {
+      for (elem <- df.schema) {
         fields.add(
-          StructField.apply(
-            elem.name + index, elem.dataType, elem.nullable, elem.metadata))
-        index += +1
+          StructField
+            .apply(elem.name + fields.size().toString, elem.dataType, elem.nullable, elem.metadata))
       }
 
       var expectedAnswer: Seq[Row] = null
