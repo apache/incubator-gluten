@@ -75,6 +75,15 @@ install_ubuntu_20.04() {
 
 install_ubuntu_22.04() { install_ubuntu_20.04; }
 
+install_alinux_3() {
+    yum -y groupinstall "Development Tools"
+    yum -y install \
+        wget curl tar zip unzip git which \
+        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        libstdc++-static flex bison python3 \
+        java-1.8.0-openjdk java-1.8.0-openjdk-devel
+}
+
 ## Install function end
 
 ## Usage
