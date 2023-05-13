@@ -384,7 +384,7 @@ jobs:
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.2 && \
           cd /opt/gluten/tools/gluten-it && \
           mvn clean package -Pspark-3.2'
-      - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2 (centos 8)
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30" \
           NON_INTERACTIVE=ON \
@@ -396,7 +396,7 @@ jobs:
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh \
             --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=50g -s=1.0 --cpus=32 --iterations=1'
-      - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2 (ubuntu 20.04)
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 20.04)
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30" \
           NON_INTERACTIVE=ON \
@@ -407,7 +407,7 @@ jobs:
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh \
             --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=50g -s=1.0 --cpus=32 --iterations=1'
-      - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2 (ubuntu 22.04)
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 22.04)
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30" \
           NON_INTERACTIVE=ON \
