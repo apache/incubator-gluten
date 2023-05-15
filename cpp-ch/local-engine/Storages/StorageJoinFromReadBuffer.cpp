@@ -2,12 +2,12 @@
 
 #include <Compression/CompressedReadBuffer.h>
 #include <Formats/NativeReader.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <Interpreters/castColumn.h>
 #include <Interpreters/joinDispatch.h>
 #include <Processors/ISource.h>
-#include <Interpreters/Context.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/ProfileInfo.h>
 #include <Common/Exception.h>

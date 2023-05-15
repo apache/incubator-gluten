@@ -11,11 +11,6 @@
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
-#include <memory>
-#include <vector>
-#include <substrait/plan.pb.h>
-#include <Interpreters/ActionsDAG.h>
-#include <Interpreters/ExpressionActions.h>
 #include <Common/PODArray.h>
 
 namespace local_engine

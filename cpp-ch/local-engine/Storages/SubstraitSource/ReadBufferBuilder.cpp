@@ -135,11 +135,12 @@ public:
         };
 
         DB::StoredObjects stored_objects{DB::StoredObject{key, object_size}};
-        auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(read_buffer_creator), stored_objects, new_settings, nullptr);
+        auto s3_impl
+            = std::make_unique<DB::ReadBufferFromRemoteFSGather>(std::move(read_buffer_creator), stored_objects, new_settings, nullptr);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
-        auto async_reader = std::make_unique<DB::AsynchronousReadIndirectBufferFromRemoteFS>(pool_reader, new_settings, std::move(s3_impl), nullptr, nullptr);
+        auto async_reader = std::make_unique<DB::AsynchronousReadIndirectBufferFromRemoteFS>(
+            pool_reader, new_settings, std::move(s3_impl), nullptr, nullptr);
 
         async_reader->setReadUntilEnd();
         if (new_settings.remote_fs_prefetch)
@@ -197,10 +198,10 @@ private:
             config.getString(config_prefix + ".server_side_encryption_customer_key_base64", ""),
             {},
             {},
-            {
-                .use_environment_credentials=config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
-                .use_insecure_imds_request=config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))
-            });
+            {.use_environment_credentials
+             = config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
+             .use_insecure_imds_request
+             = config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))});
         return shared_client;
     }
 };
