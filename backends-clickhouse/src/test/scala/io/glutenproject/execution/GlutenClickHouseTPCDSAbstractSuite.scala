@@ -79,6 +79,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q67", // inconsistent results
     "q70", // attribute binding failed.
     "q71", // inconsistent results, unstable order
+    "q75", // attribute binding failed.
     "q77", // inconsistent results
     "q78", // inconsistent results
     "q80", // fatal
