@@ -21,7 +21,6 @@ import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.type.*;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
 import org.apache.spark.sql.types.*;
