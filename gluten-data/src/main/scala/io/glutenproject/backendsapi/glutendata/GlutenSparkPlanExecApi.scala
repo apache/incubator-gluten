@@ -214,20 +214,23 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
         var _numRows: Long = 0
         val _input = new ArrayBuffer[ColumnarBatch]()
 
-        while (iter.hasNext) {
-          val batch = iter.next
-          val acb = ArrowColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-          (0 until acb.numCols).foreach(i => {
-            acb.column(i).asInstanceOf[ArrowWritableColumnVector].retain()
-          })
-          _numRows += acb.numRows
-          _input += acb
-        }
-        val bytes = GlutenArrowUtil.convertToNetty(_input.toArray)
-        _input.foreach(_.close)
+        try {
+          while (iter.hasNext) {
+            val batch = iter.next
+            val acb = ArrowColumnarBatches
+              .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+            (0 until acb.numCols).foreach(i => {
+              acb.column(i).asInstanceOf[ArrowWritableColumnVector].retain()
+            })
+            _numRows += acb.numRows
+            _input += acb
+          }
 
-        Iterator((_numRows, bytes))
+          val bytes = GlutenArrowUtil.convertToNetty(_input.toArray)
+          Iterator((_numRows, bytes))
+        } finally {
+          _input.foreach(_.close)
+        }
       }
       .collect
 
