@@ -19,7 +19,6 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.substrait.plan.PlanNode
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructType
 
@@ -38,24 +37,6 @@ trait ValidatorApi {
    * @return true by default
    */
   def doExprValidate(substraitExprName: String, expr: Expression): Boolean = true
-
-  /**
-   * Validate aggregate function for specific backend.
-   * If the aggregate function isn't implemented by the backend,
-   * it will fall back to Vanilla Spark.
-   */
-  def doAggregateFunctionValidate(substraitFuncName: String,
-    func: AggregateFunction
-  ): Boolean = doAggregateFunctionValidate(Map(), substraitFuncName, func)
-
-  /**
-   * Validate aggregate function for specific backend.
-   * If the aggregate function isn't implemented by the backend,
-   * it will fall back to Vanilla Spark.
-   */
-  def doAggregateFunctionValidate(blacklist: Map[String, Set[String]],
-    substraitFuncName: String,
-    func: AggregateFunction): Boolean = true
 
   /**
    * Validate against a whole Spark plan, before being interpreted by Gluten.

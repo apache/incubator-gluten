@@ -38,9 +38,7 @@ class VeloxBackend extends Backend {
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): TransformerApi = new VeloxTransformerApi
   override def validatorApi(): ValidatorApi = new VeloxValidatorApi
-
   override def metricsApi(): MetricsApi = new VeloxMetricsApi
-
   override def settings(): BackendSettings = VeloxBackendSettings
 }
 

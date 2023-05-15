@@ -150,11 +150,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
             val frame = wExpression.windowSpec.
                       frameSpecification.asInstanceOf[SpecifiedWindowFrame]
             val aggregateFunc = aggExpression.aggregateFunction
-            val substraitAggFuncName =
-              ExpressionMappings.aggregate_functions_map.get(aggregateFunc.getClass)
-            // Check whether each backend supports this aggregate function
-            if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
-              substraitAggFuncName.get, aggregateFunc)) {
+            val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+            if (substraitAggFuncName.isEmpty) {
               throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
             }
 
@@ -214,7 +211,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     // Sort By Expressions
     val sortFieldList = new util.ArrayList[SortField]()
     sortOrder.map(order => {
-      val builder = SortField.newBuilder();
+      val builder = SortField.newBuilder()
       val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
         .doTransform(args)

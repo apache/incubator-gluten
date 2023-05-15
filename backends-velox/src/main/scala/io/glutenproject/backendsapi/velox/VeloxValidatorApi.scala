@@ -25,8 +25,4 @@ class VeloxValidatorApi extends GlutenValidatorApi {
 
   // Validation is handled in native validator for Velox backend.
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean = true
-
-  // Validation is handled in native validator for Velox backend.
-  override def doAggregateFunctionValidate(substraitFuncName: String,
-                                           func: AggregateFunction): Boolean = true
 }

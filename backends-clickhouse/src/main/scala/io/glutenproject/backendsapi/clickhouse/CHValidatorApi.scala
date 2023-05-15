@@ -62,18 +62,8 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
       case _ =>
     }
 
-    true
-  }
-
-  /**
-   * Validate aggregate function for specific backend. If the aggregate function isn't implemented
-   * by the backend, it will fall back to Vanilla Spark.
-   */
-  override def doAggregateFunctionValidate(
-      substraitFuncName: String,
-      func: AggregateFunction): Boolean = {
     if (CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.isEmpty) return true
-    val value = CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.get(substraitFuncName)
+    val value = CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.get(substraitExprName)
     if (value.isEmpty) {
       return true
     }
@@ -83,13 +73,14 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
         if (inputTypeName.equals(CHExpressionUtil.EMPTY_TYPE)) {
           return false
         } else {
-          for (input <- func.children) {
+          for (input <- expr.children) {
             if (inputTypeName.equals(input.dataType.typeName)) {
               return false
             }
           }
         }
     }
+
     true
   }
 

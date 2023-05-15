@@ -16,13 +16,15 @@
  */
 package io.glutenproject.sql.shims.spark33
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.Sig
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Expression, SplitPart}
+import org.apache.spark.sql.catalyst.expressions.{BloomFilterMightContain, Expression, SplitPart}
+import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
@@ -39,9 +41,14 @@ class Spark33Shims extends SparkShims {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def expressionMappings: Seq[Sig] = Seq(
-    Sig[SplitPart]("split_part")
-  )
+  override def expressionMappings: Seq[Sig] = {
+    val list = if (GlutenConfig.getConf.enableNativeBloomFilter) {
+      Seq(
+        Sig[BloomFilterMightContain]("might_contain"),
+        Sig[BloomFilterAggregate]("bloom_filter_agg"))
+    } else Seq.empty
+    list ++ Seq(Sig[SplitPart]("split_part"))
+  }
 
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {

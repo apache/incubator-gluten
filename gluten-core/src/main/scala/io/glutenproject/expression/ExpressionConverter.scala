@@ -229,10 +229,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    // Check whether Gluten supports this expression
-    val substraitExprName = ExpressionMappings.scalar_functions_map.getOrElse(
-      expr.getClass,
-      ExpressionMappings.getScalarSigOther.getOrElse(expr.prettyName, ""))
+    val substraitExprName = ExpressionMappings.expressionsMap.get(expr.getClass)
     if (substraitExprName.isEmpty) {
       throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
@@ -244,7 +241,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     // Check whether each backend supports this expression
     if (
       GlutenConfig.getConf.enableAnsiMode ||
-      !BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)
+      !BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName.get, expr)
     ) {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
@@ -252,10 +249,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case c: CreateArray =>
         val children =
           c.children.map(child => replaceWithExpressionTransformer(child, attributeSeq))
-        new CreateArrayTransformer(substraitExprName, children, true, c)
+        new CreateArrayTransformer(substraitExprName.get, children, true, c)
       case g: GetArrayItem =>
         new GetArrayItemTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(g.left, attributeSeq),
           replaceWithExpressionTransformer(g.right, attributeSeq),
           g.failOnError,
@@ -263,28 +260,28 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case c: CreateMap =>
         val children =
           c.children.map(child => replaceWithExpressionTransformer(child, attributeSeq))
-        new CreateMapTransformer(substraitExprName, children, c.useStringTypeWhenEmpty, c)
+        new CreateMapTransformer(substraitExprName.get, children, c.useStringTypeWhenEmpty, c)
       case g: GetMapValue =>
         new GetMapValueTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(g.child, attributeSeq),
           replaceWithExpressionTransformer(g.key, attributeSeq),
           g.failOnError,
           g)
       case e: Explode =>
         new ExplodeTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(e.child, attributeSeq),
           e)
       case p: PosExplode =>
         new PosExplodeTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(p.child, attributeSeq),
           p,
           attributeSeq)
       case a: Alias =>
         BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(a.child, attributeSeq),
           a)
       case a: AttributeReference =>
@@ -313,20 +310,20 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         new LiteralTransformer(l)
       case f: FromUnixTime =>
         new FromUnixTimeTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(f.sec, attributeSeq),
           replaceWithExpressionTransformer(f.format, attributeSeq),
           f.timeZoneId,
           f)
       case d: DateDiff =>
         new DateDiffTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(d.endDate, attributeSeq),
           replaceWithExpressionTransformer(d.startDate, attributeSeq),
           d)
       case t: ToUnixTimestamp =>
         new ToUnixTimestampTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(t.timeExp, attributeSeq),
           replaceWithExpressionTransformer(t.format, attributeSeq),
           t.timeZoneId,
@@ -335,7 +332,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case u: UnixTimestamp =>
         new UnixTimestampTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(u.timeExp, attributeSeq),
           replaceWithExpressionTransformer(u.format, attributeSeq),
           u.timeZoneId,
@@ -344,7 +341,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case r: RegExpReplace =>
         new RegExpReplaceTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(r.subject, attributeSeq),
           replaceWithExpressionTransformer(r.regexp, attributeSeq),
           replaceWithExpressionTransformer(r.rep, attributeSeq),
@@ -409,47 +406,47 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           n)
       case l: StringTrimLeft =>
         new String2TrimExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           l.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(l.srcStr, attributeSeq),
           l)
       case r: StringTrimRight =>
         new String2TrimExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           r.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
           r)
       case t: StringTrim =>
         new String2TrimExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           t.trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
           replaceWithExpressionTransformer(t.srcStr, attributeSeq),
           t)
       case m: HashExpression[_] =>
         new HashExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           m.children.map(expr => replaceWithExpressionTransformer(expr, attributeSeq)),
           m)
       case complex: ComplexTypeMergingExpression =>
         ComplexTypeMergingExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           complex.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
           complex)
       case getStructField: GetStructField =>
         // Different backends may have different result.
         BackendsApiManager.getSparkPlanExecApiInstance.genGetStructFieldTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(getStructField.child, attributeSeq),
           getStructField.ordinal,
           getStructField)
       case md5: Md5 =>
         Md5Transformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(md5.child, attributeSeq),
           md5)
       case t: StringTranslate =>
         StringTranslateTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(t.srcExpr, attributeSeq),
           replaceWithExpressionTransformer(t.matchingExpr, attributeSeq),
           replaceWithExpressionTransformer(t.replaceExpr, attributeSeq),
@@ -457,7 +454,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case locate: StringLocate =>
         StringLocateTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(locate.substr, attributeSeq),
           replaceWithExpressionTransformer(locate.str, attributeSeq),
           replaceWithExpressionTransformer(locate.start, attributeSeq),
@@ -465,20 +462,20 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case sha1: Sha1 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genSha1Transformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(sha1.child, attributeSeq),
           sha1)
       case sha2: Sha2 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genSha2Transformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(sha2.left, attributeSeq),
           replaceWithExpressionTransformer(sha2.right, attributeSeq),
           sha2)
       case l: LeafExpression =>
-        LeafExpressionTransformer(substraitExprName, l)
+        LeafExpressionTransformer(substraitExprName.get, l)
       case u: UnaryExpression =>
         UnaryExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(u.child, attributeSeq),
           u)
       case b: BinaryExpression =>
@@ -502,13 +499,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         }
 
         BinaryExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(newLeft1, attributeSeq),
           replaceWithExpressionTransformer(newRight1, attributeSeq),
           b)
       case t: TernaryExpression =>
         TernaryExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(t.first, attributeSeq),
           replaceWithExpressionTransformer(t.second, attributeSeq),
           replaceWithExpressionTransformer(t.third, attributeSeq),
@@ -516,7 +513,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case q: QuaternaryExpression =>
         QuaternaryExpressionTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(q.first, attributeSeq),
           replaceWithExpressionTransformer(q.second, attributeSeq),
           replaceWithExpressionTransformer(q.third, attributeSeq),
@@ -525,44 +522,44 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case namedStruct: CreateNamedStruct =>
         BackendsApiManager.getSparkPlanExecApiInstance
-          .genNamedStructTransformer(substraitExprName, namedStruct, attributeSeq)
+          .genNamedStructTransformer(substraitExprName.get, namedStruct, attributeSeq)
       case element_at: ElementAt =>
         new BinaryArgumentsCollectionOperationTransformer(
-          substraitExprName,
+          substraitExprName.get,
           left = replaceWithExpressionTransformer(element_at.left, attributeSeq),
           right = replaceWithExpressionTransformer(element_at.right, attributeSeq),
           element_at
         )
       case arrayContains: ArrayContains =>
         new BinaryArgumentsCollectionOperationTransformer(
-          substraitExprName,
+          substraitExprName.get,
           left = replaceWithExpressionTransformer(arrayContains.left, attributeSeq),
           right = replaceWithExpressionTransformer(arrayContains.right, attributeSeq),
           arrayContains
         )
       case arrayMax: ArrayMax =>
         new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(arrayMax.child, attributeSeq),
           arrayMax)
       case arrayMin: ArrayMin =>
         new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(arrayMin.child, attributeSeq),
           arrayMin)
       case mapKeys: MapKeys =>
         new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(mapKeys.child, attributeSeq),
           mapKeys)
       case mapValues: MapValues =>
         new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(mapValues.child, attributeSeq),
           mapValues)
       case seq: Sequence =>
         new SequenceTransformer(
-          substraitExprName,
+          substraitExprName.get,
           replaceWithExpressionTransformer(seq.start, attributeSeq),
           replaceWithExpressionTransformer(seq.stop, attributeSeq),
           seq.stepOpt.map(replaceWithExpressionTransformer(_, attributeSeq)),

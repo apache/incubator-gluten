@@ -33,7 +33,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
@@ -67,10 +66,9 @@ abstract class HashAggregateExecBaseTransformer(
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetrics(sparkContext)
 
   val sparkConf = sparkContext.getConf
-  val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
   // The direct outputs of Aggregation.
-  protected val allAggregateResultAttributes: List[Attribute] = {
+  lazy protected val allAggregateResultAttributes: List[Attribute] = {
     val groupingAttributes = groupingExpressions.map(expr => {
       ConverterUtils.getAttrFromExpr(expr).toAttribute
     })

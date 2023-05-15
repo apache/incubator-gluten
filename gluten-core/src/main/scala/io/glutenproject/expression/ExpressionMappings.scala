@@ -16,7 +16,6 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -39,8 +38,8 @@ object ExpressionMappings {
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
   final val VAR_SAMP = "var_samp"
   final val VAR_POP = "var_pop"
-  final val BIT_AND_AGG = "bitwise_and_agg"
-  final val BIT_OR_AGG = "bitwise_or_agg"
+  final val BIT_AND_AGG = "bit_and"
+  final val BIT_OR_AGG = "bit_or"
   final val BIT_XOR_AGG = "bit_xor"
   final val CORR = "corr"
   final val COVAR_POP = "covar_pop"
@@ -233,7 +232,7 @@ object ExpressionMappings {
   final val UNSCALED_VALUE = "unscaled_value"
 
   /** Mapping Spark scalar expression to Substrait function name */
-  val SCALAR_SIGS: Seq[Sig] = Seq(
+  private val SCALAR_SIGS: Seq[Sig] = Seq(
     Sig[Add](ADD),
     Sig[Subtract](SUBTRACT),
     Sig[Multiply](MULTIPLY),
@@ -407,7 +406,7 @@ object ExpressionMappings {
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
 
   /** Mapping Spark aggregation expression to Substrait function name */
-  val AGGREGATE_SIGS: Seq[Sig] = Seq(
+  private val AGGREGATE_SIGS: Seq[Sig] = Seq(
     Sig[Sum](SUM),
     Sig[Average](AVG),
     Sig[Count](COUNT),
@@ -428,7 +427,7 @@ object ExpressionMappings {
   )
 
   /** Mapping Spark window expression to Substrait function name */
-  val WINDOW_SIGS: Seq[Sig] = Seq(
+  private val WINDOW_SIGS: Seq[Sig] = Seq(
     Sig[Rank](RANK),
     Sig[DenseRank](DENSE_RANK),
     Sig[RowNumber](ROW_NUMBER),
@@ -437,21 +436,9 @@ object ExpressionMappings {
     Sig[NTile](NTILE)
   )
 
-  // some spark new version class
-  def getScalarSigOther: Map[String, String] =
-    if (GlutenConfig.getConf.enableNativeBloomFilter) {
-      Map((MIGHT_CONTAIN, MIGHT_CONTAIN))
-    } else Map()
+  lazy val expressionsMap: Map[Class[_], String] = {
+    (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS)
+      .map(s => (s.expClass, s.name)).toMap[Class[_], String]
+  }
 
-  def getAggSigOther: Map[String, String] =
-    if (GlutenConfig.getConf.enableNativeBloomFilter) {
-      Map((BLOOM_FILTER_AGG, BLOOM_FILTER_AGG))
-    } else Map()
-
-  lazy val scalar_functions_map: Map[Class[_], String] =
-    SCALAR_SIGS.map(s => (s.expClass, s.name)).toMap
-  lazy val aggregate_functions_map: Map[Class[_], String] =
-    AGGREGATE_SIGS.map(s => (s.expClass, s.name)).toMap
-  lazy val window_functions_map: Map[Class[_], String] =
-    WINDOW_SIGS.map(s => (s.expClass, s.name)).toMap
 }

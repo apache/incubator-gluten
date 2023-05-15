@@ -356,8 +356,7 @@ case class GlutenHashAggregateExecTransformer(
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       "row_constructor_with_null",
-      rowConstructAttributes.map(attr => attr.dataType),
-      FunctionConfig.NON)
+      rowConstructAttributes.map(attr => attr.dataType))
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
     // Use struct type to represent Velox RowType.
@@ -746,19 +745,13 @@ object VeloxAggregateFunctionsBuilder {
              forMergeCompanion: Boolean = false): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    val sigName = ExpressionMappings.aggregate_functions_map.getOrElse(
-      aggregateFunc.getClass, ExpressionMappings.getAggSigOther(aggregateFunc.prettyName))
-    // Check whether Gluten supports this aggregate function.
+    val sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (sigName.isEmpty) {
       throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
-    // Check whether each backend supports this aggregate function.
-    if (!BackendsApiManager.getValidatorApiInstance
-      .doAggregateFunctionValidate(sigName, aggregateFunc)) {
-      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
-    }
+
     // Use companion function for partial-merge aggregation functions on count distinct.
-    val substraitAggFuncName = if (!forMergeCompanion) sigName else sigName + "_merge"
+    val substraitAggFuncName = if (!forMergeCompanion) sigName.get else sigName.get + "_merge"
 
     ExpressionBuilder.newScalarFunction(
       functionMap,

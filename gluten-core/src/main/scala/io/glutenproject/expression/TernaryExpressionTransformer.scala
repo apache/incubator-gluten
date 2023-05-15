@@ -18,13 +18,12 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
-
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode, IntLiteralNode, StringLiteralNode}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Expression, StringLocate, StringTranslate}
+import org.apache.spark.sql.catalyst.expressions.{Expression, IsNull, StringLocate, StringTranslate}
 import org.apache.spark.sql.types.IntegerType
 import io.glutenproject.substrait.`type`.TypeBuilder
 

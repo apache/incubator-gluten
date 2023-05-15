@@ -274,7 +274,7 @@ case class Md5Transformer(substraitExprName: String, child: ExpressionTransforme
           FunctionConfig.OPT))
       val md5ChildNode = child.doTransform(args)
       val md5ExprNodes = Lists.newArrayList(md5ChildNode)
-      /// In CH, the output type of md5 is FixedString(16)
+      // In CH, the output type of md5 is FixedString(16)
       val md5TypeNode = TypeBuilder.makeFixedChar(original.nullable, 16)
       val md5FuncNode = ExpressionBuilder.makeScalarFunction(md5FuncId, md5ExprNodes, md5TypeNode)
 
