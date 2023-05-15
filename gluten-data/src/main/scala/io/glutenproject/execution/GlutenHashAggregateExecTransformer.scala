@@ -753,16 +753,16 @@ object VeloxAggregateFunctionsBuilder {
       throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
 
-    // Use companion function for partial-merge aggregation functions on count distinct.
-    val substraitAggFuncName = if (!forMergeCompanion) sigName.get else sigName.get + "_merge"
-
     aggregateFunc match {
       case First(_, ignoreNulls) =>
-        if (ignoreNulls) sigName = ExpressionMappings.FIRST_IGNORE_NULL
+        if (ignoreNulls) sigName = Some(ExpressionMappings.FIRST_IGNORE_NULL)
       case Last(_, ignoreNulls) =>
-        if (ignoreNulls) sigName = ExpressionMappings.LAST_IGNORE_NULL
+        if (ignoreNulls) sigName = Some(ExpressionMappings.LAST_IGNORE_NULL)
       case _ =>
     }
+
+    // Use companion function for partial-merge aggregation functions on count distinct.
+    val substraitAggFuncName = if (!forMergeCompanion) sigName.get else sigName.get + "_merge"
 
     ExpressionBuilder.newScalarFunction(
       functionMap,

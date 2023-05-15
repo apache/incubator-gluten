@@ -27,7 +27,7 @@ object AggregateFunctionsBuilder {
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+    var substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (substraitAggFuncName.isEmpty) {
       throw new UnsupportedOperationException(s"Could not find valid a substrait mapping name for $aggregateFunc.")
     }
@@ -40,9 +40,9 @@ object AggregateFunctionsBuilder {
 
     aggregateFunc match {
       case first @ First(_, ignoreNull) =>
-        if (ignoreNull) substraitAggFuncName = ExpressionMappings.FIRST_IGNORE_NULL
+        if (ignoreNull) substraitAggFuncName = Some(ExpressionMappings.FIRST_IGNORE_NULL)
       case last @ Last(_, ignoreNulls) =>
-        if (ignoreNulls) substraitAggFuncName = ExpressionMappings.LAST_IGNORE_NULL
+        if (ignoreNulls) substraitAggFuncName = Some(ExpressionMappings.LAST_IGNORE_NULL)
       case _ =>
     }
 

@@ -241,8 +241,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite with NaN test cases excluded.
     .exclude("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window")
     .exclude("corr, covar_pop, stddev_pop functions in specific window")
-    // https://github.com/oap-project/gluten/pull/1606
-    .exclude("last/first with ignoreNulls", "last/first on descending ordered window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
     .exclude("CreateMap")
