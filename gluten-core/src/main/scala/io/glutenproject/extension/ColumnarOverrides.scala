@@ -546,15 +546,35 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
 }
 
 // This rule will try to convert the row-to-columnar and columnar-to-row
-// into columnar implementations.
+// into native implementations.
 case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Boolean)
     extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
+  def transformColumnarToRowExec(plan: ColumnarToRowExec,
+                                 parentPlan: Option[SparkPlan]): SparkPlan = {
+    if (columnarConf.enableNativeColumnarToRow && (parentPlan.isEmpty ||
+      (parentPlan.get.isInstanceOf[GlutenPlan] && plan.child.isInstanceOf[GlutenPlan]))) {
+      val child = replaceWithTransformerPlan(plan.child, Some(plan))
+      logDebug(s"ColumnarPostOverrides GlutenColumnarToRowExecBase(${child.nodeName})")
+      val nativeConversion =
+        BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
+      if (nativeConversion.doValidate()) {
+        nativeConversion
+      } else {
+        logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
+        plan.withNewChildren(plan.children.map(replaceWithTransformerPlan(_, Some(plan))))
+      }
+    } else {
+      plan.withNewChildren(plan.children.map(replaceWithTransformerPlan(_, Some(plan))))
+    }
+  }
+
+  def replaceWithTransformerPlan(plan: SparkPlan,
+                                 parentPlan: Option[SparkPlan]): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
-      val child = replaceWithTransformerPlan(plan.child)
+      val child = replaceWithTransformerPlan(plan.child, Some(plan))
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
     // The ColumnarShuffleExchangeExec node may be the top node, so we cannot remove it.
@@ -563,61 +583,33 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
     // have tested gluten-it TPCH when AQE OFF
     case ColumnarToRowExec(child: ColumnarShuffleExchangeExec)
       if isAdaptiveContext =>
-      replaceWithTransformerPlan(child)
+      replaceWithTransformerPlan(child, Some(plan))
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>
-      replaceWithTransformerPlan(child)
+      replaceWithTransformerPlan(child, Some(plan))
     case ColumnarToRowExec(child: BroadcastQueryStageExec) =>
-      replaceWithTransformerPlan(child)
+      replaceWithTransformerPlan(child, Some(plan))
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
-      plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
+      plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child, Some(plan))))
     case plan: ColumnarToRowExec =>
-      if (columnarConf.enableNativeColumnarToRow) {
-        val child = replaceWithTransformerPlan(plan.child)
-        logDebug(s"ColumnarPostOverrides GlutenColumnarToRowExecBase(${child.getClass})")
-        val nativeConversion =
-          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-        if (nativeConversion.doValidate()) {
-          nativeConversion
-        } else {
-          logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
-          plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
-        }
-      } else {
-        val children = plan.children.map(replaceWithTransformerPlan)
-        plan.withNewChildren(children)
-      }
+      transformColumnarToRowExec(plan, Some(plan))
     case r: SparkPlan
-      if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar && r.children.exists(c =>
-        c.isInstanceOf[ColumnarToRowExec]) =>
+      if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar &&
+        r.children.exists(_.isInstanceOf[ColumnarToRowExec]) =>
       // This is a fix for when DPP and AQE both enabled,
       // ColumnarExchange maybe child as a Row SparkPlan
-      val children = r.children.map {
-        case c: ColumnarToRowExec =>
-          if (columnarConf.enableNativeColumnarToRow) {
-            val child = replaceWithTransformerPlan(c.child)
-            val nativeConversion =
-              BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-            if (nativeConversion.doValidate()) {
-              nativeConversion
-            } else {
-              logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
-              c.withNewChildren(c.children.map(replaceWithTransformerPlan))
-            }
-          } else {
-            c.withNewChildren(c.children.map(replaceWithTransformerPlan))
-          }
+      r.withNewChildren(r.children.map {
+        case c: ColumnarToRowExec if c.child.isInstanceOf[GlutenPlan] =>
+          transformColumnarToRowExec(c, Some(r))
         case other =>
-          replaceWithTransformerPlan(other)
-      }
-      r.withNewChildren(children)
+          replaceWithTransformerPlan(other, Some(plan))
+      })
     case p =>
-      val children = p.children.map(replaceWithTransformerPlan)
-      p.withNewChildren(children)
+      p.withNewChildren(p.children.map(replaceWithTransformerPlan(_, Some(p))))
   }
 
   // apply for the physical not final plan
   def apply(plan: SparkPlan): SparkPlan = {
-    val newPlan = replaceWithTransformerPlan(plan)
+    val newPlan = replaceWithTransformerPlan(plan, None)
     planChangeLogger.logRule(ruleName, plan, newPlan)
     newPlan
   }
