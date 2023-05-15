@@ -21,8 +21,8 @@ import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.type.*;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.util.GenericArrayData;
-import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
+import org.apache.spark.sql.catalyst.util.ArrayData;
+import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.types.*;
 
 import java.util.ArrayList;
@@ -143,11 +143,11 @@ public class ExpressionBuilder {
     return new DecimalLiteralNode(vDecimal, typeNode);
   }
 
-  public static ListLiteralNode makeListLiteral(GenericArrayData array, TypeNode typeNode) {
+  public static ListLiteralNode makeListLiteral(ArrayData array, TypeNode typeNode) {
     return new ListLiteralNode(array, typeNode);
   }
 
-  public static MapLiteralNode makeMapLiteral(ArrayBasedMapData map, TypeNode typeNode) {
+  public static MapLiteralNode makeMapLiteral(MapData map, TypeNode typeNode) {
     return new MapLiteralNode(map, typeNode);
   }
 
@@ -198,10 +198,10 @@ public class ExpressionBuilder {
       return makeDecimalLiteral(decimal, typeNode);
     }
     if (typeNode instanceof ListNode) {
-      return makeListLiteral((GenericArrayData) obj, typeNode);
+      return makeListLiteral((ArrayData) obj, typeNode);
     }
     if (typeNode instanceof MapNode) {
-      return makeMapLiteral((ArrayBasedMapData) obj, typeNode);
+      return makeMapLiteral((MapData) obj, typeNode);
     }
     if (typeNode instanceof StructNode) {
       return makeStructLiteral((InternalRow) obj, typeNode);

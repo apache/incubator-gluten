@@ -17,20 +17,19 @@
 
 package io.glutenproject.substrait.expression;
 
-import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
-
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
 import io.glutenproject.substrait.type.TypeNode;
 import io.glutenproject.substrait.type.MapNode;
+import org.apache.spark.sql.catalyst.util.MapData;
 
-public class MapLiteralNode extends LiteralNodeWithValue<ArrayBasedMapData> {
-  public MapLiteralNode(ArrayBasedMapData map, TypeNode typeNode) {
+public class MapLiteralNode extends LiteralNodeWithValue<MapData> {
+  public MapLiteralNode(MapData map, TypeNode typeNode) {
     super(map, typeNode);
   }
 
   @Override
-  protected void updateLiteralBuilder(Builder literalBuilder, ArrayBasedMapData map) {
+  protected void updateLiteralBuilder(Builder literalBuilder, MapData map) {
     Object[] keys = map.keyArray().array();
     Object[] values = map.valueArray().array();
 
