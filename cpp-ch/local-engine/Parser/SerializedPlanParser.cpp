@@ -2117,14 +2117,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
 {
     auto plan_ptr = std::make_unique<substrait::Plan>();
-    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
-    /// Parsing may fail when the number of recursive layers is large.
-    /// Here, set a limit large enough to avoid this problem.
-    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), plan.size());
-    coded_in.SetRecursionLimit(100000);
-
-    auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
+    auto ok = plan_ptr->ParseFromString(plan);
     if (!ok)
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
