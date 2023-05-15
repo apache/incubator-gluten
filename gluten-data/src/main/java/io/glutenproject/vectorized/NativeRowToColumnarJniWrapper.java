@@ -17,7 +17,9 @@
 
 package io.glutenproject.vectorized;
 
-public class NativeRowToColumnarJniWrapper {
+import io.glutenproject.init.JniInitialized;
+
+public class NativeRowToColumnarJniWrapper extends JniInitialized {
     public NativeRowToColumnarJniWrapper() {}
 
     public native long init(long cSchema, long allocId);

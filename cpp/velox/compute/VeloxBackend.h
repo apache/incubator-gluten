@@ -62,14 +62,6 @@ class VeloxBackend final : public Backend {
     return iter->getMetrics(exportNanos);
   }
 
-  const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
-    return memPoolOptions_;
-  }
-
-  int64_t getSpillThreshold() const {
-    return spillThreshold_;
-  }
-
   std::shared_ptr<Datasource> getDatasource(
       const std::string& filePath,
       const std::string& fileName,
@@ -93,9 +85,6 @@ class VeloxBackend final : public Backend {
  private:
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
-  // Memory pool options used to create mem pool for iterators.
-  facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
-  int64_t spillThreshold_ = std::numeric_limits<int64_t>::max();
 };
 
 } // namespace gluten

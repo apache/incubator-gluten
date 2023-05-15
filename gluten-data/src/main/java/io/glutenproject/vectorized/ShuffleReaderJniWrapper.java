@@ -17,15 +17,18 @@
 
 package io.glutenproject.vectorized;
 
-public class ShuffleReaderJniWrapper {
+import io.glutenproject.init.JniInitialized;
+
+public class ShuffleReaderJniWrapper extends JniInitialized {
+  public static final ShuffleReaderJniWrapper INSTANCE = new ShuffleReaderJniWrapper();
 
   private ShuffleReaderJniWrapper() {
   }
 
-  public static native long make(JniByteInputStream jniIn, long cSchema, long allocatorId);
+  public native long make(JniByteInputStream jniIn, long cSchema, long allocatorId);
 
-  public static native long next(long handle);
+  public native long next(long handle);
 
-  public static native void close(long handle);
+  public native void close(long handle);
 
 }

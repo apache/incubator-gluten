@@ -298,9 +298,10 @@ object GlutenConfig {
   }
 
   // TODO Backend-ize this
-  def getNativeSessionConf(backendPrefix: String): util.Map[String, String] = {
+  def getNativeSessionConf(
+      backendPrefix: String,
+      conf: scala.collection.Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
-    val conf = SQLConf.get
     val keys = ImmutableList.of(
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
@@ -308,7 +309,7 @@ object GlutenConfig {
     keys.forEach(
       k => {
         if (conf.contains(k)) {
-          nativeConfMap.put(k, conf.getConfString(k))
+          nativeConfMap.put(k, conf(k))
         }
       })
 
@@ -316,11 +317,11 @@ object GlutenConfig {
       (SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "4096"),
       (SQLConf.CASE_SENSITIVE.key, "false")
     )
-    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getConfString(e._1, e._2)))
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
     // FIXME all configs with BE prefix is considered dynamic and static at the same time
     //   We'd untangle this logic
-    conf.getAllConfs
+    conf
       .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
@@ -330,7 +331,9 @@ object GlutenConfig {
 
   // TODO: some of the config is dynamic in spark, but is static in gluten, because it should be
   //  used to construct HiveConnector which intends reused in velox
-  def getNativeStaticConf(conf: SparkConf, backendPrefix: String): util.Map[String, String] = {
+  def getNativeBackendConf(
+      backendPrefix: String,
+      conf: scala.collection.Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
       // Velox datasource config
@@ -343,7 +346,7 @@ object GlutenConfig {
     keys.forEach(
       k => {
         if (conf.contains(k)) {
-          nativeConfMap.put(k, conf.get(k))
+          nativeConfMap.put(k, conf(k))
         }
       })
 
@@ -355,9 +358,9 @@ object GlutenConfig {
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false")
     )
-    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.get(e._1, e._2)))
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     // velox cache and HiveConnector config
-    conf.getAll
+    conf
       .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 

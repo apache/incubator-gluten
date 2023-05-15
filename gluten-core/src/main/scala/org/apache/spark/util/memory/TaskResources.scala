@@ -22,7 +22,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.util.memory.TaskMemoryResources.inSparkTask
+import org.apache.spark.util.memory.TaskResources.inSparkTask
 import org.apache.spark.util.{TaskCompletionListener, TaskFailureListener}
 import shaded.parquet.it.unimi.dsi.fastutil.longs.LongComparators
 
@@ -31,7 +31,7 @@ import java.util.{Collections, Comparator, UUID}
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.JavaConverters._
 
-object TaskMemoryResources extends Logging {
+object TaskResources extends Logging {
   // And open java assert mode to get memory stack
   val DEBUG: Boolean = {
     SQLConf.get
@@ -77,7 +77,6 @@ object TaskMemoryResources extends Logging {
             override def onTaskCompletion(context: TaskContext): Unit = {
               RESOURCE_REGISTRIES.synchronized {
                 val registry = RESOURCE_REGISTRIES.remove(context)
-                registry.runRecyclers(context)
                 registry.releaseAll()
                 context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
               }
@@ -89,15 +88,17 @@ object TaskMemoryResources extends Logging {
     }
   }
 
-  def addRecycler(priority: Long)(f: TaskContext => Unit): Unit = {
+  def addRecycler(prio: Long)(f: => Unit): Unit = {
     if (!inSparkTask()) {
       throw new IllegalStateException("Not in a Spark task")
     }
-    val registry = getOrCreateTaskMemoryResourceRegistry() // initialize cleaners
-    registry.addRecycler(TaskMemoryResourceRecycler(priority, f))
+    addAnonymousResourceManager(new TaskResourceManager {
+      override def release(): Unit = f
+      override def priority(): Long = prio
+    })
   }
 
-  def addAnonymousResourceManager(manager: TaskMemoryResourceManager): Unit = {
+  def addAnonymousResourceManager(manager: TaskResourceManager): Unit = {
     getOrCreateTaskMemoryResourceRegistry().addManager(UUID.randomUUID().toString, manager)
   }
 
@@ -105,11 +106,11 @@ object TaskMemoryResources extends Logging {
     getOrCreateTaskMemoryResourceRegistry().isManagerRegistered(id)
   }
 
-  def getResourceManager[T <: TaskMemoryResourceManager](id: String): T = {
+  def getResourceManager[T <: TaskResourceManager](id: String): T = {
     getOrCreateTaskMemoryResourceRegistry().getManager(id)
   }
 
-  def addResourceManager(id: String, manager: TaskMemoryResourceManager): Unit = {
+  def addResourceManager(id: String, manager: TaskResourceManager): Unit = {
     getOrCreateTaskMemoryResourceRegistry().addManager(id, manager)
   }
 
@@ -126,35 +127,56 @@ class TaskMemoryResourceRegistry extends Logging {
 
   private val sharedMetrics = new TaskMemoryMetrics()
 
-  private val managers = new java.util.LinkedHashMap[String, TaskMemoryResourceManager]()
+  private val managers = new java.util.LinkedHashMap[String, TaskResourceManager]()
 
-  private val recyclers = new java.util.HashMap[Long, java.util.List[TaskMemoryResourceRecycler]]
+  private val managersPriorityMapping =
+    new java.util.HashMap[Long, java.util.List[TaskResourceManager]]()
 
-  private[memory] def releaseAll(): Unit = {
-    managers.values().asScala.toArray.reverse.foreach(m => try {
-      m.release()
-    } catch {
-      case e: Throwable =>
-        logWarning("Failed to call release() on resource manager instance", e)
-    })
+  private def addManager0(id: String, resource: TaskResourceManager): Unit = {
+    managers.put(id, resource)
+    if (!managersPriorityMapping.containsKey(resource.priority())) {
+      managersPriorityMapping.put(resource.priority(), new util.ArrayList[TaskResourceManager]())
+    }
+    val list = managersPriorityMapping.get(resource.priority())
+    list.add(resource)
   }
 
-  private[memory] def addManager(id: String, resource: TaskMemoryResourceManager): Unit = {
+  private[memory] def releaseAll(): Unit = {
+    val managerTable: java.util.List[
+      java.util.Map.Entry[Long, java.util.List[TaskResourceManager]]] =
+      new java.util.ArrayList(managersPriorityMapping.entrySet())
+    Collections.sort(managerTable,
+      (o1: java.util.Map.Entry[Long, java.util.List[TaskResourceManager]],
+       o2: java.util.Map.Entry[Long, java.util.List[TaskResourceManager]]) => {
+        val diff = o2.getKey - o1.getKey // descending by priority
+        if (diff > 0) 1 else if (diff < 0) -1 else 0
+      })
+    managerTable.forEach { e =>
+      e.getValue.asScala.reverse.foreach(m => try { // LIFO
+        m.release()
+      } catch {
+        case e: Throwable =>
+          logWarning("Failed to call release() on resource manager instance", e)
+      })
+    }
+  }
+
+  private[memory] def addManager(id: String, resource: TaskResourceManager): Unit = {
     if (managers.containsKey(id)) {
       throw new IllegalArgumentException(
-        String.format("TaskMemoryResourceManager with ID %s is already registered", id))
+        String.format("TaskResourceManager with ID %s is already registered", id))
     }
-    managers.put(id, resource)
+    addManager0(id, resource)
   }
 
   private[memory] def isManagerRegistered(id: String): Boolean = {
     managers.containsKey(id)
   }
 
-  private[memory] def getManager[T <: TaskMemoryResourceManager](id: String): T = {
+  private[memory] def getManager[T <: TaskResourceManager](id: String): T = {
     if (!managers.containsKey(id)) {
       throw new IllegalArgumentException(
-        String.format("TaskMemoryResourceManager with ID %s is not registered", id))
+        String.format("TaskResourceManager with ID %s is not registered", id))
     }
     managers.get(id).asInstanceOf[T]
   }
@@ -162,29 +184,4 @@ class TaskMemoryResourceRegistry extends Logging {
   private[memory] def getSharedMetrics(): TaskMemoryMetrics = {
     sharedMetrics
   }
-
-  private[memory] def addRecycler(recycler: TaskMemoryResourceRecycler) = {
-    if (!recyclers.containsKey(recycler.priority)) {
-      recyclers.put(recycler.priority, new util.ArrayList[TaskMemoryResourceRecycler]())
-    }
-    val list = recyclers.get(recycler.priority)
-    list.add(recycler)
-  }
-
-  private[memory] def runRecyclers(context: TaskContext): Unit = {
-    val recyclerTable: java.util.List[
-      java.util.Map.Entry[Long, java.util.List[TaskMemoryResourceRecycler]]] =
-      new java.util.ArrayList(recyclers.entrySet())
-    Collections.sort(recyclerTable,
-      (o1: java.util.Map.Entry[Long, java.util.List[TaskMemoryResourceRecycler]],
-       o2: java.util.Map.Entry[Long, java.util.List[TaskMemoryResourceRecycler]]) => {
-      val diff = o2.getKey - o1.getKey // descending
-      if (diff > 0) 1 else if (diff < 0) -1 else 0
-    })
-    recyclerTable.forEach { e =>
-      e.getValue.asScala.reverse.foreach(_.f(context)) // LIFO
-    }
-  }
 }
-
-case class TaskMemoryResourceRecycler(priority: Long, f: TaskContext => Unit)

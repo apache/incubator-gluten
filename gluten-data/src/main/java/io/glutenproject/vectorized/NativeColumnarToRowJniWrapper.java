@@ -17,9 +17,11 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.init.JniInitialized;
+
 import java.io.IOException;
 
-public class NativeColumnarToRowJniWrapper {
+public class NativeColumnarToRowJniWrapper extends JniInitialized {
 
   public NativeColumnarToRowJniWrapper() throws IOException {
   }

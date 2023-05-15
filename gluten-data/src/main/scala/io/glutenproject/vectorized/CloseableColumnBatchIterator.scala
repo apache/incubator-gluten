@@ -23,7 +23,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskMemoryResources
+import org.apache.spark.util.memory.TaskResources
 
 /**
  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
@@ -46,9 +46,9 @@ class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
     res
   }
 
-  TaskMemoryResources.addRecycler(100)((_: TaskContext) => {
+  TaskResources.addRecycler(100) {
     closeCurrentBatch()
-  })
+  }
 
   override def next(): ColumnarBatch = {
     val beforeTime = System.nanoTime()

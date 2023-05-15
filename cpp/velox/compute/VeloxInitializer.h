@@ -27,60 +27,55 @@
 #include "velox/common/caching/AsyncDataCache.h"
 
 namespace gluten {
-
 /// As a static instance in per executor, initialized at executor startup.
 /// Should not put heavily work here.
-///
-/// FIXME The initializer will be initialized more than once if running Spark
-///   in standalone mode
 class VeloxInitializer {
  public:
-  explicit VeloxInitializer(std::unordered_map<std::string, std::string>& conf) {
-    init(conf);
-  }
-
   ~VeloxInitializer() {
     if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
       LOG(INFO) << asyncDataCache_->toString();
     }
   }
 
-  void init(std::unordered_map<std::string, std::string>& conf);
+  static void initialize(const std::unordered_map<std::string, std::string>& conf);
 
-  void initCache(std::unordered_map<std::string, std::string>& conf);
+  static std::shared_ptr<VeloxInitializer> get();
 
-  static facebook::velox::memory::MemoryAllocator* getAsyncDataCache();
+  facebook::velox::memory::MemoryAllocator* getAsyncDataCache();
+
+  const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
+    return memPoolOptions_;
+  }
+
+  int64_t getSpillThreshold() const {
+    return spillThreshold_;
+  }
+
+ private:
+  explicit VeloxInitializer(const std::unordered_map<std::string, std::string>& conf) {
+    init(conf);
+  }
+
+  void init(const std::unordered_map<std::string, std::string>& conf);
+  void initCache(const std::unordered_map<std::string, std::string>& conf);
 
   std::string genUuid() {
     return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
   }
 
+  inline static std::shared_ptr<VeloxInitializer> instance_;
+  inline static std::mutex mutex_;
+
   // Instance of AsyncDataCache used for all large allocations.
-  static std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_;
+  std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =
+      facebook::velox::memory::MemoryAllocator::createDefaultInstance();
+
+  // Memory pool options used to create mem pool for iterators.
+  facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
+  int64_t spillThreshold_ = std::numeric_limits<int64_t>::max();
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
-
-  const std::string kHiveConnectorId = "test-hive";
-  const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
-
-  // memory cache
-  const std::string kVeloxMemCacheSize = "spark.gluten.sql.columnar.backend.velox.memCacheSize";
-  const std::string kVeloxMemCacheSizeDefault = "1073741824";
-
-  // ssd cache
-  const std::string kVeloxSsdCacheSize = "spark.gluten.sql.columnar.backend.velox.ssdCacheSize";
-  const std::string kVeloxSsdCacheSizeDefault = "1073741824";
-  const std::string kVeloxSsdCachePath = "spark.gluten.sql.columnar.backend.velox.ssdCachePath";
-  const std::string kVeloxSsdCachePathDefault = "/tmp/";
-  const std::string kVeloxSsdCacheShards = "spark.gluten.sql.columnar.backend.velox.ssdCacheShards";
-  const std::string kVeloxSsdCacheShardsDefault = "1";
-  const std::string kVeloxSsdCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads";
-  const std::string kVeloxSsdCacheIOThreadsDefault = "1";
-  const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
-
-  const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
-  const std::string kVeloxIOThreadsDefault = "1";
 };
 
 } // namespace gluten

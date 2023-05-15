@@ -21,7 +21,7 @@ import io.glutenproject.memory.alloc.Spiller;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.memory.TaskMemoryResources;
+import org.apache.spark.util.memory.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,8 +39,8 @@ public class GlutenMemoryConsumer extends MemoryConsumer {
   @Override
   public long spill(long size, MemoryConsumer trigger) {
     long spilledOut = spiller.spill(size, trigger);
-    if (TaskMemoryResources.inSparkTask()) {
-      TaskMemoryResources.getLocalTaskContext().taskMetrics().incMemoryBytesSpilled(spilledOut);
+    if (TaskResources.inSparkTask()) {
+      TaskResources.getLocalTaskContext().taskMetrics().incMemoryBytesSpilled(spilledOut);
     }
     return spilledOut;
   }

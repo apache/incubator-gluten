@@ -36,7 +36,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration.NANOSECONDS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskMemoryResources
+import org.apache.spark.util.memory.TaskResources
 
 case class VeloxColumnarToRowExec(child: SparkPlan)
   extends GlutenColumnarToRowExecBase(child = child) {
@@ -175,12 +175,12 @@ class GlutenColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch
           val row = new UnsafeRow(batch.numCols())
           var closed = false
 
-          TaskMemoryResources.addRecycler(100)(_ => {
+          TaskResources.addRecycler(100) {
             if (!closed) {
               jniWrapper.nativeClose(info.instanceID)
               closed = true
             }
-          })
+          }
 
           override def hasNext: Boolean = {
             val result = rowId < batch.numRows()

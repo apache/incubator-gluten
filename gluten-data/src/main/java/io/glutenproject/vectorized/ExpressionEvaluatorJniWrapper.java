@@ -17,28 +17,20 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.init.JniInitialized;
+
 /**
  * This class is implemented in JNI. This provides the Java interface to invoke
- * functions in JNI. This file is used to generated the .h files required for
+ * functions in JNI. This file is used to generate the .h files required for
  * jni. Avoid all external dependencies in this file.
  */
-public class ExpressionEvaluatorJniWrapper {
+public class ExpressionEvaluatorJniWrapper extends JniInitialized {
 
   /**
    * Wrapper for native API.
    */
   public ExpressionEvaluatorJniWrapper() {
   }
-
-  /**
-   * Call initNative to initialize native computing.
-   */
-  native void nativeInitNative(byte[] confAsPlan);
-
-  /**
-   * Call finalizeNative to finalize native computing.
-   */
-  native void nativeFinalizeNative();
 
   /**
    * Validate the Substrait plan in native compute engine.

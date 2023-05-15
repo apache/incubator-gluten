@@ -22,6 +22,7 @@
 
 #include "RegistrationAllFunctions.h"
 #include "config/GlutenConfig.h"
+#include "utils/exception.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/serializers/PrestoSerializer.h"
 #ifdef ENABLE_HDFS
@@ -40,15 +41,81 @@ DECLARE_int32(split_preload_per_driver);
 
 using namespace facebook;
 
+namespace {
+
+const std::string kHiveConnectorId = "test-hive";
+const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
+
+// memory cache
+const std::string kVeloxMemCacheSize = "spark.gluten.sql.columnar.backend.velox.memCacheSize";
+const std::string kVeloxMemCacheSizeDefault = "1073741824";
+
+// ssd cache
+const std::string kVeloxSsdCacheSize = "spark.gluten.sql.columnar.backend.velox.ssdCacheSize";
+const std::string kVeloxSsdCacheSizeDefault = "1073741824";
+const std::string kVeloxSsdCachePath = "spark.gluten.sql.columnar.backend.velox.ssdCachePath";
+const std::string kVeloxSsdCachePathDefault = "/tmp/";
+const std::string kVeloxSsdCacheShards = "spark.gluten.sql.columnar.backend.velox.ssdCacheShards";
+const std::string kVeloxSsdCacheShardsDefault = "1";
+const std::string kVeloxSsdCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads";
+const std::string kVeloxSsdCacheIOThreadsDefault = "1";
+const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
+
+const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
+const std::string kVeloxIOThreadsDefault = "1";
+
+// mem ratios and thresholds
+const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
+const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
+
+} // namespace
+
 namespace gluten {
 
-std::shared_ptr<velox::memory::MemoryAllocator> VeloxInitializer::asyncDataCache_;
-
-void VeloxInitializer::init(std::unordered_map<std::string, std::string>& conf) {
+void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& conf) {
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
   std::unordered_map<std::string, std::string> configurationValues;
+
+  // mem cap ratio
+  float_t memCapRatio;
+  {
+    auto got = conf.find(kMemoryCapRatio);
+    if (got == conf.end()) {
+      // not found
+      memCapRatio = 0.75;
+    } else {
+      memCapRatio = std::stof(got->second);
+    }
+  }
+
+  // mem tracker
+  int64_t maxMemory;
+  {
+    auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
+    if (got == conf.end()) {
+      // not found
+      maxMemory = facebook::velox::memory::kMaxMemory;
+    } else {
+      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+    }
+  }
+
+  memPoolOptions_ = {facebook::velox::memory::MemoryAllocator::kMaxAlignment, maxMemory};
+
+  // spill threshold ratio (out of the memory cap)
+  float_t spillThresholdRatio;
+  {
+    auto got = conf.find(kSpillThresholdRatio);
+    if (got == conf.end()) {
+      // not found
+      spillThresholdRatio = 0.6;
+    } else {
+      spillThresholdRatio = std::stof(got->second);
+    }
+  }
+  spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);
 
 #ifdef ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
@@ -57,12 +124,12 @@ void VeloxInitializer::init(std::unordered_map<std::string, std::string>& conf) 
 #ifdef ENABLE_S3
   velox::filesystems::registerS3FileSystem();
 
-  std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
-  std::string awsSecretKey = conf["spark.hadoop.fs.s3a.secret.key"];
-  std::string awsEndpoint = conf["spark.hadoop.fs.s3a.endpoint"];
-  std::string sslEnabled = conf["spark.hadoop.fs.s3a.connection.ssl.enabled"];
-  std::string pathStyleAccess = conf["spark.hadoop.fs.s3a.path.style.access"];
-  std::string useInstanceCredentials = conf["spark.hadoop.fs.s3a.use.instance.credentials"];
+  std::string awsAccessKey = conf.at("spark.hadoop.fs.s3a.access.key");
+  std::string awsSecretKey = conf.at("spark.hadoop.fs.s3a.secret.key");
+  std::string awsEndpoint = conf.at("spark.hadoop.fs.s3a.endpoint");
+  std::string sslEnabled = conf.at("spark.hadoop.fs.s3a.connection.ssl.enabled");
+  std::string pathStyleAccess = conf.at("spark.hadoop.fs.s3a.path.style.access");
+  std::string useInstanceCredentials = conf.at("spark.hadoop.fs.s3a.use.instance.credentials");
 
   const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
   if (envAwsAccessKey != nullptr) {
@@ -117,18 +184,15 @@ void VeloxInitializer::init(std::unordered_map<std::string, std::string>& conf) 
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
-  if (asyncDataCache_ != nullptr) {
-    return asyncDataCache_.get();
-  }
-  return velox::memory::MemoryAllocator::getInstance();
+  return asyncDataCache_.get();
 }
 
-void VeloxInitializer::initCache(std::unordered_map<std::string, std::string>& conf) {
+void VeloxInitializer::initCache(const std::unordered_map<std::string, std::string>& conf) {
   auto key = conf.find(kVeloxCacheEnabled);
-  if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
+  if (key != conf.end() && boost::algorithm::to_lower_copy(conf.at(kVeloxCacheEnabled)) == "true") {
     FLAGS_ssd_odirect = true;
     if (conf.find(kVeloxSsdODirectEnabled) != conf.end() &&
-        boost::algorithm::to_lower_copy(conf[kVeloxSsdODirectEnabled]) == "false") {
+        boost::algorithm::to_lower_copy(conf.at(kVeloxSsdODirectEnabled)) == "false") {
       FLAGS_ssd_odirect = false;
     }
     uint64_t memCacheSize = std::stol(kVeloxMemCacheSizeDefault);
@@ -181,6 +245,27 @@ void VeloxInitializer::initCache(std::unordered_map<std::string, std::string>& c
               << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads
               << ", IO threads: " << ioThreads;
   }
+}
+
+void VeloxInitializer::initialize(const std::unordered_map<std::string, std::string>& conf) {
+  std::lock_guard<std::mutex> lockGuard(mutex_);
+  if (instance_ != nullptr) {
+    throw gluten::GlutenException("VeloxInitializer already set");
+  }
+  instance_.reset(new gluten::VeloxInitializer(conf));
+}
+
+std::shared_ptr<VeloxInitializer> VeloxInitializer::get() {
+  std::lock_guard<std::mutex> lockGuard(mutex_);
+  if (instance_ == nullptr) {
+    std::cout
+        << "VeloxInitializer not set, using default VeloxInitializer instance. This should only happen in test code."
+        << std::endl;
+    static const std::unordered_map<std::string, std::string> kEmptyConf;
+    static std::shared_ptr<VeloxInitializer> defaultInstance{new gluten::VeloxInitializer(kEmptyConf)};
+    return defaultInstance;
+  }
+  return instance_;
 }
 
 } // namespace gluten

@@ -18,19 +18,19 @@
 package io.glutenproject.memory.alloc;
 
 import io.glutenproject.backendsapi.BackendsApiManager;
-import org.apache.spark.util.memory.TaskMemoryResources;
+import org.apache.spark.util.memory.TaskResources;
 
 /**
  * Built-in toolkit for managing native memory allocations. To use the facility, one should
  * import Gluten's C++ library then create the c++ instance using following example code:
- *
+ * <p>
  * ```c++
  * auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
  * ```
- *
+ * <p>
  * The ID "allocator_id" can be retrieved from Java API
  * {@link NativeMemoryAllocator#getNativeInstanceId()}.
- *
+ * <p>
  * FIXME: to export the native APIs in a standard way
  */
 public abstract class NativeMemoryAllocators {
@@ -40,33 +40,33 @@ public abstract class NativeMemoryAllocators {
   private static final NativeMemoryAllocator GLOBAL = NativeMemoryAllocator.getDefault();
 
   public static NativeMemoryAllocator contextInstance() {
-    if (!TaskMemoryResources.inSparkTask()) {
+    if (!TaskResources.inSparkTask()) {
       return globalInstance();
     }
 
     final String id = NativeMemoryAllocatorManager.class.toString();
-    if (!TaskMemoryResources.isResourceManagerRegistered(id)) {
+    if (!TaskResources.isResourceManagerRegistered(id)) {
       final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
           .genNativeMemoryAllocatorManager(
-              TaskMemoryResources.getSparkMemoryManager(),
+              TaskResources.getSparkMemoryManager(),
               Spiller.NO_OP,
-              TaskMemoryResources.getSharedMetrics());
-      TaskMemoryResources.addResourceManager(id, manager);
+              TaskResources.getSharedMetrics());
+      TaskResources.addResourceManager(id, manager);
     }
-    return ((NativeMemoryAllocatorManager) TaskMemoryResources.getResourceManager(id)).getManaged();
+    return ((NativeMemoryAllocatorManager) TaskResources.getResourceManager(id)).getManaged();
   }
 
   public static NativeMemoryAllocator createSpillable(Spiller spiller) {
-    if (!TaskMemoryResources.inSparkTask()) {
+    if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
 
     final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
         .genNativeMemoryAllocatorManager(
-            TaskMemoryResources.getSparkMemoryManager(),
+            TaskResources.getSparkMemoryManager(),
             spiller,
-            TaskMemoryResources.getSharedMetrics());
-    TaskMemoryResources.addAnonymousResourceManager(manager);
+            TaskResources.getSharedMetrics());
+    TaskResources.addAnonymousResourceManager(manager);
     return manager.getManaged();
   }
 

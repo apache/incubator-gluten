@@ -84,7 +84,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
       nullptr,
       std::make_shared<velox::core::MemConfig>(),
       connectorConfigs,
-      VeloxInitializer::getAsyncDataCache(),
+      gluten::VeloxInitializer::get()->getAsyncDataCache(),
       pool_,
       nullptr,
       "");

@@ -17,7 +17,9 @@
 
 package io.glutenproject.columnarbatch;
 
-public class ColumnarBatchJniWrapper {
+import io.glutenproject.init.JniInitialized;
+
+public class ColumnarBatchJniWrapper extends JniInitialized {
   public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
 
   private ColumnarBatchJniWrapper() {
