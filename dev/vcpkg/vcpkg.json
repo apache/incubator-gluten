@@ -60,6 +60,7 @@
         "boost-format",
         "gtest",
         "xsimd",
+        "xxhash",
         "protobuf",
         "benchmark",
         "jemalloc"
