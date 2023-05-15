@@ -30,14 +30,9 @@ on:
       - 'tools/gluten-it/**'
       - 'tools/gluten-te/**'
       - 'cpp-ch/**'
-concurrency:
-  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
-  cancel-in-progress: true
 
 jobs:
   add-comment:
-    needs: ch-formatting-check
-    if: ${{ success() }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
