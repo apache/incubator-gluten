@@ -118,6 +118,18 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
       this
   }
 
+  /**
+   * Gets lower/upper bound represented in string.
+   */
+  def getFrameBound(bound: Expression): String = {
+    // The lower/upper can be either a foldable Expression or a SpecialFrameBoundary.
+    if (bound.foldable) {
+      bound.eval().toString
+    } else {
+      bound.sql
+    }
+  }
+
   def getRelNode(context: SubstraitContext,
                  windowExpression: Seq[NamedExpression],
                  partitionSpec: Seq[Expression],
@@ -142,8 +154,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               new util.ArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
+              getFrameBound(frame.upper),
+              getFrameBound(frame.lower),
               frame.frameType.sql)
             windowExpressions.add(windowFunctionNode)
           case aggExpression: AggregateExpression =>
@@ -167,8 +179,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
+              getFrameBound(frame.upper),
+              getFrameBound(frame.lower),
               frame.frameType.sql)
             windowExpressions.add(windowFunctionNode)
           case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
@@ -189,8 +201,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(offset_wf.dataType, offset_wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
+              getFrameBound(frame.upper),
+              getFrameBound(frame.lower),
               frame.frameType.sql)
             windowExpressions.add(windowFunctionNode)
           case _ =>

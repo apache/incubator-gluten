@@ -266,8 +266,8 @@ public class ExpressionBuilder {
       TypeNode outputTypeNode,
       String upperBound,
       String lowerBound,
-      String windowType) {
+      String frameType) {
     return new WindowFunctionNode(functionId, expressionNodes, columnName,
-        outputTypeNode, upperBound, lowerBound, windowType);
+        outputTypeNode, upperBound, lowerBound, frameType);
   }
 }
