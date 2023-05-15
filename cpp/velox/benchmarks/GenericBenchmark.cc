@@ -79,7 +79,9 @@ auto BM_Generic = [](::benchmark::State& state,
     auto resultIter = backend->getResultIterator(
         gluten::defaultMemoryAllocator().get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
-    auto outputSchema = toArrowSchema(veloxPlan->outputType());
+    ArrowSchema cSchema;
+    toArrowSchema(veloxPlan->outputType(), &cSchema);
+    GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
     ArrowWriter writer{FLAGS_write_file};
     state.PauseTiming();
     if (!FLAGS_write_file.empty()) {

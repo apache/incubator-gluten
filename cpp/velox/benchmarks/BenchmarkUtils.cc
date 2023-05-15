@@ -16,7 +16,7 @@
  */
 
 #include "BenchmarkUtils.h"
-
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
 #include "velox/dwio/common/Options.h"

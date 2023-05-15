@@ -16,10 +16,11 @@
  */
 
 #include <benchmark/benchmark.h>
+// Because we should include velox Abi.h first, otherwise it will conflicts with arrow abi.h
+#include <compute/VeloxBackend.h>
 
 #include "BenchmarkUtils.h"
 #include "compute/ArrowTypeUtils.h"
-#include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 
 using namespace facebook;

@@ -18,18 +18,17 @@
 #pragma once
 
 #include <benchmark/benchmark.h>
-
 #include <velox/substrait/SubstraitToVeloxPlan.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-
 #include <thread>
 #include <utility>
 
 #include "compute/ProtobufUtils.h"
 #include "utils/exception.h"
 #include "velox/common/memory/Memory.h"
+#include "velox/dwio/common/tests/utils/DataFiles.h"
 
 DECLARE_bool(print_result);
 DECLARE_string(write_file);

@@ -19,6 +19,7 @@
 
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
+#include <arrow/c/abi.h>
 #include <arrow/type_traits.h>
 #include <arrow/util/decimal.h>
 

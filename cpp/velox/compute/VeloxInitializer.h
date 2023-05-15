@@ -24,7 +24,7 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "VeloxColumnarToRowConverter.h"
-#include "WholeStageResultIterator.h"
+#include "velox/common/caching/AsyncDataCache.h"
 
 namespace gluten {
 
@@ -60,6 +60,8 @@ class VeloxInitializer {
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+
+  const std::string kHiveConnectorId = "test-hive";
   const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
 
   // memory cache

@@ -31,6 +31,7 @@
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
 #include "velox/common/memory/MmapAllocator.h"
+#include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/exec/Operator.h"
