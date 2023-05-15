@@ -49,29 +49,43 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
   // Construct the file path and writer
-  std::string localPath = "";
+  auto pos = filePath_.find("_temporary", 0);
+  std::string destinationPathWithSchame = filePath_.substr(0, pos - 1);
+
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    localPath = filePath_.substr(5);
+    finalPath_ = (destinationPathWithSchame + "/" + fileName_).substr(5);
+    std::string command = "touch " + finalPath_;
+    auto ret = system(command.c_str());
+    if (ret != 0) {
+      throw std::runtime_error(
+          "The local file path was not created successfully when writing parqetut data in velox backend!");
+    }
+
+    sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
+  } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
+    finalPath_ = destinationPathWithSchame + "/" + fileName_; // with hdfs://vsr246:9000
+    auto destinationPathPos = destinationPathWithSchame.substr(7).find("/", 0);
+    std::string destinationPath = finalPath_.substr(destinationPathPos + 7);
+    std::string command = "hadoop fs -touch " + destinationPath;
+    auto ret = system(command.c_str());
+    if (ret != 0) {
+      throw std::runtime_error(
+          "The hdfs file path was not created successfully when writing parqetut data in velox backend!");
+    }
+
+    sink_ = std::make_unique<velox::dwio::common::HDFSFileSink>(finalPath_);
   } else {
-    throw std::runtime_error("The path is not local file path when Write data with parquet format in velox backend!");
+    throw std::runtime_error(
+        "The file path is not local or hdfs when writing data with parquet format in velox backend!");
   }
-
-  auto pos = localPath.find("_temporary", 0);
-  std::string dirPath = localPath.substr(0, pos - 1);
-
-  finalPath_ = dirPath + "/" + fileName_;
-  std::string command = "touch " + finalPath_;
-  auto ret = system(command.c_str());
-  (void)(ret); // suppress warning
 
   ArrowSchema cSchema{};
   arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
   if (!status.ok()) {
-    throw std::runtime_error("Failed to export from Arrow record batch");
+    throw std::runtime_error("Failed to export arrow cSchema.");
   }
 
   type_ = velox::importFromArrow(cSchema);
-  auto sink = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
 
   auto blockSize = 1024;
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
@@ -104,7 +118,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
   auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities, queryCtx);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), *(pool_), 2048, properities, queryCtx);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {

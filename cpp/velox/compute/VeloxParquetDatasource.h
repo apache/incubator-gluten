@@ -34,6 +34,7 @@
 #include "operators/writer/Datasource.h"
 
 #include "velox/common/file/FileSystems.h"
+#include "velox/dwio/common/DataSink.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
@@ -68,6 +69,7 @@ class VeloxParquetDatasource final : public Datasource {
   std::shared_ptr<facebook::velox::dwrf::Writer> writer_;
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
+  std::unique_ptr<facebook::velox::dwio::common::DataSink> sink_;
 };
 
 } // namespace gluten
