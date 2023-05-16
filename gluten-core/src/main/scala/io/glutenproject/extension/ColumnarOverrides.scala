@@ -553,7 +553,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   def transformColumnarToRowExec(plan: ColumnarToRowExec): SparkPlan = {
-    if (columnarConf.enableNativeColumnarToRow && plan.child.isInstanceOf[GlutenPlan]) {
+    if (columnarConf.enableNativeColumnarToRow) {
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides GlutenColumnarToRowExecBase(${child.nodeName})")
       val nativeConversion =

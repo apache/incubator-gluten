@@ -22,6 +22,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.functions.{col, rand, when}
+import org.apache.spark.sql.execution.ColumnarToRowExec
 
 import java.io.File
 
@@ -875,17 +876,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck)
   }
 
-  test("test 'ColumnarToRowExec should not convert'") {
+  test("test 'ColumnarToRowExec should not be used'") {
     withSQLConf(
       "spark.gluten.sql.columnar.filescan" -> "false",
       "spark.gluten.sql.columnar.filter" -> "false"
     ) {
-      val sql =
-        """
-          |select l_shipdate from lineitem where l_shipdate = '1996-05-07'
-          |order by l_shipdate
-          |""".stripMargin
-      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+      runQueryAndCompare(
+        "select l_shipdate from lineitem where l_shipdate = '1996-05-07'") { df =>
+        getExecutedPlan(df).count(plan => plan.isInstanceOf[ColumnarToRowExec]) == 0
+      }
     }
   }
 }
