@@ -907,7 +907,7 @@ arrow::Status ArrowShuffleWriter::splitBoolType(const uint8_t* srcAddr, const st
 #if defined(__x86_64__)
         src = __rolb(src, 8 - dstIdxByte);
 #else
-        src = rotateLeft(src, (8 - dst_idx_byte));
+        src = rotateLeft(src, (8 - dstIdxByte));
 #endif
         dst = dst & src; // only take the useful bit.
       }
@@ -966,7 +966,7 @@ arrow::Status ArrowShuffleWriter::splitBoolType(const uint8_t* srcAddr, const st
 #if defined(__x86_64__)
         src = __rolb(src, dstIdxByte);
 #else
-        src = rotateLeft(src, dst_idx_byte);
+        src = rotateLeft(src, dstIdxByte);
 #endif
         dst = dst & src; // only take the useful bit.
       }

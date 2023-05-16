@@ -91,7 +91,7 @@ arrow::Status VeloxShuffleWriter::init() {
 #if defined(__x86_64__)
   supportAvx512_ = __builtin_cpu_supports("avx512bw");
 #else
-  support_avx512_ = false;
+  supportAvx512_ = false;
 #endif
 
   // partition number should be less than 64k
@@ -510,7 +510,7 @@ arrow::Status VeloxShuffleWriter::splitBoolType(const uint8_t* srcAddr, const st
 #if defined(__x86_64__)
         src = __rolb(src, 8 - dstIdxByte);
 #else
-        src = rotateLeft(src, (8 - dst_idx_byte));
+        src = rotateLeft(src, (8 - dstIdxByte));
 #endif
         dst = dst & src; // only take the useful bit.
       }
