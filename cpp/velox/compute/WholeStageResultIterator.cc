@@ -106,6 +106,9 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   if (numRows == 0) {
     return nullptr;
   }
+  std::cout << "gluten output" << std::endl;
+  std::cout << vector->toString() << std::endl;
+  std::cout << vector->toString(0, vector->size()) << std::endl;
   return std::make_shared<VeloxColumnarBatch>(vector);
 }
 
