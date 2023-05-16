@@ -123,6 +123,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables",
+      // Not supported for approx_count_distinct
       "SPARK-34165: Add count_distinct to summary"
     )
 
