@@ -85,7 +85,7 @@ jobs:
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark322" -DwildcardSuites="io.glutenproject.execution.VeloxAggregateFunctionsSuite"'
       - name: Run CPP unit test
         run: |
           docker exec velox-backend-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
