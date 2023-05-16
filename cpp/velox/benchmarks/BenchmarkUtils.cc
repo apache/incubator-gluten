@@ -16,7 +16,7 @@
  */
 
 #include "BenchmarkUtils.h"
-
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
 #include "velox/dwio/common/Options.h"
@@ -46,15 +46,25 @@ void initVeloxBackend() {
   initVeloxBackend(bmConfMap);
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
+std::string getPlanFromFile(const std::string& filePath) {
   // Read json file and resume the binary data.
   std::ifstream msgJson(filePath);
   std::stringstream buffer;
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  auto maybePlan = gluten::substraitFromJsonToPb("Plan", msgData);
-  return maybePlan;
+  return gluten::substraitFromJsonToPb("Plan", msgData);
+  ;
+}
+
+velox::dwio::common::FileFormat getFileFormat(const std::string& fileFormat) {
+  if (fileFormat.compare("orc") == 0) {
+    return velox::dwio::common::FileFormat::ORC;
+  } else if (fileFormat.compare("parquet") == 0) {
+    return velox::dwio::common::FileFormat::PARQUET;
+  } else {
+    return velox::dwio::common::FileFormat::UNKNOWN;
+  }
 }
 
 std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
@@ -63,13 +73,7 @@ std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
   auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
 
   // Set format to scan info.
-  auto format = velox::dwio::common::FileFormat::UNKNOWN;
-  if (fileFormat.compare("orc") == 0) {
-    format = velox::dwio::common::FileFormat::ORC;
-  } else if (fileFormat.compare("parquet") == 0) {
-    format = velox::dwio::common::FileFormat::PARQUET;
-  }
-  scanInfo->format = format;
+  scanInfo->format = getFileFormat(fileFormat);
 
   // Set split start, length, and path to scan info.
   std::filesystem::path fileDir(datasetPath);
@@ -89,6 +93,22 @@ std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
   return scanInfo;
 }
 
+std::shared_ptr<velox::substrait::SplitInfo> getSplitInfosFromFile(
+    const std::string& fileName,
+    const std::string& fileFormat) {
+  auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
+
+  // Set format to scan info.
+  scanInfo->format = getFileFormat(fileFormat);
+
+  // Set split start, length, and path to scan info.
+  scanInfo->starts.emplace_back(0);
+  scanInfo->lengths.emplace_back(fs::file_size(fileName));
+  scanInfo->paths.emplace_back("file://" + fileName);
+
+  return scanInfo;
+}
+
 bool checkPathExists(const std::string& filepath) {
   std::filesystem::path f{filepath};
   return std::filesystem::exists(f);
@@ -100,14 +120,6 @@ void abortIfFileNotExists(const std::string& filepath) {
     ::benchmark::Shutdown();
     std::exit(EXIT_FAILURE);
   }
-}
-
-std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> planNode) {
-  ArrowSchema arrowSchema{};
-  exportToArrow(
-      velox::BaseVector::create(planNode->outputType(), 0, gluten::getDefaultVeloxLeafMemoryPool().get()), arrowSchema);
-  GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
-  return outputSchema;
 }
 
 bool endsWith(const std::string& data, const std::string& suffix) {

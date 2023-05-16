@@ -107,7 +107,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink), *(pool_), 2048, properities, queryCtx);
 }
 
-std::shared_ptr<arrow::Schema> VeloxParquetDatasource::inspectSchema() {
+void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
   velox::dwio::common::ReaderOptions readerOptions(pool_.get());
   auto format = velox::dwio::common::FileFormat::PARQUET;
   readerOptions.setFileFormat(format);
@@ -122,7 +122,7 @@ std::shared_ptr<arrow::Schema> VeloxParquetDatasource::inspectSchema() {
               std::make_unique<velox::dwio::common::BufferedInput>(
                   std::make_shared<velox::dwio::common::ReadFileInputStream>(readFile), *pool_.get()),
               readerOptions);
-  return toArrowSchema(reader->rowType());
+  toArrowSchema(reader->rowType(), out);
 }
 
 void VeloxParquetDatasource::close() {

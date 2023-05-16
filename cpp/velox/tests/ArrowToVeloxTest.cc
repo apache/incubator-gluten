@@ -91,7 +91,7 @@ TEST_F(ArrowToVeloxTest, unsupport) {
   const std::vector<std::string> inputData = {R"(["1970-01-01","2000-02-29","3989-07-14","1900-02-28"])"};
 
   makeInputBatch(inputData, schema, &inputBatch);
-  EXPECT_ANY_THROW(recordBatch2RowVector(*inputBatch));
+  checkBatchEqual(inputBatch);
 }
 
 TEST_F(ArrowToVeloxTest, decimalA2V) {
@@ -136,8 +136,9 @@ TEST_F(ArrowToVeloxTest, timestampV2A) {
   });
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  EXPECT_ANY_THROW(velox::exportToArrow(row, arrowArray, getDefaultVeloxLeafMemoryPool().get()));
+  velox::exportToArrow(row, arrowArray, getDefaultVeloxLeafMemoryPool().get());
   velox::exportToArrow(row, arrowSchema);
+  ArrowArrayRelease(&arrowArray);
 }
 
 TEST_F(ArrowToVeloxTest, listmap) {

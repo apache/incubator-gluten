@@ -353,9 +353,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
   }
 
   auto backend = gluten::createBackend();
-  if (!backend->parsePlan(planData, planSize, stageId, partitionId, taskId)) {
-    gluten::jniThrow("Failed to parse plan.");
-  }
+  backend->parsePlan(planData, planSize, stageId, partitionId, taskId);
 
   auto confs = getConfMap(env, confArr);
 
@@ -1001,8 +999,7 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
     jlong cSchema) {
   JNI_METHOD_START
   auto datasource = glutenDatasourceHolder.lookup(instanceId);
-  auto schema = datasource->inspectSchema();
-  GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema.get(), reinterpret_cast<struct ArrowSchema*>(cSchema)));
+  datasource->inspectSchema(reinterpret_cast<struct ArrowSchema*>(cSchema));
   JNI_METHOD_END()
 }
 

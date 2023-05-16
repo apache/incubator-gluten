@@ -18,13 +18,12 @@
 #pragma once
 
 #include <arrow/type.h>
-#include <arrow/type_fwd.h>
 
 #include "velox/type/Type.h"
 
 namespace gluten {
 
-std::shared_ptr<arrow::DataType> toArrowType(const facebook::velox::TypePtr& type);
+void toArrowSchema(const std::shared_ptr<const facebook::velox::RowType>& rowType, struct ArrowSchema* out);
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const facebook::velox::RowType>& rowType);
 

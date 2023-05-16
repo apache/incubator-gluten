@@ -1,0 +1,3 @@
+CH_ORG=Kyligence
+CH_BRANCH=clickhouse_backend
+CH_COMMIT=52be833f

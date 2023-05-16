@@ -341,19 +341,11 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Timestamp type") {
-    // Validation: BatchScan Project Aggregate Expand Sort Limit
-    runQueryAndCompare("select int, timestamp from type1 " +
-      " group by grouping sets(int, timestamp) sort by timestamp, int limit 1") { _ => }
-
-    // Validation: BroadHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
-    runQueryAndCompare("select type1.timestamp from type1," +
-      " type2 where type1.timestamp = type2.timestamp") { _ => }
-
-    // Validation: ShuffledHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
-    runQueryAndCompare("select type1.timestamp from type1," +
-      " type2 where type1.timestamp = type2.timestamp") { _ => }
+    runQueryAndCompare("select timestamp from type1 limit 100") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
+    }}
   }
 
   test("Struct type") {

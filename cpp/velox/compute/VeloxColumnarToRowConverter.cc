@@ -19,6 +19,7 @@
 
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
+#include <arrow/c/abi.h>
 #include <arrow/type_traits.h>
 #include <arrow/util/decimal.h>
 
@@ -185,10 +186,10 @@ arrow::Status VeloxColumnarToRowConverter::write() {
               setNullAt(bufferAddress_, offsets_[rowIdx], field_offset, col_idx);
             }
           } else {
-            auto longDecimal = vec->asFlatVector<velox::UnscaledLongDecimal>()->rawValues();
             if (flag) {
               setNullAt(bufferAddress_, offsets_[rowIdx], field_offset, col_idx);
             } else {
+              auto longDecimal = vec->asFlatVector<velox::UnscaledLongDecimal>()->rawValues();
               int32_t size;
               velox::int128_t veloxInt128 = longDecimal[rowIdx].unscaledValue();
 
@@ -212,7 +213,7 @@ arrow::Status VeloxColumnarToRowConverter::write() {
         }
         break;
       }
-      case arrow::Time64Type::type_id: {
+      case arrow::TimestampType::type_id: {
         SERIALIZE_COLUMN(TimestampType);
         break;
       }

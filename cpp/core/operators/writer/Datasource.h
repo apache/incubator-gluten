@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/c/abi.h>
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
@@ -36,14 +37,10 @@ class Datasource {
   virtual ~Datasource() = default;
 
   virtual void init(const std::unordered_map<std::string, std::string>& sparkConfs) {}
-  virtual std::shared_ptr<arrow::Schema> inspectSchema() {
-    return nullptr;
-  }
+  virtual void inspectSchema(struct ArrowSchema* out) = 0;
   virtual void write(const std::shared_ptr<ColumnarBatch>& cb) {}
   virtual void close() {}
-  virtual std::shared_ptr<arrow::Schema> getSchema() {
-    return nullptr;
-  }
+  virtual std::shared_ptr<arrow::Schema> getSchema() = 0;
 
  private:
   std::string filePath_;
