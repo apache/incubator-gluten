@@ -41,6 +41,40 @@ const std::string kTotalScanTime = "totalScanTime";
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
+
+// From_hex from dlib.
+inline unsigned char fromHex(unsigned char ch) {
+  if (ch <= '9' && ch >= '0')
+    ch -= '0';
+  else if (ch <= 'f' && ch >= 'a')
+    ch -= 'a' - 10;
+  else if (ch <= 'F' && ch >= 'A')
+    ch -= 'A' - 10;
+  else
+    ch = 0;
+  return ch;
+}
+
+// URL decoder from dlib.
+const std::string urlDecode(const std::string& str) {
+  std::string result;
+  std::string::size_type i;
+  for (i = 0; i < str.size(); ++i) {
+    if (str[i] == '+') {
+      result += ' ';
+    } else if (str[i] == '%' && str.size() > i + 2) {
+      const unsigned char ch1 = fromHex(str[i + 1]);
+      const unsigned char ch2 = fromHex(str[i + 2]);
+      const unsigned char ch = (ch1 << 4) | ch2;
+      result += ch;
+      i += 2;
+    } else {
+      result += str[i];
+    }
+  }
+  return result;
+}
+
 } // namespace
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
@@ -354,8 +388,8 @@ WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::st
     if (partitionValue == kHiveDefaultPartition) {
       partitionKeys[partitionColumn] = std::nullopt;
     } else {
-      // Set to the map of partition keys.
-      partitionKeys[partitionColumn] = partitionValue;
+      // Set to the map of partition keys. Timestamp could be URL encoded.
+      partitionKeys[partitionColumn] = urlDecode(partitionValue);
     }
     // For processing the remaining keys.
     str = latterPart.substr(pos + 1);

@@ -70,7 +70,9 @@ object VeloxBackendSettings extends BackendSettings {
     format match {
       case ParquetReadFormat => validateTypes && validateFilePath
       case DwrfReadFormat => true
-      case OrcReadFormat => true
+      case OrcReadFormat => fields.map(_.dataType).collect {
+        case _: TimestampType =>
+      }.isEmpty
       case _ => false
     }
   }

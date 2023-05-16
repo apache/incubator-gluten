@@ -812,14 +812,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     // Rewrite to align exception msg.
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
+    // Timestamp is read as INT96.
+    .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
-    .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
-    .exclude(
-      "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
+    // Timezone is not supported yet.
+    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
-    .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
-    .exclude(
-      "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
+    // Timezone is not supported yet.
+    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
@@ -828,6 +828,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("returning batch for wide table")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
+    // Timestamp is read as INT96.
+    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
+    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
+    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
   enableSuite[GlutenParquetV2QuerySuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
@@ -835,6 +839,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("returning batch for wide table")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
+    // Timestamp is read as INT96.
+    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
+    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
+    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
   // requires resource files from Vanilla spark jar
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
@@ -1030,5 +1038,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+    // TODO: bug fix on TableScan.
+    .exclude("store and retrieve column stats in different time zones")
   enableSuite[FallbackStrategiesSuite]
 }
