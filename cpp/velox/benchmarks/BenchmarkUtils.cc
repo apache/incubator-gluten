@@ -16,7 +16,7 @@
  */
 
 #include "BenchmarkUtils.h"
-
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
 #include "velox/dwio/common/Options.h"
@@ -46,15 +46,15 @@ void initVeloxBackend() {
   initVeloxBackend(bmConfMap);
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
+std::string getPlanFromFile(const std::string& filePath) {
   // Read json file and resume the binary data.
   std::ifstream msgJson(filePath);
   std::stringstream buffer;
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  auto maybePlan = gluten::substraitFromJsonToPb("Plan", msgData);
-  return maybePlan;
+  return gluten::substraitFromJsonToPb("Plan", msgData);
+  ;
 }
 
 std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
@@ -100,14 +100,6 @@ void abortIfFileNotExists(const std::string& filepath) {
     ::benchmark::Shutdown();
     std::exit(EXIT_FAILURE);
   }
-}
-
-std::shared_ptr<arrow::Schema> getOutputSchema(std::shared_ptr<const facebook::velox::core::PlanNode> planNode) {
-  ArrowSchema arrowSchema{};
-  exportToArrow(
-      velox::BaseVector::create(planNode->outputType(), 0, gluten::getDefaultVeloxLeafMemoryPool().get()), arrowSchema);
-  GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
-  return outputSchema;
 }
 
 bool endsWith(const std::string& data, const std::string& suffix) {

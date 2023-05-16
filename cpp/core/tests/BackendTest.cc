@@ -18,6 +18,7 @@
 #include "compute/Backend.h"
 
 #include <gtest/gtest.h>
+#include "TestUtils.h"
 
 namespace gluten {
 
@@ -41,20 +42,12 @@ class DummyBackend final : public Backend {
       }
       hasNext_ = false;
 
-      std::unique_ptr<arrow::ArrayBuilder> tmp;
-      std::unique_ptr<arrow::DoubleBuilder> builder;
-      std::shared_ptr<arrow::Array> array;
-      GLUTEN_THROW_NOT_OK(arrow::MakeBuilder(arrow::default_memory_pool(), arrow::float64(), &tmp));
-      builder.reset(arrow::internal::checked_cast<arrow::DoubleBuilder*>(tmp.release()));
-
-      GLUTEN_THROW_NOT_OK(builder->Append(1000));
-      GLUTEN_THROW_NOT_OK(builder->Finish(&array));
-      std::vector<std::shared_ptr<arrow::Field>> retTypes = {arrow::field("res", arrow::float64())};
-      auto batch = arrow::RecordBatch::Make(arrow::schema(retTypes), 1, {array});
-      std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
-      std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
-      GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get(), cSchema.get()));
-      return std::make_shared<ArrowCStructColumnarBatch>(std::move(cSchema), std::move(cArray));
+      auto fArrInt32 = arrow::field("f_int32", arrow::int32());
+      auto rbSchema = arrow::schema({fArrInt32});
+      const std::vector<std::string> inputDataArr = {R"([1, 2,3])"};
+      std::shared_ptr<arrow::RecordBatch> inputBatchArr;
+      makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
+      return std::make_shared<ArrowColumnarBatch>(inputBatchArr);
     }
 
    private:

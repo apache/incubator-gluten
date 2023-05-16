@@ -34,6 +34,7 @@
 #include "utils/compression.h"
 #include "utils/macros.h"
 
+using namespace arrow;
 namespace gluten {
 
 using arrow::internal::checked_cast;

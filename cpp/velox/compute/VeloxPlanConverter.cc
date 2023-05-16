@@ -19,7 +19,6 @@
 #include <filesystem>
 
 #include "ArrowTypeUtils.h"
-#include "VeloxBridge.h"
 #include "arrow/c/bridge.h"
 #include "compute/ResultIterator.h"
 #include "compute/RowVectorStream.h"

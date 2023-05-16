@@ -37,6 +37,19 @@
 #define GLUTEN_ASSIGN_OR_THROW(lhs, rexpr) \
   GLUTEN_ASSIGN_OR_THROW_IMPL(ARROW_ASSIGN_OR_RAISE_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
 
+#define GLUTEN_CHECK(expr, errMessage)           \
+  do {                                           \
+    if (UNLIKELY(!(expr))) {                     \
+      throw gluten::GlutenException(errMessage); \
+    }                                            \
+  } while (0)
+
+#ifndef NDEBUG
+#define GLUTEN_DCHECK(expr, errMessage) GLUTEN_CHECK(expr, errMessage)
+#else
+#define GLUTEN_DCHECK(expr, errMessage) GLUTEN_CHECK(true)
+#endif
+
 namespace gluten {
 
 class GlutenException final : public std::runtime_error {

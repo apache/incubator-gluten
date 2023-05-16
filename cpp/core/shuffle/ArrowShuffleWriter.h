@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/array/builder_base.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/localfs.h>
 #include <arrow/io/api.h>

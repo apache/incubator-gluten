@@ -14,6 +14,7 @@ namespace gluten {
 
 namespace {
 // Velox configs
+const std::string kHiveConnectorId = "test-hive";
 const std::string kSpillEnabled = "spark.gluten.sql.columnar.backend.velox.spillEnabled";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
