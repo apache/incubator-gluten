@@ -57,19 +57,23 @@ std::string getPlanFromFile(const std::string& filePath) {
   ;
 }
 
+velox::dwio::common::FileFormat getFileFormat(const std::string& fileFormat) {
+  if (fileFormat.compare("orc") == 0) {
+    return velox::dwio::common::FileFormat::ORC;
+  } else if (fileFormat.compare("parquet") == 0) {
+    return velox::dwio::common::FileFormat::PARQUET;
+  } else {
+    return velox::dwio::common::FileFormat::UNKNOWN;
+  }
+}
+
 std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
     const std::string& datasetPath,
     const std::string& fileFormat) {
   auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
 
   // Set format to scan info.
-  auto format = velox::dwio::common::FileFormat::UNKNOWN;
-  if (fileFormat.compare("orc") == 0) {
-    format = velox::dwio::common::FileFormat::ORC;
-  } else if (fileFormat.compare("parquet") == 0) {
-    format = velox::dwio::common::FileFormat::PARQUET;
-  }
-  scanInfo->format = format;
+  scanInfo->format = getFileFormat(fileFormat);
 
   // Set split start, length, and path to scan info.
   std::filesystem::path fileDir(datasetPath);
@@ -86,6 +90,22 @@ std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
       continue;
     }
   }
+  return scanInfo;
+}
+
+std::shared_ptr<velox::substrait::SplitInfo> getSplitInfosFromFile(
+    const std::string& fileName,
+    const std::string& fileFormat) {
+  auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
+
+  // Set format to scan info.
+  scanInfo->format = getFileFormat(fileFormat);
+
+  // Set split start, length, and path to scan info.
+  scanInfo->starts.emplace_back(0);
+  scanInfo->lengths.emplace_back(fs::file_size(fileName));
+  scanInfo->paths.emplace_back("file://" + fileName);
+
   return scanInfo;
 }
 
