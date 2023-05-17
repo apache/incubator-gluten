@@ -33,9 +33,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attrib
 
 set(SYSTEM_LIB_PATH "/usr/lib" CACHE PATH "System Lib dir")
 set(SYSTEM_LIB64_PATH "/usr/lib64" CACHE PATH "System Lib64 dir")
-set(SYSTEM_LIB_MULTIARCH_PATH "/usr/lib/x86_64-linux-gnu" CACHE PATH "System Lib MultiArch dir")
 set(SYSTEM_LOCAL_LIB_PATH "/usr/local/lib" CACHE PATH "System Local Lib dir")
 set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 dir")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+  set(SYSTEM_LIB_MULTIARCH_PATH "/usr/lib/x86_64-linux-gnu" CACHE PATH "System Lib MultiArch dir")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
+  set(SYSTEM_LIB_MULTIARCH_PATH "/usr/lib/aarch64-linux-gnu" CACHE PATH "System Lib MultiArch dir")
+else()
+  message(FATAL_ERROR "Unsupported processor type: ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
 
 if (NOT DEFINED VELOX_HOME)
   set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)

@@ -321,9 +321,9 @@ private:
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(std::vector<String> columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
 
-    static Aggregator::Params getAggregateParam(const Names & keys, const AggregateDescriptions & aggregates)
+    static Aggregator::Params getAggregateParam(const Names & keys, const AggregateDescriptions & aggregates, const ContextPtr & context_)
     {
-        Settings settings;
+        const Settings & settings = context_->getSettingsRef();
         return Aggregator::Params(
             keys,
             aggregates,
@@ -334,7 +334,7 @@ private:
             settings.group_by_two_level_threshold_bytes,
             settings.max_bytes_before_external_group_by,
             settings.empty_result_for_aggregation_by_empty_set,
-            nullptr,
+            context_->getTempDataOnDisk(),
             settings.max_threads,
             settings.min_free_disk_space_for_temporary_data,
             true,

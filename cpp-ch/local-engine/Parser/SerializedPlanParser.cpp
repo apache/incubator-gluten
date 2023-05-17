@@ -1065,7 +1065,7 @@ QueryPlanStepPtr SerializedPlanParser::parseAggregate(QueryPlan & plan, const su
     {
         auto aggregating_step = std::make_unique<AggregatingStep>(
             plan.getCurrentDataStream(),
-            getAggregateParam(keys, aggregates),
+            getAggregateParam(keys, aggregates, context),
             GroupingSetsParamsList(),
             false,
             context->getSettingsRef().max_block_size,
