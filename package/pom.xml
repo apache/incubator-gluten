@@ -46,6 +46,11 @@
           <artifactId>backends-velox</artifactId>
           <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>io.glutenproject</groupId>
+          <artifactId>spark-sql-columnar-shims-write</artifactId>
+          <version>${project.version}</version>
+        </dependency>
       </dependencies>
     </profile>
     <profile>
