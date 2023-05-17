@@ -27,7 +27,7 @@ object AggregateFunctionsBuilder {
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+    var substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (substraitAggFuncName.isEmpty) {
       throw new UnsupportedOperationException(s"Could not find valid a substrait mapping name for $aggregateFunc.")
     }
@@ -36,6 +36,14 @@ object AggregateFunctionsBuilder {
     if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(
       substraitAggFuncName.get, aggregateFunc)) {
       throw new UnsupportedOperationException(s"Aggregate function not supported for $aggregateFunc.")
+    }
+
+    aggregateFunc match {
+      case first @ First(_, ignoreNull) =>
+        if (ignoreNull) substraitAggFuncName = Some(ExpressionMappings.FIRST_IGNORE_NULL)
+      case last @ Last(_, ignoreNulls) =>
+        if (ignoreNulls) substraitAggFuncName = Some(ExpressionMappings.LAST_IGNORE_NULL)
+      case _ =>
     }
 
     val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)

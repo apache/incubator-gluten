@@ -51,6 +51,8 @@ object CHExpressionUtil {
     BIT_AND_AGG -> Set(EMPTY_TYPE),
     BIT_XOR_AGG -> Set(EMPTY_TYPE),
     CORR -> Set(EMPTY_TYPE),
+    FIRST -> Set(EMPTY_TYPE),
+    LAST -> Set(EMPTY_TYPE),
     COVAR_POP -> Set(EMPTY_TYPE),
     COVAR_SAMP -> Set(EMPTY_TYPE)
   )
