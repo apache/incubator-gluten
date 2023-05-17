@@ -20,7 +20,6 @@ package org.apache.spark.sql.execution.datasources
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.GlutenColumnarToRowExecBase
 import io.glutenproject.utils.LogicalPlanSelector
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -31,6 +30,7 @@ import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.{DataWritingCommand, DataWritingCommandExec}
+import org.apache.spark.sql.hive.execution.InsertIntoHiveDirCommand
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
@@ -91,6 +91,9 @@ object GlutenColumnarRules {
     cmd match {
       case command: InsertIntoHadoopFsRelationCommand =>
         command.fileFormat.isInstanceOf[GlutenParquetFileFormat]
+      case command: InsertIntoHiveDirCommand =>
+        command.storage.outputFormat.get.equals(
+          "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
       case _ => false
     }
   }

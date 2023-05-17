@@ -17,7 +17,6 @@
 package org.apache.spark.sql.hive.execution
 
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenIndicatorVector}
-import io.glutenproject.execution.FakeRow
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.GlutenArrowAbiUtil
@@ -26,7 +25,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
+import org.apache.spark.sql.execution.datasources.{FakeRow, FileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
 import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
