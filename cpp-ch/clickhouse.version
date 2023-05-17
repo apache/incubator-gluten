@@ -1,3 +1,3 @@
 CH_ORG=Kyligence
-CH_BRANCH=clickhouse_backend_rebase_master
-CH_COMMIT=876fb650
+CH_BRANCH=rebase_ch_20230517
+CH_COMMIT=3f3935b55bd
