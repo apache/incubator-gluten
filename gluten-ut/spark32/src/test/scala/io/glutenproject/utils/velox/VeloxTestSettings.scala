@@ -1041,7 +1041,5 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
-    // TODO: bug fix on TableScan.
-    .exclude("store and retrieve column stats in different time zones")
   enableSuite[FallbackStrategiesSuite]
 }
