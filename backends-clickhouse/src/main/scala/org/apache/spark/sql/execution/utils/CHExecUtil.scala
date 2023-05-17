@@ -61,7 +61,7 @@ object CHExecUtil extends Logging {
           iter =>
             iter.flatMap(
               batch => {
-                val jniWrapper = new BlockNativeConverter()
+                val jniWrapper = new CHBlockConverterJniWrapper()
                 val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
                 val blockAddress = nativeBlock.get().blockAddress()
                 val rowInfo = jniWrapper.convertColumnarToRow(blockAddress)

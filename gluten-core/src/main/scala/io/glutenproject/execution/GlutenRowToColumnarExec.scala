@@ -45,7 +45,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * populate with [[RowToColumnConverter]], but the performance requirements are different and it
  * would only be to reduce code.
  */
-abstract class GlutenRowToColumnarExec(child: SparkPlan) extends UnaryExecNode {
+abstract class GlutenRowToColumnarExec(child: SparkPlan) extends RowToColumnarTransition {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =

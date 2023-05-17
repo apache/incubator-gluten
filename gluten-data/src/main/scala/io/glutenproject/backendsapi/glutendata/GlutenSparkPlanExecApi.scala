@@ -20,33 +20,34 @@ package io.glutenproject.backendsapi.glutendata
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.execution.VeloxColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.execution._
-import io.glutenproject.execution.GlutenColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
 import org.apache.commons.lang3.ClassUtils
-import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.GlutenShuffleUtil
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
+import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
-import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{GlutenBuildSideRelation, GlutenColumnarToRowExec, SparkPlan}
+import org.apache.spark.sql.execution.datasources.ColumnarToFakeRowStrategy
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.GlutenExecUtil
+import org.apache.spark.sql.execution.{GlutenBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.{SparkSession, Strategy}
+import org.apache.spark.{ShuffleDependency, SparkException}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -59,7 +60,7 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase =
-    new GlutenColumnarToRowExec(child)
+    new VeloxColumnarToRowExec(child)
 
   /**
    * Generate RowToColumnarExec.
@@ -248,7 +249,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Generate extended DataSourceV2 Strategy.
-   * Currently only for ClickHouse backend.
    *
    * @return
    */
@@ -257,7 +257,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Generate extended Analyzer.
-   * Currently only for ClickHouse backend.
    *
    * @return
    */
@@ -266,7 +265,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Generate extended columnar pre-rules.
-   * Currently only for Velox backend.
    *
    * @return
    */
@@ -274,7 +272,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Generate extended columnar post-rules.
-   * Currently only for Velox backend.
    *
    * @return
    */
@@ -283,7 +280,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Generate extended Strategy.
-   * Currently only for Velox backend.
    *
    * @return
    */

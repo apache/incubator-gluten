@@ -471,7 +471,7 @@ DataTypePtr SerializedPlanParser::parseType(const substrait::Type & substrait_ty
 
     if (substrait_type.has_bool_())
     {
-        ch_type = std::make_shared<DataTypeUInt8>();
+        ch_type = DataTypeFactory::instance().get("Bool");
         ch_type = wrapNullableType(substrait_type.bool_().nullability(), ch_type);
     }
     else if (substrait_type.has_i8())

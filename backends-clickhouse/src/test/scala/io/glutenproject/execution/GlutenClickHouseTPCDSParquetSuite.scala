@@ -166,7 +166,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       operateWithCondition(0).left
         .asInstanceOf[InputAdapter]
         .child
-        .isInstanceOf[BlockGlutenColumnarToRowExec])
+        .isInstanceOf[CHColumnarToRowExec])
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {

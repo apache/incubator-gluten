@@ -1,6 +1,7 @@
 {
     global:
       Java_io_glutenproject*;
+      Java_org_apache_spark*;
       JNI_OnLoad;
       JNI_OnUnload;
     local: *;

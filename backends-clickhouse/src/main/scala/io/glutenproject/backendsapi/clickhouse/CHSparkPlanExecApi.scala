@@ -21,7 +21,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
 import io.glutenproject.expression.CHSha1Transformer
 import io.glutenproject.expression.CHSha2Transformer
-import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
+import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
@@ -38,6 +38,8 @@ import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.ColumnarAQEShuffleReadExec
+import org.apache.spark.sql.execution.datasources.ColumnarToFakeRowStrategy
+import org.apache.spark.sql.execution.datasources.GlutenColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
@@ -60,7 +62,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
-    BlockGlutenColumnarToRowExec(child);
+    CHColumnarToRowExec(child);
   }
 
   /**
@@ -289,7 +291,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
           var _numRows: Long = 0
 
           // Use for reading bytes array from block
-          val blockNativeWriter = new BlockNativeWriter()
+          val blockNativeWriter = new CHBlockWriterJniWrapper()
           while (iter.hasNext) {
             val batch = iter.next
             blockNativeWriter.write(batch)
@@ -329,29 +331,29 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Generate extended columnar pre-rules. Currently only for CH backend.
+   * Generate extended columnar pre-rules.
    *
    * @return
    */
   override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended columnar post-rules. Currently only for CH backend.
+   * Generate extended columnar post-rules.
    *
    * @return
    */
-  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
+  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] =
+    List(spark => NativeWritePostRule(spark))
 
   /**
-   * Generate extended Strategies. Currently only for CH backend.
+   * Generate extended Strategies.
    *
    * @return
    */
-  override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+  override def genExtendedStrategies(): List[SparkSession => Strategy] =
+    List(ColumnarToFakeRowStrategy)
 
-  /**
-   * Generate an ExpressionTransformer to transform Sha2 expression. Currently only for CH backend.
-   */
+  /** Generate an ExpressionTransformer to transform Sha2 expression. */
   override def genSha2Transformer(
       substraitExprName: String,
       left: ExpressionTransformer,
@@ -360,9 +362,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     new CHSha2Transformer(substraitExprName, left, right, original)
   }
 
-  /**
-   * Generate an ExpressionTransformer to transform Sha1 expression. Currently only for CH backend.
-   */
+  /** Generate an ExpressionTransformer to transform Sha1 expression. */
   override def genSha1Transformer(
       substraitExprName: String,
       child: ExpressionTransformer,

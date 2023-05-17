@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.{GlutenRowToColumnarExec, SparkRowIterator}
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
+import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
@@ -52,7 +52,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     child.execute().mapPartitions {
       rowIterator =>
         val projection = UnsafeProjection.create(localSchema)
-        val cvt = new BlockNativeConverter
+        val cvt = new CHBlockConverterJniWrapper
         if (rowIterator.hasNext) {
           val res = new Iterator[ColumnarBatch] {
             private val byteArrayIterator = rowIterator.map {

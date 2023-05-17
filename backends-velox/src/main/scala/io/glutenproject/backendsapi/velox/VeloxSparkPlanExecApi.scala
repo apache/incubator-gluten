@@ -22,19 +22,18 @@ import io.glutenproject.expression.{ExpressionTransformer, GlutenNamedStructTran
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.VeloxColumnarRules.OtherWritePostRule
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Literal, StringTrim}
 import org.apache.spark.sql.types.{ArrayType, BinaryType, DecimalType, DoubleType, FloatType, MapType, StringType, StructType, UserDefinedType}
+import org.apache.spark.sql.execution.datasources.GlutenColumnarRules.NativeWritePostRule
 
 class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
   /**
    * Generate extended columnar post-rules.
-   * Currently only for Velox backend.
    *
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => OtherWritePostRule(spark)) ::: super.genExtendedColumnarPostRules()
+    List(spark => NativeWritePostRule(spark)) ::: super.genExtendedColumnarPostRules()
 
   /**
    * Generate an expression transformer to transform NamedStruct to Substrait.
