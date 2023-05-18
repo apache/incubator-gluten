@@ -63,32 +63,8 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
 
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
-    finalPath_ = destinationPathWithSchame + "/" + fileName_; // with hdfs://vsr246:9000
-    auto destinationPathPos = destinationPathWithSchame.substr(7).find("/", 0);
-    std::string destinationPath = finalPath_.substr(destinationPathPos + 7);
-    // touch the file in local system and then put to hdfs and  finally delete the local file.
-    std::string touchLocalCommand = "touch /tmp/" + fileName_;
-    auto ret = system(touchLocalCommand.c_str());
-    if (ret != 0) {
-      throw std::runtime_error(
-          "The file path was not created successfully in local system when writing parqetut data in velox backend!");
-    }
-
-    std::string putHdfsCommand =
-        "hadoop fs -put -f /tmp/" + fileName_ + " " + destinationPathWithSchame.substr(destinationPathPos + 7);
-    ret = system(putHdfsCommand.c_str());
-    if (ret != 0) {
-      throw std::runtime_error(
-          "The file was not put successfully in hdfs system when writing parqetut data in velox backend!");
-    }
-    std::string deleteLocalCommand = "rm -rf /tmp/" + fileName_;
-    ret = system(deleteLocalCommand.c_str());
-    if (ret != 0) {
-      throw std::runtime_error(
-          "The file path was not deleted successfully in local system when writing parqetut data in velox backend!");
-    }
-
-    sink_ = std::make_unique<velox::dwio::common::HDFSFileSink>(finalPath_);
+    finalPath_ = destinationPathWithSchame + "/" + fileName_;
+    sink_ = std::make_unique<velox::HdfsFileSink>(finalPath_);
   } else {
     throw std::runtime_error(
         "The file path is not local or hdfs when writing data with parquet format in velox backend!");
