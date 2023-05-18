@@ -39,7 +39,7 @@ std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSi
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
   gluten::setBackendFactory([&] { return std::make_shared<gluten::VeloxBackend>(conf); });
-  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(conf);
+  gluten::VeloxInitializer::initialize(conf);
 }
 
 void initVeloxBackend() {

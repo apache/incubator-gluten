@@ -19,9 +19,14 @@
 
 namespace gluten {
 
+static std::mutex mutex;
 static std::function<std::shared_ptr<Backend>()> backendFactory;
 
 void setBackendFactory(std::function<std::shared_ptr<Backend>()> factory) {
+  std::lock_guard<std::mutex> lockGuard(mutex);
+  if (backendFactory != nullptr) {
+    throw std::runtime_error("Execution backend already set.");
+  }
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Set backend factory." << std::endl;
 #endif
@@ -29,9 +34,12 @@ void setBackendFactory(std::function<std::shared_ptr<Backend>()> factory) {
 }
 
 std::shared_ptr<Backend> createBackend() {
-  if (backendFactory == nullptr) {
-    throw std::runtime_error(
-        "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");
+  {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+    if (backendFactory == nullptr) {
+      throw std::runtime_error(
+          "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");
+    }
   }
   return backendFactory();
 }

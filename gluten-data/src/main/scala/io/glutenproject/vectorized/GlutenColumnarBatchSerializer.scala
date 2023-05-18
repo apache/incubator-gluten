@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-import org.apache.spark.util.memory.TaskMemoryResources
+import org.apache.spark.util.memory.TaskResources
 
 class GlutenColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
   numOutputRows: SQLMetric)
@@ -69,15 +69,16 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         val arrowSchema =
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        val handle = ShuffleReaderJniWrapper.make(jniByteInputStream, cSchema.memoryAddress(),
+        val handle = ShuffleReaderJniWrapper.INSTANCE.make(
+          jniByteInputStream, cSchema.memoryAddress(),
           NativeMemoryAllocators.contextInstance.getNativeInstanceId)
         // Close shuffle reader instance as lately as the end of task processing,
         // since the native reader could hold a reference to memory pool that
         // was used to create all buffers read from shuffle reader. The pool
         // should keep alive before all buffers finish consuming.
-        TaskMemoryResources.addRecycler(50) { _ =>
+        TaskResources.addRecycler(50) {
           close()
-          ShuffleReaderJniWrapper.close(handle)
+          ShuffleReaderJniWrapper.INSTANCE.close(handle)
         }
         handle
       }
@@ -112,7 +113,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         }
         val batch = {
           val batchHandle = try {
-            ShuffleReaderJniWrapper.next(shuffleReaderHandle)
+            ShuffleReaderJniWrapper.INSTANCE.next(shuffleReaderHandle)
           } catch {
             case ioe: IOException =>
               this.close()

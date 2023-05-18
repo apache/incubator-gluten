@@ -15,13 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.spark.util.memory
+package io.glutenproject.init;
 
-/**
- * Manages the lifecycle for a specific type of memory resource managed by Spark. See also
- * `org.apache.spark.util.memory.TaskMemoryResources`.
- */
-trait TaskMemoryResourceManager {
-  @throws(classOf[Exception])
-  def release(): Unit
+class InitializerJniWrapper {
+
+  private InitializerJniWrapper() {
+  }
+
+  // For global context
+  static native void initialize(byte[] configPlan);
+
+  // For local context
+  static native long makeTaskContext();
+  static native void closeTaskContext(long handle);
 }

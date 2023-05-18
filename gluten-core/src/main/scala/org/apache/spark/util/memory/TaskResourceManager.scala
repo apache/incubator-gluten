@@ -15,23 +15,16 @@
  * limitations under the License.
  */
 
-package io.glutenproject.spark.sql.execution.datasources.velox;
+package org.apache.spark.util.memory
 
-import io.glutenproject.init.JniInitialized;
-import org.apache.spark.sql.execution.datasources.VeloxColumnarBatchIterator;
+/**
+ * Manages the lifecycle for a specific type of memory resource managed by Spark. See also
+ * `org.apache.spark.util.memory.TaskResources`.
+ */
+trait TaskResourceManager {
+  @throws(classOf[Exception])
+  def release(): Unit
 
-import java.io.IOException;
-
-public class DatasourceJniWrapper extends JniInitialized {
-
-  public DatasourceJniWrapper() throws IOException {
-  }
-
-  public native long nativeInitDatasource(String filePath, String fileName, long cSchema);
-
-  public native void inspectSchema(long instanceId, long cSchemaAddress);
-
-  public native void close(long instanceId);
-
-  public native void write(long instanceId, VeloxColumnarBatchIterator iterator);
+  // #release() will be called in higher precedence if the manager has higher priority
+  def priority(): Long = 100
 }

@@ -18,17 +18,17 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.InitializerApi
-import io.glutenproject.utils.{VeloxSharedlibraryLoaderUbuntu2004, VeloxSharedlibraryLoaderUbuntu2204, VeloxSharedlibraryLoaderCentos8, VeloxSharedlibraryLoaderCentos7, VeloxSharedlibraryLoader}
-import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
+import io.glutenproject.utils._
+import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkConf
 
+import java.util.Locale
 import scala.sys.process._
 
-import java.util.Locale
-
 class VeloxInitializerApi extends InitializerApi {
-  def loadLibFromJar(load: JniLibLoader): Unit = {
+
+  private def loadLibFromJar(load: JniLibLoader): Unit = {
       val system = "cat /etc/os-release".!!
       val loader = if (system.contains("Ubuntu") && system.contains("20.04")) {
         new VeloxSharedlibraryLoaderUbuntu2004
@@ -77,10 +77,5 @@ class VeloxInitializerApi extends InitializerApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
-
-    // configs
-
-    val initKernel = new GlutenNativeExpressionEvaluator()
-    initKernel.initNative(conf)
   }
 }

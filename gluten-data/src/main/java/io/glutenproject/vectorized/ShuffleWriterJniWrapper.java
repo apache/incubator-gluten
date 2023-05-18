@@ -17,11 +17,13 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.init.JniInitialized;
+
 import java.io.IOException;
 
-public class ShuffleWriterJniWrapper {
+public class ShuffleWriterJniWrapper extends JniInitialized {
 
-  public ShuffleWriterJniWrapper() throws IOException {
+  public ShuffleWriterJniWrapper() {
   }
 
   /**

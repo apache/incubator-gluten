@@ -38,7 +38,7 @@ import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.memory.ArrowBuf
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.unsafe.Platform
-import org.apache.spark.util.memory.TaskMemoryResources
+import org.apache.spark.util.memory.TaskResources
 
 class RowToColumnConverter(schema: StructType) extends Serializable {
   private val converters = schema.fields.map {
@@ -321,12 +321,12 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
       }
 
 
-      TaskMemoryResources.addRecycler(100)(_ => {
+      TaskResources.addRecycler(100) {
         if (!closed) {
           jniWrapper.close(r2cId)
           closed = true
         }
-      })
+      }
 
       if (rowIterator.hasNext) {
         val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
@@ -342,7 +342,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
 
           def nativeConvert(row: UnsafeRow): ColumnarBatch = {
             var arrowBuf: ArrowBuf = null
-            TaskMemoryResources.addRecycler(100) { _ =>
+            TaskResources.addRecycler(100) {
               // Remind, remove isOpen here
               if (arrowBuf != null && arrowBuf.refCnt() == 0) {
                 arrowBuf.close()

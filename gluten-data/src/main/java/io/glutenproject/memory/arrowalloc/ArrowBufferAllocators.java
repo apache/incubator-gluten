@@ -22,8 +22,8 @@ import io.glutenproject.memory.alloc.Spiller;
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.spark.util.memory.TaskMemoryResourceManager;
-import org.apache.spark.util.memory.TaskMemoryResources;
+import org.apache.spark.util.memory.TaskResourceManager;
+import org.apache.spark.util.memory.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,22 +42,22 @@ public class ArrowBufferAllocators {
   }
 
   public static BufferAllocator contextInstance() {
-    if (!TaskMemoryResources.inSparkTask()) {
+    if (!TaskResources.inSparkTask()) {
       return globalInstance();
     }
     String id = ArrowBufferAllocatorManager.class.toString();
-    if (!TaskMemoryResources.isResourceManagerRegistered(id)) {
-      TaskMemoryResources.addResourceManager(id, new ArrowBufferAllocatorManager());
+    if (!TaskResources.isResourceManagerRegistered(id)) {
+      TaskResources.addResourceManager(id, new ArrowBufferAllocatorManager());
     }
-    return ((ArrowBufferAllocatorManager) TaskMemoryResources.getResourceManager(id)).managed;
+    return ((ArrowBufferAllocatorManager) TaskResources.getResourceManager(id)).managed;
   }
 
-  public static class ArrowBufferAllocatorManager implements TaskMemoryResourceManager {
+  public static class ArrowBufferAllocatorManager implements TaskResourceManager {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
     private final AllocationListener listener = new SparkManagedAllocationListener(
-        new GlutenMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), Spiller.NO_OP),
-        TaskMemoryResources.getSharedMetrics());
+        new GlutenMemoryConsumer(TaskResources.getSparkMemoryManager(), Spiller.NO_OP),
+        TaskResources.getSharedMetrics());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 
     public ArrowBufferAllocatorManager() {
@@ -70,10 +70,10 @@ public class ArrowBufferAllocators {
     private void softClose() {
       // move to leaked list
       long leakBytes = managed.getAllocatedMemory();
-      long accumulated = TaskMemoryResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
+      long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
       LOGGER.warn(String.format("Detected leaked Arrow allocator, size: %d, " +
           "process accumulated leaked size: %d...", leakBytes, accumulated));
-      if (TaskMemoryResources.DEBUG()) {
+      if (TaskResources.DEBUG()) {
         LOGGER.warn(String.format("Leaked allocator stack %s", managed.toVerboseString()));
         LEAKED.add(managed);
       }
@@ -86,6 +86,11 @@ public class ArrowBufferAllocators {
       } else {
         close();
       }
+    }
+
+    @Override
+    public long priority() {
+      return 0L; // lowest priority
     }
   }
 }

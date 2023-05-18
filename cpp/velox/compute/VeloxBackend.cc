@@ -34,52 +34,9 @@ using namespace facebook;
 
 namespace gluten {
 
-namespace {
-// Velox configs
-const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
-const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
-} // namespace
+namespace {} // namespace
 
-VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {
-  // mem cap ratio
-  float_t memCapRatio;
-  {
-    auto got = confMap_.find(kMemoryCapRatio);
-    if (got == confMap_.end()) {
-      // not found
-      memCapRatio = 0.75;
-    } else {
-      memCapRatio = std::stof(got->second);
-    }
-  }
-
-  // mem tracker
-  int64_t maxMemory;
-  {
-    auto got = confMap_.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
-    if (got == confMap_.end()) {
-      // not found
-      maxMemory = facebook::velox::memory::kMaxMemory;
-    } else {
-      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
-    }
-  }
-
-  memPoolOptions_ = {facebook::velox::memory::MemoryAllocator::kMaxAlignment, maxMemory};
-
-  // spill threshold ratio (out of the memory cap)
-  float_t spillThresholdRatio;
-  {
-    auto got = confMap_.find(kSpillThresholdRatio);
-    if (got == confMap_.end()) {
-      // not found
-      spillThresholdRatio = 0.6;
-    } else {
-      spillThresholdRatio = std::stof(got->second);
-    }
-  }
-  spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);
-}
+VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {}
 
 void VeloxBackend::getInfoAndIds(
     const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<velox::substrait::SplitInfo>>& splitInfoMap,

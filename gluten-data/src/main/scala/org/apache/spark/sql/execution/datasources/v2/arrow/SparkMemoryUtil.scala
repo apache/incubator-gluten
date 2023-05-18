@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2.arrow
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.util.memory.TaskMemoryResources
+import org.apache.spark.util.memory.TaskResources
 
 object SparkMemoryUtil extends Logging {
 
@@ -27,9 +27,9 @@ object SparkMemoryUtil extends Logging {
     extends Iterator[T] {
     val holder = new GenericRetainer[T]()
 
-    TaskMemoryResources.addRecycler(100)((_: TaskContext) => {
+    TaskResources.addRecycler(100) {
       holder.release()
-    })
+    }
 
     override def hasNext: Boolean = {
       holder.release()

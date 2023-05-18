@@ -17,7 +17,7 @@
 
 package io.glutenproject.memory.alloc;
 
-import org.apache.spark.util.memory.TaskMemoryResources;
+import org.apache.spark.util.memory.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +41,11 @@ public class GlutenMemoryAllocatorManager implements NativeMemoryAllocatorManage
   private void softClose() throws Exception {
     // move to leaked list
     long leakBytes = managed.getBytesAllocated();
-    long accumulated = TaskMemoryResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
+    long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
     LOGGER.warn(String.format("Detected leaked native allocator, size: %d, " +
         "process accumulated leaked size: %d...", leakBytes, accumulated));
     managed.listener().inactivate();
-    if (TaskMemoryResources.DEBUG()) {
+    if (TaskResources.DEBUG()) {
       LEAKED.add(managed);
     }
   }
@@ -62,5 +62,10 @@ public class GlutenMemoryAllocatorManager implements NativeMemoryAllocatorManage
   @Override
   public NativeMemoryAllocator getManaged() {
     return managed;
+  }
+
+  @Override
+  public long priority() {
+    return 0L; // lowest priority
   }
 }

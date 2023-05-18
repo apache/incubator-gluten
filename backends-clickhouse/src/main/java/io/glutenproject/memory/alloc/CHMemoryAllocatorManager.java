@@ -44,4 +44,9 @@ public class CHMemoryAllocatorManager implements NativeMemoryAllocatorManager {
   public NativeMemoryAllocator getManaged() {
     return managed;
   }
+
+  @Override
+  public long priority() {
+    return 0L; // lowest priority
+  }
 }

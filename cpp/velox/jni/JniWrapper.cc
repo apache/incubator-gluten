@@ -59,23 +59,29 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_init_InitializerJniWrapper_makeTaskContext( // NOLINT
     JNIEnv* env,
-    jobject obj,
+    jclass clazz) {
+  JNI_METHOD_START
+  return -1L;
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_closeTaskContext( // NOLINT
+    JNIEnv* env,
+    jclass clazz,
+    jlong handle){JNI_METHOD_START JNI_METHOD_END()}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_initialize( // NOLINT
+    JNIEnv* env,
+    jclass clazz,
     jbyteArray planArray) {
   JNI_METHOD_START
   sparkConfs = gluten::getConfMap(env, planArray);
-  // FIXME this is not thread-safe. The function can be called twice
-  //   within Spark local-mode, one from Driver, another from Executor.
   gluten::setBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs); });
-  static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs);
+  gluten::VeloxInitializer::initialize(sparkConfs);
   JNI_METHOD_END()
 }
-
-JNIEXPORT void JNICALL Java_io_glutenprovject_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative( // NOLINT
-    JNIEnv* env){JNI_METHOD_START
-                     // TODO Release resources allocated for single executor/driver
-                     JNI_METHOD_END()}
 
 JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate( // NOLINT
     JNIEnv* env,

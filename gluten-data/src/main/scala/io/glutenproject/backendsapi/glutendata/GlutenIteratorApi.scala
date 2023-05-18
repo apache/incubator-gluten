@@ -46,7 +46,7 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.util.ExecutorManager
-import org.apache.spark.util.memory.TaskMemoryResources
+import org.apache.spark.util.memory.TaskResources
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -120,7 +120,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
       new Iterator[ColumnarBatch] {
         var numBatchesTotal: Long = _
         var numRowsTotal: Long = _
-        TaskMemoryResources.addRecycler(100) { _ =>
+        TaskResources.addRecycler(100) {
           if (avgCoalescedNumRows != null && numBatchesTotal > 0) {
             avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
@@ -232,7 +232,7 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    TaskMemoryResources.addRecycler(100) { _ => resIter.close() }
+    TaskResources.addRecycler(100) { resIter.close() }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
@@ -308,9 +308,9 @@ abstract class GlutenIteratorApi extends IteratorApi with Logging {
       }
     }
 
-    TaskMemoryResources.addRecycler(100)(_ => {
+    TaskResources.addRecycler(100) {
       nativeResultIterator.close()
-    })
+    }
 
     new CloseableColumnBatchIterator(resIter, Some(pipelineTime))
   }
