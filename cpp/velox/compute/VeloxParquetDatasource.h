@@ -34,7 +34,9 @@
 #include "operators/writer/Datasource.h"
 
 #include "velox/common/file/FileSystems.h"
+#ifdef ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSink.h"
+#endif
 #include "velox/dwio/common/DataSink.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"

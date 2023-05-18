@@ -63,8 +63,14 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
 
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
+#ifdef ENABLE_HDFS
     finalPath_ = destinationPathWithSchame + "/" + fileName_;
     sink_ = std::make_unique<velox::HdfsFileSink>(finalPath_);
+#else
+    throw std::runtime_error(
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox backend!");
+#endif
+
   } else {
     throw std::runtime_error(
         "The file path is not local or hdfs when writing data with parquet format in velox backend!");
