@@ -2863,7 +2863,9 @@ bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool h
         const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
         currentBlock().setColumn(i, default_col);
     }
-    return true;
+    if (cols.size() > 0)
+        return true;
+    return false;
 }
 
 }
