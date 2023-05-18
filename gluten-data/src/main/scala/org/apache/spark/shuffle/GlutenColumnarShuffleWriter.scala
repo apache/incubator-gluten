@@ -17,18 +17,18 @@
 
 package org.apache.spark.shuffle
 
-import java.io.IOException
+import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
-import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.MemoryConsumer
+import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{SparkDirectoryUtil, Utils}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourcesUtil, Utils}
 
+import java.io.IOException
 import java.util.UUID
 
 class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -57,7 +57,14 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     .map(_.getAbsolutePath)
     .mkString(",")
 
-  private val offHeapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
+  private val offHeapPerTask = {
+    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
+    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val taskCores = conf.getInt("spark.task.cpus", 1)
+    val perTask =
+      GlutenColumnarShuffleWriter.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+    perTask
+  }
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
@@ -221,4 +228,10 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   def getPartitionLengths: Array[Long] = partitionLengths
 
+}
+
+object GlutenColumnarShuffleWriter {
+  def getCurrentAvailableOffHeapMemory: Long = {
+    SparkMemoryUtil.getCurrentAvailableOffHeapMemory
+  }
 }

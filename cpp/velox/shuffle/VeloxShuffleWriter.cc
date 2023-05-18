@@ -872,14 +872,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
     VS_PRINTLF(size_per_row);
 
-    uint64_t preallocRowCnt = options_.offheap_per_task > 0 && sizePerRow > 0
+    uint64_t preAllocRowCnt = options_.offheap_per_task > 0 && sizePerRow > 0
         ? options_.offheap_per_task / sizePerRow / numPartitions_ >> 2
         : options_.buffer_size;
-    preallocRowCnt = std::min(preallocRowCnt, (uint64_t)options_.buffer_size);
+    preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_.buffer_size);
 
     VS_PRINTLF(prealloc_row_cnt);
 
-    return preallocRowCnt;
+    return preAllocRowCnt;
   }
 
   arrow::Status VeloxShuffleWriter::allocateBufferFromPool(std::shared_ptr<arrow::Buffer> & buffer, uint32_t size) {
