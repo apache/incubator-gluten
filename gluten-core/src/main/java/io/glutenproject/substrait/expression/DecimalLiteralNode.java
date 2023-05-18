@@ -18,21 +18,28 @@
 package io.glutenproject.substrait.expression;
 
 import com.google.protobuf.ByteString;
+
+import io.glutenproject.substrait.type.TypeBuilder;
+import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.Expression;
+import io.substrait.proto.Expression.Literal.Builder;
+
 import org.apache.spark.sql.types.Decimal;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 
-public class DecimalLiteralNode implements ExpressionNode, Serializable {
-    private final Decimal value;
+public class DecimalLiteralNode extends LiteralNodeWithValue<Decimal> {
     private final ByteString valueBytes;
 
-    public DecimalLiteralNode(Decimal value) {
+    public DecimalLiteralNode(Decimal value, TypeNode typeNode) {
+        super(value, typeNode);
         ExpressionBuilder.checkDecimalScale(value.scale());
-        this.value = value;
         this.valueBytes = ByteString.copyFrom(
                 encodeDecimalIntoBytes(value.toJavaBigDecimal(), value.scale(), 16));
+    }
+
+    public DecimalLiteralNode(Decimal value) {
+        this(value, TypeBuilder.makeDecimal(true, value.precision(), value.scale()));
     }
 
     private static final long[] POWER_OF_10 = {
@@ -71,19 +78,13 @@ public class DecimalLiteralNode implements ExpressionNode, Serializable {
     }
 
     @Override
-    public Expression toProtobuf() {
+    protected void updateLiteralBuilder(Builder literalBuilder, Decimal value) {
         Expression.Literal.Decimal.Builder decimalBuilder = Expression.Literal.Decimal.newBuilder();
         decimalBuilder.setPrecision(value.precision());
         decimalBuilder.setScale(value.scale());
-
         decimalBuilder.setValue(valueBytes);
 
-        Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
         literalBuilder.setDecimal(decimalBuilder.build());
-
-        Expression.Builder builder = Expression.newBuilder();
-        builder.setLiteral(literalBuilder.build());
-        return builder.build();
     }
 
     private static final byte zero = 0;
@@ -114,5 +115,4 @@ public class DecimalLiteralNode implements ExpressionNode, Serializable {
         }
         return encodedBytes;
     }
-
 }

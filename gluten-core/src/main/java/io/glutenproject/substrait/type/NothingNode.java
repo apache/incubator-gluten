@@ -5,7 +5,7 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class NothingNode implements TypeNode, Serializable {
-  NothingNode() {
+  public NothingNode() {
   }
 
   @Override

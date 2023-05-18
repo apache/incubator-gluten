@@ -24,7 +24,7 @@ import java.io.Serializable;
 public class I16TypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  I16TypeNode(Boolean nullable) {
+  public I16TypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 

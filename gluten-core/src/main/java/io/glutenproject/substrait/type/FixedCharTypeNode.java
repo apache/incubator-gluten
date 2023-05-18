@@ -25,7 +25,7 @@ public class FixedCharTypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
   private final int length;
 
-  FixedCharTypeNode(Boolean nullable, int length) {
+  public FixedCharTypeNode(Boolean nullable, int length) {
     this.nullable = nullable;
     this.length = length;
   }

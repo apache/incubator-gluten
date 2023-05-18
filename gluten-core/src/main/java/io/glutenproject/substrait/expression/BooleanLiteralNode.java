@@ -17,25 +17,22 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.BooleanTypeNode;
+import io.glutenproject.substrait.type.TypeNode;
 
-import java.io.Serializable;
+import io.substrait.proto.Expression.Literal.Builder;
 
-public class BooleanLiteralNode implements ExpressionNode, Serializable {
-  private final Boolean value;
-
+public class BooleanLiteralNode extends LiteralNodeWithValue<Boolean> {
   public BooleanLiteralNode(Boolean value) {
-    this.value = value;
+    super(value, new BooleanTypeNode(true));
+  }
+
+  public BooleanLiteralNode(Boolean value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder booleanBuilder =
-        Expression.Literal.newBuilder();
-    booleanBuilder.setBoolean(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(booleanBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Boolean value) {
+    literalBuilder.setBoolean(value);
   }
 }

@@ -25,7 +25,7 @@ public class FixedBinaryTypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
   private final int length;
 
-  FixedBinaryTypeNode(Boolean nullable, int length) {
+  public FixedBinaryTypeNode(Boolean nullable, int length) {
     this.nullable = nullable;
     this.length = length;
   }

@@ -17,29 +17,21 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.StringTypeNode;
+import io.glutenproject.substrait.type.TypeNode;
+import io.substrait.proto.Expression.Literal.Builder;
 
-import java.io.Serializable;
-
-public class StringLiteralNode implements ExpressionNode, Serializable {
-  private final String value;
-
+public class StringLiteralNode extends LiteralNodeWithValue<String> {
   public StringLiteralNode(String value) {
-    this.value = value;
+    super(value, new StringTypeNode(true));
   }
 
-  public String getValue() {
-    return value;
+  public StringLiteralNode(String value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder stringBuilder =
-        Expression.Literal.newBuilder();
-    stringBuilder.setString(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(stringBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, String value) {
+    literalBuilder.setString(value);
   }
 }

@@ -24,7 +24,7 @@ import java.io.Serializable;
 public class DateTypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  DateTypeNode(Boolean nullable) {
+  public DateTypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 
