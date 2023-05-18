@@ -21,16 +21,15 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.vectorized._
-
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.MemoryConsumer
+import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.RssShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.SparkResourcesUtil
 
 import java.io.IOException
 
@@ -61,7 +60,16 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
     numPartitions, context, mapId, client, celebornConf)
 
   private val blockManager = SparkEnv.get.blockManager
-  private val offheapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
+
+  private val offHeapPerTask = {
+    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
+    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val taskCores = conf.getInt("spark.task.cpus", 1)
+    val perTask =
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+    perTask
+  }
+
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
@@ -111,7 +119,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
         if (nativeShuffleWriter == 0) {
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
-            offheapPerTask,
+            offHeapPerTask,
             nativeBufferSize,
             customizedCompressionCodec,
             batchCompressThreshold,

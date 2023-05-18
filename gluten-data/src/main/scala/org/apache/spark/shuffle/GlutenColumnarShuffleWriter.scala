@@ -62,7 +62,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     val executorCores = SparkResourcesUtil.getExecutorCores(conf)
     val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
-      GlutenColumnarShuffleWriter.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
     perTask
   }
 
@@ -228,10 +228,4 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   def getPartitionLengths: Array[Long] = partitionLengths
 
-}
-
-object GlutenColumnarShuffleWriter {
-  def getCurrentAvailableOffHeapMemory: Long = {
-    SparkMemoryUtil.getCurrentAvailableOffHeapMemory
-  }
 }
