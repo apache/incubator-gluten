@@ -267,6 +267,29 @@ case class GlutenHashAggregateExecTransformer(
       case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
            _: Corr | _: CovPopulation | _: CovSample | _: First | _: Last =>
         generateMergeCompanionNode()
+      case hllAdapter: HLLVeloxAdapter =>
+        aggregateMode match {
+          case Partial =>
+            // For Partial mode output type is binary.
+            val partialNode = ExpressionBuilder.makeAggregateFunction(
+              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+              childrenNodeList,
+              modeKeyWord,
+              ConverterUtils.getTypeNode(
+                hllAdapter.inputAggBufferAttributes.head.dataType,
+                hllAdapter.inputAggBufferAttributes.head.nullable))
+            aggregateNodeList.add(partialNode)
+          case Final =>
+            // For Final mode output type is long.
+            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+              childrenNodeList,
+              modeKeyWord,
+              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+            aggregateNodeList.add(aggFunctionNode)
+          case other =>
+            throw new UnsupportedOperationException(s"$other is not supported.")
+        }
       case _ =>
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
           VeloxAggregateFunctionsBuilder.create(

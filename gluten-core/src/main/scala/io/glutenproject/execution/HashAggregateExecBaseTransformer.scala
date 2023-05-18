@@ -593,6 +593,21 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
+        case hllAdapter: HLLVeloxAdapter =>
+          mode match {
+            case Partial =>
+              val aggBufferAttr = hllAdapter.inputAggBufferAttributes
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              resIndex += aggBufferAttr.size
+            case Final =>
+              aggregateAttr += aggregateAttributeList(resIndex)
+              resIndex += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
         case other =>
           throw new UnsupportedOperationException(s"not currently supported: $other.")
         }

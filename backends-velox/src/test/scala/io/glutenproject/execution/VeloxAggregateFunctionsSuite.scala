@@ -360,6 +360,22 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test("approx_count_distinct") {
+    runQueryAndCompare(
+      """
+        |select approx_count_distinct(l_shipmode) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select approx_count_distinct(l_partkey), count(distinct l_orderkey) from lineitem") {
+        df => {
+          assert(getExecutedPlan(df).count(plan => {
+            plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+          }) == 0)
+        }
+    }
+  }
 
   test("distinct functions") {
     runQueryAndCompare("SELECT sum(DISTINCT l_partkey), count(*) FROM lineitem") { df => {

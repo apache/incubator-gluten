@@ -48,6 +48,7 @@ object ExpressionMappings {
   final val LAST_IGNORE_NULL = "last_ignore_null"
   final val FIRST = "first"
   final val FIRST_IGNORE_NULL = "first_ignore_null"
+  final val APPROX_DISTINCT = "approx_distinct"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -427,7 +428,8 @@ object ExpressionMappings {
     Sig[CovPopulation](COVAR_POP),
     Sig[CovSample](COVAR_SAMP),
     Sig[Last](LAST),
-    Sig[First](FIRST)
+    Sig[First](FIRST),
+    Sig[HLLVeloxAdapter](APPROX_DISTINCT)
   )
 
   /** Mapping Spark window expression to Substrait function name */

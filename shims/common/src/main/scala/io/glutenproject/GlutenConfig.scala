@@ -141,6 +141,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableNativeBloomFilter: Boolean = conf.getConf(COLUMNAR_NATIVE_BLOOMFILTER_ENABLED)
 
+  def enableNativeHyperLogLogAggregateFunction: Boolean =
+    conf.getConf(COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED)
+
   def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
@@ -649,6 +652,12 @@ object GlutenConfig {
 
   val COLUMNAR_NATIVE_BLOOMFILTER_ENABLED =
     buildConf("spark.gluten.sql.native.bloomFilter")
+      .internal()
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED =
+    buildConf("spark.gluten.sql.native.hyperLogLog.Aggregate")
       .internal()
       .booleanConf
       .createWithDefault(true)
