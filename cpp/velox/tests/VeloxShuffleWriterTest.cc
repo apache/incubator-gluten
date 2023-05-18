@@ -16,10 +16,8 @@
  */
 
 #include "shuffle/VeloxShuffleWriter.h"
-#include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
-#include "tests/TestUtils.h"
-#include "velox/vector/arrow/Bridge.h"
+#include "utils/TestUtils.h"
 
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
@@ -35,6 +33,7 @@
 
 #include <iostream>
 #include "shuffle/LocalPartitionWriter.h"
+#include "utils/VeloxArrowUtils.h"
 
 using namespace facebook;
 
@@ -209,16 +208,8 @@ class VeloxShuffleWriterTest : public ::testing::Test {
   std::shared_ptr<arrow::io::ReadableFile> file_;
 };
 
-std::shared_ptr<ColumnarBatch> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {
-  ArrowArray arrowArray;
-  ArrowSchema arrowSchema;
-  ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::getDefaultVeloxLeafMemoryPool().get());
-  return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
-}
-
 arrow::Status splitRecordBatch(VeloxShuffleWriter& shuffleWriter, const arrow::RecordBatch& rb) {
-  auto cb = recordBatch2VeloxColumnarBatch(rb);
+  ARROW_ASSIGN_OR_RAISE(auto cb, recordBatch2VeloxColumnarBatch(rb));
   return shuffleWriter.split(cb.get());
 }
 

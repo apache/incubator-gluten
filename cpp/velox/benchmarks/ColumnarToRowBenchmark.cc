@@ -34,7 +34,7 @@
 #include "compute/VeloxColumnarToRowConverter.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxMemoryPool.h"
-#include "tests/TestUtils.h"
+#include "utils/TestUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;

@@ -41,9 +41,9 @@ void printTrace(void) {
   free(strings);
 }
 
-#include "TestUtils.h"
 #include "memory/ColumnarBatch.h"
 #include "shuffle/ArrowShuffleWriter.h"
+#include "utils/TestUtils.h"
 
 namespace gluten {
 namespace shuffle {
