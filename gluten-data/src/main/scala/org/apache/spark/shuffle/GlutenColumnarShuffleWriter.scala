@@ -57,15 +57,6 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     .map(_.getAbsolutePath)
     .mkString(",")
 
-  private val offHeapPerTask = {
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
-    val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
-    perTask
-  }
-
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
   private val customizedCompressionCodec = {
@@ -98,6 +89,15 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val taskContext: TaskContext = TaskContext.get()
 
+  private def availableOffHeapPerTask(): Long = {
+    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
+    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val taskCores = conf.getInt("spark.task.cpus", 1)
+    val perTask =
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+    perTask
+  }
+
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
@@ -123,7 +123,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         if (nativeShuffleWriter == 0) {
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
-            offHeapPerTask,
+            availableOffHeapPerTask(),
             nativeBufferSize,
             customizedCompressionCodec,
             batchCompressThreshold,

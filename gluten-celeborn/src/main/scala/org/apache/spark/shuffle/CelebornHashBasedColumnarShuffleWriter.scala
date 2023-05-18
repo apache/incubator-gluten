@@ -61,15 +61,6 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   private val blockManager = SparkEnv.get.blockManager
 
-  private val offHeapPerTask = {
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
-    val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
-    perTask
-  }
-
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressionCodec = {
     val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
@@ -101,6 +92,15 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
     internalWrite(records)
   }
 
+  private def availableOffHeapPerTask(): Long = {
+    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
+    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val taskCores = conf.getInt("spark.task.cpus", 1)
+    val perTask =
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+    perTask
+  }
+
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
@@ -119,7 +119,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
         if (nativeShuffleWriter == 0) {
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
-            offHeapPerTask,
+            availableOffHeapPerTask(),
             nativeBufferSize,
             customizedCompressionCodec,
             batchCompressThreshold,
