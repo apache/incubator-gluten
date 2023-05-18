@@ -648,12 +648,12 @@ ArrowShuffleWriter::row_offset_type ArrowShuffleWriter::calculateSplitBatchSize(
     sizePerRow += ((arrow::bit_width(typeId) + 7) >> 3);
   }
 
-  int64_t preallocRowCnt = options_.offheap_per_task > 0 && sizePerRow > 0
+  int64_t preAllocRowCnt = options_.offheap_per_task > 0 && sizePerRow > 0
       ? options_.offheap_per_task / sizePerRow / numPartitions_ >> 2
       : options_.buffer_size;
-  preallocRowCnt = std::min(preallocRowCnt, (int64_t)options_.buffer_size);
+  preAllocRowCnt = std::min(preAllocRowCnt, (int64_t)options_.buffer_size);
 
-  return (row_offset_type)preallocRowCnt;
+  return (row_offset_type)preAllocRowCnt;
 }
 
 arrow::Status ArrowShuffleWriter::doSplit(const arrow::RecordBatch& rb) {
