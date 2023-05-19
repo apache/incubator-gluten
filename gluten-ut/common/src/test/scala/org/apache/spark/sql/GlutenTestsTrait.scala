@@ -229,7 +229,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     }
     if (!(checkResult(result.head.get(0), expected, expression.dataType, expression.nullable)
       || checkResult(
-      CatalystTypeConverters.convertToCatalyst(result.head.get(0)),
+      CatalystTypeConverters.createToCatalystConverter(expression.dataType)(result.head.get(0)), // decimal precision is wrong from value
       CatalystTypeConverters.convertToCatalyst(expected),
       expression.dataType,
       expression.nullable))) {
