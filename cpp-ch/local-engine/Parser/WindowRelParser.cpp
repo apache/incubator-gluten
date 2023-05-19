@@ -127,7 +127,7 @@ std::unordered_map<DB::String, WindowDescription> WindowRelParser::parseWindowDe
 
 DB::WindowFrame WindowRelParser::parseWindowFrame(const substrait::Expression::WindowFunction & window_function)
 {
-    auto function_name = parseFunctionName(window_function.function_reference());
+    auto function_name = parseSignatureFunctionName(window_function.function_reference());
     if (!function_name)
         function_name = "";
     DB::WindowFrame win_frame;
@@ -270,7 +270,7 @@ WindowFunctionDescription WindowRelParser::parseWindowFunctionDescription(
     description.column_name = window_function.column_name();
     description.function_node = nullptr;
 
-    auto function_name = parseFunctionName(window_function.function_reference());
+    auto function_name = parseSignatureFunctionName(window_function.function_reference());
     if (!function_name)
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Not found function for reference: {}", window_function.function_reference());
 
@@ -309,7 +309,7 @@ void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const subst
     {
         DB::Names names;
         DB::DataTypes types;
-        auto function_name = parseFunctionName(measure.measure().function_reference());
+        auto function_name = parseSignatureFunctionName(measure.measure().function_reference());
         if (function_name && (*function_name == "lead" || *function_name == "lag"))
         {
             const auto & arg0 = measure.measure().arguments(0).value();
