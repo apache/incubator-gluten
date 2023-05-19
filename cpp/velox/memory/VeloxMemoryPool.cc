@@ -71,7 +71,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   // Should perhaps make this method private so that we only create node through
   // parent.
   WrappedVeloxMemoryPool(
-      velox::memory::MemoryManager* memoryManager,
+      velox::memory::MemoryAllocator* veloxAlloc,
       const std::string& name,
       Kind kind,
       std::shared_ptr<velox::memory::MemoryPool> parent,
@@ -81,8 +81,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       const Options& options = Options{})
       : velox::memory::MemoryPool{name, kind, parent, options},
         memoryUsageTracker_(createMemoryUsageTracker(parent_.get(), kind, spillThreshold, options)),
-        memoryManager_{memoryManager},
-        veloxAlloc_{&memoryManager_->getAllocator()},
+        veloxAlloc_{veloxAlloc},
         glutenAlloc_{glutenAlloc},
         destructionCb_(std::move(destructionCb)),
         localMemoryUsage_{} {}
@@ -335,7 +334,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       bool /*unused*/,
       std::shared_ptr<facebook::velox::memory::MemoryReclaimer> /*unused*/) override {
     return std::make_shared<WrappedVeloxMemoryPool>(
-        memoryManager_, name, kind, parent, glutenAlloc_, nullptr, -1, Options{.alignment = alignment_});
+        veloxAlloc_, name, kind, parent, glutenAlloc_, nullptr, -1, Options{.alignment = alignment_});
   }
 
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the
@@ -368,22 +367,11 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
     memoryUsageTracker_->update(size);
     localMemoryUsage_.incrementCurrentBytes(size);
-
-    bool success = memoryManager_->reserve(size);
-    if (UNLIKELY(!success)) {
-      // NOTE: If we can make the reserve and release a single transaction we
-      // would have more accurate aggregates in intermediate states. However, this
-      // is low-pri because we can only have inflated aggregates, and be on the
-      // more conservative side.
-      release(size);
-      VELOX_MEM_MANAGER_CAP_EXCEEDED(memoryManager_->getMemoryQuota());
-    }
   }
 
   void release(int64_t size) override {
     checkMemoryAllocation();
 
-    memoryManager_->release(size);
     localMemoryUsage_.incrementCurrentBytes(-size);
     memoryUsageTracker_->update(-size);
   }
@@ -427,7 +415,6 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   }
 
   const std::shared_ptr<velox::memory::MemoryUsageTracker> memoryUsageTracker_;
-  velox::memory::MemoryManager* const memoryManager_;
   velox::memory::MemoryAllocator* const veloxAlloc_;
   gluten::MemoryAllocator* glutenAlloc_;
   const DestructionCallback destructionCb_;
@@ -453,7 +440,7 @@ std::shared_ptr<velox::memory::MemoryPool> getDefaultVeloxAggregateMemoryPool() 
   options = gluten::VeloxInitializer::get()->getMemoryPoolOptions();
   spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
   static std::shared_ptr<WrappedVeloxMemoryPool> defaultPoolRoot = std::make_shared<WrappedVeloxMemoryPool>(
-      &velox::memory::MemoryManager::getInstance(),
+      &velox::memory::MemoryManager::getInstance().getAllocator(),
       "root",
       velox::memory::MemoryPool::Kind::kAggregate,
       nullptr,
