@@ -19,6 +19,7 @@
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
+#include "velox/common/memory/MemoryAllocator.h"
 
 #include <sstream>
 
@@ -439,8 +440,9 @@ std::shared_ptr<velox::memory::MemoryPool> getDefaultVeloxAggregateMemoryPool() 
   int64_t spillThreshold;
   options = gluten::VeloxInitializer::get()->getMemoryPoolOptions();
   spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
+  static auto veloxAlloc = facebook::velox::memory::MemoryAllocator::createDefaultInstance();
   static std::shared_ptr<WrappedVeloxMemoryPool> defaultPoolRoot = std::make_shared<WrappedVeloxMemoryPool>(
-      &velox::memory::MemoryManager::getInstance().getAllocator(),
+      veloxAlloc.get(),
       "root",
       velox::memory::MemoryPool::Kind::kAggregate,
       nullptr,
