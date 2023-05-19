@@ -7,6 +7,7 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
+#include "utils/URLDecoder.h"
 
 using namespace facebook;
 
@@ -37,43 +38,14 @@ const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
 const std::string kFlushRowCount = "flushRowCount";
 const std::string kTotalScanTime = "totalScanTime";
+const std::string kSkippedSplits = "skippedSplits";
+const std::string kProcessedSplits = "processedSplits";
+const std::string kSkippedStrides = "skippedStrides";
+const std::string kProcessedStrides = "processedStrides";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
-
-// From_hex from dlib.
-inline unsigned char fromHex(unsigned char ch) {
-  if (ch <= '9' && ch >= '0')
-    ch -= '0';
-  else if (ch <= 'f' && ch >= 'a')
-    ch -= 'a' - 10;
-  else if (ch <= 'F' && ch >= 'A')
-    ch -= 'A' - 10;
-  else
-    ch = 0;
-  return ch;
-}
-
-// URL decoder from dlib.
-const std::string urlDecode(const std::string& str) {
-  std::string result;
-  std::string::size_type i;
-  for (i = 0; i < str.size(); ++i) {
-    if (str[i] == '+') {
-      result += ' ';
-    } else if (str[i] == '%' && str.size() > i + 2) {
-      const unsigned char ch1 = fromHex(str[i + 1]);
-      const unsigned char ch2 = fromHex(str[i + 2]);
-      const unsigned char ch = (ch1 << 4) | ch2;
-      result += ch;
-      i += 2;
-    } else {
-      result += str[i];
-    }
-  }
-  return result;
-}
 
 } // namespace
 
@@ -194,6 +166,10 @@ void WholeStageResultIterator::collectMetrics() {
           runtimeMetric("sum", entry.second->customStats, kReplacedWithDynamicFilterRows);
       metrics_->flushRowCount[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kFlushRowCount);
       metrics_->scanTime[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kTotalScanTime);
+      metrics_->skippedSplits[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kSkippedSplits);
+      metrics_->processedSplits[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kProcessedSplits);
+      metrics_->skippedStrides[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kSkippedStrides);
+      metrics_->processedStrides[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kProcessedStrides);
       metricsIdx += 1;
     }
   }

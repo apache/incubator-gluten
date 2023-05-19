@@ -275,7 +275,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
   metricsBuilderConstructor =
-      getMethodIdOrError(env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J)V");
+      getMethodIdOrError(env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serializedArrowArrayIteratorClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchInIterator;");
@@ -444,6 +444,10 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
   auto numReplacedWithDynamicFilterRows = env->NewLongArray(numMetrics);
   auto flushRowCount = env->NewLongArray(numMetrics);
   auto scanTime = env->NewLongArray(numMetrics);
+  auto skippedSplits = env->NewLongArray(numMetrics);
+  auto processedSplits = env->NewLongArray(numMetrics);
+  auto skippedStrides = env->NewLongArray(numMetrics);
+  auto processedStrides = env->NewLongArray(numMetrics);
 
   if (metrics) {
     env->SetLongArrayRegion(inputRows, 0, numMetrics, metrics->inputRows);
@@ -467,6 +471,10 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
     env->SetLongArrayRegion(numReplacedWithDynamicFilterRows, 0, numMetrics, metrics->numReplacedWithDynamicFilterRows);
     env->SetLongArrayRegion(flushRowCount, 0, numMetrics, metrics->flushRowCount);
     env->SetLongArrayRegion(scanTime, 0, numMetrics, metrics->scanTime);
+    env->SetLongArrayRegion(skippedSplits, 0, numMetrics, metrics->skippedSplits);
+    env->SetLongArrayRegion(processedSplits, 0, numMetrics, metrics->processedSplits);
+    env->SetLongArrayRegion(skippedStrides, 0, numMetrics, metrics->skippedStrides);
+    env->SetLongArrayRegion(processedStrides, 0, numMetrics, metrics->processedStrides);
   }
 
   return env->NewObject(
@@ -493,7 +501,11 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,
       flushRowCount,
-      scanTime);
+      scanTime,
+      skippedSplits,
+      processedSplits,
+      skippedStrides,
+      processedStrides);
   JNI_METHOD_END(nullptr)
 }
 
