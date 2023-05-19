@@ -189,6 +189,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
+  enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
     .exclude("BinaryComparison: lessThan")
     .exclude("BinaryComparison: LessThanOrEqual")
