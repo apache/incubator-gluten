@@ -63,7 +63,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("cast from date")
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
     .exclude("Fast fail for cast string type to decimal type")
-    .exclude("missing cases - from boolean")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
     .exclude(
