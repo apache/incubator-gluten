@@ -57,6 +57,7 @@
         <activeByDefault>true</activeByDefault>
       </activation>
       <modules>
+        <module>write</module>
         <module>common</module>
         <module>spark32</module>
       </modules>
@@ -64,6 +65,7 @@
     <profile>
       <id>spark-3.3</id>
       <modules>
+        <module>write</module>
         <module>common</module>
         <module>spark33</module>
       </modules>
