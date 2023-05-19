@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/zhztheplayer/velox.git
+VELOX_BRANCH=wip-spark-atan2
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
