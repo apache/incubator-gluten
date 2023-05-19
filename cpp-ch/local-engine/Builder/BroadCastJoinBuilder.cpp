@@ -51,7 +51,7 @@ void BroadCastJoinBuilder::buildJoinIfNotExist(
             auto func = [context]() -> void
             {
                 // limit memory usage
-                if (storage_join_queue.size() > 10)
+                if (storage_join_queue.size() > 20)
                 {
                     auto tmp = storage_join_queue.front();
                     storage_join_queue.pop();

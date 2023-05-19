@@ -41,7 +41,7 @@ add_custom_command(
         bash -c
         \"cmake -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DENABLE_PROTOBUF=ON
         -DENABLE_TESTS=OFF
         -DENABLE_JEMALLOC=ON
