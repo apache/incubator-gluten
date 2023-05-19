@@ -56,8 +56,8 @@ class VeloxContextApi extends ContextApi {
       loadLibFromJar(loader)
     }
     loader.newTransaction()
-      .loadAndCreateLink("libarrow.so.1100.0.0", "libarrow.so.1100", false)
-      .loadAndCreateLink("libparquet.so.1100.0.0", "libparquet.so.1100", false)
+      .loadAndCreateLink("libarrow.so.1200.0.0", "libarrow.so.1200", false)
+      .loadAndCreateLink("libparquet.so.1200.0.0", "libparquet.so.1200", false)
       .commit()
     if (conf.get(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
       .toUpperCase(Locale.ROOT) == GlutenConfig.GLUTEN_QAT_BACKEND_NAME) {

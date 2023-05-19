@@ -2,9 +2,9 @@
 
 set -exu
 #setting gluten root path
-ARROW_REPO=https://github.com/oap-project/arrow.git
+ARROW_REPO=https://github.com/apache/arrow.git
 #for velox_backend
-ARROW_BRANCH=arrow-11.0.0-gluten
+ARROW_BRANCH=release-12.0.0-rc0
 ENABLE_CUSTOM_CODEC=OFF
 
 for arg in "$@"; do
