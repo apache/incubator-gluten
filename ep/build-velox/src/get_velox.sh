@@ -2,8 +2,9 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/jackylee-ch/velox.git
+VELOX_BRANCH=fix_segmentation_fault_in_createStringFlatVector_oap
+
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
