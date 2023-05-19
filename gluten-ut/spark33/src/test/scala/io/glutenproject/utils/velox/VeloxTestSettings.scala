@@ -128,6 +128,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenLiteralExpressionSuite]
     .exclude("default")
     .exclude("decimal")
+    // FIXME(yma11): ObjectType is not covered in RowEncoder/Serializer in vanilla spark
+    .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
     .exclude("cos")
     .exclude("cosh")
