@@ -21,6 +21,7 @@ import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.execution.ColumnarToRowExec
 import org.apache.spark.sql.functions.{col, rand, when}
 
 import java.io.File
@@ -898,5 +899,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     // super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
     compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck)
+  }
+
+  test("test 'ColumnarToRowExec should not be used'") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.filescan" -> "false",
+      "spark.gluten.sql.columnar.filter" -> "false"
+    ) {
+      runQueryAndCompare("select l_shipdate from lineitem where l_shipdate = '1996-05-07'") {
+        df => getExecutedPlan(df).count(plan => plan.isInstanceOf[ColumnarToRowExec]) == 0
+      }
+    }
   }
 }
