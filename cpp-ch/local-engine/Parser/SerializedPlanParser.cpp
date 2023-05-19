@@ -2148,7 +2148,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_set->insertFromBlock(elem_block.getColumnsWithTypeAndName());
             elem_set->finishInsert();
 
-            auto arg = ColumnSet::create(elem_set->getTotalRowCount(), elem_set);
+            auto arg = ColumnSet::create(elem_set->getTotalRowCount(), FutureSet(elem_set));
             args.emplace_back(&action_dag->addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 
             const auto * function_node = toFunctionNode(action_dag, "in", args);
@@ -2248,7 +2248,7 @@ DB::QueryPlanPtr SerializedPlanParser::parseJoin(substrait::JoinRel join, DB::Qu
     google::protobuf::StringValue optimization;
     optimization.ParseFromString(join.advanced_extension().optimization().value());
     auto join_opt_info = parseJoinOptimizationInfo(optimization.value());
-    auto table_join = std::make_shared<TableJoin>(global_context->getSettings(), global_context->getTemporaryVolume());
+    auto table_join = std::make_shared<TableJoin>(global_context->getSettings(), global_context->getGlobalTemporaryVolume());
     if (join.type() == substrait::JoinRel_JoinType_JOIN_TYPE_INNER)
     {
         table_join->setKind(DB::JoinKind::Inner);
@@ -2503,7 +2503,7 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
     ColumnNumbersList aggregation_keys_indexes_list;
     AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
     SizeLimits size_limits_for_set;
-    ActionsVisitor::Data visitor_data(
+    ActionsMatcher::Data visitor_data(
         context,
         size_limits_for_set,
         size_t(0),
@@ -2513,7 +2513,6 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
         false /* no_subqueries */,
         false /* no_makeset */,
         false /* only_consts */,
-        false /* create_source_for_in */,
         info);
     ActionsVisitor(visitor_data).visit(ast);
     return visitor_data.getActions();

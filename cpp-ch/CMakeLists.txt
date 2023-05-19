@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-set(CH_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ClickHouse CACHE STRING "ClickHouse source dir")
 
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/clickhouse.version CH_VERSION)
+
+set(CH_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ClickHouse CACHE STRING "ClickHouse source dir")
 string(REGEX REPLACE ".*CH_ORG=([^\n]+).*" "\\1" CH_ORG "${CH_VERSION}")
 string(REGEX REPLACE ".*CH_BRANCH=([^\n]+).*" "\\1" CH_BRANCH "${CH_VERSION}")
 string(REGEX REPLACE ".*CH_COMMIT=([^\n]+).*" "\\1" CH_COMMIT "${CH_VERSION}")
@@ -46,6 +47,7 @@ add_custom_command(
         -DENABLE_TESTS=OFF
         -DENABLE_JEMALLOC=ON
         -DENABLE_MULTITARGET_CODE=ON
+        -DENABLE_UTILS=ON
         -DENABLE_EXTERN_LOCAL_ENGINE=ON
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
