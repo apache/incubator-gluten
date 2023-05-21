@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.types._
 
@@ -39,15 +40,22 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
   UDTRegistration.register(classOf[IExampleBaseType].getName, classOf[ExampleBaseTypeUDT].getName)
   UDTRegistration.register(classOf[IExampleSubType].getName, classOf[ExampleSubTypeUDT].getName)
 
-  test("missing cases - from boolean") {
+  test(GLUTEN_TEST + "missing cases - from boolean") {
     (DataTypeTestUtils.numericTypeWithoutDecimal + BooleanType).foreach {
       t =>
-        checkEvaluation(cast(true, t), 1)
-        checkEvaluation(cast(false, t), 0)
+        t match {
+          case BooleanType =>
+            checkEvaluation(cast(cast(true, BooleanType), t), true)
+            checkEvaluation(cast(cast(false, BooleanType), t), false)
+          case _ =>
+            checkEvaluation(cast(cast(true, BooleanType), t), 1)
+            checkEvaluation(cast(cast(false, BooleanType), t), 0)
+        }
+
     }
   }
 
-  test("missing cases - from byte") {
+  test(GLUTEN_TEST + "missing cases - from byte") {
     DataTypeTestUtils.numericTypeWithoutDecimal.foreach {
       t =>
         checkEvaluation(cast(cast(0, ByteType), t), 0)
@@ -56,7 +64,7 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     }
   }
 
-  test("missing cases - from short") {
+  test(GLUTEN_TEST + "missing cases - from short") {
     DataTypeTestUtils.numericTypeWithoutDecimal.foreach {
       t =>
         checkEvaluation(cast(cast(0, ShortType), t), 0)
