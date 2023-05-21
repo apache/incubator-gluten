@@ -2,8 +2,11 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+#changes
+# - enable parallel input
+# - enable s3 write
+VELOX_REPO=https://github.com/zhouyuan/velox.git
+VELOX_BRANCH=wip_s3_opt_all
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
