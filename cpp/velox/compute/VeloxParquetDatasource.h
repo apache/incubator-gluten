@@ -37,6 +37,9 @@
 #ifdef ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSink.h"
 #endif
+#ifdef ENABLE_S3
+#include "velox/connectors/hive/storage_adapters/s3fs/S3RWFile.h"
+#endif
 #include "velox/dwio/common/DataSink.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
