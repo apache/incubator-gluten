@@ -22,4 +22,17 @@ import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.types.IntegerType
 
 class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTestsTrait {
+
+  // Ported from spark 3.3.1, applicable to spark 3.2.3 or higher.
+  test("SPARK-40213: ascii for Latin-1 Supplement characters") {
+    // scalastyle:off
+    checkEvaluation(Ascii(Literal("¥")), 165, create_row("¥"))
+    checkEvaluation(Ascii(Literal("®")), 174, create_row("®"))
+    checkEvaluation(Ascii(Literal("©")), 169, create_row("©"))
+    // scalastyle:on
+    (128 until 256).foreach { c =>
+      checkEvaluation(Ascii(Chr(Literal(c.toLong))), c, create_row(c.toLong))
+    }
+  }
+
 }
