@@ -53,7 +53,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
     .exclude("cast from float")
     .exclude("cast from double")
@@ -69,7 +71,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
     .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
@@ -77,14 +81,18 @@ class VeloxTestSettings extends BackendTestSettings {
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
     .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
     .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
@@ -96,7 +104,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
     .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
@@ -186,8 +196,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Shuffle")
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
-    .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
-    .exclude("extract the seconds part with fraction from timestamps")
+    .exclude("DayOfYear")
+    .exclude("Year")
+    .exclude("Quarter")
+    .exclude("Month")
+    .exclude("Day / DayOfMonth")
+    .exclude("DayOfWeek")
+    // Rewrite because Spark collect causes long overflow.
+    .exclude("TIMESTAMP_MICROS")
   enableSuite[GlutenDecimalExpressionSuite]
     .exclude("MakeDecimal")
   enableSuite[GlutenStringFunctionsSuite]
