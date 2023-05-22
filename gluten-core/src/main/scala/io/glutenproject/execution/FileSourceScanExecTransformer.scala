@@ -21,18 +21,24 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import scala.collection.mutable.HashMap
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.metrics.MetricsUpdater
-
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.ReadRelNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, ScalarSubquery, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.datasources.v2.text.TextScan
+import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLExecution, ScalarSubquery, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
+
+import scala.collection.JavaConverters
 
 class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
                                     output: Seq[Attribute],
@@ -220,6 +226,28 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   override val nodeNamePrefix: String = "NativeFile"
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val transformCtx = super.doTransform(context)
+    if (ConverterUtils.getFileFormat(this) == ReadFileFormat.TextReadFormat) {
+      var options: Map[String, String] = Map()
+      relation.options.foreach {
+        case ("delimiter", v) => options += ("delimiter" -> v)
+        case ("quote", v) => options += ("quote" -> v)
+        case ("header", v) =>
+          val cnt = if (v == "true") 1 else 0
+          options += ("header" -> cnt.toString)
+        case ("escape", v) => options += ("escape" -> v)
+        case ("nullvalue", v) => options += ("nullValue" -> v)
+        case (_, _) =>
+      }
+
+      val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
+      readRelNode.setDataSchema(relation.dataSchema)
+      readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
+    }
+    transformCtx
+  }
 }
 
 object FileSourceScanExecTransformer {

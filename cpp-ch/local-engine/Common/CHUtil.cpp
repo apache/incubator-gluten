@@ -514,6 +514,10 @@ void BackendInitializerUtil::initSettings()
     static const std::string settings_path("local_engine.settings");
 
     settings = Settings();
+
+    /// Initialize default setting.
+    settings.set("date_time_input_format", "best_effort");
+
     Poco::Util::AbstractConfiguration::Keys config_keys;
     config->keys(settings_path, config_keys);
 
