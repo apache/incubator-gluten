@@ -19,13 +19,11 @@ package org.apache.spark.sql
 
 import java.io.File
 import java.util.TimeZone
-
 import scala.collection.JavaConverters._
-
 import org.apache.commons.io.FileUtils
+import org.apache.commons.math3.util.Precision
 import org.junit.Assert
 import org.scalatest.Assertions
-
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
 import org.apache.spark.sql.execution.SQLExecution
@@ -231,7 +229,7 @@ object GlutenQueryTest extends Assertions {
       if ((isNaNOrInf(a) || isNaNOrInf(b)) || (a == -0.0) || (b == -0.0)) {
         java.lang.Double.doubleToRawLongBits(a) == java.lang.Double.doubleToRawLongBits(b)
       } else {
-        Math.abs(a - b) < 0.00001
+        Precision.equalsWithRelativeTolerance(a, b, 0.00001D)
       }
     case (a: Float, b: Float) =>
       java.lang.Float.floatToRawIntBits(a) == java.lang.Float.floatToRawIntBits(b)
