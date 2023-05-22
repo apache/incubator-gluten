@@ -32,24 +32,24 @@ inline unsigned char fromHex(unsigned char ch) {
   return ch;
 }
 
-    // URL decoder from dlib.
+// URL decoder from dlib.
 const std::string urlDecode(const std::string& str) {
-std::string result;
-std::string::size_type i;
-for (i = 0; i < str.size(); ++i) {
+  std::string result;
+  std::string::size_type i;
+  for (i = 0; i < str.size(); ++i) {
     if (str[i] == '+') {
-    result += ' ';
+      result += ' ';
     } else if (str[i] == '%' && str.size() > i + 2) {
-    const unsigned char ch1 = fromHex(str[i + 1]);
-    const unsigned char ch2 = fromHex(str[i + 2]);
-    const unsigned char ch = (ch1 << 4) | ch2;
-    result += ch;
-    i += 2;
+      const unsigned char ch1 = fromHex(str[i + 1]);
+      const unsigned char ch2 = fromHex(str[i + 2]);
+      const unsigned char ch = (ch1 << 4) | ch2;
+      result += ch;
+      i += 2;
     } else {
-    result += str[i];
+      result += str[i];
     }
-}
-return result;
+  }
+  return result;
 }
 
 } // namespace gluten

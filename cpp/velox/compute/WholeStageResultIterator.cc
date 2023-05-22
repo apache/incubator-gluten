@@ -2,12 +2,12 @@
 #include "VeloxBackend.h"
 #include "VeloxInitializer.h"
 #include "config/GlutenConfig.h"
+#include "utils/URLDecoder.h"
 #include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
-#include "utils/URLDecoder.h"
 
 using namespace facebook;
 
