@@ -97,6 +97,8 @@ public:
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(std::string * plan);
 
+   // use excel text parser
+    inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
 private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
