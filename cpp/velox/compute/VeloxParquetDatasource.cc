@@ -53,19 +53,12 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   std::string destinationPathWithSchame = filePath_.substr(0, pos - 1);
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    finalPath_ = (destinationPathWithSchame + "/" + fileName_).substr(5);
-    std::string command = "touch " + finalPath_;
-    auto ret = system(command.c_str());
-    if (ret != 0) {
-      throw std::runtime_error(
-          "The local file path was not created successfully when writing parqetut data in velox backend!");
-    }
-
+    finalPath_ = filePath_.substr(5);
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
-    finalPath_ = destinationPathWithSchame + "/" + fileName_;
-    sink_ = std::make_unique<velox::HdfsFileSink>(finalPath_);
+    // finalPath_ = destinationPathWithSchame + "/" + fileName_;
+    sink_ = std::make_unique<velox::HdfsFileSink>(filePath_);
 #else
     throw std::runtime_error(
         "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox backend!");
