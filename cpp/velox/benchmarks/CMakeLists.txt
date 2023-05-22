@@ -31,3 +31,6 @@ add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
 
 add_velox_benchmark(columnar_to_row_benchmark ColumnarToRowBenchmark.cc)
 
+add_velox_benchmark(parquet_write_benchmark ParquetWriteBenchmark.cc)
+
+
