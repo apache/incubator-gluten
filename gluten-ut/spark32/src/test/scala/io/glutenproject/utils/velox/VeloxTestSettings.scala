@@ -212,8 +212,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("toRadians")
     .exclude("cbrt")
     .exclude("exp")
-    .exclude("log10")
-    .exclude("log2")
     .exclude("pow")
     .exclude("atan2")
   enableSuite[GlutenMathFunctionsSuite]
