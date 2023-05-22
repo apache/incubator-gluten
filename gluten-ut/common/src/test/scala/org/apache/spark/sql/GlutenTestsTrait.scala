@@ -25,9 +25,11 @@ import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
+import org.apache.commons.math3.util.Precision
 import org.scalactic.source.Position
 import org.scalatest.{Args, Status, Tag}
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.GlutenQueryTest.isNaNOrInf
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
@@ -37,6 +39,7 @@ import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
+import org.scalactic.TripleEqualsSupport.Spread
 
 trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
@@ -139,6 +142,58 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         checkEvaluationWithUnsafeProjection(expr, catalystValue, inputRow)
       }
       checkEvaluationWithOptimization(expr, catalystValue, inputRow)
+    }
+  }
+
+  override protected def checkResult(
+                             result: Any,
+                             expected: Any,
+                             exprDataType: DataType,
+                             exprNullable: Boolean): Boolean = {
+    val dataType = UserDefinedType.sqlType(exprDataType)
+
+    // The result is null for a non-nullable expression
+    assert(result != null || exprNullable, "exprNullable should be true if result is null")
+    (result, expected) match {
+      case (result: Array[Byte], expected: Array[Byte]) =>
+        java.util.Arrays.equals(result, expected)
+      case (result: Double, expected: Spread[Double@unchecked]) =>
+        expected.asInstanceOf[Spread[Double]].isWithin(result)
+      case (result: InternalRow, expected: InternalRow) =>
+        val st = dataType.asInstanceOf[StructType]
+        assert(result.numFields == st.length && expected.numFields == st.length)
+        st.zipWithIndex.forall { case (f, i) =>
+          checkResult(
+            result.get(i, f.dataType), expected.get(i, f.dataType), f.dataType, f.nullable)
+        }
+      case (result: ArrayData, expected: ArrayData) =>
+        result.numElements == expected.numElements && {
+          val ArrayType(et, cn) = dataType.asInstanceOf[ArrayType]
+          var isSame = true
+          var i = 0
+          while (isSame && i < result.numElements) {
+            isSame = checkResult(result.get(i, et), expected.get(i, et), et, cn)
+            i += 1
+          }
+          isSame
+        }
+      case (result: MapData, expected: MapData) =>
+        val MapType(kt, vt, vcn) = dataType.asInstanceOf[MapType]
+        checkResult(result.keyArray, expected.keyArray, ArrayType(kt, false), false) &&
+          checkResult(result.valueArray, expected.valueArray, ArrayType(vt, vcn), false)
+      case (result: Double, expected: Double) =>
+        if ((isNaNOrInf(result) || isNaNOrInf(expected))
+          || (result == -0.0) || (expected == -0.0)) {
+          java.lang.Double.doubleToRawLongBits(result) ==
+            java.lang.Double.doubleToRawLongBits(expected)
+        } else {
+          Precision.equalsWithRelativeTolerance(result, expected, 0.00001D)
+        }
+      case (result: Float, expected: Float) =>
+        if (expected.isNaN) result.isNaN else expected == result
+      case (result: Row, expected: InternalRow) => result.toSeq == expected.toSeq(result.schema)
+      case _ =>
+        result == expected
     }
   }
 

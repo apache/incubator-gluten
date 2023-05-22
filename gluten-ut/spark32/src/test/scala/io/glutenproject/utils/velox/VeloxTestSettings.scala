@@ -206,13 +206,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("BinaryComparison: GreaterThanOrEqual")
     .exclude("SPARK-32764: compare special double/float values")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("cos")
-    .exclude("cosh")
-    .exclude("toDegrees")
-    .exclude("toRadians")
-    .exclude("cbrt")
-    .exclude("exp")
-    .exclude("pow")
     .exclude("atan2")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
