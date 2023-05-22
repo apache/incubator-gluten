@@ -48,16 +48,10 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   auto veloxPool = asWrappedVeloxAggregateMemoryPool(gluten::defaultMemoryAllocator().get());
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
-  // Construct the file path and writer
-  auto pos = filePath_.find("_temporary", 0);
-  std::string destinationPathWithSchame = filePath_.substr(0, pos - 1);
-
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    finalPath_ = filePath_.substr(5);
-    sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
+    sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
-    // finalPath_ = destinationPathWithSchame + "/" + fileName_;
     sink_ = std::make_unique<velox::HdfsFileSink>(filePath_);
 #else
     throw std::runtime_error(

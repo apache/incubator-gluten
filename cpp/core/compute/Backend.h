@@ -102,8 +102,9 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return nullptr;
   }
 
-  virtual std::shared_ptr<Datasource>
-  getDatasource(const std::string& filePath, const std::string& fileName, std::shared_ptr<arrow::Schema> schema) {
+  virtual std::shared_ptr<Datasource> getDatasource(
+      const std::string& filePath,
+      std::shared_ptr<arrow::Schema> schema) {
     throw GlutenException("Not implement getDatasource");
   }
 
