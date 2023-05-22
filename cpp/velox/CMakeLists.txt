@@ -229,6 +229,7 @@ target_include_directories(velox PUBLIC
     ${VELOX_BUILD_PATH}
     ${VELOX_BUILD_PATH}/_deps/xsimd-src/include/
     ${VELOX_HOME}/velox/vector
+    ${VELOX_HOME}/velox/connectors
     ${VELOX_HOME}/third_party/xsimd/include/)
 
 set_target_properties(velox PROPERTIES

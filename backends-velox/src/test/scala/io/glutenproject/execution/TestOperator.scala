@@ -90,6 +90,7 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare("select * from temp_test_is_null where col1 is null") { _ => }
     checkLengthAndPlan(df, 2)
   }
+  
   test("velox parquet write") {
     withTempDir { dir =>
       val path = dir.toURI.getPath
