@@ -57,20 +57,27 @@ void BroadCastJoinBuilder::buildJoinIfNotExist(
                     storage_join_queue.pop();
                     storage_join_map.erase(tmp);
                 }
-                auto storage_join = std::make_shared<StorageJoinFromReadBuffer>(
-                    std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size),
-                    StorageID("default", context.key),
-                    context.key_names,
-                    true,
-                    SizeLimits(),
-                    context.kind,
-                    context.strictness,
-                    context.columns,
-                    ConstraintsDescription(),
-                    context.key,
-                    true);
-                storage_join_map.emplace(context.key, storage_join);
-                storage_join_queue.push(context.key);
+                try
+                {
+                    auto storage_join = std::make_shared<StorageJoinFromReadBuffer>(
+                        std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size),
+                        StorageID("default", context.key),
+                        context.key_names,
+                        true,
+                        SizeLimits(),
+                        context.kind,
+                        context.strictness,
+                        context.columns,
+                        ConstraintsDescription(),
+                        context.key,
+                        true);
+                    storage_join_map.emplace(context.key, storage_join);
+                    storage_join_queue.push(context.key);
+                }
+                catch (DB::Exception & e)
+                {
+                    LOG_ERROR(&Poco::Logger::get("BroadCastJoinBuilder"), "storage join create failed, {}", e.displayText());
+                }
             };
             ThreadFromGlobalPool build_thread(std::move(func));
             build_thread.join();
@@ -85,17 +92,15 @@ void BroadCastJoinBuilder::buildJoinIfNotExist(
         CLEAN_JNIENV
     }
 }
+
 std::shared_ptr<StorageJoinFromReadBuffer> BroadCastJoinBuilder::getJoin(const std::string & key)
 {
     if (storage_join_map.contains(key))
-    {
         return storage_join_map.at(key);
-    }
     else
-    {
         return std::shared_ptr<StorageJoinFromReadBuffer>();
-    }
 }
+
 void BroadCastJoinBuilder::buildJoinIfNotExist(
     const std::string & key,
     jobject input,
@@ -144,6 +149,7 @@ void BroadCastJoinBuilder::buildJoinIfNotExist(
     ColumnsDescription columns_description(header.getNamesAndTypesList());
     buildJoinIfNotExist(key, input, io_buffer_size, key_names, kind, strictness, columns_description);
 }
+
 void BroadCastJoinBuilder::clean()
 {
     storage_join_lock.clear();
