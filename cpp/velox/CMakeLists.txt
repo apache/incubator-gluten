@@ -57,8 +57,6 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
-include_directories(SYSTEM "${VELOX_HOME}/velox/external/xxhash/")
-
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
 
 function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
@@ -230,6 +228,7 @@ target_include_directories(velox PUBLIC
     ${VELOX_BUILD_PATH}/_deps/xsimd-src/include/
     ${VELOX_HOME}/velox/vector
     ${VELOX_HOME}/velox/connectors
+    ${VELOX_HOME}/velox/external/xxhash/
     ${VELOX_HOME}/third_party/xsimd/include/)
 
 set_target_properties(velox PROPERTIES
