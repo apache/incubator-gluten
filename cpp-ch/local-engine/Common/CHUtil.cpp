@@ -567,7 +567,11 @@ void BackendInitializerUtil::initContexts()
     {
         global_context = Context::createGlobal(shared_context.get());
         global_context->makeGlobalContext();
-        global_context->setTemporaryStoragePath("/tmp/libch", 0);
+        char buffer[PATH_MAX];
+        if (getcwd(buffer, sizeof(buffer)) != nullptr)
+            global_context->setTemporaryStoragePath(std::string(buffer) + "/tmp/libch", 0);
+        else
+            global_context->setTemporaryStoragePath("/tmp/libch", 0);
         global_context->setPath(config->getString("path", "/"));
     }
 }
