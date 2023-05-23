@@ -31,7 +31,7 @@ case class VeloxHashAggregateExecTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan) extends HashAggregateExecBaseTransformer(
+    child: SparkPlan) extends GlutenHashAggregateExecTransformer(
     requiredChildDistributionExpressions,
     groupingExpressions,
     aggregateExpressions,
@@ -110,12 +110,8 @@ case class VeloxHashAggregateExecTransformer(
     resIndex
   }
 
-  def isStreaming: Boolean = false
-
-  def numShufflePartitions: Option[Int] = Some(0)
-
   override protected def withNewChildInternal(newChild: SparkPlan)
     : VeloxHashAggregateExecTransformer = {
-      copy(child = newChild)
-    }
+    copy(child = newChild)
+  }
 }

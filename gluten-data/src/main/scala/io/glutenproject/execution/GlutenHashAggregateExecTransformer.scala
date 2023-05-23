@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BooleanType, DataType, DecimalType, DoubleType, LongType, StructField, StructType}
 
-case class GlutenHashAggregateExecTransformer(
+abstract class GlutenHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
@@ -691,11 +691,6 @@ case class GlutenHashAggregateExecTransformer(
   def isStreaming: Boolean = false
 
   def numShufflePartitions: Option[Int] = Some(0)
-
-  override protected def withNewChildInternal(newChild: SparkPlan)
-    : GlutenHashAggregateExecTransformer = {
-      copy(child = newChild)
-    }
 }
 
 /**
