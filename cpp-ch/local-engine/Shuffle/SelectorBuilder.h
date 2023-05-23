@@ -11,6 +11,8 @@
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
+#include <Common/PODArray.h>
+
 namespace local_engine
 {
 struct PartitionInfo
