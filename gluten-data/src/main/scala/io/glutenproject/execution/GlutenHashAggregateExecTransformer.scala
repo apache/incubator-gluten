@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import com.google.protobuf.Any
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.VeloxAggregateFunctionsBuilder.{veloxFourIntermediateTypes, veloxSixIntermediateTypes, veloxThreeIntermediateTypes}
@@ -222,6 +221,10 @@ case class GlutenHashAggregateExecTransformer(
     TypeBuilder.makeStruct(false, structTypeNodes)
   }
 
+  override protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
+    super.modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
+  }
+
   // Create aggregate function node and add to list.
   override protected def addFunctionNode(
     args: java.lang.Object,
@@ -231,7 +234,7 @@ case class GlutenHashAggregateExecTransformer(
     aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
     // This is a special handling for PartialMerge in the execution of distinct.
     // Use Partial phase instead for this aggregation.
-    val modeKeyWord = modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
+    val modeKeyWord = modeToKeyWord(aggregateMode)
 
     def generateMergeCompanionNode(): Unit = {
       aggregateMode match {
@@ -268,29 +271,6 @@ case class GlutenHashAggregateExecTransformer(
       case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
            _: Corr | _: CovPopulation | _: CovSample | _: First | _: Last =>
         generateMergeCompanionNode()
-      case hllAdapter: HLLVeloxAdapter =>
-        aggregateMode match {
-          case Partial =>
-            // For Partial mode output type is binary.
-            val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(
-                hllAdapter.inputAggBufferAttributes.head.dataType,
-                hllAdapter.inputAggBufferAttributes.head.nullable))
-            aggregateNodeList.add(partialNode)
-          case Final =>
-            // For Final mode output type is long.
-            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-            aggregateNodeList.add(aggFunctionNode)
-          case other =>
-            throw new UnsupportedOperationException(s"$other is not supported.")
-        }
       case _ =>
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
           VeloxAggregateFunctionsBuilder.create(
@@ -706,35 +686,6 @@ case class GlutenHashAggregateExecTransformer(
     }
     context.registerAggregationParam(operatorId, aggParams)
     resRel
-  }
-
-  override protected def getAttrForAggregateExpr(exp: AggregateExpression,
-                                        aggregateAttributeList: Seq[Attribute],
-                                        aggregateAttr: ListBuffer[Attribute],
-                                        index: Int): Int = {
-    var resIndex = index
-    val mode = exp.mode
-    val aggregateFunc = exp.aggregateFunction
-    aggregateFunc match {
-      case hllAdapter: HLLVeloxAdapter =>
-        mode match {
-          case Partial =>
-            val aggBufferAttr = hllAdapter.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += aggBufferAttr.size
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
-        }
-      case _ =>
-        resIndex = super.getAttrForAggregateExpr(exp, aggregateAttributeList, aggregateAttr, index)
-    }
-    resIndex
   }
 
   def isStreaming: Boolean = false

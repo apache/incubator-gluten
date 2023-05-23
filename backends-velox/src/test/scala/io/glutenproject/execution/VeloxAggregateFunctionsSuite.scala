@@ -53,12 +53,12 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   test("count") {
     val df = runQueryAndCompare(
       "select count(*) from lineitem where l_partkey in (1552, 674, 1062)") {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select count(l_quantity), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -67,12 +67,12 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   test("avg") {
     val df = runQueryAndCompare(
       "select avg(l_partkey) from lineitem where l_partkey < 1000") {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select avg(l_quantity), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -80,7 +80,7 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       "select avg(cast (l_quantity as DECIMAL(12, 2))), " +
         "count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -88,7 +88,7 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       "select avg(cast (l_quantity as DECIMAL(22, 2))), " +
         "count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -97,24 +97,24 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   test("sum") {
     runQueryAndCompare(
       "select sum(l_partkey) from lineitem where l_partkey < 2000") {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select sum(l_quantity), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare(
       "select sum(cast (l_quantity as DECIMAL(22, 2))) from lineitem") {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select sum(cast (l_quantity as DECIMAL(12, 2))), " +
         "count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -122,7 +122,7 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       "select sum(cast (l_quantity as DECIMAL(22, 2))), " +
         "count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -131,12 +131,12 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   test("min and max") {
     runQueryAndCompare(
       "select min(l_partkey), max(l_partkey) from lineitem where l_partkey < 2000") {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select min(l_partkey), max(l_partkey), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -161,19 +161,19 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select stddev_samp(l_quantity) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       """
         |select l_orderkey, stddev_samp(l_quantity) from lineitem
         |group by l_orderkey;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select stddev_samp(l_quantity), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -184,19 +184,19 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select stddev_pop(l_quantity) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       """
         |select l_orderkey, stddev_pop(l_quantity) from lineitem
         |group by l_orderkey;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select stddev_pop(l_quantity), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -207,19 +207,19 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select var_samp(l_quantity) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       """
         |select l_orderkey, var_samp(l_quantity) from lineitem
         |group by l_orderkey;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select var_samp(l_quantity), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -230,19 +230,19 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select var_pop(l_quantity) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       """
         |select l_orderkey, var_pop(l_quantity) from lineitem
         |group by l_orderkey;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select var_pop(l_quantity), count(distinct l_partkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -256,12 +256,12 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
            |select ${func}(l_linenumber) from lineitem
            |group by l_orderkey;
            |""".stripMargin) {
-        checkOperatorMatch[GlutenHashAggregateExecTransformer]
+        checkOperatorMatch[VeloxHashAggregateExecTransformer]
       }
       runQueryAndCompare(
         s"select ${func}(l_linenumber), count(distinct l_partkey) from lineitem") { df => {
         assert(getExecutedPlan(df).count(plan => {
-          plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+          plan.isInstanceOf[VeloxHashAggregateExecTransformer]
         }) == 4)
       }
       }
@@ -273,12 +273,12 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select corr(l_partkey, l_suppkey) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select corr(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -286,12 +286,12 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select covar_pop(l_partkey, l_suppkey) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select covar_pop(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -299,12 +299,12 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select covar_samp(l_partkey, l_suppkey) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select covar_samp(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -315,21 +315,21 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       s"""
          |select first(l_linenumber), first(l_linenumber, true) from lineitem;
          |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
          |select first_value(l_linenumber), first_value(l_linenumber, true) from lineitem
          |group by l_orderkey;
          |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
          |select first(l_linenumber), first(l_linenumber, true), count(distinct l_partkey) from lineitem
          |""".stripMargin) { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -340,21 +340,21 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       s"""
          |select last(l_linenumber), last(l_linenumber, true) from lineitem;
          |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
          |select last_value(l_linenumber), last_value(l_linenumber, true) from lineitem
          |group by l_orderkey;
          |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
          |select last(l_linenumber), last(l_linenumber, true), count(distinct l_partkey) from lineitem
          |""".stripMargin) { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -365,13 +365,13 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       """
         |select approx_count_distinct(l_shipmode) from lineitem;
         |""".stripMargin) {
-      checkOperatorMatch[GlutenHashAggregateExecTransformer]
+      checkOperatorMatch[VeloxHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select approx_count_distinct(l_partkey), count(distinct l_orderkey) from lineitem") {
         df => {
           assert(getExecutedPlan(df).count(plan => {
-            plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+            plan.isInstanceOf[VeloxHashAggregateExecTransformer]
           }) == 0)
         }
     }
@@ -380,46 +380,46 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   test("distinct functions") {
     runQueryAndCompare("SELECT sum(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare(
       "SELECT sum(DISTINCT l_partkey), count(*), sum(l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT avg(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare(
       "SELECT avg(DISTINCT l_partkey), count(*), avg(l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT count(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare(
       "SELECT count(DISTINCT l_partkey), count(*), count(l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT stddev_samp(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -427,13 +427,13 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       "SELECT stddev_samp(DISTINCT l_partkey), count(*), " +
         "stddev_samp(l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT stddev_pop(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -441,13 +441,13 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       "SELECT stddev_pop(DISTINCT l_partkey), count(*), " +
         "stddev_pop(l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT var_samp(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -455,13 +455,13 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       "SELECT var_samp(DISTINCT l_partkey), count(*), " +
         "var_samp(l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT var_pop(DISTINCT l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
@@ -469,49 +469,49 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
       "SELECT var_pop(DISTINCT l_partkey), count(*), " +
         "var_pop(l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT corr(DISTINCT l_partkey, l_suppkey)," +
       "corr(DISTINCT l_suppkey, l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT corr(DISTINCT l_partkey, l_suppkey)," +
       "count(*), corr(l_suppkey, l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT covar_pop(DISTINCT l_partkey, l_suppkey)," +
       "covar_pop(DISTINCT l_suppkey, l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT covar_pop(DISTINCT l_partkey, l_suppkey)," +
       "count(*), covar_pop(l_suppkey, l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT covar_samp(DISTINCT l_partkey, l_suppkey)," +
       "covar_samp(DISTINCT l_suppkey, l_partkey), count(*) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }
     runQueryAndCompare("SELECT covar_samp(DISTINCT l_partkey, l_suppkey)," +
       "count(*), covar_samp(l_suppkey, l_partkey) FROM lineitem") { df => {
       assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[GlutenHashAggregateExecTransformer]
+        plan.isInstanceOf[VeloxHashAggregateExecTransformer]
       }) == 4)
     }
     }

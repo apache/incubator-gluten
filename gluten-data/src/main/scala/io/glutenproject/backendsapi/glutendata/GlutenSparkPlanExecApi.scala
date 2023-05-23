@@ -31,7 +31,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.utils.GlutenShuffleUtil
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
-import org.apache.spark.sql.catalyst.VeloxAggregateFunctionRewriteRule
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
@@ -270,8 +269,7 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession =>
-    Rule[LogicalPlan]] = List(VeloxAggregateFunctionRewriteRule)
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List()
 
 
   /**

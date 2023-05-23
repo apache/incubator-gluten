@@ -16,6 +16,7 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -428,8 +429,7 @@ object ExpressionMappings {
     Sig[CovPopulation](COVAR_POP),
     Sig[CovSample](COVAR_SAMP),
     Sig[Last](LAST),
-    Sig[First](FIRST),
-    Sig[HLLVeloxAdapter](APPROX_DISTINCT)
+    Sig[First](FIRST)
   )
 
   /** Mapping Spark window expression to Substrait function name */
@@ -443,7 +443,8 @@ object ExpressionMappings {
   )
 
   lazy val expressionsMap: Map[Class[_], String] = {
-    (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS)
+    (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++
+      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)
       .map(s => (s.expClass, s.name)).toMap[Class[_], String]
   }
 
