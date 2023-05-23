@@ -71,14 +71,12 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
-      std::make_shared<velox::core::MemConfig>(),
+      getQueryContextConf(),
       connectorConfigs,
       gluten::VeloxInitializer::get()->getAsyncDataCache(),
       pool_,
       nullptr,
       "");
-  // Set customized confs to query context.
-  setConfToQueryContext(ctx);
   return ctx;
 }
 
@@ -234,7 +232,7 @@ std::string WholeStageResultIterator::getConfigValue(
   return got->second;
 }
 
-void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox::core::QueryCtx>& queryCtx) {
+std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryContextConf() {
   std::unordered_map<std::string, std::string> configs = {};
   // Find batch size from Spark confs. If found, set the preferred and max batch size.
   configs[velox::core::QueryConfig::kPreferredOutputBatchRows] = getConfigValue(kSparkBatchSize, "4096");
@@ -243,7 +241,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
     // To align with Spark's behavior, set casting to int to be truncating.
-    configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
+    configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
     configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
 
@@ -278,7 +276,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
   }
-  queryCtx->setConfigOverridesUnsafe(std::move(configs));
+  return configs;
 }
 
 #ifdef ENABLE_HDFS
@@ -354,7 +352,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
-  task_ = std::make_shared<velox::exec::Task>(
+  task_ = velox::exec::Task::create(
       fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
       std::move(planFragment),
       0,
@@ -433,7 +431,7 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
-  task_ = std::make_shared<velox::exec::Task>(
+  task_ = velox::exec::Task::create(
       fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
       std::move(planFragment),
       0,

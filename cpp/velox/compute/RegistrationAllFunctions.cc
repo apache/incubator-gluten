@@ -43,7 +43,7 @@ void registerAllFunctions() {
   velox::functions::sparksql::registerFunctions("");
   // registerCustomFunctions();
   velox::aggregate::prestosql::registerAllAggregateFunctions();
-  velox::functions::sparksql::aggregates::registerAggregateFunctions("");
+  velox::functions::aggregate::sparksql::registerAggregateFunctions("");
   velox::window::prestosql::registerAllWindowFunctions();
   velox::functions::sparksql::windows::registerWindowFunctions("");
 }

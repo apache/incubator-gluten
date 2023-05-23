@@ -3,7 +3,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_BRANCH=main_rebase_531
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
@@ -49,13 +49,13 @@ function process_setup_ubuntu {
   git checkout scripts/setup-ubuntu.sh
   sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
   sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  *thrift* \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libxml2-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libkrb5-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libuuid1 \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  uuid-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/^  sudo --preserve-env apt install -y/a \ \  *thrift* \\' scripts/setup-ubuntu.sh
+  sed -i '/^  sudo --preserve-env apt install -y/a \ \  libiberty-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/^  sudo --preserve-env apt install -y/a \ \  libxml2-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/^  sudo --preserve-env apt install -y/a \ \  libkrb5-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/^  sudo --preserve-env apt install -y/a \ \  libgsasl7-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/^  sudo --preserve-env apt install -y/a \ \  libuuid1 \\' scripts/setup-ubuntu.sh
+  sed -i '/^  sudo --preserve-env apt install -y/a \ \  uuid-dev \\' scripts/setup-ubuntu.sh
   sed -i 's/^  liblzo2-dev.*/  liblzo2-dev \\/g' scripts/setup-ubuntu.sh
   sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
