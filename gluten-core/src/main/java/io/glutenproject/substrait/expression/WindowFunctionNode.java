@@ -36,20 +36,20 @@ public class WindowFunctionNode implements Serializable {
 
   private final String lowerBound;
 
-  private final String windowType;
+  private final String frameType;
 
   WindowFunctionNode(Integer functionId, ArrayList<ExpressionNode> expressionNodes,
                         String columnName, TypeNode outputTypeNode,
                      String upperBound,
                      String lowerBound,
-                     String windowType) {
+                     String frameType) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.columnName = columnName;
     this.outputTypeNode = outputTypeNode;
     this.upperBound = upperBound;
     this.lowerBound = lowerBound;
-    this.windowType = windowType;
+    this.frameType = frameType;
   }
 
   private Expression.WindowFunction.Bound.Builder setBound(
@@ -107,7 +107,7 @@ public class WindowFunctionNode implements Serializable {
       default:
         throw new UnsupportedOperationException("Only support ROWS and RANGE Frame type.");
     }
-    return  windowType;
+    return windowType;
   }
 
   public Expression.WindowFunction toProtobuf() {
@@ -130,7 +130,7 @@ public class WindowFunctionNode implements Serializable {
         Expression.WindowFunction.Bound.newBuilder();
     windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound, true).build());
     windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound, false).build());
-    windowBuilder.setWindowType(getWindowType(windowType));
+    windowBuilder.setWindowType(getWindowType(frameType));
     return windowBuilder.build();
   }
 }
