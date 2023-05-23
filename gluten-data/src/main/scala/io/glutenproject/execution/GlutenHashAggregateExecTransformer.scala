@@ -754,9 +754,9 @@ object VeloxAggregateFunctionsBuilder {
 
     aggregateFunc match {
       case First(_, ignoreNulls) =>
-        if (ignoreNulls) sigName = Some(ExpressionMappings.FIRST_IGNORE_NULL)
+        if (ignoreNulls) sigName = Some(ExpressionNames.FIRST_IGNORE_NULL)
       case Last(_, ignoreNulls) =>
-        if (ignoreNulls) sigName = Some(ExpressionMappings.LAST_IGNORE_NULL)
+        if (ignoreNulls) sigName = Some(ExpressionNames.LAST_IGNORE_NULL)
       case _ =>
     }
 
