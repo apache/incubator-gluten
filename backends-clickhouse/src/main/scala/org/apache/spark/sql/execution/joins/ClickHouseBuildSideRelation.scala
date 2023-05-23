@@ -45,6 +45,8 @@ case class ClickHouseBuildSideRelation(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
   )
 
+  var hashTableData: Long = 0L
+
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
   override def asReadOnlyCopy(
@@ -64,7 +66,7 @@ case class ClickHouseBuildSideRelation(
       newBuildKeys.asJava
     )
     // Build the hash table
-    storageJoinBuilder.build()
+    hashTableData = storageJoinBuilder.build()
     storageJoinBuilder.close()
     this
   }

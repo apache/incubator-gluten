@@ -282,6 +282,11 @@ object GlutenConfig {
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
 
+  // Expired time of execution with resource relation has cached
+  val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME = "spark.gluten.execution.resource.expired.time"
+  // unit: SECONDS, default 1 day
+  val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT: Int = 86400
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
