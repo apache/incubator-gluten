@@ -35,7 +35,7 @@ import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
-import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData}
+import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData, TypeUtils}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -149,58 +149,19 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
   /**
    * Sort map data by key and return the sorted key array and value array.
-   * TODO: Sort requires known type, so Any does not work here.
-   * TODO: Only limited type combinations are supported.
-   * @param input: input map data.
-   * @param kt: key type.
-   * @param vt: value type.
+   *
+   * @param input  : input map data.
+   * @param kt        : key type.
+   * @param vt        : value type.
    * @return the sorted key array and value array.
    */
   private def getSortedArrays(input: MapData, kt: DataType, vt: DataType)
   : (ArrayData, ArrayData) = {
-    (kt, vt) match {
-      case (IntegerType, LongType) =>
-        val keyArray = input.keyArray().toIntArray()
-        val valueArray = input.valueArray().toLongArray()
-        val newMap = (keyArray zip valueArray).toMap
-        val sortedMap = mutable.SortedMap(newMap.toSeq: _*)
-        (new GenericArrayData(sortedMap.keys.toArray),
-          new GenericArrayData(sortedMap.values.toArray))
-      case (StringType, IntegerType) =>
-        val keyArray = input.keyArray().toObjectArray(kt)
-          .map(obj => if (obj == null) "" else obj.toString)
-        val valueArray = input.valueArray().toIntArray()
-        val newMap = (keyArray zip valueArray).toMap
-        val sortedMap = mutable.SortedMap(newMap.toSeq: _*)
-        (new GenericArrayData(sortedMap.keys.toArray),
-          new GenericArrayData(sortedMap.values.toArray))
-      case (StringType, LongType) =>
-        val keyArray = input.keyArray().toObjectArray(kt)
-          .map(obj => if (obj == null) "" else obj.toString)
-        val valueArray = input.valueArray().toLongArray()
-        val newMap = (keyArray zip valueArray).toMap
-        val sortedMap = mutable.SortedMap(newMap.toSeq: _*)
-        (new GenericArrayData(sortedMap.keys.toArray),
-          new GenericArrayData(sortedMap.values.toArray))
-      case (LongType, StringType) =>
-        val keyArray = input.keyArray().toLongArray()
-        val valueArray = input.valueArray().toObjectArray(vt)
-          .map(obj => if (obj == null) "" else obj.toString)
-        val newMap = (keyArray zip valueArray).toMap
-        val sortedMap = mutable.SortedMap(newMap.toSeq: _*)
-        (new GenericArrayData(sortedMap.keys.toArray),
-          new GenericArrayData(sortedMap.values.toArray))
-      case (IntegerType, StringType) =>
-        val keyArray = input.keyArray().toIntArray()
-        val valueArray = input.valueArray().toObjectArray(vt)
-          .map(obj => if (obj == null) "" else obj.toString)
-        val newMap = (keyArray zip valueArray).toMap
-        val sortedMap = mutable.SortedMap(newMap.toSeq: _*)
-        (new GenericArrayData(sortedMap.keys.toArray),
-          new GenericArrayData(sortedMap.values.toArray))
-      case _ =>
-        (input.keyArray(), input.valueArray())
-    }
+    val keyArray = input.keyArray().toArray[Any](kt)
+    val valueArray = input.valueArray().toArray[Any](vt)
+    val newMap = (keyArray zip valueArray).toMap
+    val sortedMap = mutable.SortedMap(newMap.toSeq: _*)(TypeUtils.getInterpretedOrdering(kt))
+    (new GenericArrayData(sortedMap.keys.toArray), new GenericArrayData(sortedMap.values.toArray))
   }
 
   override protected def checkResult(
@@ -226,12 +187,11 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         }
       case (result: ArrayData, expected: ArrayData) =>
         result.numElements == expected.numElements && {
+          val ArrayType(et, cn) = dataType.asInstanceOf[ArrayType]
           var isSame = true
           var i = 0
-          val ArrayType(et, cn) = dataType.asInstanceOf[ArrayType]
           while (isSame && i < result.numElements) {
-            isSame = checkResult(result.get(i, et),
-              expected.get(i, et), et, cn)
+            isSame = checkResult(result.get(i, et), expected.get(i, et), et, cn)
             i += 1
           }
           isSame
