@@ -7,9 +7,9 @@ import org.apache.spark.sql.types.{DateType, DecimalType, DoubleType, IntegerTyp
 
 object Constants {
 
-  val VANILLA_CONF: SparkConf = new SparkConf()
+  val VANILLA_CONF: SparkConf = new SparkConf(false)
 
-  val VELOX_CONF: SparkConf = new SparkConf()
+  val VELOX_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
@@ -18,7 +18,7 @@ object Constants {
     .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
 
-  val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf()
+  val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")

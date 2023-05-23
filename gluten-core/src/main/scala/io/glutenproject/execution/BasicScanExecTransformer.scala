@@ -90,7 +90,7 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     val relNode = try {
       doTransform(substraitContext).root
     } catch {
-      case e: Throwable =>
+      case e: Exception =>
         logValidateFailure(
           s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
         return false
