@@ -70,7 +70,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
     // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
@@ -80,7 +79,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
     // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
@@ -94,7 +92,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
   enableSuite[GlutenTryCastSuite]
     .exclude(
@@ -108,7 +105,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
@@ -195,13 +191,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Map Concat")
     .exclude("Shuffle")
   enableSuite[GlutenDateExpressionsSuite]
-    // Has exception in fallback execution when we use resultDF.collect in evaluation.
-    .exclude("DayOfYear")
-    .exclude("Year")
-    .exclude("Quarter")
-    .exclude("Month")
-    .exclude("Day / DayOfMonth")
-    .exclude("DayOfWeek")
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
   enableSuite[GlutenDecimalExpressionSuite]
@@ -222,12 +211,13 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("Substring")
     .exclude("string for ascii")
     .exclude("replace")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
+    // No need due to testing framework change.
     .exclude("MonotonicallyIncreasingID")
+    // No need due to testing framework change.
     .exclude("SparkPartitionID")
   enableSuite[GlutenRandomSuite]
     .exclude("random")
