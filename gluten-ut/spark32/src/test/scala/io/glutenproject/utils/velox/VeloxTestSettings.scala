@@ -236,8 +236,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
-    .exclude("CreateMap")
-    .exclude("MapFromArrays")
   enableSuite[GlutenDateFunctionsSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
