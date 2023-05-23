@@ -188,6 +188,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
+  def veloxSpillEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SPILL_ENABLED)
+
+  def veloxSillMode: String = conf.getConf(COLUMNAR_VELOX_SPILL_MODE)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -292,6 +296,9 @@ object GlutenConfig {
 
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
+
+  val GLUTEN_VELOX_SPILL_ENABLED_KEY = "spark.gluten.sql.columnar.backend.velox.spillEnabled"
+  val GLUTEN_VELOX_SPILL_MODE_KEY = "spark.gluten.sql.columnar.backend.velox.spillMode"
 
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
@@ -806,6 +813,25 @@ object GlutenConfig {
       .doc("The split preload per task")
       .intConf
       .createWithDefault(2)
+
+  val COLUMNAR_VELOX_SPILL_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillEnabled")
+      .internal()
+      .doc("Whether spill is enabled on Velox backend")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_VELOX_SPILL_MODE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillMode")
+      .internal()
+      .doc(
+        "When the spill mode is static, velox spills according to the specified threshold." +
+          "When the spill mode is dynamic, velox's spill is triggered by Spark memory management " +
+          "according to actual needs ")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValues(Set("static", "dynamic"))
+      .createWithDefault("static")
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")

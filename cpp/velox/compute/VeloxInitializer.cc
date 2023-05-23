@@ -97,7 +97,9 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   int64_t maxMemory;
   {
     auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
-    if (got == conf.end()) {
+    if (got == conf.end() ||
+        (conf.find(kSpillEnabled) != conf.end() && boost::algorithm::to_lower_copy(conf.at(kSpillEnabled)) == "true" &&
+         conf.find(kSpillMode) != conf.end() && conf.at(kSpillMode) == "dynamic")) {
       // not found
       maxMemory = facebook::velox::memory::kMaxMemory;
     } else {

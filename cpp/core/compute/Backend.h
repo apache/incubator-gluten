@@ -109,6 +109,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
     throw GlutenException("Not implement getDatasource");
   }
 
+  virtual void eraseTaskMap(const std::string& taskTag) {}
+
   std::unordered_map<std::string, std::string> getConfMap() {
     return confMap_;
   }
@@ -117,11 +119,20 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return taskInfo_;
   }
 
+  void setTaskResultIteratorId(const std::string& taskTag, int64_t id) {
+    taskMap_.emplace(taskTag, id);
+  }
+
+  int64_t getTaskResultIteratorId(const std::string taskTag) {
+    return taskMap_.at(taskTag);
+  }
+
  protected:
   ::substrait::Plan substraitPlan_;
   SparkTaskInfo taskInfo_;
   // static conf map
   std::unordered_map<std::string, std::string> confMap_;
+  std::unordered_map<std::string, int64_t> taskMap_;
 };
 
 using BackendFactoryWithConf = std::shared_ptr<Backend> (*)(const std::unordered_map<std::string, std::string>&);

@@ -33,6 +33,7 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.SparkDirectoryUtil;
+import org.apache.spark.util.memory.TaskResources;
 
 import java.io.IOException;
 import java.util.List;
@@ -64,7 +65,23 @@ public class NativePlanEvaluator {
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
       throws RuntimeException, IOException {
-    long allocId = NativeMemoryAllocators.contextInstance().getNativeInstanceId();
+    long allocId;
+    if (BackendsApiManager.getBackendName().equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND()) &&
+      GlutenConfig.getConf().veloxSpillEnabled() &&
+      "dynamic".equalsIgnoreCase(GlutenConfig.getConf().veloxSillMode())) {
+      allocId = NativeMemoryAllocators.createSpillable(
+        (size, trigger) -> {
+          if (!TaskResources.inSparkTask()) {
+            throw new IllegalStateException("Not in a Spark task");
+          }
+          TaskContext tc = TaskContext.get();
+          String taskTag = tc.stageId() + "_" + tc.taskAttemptId();
+          return jniWrapper.nativeSpill(taskTag, size);
+        }).getNativeInstanceId();
+    } else {
+      allocId = NativeMemoryAllocators.contextInstance().getNativeInstanceId();
+    }
+
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(allocId, getPlanBytesBuf(wsPlan),
             iterList.toArray(new GeneralInIterator[0]), TaskContext.get().stageId(),

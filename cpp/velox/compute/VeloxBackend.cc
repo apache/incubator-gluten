@@ -141,4 +141,10 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
   }
 }
 
+void VeloxBackend::eraseTaskMap(const std::string& taskTag) {
+  if (!taskMap_.empty()) {
+    taskMap_.erase(taskTag);
+  }
+}
+
 } // namespace gluten

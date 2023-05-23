@@ -16,7 +16,6 @@ namespace gluten {
 namespace {
 // Velox configs
 const std::string kHiveConnectorId = "test-hive";
-const std::string kSpillEnabled = "spark.gluten.sql.columnar.backend.velox.spillEnabled";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -78,6 +77,10 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
     return nullptr;
   }
   return std::make_shared<VeloxColumnarBatch>(vector);
+}
+
+int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
+  return pool_->reclaim(size);
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(

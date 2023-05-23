@@ -31,6 +31,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   std::shared_ptr<ColumnarBatch> next() override;
 
+  int64_t spillFixedSize(int64_t size) override;
+
   std::shared_ptr<Metrics> getMetrics(int64_t exportNanos) {
     collectMetrics();
     metrics_->veloxToArrow = exportNanos;
