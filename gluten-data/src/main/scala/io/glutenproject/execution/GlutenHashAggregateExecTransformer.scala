@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 import com.google.protobuf.Any
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.VeloxAggregateFunctionsBuilder.{veloxFourIntermediateTypes, veloxSixIntermediateTypes, veloxThreeIntermediateTypes}
@@ -705,6 +706,35 @@ case class GlutenHashAggregateExecTransformer(
     }
     context.registerAggregationParam(operatorId, aggParams)
     resRel
+  }
+
+  override protected def getAttrForAggregateExpr(exp: AggregateExpression,
+                                        aggregateAttributeList: Seq[Attribute],
+                                        aggregateAttr: ListBuffer[Attribute],
+                                        index: Int): Int = {
+    var resIndex = index
+    val mode = exp.mode
+    val aggregateFunc = exp.aggregateFunction
+    aggregateFunc match {
+      case hllAdapter: HLLVeloxAdapter =>
+        mode match {
+          case Partial =>
+            val aggBufferAttr = hllAdapter.inputAggBufferAttributes
+            for (index <- aggBufferAttr.indices) {
+              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+              aggregateAttr += attr
+            }
+            resIndex += aggBufferAttr.size
+          case Final =>
+            aggregateAttr += aggregateAttributeList(resIndex)
+            resIndex += 1
+          case other =>
+            throw new UnsupportedOperationException(s"not currently supported: $other.")
+        }
+      case _ =>
+        resIndex = super.getAttrForAggregateExpr(exp, aggregateAttributeList, aggregateAttr, index)
+    }
+    resIndex
   }
 
   def isStreaming: Boolean = false
