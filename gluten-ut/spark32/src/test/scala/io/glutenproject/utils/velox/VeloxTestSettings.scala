@@ -188,12 +188,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
     .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
-    .exclude("DayOfYear")
-    .exclude("Year")
-    .exclude("Quarter")
-    .exclude("Month")
-    .exclude("Day / DayOfMonth")
-    .exclude("DayOfWeek")
     .exclude("extract the seconds part with fraction from timestamps")
   enableSuite[GlutenDecimalExpressionSuite]
     .exclude("MakeDecimal")
