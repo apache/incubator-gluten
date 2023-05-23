@@ -173,7 +173,6 @@ class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenLiteralExpressionSuite]
     .exclude("default")
-    .exclude("decimal")
     // Timestamp: Velox to Arrow.
     .exclude("construct literals from arrays of java.time.Instant")
   enableSuite[GlutenIntervalExpressionsSuite]
