@@ -48,6 +48,7 @@ object ExpressionMappings {
   final val LAST_IGNORE_NULL = "last_ignore_null"
   final val FIRST = "first"
   final val FIRST_IGNORE_NULL = "first_ignore_null"
+  final val APPROX_PERCENTILE = "approx_percentile"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -100,6 +101,7 @@ object ExpressionMappings {
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
   final val SPACE = "space"
+  final val SUBSTRING_INDEX = "substring_index"
 
   // SparkSQL Math functions
   final val ABS = "abs"
@@ -285,6 +287,7 @@ object ExpressionMappings {
     Sig[StringRepeat](REPEAT),
     Sig[StringTranslate](TRANSLATE),
     Sig[StringSpace](SPACE),
+    Sig[SubstringIndex](SUBSTRING_INDEX),
     // SparkSQL Math functions
     Sig[Abs](ABS),
     Sig[Ceil](CEIL),
@@ -427,7 +430,8 @@ object ExpressionMappings {
     Sig[CovPopulation](COVAR_POP),
     Sig[CovSample](COVAR_SAMP),
     Sig[Last](LAST),
-    Sig[First](FIRST)
+    Sig[First](FIRST),
+    Sig[ApproximatePercentile](APPROX_PERCENTILE)
   )
 
   /** Mapping Spark window expression to Substrait function name */
