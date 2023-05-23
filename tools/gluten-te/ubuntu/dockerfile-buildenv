@@ -3,14 +3,21 @@ ARG OS_IMAGE
 FROM $OS_IMAGE AS gluten-buildenv
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-l", "-c"]
+ENTRYPOINT ["/bin/bash", "-l", "-c"]
+CMD ["/bin/bash"]
 
 # REQUIRED PROXYS: APT, WGET, GIT, MAVEN (also Maven mirror)
 ARG HTTP_PROXY_HOST
 ARG HTTP_PROXY_PORT
 
-ENV http_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
-ENV https_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
+# Sometimes ENV a=b won't work when the shell is not docker-default
+RUN echo "export http_proxy=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}" >> /etc/profile.d/99-gluten.sh
+RUN echo "export https_proxy=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}" >> /etc/profile.d/99-gluten.sh
+RUN echo "export no_proxy=localhost,127.0.0.1" >> /etc/profile.d/99-gluten.sh
+RUN echo "export HTTP_PROXY=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}" >> /etc/profile.d/99-gluten.sh
+RUN echo "export HTTPS_PROXY=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}" >> /etc/profile.d/99-gluten.sh
+RUN echo "export NO_PROXY=localhost,127.0.0.1" >> /etc/profile.d/99-gluten.sh
 
 RUN if [ -n "$HTTP_PROXY_HOST" ]; then echo "Acquire::http::Proxy \"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT\";" >> /etc/apt/apt.conf; fi
 RUN if [ -n "$HTTP_PROXY_HOST" ]; then echo "Acquire::https::Proxy \"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT\";" >> /etc/apt/apt.conf; fi
@@ -77,15 +84,15 @@ RUN TZ=$TIMEZONE \
 # Configure locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen
-ENV LANG en_US.UTF-8  
-ENV LANGUAGE en_US:en  
-ENV LC_ALL en_US.UTF-8
+
+RUN echo "export LANG=en_US.UTF-8" >> /etc/profile.d/99-gluten.sh
+RUN echo "export LANGUAGE=en_US:en" >> /etc/profile.d/99-gluten.sh
+RUN echo "export LC_ALL=en_US.UTF-8" >> /etc/profile.d/99-gluten.sh
 
 # Install Spark 3.2.2
 RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
 RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 
 # Prepare entry command
-
 COPY buildenv-cmd/cmd.sh /root/.cmd.sh
-CMD [ "bash", "/root/.cmd.sh" ]
+CMD ["bash", "/root/.cmd.sh"]
