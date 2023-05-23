@@ -28,7 +28,7 @@
 #include "arrow/c/helpers.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/row/UnsafeRowDeserializers.h"
-#include "velox/row/UnsafeRowSerializers.h"
+#include "velox/row/UnsafeRowFast.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
@@ -113,25 +113,24 @@ arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> 
     bool mayHaveNulls = vec->mayHaveNulls();
 
     int64_t field_offset = getFieldOffset(nullBitsetWidthInBytes_, col_idx);
-    auto field_address = (char*)(bufferAddress_ + field_offset);
-
-#define SERIALIZE_COLUMN(DataType)                                                                  \
-  do {                                                                                              \
-    if (mayHaveNulls) {                                                                             \
-      for (int row_idx = 0; row_idx < numRows_; row_idx++) {                                        \
-        if (vec->isNullAt(row_idx)) {                                                               \
-          setNullAt(bufferAddress_, offsets_[row_idx], field_offset, col_idx);                      \
-        } else {                                                                                    \
-          auto write_address = (char*)(field_address + offsets_[row_idx]);                          \
-          velox::row::UnsafeRowSerializer::serialize<velox::DataType>(vec, write_address, row_idx); \
-        }                                                                                           \
-      }                                                                                             \
-    } else {                                                                                        \
-      for (int row_idx = 0; row_idx < numRows_; row_idx++) {                                        \
-        auto write_address = (char*)(field_address + offsets_[row_idx]);                            \
-        velox::row::UnsafeRowSerializer::serialize<velox::DataType>(vec, write_address, row_idx);   \
-      }                                                                                             \
-    }                                                                                               \
+    velox::row::UnsafeRowFast fast(rv_);
+#define SERIALIZE_COLUMN(DataType)                                             \
+  do {                                                                         \
+    if (mayHaveNulls) {                                                        \
+      for (int row_idx = 0; row_idx < numRows_; row_idx++) {                   \
+        if (vec->isNullAt(row_idx)) {                                          \
+          setNullAt(bufferAddress_, offsets_[row_idx], field_offset, col_idx); \
+        } else {                                                               \
+          auto write_address = (char*)(bufferAddress_ + offsets_[row_idx]);    \
+          fast.serialize(row_idx, write_address);                              \
+        }                                                                      \
+      }                                                                        \
+    } else {                                                                   \
+      for (int row_idx = 0; row_idx < numRows_; row_idx++) {                   \
+        auto write_address = (char*)(bufferAddress_ + offsets_[row_idx]);      \
+        fast.serialize(row_idx, write_address);                                \
+      }                                                                        \
+    }                                                                          \
   } while (0)
 
     auto colTypeId = schema_->field(col_idx)->type()->id();
@@ -191,12 +190,12 @@ arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> 
       case arrow::Decimal128Type::type_id: {
         for (auto rowIdx = 0; rowIdx < numRows_; rowIdx++) {
           bool flag = vec->isNullAt(rowIdx);
-          if (vec->typeKind() == velox::TypeKind::SHORT_DECIMAL) {
-            auto shortDecimal = vec->asFlatVector<velox::UnscaledShortDecimal>()->rawValues();
+          if (vec->typeKind() == velox::TypeKind::BIGINT) {
+            auto shortDecimal = vec->asFlatVector<int64_t>()->rawValues();
             if (!flag) {
               // Get the long value and write the long value
               // Refer to the int64_t() method of Decimal128
-              int64_t longValue = shortDecimal[rowIdx].unscaledValue();
+              int64_t longValue = shortDecimal[rowIdx];
               memcpy(bufferAddress_ + offsets_[rowIdx] + field_offset, &longValue, sizeof(long));
             } else {
               setNullAt(bufferAddress_, offsets_[rowIdx], field_offset, col_idx);
@@ -205,9 +204,9 @@ arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> 
             if (flag) {
               setNullAt(bufferAddress_, offsets_[rowIdx], field_offset, col_idx);
             } else {
-              auto longDecimal = vec->asFlatVector<velox::UnscaledLongDecimal>()->rawValues();
+              auto longDecimal = vec->asFlatVector<facebook::velox::int128_t>()->rawValues();
               int32_t size;
-              velox::int128_t veloxInt128 = longDecimal[rowIdx].unscaledValue();
+              velox::int128_t veloxInt128 = longDecimal[rowIdx];
 
               velox::int128_t orignalValue = veloxInt128;
               int64_t high = veloxInt128 >> 64;

@@ -32,7 +32,6 @@
 #include "config/GlutenConfig.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
-#include "velox/core/Context.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
@@ -99,8 +98,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
 
   // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
   std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
-  auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
-  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
+  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, configData);
 
   parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), *(pool_), 2048, properities, queryCtx);
 }

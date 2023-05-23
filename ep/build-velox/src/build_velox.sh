@@ -97,6 +97,10 @@ function compile {
       echo "INSTALL gtest."
       sudo cmake --install gtest-build/
     fi
+    if [ -d simdjson-build ]; then
+      echo "INSTALL simdjson."
+      sudo cmake --install simdjson-build/
+    fi
   fi
 }
 
