@@ -2,6 +2,7 @@
 #include <map>
 #include <optional>
 #include <unordered_map>
+#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <AggregateFunctions/IAggregateFunction.h>
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
@@ -27,24 +28,37 @@ public:
     static AggregateFunctionPtr getAggregateFunction(
         DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
 
-public:
     static DB::DataTypePtr parseType(const substrait::Type & type) { return SerializedPlanParser::parseType(type); }
 
 protected:
     inline ContextPtr getContext() { return plan_parser->context; }
+
     inline String getUniqueName(const std::string & name) { return plan_parser->getUniqueName(name); }
+
     inline const std::unordered_map<std::string, std::string> & getFunctionMapping() { return plan_parser->function_mapping; }
-    std::optional<String> parseFunctionName(UInt32 function_ref);
-    static DB::DataTypes
-    parseFunctionArgumentTypes(const Block & header, const google::protobuf::RepeatedPtrField<substrait::FunctionArgument> & func_args);
-    static DB::DataTypePtr parseExpressionType(const Block & header, const substrait::Expression & expr);
-    static DB::Names
-    parseFunctionArgumentNames(const Block & header, const google::protobuf::RepeatedPtrField<substrait::FunctionArgument> & func_args);
+    // Get function signature name.
+    std::optional<String> parseSignatureFunctionName(UInt32 function_ref);
+    // Get coresponding function name in ClickHouse.
+    std::optional<String> parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function);
+
     const DB::ActionsDAG::Node * parseArgument(ActionsDAGPtr action_dag, const substrait::Expression & rel)
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) { return plan_parser->parseLiteral(literal); }
+
+    const ActionsDAG::Node *
+    buildFunctionNode(ActionsDAGPtr action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
+    {
+        return plan_parser->toFunctionNode(action_dag, function, args);
+    }
+
+    DB::AggregateFunctionPtr getAggregateFunction(const std::string & name, DB::DataTypes arg_types)
+    {
+        auto & factory = DB::AggregateFunctionFactory::instance();
+        DB::AggregateFunctionProperties properties;
+        return factory.get(name, arg_types, DB::Array{}, properties);
+    }
 
 private:
     SerializedPlanParser * plan_parser;
