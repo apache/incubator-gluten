@@ -3,7 +3,7 @@ if (COMPILER_CLANG)
     set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_WRAPPER}")
 endif ()
 
-option(ENABLE_LOCAL_FORMATS "Use ORC/Parquet input formats defined in utils/local-engine/, notice that it is not stable and has some known issues. We suggest setting it to OFF in production environment." OFF)
+option(ENABLE_LOCAL_FORMATS "Use ORC/Parquet input formats defined in utils/local-engine/, notice that it is not stable and has some known issues. We suggest setting it to OFF in production environment." ON)
 if (ENABLE_LOCAL_FORMATS)
     add_definitions(-DENABLE_LOCAL_FORMATS=1)
 else()

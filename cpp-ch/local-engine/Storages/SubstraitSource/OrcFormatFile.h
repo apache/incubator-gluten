@@ -38,7 +38,7 @@ class ORCBlockInputFormat : public DB::IInputFormat
 {
 public:
     explicit ORCBlockInputFormat(
-        DB::ReadBuffer & in_,
+        DB::ReadBuffer * buf,
         DB::Block header_,
         const DB::FormatSettings & format_settings_,
         const std::vector<StripeInformation> & stripes_);

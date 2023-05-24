@@ -25,7 +25,7 @@ class OptimizedArrowColumnToCHColumn;
 class OptimizedParquetBlockInputFormat : public IInputFormat
 {
 public:
-    OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_);
+    OptimizedParquetBlockInputFormat(ReadBuffer * buf, Block header_, const FormatSettings & format_settings_);
 
     void resetParser() override;
 

@@ -24,8 +24,8 @@ namespace ErrorCodes
             throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
     } while (false)
 // clang-format on
-OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_)
-    : IInputFormat(std::move(header_), in_), format_settings(format_settings_)
+OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer * buf, Block header_, const FormatSettings & format_settings_)
+    : IInputFormat(std::move(header_), buf), format_settings(format_settings_)
 {
 }
 

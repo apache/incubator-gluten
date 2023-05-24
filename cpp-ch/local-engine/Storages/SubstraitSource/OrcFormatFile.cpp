@@ -26,8 +26,8 @@ namespace local_engine
 {
 #    if USE_LOCAL_FORMATS
 ORCBlockInputFormat::ORCBlockInputFormat(
-    DB::ReadBuffer & in_, DB::Block header_, const DB::FormatSettings & format_settings_, const std::vector<StripeInformation> & stripes_)
-    : IInputFormat(std::move(header_), in_), format_settings(format_settings_), stripes(stripes_)
+    DB::ReadBuffer * buf, DB::Block header_, const DB::FormatSettings & format_settings_, const std::vector<StripeInformation> & stripes_)
+    : IInputFormat(std::move(header_), buf), format_settings(format_settings_), stripes(stripes_)
 {
 }
 
@@ -174,7 +174,8 @@ FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & he
 
 #    if USE_LOCAL_FORMATS
     format_settings.orc.import_nested = true;
-    auto input_format = std::make_shared<local_engine::ORCBlockInputFormat>(*file_format->read_buffer, header, format_settings, stripes);
+    auto input_format
+        = std::make_shared<local_engine::ORCBlockInputFormat>(file_format->read_buffer.get(), header, format_settings, stripes);
 #    else
     std::vector<int> total_stripe_indices(total_stripes);
     std::iota(total_stripe_indices.begin(), total_stripe_indices.end(), 0);

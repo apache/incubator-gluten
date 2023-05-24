@@ -62,7 +62,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         row_group_indices.emplace_back(row_group.index);
 
     auto input_format
-        = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
+        = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(res->read_buffer.get(), header, format_settings, row_group_indices);
 // clang-format off
 #else
     // clang-format on

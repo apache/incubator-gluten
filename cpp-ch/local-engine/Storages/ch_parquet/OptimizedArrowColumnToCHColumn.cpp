@@ -37,7 +37,7 @@
 #include <Common/Stopwatch.h>
 #include <Common/quoteString.h>
 
-#include <arrow/column_reader.h>
+#include "arrow/column_reader.h"
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>

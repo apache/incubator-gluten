@@ -22,7 +22,7 @@ class ArrowParquetBlockInputFormat : public DB::OptimizedParquetBlockInputFormat
 {
 public:
     ArrowParquetBlockInputFormat(
-        DB::ReadBuffer & in,
+        DB::ReadBuffer * buf,
         const DB::Block & header,
         const DB::FormatSettings & formatSettings,
         const std::vector<int> & row_group_indices_ = {});

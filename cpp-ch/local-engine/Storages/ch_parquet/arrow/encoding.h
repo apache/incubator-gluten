@@ -22,7 +22,6 @@
 #include <memory>
 #include <vector>
 
-#include "arrow/util/bitmap_writer.h"
 #include "arrow/util/spaced.h"
 
 
@@ -51,6 +50,10 @@ class NumericBuilder;
 class FixedSizeBinaryBuilder;
 template <typename T>
 class Dictionary32Builder;
+namespace internal
+{
+    class BitmapWriter;
+}
 
 } // namespace arrow
 
