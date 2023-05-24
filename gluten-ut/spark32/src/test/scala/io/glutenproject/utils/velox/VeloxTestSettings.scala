@@ -186,7 +186,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("ANSI: extract days, hours, minutes and seconds")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
-    .exclude("SPARK-30633: xxHash with different type seeds")
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("Map Concat")
     .exclude("Shuffle")

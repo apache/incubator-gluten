@@ -423,7 +423,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(t.srcStr, attributeSeq),
           t)
       case m: HashExpression[_] =>
-        new HashExpressionTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genHashExpressionTransformer(
           substraitExprName.get,
           m.children.map(expr => replaceWithExpressionTransformer(expr, attributeSeq)),
           m)

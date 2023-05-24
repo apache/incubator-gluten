@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, NamedStructTransformer, Sha1Transformer, Sha2Transformer, Sig}
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sha1Transformer, Sha2Transformer, Sig}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -247,6 +247,13 @@ trait SparkPlanExecApi {
 
   def genCastWithNewChild(c: Cast): Cast = {
     c
+  }
+
+  def genHashExpressionTransformer(
+      substraitExprName: String,
+      exps: Seq[ExpressionTransformer],
+      original: Expression): ExpressionTransformer = {
+    new HashExpressionTransformer(substraitExprName, exps, original)
   }
 
   /**
