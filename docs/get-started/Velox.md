@@ -176,7 +176,8 @@ mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests
 It is supported to access data on different HDFS endpoints.
 The endpoint info (hdfs://host:port) contained in a given hdfs file path will be used to initialize an hdfs client.
 
-If your HDFS is in HA mode, you need to set the `LIBHDFS3_CONF` environment variable to specify hdfs client configuration file.
+If your HDFS is in HA mode, you need to set the [LIBHDFS3_CONF](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/depends/libhdfs3/src/client/Hdfs.cpp#L173) environment variable to specify hdfs client configuration file.
+An alternative, you can also make a [hdfs-client.xml](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/depends/libhdfs3/src/client/Hdfs.cpp#L185) and upload it to cluster.
 
 ```
 // Spark local mode
@@ -184,6 +185,10 @@ export LIBHDFS3_CONF="/path/to/hdfs-client.xml"
 
 // Spark Yarn cluster mode
 --conf spark.executorEnv.LIBHDFS3_CONF="/path/to/hdfs-client.xml"
+
+// Spark Yarn cluster mode and upload hdfs config file
+cp /path/to/hdfs-client.xml hdfs-client.xml
+--files hdfs-client.xml
 ```
 If Gluten is used in a fully-prepared Hadoop cluster, you can directly use the hdfs-site.xml of the cluster.
 
@@ -233,6 +238,24 @@ You also need to add configuration to the "hdfs-site.xml" as below:
    <value>/var/lib/hadoop-hdfs/dn_socket</value>
 </property>
 ```
+
+### Kerberos support
+
+Here are two steps to enable kerberos.
+
+- Make sure the hdfs config file contains
+```
+<property>
+    <name>hadoop.security.authentication</name>
+    <value>kerberos</value>
+</property>
+```
+
+- Specify the environment variable [KRB5CCNAME](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/depends/libhdfs3/src/client/FileSystem.cpp#L56) and upload the kerberos ticket cache file
+```
+--conf spark.executorEnv.KRB5CCNAME=krb5cc_0000  --files /tmp/krb5cc_0000
+```
+The ticket cache file can be found by `klist`.
 
 ## 2.4 Yarn Cluster mode
 
