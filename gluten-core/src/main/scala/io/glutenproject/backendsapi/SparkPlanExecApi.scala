@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, NamedStructTransformer, Sha1Transformer, Sha2Transformer}
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, NamedStructTransformer, Sha1Transformer, Sha2Transformer, Sig}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -174,6 +174,13 @@ trait SparkPlanExecApi {
    */
   def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]]
 
+    /**
+   * Generate extended Optimizers. Currently only for Velox backend.
+   *
+   * @return
+   */
+  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
+
   /**
    * Generate extended Strategies. Currently only for Velox backend.
    *
@@ -241,5 +248,10 @@ trait SparkPlanExecApi {
   def genCastWithNewChild(c: Cast): Cast = {
     c
   }
+
+  /**
+    * Define backend specfic expression mappings.
+    */
+  def extraExpressionMappings: Seq[Sig] = Seq.empty
 
 }

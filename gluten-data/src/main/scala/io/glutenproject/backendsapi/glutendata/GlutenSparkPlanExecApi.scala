@@ -90,26 +90,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
     }
 
   /**
-   * Generate HashAggregateExecTransformer.
-   */
-  override def genHashAggregateExecTransformer(
-    requiredChildDistributionExpressions: Option[Seq[Expression]],
-    groupingExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[AggregateExpression],
-    aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
-    resultExpressions: Seq[NamedExpression],
-    child: SparkPlan): HashAggregateExecBaseTransformer =
-    GlutenHashAggregateExecTransformer(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      aggregateExpressions,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      child)
-
-  /**
    * Generate ShuffledHashJoinExecTransformer.
    */
   def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
@@ -262,6 +242,15 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedAnalyzers(): List[SparkSession =>
     Rule[LogicalPlan]] = List()
+
+  /**
+   * Generate extended Optimizer.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List()
+
 
   /**
    * Generate extended columnar pre-rules.
