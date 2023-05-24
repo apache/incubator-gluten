@@ -17,7 +17,52 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.GlutenTestsTrait
+import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
+import org.apache.spark.sql.types.IntegerType
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
+  override def testIntegralInput(testFunc: Number => Unit): Unit = {
+    def checkResult(input: Long): Unit = {
+      if (input.toByte == input) {
+        testFunc(input.toByte)
+      } else if (input.toShort == input) {
+        testFunc(input.toShort)
+      } else if (input.toInt == input) {
+        testFunc(input.toInt)
+      } else {
+        testFunc(input)
+      }
+    }
+
+    checkResult(0)
+    checkResult(Byte.MaxValue)
+    checkResult(Byte.MinValue)
+    checkResult(Short.MaxValue)
+    checkResult(Short.MinValue)
+    // Spark collect causes integer overflow.
+    // checkResult(Int.MaxValue)
+    // checkResult(Int.MinValue)
+    // checkResult(Int.MaxValue.toLong + 100)
+    // checkResult(Int.MinValue.toLong - 100)
+  }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "TIMESTAMP_MICROS") {
+    def testIntegralFunc(value: Number): Unit = {
+      checkEvaluation(
+        MicrosToTimestamp(Literal(value)),
+        value.longValue())
+    }
+
+    // test null input
+    checkEvaluation(
+      MicrosToTimestamp(Literal(null, IntegerType)),
+      null)
+
+    // test integral input
+    testIntegralInput(testIntegralFunc)
+    // test max/min input
+    // Spark collect causes long overflow.
+    // testIntegralFunc(Long.MaxValue)
+    // testIntegralFunc(Long.MinValue)
+  }
 }
