@@ -43,6 +43,10 @@ class BatchScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metri
       metrics("numMemoryAllocations") += operatorMetrics.numMemoryAllocations
       // Number of dynamic filters received.
       metrics("numDynamicFiltersAccepted") += operatorMetrics.numDynamicFiltersAccepted
+      metrics("skippedSplits") += operatorMetrics.skippedSplits
+      metrics("processedSplits") += operatorMetrics.processedSplits
+      metrics("skippedStrides") += operatorMetrics.skippedStrides
+      metrics("processedStrides") += operatorMetrics.processedStrides
     }
   }
 }

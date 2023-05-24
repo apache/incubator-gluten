@@ -39,6 +39,10 @@ public class Metrics implements IMetrics {
   public long[] numDynamicFiltersAccepted;
   public long[] numReplacedWithDynamicFilterRows;
   public long[] flushRowCount;
+  public long[] skippedSplits;
+  public long[] processedSplits;
+  public long[] skippedStrides;
+  public long[] processedStrides;
   public SingleMetric singleMetric = new SingleMetric();
 
   /**
@@ -66,7 +70,11 @@ public class Metrics implements IMetrics {
       long[] numDynamicFiltersAccepted,
       long[] numReplacedWithDynamicFilterRows,
       long[] flushRowCount,
-      long[] scanTime) {
+      long[] scanTime,
+      long[] skippedSplits,
+      long[] processedSplits,
+      long[] skippedStrides,
+      long[] processedStrides) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -89,6 +97,10 @@ public class Metrics implements IMetrics {
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
     this.flushRowCount = flushRowCount;
+    this.skippedSplits = skippedSplits;
+    this.processedSplits = processedSplits;
+    this.skippedStrides = skippedStrides;
+    this.processedStrides = processedStrides;
   }
 
   public OperatorMetrics getOperatorMetrics(int index) {
@@ -117,7 +129,11 @@ public class Metrics implements IMetrics {
         numDynamicFiltersAccepted[index],
         numReplacedWithDynamicFilterRows[index],
         flushRowCount[index],
-        scanTime[index]);
+        scanTime[index],
+        skippedSplits[index],
+        processedSplits[index],
+        skippedStrides[index],
+        processedStrides[index]);
   }
 
   public SingleMetric getSingleMetrics() {

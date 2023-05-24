@@ -54,7 +54,11 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext, "number of memory allocations"),
       "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
-        sparkContext, "number of dynamic filters accepted"))
+        sparkContext, "number of dynamic filters accepted"),
+      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
+      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
+      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"))
 
   override def genBatchScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new BatchScanMetricsUpdater(metrics)
@@ -82,7 +86,11 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
         sparkContext, "number of memory allocations"),
       "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
         sparkContext, "number of dynamic filters accepted"),
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
+      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
+      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
     )
 
 
