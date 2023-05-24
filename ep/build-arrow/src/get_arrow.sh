@@ -38,6 +38,7 @@ function checkout_code {
     git reset --hard HEAD
   else
     git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
+    cd $ARROW_SOURCE_DIR
   fi
 }
 
