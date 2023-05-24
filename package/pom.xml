@@ -48,16 +48,6 @@
         </dependency>
       </dependencies>
     </profile>
-    <profile>
-      <id>backends-velox-without-rss</id>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>backends-velox</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
   </profiles>
 
   <build>
