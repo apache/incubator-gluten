@@ -161,6 +161,4 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Substring")
     .exclude("string for ascii")
     .exclude("replace")
-    // ascii for Latin-1 function return from Velox is not correct
-    .exclude(("SPARK-40213: ascii for Latin-1 Supplement characters"))
 }
