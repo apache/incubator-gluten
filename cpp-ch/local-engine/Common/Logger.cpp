@@ -4,17 +4,28 @@
 #include <Poco/AsyncChannel.h>
 #include <Poco/AutoPtr.h>
 #include <Poco/ConsoleChannel.h>
+#include <Poco/PatternFormatter.h>
+#include <Poco/FormattingChannel.h>
 #include <Poco/SimpleFileChannel.h>
 
 
 using Poco::AsyncChannel;
 using Poco::AutoPtr;
 using Poco::ConsoleChannel;
+using Poco::PatternFormatter;
+using Poco::FormattingChannel;
 
 void local_engine::Logger::initConsoleLogger(const std::string & level)
 {
     AutoPtr<ConsoleChannel> chan(new ConsoleChannel);
-    AutoPtr<AsyncChannel> async_chann(new AsyncChannel(chan));
+
+    AutoPtr<PatternFormatter> formatter(new PatternFormatter);
+    formatter->setProperty("pattern", "%Y-%m-%d %H:%M:%S.%i <%p> %s: %t");
+    formatter->setProperty("times", "local");
+
+    AutoPtr<FormattingChannel> format_channel(new FormattingChannel(formatter, chan));
+    AutoPtr<AsyncChannel> async_chann(new AsyncChannel(format_channel));
+
     Poco::Logger::root().setChannel(async_chann);
     Poco::Logger::root().setLevel(level);
 }

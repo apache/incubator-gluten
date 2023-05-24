@@ -616,7 +616,7 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
         pb_util::JsonOptions options;
         std::string json;
         pb_util::MessageToJsonString(*plan, &json, options);
-        LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "substrait plan:{}", json);
+        LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "substrait plan:\n{}", json);
     }
     parseExtensions(plan->extensions());
     if (plan->relations_size() == 1)
@@ -2196,7 +2196,7 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     if (logger->debug())
     {
         auto out = PlanUtil::explainPlan(*res);
-        LOG_DEBUG(logger, "clickhouse plan:{}", out);
+        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
     }
     return std::move(res);
 }
@@ -2525,7 +2525,7 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
 
 ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & rel)
 {
-    LOG_DEBUG(&Poco::Logger::get("ASTParser"), "substrait plan:{}", rel.DebugString());
+    LOG_DEBUG(&Poco::Logger::get("ASTParser"), "substrait plan:\n{}", rel.DebugString());
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "the root of expression should be a scalar function:\n {}", rel.DebugString());
 
@@ -2744,7 +2744,7 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
             .actions_settings = ExpressionActionsSettings{
                 .can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes}});
     query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
-    LOG_DEBUG(&Poco::Logger::get("LocalExecutor"), "clickhouse pipeline:{}", QueryPipelineUtil::explainPipeline(query_pipeline));
+    LOG_DEBUG(&Poco::Logger::get("LocalExecutor"), "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
     auto t_pipeline = stopwatch.elapsedMicroseconds();
     executor = std::make_unique<PullingPipelineExecutor>(query_pipeline);
     auto t_executor = stopwatch.elapsedMicroseconds() - t_pipeline;
