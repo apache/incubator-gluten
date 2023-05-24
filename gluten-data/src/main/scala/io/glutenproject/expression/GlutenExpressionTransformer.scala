@@ -57,10 +57,9 @@ class GlutenNamedStructTransformer(substraitExprName: String,
 }
 
 
-class GlutenHashExpressionTransformer(
-                                 substraitExprName: String,
-                                 exps: Seq[ExpressionTransformer],
-                                 original: Expression)
+case class GlutenHashExpressionTransformer(substraitExprName: String,
+                                           exps: Seq[ExpressionTransformer],
+                                           original: Expression)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

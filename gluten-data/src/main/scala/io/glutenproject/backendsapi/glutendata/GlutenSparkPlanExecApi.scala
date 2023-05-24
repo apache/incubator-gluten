@@ -151,7 +151,7 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
   override def genHashExpressionTransformer(substraitExprName: String,
                                             exps: Seq[ExpressionTransformer],
                                             original: Expression): ExpressionTransformer = {
-    new GlutenHashExpressionTransformer(substraitExprName, exps, original)
+    GlutenHashExpressionTransformer(substraitExprName, exps, original)
   }
 
   /**
