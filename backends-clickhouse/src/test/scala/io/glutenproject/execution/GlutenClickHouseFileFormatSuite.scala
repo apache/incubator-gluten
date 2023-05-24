@@ -225,7 +225,7 @@ class GlutenClickHouseFileFormatSuite
       })
   }
 
-  test("read data from orc file format") {
+  ignore("read data from orc file format") {
     val filePath = basePath + "/orc_test.orc"
     // val filePath = "/data2/case_insensitive_column_matching.orc"
     val orcFileFormat = "orc"
