@@ -25,6 +25,8 @@ object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedAnalyzers()
         .foreach (extensions.injectResolutionRule)
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedOptimizers()
+        .foreach (extensions.injectOptimizerRule)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedDataSourceV2Strategies()
         .foreach(extensions.injectPlannerStrategy)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedStrategies()

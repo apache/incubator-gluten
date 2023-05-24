@@ -206,7 +206,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       val executedPlan = getExecutedPlan(df)
       assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
       assert(executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]))
-      assert(executedPlan.exists(plan => plan.isInstanceOf[GlutenHashAggregateExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[VeloxHashAggregateExecTransformer]))
       assert(executedPlan.exists(plan => plan.isInstanceOf[SortExecTransformer]))
     }}
 
