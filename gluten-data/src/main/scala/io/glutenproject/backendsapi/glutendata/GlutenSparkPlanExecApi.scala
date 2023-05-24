@@ -22,7 +22,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution.VeloxColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer, GlutenHashExpressionTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
@@ -127,6 +127,12 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Expression): AliasBaseTransformer =
     new GlutenAliasTransformer(substraitExprName, child, original)
+
+  override def genHashExpressionTransformer(substraitExprName: String,
+                                            exps: Seq[ExpressionTransformer],
+                                            original: Expression): ExpressionTransformer = {
+    GlutenHashExpressionTransformer(substraitExprName, exps, original)
+  }
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.

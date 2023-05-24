@@ -305,12 +305,6 @@ private:
         std::vector<String> & required_columns,
         const std::string & function_name,
         const substrait::FunctionArgument & arg);
-    void addPreProjectStepIfNeeded(
-        QueryPlan & plan,
-        const substrait::AggregateRel & rel,
-        std::vector<std::string> & measure_names,
-        std::map<std::string, std::string> & nullable_measure_names);
-    DB::QueryPlanStepPtr parseAggregate(DB::QueryPlan & plan, const substrait::AggregateRel & rel, bool & is_final);
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr action_dag, const substrait::Expression & rel);
     const ActionsDAG::Node *
     toFunctionNode(ActionsDAGPtr action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
