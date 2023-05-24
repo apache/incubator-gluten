@@ -30,15 +30,6 @@ class HashExpressionTransformer(
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    original match {
-      case XxHash64(_, seed) if seed != 42 =>
-        throw new UnsupportedOperationException(s"xxhash64 with seed $seed is not supported.")
-      case Murmur3Hash(_, seed) if seed != 42 =>
-        throw new UnsupportedOperationException(s"murmur3hash with seed $seed is not supported.")
-      case _ =>
-        throw new UnsupportedOperationException(
-          s"${original.getClass.getSimpleName} is not supported.")
-    }
     val nodes = new java.util.ArrayList[ExpressionNode]()
     exps.foreach(expression => {
       nodes.add(expression.doTransform(args))
