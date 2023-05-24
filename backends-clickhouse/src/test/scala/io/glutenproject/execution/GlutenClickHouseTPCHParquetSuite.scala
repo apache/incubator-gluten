@@ -493,8 +493,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   test("window row_number") {
     val sql =
       """
-        |select row_number() over (partition by n_regionkey order by n_nationkey) from nation
-        |order by n_regionkey, n_nationkey
+        |select row_number() over (partition by n_regionkey order by n_nationkey) as num from nation
+        |order by n_regionkey, n_nationkey, num
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
@@ -572,7 +572,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       """
         |select avg(n_nationkey) over (partition by n_regionkey order by n_nationkey rows between
         |current row and 3 following) as x from nation
-        |order by n_regionkey, n_nationkey
+        |order by n_regionkey, n_nationkey, x
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
@@ -618,7 +618,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |select n_regionkey, n_nationkey,
         | lead(n_nationkey, 1) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead
         |from nation
-        |order by n_regionkey, n_nationkey
+        |order by n_regionkey, n_nationkey, n_lead
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
@@ -629,7 +629,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |select n_regionkey, n_nationkey,
         | lead(n_nationkey, 1, 3) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead
         |from nation
-        |order by n_regionkey, n_nationkey
+        |order by n_regionkey, n_nationkey, n_lead
         |""".stripMargin
 
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
@@ -652,7 +652,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |select n_regionkey, n_nationkey,
         | lag(n_nationkey, 1, 3) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag
         |from nation
-        |order by n_regionkey, n_nationkey
+        |order by n_regionkey, n_nationkey, n_lag
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
@@ -892,6 +892,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       checkOperatorMatch[ProjectExecTransformer])
   }
 
+  //  test("broadcast hash data clean by expried") {
+  //    // expired 10 SECONDS
+  //    val (_, sqlStr) = getTPCHSql(2, tpchQueries)
+  //    val df = spark.sql(sqlStr)
+  //    df.rdd.count()
+  //    eventually(timeout(300.seconds), interval(12.seconds)) {
+  //      CHBroadcastBuildSideRDD.buildSideRelationCache.asMap().
+  //        forEach((key, _) => CHBroadcastBuildSideRDD.buildSideRelationCache.getIfPresent(key))
+  //
+  //      assert(StorageJoinBuilder.nativeCachedHashTableCount == 0)
+  //    }
+  //  }
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,

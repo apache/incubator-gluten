@@ -82,7 +82,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         std::back_inserter(skip_row_group_indices));
 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
-    auto input_format = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
+    auto input_format = std::make_shared<DB::ParquetBlockInputFormat>(res->read_buffer.get(), nullptr, header, format_settings, 1, 8192);
 // clang-format off
 #endif
     // clang-format on

@@ -141,6 +141,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableNativeBloomFilter: Boolean = conf.getConf(COLUMNAR_NATIVE_BLOOMFILTER_ENABLED)
 
+  def enableNativeHyperLogLogAggregateFunction: Boolean =
+    conf.getConf(COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED)
+
   def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
@@ -281,6 +284,11 @@ object GlutenConfig {
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
+
+  // Expired time of execution with resource relation has cached
+  val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME = "spark.gluten.execution.resource.expired.time"
+  // unit: SECONDS, default 1 day
+  val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT: Int = 86400
 
   var ins: GlutenConfig = _
 
@@ -649,6 +657,12 @@ object GlutenConfig {
 
   val COLUMNAR_NATIVE_BLOOMFILTER_ENABLED =
     buildConf("spark.gluten.sql.native.bloomFilter")
+      .internal()
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED =
+    buildConf("spark.gluten.sql.native.hyperLogLog.Aggregate")
       .internal()
       .booleanConf
       .createWithDefault(true)

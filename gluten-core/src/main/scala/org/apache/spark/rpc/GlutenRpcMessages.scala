@@ -14,14 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.backendsapi.ShutdownApi
-import io.glutenproject.vectorized.CHNativeExpressionEvaluator
+package org.apache.spark.rpc
 
-class CHShutdownApi extends ShutdownApi {
-  override def shutdown(): Unit = {
-    val kernel = new CHNativeExpressionEvaluator()
-    kernel.finalizeNative()
-  }
+import java.util
+
+trait GlutenRpcMessage extends Serializable
+
+object GlutenRpcMessages {
+  case class GlutenRegisterExecutor(
+      executorId: String,
+      executorRef: RpcEndpointRef
+  ) extends GlutenRpcMessage
+
+  case class GlutenOnExecutionStart(executionId: String) extends GlutenRpcMessage
+
+  case class GlutenOnExecutionEnd(executionId: String) extends GlutenRpcMessage
+
+  case class GlutenExecutorRemoved(executorId: String) extends GlutenRpcMessage
+
+  case class GlutenCleanExecutionResource(executionId: String, broadcastHashIds: util.Set[String])
+    extends GlutenRpcMessage
+
 }

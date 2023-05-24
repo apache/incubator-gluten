@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BooleanType, DataType, DecimalType, DoubleType, LongType, StructField, StructType}
 
-case class GlutenHashAggregateExecTransformer(
+abstract class GlutenHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
@@ -221,6 +221,10 @@ case class GlutenHashAggregateExecTransformer(
     TypeBuilder.makeStruct(false, structTypeNodes)
   }
 
+  override protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
+    super.modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
+  }
+
   // Create aggregate function node and add to list.
   override protected def addFunctionNode(
     args: java.lang.Object,
@@ -230,7 +234,7 @@ case class GlutenHashAggregateExecTransformer(
     aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
     // This is a special handling for PartialMerge in the execution of distinct.
     // Use Partial phase instead for this aggregation.
-    val modeKeyWord = modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
+    val modeKeyWord = modeToKeyWord(aggregateMode)
 
     def generateMergeCompanionNode(): Unit = {
       aggregateMode match {
@@ -687,11 +691,6 @@ case class GlutenHashAggregateExecTransformer(
   def isStreaming: Boolean = false
 
   def numShufflePartitions: Option[Int] = Some(0)
-
-  override protected def withNewChildInternal(newChild: SparkPlan)
-    : GlutenHashAggregateExecTransformer = {
-      copy(child = newChild)
-    }
 }
 
 /**

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -48,6 +49,7 @@ object ExpressionMappings {
   final val LAST_IGNORE_NULL = "last_ignore_null"
   final val FIRST = "first"
   final val FIRST_IGNORE_NULL = "first_ignore_null"
+  final val APPROX_DISTINCT = "approx_distinct"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -441,7 +443,8 @@ object ExpressionMappings {
   )
 
   lazy val expressionsMap: Map[Class[_], String] = {
-    (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS)
+    (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++
+      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)
       .map(s => (s.expClass, s.name)).toMap[Class[_], String]
   }
 

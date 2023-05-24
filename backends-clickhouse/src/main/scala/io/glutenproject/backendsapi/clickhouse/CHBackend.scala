@@ -35,8 +35,7 @@ import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
-  override def initializerApi(): InitializerApi = new CHInitializerApi
-  override def shutdownApi(): ShutdownApi = new CHShutdownApi
+  override def contextApi(): ContextApi = new CHContextApi
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
@@ -68,6 +67,12 @@ object CHBackendSettings extends BackendSettings with Logging {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
       ".customized.buffer.size"
   val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = "4096"
+
+  val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+      ".broadcast.cache.expired.time"
+  // unit: SECONDS, default 1 day
+  val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT: Int = 86400
 
   override def supportFileFormatRead(
       format: ReadFileFormat,

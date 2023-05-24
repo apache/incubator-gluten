@@ -18,17 +18,17 @@
 package org.apache.spark.sql
 
 import java.io.File
+
 import scala.collection.mutable.ArrayBuffer
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.SystemParameters
+
 import org.apache.commons.io.FileUtils
 import org.apache.commons.math3.util.Precision
-import org.scalactic.source.Position
-import org.scalatest.{Args, Status, Tag}
-import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.GlutenQueryTest.isNaNOrInf
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
@@ -227,9 +227,10 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     } else {
       logInfo("Has unsupported data type, fall back to vanilla spark.\n")
     }
+
     if (!(checkResult(result.head.get(0), expected, expression.dataType, expression.nullable)
-      || checkResult(
-      CatalystTypeConverters.convertToCatalyst(result.head.get(0)),
+      || checkResult(CatalystTypeConverters.createToCatalystConverter(
+      expression.dataType)(result.head.get(0)), // decimal precision is wrong from value
       CatalystTypeConverters.convertToCatalyst(expected),
       expression.dataType,
       expression.nullable))) {

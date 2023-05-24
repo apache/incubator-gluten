@@ -22,7 +22,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution.VeloxColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer, GlutenHashExpressionTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
@@ -90,26 +90,6 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
     }
 
   /**
-   * Generate HashAggregateExecTransformer.
-   */
-  override def genHashAggregateExecTransformer(
-    requiredChildDistributionExpressions: Option[Seq[Expression]],
-    groupingExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[AggregateExpression],
-    aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
-    resultExpressions: Seq[NamedExpression],
-    child: SparkPlan): HashAggregateExecBaseTransformer =
-    GlutenHashAggregateExecTransformer(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      aggregateExpressions,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      child)
-
-  /**
    * Generate ShuffledHashJoinExecTransformer.
    */
   def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
@@ -147,6 +127,12 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Expression): AliasBaseTransformer =
     new GlutenAliasTransformer(substraitExprName, child, original)
+
+  override def genHashExpressionTransformer(substraitExprName: String,
+                                            exps: Seq[ExpressionTransformer],
+                                            original: Expression): ExpressionTransformer = {
+    GlutenHashExpressionTransformer(substraitExprName, exps, original)
+  }
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -262,6 +248,15 @@ abstract class GlutenSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedAnalyzers(): List[SparkSession =>
     Rule[LogicalPlan]] = List()
+
+  /**
+   * Generate extended Optimizer.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List()
+
 
   /**
    * Generate extended columnar pre-rules.

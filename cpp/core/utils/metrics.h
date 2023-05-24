@@ -51,6 +51,10 @@ struct Metrics {
   long* numReplacedWithDynamicFilterRows;
   long* flushRowCount;
   long* scanTime;
+  long* skippedSplits;
+  long* processedSplits;
+  long* skippedStrides;
+  long* processedStrides;
 
   Metrics(int size) : numMetrics(size) {
     inputRows = new long[numMetrics]();
@@ -74,6 +78,10 @@ struct Metrics {
     numReplacedWithDynamicFilterRows = new long[numMetrics]();
     flushRowCount = new long[numMetrics]();
     scanTime = new long[numMetrics]();
+    skippedSplits = new long[numMetrics]();
+    processedSplits = new long[numMetrics]();
+    skippedStrides = new long[numMetrics]();
+    processedStrides = new long[numMetrics]();
   }
 
   Metrics(const Metrics&) = delete;
@@ -103,6 +111,10 @@ struct Metrics {
     delete[] numReplacedWithDynamicFilterRows;
     delete[] flushRowCount;
     delete[] scanTime;
+    delete[] skippedSplits;
+    delete[] processedSplits;
+    delete[] skippedStrides;
+    delete[] processedStrides;
   }
 };
 

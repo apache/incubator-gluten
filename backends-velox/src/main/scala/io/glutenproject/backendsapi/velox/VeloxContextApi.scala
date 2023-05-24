@@ -17,35 +17,35 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.InitializerApi
+import io.glutenproject.backendsapi.ContextApi
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkConf
 
 import java.util.Locale
+
 import scala.sys.process._
 
-class VeloxInitializerApi extends InitializerApi {
-
+class VeloxContextApi extends ContextApi {
   private def loadLibFromJar(load: JniLibLoader): Unit = {
-      val system = "cat /etc/os-release".!!
-      val loader = if (system.contains("Ubuntu") && system.contains("20.04")) {
-        new VeloxSharedlibraryLoaderUbuntu2004
-      } else if (system.contains("Ubuntu") && system.contains("22.04")) {
-        new VeloxSharedlibraryLoaderUbuntu2204
-      } else if (system.contains("CentOS") && system.contains("8")) {
-        new VeloxSharedlibraryLoaderCentos8
-      } else if (system.contains("CentOS") && system.contains("7")) {
-        new VeloxSharedlibraryLoaderCentos7
-      } else if (system.contains("alinux") && system.contains("3")) {
-        new VeloxSharedlibraryLoaderCentos8
-      } else if (system.contains("Anolis") && system.contains("8")) {
-        new VeloxSharedlibraryLoaderCentos8
-      } else if (system.contains("Anolis") && system.contains("7")) {
-        new VeloxSharedlibraryLoaderCentos7
-      }
-      loader.asInstanceOf[VeloxSharedlibraryLoader].loadLib(load)
+    val system = "cat /etc/os-release".!!
+    val loader = if (system.contains("Ubuntu") && system.contains("20.04")) {
+      new VeloxSharedlibraryLoaderUbuntu2004
+    } else if (system.contains("Ubuntu") && system.contains("22.04")) {
+      new VeloxSharedlibraryLoaderUbuntu2204
+    } else if (system.contains("CentOS") && system.contains("8")) {
+      new VeloxSharedlibraryLoaderCentos8
+    } else if (system.contains("CentOS") && system.contains("7")) {
+      new VeloxSharedlibraryLoaderCentos7
+    } else if (system.contains("alinux") && system.contains("3")) {
+      new VeloxSharedlibraryLoaderCentos8
+    } else if (system.contains("Anolis") && system.contains("8")) {
+      new VeloxSharedlibraryLoaderCentos8
+    } else if (system.contains("Anolis") && system.contains("7")) {
+      new VeloxSharedlibraryLoaderCentos7
+    }
+    loader.asInstanceOf[VeloxSharedlibraryLoader].loadLib(load)
   }
 
   override def initialize(conf: SparkConf): Unit = {
@@ -77,5 +77,9 @@ class VeloxInitializerApi extends InitializerApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
+  }
+
+  override def shutdown(): Unit = {
+    /// TODO shutdown implementation in velox to release resources
   }
 }

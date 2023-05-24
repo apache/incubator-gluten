@@ -39,8 +39,10 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long numDynamicFiltersAccepted;
   public long numReplacedWithDynamicFilterRows;
   public long flushRowCount;
-  public long partialAggregationPctSum;
-  public long partialAggregationPctCount;
+  public long skippedSplits;
+  public long processedSplits;
+  public long skippedStrides;
+  public long processedStrides;
 
   /**
    * Create an instance for operator metrics.
@@ -66,7 +68,11 @@ public class OperatorMetrics implements IOperatorMetrics {
       long numDynamicFiltersAccepted,
       long numReplacedWithDynamicFilterRows,
       long flushRowCount,
-      long scanTime) {
+      long scanTime,
+      long skippedSplits,
+      long processedSplits,
+      long skippedStrides,
+      long processedStrides) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -88,5 +94,9 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
     this.flushRowCount = flushRowCount;
+    this.skippedSplits = skippedSplits;
+    this.processedSplits = processedSplits;
+    this.skippedStrides = skippedStrides;
+    this.processedStrides = processedStrides;
   }
 }
