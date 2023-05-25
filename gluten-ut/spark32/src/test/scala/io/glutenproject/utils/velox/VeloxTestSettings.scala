@@ -57,12 +57,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("cast from float")
-    .exclude("cast from double")
     .exclude("from decimal")
-    .exclude("cast string to date #2")
     .exclude("casting to fixed-precision decimals")
-    .exclude("cast from date")
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
     .exclude("Fast fail for cast string type to decimal type")
 
