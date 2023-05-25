@@ -191,7 +191,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
   enableSuite[GlutenDecimalExpressionSuite]
-    .exclude("MakeDecimal")
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenPredicateSuite]

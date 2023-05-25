@@ -63,12 +63,6 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         val originPath = path
 
         URI.create(originPath) // validate uri
-        val matcher = VeloxWriteQueue.TAILING_FILENAME_REGEX.matcher(originPath)
-        if (!matcher.matches()) {
-          throw new IllegalArgumentException("illegal out put file uri: " + originPath)
-        }
-        val fileName = matcher.group(2)
-
         val arrowSchema = SparkArrowUtil.toArrowSchema(
           dataSchema, SQLConf.get.sessionLocalTimeZone)
         val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
@@ -78,8 +72,7 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         try {
           GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
           instanceId = datasourceJniWrapper.nativeInitDatasource(
-            originPath, fileName,
-            cSchema.memoryAddress())
+            originPath, cSchema.memoryAddress())
         } catch {
           case e: IOException =>
             throw new RuntimeException(e)

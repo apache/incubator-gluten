@@ -36,7 +36,7 @@ object VeloxDatasourceUtil {
   def readSchema(file: FileStatus): Option[StructType] = {
     val allocator = ArrowBufferAllocators.contextInstance()
     val datasourceJniWrapper = new DatasourceJniWrapper()
-    val instanceId = datasourceJniWrapper.nativeInitDatasource(file.getPath.toString, null, -1)
+    val instanceId = datasourceJniWrapper.nativeInitDatasource(file.getPath.toString, -1)
     val cSchema = ArrowSchema.allocateNew(allocator)
     datasourceJniWrapper.inspectSchema(instanceId, cSchema.memoryAddress())
     try {

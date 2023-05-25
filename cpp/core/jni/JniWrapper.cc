@@ -984,7 +984,6 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
     JNIEnv* env,
     jobject obj,
     jstring filePath,
-    jstring fileName,
     jlong cSchema) {
   auto backend = gluten::createBackend();
 
@@ -992,10 +991,10 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
 
   if (cSchema == -1) {
     // Only inspect the schema and not write
-    datasource = backend->getDatasource(jStringToCString(env, filePath), jStringToCString(env, fileName), nullptr);
+    datasource = backend->getDatasource(jStringToCString(env, filePath), nullptr);
   } else {
     auto schema = gluten::jniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-    datasource = backend->getDatasource(jStringToCString(env, filePath), jStringToCString(env, fileName), schema);
+    datasource = backend->getDatasource(jStringToCString(env, filePath), schema);
     datasource->init(backend->getConfMap());
   }
 

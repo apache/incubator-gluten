@@ -31,8 +31,8 @@ namespace gluten {
 
 class Datasource {
  public:
-  Datasource(const std::string& filePath, const std::string& fileName, std::shared_ptr<arrow::Schema> schema)
-      : filePath_(filePath), fileName_(fileName), schema_(schema) {}
+  Datasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
+      : filePath_(filePath), schema_(schema) {}
 
   virtual ~Datasource() = default;
 
@@ -44,7 +44,6 @@ class Datasource {
 
  private:
   std::string filePath_;
-  std::string fileName_;
   std::shared_ptr<arrow::Schema> schema_;
 };
 
