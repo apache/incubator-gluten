@@ -48,24 +48,11 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   auto veloxPool = asWrappedVeloxAggregateMemoryPool(gluten::defaultMemoryAllocator().get());
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
-  // Construct the file path and writer
-  auto pos = filePath_.find("_temporary", 0);
-  std::string destinationPathWithSchame = filePath_.substr(0, pos - 1);
-
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    finalPath_ = (destinationPathWithSchame + "/" + fileName_).substr(5);
-    std::string command = "touch " + finalPath_;
-    auto ret = system(command.c_str());
-    if (ret != 0) {
-      throw std::runtime_error(
-          "The local file path was not created successfully when writing parqetut data in velox backend!");
-    }
-
-    sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(finalPath_);
+    sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
-    finalPath_ = destinationPathWithSchame + "/" + fileName_;
-    sink_ = std::make_unique<velox::HdfsFileSink>(finalPath_);
+    sink_ = std::make_unique<velox::HdfsFileSink>(filePath_);
 #else
     throw std::runtime_error(
         "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox backend!");

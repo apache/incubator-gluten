@@ -53,7 +53,7 @@
     <spark.major.version>3</spark.major.version>
     <celeborn.version>0.2.1-incubating</celeborn.version>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-    <arrow.version>11.0.0-gluten</arrow.version>
+    <arrow.version>12.0.0</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -207,7 +207,7 @@
       </modules>
       <properties>
         <backend_type>velox</backend_type>
-        <arrow.version>11.0.0-gluten</arrow.version>
+        <arrow.version>12.0.0</arrow.version>
         <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>

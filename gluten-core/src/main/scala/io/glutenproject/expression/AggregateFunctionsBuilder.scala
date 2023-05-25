@@ -40,9 +40,9 @@ object AggregateFunctionsBuilder {
 
     aggregateFunc match {
       case first @ First(_, ignoreNull) =>
-        if (ignoreNull) substraitAggFuncName = Some(ExpressionMappings.FIRST_IGNORE_NULL)
+        if (ignoreNull) substraitAggFuncName = Some(ExpressionNames.FIRST_IGNORE_NULL)
       case last @ Last(_, ignoreNulls) =>
-        if (ignoreNulls) substraitAggFuncName = Some(ExpressionMappings.LAST_IGNORE_NULL)
+        if (ignoreNulls) substraitAggFuncName = Some(ExpressionNames.LAST_IGNORE_NULL)
       case _ =>
     }
 

@@ -16,6 +16,7 @@
  */
 
 #include "ArrowMemoryPool.h"
+#include "utils/exception.h"
 
 namespace gluten {
 
@@ -49,6 +50,14 @@ void WrappedArrowMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignme
 int64_t WrappedArrowMemoryPool::bytes_allocated() const {
   // fixme use self accountant
   return allocator_->getBytes();
+}
+
+int64_t WrappedArrowMemoryPool::total_bytes_allocated() const {
+  throw GlutenException("Not implement");
+}
+
+int64_t WrappedArrowMemoryPool::num_allocations() const {
+  throw GlutenException("Not implement");
 }
 
 std::string WrappedArrowMemoryPool::backend_name() const {

@@ -101,6 +101,14 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return pool_->backend_name();
   }
 
+  int64_t total_bytes_allocated() const override {
+    return pool_->total_bytes_allocated();
+  }
+
+  int64_t num_allocations() const override {
+    throw pool_->num_allocations();
+  }
+
  private:
   MemoryPool* pool_ = arrow::default_memory_pool();
   int64_t capacity_;

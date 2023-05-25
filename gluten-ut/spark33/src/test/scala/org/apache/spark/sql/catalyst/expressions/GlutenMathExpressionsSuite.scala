@@ -15,17 +15,9 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils.velox
+package org.apache.spark.sql.catalyst.expressions
 
-import io.glutenproject.utils.BackendTestSettings
-import org.apache.spark.sql.catalyst.expressions.GlutenMathExpressionsSuite
-import org.apache.spark.sql.{GlutenBloomFilterAggregateQuerySuite, GlutenStringFunctionsSuite}
+import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
-class VeloxTestSettings extends BackendTestSettings {
-  enableSuite[GlutenStringFunctionsSuite]
-  enableSuite[GlutenBloomFilterAggregateQuerySuite]
-    // fallback might_contain, the input argument binary is not same with vanilla spark
-    .exclude("Test NULL inputs for might_contain")
-  enableSuite[GlutenMathExpressionsSuite]
-    .include("asinh", "acosh", "atanh", "sec", "csc")
+class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTrait {
 }

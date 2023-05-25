@@ -15,13 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if(BUILD_VELOX_BACKEND)
-  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1100")
-  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1100.0.0")
-else()
-  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
-  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.800.0.0")
-endif()
+set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1200")
+set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1200.0.0")
 
 set(ARROW_LIB_NAME "arrow")
 set(PARQUET_LIB_NAME "parquet")

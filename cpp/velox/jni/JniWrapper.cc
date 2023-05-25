@@ -46,6 +46,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   }
   // logging
   google::InitGoogleLogging("gluten");
+  FLAGS_logtostderr = true;
   gluten::getJniErrorsState()->initialize(env);
 
 #ifdef GLUTEN_PRINT_DEBUG

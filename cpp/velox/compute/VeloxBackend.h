@@ -62,11 +62,9 @@ class VeloxBackend final : public Backend {
     return iter->getMetrics(exportNanos);
   }
 
-  std::shared_ptr<Datasource> getDatasource(
-      const std::string& filePath,
-      const std::string& fileName,
-      std::shared_ptr<arrow::Schema> schema) override {
-    return std::make_shared<VeloxParquetDatasource>(filePath, fileName, schema);
+  std::shared_ptr<Datasource> getDatasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
+      override {
+    return std::make_shared<VeloxParquetDatasource>(filePath, schema);
   }
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
