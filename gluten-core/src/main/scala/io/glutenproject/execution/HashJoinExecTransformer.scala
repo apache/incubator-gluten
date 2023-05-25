@@ -368,7 +368,7 @@ object HashJoinLikeExecTransformer {
                             functionMap: java.util.HashMap[String, java.lang.Long]
                            ): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ExpressionMappings.EQUAL, Seq(leftType, rightType)))
+      ConverterUtils.makeFuncName(ExpressionNames.EQUAL, Seq(leftType, rightType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
     val typeNode = TypeBuilder.makeBoolean(true)
@@ -380,7 +380,7 @@ object HashJoinLikeExecTransformer {
                         rightNode: ExpressionNode,
                         functionMap: java.util.HashMap[String, java.lang.Long]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ExpressionMappings.AND, Seq(BooleanType, BooleanType)))
+      ConverterUtils.makeFuncName(ExpressionNames.AND, Seq(BooleanType, BooleanType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
     val typeNode = TypeBuilder.makeBoolean(true)

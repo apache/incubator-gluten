@@ -19,10 +19,12 @@ package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.execution.RowToColumnConverter
+import io.glutenproject.expression.ExpressionNames
 import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.GlutenExpressionUtil
 import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
+
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructType
@@ -38,7 +40,7 @@ abstract class GlutenValidatorApi extends ValidatorApi {
                   substraitExprName: String,
                   expr: Expression): Boolean = {
     // To handle cast(struct as string) AS col_name expression
-    val key = if (substraitExprName.toLowerCase().equals(ExpressionMappings.ALIAS)) {
+    val key = if (substraitExprName.toLowerCase().equals(ExpressionNames.ALIAS)) {
       ExpressionMappings.expressionsMap.get(expr.asInstanceOf[Alias].child.getClass)
     } else Some(substraitExprName)
     if (key.isEmpty) return false
