@@ -1,26 +1,25 @@
-From 04357ef88ef23096279c01bed455a43b206728f6 Mon Sep 17 00:00:00 2001
-From: Rong Ma <rong.ma@intel.com>
-Date: Mon, 6 Feb 2023 10:28:56 +0800
+From 902910d203e2d7694213745751d5fc09002583d1 Mon Sep 17 00:00:00 2001
+From: Chengcheng Jin <chengcheng.jin@intel.com>
+Date: Fri, 19 May 2023 08:13:58 +0000
 Subject: [PATCH] use options_.memory_pool
 
 ---
- cpp/src/arrow/ipc/writer.cc | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ cpp/src/arrow/ipc/writer.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/cpp/src/arrow/ipc/writer.cc b/cpp/src/arrow/ipc/writer.cc
-index d015ee3f4..93919be02 100644
+index f0f0e96ee..0fd681f60 100644
 --- a/cpp/src/arrow/ipc/writer.cc
 +++ b/cpp/src/arrow/ipc/writer.cc
-@@ -180,7 +180,8 @@ class RecordBatchSerializer {
-                         std::shared_ptr<Buffer>* out) {
-     // Convert buffer to uncompressed-length-prefixed compressed buffer
-     int64_t maximum_length = codec->MaxCompressedLen(buffer.size(), buffer.data());
--    ARROW_ASSIGN_OR_RAISE(auto result, AllocateBuffer(maximum_length + sizeof(int64_t)));
-+    ARROW_ASSIGN_OR_RAISE(auto result,
-+                          AllocateBuffer(maximum_length + sizeof(int64_t), options_.memory_pool));
+@@ -193,7 +193,7 @@ class RecordBatchSerializer {
+     int64_t prefixed_length = buffer.size();
  
-     int64_t actual_length;
-     ARROW_ASSIGN_OR_RAISE(actual_length,
+     ARROW_ASSIGN_OR_RAISE(auto result,
+-                          AllocateResizableBuffer(maximum_length + sizeof(int64_t)));
++                          AllocateResizableBuffer(maximum_length + sizeof(int64_t), options_.memory_pool));
+     ARROW_ASSIGN_OR_RAISE(auto actual_length,
+                           codec->Compress(buffer.size(), buffer.data(), maximum_length,
+                                           result->mutable_data() + sizeof(int64_t)));
 -- 
-2.34.1
+2.25.1
 
