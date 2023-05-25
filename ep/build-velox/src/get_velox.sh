@@ -142,12 +142,12 @@ if [ -d $VELOX_SOURCE_DIR ]; then
   echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
   cd $VELOX_SOURCE_DIR
   git init .
-  EXISTS=$(git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true)
+  EXISTS=$(git show-ref refs/tags/build_$TARGET_BUILD_COMMIT || true)
   if [ -z "$EXISTS" ]; then
-    git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
+    git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:refs/tags/build_$TARGET_BUILD_COMMIT
   fi
   git reset --hard HEAD
-  git checkout build_$TARGET_BUILD_COMMIT
+  git checkout refs/tags/build_$TARGET_BUILD_COMMIT
 else
   git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
   cd $VELOX_SOURCE_DIR

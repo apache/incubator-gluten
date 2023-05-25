@@ -34,8 +34,12 @@ function checkout_code {
     echo "Arrow source folder $ARROW_SOURCE_DIR already exists..."
     cd $ARROW_SOURCE_DIR
     git init .
-    git fetch $ARROW_REPO tag $ARROW_BRANCH
+    EXISTS=$(git show-ref refs/tags/build_$TARGET_BUILD_COMMIT || true)
+    if [ -z "$EXISTS" ]; then
+      git fetch $ARROW_REPO $TARGET_BUILD_COMMIT:refs/tags/build_$TARGET_BUILD_COMMIT
+    fi
     git reset --hard HEAD
+    git checkout refs/tags/build_$TARGET_BUILD_COMMIT
   else
     git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     cd $ARROW_SOURCE_DIR
