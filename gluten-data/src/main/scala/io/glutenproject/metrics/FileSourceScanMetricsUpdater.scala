@@ -39,6 +39,10 @@ class FileSourceScanMetricsUpdater(
 
   // Number of dynamic filters received.
   val numDynamicFiltersAccepted: SQLMetric = metrics("numDynamicFiltersAccepted")
+  val skippedSplits: SQLMetric = metrics("skippedSplits")
+  val processedSplits: SQLMetric = metrics("processedSplits")
+  val skippedStrides: SQLMetric = metrics("skippedStrides")
+  val processedStrides: SQLMetric = metrics("processedStrides")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
@@ -60,6 +64,10 @@ class FileSourceScanMetricsUpdater(
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
       // Number of dynamic filters received.
       numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
+      skippedSplits += operatorMetrics.skippedSplits
+      processedSplits += operatorMetrics.processedSplits
+      skippedStrides += operatorMetrics.skippedStrides
+      processedStrides += operatorMetrics.processedStrides
     }
   }
 }

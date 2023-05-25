@@ -53,7 +53,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
     .exclude("cast from float")
     .exclude("cast from double")
@@ -68,25 +70,28 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
   enableSuite[GlutenTryCastSuite]
     .exclude(
@@ -96,9 +101,10 @@ class VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
@@ -173,7 +179,6 @@ class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenLiteralExpressionSuite]
     .exclude("default")
-    .exclude("decimal")
     // Timestamp: Velox to Arrow.
     .exclude("construct literals from arrays of java.time.Instant")
   enableSuite[GlutenIntervalExpressionsSuite]
@@ -181,16 +186,13 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("ANSI: extract days, hours, minutes and seconds")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
-    .exclude("SPARK-30633: xxHash with different type seeds")
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("Map Concat")
     .exclude("Shuffle")
   enableSuite[GlutenDateExpressionsSuite]
-    // Has exception in fallback execution when we use resultDF.collect in evaluation.
-    .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
-    .exclude("extract the seconds part with fraction from timestamps")
+    // Rewrite because Spark collect causes long overflow.
+    .exclude("TIMESTAMP_MICROS")
   enableSuite[GlutenDecimalExpressionSuite]
-    .exclude("MakeDecimal")
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
@@ -207,12 +209,13 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("Substring")
     .exclude("string for ascii")
     .exclude("replace")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
+    // No need due to testing framework change.
     .exclude("MonotonicallyIncreasingID")
+    // No need due to testing framework change.
     .exclude("SparkPartitionID")
   enableSuite[GlutenRandomSuite]
     .exclude("random")

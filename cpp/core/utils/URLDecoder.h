@@ -17,34 +17,39 @@
 
 #pragma once
 
-#include <arrow/c/abi.h>
-#include <arrow/memory_pool.h>
-#include <arrow/record_batch.h>
-#include <arrow/type.h>
-#include <arrow/type_fwd.h>
-#include <folly/executors/IOThreadPoolExecutor.h>
-
-#include "memory/ColumnarBatch.h"
-#include "operators/writer/Datasource.h"
-
 namespace gluten {
 
-class Datasource {
- public:
-  Datasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
-      : filePath_(filePath), schema_(schema) {}
+// From_hex from dlib.
+inline unsigned char fromHex(unsigned char ch) {
+  if (ch <= '9' && ch >= '0')
+    ch -= '0';
+  else if (ch <= 'f' && ch >= 'a')
+    ch -= 'a' - 10;
+  else if (ch <= 'F' && ch >= 'A')
+    ch -= 'A' - 10;
+  else
+    ch = 0;
+  return ch;
+}
 
-  virtual ~Datasource() = default;
-
-  virtual void init(const std::unordered_map<std::string, std::string>& sparkConfs) {}
-  virtual void inspectSchema(struct ArrowSchema* out) = 0;
-  virtual void write(const std::shared_ptr<ColumnarBatch>& cb) {}
-  virtual void close() {}
-  virtual std::shared_ptr<arrow::Schema> getSchema() = 0;
-
- private:
-  std::string filePath_;
-  std::shared_ptr<arrow::Schema> schema_;
-};
+// URL decoder from dlib.
+const std::string urlDecode(const std::string& str) {
+  std::string result;
+  std::string::size_type i;
+  for (i = 0; i < str.size(); ++i) {
+    if (str[i] == '+') {
+      result += ' ';
+    } else if (str[i] == '%' && str.size() > i + 2) {
+      const unsigned char ch1 = fromHex(str[i + 1]);
+      const unsigned char ch2 = fromHex(str[i + 2]);
+      const unsigned char ch = (ch1 << 4) | ch2;
+      result += ch;
+      i += 2;
+    } else {
+      result += str[i];
+    }
+  }
+  return result;
+}
 
 } // namespace gluten

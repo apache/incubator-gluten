@@ -18,11 +18,15 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.glutendata.GlutenSparkPlanExecApi
-import io.glutenproject.expression.{ExpressionTransformer, GlutenNamedStructTransformer}
+import io.glutenproject.execution.{HashAggregateExecBaseTransformer, VeloxHashAggregateExecTransformer}
+import io.glutenproject.expression.{ExpressionMappings, ExpressionTransformer, GlutenNamedStructTransformer, Sig}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Literal, StringTrim}
+import org.apache.spark.sql.catalyst.VeloxAggregateFunctionRewriteRule
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLVeloxAdapter}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, Literal, NamedExpression, StringTrim}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.types.{ArrayType, BinaryType, DecimalType, DoubleType, FloatType, MapType, StringType, StructType, UserDefinedType}
 import org.apache.spark.sql.execution.datasources.GlutenColumnarRules.NativeWritePostRule
 
@@ -82,4 +86,39 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
         }
     }
   }
+
+   /**
+   * Generate HashAggregateExecTransformer.
+   */
+  override def genHashAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan): HashAggregateExecBaseTransformer =
+    VeloxHashAggregateExecTransformer(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
+
+  /**
+   * Generate extended Optimizer.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedOptimizers(): List[SparkSession =>
+    Rule[LogicalPlan]] = List(VeloxAggregateFunctionRewriteRule)
+
+  /**
+   * Define backend specfic expression mappings.
+   */
+  override def extraExpressionMappings: Seq[Sig] =
+    Seq(Sig[HLLVeloxAdapter](ExpressionMappings.APPROX_DISTINCT))
 }

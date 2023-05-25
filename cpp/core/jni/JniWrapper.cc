@@ -275,7 +275,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
   metricsBuilderConstructor =
-      getMethodIdOrError(env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J)V");
+      getMethodIdOrError(env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serializedArrowArrayIteratorClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchInIterator;");
@@ -444,6 +444,10 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
   auto numReplacedWithDynamicFilterRows = env->NewLongArray(numMetrics);
   auto flushRowCount = env->NewLongArray(numMetrics);
   auto scanTime = env->NewLongArray(numMetrics);
+  auto skippedSplits = env->NewLongArray(numMetrics);
+  auto processedSplits = env->NewLongArray(numMetrics);
+  auto skippedStrides = env->NewLongArray(numMetrics);
+  auto processedStrides = env->NewLongArray(numMetrics);
 
   if (metrics) {
     env->SetLongArrayRegion(inputRows, 0, numMetrics, metrics->inputRows);
@@ -467,6 +471,10 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
     env->SetLongArrayRegion(numReplacedWithDynamicFilterRows, 0, numMetrics, metrics->numReplacedWithDynamicFilterRows);
     env->SetLongArrayRegion(flushRowCount, 0, numMetrics, metrics->flushRowCount);
     env->SetLongArrayRegion(scanTime, 0, numMetrics, metrics->scanTime);
+    env->SetLongArrayRegion(skippedSplits, 0, numMetrics, metrics->skippedSplits);
+    env->SetLongArrayRegion(processedSplits, 0, numMetrics, metrics->processedSplits);
+    env->SetLongArrayRegion(skippedStrides, 0, numMetrics, metrics->skippedStrides);
+    env->SetLongArrayRegion(processedStrides, 0, numMetrics, metrics->processedStrides);
   }
 
   return env->NewObject(
@@ -493,7 +501,11 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,
       flushRowCount,
-      scanTime);
+      scanTime,
+      skippedSplits,
+      processedSplits,
+      skippedStrides,
+      processedStrides);
   JNI_METHOD_END(nullptr)
 }
 
@@ -972,7 +984,6 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
     JNIEnv* env,
     jobject obj,
     jstring filePath,
-    jstring fileName,
     jlong cSchema) {
   auto backend = gluten::createBackend();
 
@@ -980,10 +991,10 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
 
   if (cSchema == -1) {
     // Only inspect the schema and not write
-    datasource = backend->getDatasource(jStringToCString(env, filePath), jStringToCString(env, fileName), nullptr);
+    datasource = backend->getDatasource(jStringToCString(env, filePath), nullptr);
   } else {
     auto schema = gluten::jniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-    datasource = backend->getDatasource(jStringToCString(env, filePath), jStringToCString(env, fileName), schema);
+    datasource = backend->getDatasource(jStringToCString(env, filePath), schema);
     datasource->init(backend->getConfMap());
   }
 
