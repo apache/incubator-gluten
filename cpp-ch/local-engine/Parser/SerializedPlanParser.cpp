@@ -1317,13 +1317,18 @@ void SerializedPlanParser::parseFunctionArguments(
         // In clickhosue, map element are also accessed by arrayElement, not make the cast.
         parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
         auto element_type = actions_dag->getNodes().back().result_type;
+        const auto * first_arg_type = parsed_args.back()->result_type.get();
         const auto * nested_type = element_type.get();
         if (nested_type->isNullable())
         {
             nested_type = typeid_cast<const DB::DataTypeNullable *>(nested_type)->getNestedType().get();
         }
+        if (first_arg_type->isNullable())
+        {
+            first_arg_type = typeid_cast<const DB::DataTypeNullable *>(first_arg_type)->getNestedType().get();
+        }
         const auto * index_node = parseFunctionArgument(actions_dag, required_columns, function_name, args[1]);
-        if (nested_type->getTypeId() == DB::TypeIndex::Array)
+        if (nested_type->getTypeId() == DB::TypeIndex::Array && first_arg_type->getTypeId() != DB::TypeIndex::Map)
         {
             DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
             index_node = ActionsDAGUtil::convertNodeType(actions_dag, index_node, target_type.getName());
@@ -1436,8 +1441,11 @@ void SerializedPlanParser::parseFunctionArguments(
         const auto * first_arg_not_null
             = &actions_dag->addFunction(assume_not_null_builder, {first_arg}, "assumeNotNull(" + first_arg->result_name + ")");
         parsed_args.back() = first_arg_not_null;
-
         parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[1]);
+        auto second_arg = parsed_args.back();
+        const auto * second_arg_not_null
+            = &actions_dag->addFunction(assume_not_null_builder, {second_arg}, "assumeNotNull(" + second_arg->result_name + ")");
+        parsed_args.back() = second_arg_not_null;
     }
     else if (function_name == "trimBothSpark" || function_name == "trimLeftSpark" || function_name == "trimRightSpark")
     {
