@@ -441,7 +441,7 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
         const auto & type = struct_.struct_().types(i);
         auto data_type = parseType(type, &field_names);
         Poco::StringTokenizer name_parts(name, "#");
-        if (name_parts.count() == 4)
+        if (name_parts.count() >= 4)
         {
             auto agg_function_name = getFunctionName(name_parts[3], {});
             AggregateFunctionProperties properties;

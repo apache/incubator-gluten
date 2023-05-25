@@ -16,6 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
 import org.apache.spark.sql.execution.ReusedSubqueryExec
@@ -43,6 +45,10 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
       //      .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.memory.offHeap.size", "4g")
+      .set(
+        GlutenConfig.GLUTEN_LIB_PATH,
+        "/home/liangjiabiao/workspace/github/gluten/cpp-ch/"
+          + "ClickHouse/build1/utils/extern-local-engine/libch.so")
   }
 
   tpcdsAllQueries.foreach(

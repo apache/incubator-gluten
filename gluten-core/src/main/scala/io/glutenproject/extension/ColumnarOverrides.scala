@@ -427,25 +427,42 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
             child
           }
         }
-        plan.child match {
+        //val child = replaceWithTransformerPlan(plan.child)
+        val child = plan.child
+        logError(s"xxs  AQEShuffleReadExec child is ${child.getClass}")
+        logError(s"xxx AQEShuffleReadExec child's output is ${child.output}")
+        val newPlan = child match {
           case _: ColumnarShuffleExchangeExec =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            generateShuffleRead(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+            generateShuffleRead(ColumnarAQEShuffleReadExec(child, plan.partitionSpecs))
           case ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            generateShuffleRead(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-          case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
+            logError(s"xxx ShuffleQueryStageExec ColumnarShuffleExchangeExec")
+            generateShuffleRead(ColumnarAQEShuffleReadExec(child, plan.partitionSpecs))
+          case ShuffleQueryStageExec(id, reused: ReusedExchangeExec, canonicalized) =>
             reused match {
-              case ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec) =>
+              case ReusedExchangeExec(output, exchange: ColumnarShuffleExchangeExec) =>
+                /*
                 logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+                logError(s"xxx ShuffleQueryStageExec ReusedExchangeExec " +
+                  s"ColumnarShuffleExchangeExec")
                 generateShuffleRead(
-                  ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+                  ColumnarAQEShuffleReadExec(child, plan.partitionSpecs))
+                */
+                val shuffleStage = child.asInstanceOf[ShuffleQueryStageExec]
+                val resueExchange = shuffleStage.plan.asInstanceOf[ReusedExchangeExec]
+                val newResuseShuffleStage = shuffleStage.newReuseInstance(shuffleStage.id,
+                  resueExchange.child.output)
+                generateShuffleRead(ColumnarAQEShuffleReadExec(newResuseShuffleStage,
+                  plan.partitionSpecs));
               case _ =>
                 plan
             }
           case _ =>
             plan
         }
+        logError(s"xxx AQEShuffleReadExec newPlan is ${newPlan.getClass}, output is : ${newPlan.output}")
+        newPlan
       case plan: WindowExec =>
         WindowExecTransformer(
           plan.windowExpression,
@@ -466,8 +483,15 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
         GenerateExecTransformer(plan.generator, plan.requiredChildOutput,
           plan.outer, plan.generatorOutput, child)
       case p =>
-        logDebug(s"Transformation for ${p.getClass} is currently not supported.")
+        logError(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)
+        if (p.isInstanceOf[AdaptiveSparkPlanExec]) {
+          val adp = p.asInstanceOf[AdaptiveSparkPlanExec]
+          logError(s"xxx output1:${adp.inputPlan.output}, output2:${adp.executedPlan.output}, output3:${adp.executedPlan.children.head.output}")
+        } else if (p.isInstanceOf[ShuffleQueryStageExec]) {
+          val sqp = p.asInstanceOf[ShuffleQueryStageExec]
+          logError(s"xxx ShuffleQueryStageExec input plan:${sqp.plan.getClass}")
+        }
         p.withNewChildren(children)
     }
   }

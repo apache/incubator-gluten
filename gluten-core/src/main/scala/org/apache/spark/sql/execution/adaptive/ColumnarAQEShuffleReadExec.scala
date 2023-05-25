@@ -88,7 +88,20 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
   }
   private var cachedShuffleRDD: RDD[ColumnarBatch] = null
 
-  override def output: Seq[Attribute] = child.output
+  override def output: Seq[Attribute] = child match {
+    case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
+      reused match {
+        case ReusedExchangeExec(_, exchange: ColumnarShuffleExchangeExec) =>
+          if (exchange.output.length != child.output.length) {
+            logError(s"xxx o1:${exchange.output}, o2:${child.output}")
+            child.output
+          } else {
+            child.output
+          }
+        case _ => reused.output
+      }
+    case _ => child.output
+  }
 
   override def supportsColumnar: Boolean = true
 

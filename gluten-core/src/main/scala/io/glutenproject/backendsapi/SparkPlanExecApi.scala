@@ -17,10 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ConverterUtils, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer,Sha1Transformer, Sha2Transformer, Sig}
-import io.glutenproject.substrait.rel.RelBuilder;
-import io.glutenproject.substrait.`type`.TypeNode
-
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sha1Transformer, Sha2Transformer, Sig}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -38,8 +35,6 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.util
 
 trait SparkPlanExecApi {
 
@@ -266,20 +261,4 @@ trait SparkPlanExecApi {
     */
   def extraExpressionMappings: Seq[Sig] = Seq.empty
 
-  /**
-   * In default, just use the plan.output to generate the output schema. There are some special
-   * cases, such as HashAggregateExec in ClickHouse, we need to build a special schema for the 1st
-   * aggregating stage which is quite different from the plan.output.
-   */
-  def genOutputSchema(plan: SparkPlan): (util.ArrayList[TypeNode], util.ArrayList[String]) = {
-    val typeNodes = new util.ArrayList[TypeNode]()
-    val names = new util.ArrayList[String]()
-    plan.output.foreach {
-      attr =>
-        typeNodes.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        names.add(ConverterUtils.genColumnNameWithExprId(attr))
-        names.addAll(RelBuilder.collectStructFieldNamesDFS(attr.dataType))
-    }
-    (typeNodes, names)
-  }
 }

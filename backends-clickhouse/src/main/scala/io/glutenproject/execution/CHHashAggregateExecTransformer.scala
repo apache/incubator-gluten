@@ -74,6 +74,62 @@ case class CHHashAggregateExecTransformer(
   lazy val aggregateResultAttributes =
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
+  
+  override def output: Seq[Attribute] = {
+    lazy val originalOutput = resultExpressions.map(_.toAttribute)
+    val distinctAggregateFunctionModes = aggregateExpressions.map(_.mode).distinct
+
+    // The output result schema of final stage and partial stage are different.
+    // Final stage: the output result schema is the same as the select clause.
+    // Partial stage: the output result schema is, the grouping keys + the aggregate expressions.
+    // For example, "select avg(n_nationkey), n_regionkey, sum(n_nationkey ) from nation group by
+    // n_regionkey" .the output result schema of final stage is: avg(n_nationkey), n_regionkey,
+    // sum(n_nationkey ), but the output result schema of partial stage is: n_regionkey,
+    // partial_avg(n_nationkey), partial_sum(n_nationkey)
+    //
+    // How to know whether it is final stage or partial stage?
+    // 1. If the aggregateExpressions contains Final mode, it is final stage.
+    // 2. If the aggregateExpressions is empty, use the output as schema anyway.
+    if (
+      distinctAggregateFunctionModes.contains(Final) && (distinctAggregateFunctionModes.contains(
+        Partial) ||
+        distinctAggregateFunctionModes.contains(PartialMerge))
+    ) {
+      throw new IllegalStateException("Aggregate Final co-exists with Partial or PartialMerge")
+    }
+
+    if (distinctAggregateFunctionModes.contains(Final) || aggregateExpressions.isEmpty) {
+      // Final aggregage stage
+      originalOutput
+    } else {
+      // Partial aggregage stage
+      //
+      // add grouping keys
+      var realOutput = Seq[Attribute]()
+      groupingExpressions.foreach(
+        expr => {
+          realOutput = realOutput :+ ConverterUtils.getAttrFromExpr(expr).toAttribute
+        })
+      // add aggregate expressions
+      // Special cases:
+      // 1. avg, the partial result is two columns in spark, sum and count. but in clickhouse, it
+      //    has only one column avg.
+      aggregateExpressions.foreach(
+        expr => {
+          val attr = expr.resultAttribute
+          expr.mode match {
+            case Partial | PartialMerge =>
+              val columnName = genPartialAggregateResultColumnName(attr)
+              val (dataType, nullable) = getColumnType(attr, aggregateExpressions)
+              val newAttr = AttributeReference(columnName, dataType, nullable)()
+              realOutput = realOutput :+ newAttr
+            case _ => realOutput = realOutput :+ attr
+          }
+        })
+      realOutput
+    }
+  }
+
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
@@ -108,8 +164,6 @@ case class CHHashAggregateExecTransformer(
       // Notes: Currently, ClickHouse backend uses the output attributes of
       // aggregateResultAttributes as Shuffle output,
       // which is different from Velox backend.
-      val (typeList, nameList) =
-        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
       // 1. When the child is file scan rdd ( in case of separating file scan )
       // 2. When the child is Union all operator
       val (inputAttrs, outputAttrs) =
@@ -124,8 +178,11 @@ case class CHHashAggregateExecTransformer(
           (aggregateResultAttributes, output)
         }
 
-      val readRel =
-        RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
+      val attrList = new java.util.ArrayList[Attribute]()
+      for (attr <- child.output) {
+        attrList.add(attr)
+      }
+      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
 
       (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
@@ -286,10 +343,8 @@ case class CHHashAggregateExecTransformer(
   }
 
   def getColumnType(
-      columnName: String,
       attr: Attribute,
       aggregateExpressions: Seq[AggregateExpression]): (DataType, Boolean) = {
-    val lowercaseName = columnName.toLowerCase(Locale.ROOT)
     val aggregateExpression = aggregateExpressions.find(_.resultAttribute == attr)
     val (dataType, nullable) = if (!aggregateExpression.isDefined) {
       (attr.dataType, attr.nullable)

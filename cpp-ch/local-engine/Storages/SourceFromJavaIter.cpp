@@ -9,6 +9,9 @@
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
 
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
+
 namespace local_engine
 {
 jclass SourceFromJavaIter::serialized_record_batch_iterator_class = nullptr;
@@ -35,6 +38,7 @@ DB::Chunk SourceFromJavaIter::generate()
     {
         jbyteArray block = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
         DB::Block * data = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block));
+        // LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "in block:{}. header:{}", data->dumpNames(), output.getHeader().dumpNames());
         if (data->rows() > 0)
         {
             size_t rows = data->rows();

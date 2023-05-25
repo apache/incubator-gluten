@@ -154,9 +154,11 @@ case class GenerateExecTransformer(
       getRelNode(context, operatorId, child.output, childCtx.root, generatorNode,
         childOutputNodes, false)
     } else {
-      val (typeList, nameList) =
-        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
-      val readRel = RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
+      val attrList = new java.util.ArrayList[Attribute]()
+      for (attr <- child.output) {
+        attrList.add(attr)
+      }
+      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
       getRelNode(context, operatorId, child.output, readRel, generatorNode, childOutputNodes, false)
     }
     TransformContext(child.output, output, relNode)

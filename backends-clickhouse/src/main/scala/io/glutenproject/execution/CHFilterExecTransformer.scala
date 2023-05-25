@@ -17,7 +17,6 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
@@ -99,11 +98,14 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val (typeList, nameList) =
-        BackendsApiManager.getSparkPlanExecApiInstance.genOutputSchema(child)
-      val readRel =
-        RelBuilder.makeReadRel(typeList, nameList, context, operatorId)
-      getRelNode(context, leftCondition, child.output, operatorId, readRel, validation = false)
+      val attrList = new util.ArrayList[Attribute](child.output.asJava)
+      getRelNode(
+        context,
+        leftCondition,
+        child.output,
+        operatorId,
+        RelBuilder.makeReadRel(attrList, context, operatorId),
+        validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
     val inputAttributes = if (childCtx != null) {
