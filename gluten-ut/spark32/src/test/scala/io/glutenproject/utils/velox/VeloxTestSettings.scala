@@ -182,8 +182,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Timestamp: Velox to Arrow.
     .exclude("construct literals from arrays of java.time.Instant")
   enableSuite[GlutenIntervalExpressionsSuite]
-    .exclude("seconds")
-    .exclude("ANSI: extract days, hours, minutes and seconds")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
