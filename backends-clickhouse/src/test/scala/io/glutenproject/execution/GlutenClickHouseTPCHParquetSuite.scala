@@ -1,4 +1,4 @@
-/*:
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -904,7 +904,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   //      assert(StorageJoinBuilder.nativeCachedHashTableCount == 0)
   //    }
   //  }
-    
+
   test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
     spark.sql(
       """
