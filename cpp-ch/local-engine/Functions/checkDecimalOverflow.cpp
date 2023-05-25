@@ -126,6 +126,13 @@ namespace
 
         ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
         {
+            if (arguments.size() != 3)
+                throw Exception(
+                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
+                    "Number of arguments for function {} doesn't match: passed {}, should be 3.",
+                    getName(),
+                    arguments.size());
+
             if (!arguments[0].column || !arguments[1].column || !arguments[2].column)
                 throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
 
@@ -233,18 +240,12 @@ namespace
 
 void registerFunctionCheckDecimalOverflow(FunctionFactory & factory)
 {
-    factory.registerFunction<FunctionCheckDecimalOverflowThrow>({
-        R"(
+    factory.registerFunction<FunctionCheckDecimalOverflowThrow>(FunctionDocumentation{.description = R"(
 Check decimal precision is overflow. If overflow throws exception.
-)",
-        Documentation::Examples{{"CheckDecimalOverflow", "SELECT checkDecimalOverflow(toDecimal32(123.456, 3), 6)"}},
-        Documentation::Categories{"OtherFunctions"}});
+)"});
 
-    factory.registerFunction<FunctionCheckDecimalOverflowOrNull>({
-        R"(
+    factory.registerFunction<FunctionCheckDecimalOverflowOrNull>(FunctionDocumentation{.description = R"(
 Check decimal precision is overflow. If overflow return `NULL`.
-)",
-        Documentation::Examples{{"CheckDecimalOverflowOrNull", "SELECT checkDecimalOverflowOrNull(toDecimal32(123.456, 3), 6)"}},
-        Documentation::Categories{"OtherFunctions"}});
+)"});
 }
 }

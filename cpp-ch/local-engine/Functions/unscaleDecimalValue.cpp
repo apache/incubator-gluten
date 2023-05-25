@@ -79,6 +79,13 @@ namespace
         ColumnPtr
         executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
         {
+            if (arguments.size() != 1)
+                throw Exception(
+                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
+                    "Number of arguments for function {} doesn't match: passed {}, should be 1.",
+                    getName(),
+                    arguments.size());
+
             const auto & src_column = arguments[0];
             if (!src_column.column)
                 throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
@@ -131,12 +138,9 @@ namespace
 
 void registerFunctionUnscaleValue(FunctionFactory & factory)
 {
-    factory.registerFunction<FunctionUnscaleValue<NameUnscaleValue>>({
-        R"(
+    factory.registerFunction<FunctionUnscaleValue<NameUnscaleValue>>(FunctionDocumentation{.description = R"(
 Get decimal nested Integer value.
-)",
-        Documentation::Examples{{"unscaleValue", "SELECT unscaleValue(makeDecimal(10987654321, 40, 3));"}},
-        Documentation::Categories{"OtherFunctions"}});
+)"});
 }
 
 }

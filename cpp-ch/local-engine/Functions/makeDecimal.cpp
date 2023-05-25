@@ -126,6 +126,13 @@ namespace
         ColumnPtr
         executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
         {
+            if (arguments.size() != 3)
+                throw Exception(
+                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
+                    "Number of arguments for function {} doesn't match: passed {}, should be 3.",
+                    getName(),
+                    arguments.size());
+
             const auto & unscale_column = arguments[0];
             if (!unscale_column.column)
                 throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
@@ -272,18 +279,12 @@ namespace
 
 void registerFunctionFunctionMakeDecimal(FunctionFactory & factory)
 {
-    factory.registerFunction<FunctionMakeDecimalThrow>({
-        R"(
+    factory.registerFunction<FunctionMakeDecimalThrow>(FunctionDocumentation{.description = R"(
 Create a decimal value by use nested type. If overflow throws exception.
-)",
-        Documentation::Examples{{"makeDecimal", "SELECT makeDecimal(10987654321, 40, 3)"}},
-        Documentation::Categories{"OtherFunctions"}});
-    factory.registerFunction<FunctionMakeDecimalOrNull>({
-        R"(
+)"});
+    factory.registerFunction<FunctionMakeDecimalOrNull>(FunctionDocumentation{.description = R"(
 Create a decimal value by use nested type. If overflow return `NULL`.
-)",
-        Documentation::Examples{{"makeDecimalOrNull", "SELECT makeDecimalOrNull(toInt128(10987654321),8,3)"}},
-        Documentation::Categories{"OtherFunctions"}});
+)"});
 }
 
 }
