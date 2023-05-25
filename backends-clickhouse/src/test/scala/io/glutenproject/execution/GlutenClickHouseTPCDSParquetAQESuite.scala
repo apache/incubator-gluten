@@ -16,6 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.utils.FallbackUtil
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
 import org.apache.spark.sql.execution.ReusedSubqueryExec
@@ -144,6 +146,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
             case r: ReusedSubqueryExec => true
             case _ => false
           }
+          assert(FallbackUtil.isFallback(df.queryExecution.executedPlan) == true)
           // On Spark 3.2, there are 15 AdaptiveSparkPlanExec,
           // and on Spark 3.3, there are 5 AdaptiveSparkPlanExec and 10 ReusedSubqueryExec
           assert(subqueryAdaptiveSparkPlan.filter(_ == true).size == 15)
