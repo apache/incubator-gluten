@@ -27,7 +27,7 @@ public class DatasourceJniWrapper extends JniInitialized {
   public DatasourceJniWrapper() throws IOException {
   }
 
-  public native long nativeInitDatasource(String filePath, String fileName, long cSchema);
+  public native long nativeInitDatasource(String filePath, long cSchema);
 
   public native void inspectSchema(long instanceId, long cSchemaAddress);
 
