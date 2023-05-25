@@ -12,7 +12,7 @@ vcpkg_extract_source_archive_ex(
 vcpkg_configure_make(
     SOURCE_PATH ${SOURCE_PATH}
     OPTIONS
-        --disable-ntlm
+        # --disable-ntlm
         --without-stringprep
 )
 vcpkg_install_make()

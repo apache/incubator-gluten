@@ -31,6 +31,7 @@ SET(HDFS_DEPS
     # gsasl
     gsasl
     gssapi_krb5
+    ntlm
 )
 list(TRANSFORM HDFS_DEPS PREPEND "${ROOT}/lib/lib")
 list(TRANSFORM HDFS_DEPS APPEND ".a")
