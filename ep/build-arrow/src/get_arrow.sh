@@ -43,6 +43,7 @@ function checkout_code {
   else
     git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     cd $ARROW_SOURCE_DIR
+    git checkout $TARGET_BUILD_COMMIT
   fi
 }
 
