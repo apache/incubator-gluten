@@ -94,7 +94,7 @@ endif ()
 
 if (ENABLE_JEMALLOC)
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
-        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map)
+        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map -Wl,-Bsymbolic)
 else()
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
         -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
