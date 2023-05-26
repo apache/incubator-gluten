@@ -37,7 +37,7 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
-#include "tests/TestUtils.h"
+#include "utils/TestUtils.h"
 #include "velox/dwio/parquet/writer/Writer.h"
 #include "velox/vector/arrow/Bridge.h"
 
