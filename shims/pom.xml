@@ -57,7 +57,6 @@
         <activeByDefault>true</activeByDefault>
       </activation>
       <modules>
-        <module>write</module>
         <module>common</module>
         <module>spark32</module>
       </modules>

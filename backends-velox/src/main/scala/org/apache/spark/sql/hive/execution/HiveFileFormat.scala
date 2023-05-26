@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenIndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
@@ -54,9 +53,10 @@ import java.net.URI
 import scala.collection.JavaConverters._
 
 /**
- * `FileFormat` for writing Hive tables.
+ * This file is copied from Spark
  *
- * TODO: implement the read logic.
+ * Offload the parquet write of InsertIntoHiveDirCommand to velox backend when enable gluten plugin.
+ *
  */
 class HiveFileFormat(fileSinkConf: FileSinkDesc)
   extends FileFormat
