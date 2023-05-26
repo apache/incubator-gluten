@@ -57,7 +57,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("from decimal")
+    // User defined type.
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
@@ -172,14 +172,16 @@ class VeloxTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenLiteralExpressionSuite]
+    // Rewrite to exclude user-defined type case.
     .exclude("default")
-    // Timestamp: Velox to Arrow.
-    .exclude("construct literals from arrays of java.time.Instant")
+
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
+    // Random.
     .exclude("Map Concat")
+    // Random.
     .exclude("Shuffle")
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
