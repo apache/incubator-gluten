@@ -96,33 +96,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
 
   enableSuite[GlutenMathFunctionsSuite]
-    .include(
-      // "round/bround", // Scale argument of round/bround function currently don't support
-      //   negative.
-      // "radians",      // Relies on the transformation of function `CheckOverflow`.
-      // "degrees",      // Relies on the transformation of function `CheckOverflow`.
-      // "hex",          // Leading 0 is cut in different ways between CH and Spark.
-      // "log1p",        // In CH log1p(1) returns -inf, in spark it returns null.
-      // "rint",         // Relies on the right transformation of function `cast` when null is input
-      // "log2",         // Make sure velox ut is success
-      // "log / ln"      // Make sure velox ut is success
-      "cos",
-      "cosh",
-      "sin",
-      "sinh",
-      "tan",
-      "tanh",
-      "acos",
-      "asin",
-      "atan",
-      "atan2",
-      "cbrt",
-      "unhex",
-      "hypot",
-      "log10",
-      "factorial",
-      "abs",
-      "round/bround"
+    .exclude(
+      "hex",
+      "log1p"
     )
 
   enableSuite[GlutenComplexTypesSuite]
