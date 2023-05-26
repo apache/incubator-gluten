@@ -1316,19 +1316,15 @@ void SerializedPlanParser::parseFunctionArguments(
         // could be positive or negative and have different effects. So we make a cast here.
         // In clickhosue, map element are also accessed by arrayElement, not make the cast.
         parseFunctionArgument(actions_dag, parsed_args, required_columns, function_name, args[0]);
-        auto element_type = actions_dag->getNodes().back().result_type;
-        const auto * first_arg_type = parsed_args.back()->result_type.get();
-        const auto * nested_type = element_type.get();
-        if (nested_type->isNullable())
-        {
-            nested_type = typeid_cast<const DB::DataTypeNullable *>(nested_type)->getNestedType().get();
-        }
+        auto element_type = parsed_args.back()->result_type;
+        const auto * first_arg_type = element_type.get();
         if (first_arg_type->isNullable())
         {
             first_arg_type = typeid_cast<const DB::DataTypeNullable *>(first_arg_type)->getNestedType().get();
         }
         const auto * index_node = parseFunctionArgument(actions_dag, required_columns, function_name, args[1]);
-        if (nested_type->getTypeId() == DB::TypeIndex::Array && first_arg_type->getTypeId() != DB::TypeIndex::Map)
+        WhichDataType which(first_arg_type);
+        if (which.isArray())
         {
             DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
             index_node = ActionsDAGUtil::convertNodeType(actions_dag, index_node, target_type.getName());
