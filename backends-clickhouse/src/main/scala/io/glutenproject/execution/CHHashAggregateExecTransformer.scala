@@ -25,12 +25,13 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Final, Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Average, Covariance, Final, Partial, PartialMerge}
 import org.apache.spark.sql.catalyst.expressions.aggregate.CollectList
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 
 import com.google.protobuf.Any
 
@@ -49,6 +50,11 @@ object CHHashAggregateExecTransformer {
       expr => {
         expr.resultAttribute
       })
+  }
+
+  private val curId = new java.util.concurrent.atomic.AtomicLong()
+  def newStructFieldId(): Long = {
+    curId.getAndIncrement()
   }
 }
 
@@ -135,53 +141,10 @@ case class CHHashAggregateExecTransformer(
               ConverterUtils.genColumnNameWithExprId(attr)
             }
             nameList.add(colName)
-            // In final stage, when the output attr is the output of the avg func,
-            // CH needs to get the original data type as input type.
-            if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
-              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-              val originalType =
-                if (
-                  originalExpr.isDefined &&
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .isInstanceOf[Average]
-                ) {
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .asInstanceOf[Average]
-                    .child
-                    .dataType
-                } else {
-                  attr.dataType
-                }
-              typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
-            } else if (colName.toLowerCase(Locale.ROOT).startsWith("collect_list#")) {
-              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-              val (exprType, nullable) =
-                if (
-                  originalExpr.isDefined &&
-                  originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .isInstanceOf[CollectList]
-                ) {
-                  val child = originalExpr.get
-                    .asInstanceOf[AggregateExpression]
-                    .aggregateFunction
-                    .asInstanceOf[CollectList]
-                    .child
-                  (child.dataType, child.nullable)
-                } else {
-                  (attr.dataType, attr.nullable)
-                }
-              // Be careful with the nullable. We must keep the nullable the same as the column
-              // otherwise it will cause a parsing exception on partial aggregated data.
-              typeList.add(ConverterUtils.getTypeNode(exprType, nullable))
-            } else {
-              typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            }
+            val (dataType, nullable) =
+              getIntermediateAggregateResultType(attr, aggregateExpressions)
+            nameList.addAll(RelBuilder.collectStructFieldNamesDFS(dataType))
+            typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
           }
           (aggregateResultAttributes, output)
         }
@@ -346,6 +309,65 @@ case class CHHashAggregateExecTransformer(
   override def isStreaming: Boolean = false
 
   def numShufflePartitions: Option[Int] = Some(0)
+
+  def getIntermediateAggregateResultType(
+      attr: Attribute,
+      inputAggregateExpressions: Seq[AggregateExpression]): (DataType, Boolean) = {
+    def makeStructType(types: Seq[(DataType, Boolean)]): StructType = {
+      val fields = new Array[StructField](types.length)
+      var i = 0
+      types.foreach {
+        case (dataType, nullable) =>
+          fields.update(
+            i,
+            new StructField(
+              s"anonymousField${CHHashAggregateExecTransformer.newStructFieldId()}",
+              dataType,
+              nullable))
+          i += 1
+      }
+      StructType(fields)
+    }
+
+    def makeStructTypeSingleOne(dataType: DataType, nullable: Boolean): StructType = {
+      makeStructType(Seq[(DataType, Boolean)]((dataType, nullable)))
+    }
+
+    val aggregateExpression = inputAggregateExpressions.find(_.resultAttribute == attr)
+    // We need a way to represent the intermediate result's type of the aggregate function.
+    // substrait only contains basic types, we make a trick here.
+    //   1. the intermediate result column will has a special format name,
+    //     see genPartialAggregateResultColumnName
+    //   2. Use a struct type to wrap the arguments' types of the aggregate function.
+    val (dataType, nullable) = if (!aggregateExpression.isDefined) {
+      (attr.dataType, attr.nullable)
+    } else {
+      aggregateExpression.get match {
+        case aggExpr: AggregateExpression =>
+          aggExpr.aggregateFunction match {
+            case avg: Average =>
+              (makeStructTypeSingleOne(avg.child.dataType, attr.nullable), attr.nullable)
+            case collectList: CollectList =>
+              // Be careful with the nullable. We must keep the nullable the same as the column
+              // otherwise it will cause a parsing exception on partial aggregated data.
+              (
+                makeStructTypeSingleOne(collectList.child.dataType, collectList.child.nullable),
+                collectList.child.nullable
+              )
+            case covar: Covariance =>
+              var fields = Seq[(DataType, Boolean)]()
+              fields = fields :+ (covar.left.dataType, covar.left.nullable)
+              fields = fields :+ (covar.right.dataType, covar.right.nullable)
+              (makeStructType(fields), attr.nullable)
+            case expr =>
+              (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
+          }
+        case expr =>
+          (attr.dataType, attr.nullable)
+      }
+    }
+    (dataType, nullable)
+  }
 
   override protected def withNewChildInternal(
       newChild: SparkPlan): CHHashAggregateExecTransformer = {

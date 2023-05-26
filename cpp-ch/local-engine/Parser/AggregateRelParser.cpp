@@ -1,6 +1,7 @@
 #include "AggregateRelParser.h"
 #include <memory>
 #include <DataTypes/DataTypeAggregateFunction.h>
+#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
@@ -68,10 +69,6 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     auto input_header = plan->getCurrentDataStream().header;
     for (const auto & measure : aggregate_rel->measures())
     {
-        if (measure.measure().arguments_size() != 1)
-        {
-            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "only support one argument aggregate function");
-        }
         AggregateInfo agg_info;
         auto arg = measure.measure().arguments(0).value();
         auto function_name = parseFunctionName(measure.measure().function_reference(), {});
@@ -114,35 +111,47 @@ void AggregateRelParser::addPreProjection()
     ActionsDAGPtr projection_action = std::make_shared<ActionsDAG>(input_header.getColumnsWithTypeAndName());
     for (auto & agg_info : aggregates)
     {
-        auto arg = agg_info.measure->measure().arguments(0).value();
-        if (arg.has_selection())
+        for (const auto & arg : agg_info.measure->measure().arguments())
         {
-            agg_info.arg_column_name = input_header.getByPosition(arg.selection().direct_reference().struct_field().field()).name;
-        }
-        else if (arg.has_literal())
-        {
-            const auto * node = parseArgument(projection_action, arg);
-            projection_action->addOrReplaceInOutputs(*node);
-            agg_info.arg_column_name = node->result_name;
-            need_projection = true;
-        }
-        else
-        {
-            throw Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported aggregate argument: {}", arg.DebugString());
-        }
+            String arg_column_name;
+            DB::DataTypePtr arg_column_type = nullptr;
+            auto arg_value = arg.value();
+            if (arg_value.has_selection())
+            {
+                const auto & col = input_header.getByPosition(arg_value.selection().direct_reference().struct_field().field());
+                arg_column_name = col.name;
+                arg_column_type = col.type;
+            }
+            else if (arg_value.has_literal())
+            {
+                const auto * node = parseArgument(projection_action, arg_value);
+                projection_action->addOrReplaceInOutputs(*node);
+                arg_column_name = node->result_name;
+                arg_column_type = node->result_type;
+                need_projection = true;
+            }
+            else
+            {
+                throw Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported aggregate argument: {}", arg_value.DebugString());
+            }
 
-        auto required_output_which_type = WhichDataType(parseType(agg_info.measure->measure().output_type()));
-        if (required_output_which_type.isNullable()
-            && agg_info.measure->measure().phase() == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
-            && !projection_action->findInOutputs(agg_info.arg_column_name).result_type->isNullable())
-        {
-            ActionsDAG::NodeRawConstPtrs args;
-            agg_info.has_mismatch_nullablity = true;
-            args.emplace_back(&projection_action->findInOutputs(agg_info.arg_column_name));
-            const auto * node = buildFunctionNode(projection_action, "toNullable", args);
-            projection_action->addOrReplaceInOutputs(*node);
-            agg_info.arg_column_name = node->result_name;
-            need_projection = true;
+            // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
+            auto required_output_which_type = WhichDataType(parseType(agg_info.measure->measure().output_type()));
+            if (required_output_which_type.isNullable()
+                && agg_info.measure->measure().phase() == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
+                && !projection_action->findInOutputs(arg_column_name).result_type->isNullable())
+            {
+                ActionsDAG::NodeRawConstPtrs args;
+                agg_info.has_mismatch_nullablity = true;
+                args.emplace_back(&projection_action->findInOutputs(arg_column_name));
+                const auto * node = buildFunctionNode(projection_action, "toNullable", args);
+                projection_action->addOrReplaceInOutputs(*node);
+                arg_column_name = node->result_name;
+                arg_column_type = node->result_type;
+                need_projection = true;
+            }
+            agg_info.arg_column_names.emplace_back(arg_column_name);
+            agg_info.arg_column_types.emplace_back(arg_column_type);
         }
     }
     if (need_projection)
@@ -156,38 +165,53 @@ void AggregateRelParser::addPreProjection()
 
 void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & descriptions)
 {
+    auto build_result_column_name = [](const String & function_name, const Strings & arg_column_names, substrait::AggregationPhase phase)
+    {
+        if (phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+        {
+            assert(arg_column_names.size() == 1);
+            return arg_column_names[0];
+        }
+        String arg_list_str = boost::algorithm::join(arg_column_names, ",");
+        return function_name + "(" + arg_list_str + ")";
+    };
     for (auto & agg_info : aggregates)
     {
         AggregateDescription description;
         const auto & measure = agg_info.measure->measure();
+        description.column_name = build_result_column_name(agg_info.function_name, agg_info.arg_column_names, measure.phase());
+        description.argument_names = agg_info.arg_column_names;
+        // The suffix of "PartialMerge" is used in AggregateFunctionCombinatorPartialMerge
+        const auto * partial_merge_suffix = "PartialMerge";
+        auto function_name = agg_info.function_name;
+        auto arg_column_types = agg_info.arg_column_types;
         if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
         {
-            description.column_name = agg_info.arg_column_name;
-        }
-        else
-        {
-            description.column_name = agg_info.function_name + "(" + agg_info.arg_column_name + ")";
-        }
-        description.argument_names = {agg_info.arg_column_name};
-        auto arg_type = plan->getCurrentDataStream().header.getByName(agg_info.arg_column_name).type;
-        if (const auto * function_type = DB::checkAndGetDataType<DB::DataTypeAggregateFunction>(arg_type.get()))
-        {
-            const auto * suffix = "PartialMerge";
-            description.function = getAggregateFunction(agg_info.function_name + suffix, {arg_type});
-        }
-        else
-        {
-            auto function_name = agg_info.function_name;
-            auto final_arg_type = arg_type;
-            if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+            if (agg_info.arg_column_types.size() != 1)
             {
-                auto first = getAggregateFunction(agg_info.function_name, {arg_type});
-                final_arg_type = first->getStateType();
-                const auto * suffix = "PartialMerge";
-                function_name = function_name + suffix;
+                throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Only support one argument aggregate function in phase {}", measure.phase());
             }
-            description.function = getAggregateFunction(function_name, {final_arg_type});
+            const auto * agg_function_data = DB::checkAndGetDataType<DB::DataTypeAggregateFunction>(agg_info.arg_column_types[0].get());
+            if (!agg_function_data)
+            {
+                // FIXME. This is should be fixed. It's the case that count(distinct(xxx)) with other aggregate functions.
+                // Gluten breaks the rule that intermediate result should have a special format name here.
+                if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+                {
+                    LOG_INFO(logger, "Intermediate aggregate function data is expected in phase {} for {}", measure.phase(), function_name);
+                    auto arg_type = DB::removeNullable(agg_info.arg_column_types[0]);
+                    if (auto * tupe_type = typeid_cast<const DB::DataTypeTuple*>(arg_type.get()))
+                    {
+                        arg_column_types = tupe_type->getElements();
+                    }
+                    auto agg_function = getAggregateFunction(function_name, arg_column_types);
+                    auto agg_intermediate_result_type = agg_function->getStateType();
+                    arg_column_types = {agg_intermediate_result_type};
+                }
+            }
+            function_name = function_name + partial_merge_suffix;
         }
+        description.function = getAggregateFunction(function_name, arg_column_types);
         descriptions.emplace_back(description);
     }
 }
@@ -293,7 +317,7 @@ void AggregateRelParser::addPostProjectionForAggregatingResult()
             if (current_cols[pos].type->isNullable())
             {
                 ActionsDAG::NodeRawConstPtrs args;
-                args.push_back(&projection_action->findInOutputs(agg_info.arg_column_name));
+                args.push_back(&projection_action->findInOutputs(agg_info.arg_column_names[0]));
                 auto nested_type = typeid_cast<const DB::DataTypeNullable *>(current_cols[pos].type.get())->getNestedType();
                 DB::Field empty_field = nested_type->getDefault();
                 const auto * default_value_node = &projection_action->addColumn(

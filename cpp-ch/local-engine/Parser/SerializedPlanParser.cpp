@@ -440,12 +440,22 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
         auto name = field_names.front();
         const auto & type = struct_.struct_().types(i);
         auto data_type = parseType(type, &field_names);
+        // This is a partial aggregate data column.
+        // It's type is special, must be a struct type contains all arguments types.
         Poco::StringTokenizer name_parts(name, "#");
-        if (name_parts.count() == 4)
+        if (name_parts.count() >= 4)
         {
+            auto nested_data_type = DB::removeNullable(data_type);
+            const auto * tuple_type = typeid_cast<const DataTypeTuple *>(nested_data_type.get());
+            if (!tuple_type)
+            {
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", data_type->getName());
+            }
+            auto args_types = tuple_type->getElements();
+
             auto agg_function_name = getFunctionName(name_parts[3], {});
             AggregateFunctionProperties properties;
-            auto tmp = AggregateFunctionFactory::instance().get(agg_function_name, {data_type}, {}, properties);
+            auto tmp = AggregateFunctionFactory::instance().get(agg_function_name, args_types, {}, properties);
             data_type = tmp->getStateType();
         }
         internal_cols.push_back(ColumnWithTypeAndName(data_type, name));

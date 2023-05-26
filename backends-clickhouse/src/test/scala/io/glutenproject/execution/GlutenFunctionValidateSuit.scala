@@ -158,4 +158,12 @@ class GlutenFunctionValidateSuit extends WholeStageTransformerSuite {
       _ =>
     }
   }
+
+  test("Test covar_samp") {
+    runQueryAndCompare("SELECT covar_samp(double_field1, int_field1) from json_test") { _ => }
+  }
+
+  test("Test covar_pop") {
+    runQueryAndCompare("SELECT covar_pop(double_field1, int_field1) from json_test") { _ => }
+  }
 }
