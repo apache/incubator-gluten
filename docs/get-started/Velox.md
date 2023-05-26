@@ -94,9 +94,9 @@ make -j
 ## compile gluten jvm and package jar
 cd /path_to_gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 ```
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
@@ -121,9 +121,9 @@ make -j
 step 3: package jar
 cd /path_to_gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 ```
 
 ## 2.2 Arrow home directory
@@ -146,9 +146,9 @@ make -j
 step 3: package jar
 cd /path_to_gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+mvn clean package -Pbackends-velox -prss -Pspark-3.3 -DskipTests
 ```
 
 ## 2.3 HDFS support
@@ -171,7 +171,7 @@ cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HDFS=ON ..
 make -j
 
 cd /path_to_gluten
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
+mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
 ```
 It is supported to access data on different HDFS endpoints.
 The endpoint info (hdfs://host:port) contained in a given hdfs file path will be used to initialize an hdfs client.
@@ -279,7 +279,7 @@ cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
 make -j
 
 cd /path_to_gluten
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
+mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
 ```
 Currently to use S3 connector below configurations are required in spark-defaults.conf
 ```

@@ -69,8 +69,8 @@ make -j
 4. build Gluten and generate the example files
 ```
 cd gluten_home
-mvn clean package -Pspark-3.2 -Pbackends-velox
-mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
+mvn clean package -Pspark-3.2 -Pbackends-velox -Prss
+mvn test -Pspark-3.2 -Pbackends-velox -Prss -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
 ```
 - After the above operations, the examples files are generated under `gluten_home/backends-velox`
 - You can check it by the command `tree gluten_home/backends-velox/generated-native-benchmark/`

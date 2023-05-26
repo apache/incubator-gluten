@@ -20,7 +20,7 @@
 
   <profiles>
     <profile>
-      <id>backends-velox</id>
+      <id>rss</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>

@@ -45,9 +45,9 @@ make -j
 
 # Build gluten. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3
 cd /path_to_gluten
-mvn clean package -Pspark-3.2 -Pbackends-velox
+mvn clean package -Pspark-3.2 -Pbackends-velox -Prss
 
-mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am \
+mvn test -Pspark-3.2 -Pbackends-velox -Prss -pl backends-velox -am \
 -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
 ```
 
