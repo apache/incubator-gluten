@@ -60,8 +60,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
 
   }  else if (strncmp(filePath_.c_str(), "s3a:", 4) == 0) {
 #ifdef ENABLE_S3
-    finalPath_ = destinationPathWithSchame;
-    sink_ = std::make_unique<velox::S3FileSink>(finalPath_);
+    sink_ = std::make_unique<velox::S3FileSink>(filePath_);
 #else
     throw std::runtime_error(
         "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox backend!");
