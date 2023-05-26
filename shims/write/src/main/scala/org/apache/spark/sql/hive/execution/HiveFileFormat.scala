@@ -83,6 +83,9 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
       fileSinkConf.tableInfo
         .getOutputFileFormatClassName()
         .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
+      && sparkSession.conf.contains("spark.plugins") && sparkSession.conf
+        .get("spark.plugins")
+        .equals("io.glutenproject.GlutenPlugin")
     ) {
       // Only offload parquet write to velox backend.
       new OutputWriterFactory {
@@ -111,10 +114,8 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           val allocator = ArrowBufferAllocators.contextInstance()
           try {
             GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-            instanceId = datasourceJniWrapper.nativeInitDatasource(
-              originPath,
-              fileName,
-              cSchema.memoryAddress())
+            instanceId =
+              datasourceJniWrapper.nativeInitDatasource(originPath, cSchema.memoryAddress())
           } catch {
             case e: IOException =>
               throw new RuntimeException(e)
