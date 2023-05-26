@@ -20,6 +20,7 @@ package io.glutenproject
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
+import io.glutenproject.test.TestStats
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
@@ -50,6 +51,11 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
+    if (conf.get("spark.test.home", "") != "") {
+      // Only statistic in UT, not thread safe
+      TestStats.beginStatistic()
+    }
+
     setPredefinedConfigs(sc, conf)
     // Initialize Backends API
     BackendsApiManager.initialize()

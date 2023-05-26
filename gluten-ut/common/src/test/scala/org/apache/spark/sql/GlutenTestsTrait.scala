@@ -80,6 +80,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     logInfo("Test suite: " + this.getClass.getSimpleName +
       "; Suite test number: " + TestStats.suiteTestNumber +
       "; OffloadGluten number: " + TestStats.offloadGlutenTestNumber + "\n")
+    TestStats.printMarkdown(this.getClass.getSimpleName)
     TestStats.reset()
   }
 
@@ -235,18 +236,23 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     }
     val resultDF = df.select(Column(expression))
     val result = resultDF.collect()
+    TestStats.testUnitNumber = TestStats.testUnitNumber + 1
     if (checkDataTypeSupported(expression) &&
         expression.children.forall(checkDataTypeSupported)) {
       val projectTransformer = resultDF.queryExecution.executedPlan.collect {
         case p: ProjectExecTransformer => p
       }
       if (projectTransformer.size == 1) {
+        TestStats.offloadGluten = true
+        TestStats.offloadGlutenUnitNumber += 1
         logInfo("Offload to native backend in the test.\n")
       } else {
         logInfo("Not supported in native backend, fall back to vanilla spark in the test.\n")
+        shouldNotFallback()
       }
     } else {
       logInfo("Has unsupported data type, fall back to vanilla spark.\n")
+      shouldNotFallback()
     }
 
     if (!(checkResult(result.head.get(0), expected, expression.dataType, expression.nullable)
@@ -261,6 +267,20 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           s"actual: ${result.head.get(0)}, " +
           s"expected: $expected$input")
     }
+  }
+
+  def shouldNotFallback(): Unit = {
+    TestStats.offloadGluten = false
+    if (BackendsApiManager.getBackendName != GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND) {
+      return
+    }
+
+    val supportedExpr = BackendsApiManager.getTransformerApiInstance.getSupportExpressionClassName
+    TestStats.getFallBackClassName.forEach(fallbackClassName => {
+      assert(!supportedExpr.contains(fallbackClassName),
+        "\nCH has already support %s, suggest not fallback, please fix it"
+          .format(fallbackClassName))
+    })
   }
 
   def canConvertToDataFrame(inputRow: InternalRow): Boolean = {

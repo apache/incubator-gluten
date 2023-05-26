@@ -61,7 +61,13 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
   final def doValidate(): Boolean = {
     try {
       TransformerState.enterValidation
-      doValidateInternal
+      val res = doValidateInternal
+
+      if (!res) {
+        TestStats.addFallBackClassName(this.getClass.toString)
+      }
+
+      res
     } finally {
       TransformerState.finishValidation
     }
