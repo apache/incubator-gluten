@@ -124,6 +124,7 @@ function process_setup_alinux3 {
   sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" scripts/setup-centos8.sh
   sed -i "s/gcc-toolset-9 //" scripts/setup-centos8.sh
   sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" scripts/setup-centos8.sh
+  sed -i "s/\${CMAKE_INSTALL_LIBDIR}/lib64/" third_party/CMakeLists.txt
 }
 
 echo "Preparing Velox source code..."
