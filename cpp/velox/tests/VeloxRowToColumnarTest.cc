@@ -22,7 +22,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
-#include "tests/TestUtils.h"
+#include "utils/TestUtils.h"
 #include "velox/type/Timestamp.h"
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"

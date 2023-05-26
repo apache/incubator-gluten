@@ -29,8 +29,7 @@ sbin/gluten-it.sh
 ```
 Usage: gluten-tpc [-hV] [--disable-aqe] [--disable-bhj] [--disable-wscg]
                   [--enable-history] [--enable-ui] [--error-on-memleak]
-                  [--explain] [--fixed-width-as-double]
-                  [--gen-partitioned-data] [--min-scan-partitions]
+                  [--explain] [--gen-partitioned-data] [--min-scan-partitions]
                   [--skip-data-gen] [--baseline-preset=<baselinePreset>]
                   [--benchmark-type=<benchmarkType>] [--cpus=<cpus>]
                   [--history-ui-port=<hsUiPort>] [--iterations=<iterations>]
@@ -61,8 +60,6 @@ Gluten integration test using TPC benchmark's data and queries
                            Extra Spark config entries applying to generated
                              Spark session. E.g. --conf=k1=v1 --conf=k2=v2
                              Default: {}
-      --fixed-width-as-double
-                           Generate integer/long/date as double
       --gen-partitioned-data
                            Generate data with partitions
   -h, --help               Show this help message and exit.

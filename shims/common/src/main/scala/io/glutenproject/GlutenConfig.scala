@@ -281,6 +281,9 @@ object GlutenConfig {
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
 
+  // Batch size.
+  val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
+
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
@@ -312,7 +315,8 @@ object GlutenConfig {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
       GLUTEN_SAVE_DIR,
-      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY
+      GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
+      GLUTEN_MAX_BATCH_SIZE_KEY
     )
     keys.forEach(
       k => {
@@ -322,7 +326,6 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "4096"),
       (SQLConf.CASE_SENSITIVE.key, "false")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
@@ -626,7 +629,7 @@ object GlutenConfig {
       .createWithDefault(100)
 
   val COLUMNAR_MAX_BATCH_SIZE =
-    buildConf("spark.gluten.sql.columnar.maxBatchSize")
+    buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)
       .internal()
       .intConf
       .createWithDefault(4096)

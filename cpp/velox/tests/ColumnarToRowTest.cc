@@ -24,7 +24,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
-#include "tests/TestUtils.h"
+#include "utils/TestUtils.h"
 #include "velox/vector/ComplexVector.h"
 
 using namespace arrow;

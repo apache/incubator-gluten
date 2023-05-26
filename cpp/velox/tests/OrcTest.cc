@@ -2,7 +2,7 @@
 #include "benchmarks/BatchStreamIterator.h"
 #include "benchmarks/BenchmarkUtils.h"
 
-#include "tests/TestUtils.h"
+#include "utils/TestUtils.h"
 
 #include <arrow/adapters/orc/adapter.h>
 #include <arrow/io/file.h>

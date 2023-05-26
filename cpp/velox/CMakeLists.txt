@@ -210,6 +210,7 @@ set(VELOX_SRCS
     compute/VeloxParquetDatasource.cc
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
+    utils/VeloxArrowUtils.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

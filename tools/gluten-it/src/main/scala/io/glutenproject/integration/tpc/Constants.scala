@@ -34,6 +34,7 @@ object Constants {
     .set("spark.celeborn.push.data.timeout", "600s")
     .set("spark.celeborn.push.limit.inFlight.timeout", "1200s")
 
+  @deprecated
   val TYPE_MODIFIER_DATE_AS_DOUBLE: TypeModifier = new TypeModifier(
     GlutenTypeUtils.typeAccepts(_, DateType), DoubleType) {
     override def modValue(from: Any): Any = {
@@ -43,6 +44,7 @@ object Constants {
     }
   }
 
+  @deprecated
   val TYPE_MODIFIER_INTEGER_AS_DOUBLE: TypeModifier = new TypeModifier(
     GlutenTypeUtils.typeAccepts(_, IntegerType), DoubleType) {
     override def modValue(from: Any): Any = {
@@ -52,6 +54,7 @@ object Constants {
     }
   }
 
+  @deprecated
   val TYPE_MODIFIER_LONG_AS_DOUBLE: TypeModifier = new TypeModifier(
     GlutenTypeUtils.typeAccepts(_, LongType), DoubleType) {
     override def modValue(from: Any): Any = {
@@ -61,6 +64,7 @@ object Constants {
     }
   }
 
+  @deprecated
   val TYPE_MODIFIER_DATE_AS_STRING: TypeModifier = new TypeModifier(
     GlutenTypeUtils.typeAccepts(_, DateType), StringType) {
     override def modValue(from: Any): Any = {
@@ -70,6 +74,7 @@ object Constants {
     }
   }
 
+  @deprecated
   val TYPE_MODIFIER_DECIMAL_AS_DOUBLE: TypeModifier = new TypeModifier(
     GlutenTypeUtils.decimalAccepts, DoubleType) {
     override def modValue(from: Any): Any = {
