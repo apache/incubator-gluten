@@ -18,7 +18,7 @@
 #include "compute/Backend.h"
 
 #include <gtest/gtest.h>
-#include "TestUtils.h"
+#include "utils/TestUtils.h"
 
 namespace gluten {
 
