@@ -15,7 +15,6 @@ abstract class TpcSuite(
   private val testConf: SparkConf,
   private val baselineConf: SparkConf,
   private val extraSparkConf: Map[String, String],
-  private val fixedWidthAsDouble: Boolean,
   private val logLevel: Level,
   private val errorOnMemLeak: Boolean,
   private val enableUi: Boolean,
