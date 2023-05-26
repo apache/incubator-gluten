@@ -38,9 +38,6 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"-s", "--scale"}, description = "The scale factor of sample TPC-H dataset", defaultValue = "0.1")
   private double scale;
 
-  @CommandLine.Option(names = {"--fixed-width-as-double"}, description = "Generate integer/long/date as double", defaultValue = "false")
-  private boolean fixedWidthAsDouble;
-
   @CommandLine.Option(names = {"--queries"}, description = "Set a comma-separated list of query IDs to run, run all queries if not specified. Example: --queries=q1,q6", split = ",")
   private String[] queries = new String[0];
 
@@ -143,14 +140,13 @@ public class Tpc implements Callable<Integer> {
     switch (benchmarkType) {
       case "h":
         suite = new TpchSuite(actions, testConf, baselineConf,
-            extraSparkConfScala,
-            fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
+            extraSparkConfScala, level, errorOnMemLeak, enableUi,
             enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       case "ds":
-        suite = new TpcdsSuite(actions, testConf, baselineConf, extraSparkConfScala,
-            fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
+        suite = new TpcdsSuite(actions, testConf, baselineConf,
+                extraSparkConfScala, level, errorOnMemLeak, enableUi,
             enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;

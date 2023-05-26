@@ -37,6 +37,10 @@ class WrappedArrowMemoryPool final : public arrow::MemoryPool {
 
   int64_t bytes_allocated() const override;
 
+  int64_t total_bytes_allocated() const override;
+
+  int64_t num_allocations() const override;
+
   std::string backend_name() const override;
 
  private:

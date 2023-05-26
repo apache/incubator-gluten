@@ -16,7 +16,7 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ExpressionMappings._
+import io.glutenproject.expression.ExpressionNames._
 
 object CHExpressionUtil {
 

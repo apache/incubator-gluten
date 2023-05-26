@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.glutendata.GlutenSparkPlanExecApi
 import io.glutenproject.execution.{HashAggregateExecBaseTransformer, VeloxHashAggregateExecTransformer}
-import io.glutenproject.expression.{ExpressionMappings, ExpressionTransformer, GlutenNamedStructTransformer, Sig}
+import io.glutenproject.expression.{ExpressionNames, ExpressionTransformer, GlutenNamedStructTransformer, Sig}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
@@ -120,5 +120,5 @@ class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
    * Define backend specfic expression mappings.
    */
   override def extraExpressionMappings: Seq[Sig] =
-    Seq(Sig[HLLVeloxAdapter](ExpressionMappings.APPROX_DISTINCT))
+    Seq(Sig[HLLVeloxAdapter](ExpressionNames.APPROX_DISTINCT))
 }

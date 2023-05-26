@@ -85,7 +85,7 @@ case class StringLocateTransformer(
 
       // isnull(start_pos)
       val isnullFuncName = ConverterUtils.makeFuncName(
-        ExpressionMappings.IS_NULL, Seq(IntegerType), FunctionConfig.OPT)
+        ExpressionNames.IS_NULL, Seq(IntegerType), FunctionConfig.OPT)
       val isnullFuncId = ExpressionBuilder.newScalarFunction(functionMap, isnullFuncName)
       val isnullNode = ExpressionBuilder.makeScalarFunction(
         isnullFuncId, Lists.newArrayList(startNode), TypeBuilder.makeBoolean(false))

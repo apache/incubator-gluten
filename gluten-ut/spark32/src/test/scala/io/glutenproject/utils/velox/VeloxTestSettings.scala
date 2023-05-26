@@ -57,12 +57,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("cast from float")
-    .exclude("cast from double")
     .exclude("from decimal")
-    .exclude("cast string to date #2")
     .exclude("casting to fixed-precision decimals")
-    .exclude("cast from date")
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
     .exclude("Fast fail for cast string type to decimal type")
 
@@ -182,8 +178,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Timestamp: Velox to Arrow.
     .exclude("construct literals from arrays of java.time.Instant")
   enableSuite[GlutenIntervalExpressionsSuite]
-    .exclude("seconds")
-    .exclude("ANSI: extract days, hours, minutes and seconds")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
@@ -202,15 +196,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("BinaryComparison: GreaterThanOrEqual")
     .exclude("SPARK-32764: compare special double/float values")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("log10")
-    .exclude("log2")
-    .exclude("atan2")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("string for ascii")
-    .exclude("replace")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     // No need due to testing framework change.
@@ -235,8 +224,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
-    .exclude("CreateMap")
-    .exclude("MapFromArrays")
   enableSuite[GlutenDateFunctionsSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]

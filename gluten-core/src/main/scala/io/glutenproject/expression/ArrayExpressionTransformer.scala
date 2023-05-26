@@ -74,7 +74,7 @@ class GetArrayItemTransformer(substraitExprName: String, left: ExpressionTransfo
     // In Spark, the index of getarrayitem starts from 0
     // But in CH and velox, the index of arrayElement starts from 1, besides index argument must
     // So we need to do transform: rightNode = add(rightNode, 1)
-    val addFunctionName = ConverterUtils.makeFuncName(ExpressionMappings.ADD,
+    val addFunctionName = ConverterUtils.makeFuncName(ExpressionNames.ADD,
       Seq(IntegerType, original.right.dataType), FunctionConfig.OPT)
     val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, addFunctionName)
     val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
@@ -117,7 +117,7 @@ class SequenceTransformer(substraitExprName: String, start: ExpressionTransforme
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
     val lessThanFuncId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ExpressionMappings.LESS_THAN,
+      ConverterUtils.makeFuncName(ExpressionNames.LESS_THAN,
         Seq(original.start.dataType, original.stop.dataType),
         FunctionConfig.OPT))
     val rangeFuncId = ExpressionBuilder.newScalarFunction(functionMap,
@@ -125,18 +125,18 @@ class SequenceTransformer(substraitExprName: String, start: ExpressionTransforme
         Seq(original.start.dataType, original.stop.dataType, original.start.dataType),
         FunctionConfig.OPT))
     val addFuncId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ExpressionMappings.ADD,
+      ConverterUtils.makeFuncName(ExpressionNames.ADD,
         Seq(original.stop.dataType, original.start.dataType), FunctionConfig.OPT))
     val substractFuncId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ExpressionMappings.SUBTRACT,
+      ConverterUtils.makeFuncName(ExpressionNames.SUBTRACT,
         Seq(original.stop.dataType, original.start.dataType),
         FunctionConfig.OPT))
     val remainderFuncId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ExpressionMappings.REMAINDER,
+      ConverterUtils.makeFuncName(ExpressionNames.REMAINDER,
         Seq(original.stop.dataType, original.start.dataType),
         FunctionConfig.OPT))
     val equalFuncId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ExpressionMappings.EQUAL,
+      ConverterUtils.makeFuncName(ExpressionNames.EQUAL,
         Seq(original.start.dataType, original.start.dataType),
         FunctionConfig.OPT))
 

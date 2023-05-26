@@ -1,4 +1,5 @@
 #include <memory>
+#include <Disks/IO/AsynchronousBoundedReadBuffer.h>
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>
 #include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
@@ -11,7 +12,7 @@
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <aws/core/client/DefaultRetryStrategy.h>
-#include <aws/s3/S3Client.h>
+
 #include <sys/stat.h>
 #include <Poco/URI.h>
 #include "IO/ReadSettings.h"
@@ -139,8 +140,8 @@ public:
             = std::make_unique<DB::ReadBufferFromRemoteFSGather>(std::move(read_buffer_creator), stored_objects, new_settings, nullptr);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
-        auto async_reader = std::make_unique<DB::AsynchronousReadIndirectBufferFromRemoteFS>(
-            pool_reader, new_settings, std::move(s3_impl), nullptr, nullptr);
+        auto async_reader
+            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, new_settings, nullptr, nullptr);
 
         async_reader->setReadUntilEnd();
         if (new_settings.remote_fs_prefetch)

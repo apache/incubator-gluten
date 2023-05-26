@@ -128,7 +128,7 @@ class PosExplodeTransformer(
     val mapFromArraysFuncId = ExpressionBuilder.newScalarFunction(
       funcMap,
       ConverterUtils.makeFuncName(
-        ExpressionMappings.MAP_FROM_ARRAYS,
+        ExpressionNames.MAP_FROM_ARRAYS,
         Seq(sequenceExpr.dataType, original.child.dataType),
         FunctionConfig.OPT))
 
@@ -157,7 +157,7 @@ class PosExplodeTransformer(
     val funcId = ExpressionBuilder.newScalarFunction(
       funcMap,
       ConverterUtils.makeFuncName(
-        ExpressionMappings.POSEXPLODE,
+        ExpressionNames.POSEXPLODE,
         Seq(outputType),
         FunctionConfig.OPT))
 

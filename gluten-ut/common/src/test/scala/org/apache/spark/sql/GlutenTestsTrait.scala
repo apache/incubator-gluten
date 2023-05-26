@@ -35,11 +35,13 @@ import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
+import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData, TypeUtils}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.scalactic.TripleEqualsSupport.Spread
+
+import scala.collection.mutable
 
 trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
@@ -145,6 +147,23 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     }
   }
 
+  /**
+   * Sort map data by key and return the sorted key array and value array.
+   *
+   * @param input  : input map data.
+   * @param kt        : key type.
+   * @param vt        : value type.
+   * @return the sorted key array and value array.
+   */
+  private def getSortedArrays(input: MapData, kt: DataType, vt: DataType)
+  : (ArrayData, ArrayData) = {
+    val keyArray = input.keyArray().toArray[Any](kt)
+    val valueArray = input.valueArray().toArray[Any](vt)
+    val newMap = (keyArray zip valueArray).toMap
+    val sortedMap = mutable.SortedMap(newMap.toSeq: _*)(TypeUtils.getInterpretedOrdering(kt))
+    (new GenericArrayData(sortedMap.keys.toArray), new GenericArrayData(sortedMap.values.toArray))
+  }
+
   override protected def checkResult(
                              result: Any,
                              expected: Any,
@@ -179,8 +198,10 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         }
       case (result: MapData, expected: MapData) =>
         val MapType(kt, vt, vcn) = dataType.asInstanceOf[MapType]
-        checkResult(result.keyArray, expected.keyArray, ArrayType(kt, false), false) &&
-          checkResult(result.valueArray, expected.valueArray, ArrayType(vt, vcn), false)
+        checkResult(getSortedArrays(result, kt, vt)._1, getSortedArrays(expected, kt, vt)._1,
+          ArrayType(kt, containsNull = false), exprNullable = false) && checkResult(
+          getSortedArrays(result, kt, vt)._2, getSortedArrays(expected, kt, vt)._2,
+          ArrayType(vt, vcn), exprNullable = false)
       case (result: Double, expected: Double) =>
         if ((isNaNOrInf(result) || isNaNOrInf(expected))
           || (result == -0.0) || (expected == -0.0)) {

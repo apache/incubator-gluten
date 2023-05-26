@@ -117,16 +117,5 @@ cmake -G Ninja \
 cmake --build . --target install
 popd
 
-# Arrow C Data Interface CPP libraries
-pushd java
-mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR -N
-popd
-
-# Arrow Java libraries
-pushd java
-mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
-  -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
-popd
-
 echo "Successfully built Arrow from Source."
 echo $TARGET_BUILD_COMMIT >"${ARROW_HOME}/arrow-commit.cache"
