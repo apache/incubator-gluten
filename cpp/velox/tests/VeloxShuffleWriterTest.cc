@@ -39,60 +39,6 @@ using namespace facebook;
 
 namespace gluten {
 
-class MyMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit MyMemoryPool(int64_t capacity) : capacity_(capacity) {}
-
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-    if (bytes_allocated() + size > capacity_) {
-      return arrow::Status::OutOfMemory("malloc of size ", size, " failed");
-    }
-    RETURN_NOT_OK(pool_->Allocate(size, out));
-    stats_.UpdateAllocatedBytes(size);
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
-    if (newSize > capacity_) {
-      return arrow::Status::OutOfMemory("malloc of size ", newSize, " failed");
-    }
-    // auto old_ptr = *ptr;
-    RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, ptr));
-    stats_.UpdateAllocatedBytes(newSize - oldSize);
-    return arrow::Status::OK();
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-    pool_->Free(buffer, size);
-    stats_.UpdateAllocatedBytes(-size);
-  }
-
-  int64_t bytes_allocated() const override {
-    return stats_.bytes_allocated();
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  int64_t total_bytes_allocated() const override {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const override {
-    throw pool_->num_allocations();
-  }
-
-  std::string backend_name() const override {
-    return pool_->backend_name();
-  }
-
- private:
-  MemoryPool* pool_ = arrow::default_memory_pool();
-  int64_t capacity_;
-  arrow::internal::MemoryPoolStats stats_;
-};
-
 class VeloxShuffleWriterTest : public ::testing::Test {
  protected:
   void SetUp() override {

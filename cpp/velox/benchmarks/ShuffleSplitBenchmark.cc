@@ -64,54 +64,6 @@ namespace gluten {
 const int kBatchBufferSize = 4096;
 const int kSplitBufferSize = 4096;
 
-class MyMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit MyMemoryPool() {}
-
-  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-    RETURN_NOT_OK(pool_->Allocate(size, out));
-    stats_.UpdateAllocatedBytes(size);
-    // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)*out << std::dec << std::endl; print_trace();
-    return arrow::Status::OK();
-  }
-
-  Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
-    // auto old_ptr = *ptr;
-    RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, ptr));
-    stats_.UpdateAllocatedBytes(newSize - oldSize);
-    // std::cout << "Reallocate: old_size = " << old_size << " old_ptr = " <<
-    // std::hex << (uint64_t)old_ptr << std::dec << " new_size = " << new_size
-    // << " addr = " << std::hex << (uint64_t)*ptr << std::dec << std::endl;
-    // print_trace();
-    return arrow::Status::OK();
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-    pool_->Free(buffer, size);
-    stats_.UpdateAllocatedBytes(-size);
-    // std::cout << "Free: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)buffer
-    // << std::dec << std::endl; print_trace();
-  }
-
-  int64_t bytes_allocated() const override {
-    return stats_.bytes_allocated();
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  std::string backend_name() const override {
-    return pool_->backend_name();
-  }
-
- private:
-  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
-  arrow::internal::MemoryPoolStats stats_;
-};
-
 // #define ENABLELARGEPAGE
 
 class LargePageMemoryPool : public arrow::MemoryPool {
@@ -173,6 +125,14 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 
   std::string backend_name() const override {
     return "LargePageMemoryPool";
+  }
+
+  int64_t total_bytes_allocated() const {
+    return pool_->total_bytes_allocated();
+  }
+
+  int64_t num_allocations() const {
+    return pool_->num_allocations();
   }
 
  private:
