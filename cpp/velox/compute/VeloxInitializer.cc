@@ -215,7 +215,9 @@ void VeloxInitializer::initCache(const std::unordered_map<std::string, std::stri
       if (k == kVeloxSsdCacheIOThreads)
         ssdCacheIOThreads = std::stoi(v);
     }
-    std::string ssdCachePath = ssdCachePathPrefix + "/cache." + genUuid() + ".";
+    cachePathPrefix_ = ssdCachePathPrefix;
+    cacheFilePrefix_ = getCacheFilePrefix();
+    std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
     ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
     auto ssd =
