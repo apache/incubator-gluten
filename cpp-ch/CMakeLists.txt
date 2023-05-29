@@ -49,6 +49,16 @@ add_custom_command(
         -DENABLE_MULTITARGET_CODE=ON
         -DENABLE_EXTERN_LOCAL_ENGINE=ON
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
+        -DENABLE_NLP=OFF
+        -DENABLE_MYSQL=OFF
+        -DENABLE_CASSANDRA=OFF
+        -DENABLE_KAFKA=OFF
+        -DENABLE_ODBC=OFF
+        -DENABLE_GRPC=OFF
+        -DENABLE_LIBPQXX=OFF
+        -DENABLE_NURAFT=OFF
+        -DENABLE_SQLITE=OFF
+        -DENABLE_ROCKSDB=OFF
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
         cmake --build ${CH_BINARY_DIR} --target ch\"
         OUTPUT _build_ch

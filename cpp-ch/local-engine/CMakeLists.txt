@@ -80,7 +80,6 @@ target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
         clickhouse_common_io
         clickhouse_functions
         clickhouse_parsers
-        clickhouse_storages_system
         substrait
         loggers
         substait_source
