@@ -37,54 +37,56 @@ class VeloxInitializer {
       for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
         if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
           LOG(INFO) << "Removing cache file " << entry.path().filename().string();
-          std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string())          }
+          std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string())
         }
       }
     }
   }
+}
 
-  static void initialize(const std::unordered_map<std::string, std::string>& conf);
+static void
+initialize(const std::unordered_map<std::string, std::string>& conf);
 
-  static std::shared_ptr<VeloxInitializer> get();
+static std::shared_ptr<VeloxInitializer> get();
 
-  facebook::velox::memory::MemoryAllocator* getAsyncDataCache();
+facebook::velox::memory::MemoryAllocator* getAsyncDataCache();
 
-  const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
-    return memPoolOptions_;
-  }
+const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
+  return memPoolOptions_;
+}
 
-  int64_t getSpillThreshold() const {
-    return spillThreshold_;
-  }
+int64_t getSpillThreshold() const {
+  return spillThreshold_;
+}
 
- private:
-  explicit VeloxInitializer(const std::unordered_map<std::string, std::string>& conf) {
-    init(conf);
-  }
+private:
+explicit VeloxInitializer(const std::unordered_map<std::string, std::string>& conf) {
+  init(conf);
+}
 
-  void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache(const std::unordered_map<std::string, std::string>& conf);
+void init(const std::unordered_map<std::string, std::string>& conf);
+void initCache(const std::unordered_map<std::string, std::string>& conf);
 
-  std::string getCacheFilePrefix() {
-    return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
-  }
+std::string getCacheFilePrefix() {
+  return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
+}
 
-  inline static std::shared_ptr<VeloxInitializer> instance_;
-  inline static std::mutex mutex_;
+inline static std::shared_ptr<VeloxInitializer> instance_;
+inline static std::mutex mutex_;
 
-  // Instance of AsyncDataCache used for all large allocations.
-  std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =
-      facebook::velox::memory::MemoryAllocator::createDefaultInstance();
+// Instance of AsyncDataCache used for all large allocations.
+std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =
+    facebook::velox::memory::MemoryAllocator::createDefaultInstance();
 
-  // Memory pool options used to create mem pool for iterators.
-  facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
-  int64_t spillThreshold_ = std::numeric_limits<int64_t>::max();
+// Memory pool options used to create mem pool for iterators.
+facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
+int64_t spillThreshold_ = std::numeric_limits<int64_t>::max();
 
-  std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
-  std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
+std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
 
-  std::string cachePathPrefix_;
-  std::string cacheFilePrefix_;
+std::string cachePathPrefix_;
+std::string cacheFilePrefix_;
 };
 
 } // namespace gluten
