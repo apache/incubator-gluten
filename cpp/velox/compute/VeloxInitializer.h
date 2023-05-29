@@ -37,7 +37,7 @@ class VeloxInitializer {
       for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
         if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
           LOG(INFO) << "Removing cache file " << entry.path().filename().string();
-          std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string())
+          std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
         }
       }
     }
