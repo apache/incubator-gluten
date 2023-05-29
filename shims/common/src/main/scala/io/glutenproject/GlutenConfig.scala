@@ -181,6 +181,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
+  def veloxConnectorIOThreads: Integer = conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS)
+
+  def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -367,7 +371,13 @@ object GlutenConfig {
       (SPARK_S3_ENDPOINT, "localhost:9000"),
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
-      (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false")
+      (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
+      (
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
+      (
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     // velox cache and HiveConnector config
@@ -755,6 +765,20 @@ object GlutenConfig {
       .doc("The O_DIRECT flag for cache writing")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
+      .internal()
+      .doc("The IO threads for cpnnector split preloading")
+      .intConf
+      .createWithDefault(Runtime.getRuntime.availableProcessors)
+
+  val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
+    buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
+      .internal()
+      .doc("The split preload per task")
+      .intConf
+      .createWithDefault(2)
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
