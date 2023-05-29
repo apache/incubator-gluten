@@ -58,6 +58,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
+  google::ShutdownGoogleLogging();
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_init_InitializerJniWrapper_makeTaskContext( // NOLINT
