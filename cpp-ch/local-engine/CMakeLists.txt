@@ -113,8 +113,10 @@ PUBLIC
         loggers
         gluten_clickhouse_backend_libs
         ch_contrib::protobuf
+        parquet
 PRIVATE
         substrait
+
 )
 
 if (ENABLE_LOCAL_FORMATS)

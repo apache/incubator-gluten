@@ -11,10 +11,12 @@
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <IO/SeekableReadBuffer.h>
+#include <IO/ReadBufferFromFileBase.h>
 #include <Storages/ArrowParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#include <custom_parquet/CustomParquetBlockInputFormat.h>
 
 // clang-format on
 namespace DB
@@ -82,7 +84,8 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         std::back_inserter(skip_row_group_indices));
 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
-    auto input_format = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
+    auto input_format = std::make_shared<DB::CustomParquetBlockInputFormat>(
+        reinterpret_cast<DB::ReadBufferFromFileBase *>(res->read_buffer.get()), header, format_settings);
 // clang-format off
 #endif
     // clang-format on
