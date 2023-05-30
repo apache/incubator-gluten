@@ -17,7 +17,44 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.GlutenTestsTrait
+import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait, Row}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, CalendarIntervalType, DateType, DayTimeIntervalType, Decimal, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructField, StructType, TimestampType, YearMonthIntervalType}
+import org.apache.spark.unsafe.types.CalendarInterval
+
+import java.nio.charset.StandardCharsets
+import java.time.{Instant, LocalDate}
 
 class GlutenLiteralExpressionSuite extends LiteralExpressionSuite with GlutenTestsTrait {
+
+  test(GlutenTestConstants.GLUTEN_TEST + "default") {
+    checkEvaluation(Literal.default(BooleanType), false)
+    checkEvaluation(Literal.default(ByteType), 0.toByte)
+    checkEvaluation(Literal.default(ShortType), 0.toShort)
+    checkEvaluation(Literal.default(IntegerType), 0)
+    checkEvaluation(Literal.default(LongType), 0L)
+    checkEvaluation(Literal.default(FloatType), 0.0f)
+    checkEvaluation(Literal.default(DoubleType), 0.0)
+    checkEvaluation(Literal.default(StringType), "")
+    checkEvaluation(Literal.default(BinaryType), "".getBytes(StandardCharsets.UTF_8))
+    checkEvaluation(Literal.default(DecimalType.USER_DEFAULT), Decimal(0))
+    checkEvaluation(Literal.default(DecimalType.SYSTEM_DEFAULT), Decimal(0))
+    withSQLConf(SQLConf.DATETIME_JAVA8API_ENABLED.key -> "false") {
+      checkEvaluation(Literal.default(DateType), DateTimeUtils.toJavaDate(0))
+      checkEvaluation(Literal.default(TimestampType), DateTimeUtils.toJavaTimestamp(0L))
+    }
+    withSQLConf(SQLConf.DATETIME_JAVA8API_ENABLED.key -> "true") {
+      checkEvaluation(Literal.default(DateType), LocalDate.ofEpochDay(0))
+      checkEvaluation(Literal.default(TimestampType), Instant.ofEpochSecond(0))
+    }
+    checkEvaluation(Literal.default(CalendarIntervalType), new CalendarInterval(0, 0, 0L))
+    checkEvaluation(Literal.default(YearMonthIntervalType()), 0)
+    checkEvaluation(Literal.default(DayTimeIntervalType()), 0L)
+    checkEvaluation(Literal.default(ArrayType(StringType)), Array())
+    checkEvaluation(Literal.default(MapType(IntegerType, StringType)), Map())
+    checkEvaluation(Literal.default(StructType(StructField("a", StringType) :: Nil)), Row(""))
+    // ExamplePointUDT.sqlType is ArrayType(DoubleType, false).
+    // checkEvaluation(Literal.default(new ExamplePointUDT), Array())
+  }
 }
