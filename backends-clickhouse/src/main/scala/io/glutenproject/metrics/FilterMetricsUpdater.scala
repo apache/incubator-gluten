@@ -23,13 +23,29 @@ class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsU
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      MetricsUtil.updateOperatorMetrics(metrics, FilterMetricsUpdater.METRICS_MAP, operatorMetrics)
+      if (!operatorMetrics.metricsList.isEmpty) {
+        val metricsData = operatorMetrics.metricsList.get(0)
+        metrics("totalTime") += (metricsData.time / 1000L).toLong
+        metrics("inputWaitTime") += (metricsData.inputWaitTime / 1000L).toLong
+        metrics("outputWaitTime") += (metricsData.outputWaitTime / 1000L).toLong
+        metrics("outputVectors") += metricsData.outputVectors
+
+        MetricsUtil.updateExtraTimeMetric(
+          metricsData,
+          metrics("extraTime"),
+          metrics("outputRows"),
+          metrics("outputBytes"),
+          metrics("inputRows"),
+          metrics("inputBytes"),
+          FilterMetricsUpdater.INCLUDING_PROCESSORS,
+          FilterMetricsUpdater.INCLUDING_PROCESSORS
+        )
+      }
     }
   }
 }
 
 object FilterMetricsUpdater {
-  val METRICS_MAP = Map(
-    "FilterTransform" -> "totalTime"
-  )
+  val INCLUDING_PROCESSORS = Array("FilterTransform")
+  val CH_PLAN_NODE_NAME = Array("FilterTransform")
 }

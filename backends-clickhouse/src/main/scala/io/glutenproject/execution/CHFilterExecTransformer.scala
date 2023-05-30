@@ -43,7 +43,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       return true
     }
     val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode =
       try {
@@ -80,7 +80,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
         throw new IllegalStateException(s"child ${child.nodeName} doesn't support transform.");
     }
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     if (leftCondition == null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)

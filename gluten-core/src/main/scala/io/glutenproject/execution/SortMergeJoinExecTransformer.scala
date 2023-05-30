@@ -268,7 +268,8 @@ case class SortMergeJoinExecTransformer(
         joinType,
         genJoinParametersBuilder(),
         null, null, streamedPlan.output,
-        bufferedPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
+        bufferedPlan.output,
+        substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
     } catch {
       case e: Throwable =>
         logValidateFailure(
@@ -309,7 +310,7 @@ case class SortMergeJoinExecTransformer(
     joinParams.isBuildReadRel = isBuildReadRel
 
     // Get the operator id of this Join.
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
 
     // Register the ReadRel to correct operator Id.
     if (joinParams.isStreamedReadRel) {

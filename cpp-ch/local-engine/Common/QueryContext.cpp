@@ -37,6 +37,7 @@ int64_t initializeQuery(ReservationListenerWrapperPtr listener)
     auto allocator_context = std::make_shared<NativeAllocatorContext>();
     allocator_context->thread_status = std::make_shared<ThreadStatus>();
     allocator_context->query_scope = std::make_shared<CurrentThread::QueryScope>(query_context);
+    allocator_context->group = std::make_shared<ThreadGroup>(query_context);
     allocator_context->query_context = query_context;
     allocator_context->listener = listener;
     thread_status = std::weak_ptr<ThreadStatus>(allocator_context->thread_status);
@@ -61,6 +62,7 @@ void releaseAllocator(int64_t allocator_id)
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "allocator {} not found", allocator_id);
     }
     auto status = allocator_map.get(allocator_id)->thread_status;
+    status->detachFromGroup();
     auto listener = allocator_map.get(allocator_id)->listener;
     if (status->untracked_memory < 0)
         listener->free(-status->untracked_memory);

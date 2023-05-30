@@ -88,6 +88,17 @@ public class CHNativeExpressionEvaluator {
     return createOutIterator(handle, outAttrs);
   }
 
+  // Only for UT.
+  public GeneralOutIterator createKernelWithBatchIterator(
+      long allocId,
+      byte[] wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
+      throws RuntimeException, IOException {
+    long handle =
+        jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan,
+            iterList.toArray(new GeneralInIterator[0]));
+    return createOutIterator(handle, outAttrs);
+  }
+
   private byte[] getPlanBytesBuf(Plan planNode) {
     return planNode.toByteArray();
   }

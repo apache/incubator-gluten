@@ -37,7 +37,7 @@ import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation}
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -182,6 +182,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       inputPartition.plan,
       inBatchIters,
       outputAttributes.asJava)
+
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
@@ -192,11 +193,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       override def hasNext: Boolean = {
         val res = resIter.hasNext
         if (!res) {
-          // TODO: support collecting metrics from ch backend
-          // val nativeMetrics = resIter.getMetrics.asInstanceOf[NativeMetrics]
-          val nativeMetrics = new NativeMetrics(new java.util.HashMap())
-          nativeMetrics.metrics.put("outputRows", outputRowCount)
-          nativeMetrics.metrics.put("outputVectors", outputVectorCount)
+          val nativeMetrics = resIter.getMetrics.asInstanceOf[NativeMetrics]
+          nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
           updateNativeMetrics(nativeMetrics)
           updateInputMetrics(inputMetrics)
         }
@@ -243,6 +241,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       rootNode.toProtobuf,
       columnarNativeIterator,
       outputAttributes.asJava)
+
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = new Iterator[ColumnarBatch] {
       private var outputRowCount = 0L
@@ -251,11 +250,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       override def hasNext: Boolean = {
         val res = nativeIterator.hasNext
         if (!res) {
-          // TODO: support collecting metrics from ch backend
-          // val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
-          val nativeMetrics = new NativeMetrics(new java.util.HashMap())
-          nativeMetrics.metrics.put("outputRows", outputRowCount)
-          nativeMetrics.metrics.put("outputVectors", outputVectorCount)
+          val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
+          nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
           updateNativeMetrics(nativeMetrics)
         }
         res

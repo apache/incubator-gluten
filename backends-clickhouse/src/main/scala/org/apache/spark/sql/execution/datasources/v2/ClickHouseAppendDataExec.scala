@@ -283,7 +283,7 @@ case class ClickHouseAppendDataExec(
       nameList,
       null,
       substraitContext,
-      substraitContext.nextOperatorId)
+      substraitContext.nextOperatorId(this.nodeName))
 
     val inputPlanNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode), nameList)

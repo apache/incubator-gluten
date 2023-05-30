@@ -106,6 +106,7 @@ ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     ExpandField expand_field(names, types, expand_kinds, expand_fields);
     auto expand_step = std::make_unique<ExpandStep>(query_plan->getCurrentDataStream(), std::move(expand_field));
     expand_step->setStepDescription("Expand Step");
+    steps.emplace_back(expand_step.get());
     query_plan->addStep(std::move(expand_step));
     return query_plan;
 }

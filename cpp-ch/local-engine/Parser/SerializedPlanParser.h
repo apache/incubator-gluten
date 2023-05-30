@@ -19,6 +19,10 @@
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
+#include <DataTypes/Serializations/ISerialization.h>
+#include <base/types.h>
+#include <Core/SortDescription.h>
+#include <Parser/RelMetric.h>
 
 namespace local_engine
 {
@@ -222,10 +226,11 @@ public:
     DB::QueryPlanPtr parseJson(const std::string & json_plan);
     DB::QueryPlanPtr parse(std::unique_ptr<substrait::Plan> plan);
 
-    DB::QueryPlanPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
-    DB::QueryPlanPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
-    DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel);
-    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input, std::vector<String> & not_nullable_columns);
+    DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
+    DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
+    // mergetree need create two steps in parse, can't return single step
+    DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel, std::vector<IQueryPlanStep *>& steps);
+    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input, std::vector<String>& not_nullable_columns);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static DB::Block parseNameStruct(const substrait::NamedStruct & struct_);
@@ -238,25 +243,31 @@ public:
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
+    RelMetricPtr getMetric()
+    {
+        return metrics.at(0);
+    }
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
     static SharedContextHolder shared_context;
     QueryContext query_context;
+    std::vector<QueryPlanPtr> extra_plan_holder;
 
 private:
     static DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
-    DB::QueryPlanPtr parseJoin(substrait::JoinRel join, DB::QueryPlanPtr left, DB::QueryPlanPtr right);
+    DB::QueryPlanPtr parseJoin(substrait::JoinRel join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *>& steps);
     void parseJoinKeysAndCondition(
         std::shared_ptr<TableJoin> table_join,
         substrait::JoinRel & join,
         DB::QueryPlanPtr & left,
         DB::QueryPlanPtr & right,
         const NamesAndTypesList & alias_right,
-        Names & names);
+        Names & names,
+        std::vector<IQueryPlanStep *>& steps);
 
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
@@ -344,7 +355,7 @@ private:
         return Aggregator::Params(keys, aggregates, false, settings.max_threads, settings.max_block_size);
     }
 
-    void addRemoveNullableStep(QueryPlan & plan, std::vector<String> columns);
+    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, std::vector<String> columns);
 
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
@@ -353,6 +364,10 @@ private:
     std::vector<jobject> input_iters;
     const substrait::ProjectRel * last_project = nullptr;
     ContextPtr context;
+    // for parse rel node, collect steps from a rel node
+    std::vector<IQueryPlanStep *> temp_step_collection;
+    std::vector<RelMetricPtr> metrics;
+    ContextPtr contextPtr;
 };
 
 struct SparkBuffer
@@ -365,7 +380,7 @@ class LocalExecutor : public BlockIterator
 {
 public:
     LocalExecutor() = default;
-    explicit LocalExecutor(QueryContext & _query_context);
+    explicit LocalExecutor(QueryContext & _query_context, ContextPtr context);
     void execute(QueryPlanPtr query_plan);
     SparkRowInfoPtr next();
     Block * nextColumnar();
@@ -373,6 +388,12 @@ public:
     ~LocalExecutor();
 
     Block & getHeader();
+    const RelMetricPtr getMetric() const { return metric; }
+    void setMetric(RelMetricPtr metric_) { metric = metric_; }
+    void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_)
+    {
+        extra_plan_holder = std::move(extra_plan_holder_);
+    }
 
 private:
     QueryContext query_context;
@@ -381,9 +402,12 @@ private:
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
+    ContextPtr context;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
     std::unique_ptr<SparkBuffer> spark_buffer;
     DB::QueryPlanPtr current_query_plan;
+    RelMetricPtr metric;
+    std::vector<QueryPlanPtr> extra_plan_holder;
 };
 
 

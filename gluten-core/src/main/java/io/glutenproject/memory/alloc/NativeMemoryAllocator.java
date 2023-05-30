@@ -32,7 +32,17 @@ public class NativeMemoryAllocator {
   }
 
   public static NativeMemoryAllocator getDefault() {
-    return new NativeMemoryAllocator(getDefaultAllocator(), ReservationListener.NOOP);
+    return
+        new NativeMemoryAllocator(
+            getDefaultAllocator(),
+            ReservationListener.NOOP);
+  }
+
+  public static NativeMemoryAllocator getDefaultForUT() {
+    return
+        new NativeMemoryAllocator(
+            createListenableAllocator(ReservationListener.NOOP),
+            ReservationListener.NOOP);
   }
 
   public static NativeMemoryAllocator createListenable(ReservationListener listener) {

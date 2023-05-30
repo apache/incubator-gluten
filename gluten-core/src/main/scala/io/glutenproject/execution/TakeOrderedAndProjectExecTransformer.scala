@@ -102,7 +102,8 @@ case class TakeOrderedAndProjectExecTransformer(limit: Int,
         finalLimitPlan
       }
 
-      val finalPlan = WholeStageTransformerExec(projectPlan)(transformStageCounter.incrementAndGet())
+      val finalPlan =
+        WholeStageTransformerExec(projectPlan)(transformStageCounter.incrementAndGet())
 
       finalPlan.doExecuteColumnar()
     }

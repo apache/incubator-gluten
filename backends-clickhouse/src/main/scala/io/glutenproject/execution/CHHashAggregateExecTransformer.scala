@@ -81,7 +81,7 @@ case class CHHashAggregateExecTransformer(
     }
 
     val aggParams = new AggregationParams
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
 
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
@@ -106,6 +106,7 @@ case class CHHashAggregateExecTransformer(
       // Notes: Currently, ClickHouse backend uses the output attributes of
       // aggregateResultAttributes as Shuffle output,
       // which is different from Velox backend.
+      aggParams.isReadRel = true
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       // 1. When the child is file scan rdd ( in case of separating file scan )
@@ -206,6 +207,7 @@ case class CHHashAggregateExecTransformer(
       validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val aggRel = if (needsPreProjection) {
+      aggParams.preProjectionNeeded = true
       getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
     } else {
       getAggRelWithoutPreProjection(
@@ -217,11 +219,14 @@ case class CHHashAggregateExecTransformer(
     }
     // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
     // AggregateRel.
-    if (!needsPostProjection(allAggregateResultAttributes)) {
+    val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
       aggRel
     } else {
+      aggParams.postProjectionNeeded = true
       applyPostProjection(context, aggRel, operatorId, validation)
     }
+    context.registerAggregationParam(operatorId, aggParams)
+    resRel
   }
 
   override def getAggRelWithoutPreProjection(

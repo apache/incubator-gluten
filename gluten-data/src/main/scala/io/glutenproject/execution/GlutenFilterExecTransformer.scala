@@ -43,7 +43,7 @@ case class GlutenFilterExecTransformer(condition: Expression,
       return true
     }
     val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
       getRelNode(
@@ -73,7 +73,7 @@ case class GlutenFilterExecTransformer(condition: Expression,
         null
     }
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     if (leftCondition == null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)

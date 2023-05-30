@@ -19,8 +19,9 @@ package io.glutenproject.utils
 import com.google.protobuf.WrappersProto
 import com.google.protobuf.util.JsonFormat
 import io.substrait.proto.Plan
+import org.apache.spark.internal.Logging
 
-object SubstraitPlanPrinterUtil {
+object SubstraitPlanPrinterUtil extends Logging {
 
   /**
    * Transform Substrait Plan to json format.
@@ -33,5 +34,26 @@ object SubstraitPlanPrinterUtil {
       .add(defaultRegistry)
       .build()
     JsonFormat.printer.usingTypeRegistry(registry).print(substraintPlan)
+  }
+
+  /**
+   * Transform substrait plan json string to PlanNode
+   */
+  def jsonToSubstraitPlan(planJson: String): Plan = {
+    try {
+      val builder = Plan.newBuilder()
+      val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
+      val registry = com.google.protobuf.TypeRegistry
+        .newBuilder()
+        .add(builder.getDescriptorForType)
+        .add(defaultRegistry)
+        .build()
+      JsonFormat.parser().usingTypeRegistry(registry).merge(planJson, builder)
+      builder.build()
+    } catch {
+      case e: Exception =>
+        logError("transform json string to substrait plan node error: ", e)
+        null
+    }
   }
 }

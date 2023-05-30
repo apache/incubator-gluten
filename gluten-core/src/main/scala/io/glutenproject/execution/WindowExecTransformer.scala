@@ -277,7 +277,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
       return false
     }
     val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
     val relNode = try {
       getRelNode(
@@ -308,7 +308,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         null
     }
 
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     if (windowExpression == null || windowExpression.isEmpty) {
       // The computing for this project is not needed.
       context.registerEmptyRelToOperator(operatorId)

@@ -23,9 +23,29 @@ class WindowMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsU
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      MetricsUtil.updateOperatorMetrics(metrics, Map.empty, operatorMetrics)
+      if (!operatorMetrics.metricsList.isEmpty) {
+        val metricsData = operatorMetrics.metricsList.get(0)
+        metrics("totalTime") += (metricsData.time / 1000L).toLong
+        metrics("inputWaitTime") += (metricsData.inputWaitTime / 1000L).toLong
+        metrics("outputWaitTime") += (metricsData.outputWaitTime / 1000L).toLong
+        metrics("outputVectors") += metricsData.outputVectors
+
+        MetricsUtil.updateExtraTimeMetric(
+          metricsData,
+          metrics("extraTime"),
+          metrics("outputRows"),
+          metrics("outputBytes"),
+          metrics("inputRows"),
+          metrics("inputBytes"),
+          WindowMetricsUpdater.INCLUDING_PROCESSORS,
+          WindowMetricsUpdater.CH_PLAN_NODE_NAME
+        )
+      }
     }
   }
 }
 
-object WindowMetricsUpdater {}
+object WindowMetricsUpdater {
+  val INCLUDING_PROCESSORS = Array("WindowTransform")
+  val CH_PLAN_NODE_NAME = Array("WindowTransform")
+}
