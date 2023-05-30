@@ -74,7 +74,7 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  *
  * The `transformStageCounter` generates ID for transform stages within a query plan.
  * It does not affect equality, nor does it participate in destructuring pattern matching
- * of WholeStageTransformerExec.
+ * of WholeStageTransformer.
  *
  * This ID is used to help differentiate between transform stages. It is included as a part
  * of the explain output for physical plans, e.g.
@@ -102,11 +102,11 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  * The ID is also included in various log messages.
  *
  * Within a query, a transform stage in a plan starts counting from 1, in "insertion order".
- * WholeStageTransformerExec operators are inserted into a plan in depth-first post-order.
+ * WholeStageTransformer operators are inserted into a plan in depth-first post-order.
  * See CollapseTransformStages.insertWholeStageTransform for the definition of insertion order.
  *
- * 0 is reserved as a special ID value to indicate a temporary WholeStageTransformerExec object
- * is created, e.g. for special fallback handling when an existing WholeStageTransformerExec
+ * 0 is reserved as a special ID value to indicate a temporary WholeStageTransformer object
+ * is created, e.g. for special fallback handling when an existing WholeStageTransformer
  * failed to generate/compile code.
  */
 case class ColumnarCollapseTransformStages(glutenConfig: GlutenConfig,
@@ -123,7 +123,7 @@ case class ColumnarCollapseTransformStages(glutenConfig: GlutenConfig,
 
   /**
    * When it's the ClickHouse backend,
-   * BasicScanExecTransformer will not be included in WholeStageTransformerExec.
+   * BasicScanExecTransformer will not be included in WholeStageTransformer.
    */
   private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
     case _: BasicScanExecTransformer if separateScanRDD => true
@@ -150,7 +150,7 @@ case class ColumnarCollapseTransformStages(glutenConfig: GlutenConfig,
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case t if supportTransform(t) =>
-        WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
+        WholeStageTransformer(t.withNewChildren(t.children.map(insertInputAdapter)))(
           transformStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))

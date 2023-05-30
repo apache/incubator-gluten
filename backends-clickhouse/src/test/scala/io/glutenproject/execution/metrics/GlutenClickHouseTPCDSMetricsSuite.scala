@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.metrics
 
-import io.glutenproject.execution.{ColumnarNativeIterator, GlutenClickHouseTPCDSAbstractSuite, WholeStageTransformerExec}
+import io.glutenproject.execution.{ColumnarNativeIterator, GlutenClickHouseTPCDSAbstractSuite, WholeStageTransformer}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.vectorized.GeneralInIterator
 
@@ -78,18 +78,18 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
     // Test metrics update
     val df = GlutenClickHouseMetricsUTUtils.getTPCDSQueryExecution(spark, "q47", tpcdsQueries)
     val allWholeStageTransformers = df.queryExecution.executedPlan.collect {
-      case wholeStage: WholeStageTransformerExec => wholeStage
+      case wholeStage: WholeStageTransformer => wholeStage
     }
     assert(allWholeStageTransformers.size == 9)
 
-    val wholeStageTransformerExec = allWholeStageTransformers(1)
+    val wholeStageTransformer = allWholeStageTransformers(1)
 
     GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
-      wholeStageTransformerExec,
+      wholeStageTransformer,
       metricsJsonFilePath + "/tpcds-q47-wholestage-9-metrics.json"
     ) {
       () =>
-        val allGlutenPlans = wholeStageTransformerExec.collect { case g: GlutenPlan => g }
+        val allGlutenPlans = wholeStageTransformer.collect { case g: GlutenPlan => g }
 
         assert(allGlutenPlans.size == 31)
 

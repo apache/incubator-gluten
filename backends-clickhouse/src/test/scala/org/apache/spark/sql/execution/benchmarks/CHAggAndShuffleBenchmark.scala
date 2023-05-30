@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.benchmarks
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformer}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.UTSystemParameters
 import io.glutenproject.vectorized.JniLibLoader
@@ -172,13 +172,13 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     //                     +- *(4) FilterExecTransformer
     //                        +- *(4) FileScan parquet
     //
-    // There are three `WholeStageTransformerExec`, two `ColumnarShuffleExchangeExec`
+    // There are three `WholeStageTransformer`, two `ColumnarShuffleExchangeExec`
     // and one `FileSourceScanExecTransformer`.
     val executedPlan = allStages.queryExecution.executedPlan
 
     // Get the `FileSourceScanExecTransformer`
     val fileScan = executedPlan.collect { case scan: FileSourceScanExecTransformer => scan }.head
-    val scanStage = WholeStageTransformerExec(fileScan)(
+    val scanStage = WholeStageTransformer(fileScan)(
       ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
     val scanStageRDD = scanStage.executeColumnar()
 
@@ -222,7 +222,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     // Scan + Filter + Project Stages, if there is no filter or project, will not run.
     val projectFilter = executedPlan.collect { case project: ProjectExecTransformer => project }
     if (projectFilter.nonEmpty) {
-      val projectFilterStage = WholeStageTransformerExec(projectFilter.head)(
+      val projectFilterStage = WholeStageTransformer(projectFilter.head)(
         ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
       val projectFilterStageRDD = projectFilterStage.executeColumnar()
 
@@ -238,7 +238,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     }
 
     // Scan + [ Filter + Project ] + Partial Agg Stage
-    val wholeStage = executedPlan.collect { case stage: WholeStageTransformerExec => stage }
+    val wholeStage = executedPlan.collect { case stage: WholeStageTransformer => stage }
     val newWholeStageRDD = wholeStage(2).executeColumnar()
 
     chAllStagesBenchmark.addCase(s"Partial Agg Stage", executedCnt) {

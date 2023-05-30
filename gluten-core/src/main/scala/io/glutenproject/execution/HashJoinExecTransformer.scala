@@ -390,14 +390,14 @@ object HashJoinLikeExecTransformer {
   }
 }
 
-abstract class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                               rightKeys: Seq[Expression],
-                                               joinType: JoinType,
-                                               buildSide: BuildSide,
-                                               condition: Option[Expression],
-                                               left: SparkPlan,
-                                               right: SparkPlan,
-                                               isSkewJoin: Boolean)
+abstract class ShuffledHashJoinExecTransformerBase(leftKeys: Seq[Expression],
+                                                   rightKeys: Seq[Expression],
+                                                   joinType: JoinType,
+                                                   buildSide: BuildSide,
+                                                   condition: Option[Expression],
+                                                   left: SparkPlan,
+                                                   right: SparkPlan,
+                                                   isSkewJoin: Boolean)
   extends HashJoinLikeExecTransformer {
 
   override def joinBuildSide: BuildSide = buildSide

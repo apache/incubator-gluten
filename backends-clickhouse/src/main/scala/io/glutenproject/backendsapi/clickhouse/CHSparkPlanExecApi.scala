@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
+import io.glutenproject.expression.{AliasTransformerBase, ExpressionTransformer}
 import io.glutenproject.expression.CHSha1Transformer
 import io.glutenproject.expression.CHSha2Transformer
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
@@ -57,12 +57,12 @@ import scala.collection.mutable.ArrayBuffer
 class CHSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
-   * Generate GlutenColumnarToRowExecBase.
+   * Generate ColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
+  override def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase = {
     CHColumnarToRowExec(child);
   }
 
@@ -72,7 +72,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @param child
    * @return
    */
-  override def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec = {
+  override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase = {
     new RowToCHNativeColumnarExec(child)
   }
 
@@ -126,7 +126,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isSkewJoin: Boolean): ShuffledHashJoinExecTransformer =
+      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase =
     CHShuffledHashJoinExecTransformer(
       leftKeys,
       rightKeys,
@@ -173,8 +173,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   def genAliasTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
-      original: Expression): AliasBaseTransformer =
-    new AliasTransformer(substraitExprName, child, original)
+      original: Expression): AliasTransformerBase =
+    AliasTransformerBase(substraitExprName, child, original)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -255,7 +255,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         }
 
         val newChild = child match {
-          case wt: WholeStageTransformerExec =>
+          case wt: WholeStageTransformer =>
             wt.withNewChildren(
               Seq(ProjectExecTransformer(child.output ++ appendedProjections.toSeq, wt.child)))
           case w: WholeStageCodegenExec =>
@@ -263,19 +263,19 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
           case c: CoalesceBatchesExec =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
-            WholeStageTransformerExec(
+            WholeStageTransformer(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
               ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
           case columnarAQEShuffleReadExec: ColumnarAQEShuffleReadExec =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
-            WholeStageTransformerExec(
+            WholeStageTransformer(
               ProjectExecTransformer(
                 child.output ++ appendedProjections.toSeq,
                 columnarAQEShuffleReadExec))(
               ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
           case r2c: RowToCHNativeColumnarExec =>
-            WholeStageTransformerExec(
+            WholeStageTransformer(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
               ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
             )

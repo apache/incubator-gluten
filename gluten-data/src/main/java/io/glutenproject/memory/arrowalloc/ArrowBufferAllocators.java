@@ -55,7 +55,7 @@ public class ArrowBufferAllocators {
   public static class ArrowBufferAllocatorManager implements TaskResourceManager {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
-    private final AllocationListener listener = new SparkManagedAllocationListener(
+    private final AllocationListener listener = new ManagedAllocationListener(
         new GlutenMemoryConsumer(TaskResources.getSparkMemoryManager(), Spiller.NO_OP),
         TaskResources.getSharedMetrics());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);

@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 
@@ -47,9 +47,9 @@ class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
       val df = sql("SELECT * FROM a WHERE p <= (SELECT MIN(id) FROM b)")
       checkAnswer(df, Seq(Row(0, 0), Row(2, 0)))
       assert(stripAQEPlan(df.queryExecution.executedPlan).collectFirst {
-        case t: WholeStageTransformerExec => t
+        case t: WholeStageTransformer => t
       } match {
-        case Some(WholeStageTransformerExec(fs: FileSourceScanExecTransformer)) =>
+        case Some(WholeStageTransformer(fs: FileSourceScanExecTransformer)) =>
           fs.dynamicallySelectedPartitions
             .exists(_.files.exists(_.getPath.toString.contains("p=0")))
         case _ => false

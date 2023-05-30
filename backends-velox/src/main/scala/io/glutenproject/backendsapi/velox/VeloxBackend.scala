@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
+import io.glutenproject.backendsapi.velox.IteratorHandler
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
@@ -31,18 +32,17 @@ import org.apache.spark.sql.types._
 import scala.util.control.Breaks.{break, breakable}
 
 class VeloxBackend extends Backend {
-  override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
-  override def iteratorApi(): IteratorApi = new VeloxIteratorApi
-  override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
-  override def transformerApi(): TransformerApi = new VeloxTransformerApi
-  override def validatorApi(): ValidatorApi = new VeloxValidatorApi
-  override def metricsApi(): MetricsApi = new VeloxMetricsApi
-  override def settings(): BackendSettings = VeloxBackendSettings
-
-  override def contextApi(): ContextApi = new VeloxContextApi
+  override def name(): String = GlutenConfig.GLUTEN_VELOX_BACKEND
+  override def iteratorApi(): IteratorApi = new IteratorHandler
+  override def sparkPlanExecApi(): SparkPlanExecApi = new SparkPlanExecHandler
+  override def transformerApi(): TransformerApi = new TransformerHandler
+  override def validatorApi(): ValidatorApi = new Validator
+  override def metricsApi(): MetricsApi = new MetricsHandler
+  override def settings(): BackendSettingsApi = BackendSettings
+  override def contextApi(): ContextApi = new ContextInitializer
 }
 
-object VeloxBackendSettings extends BackendSettings {
+object BackendSettings extends BackendSettingsApi {
   override def supportFileFormatRead(format: ReadFileFormat,
                                      fields: Array[StructField],
                                      partTable: Boolean,

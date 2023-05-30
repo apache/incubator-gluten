@@ -31,7 +31,7 @@ object BackendsApiManager {
       transformerApiInstance: TransformerApi,
       validatorApiInstance: ValidatorApi,
       metricsApiInstance: MetricsApi,
-      settings: BackendSettings)
+      settings: BackendSettingsApi)
 
   private lazy val manager: Wrapper = initializeInternal()
 
@@ -95,7 +95,7 @@ object BackendsApiManager {
     manager.metricsApiInstance
   }
 
-  def getSettings: BackendSettings = {
+  def getSettings: BackendSettingsApi = {
     manager.settings
   }
 }

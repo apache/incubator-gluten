@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenIndicatorVector}
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
-import io.glutenproject.utils.GlutenArrowAbiUtil
+import io.glutenproject.utils.ArrowAbiUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SPECULATION_ENABLED
@@ -113,7 +113,7 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           val datasourceJniWrapper = new DatasourceJniWrapper()
           val allocator = ArrowBufferAllocators.contextInstance()
           try {
-            GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+            ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
             instanceId =
               datasourceJniWrapper.nativeInitDatasource(originPath, cSchema.memoryAddress())
           } catch {
@@ -134,8 +134,8 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           new OutputWriter {
             override def write(row: InternalRow): Unit = {
               val batch = row.asInstanceOf[FakeRow].batch
-              if (batch.column(0).isInstanceOf[GlutenIndicatorVector]) {
-                val giv = batch.column(0).asInstanceOf[GlutenIndicatorVector]
+              if (batch.column(0).isInstanceOf[IndicatorVector]) {
+                val giv = batch.column(0).asInstanceOf[IndicatorVector]
                 giv.retain()
                 writeQueue.enqueue(batch)
               } else {

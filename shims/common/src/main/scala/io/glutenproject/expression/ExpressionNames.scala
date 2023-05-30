@@ -16,13 +16,6 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.sql.shims.SparkShimLoader
-
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.execution.ScalarSubquery
-
 object ExpressionNames {
 
   // Aggregation functions used by Substrait plan.
@@ -224,7 +217,6 @@ object ExpressionNames {
   final val CHECK_OVERFLOW = "check_overflow"
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
-  final val ROW_CONSTRUCTOR = "row_constructor"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"

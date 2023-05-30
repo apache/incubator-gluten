@@ -40,13 +40,11 @@ class CHBackend extends Backend {
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
   override def validatorApi(): ValidatorApi = new CHValidatorApi
-
   override def metricsApi(): MetricsApi = new CHMetricsApi
-
-  override def settings(): BackendSettings = CHBackendSettings
+  override def settings(): BackendSettingsApi = CHBackendSettings
 }
 
-object CHBackendSettings extends BackendSettings with Logging {
+object CHBackendSettings extends BackendSettingsApi with Logging {
 
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"

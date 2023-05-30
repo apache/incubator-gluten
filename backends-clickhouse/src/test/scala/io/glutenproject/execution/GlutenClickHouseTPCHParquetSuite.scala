@@ -226,7 +226,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       runTPCHQuery(3) {
         df =>
           val shjBuildLeft = df.queryExecution.executedPlan.collect {
-            case shj: ShuffledHashJoinExecTransformer if shj.joinBuildSide == BuildLeft => shj
+            case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildLeft => shj
           }
           assert(shjBuildLeft.size == 1)
       }

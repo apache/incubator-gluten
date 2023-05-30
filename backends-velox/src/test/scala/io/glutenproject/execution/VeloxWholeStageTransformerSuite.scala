@@ -76,9 +76,9 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
         // Children of Join should be seperated into different `TransformContext`s.
         assert(joins.forall(_.children.forall(_.isInstanceOf[ColumnarInputAdapter])))
 
-        // WholeStageTransformerExec should be inserted for joins and its children separately.
+        // WholeStageTransformer should be inserted for joins and its children separately.
         val wholeStages = plan.collect {
-          case wst: WholeStageTransformerExec => wst
+          case wst: WholeStageTransformer => wst
         }
         assert(wholeStages.length == 5)
 
@@ -114,7 +114,7 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
 
       // The computing is combined into one single whole stage transformer.
       val wholeStages = plan.collect {
-        case wst: WholeStageTransformerExec => wst
+        case wst: WholeStageTransformer => wst
       }
       if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
         assert(wholeStages.length == 1)
