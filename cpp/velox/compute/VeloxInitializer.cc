@@ -62,7 +62,7 @@ const std::string kVeloxSsdCacheIOThreadsDefault = "1";
 const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
 
 const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
-const std::string kVeloxIOThreadsDefault = "1";
+const std::string kVeloxIOThreadsDefault = "0";
 
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
@@ -257,8 +257,9 @@ void VeloxInitializer::initIOExecutor(const std::unordered_map<std::string, std:
   }
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
+    FLAGS_split_preload_per_driver = splitPreloadPerDriver;
   }
-  FLAGS_split_preload_per_driver = splitPreloadPerDriver;
+
   if (splitPreloadPerDriver > 0 && ioThreads > 0) {
     LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
               << ", IO threads: " << ioThreads;

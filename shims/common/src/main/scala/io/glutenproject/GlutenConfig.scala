@@ -769,9 +769,9 @@ object GlutenConfig {
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The IO threads for cpnnector split preloading")
+      .doc("The IO threads for connector split preloading")
       .intConf
-      .createWithDefault(Runtime.getRuntime.availableProcessors)
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
     buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
