@@ -235,10 +235,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         case ("ASC", "NULLS LAST") =>
           builder.setDirectionValue(2);
         case ("DESC", "NULLS FIRST") =>
-          throw new UnsupportedOperationException("DESC sort order is not supported!")
           builder.setDirectionValue(3);
         case ("DESC", "NULLS LAST") =>
-          throw new UnsupportedOperationException("DESC sort order is not supported!")
           builder.setDirectionValue(4);
         case _ =>
           builder.setDirectionValue(0);
