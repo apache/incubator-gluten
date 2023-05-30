@@ -62,7 +62,10 @@ const std::string kVeloxSsdCacheIOThreadsDefault = "1";
 const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
 
 const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
-const std::string kVeloxIOThreadsDefault = "1";
+const std::string kVeloxIOThreadsDefault = "0";
+
+const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
+const std::string kVeloxSplitPreloadPerDriverDefault = "2";
 
 // mem ratios and thresholds
 const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
@@ -162,14 +165,11 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 #endif
 
   initCache(conf);
-
+  initIOExecutor(conf);
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
-  if (ioExecutor_) {
-    FLAGS_split_preload_per_driver = 0;
-  }
 
   registerConnector(hiveConnector);
   velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
@@ -199,7 +199,6 @@ void VeloxInitializer::initCache(const std::unordered_map<std::string, std::stri
     uint64_t ssdCacheSize = std::stol(kVeloxSsdCacheSizeDefault);
     int32_t ssdCacheShards = std::stoi(kVeloxSsdCacheShardsDefault);
     int32_t ssdCacheIOThreads = std::stoi(kVeloxSsdCacheIOThreadsDefault);
-    int32_t ioThreads = std::stoi(kVeloxIOThreadsDefault);
     std::string ssdCachePathPrefix = kVeloxSsdCachePathDefault;
     for (auto& [k, v] : conf) {
       if (k == kVeloxMemCacheSize)
@@ -210,8 +209,6 @@ void VeloxInitializer::initCache(const std::unordered_map<std::string, std::stri
         ssdCacheShards = std::stoi(v);
       if (k == kVeloxSsdCachePath)
         ssdCachePathPrefix = v;
-      if (k == kVeloxIOThreads)
-        ioThreads = std::stoi(v);
       if (k == kVeloxSsdCacheIOThreads)
         ssdCacheIOThreads = std::stoi(v);
     }
@@ -219,7 +216,6 @@ void VeloxInitializer::initCache(const std::unordered_map<std::string, std::stri
     cacheFilePrefix_ = getCacheFilePrefix();
     std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
     ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
-    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
     auto ssd =
         std::make_unique<velox::cache::SsdCache>(ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get());
 
@@ -244,7 +240,28 @@ void VeloxInitializer::initCache(const std::unordered_map<std::string, std::stri
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))
     LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
               << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
-              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads
+              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;
+  }
+}
+
+void VeloxInitializer::initIOExecutor(const std::unordered_map<std::string, std::string>& conf) {
+  int32_t ioThreads = std::stoi(kVeloxIOThreadsDefault);
+  auto got = conf.find(kVeloxIOThreads);
+  if (got != conf.end()) {
+    ioThreads = std::stoi(got->second);
+  }
+  int32_t splitPreloadPerDriver = std::stoi(kVeloxSplitPreloadPerDriverDefault);
+  got = conf.find(kVeloxSplitPreloadPerDriver);
+  if (got != conf.end()) {
+    splitPreloadPerDriver = std::stoi(got->second);
+  }
+  if (ioThreads > 0) {
+    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
+    FLAGS_split_preload_per_driver = splitPreloadPerDriver;
+  }
+
+  if (splitPreloadPerDriver > 0 && ioThreads > 0) {
+    LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
               << ", IO threads: " << ioThreads;
   }
 }

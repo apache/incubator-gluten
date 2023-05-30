@@ -154,9 +154,7 @@ class SparkAllocationListener final : public gluten::AllocationListener {
         javaUnreserveMethod_(javaUnreserveMethod),
         blockSize_(blockSize) {
     JNIEnv* env;
-    if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
-      throw gluten::GlutenException("JNIEnv was not attached to current thread");
-    }
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     javaListener_ = env->NewGlobalRef(javaListener);
   }
 
@@ -195,9 +193,7 @@ class SparkAllocationListener final : public gluten::AllocationListener {
 
   void updateReservation(int64_t diff) {
     JNIEnv* env;
-    if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
-      throw gluten::GlutenException("JNIEnv was not attached to current thread");
-    }
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     int64_t granted = reserve(diff);
     if (granted == 0) {
       return;
