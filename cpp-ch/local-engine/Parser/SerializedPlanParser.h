@@ -195,7 +195,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"posexplode", "arrayJoin"},
 
     // json functions
-    {"get_json_object", "JSON_VALUE"},
+    {"get_json_object", "get_json_object"},
     {"to_json", "toJSONString"},
     {"from_json", "JSONExtract"},
     {"json_tuple", "json_tuple"},
