@@ -165,7 +165,9 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 #endif
 
   initCache(conf);
-  initIOExecutor(conf);
+  //initIOExecutor(conf);
+  ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(16);
+  FLAGS_split_preload_per_driver = 4;
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
@@ -188,7 +190,6 @@ velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
 }
 
 void VeloxInitializer::initCache(const std::unordered_map<std::string, std::string>& conf) {
-  ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(16);
   auto key = conf.find(kVeloxCacheEnabled);
   if (key != conf.end() && boost::algorithm::to_lower_copy(conf.at(kVeloxCacheEnabled)) == "true") {
     FLAGS_ssd_odirect = true;
