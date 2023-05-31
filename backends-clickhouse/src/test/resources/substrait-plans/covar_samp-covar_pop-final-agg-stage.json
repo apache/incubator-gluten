@@ -1,13 +1,23 @@
 {
   "extensions": [{
     "extensionFunction": {
-      "functionAnchor": 1,
+      "functionAnchor": 3,
       "name": "avg:req_fp64"
     }
   }, {
     "extensionFunction": {
-      "functionAnchor": 4,
+      "functionAnchor": 2,
+      "name": "covar_pop:req_fp64_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 6,
       "name": "alias:req_i64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 1,
+      "name": "covar_samp:req_fp64_fp64"
     }
   }, {
     "extensionFunction": {
@@ -15,12 +25,12 @@
     }
   }, {
     "extensionFunction": {
-      "functionAnchor": 2,
+      "functionAnchor": 4,
       "name": "count:req_i32"
     }
   }, {
     "extensionFunction": {
-      "functionAnchor": 3,
+      "functionAnchor": 5,
       "name": "alias:req_fp64"
     }
   }],
@@ -30,7 +40,7 @@
         "project": {
           "common": {
             "emit": {
-              "outputMapping": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+              "outputMapping": [7, 8, 9, 10, 11, 12, 13]
             }
           },
           "input": {
@@ -46,7 +56,7 @@
                     }
                   },
                   "baseSchema": {
-                    "names": ["l_returnflag#27", "l_linestatus#28", "sum#35#Partial#sum", "anonymousField0", "sum#36#Partial#sum", "anonymousField1", "sum#40#Partial#sum", "anonymousField2", "sum#41#Partial#sum", "anonymousField3", "avg#37#Partial#avg", "anonymousField4", "avg#38#Partial#avg", "anonymousField5", "avg#39#Partial#avg", "anonymousField6", "count#18#Partial#count", "anonymousField7"],
+                    "names": ["l_returnflag#24", "l_linestatus#25", "sum#32#Partial#sum", "anonymousField0", "covar_samp#41#Partial#covar_samp", "anonymousField1", "anonymousField2", "covar_pop#51#Partial#covar_pop", "anonymousField3", "anonymousField4", "avg#42#Partial#avg", "anonymousField5", "count#15#Partial#count", "anonymousField6"],
                     "struct": {
                       "types": [{
                         "string": {
@@ -71,12 +81,7 @@
                             "fp64": {
                               "nullability": "NULLABILITY_NULLABLE"
                             }
-                          }],
-                          "nullability": "NULLABILITY_NULLABLE"
-                        }
-                      }, {
-                        "struct": {
-                          "types": [{
+                          }, {
                             "fp64": {
                               "nullability": "NULLABILITY_NULLABLE"
                             }
@@ -89,21 +94,7 @@
                             "fp64": {
                               "nullability": "NULLABILITY_NULLABLE"
                             }
-                          }],
-                          "nullability": "NULLABILITY_NULLABLE"
-                        }
-                      }, {
-                        "struct": {
-                          "types": [{
-                            "fp64": {
-                              "nullability": "NULLABILITY_NULLABLE"
-                            }
-                          }],
-                          "nullability": "NULLABILITY_NULLABLE"
-                        }
-                      }, {
-                        "struct": {
-                          "types": [{
+                          }, {
                             "fp64": {
                               "nullability": "NULLABILITY_NULLABLE"
                             }
@@ -178,6 +169,7 @@
                 }
               }, {
                 "measure": {
+                  "functionReference": 1,
                   "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
                   "outputType": {
                     "fp64": {
@@ -198,6 +190,7 @@
                 }
               }, {
                 "measure": {
+                  "functionReference": 2,
                   "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
                   "outputType": {
                     "fp64": {
@@ -218,6 +211,7 @@
                 }
               }, {
                 "measure": {
+                  "functionReference": 3,
                   "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
                   "outputType": {
                     "fp64": {
@@ -238,70 +232,7 @@
                 }
               }, {
                 "measure": {
-                  "functionReference": 1,
-                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
-                  "outputType": {
-                    "fp64": {
-                      "nullability": "NULLABILITY_NULLABLE"
-                    }
-                  },
-                  "arguments": [{
-                    "value": {
-                      "selection": {
-                        "directReference": {
-                          "structField": {
-                            "field": 6
-                          }
-                        }
-                      }
-                    }
-                  }]
-                }
-              }, {
-                "measure": {
-                  "functionReference": 1,
-                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
-                  "outputType": {
-                    "fp64": {
-                      "nullability": "NULLABILITY_NULLABLE"
-                    }
-                  },
-                  "arguments": [{
-                    "value": {
-                      "selection": {
-                        "directReference": {
-                          "structField": {
-                            "field": 7
-                          }
-                        }
-                      }
-                    }
-                  }]
-                }
-              }, {
-                "measure": {
-                  "functionReference": 1,
-                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
-                  "outputType": {
-                    "fp64": {
-                      "nullability": "NULLABILITY_NULLABLE"
-                    }
-                  },
-                  "arguments": [{
-                    "value": {
-                      "selection": {
-                        "directReference": {
-                          "structField": {
-                            "field": 8
-                          }
-                        }
-                      }
-                    }
-                  }]
-                }
-              }, {
-                "measure": {
-                  "functionReference": 2,
+                  "functionReference": 4,
                   "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
                   "outputType": {
                     "i64": {
@@ -313,7 +244,7 @@
                       "selection": {
                         "directReference": {
                           "structField": {
-                            "field": 9
+                            "field": 6
                           }
                         }
                       }
@@ -340,7 +271,7 @@
             }
           }, {
             "scalarFunction": {
-              "functionReference": 3,
+              "functionReference": 5,
               "outputType": {
                 "fp64": {
                   "nullability": "NULLABILITY_NULLABLE"
@@ -360,7 +291,7 @@
             }
           }, {
             "scalarFunction": {
-              "functionReference": 3,
+              "functionReference": 5,
               "outputType": {
                 "fp64": {
                   "nullability": "NULLABILITY_NULLABLE"
@@ -380,7 +311,7 @@
             }
           }, {
             "scalarFunction": {
-              "functionReference": 3,
+              "functionReference": 5,
               "outputType": {
                 "fp64": {
                   "nullability": "NULLABILITY_NULLABLE"
@@ -400,7 +331,7 @@
             }
           }, {
             "scalarFunction": {
-              "functionReference": 3,
+              "functionReference": 5,
               "outputType": {
                 "fp64": {
                   "nullability": "NULLABILITY_NULLABLE"
@@ -420,10 +351,10 @@
             }
           }, {
             "scalarFunction": {
-              "functionReference": 3,
+              "functionReference": 6,
               "outputType": {
-                "fp64": {
-                  "nullability": "NULLABILITY_NULLABLE"
+                "i64": {
+                  "nullability": "NULLABILITY_REQUIRED"
                 }
               },
               "arguments": [{
@@ -438,70 +369,10 @@
                 }
               }]
             }
-          }, {
-            "scalarFunction": {
-              "functionReference": 3,
-              "outputType": {
-                "fp64": {
-                  "nullability": "NULLABILITY_NULLABLE"
-                }
-              },
-              "arguments": [{
-                "value": {
-                  "selection": {
-                    "directReference": {
-                      "structField": {
-                        "field": 7
-                      }
-                    }
-                  }
-                }
-              }]
-            }
-          }, {
-            "scalarFunction": {
-              "functionReference": 3,
-              "outputType": {
-                "fp64": {
-                  "nullability": "NULLABILITY_NULLABLE"
-                }
-              },
-              "arguments": [{
-                "value": {
-                  "selection": {
-                    "directReference": {
-                      "structField": {
-                        "field": 8
-                      }
-                    }
-                  }
-                }
-              }]
-            }
-          }, {
-            "scalarFunction": {
-              "functionReference": 4,
-              "outputType": {
-                "i64": {
-                  "nullability": "NULLABILITY_REQUIRED"
-                }
-              },
-              "arguments": [{
-                "value": {
-                  "selection": {
-                    "directReference": {
-                      "structField": {
-                        "field": 9
-                      }
-                    }
-                  }
-                }
-              }]
-            }
           }]
         }
       },
-      "names": ["l_returnflag#27", "l_linestatus#28", "sum_qty#10", "sum_base_price#11", "sum_disc_price#12", "sum_charge#13", "avg_qty#14", "avg_price#15", "avg_disc#16", "count_order#17"]
+      "names": ["l_returnflag#24", "l_linestatus#25", "sum_qty#10", "covar_samp_value#11", "covar_pop_value#12", "avg_price#13", "count_order#14"]
     }
   }]
 }
