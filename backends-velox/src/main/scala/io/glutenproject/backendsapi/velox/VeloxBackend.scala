@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, DwrfReadFormat, ParquetReadFormat}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Literal, NamedExpression, PercentRank, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
@@ -161,9 +161,27 @@ object VeloxBackendSettings extends BackendSettings {
         false
     }
   }
+
+  /**
+   * Check whether plan is Sum(1).
+   * @param plan: The Spark plan to check.
+   * @return Whether plan is an Aggregation of Sum(1).
+   */
+  private def isSum1(plan: SparkPlan): Boolean = {
+    plan match {
+      case exec: HashAggregateExec if exec.aggregateExpressions.forall(expression =>
+        expression.aggregateFunction.isInstanceOf[Sum] &&
+          expression.aggregateFunction.asInstanceOf[Sum].children.forall(child =>
+            child.isInstanceOf[Literal] && child.asInstanceOf[Literal].value == 1)) =>
+        true
+      case _ =>
+        false
+    }
+  }
+  
   override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
     // Count(1) is a special case to handle. Do not fallback it and its children in the first place.
-    !isCount1(plan)
+    !(isCount1(plan) || isSum1(plan))
   }
 
   override def fallbackAggregateWithChild(): Boolean = true
