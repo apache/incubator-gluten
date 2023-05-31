@@ -62,6 +62,7 @@ class VeloxSharedlibraryLoaderUbuntu2004 extends VeloxSharedlibraryLoader {
       .loadAndCreateLink("libhdfs3.so.1", "libhdfs3.so", false)
       .loadAndCreateLink("libre2.so.5", "libre2.so", false)
       .loadAndCreateLink("libsnappy.so.1", "libsnappy.so", false)
+      .loadAndCreateLink("libthrift-0.13.0.so", "libthrift.so", false)
       .commit()
   }
 }
