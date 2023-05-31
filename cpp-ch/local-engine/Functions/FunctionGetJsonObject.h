@@ -86,7 +86,7 @@ public:
         DB::ColumnNullable & col_str = assert_cast<DB::ColumnNullable &>(dest);
         auto output_str = out.str();
         std::string_view final_out_str;
-        assert(elelement_count);
+        assert(element_count);
         if (element_count == 1)
         {
             std::string_view output_str_view(output_str.data() + 1, output_str.size() - 2);
