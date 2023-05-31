@@ -19,29 +19,27 @@
 
 namespace gluten {
 
-static std::mutex mutex;
-static std::function<std::shared_ptr<Backend>()> backendFactory;
+static BackendFactoryContext* getBackendFactoryContext() {
+  static BackendFactoryContext* backendFactoryCtx = new BackendFactoryContext;
+  return backendFactoryCtx;
+}
 
-void setBackendFactory(std::function<std::shared_ptr<Backend>()> factory) {
-  std::lock_guard<std::mutex> lockGuard(mutex);
-  if (backendFactory != nullptr) {
-    throw std::runtime_error("Execution backend already set.");
-  }
+void setBackendFactory(BackendFactory1 factory, const std::unordered_map<std::string, std::string>& sparkConfs) {
+  getBackendFactoryContext()->set(factory, sparkConfs);
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory." << std::endl;
+  std::cout << "Set backend factory1." << std::endl;
 #endif
-  backendFactory = std::move(factory);
+}
+
+void setBackendFactory(BackendFactory2 factory) {
+  getBackendFactoryContext()->set(factory);
+#ifdef GLUTEN_PRINT_DEBUG
+  std::cout << "Set backend factory2." << std::endl;
+#endif
 }
 
 std::shared_ptr<Backend> createBackend() {
-  {
-    std::lock_guard<std::mutex> lockGuard(mutex);
-    if (backendFactory == nullptr) {
-      throw std::runtime_error(
-          "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");
-    }
-  }
-  return backendFactory();
+  return getBackendFactoryContext()->create();
 }
 
 } // namespace gluten
