@@ -72,7 +72,7 @@ std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
 
 int64_t VeloxColumnarBatch::getBytes() {
   ensureFlattened();
-  return flattened_->estimateFlatSize();
+  return flattened_->estimateFlatUsedSize();
 }
 
 std::shared_ptr<ColumnarBatch> VeloxColumnarBatch::addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) {
