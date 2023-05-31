@@ -19,7 +19,8 @@ package io.glutenproject.metrics
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 
-class HiveTableScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+class HiveTableScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric])
+  extends MetricsUpdater {
 
   val scanTime: SQLMetric = metrics("scanTime")
   val outputRows: SQLMetric = metrics("outputRows")
