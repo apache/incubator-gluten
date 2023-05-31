@@ -53,7 +53,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
   val originalInputAttributes: Seq[Attribute] = child.output
 
   override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance.genExpandTransformerMetricsUpdater(metrics)
 
   // The GroupExpressions can output data with arbitrary partitioning, so set it
   // as UNKNOWN partitioning

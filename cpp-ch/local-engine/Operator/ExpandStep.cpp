@@ -56,7 +56,6 @@ DB::Block ExpandStep::buildOutputHeader(const DB::Block & input_header, const Ex
 
 void ExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
 {
-    DB::QueryPipelineProcessorsCollector collector(pipeline, this);
     auto build_transform = [&](DB::OutputPortRawPtrs outputs)
     {
         DB::Processors new_processors;
@@ -69,7 +68,6 @@ void ExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB
         return new_processors;
     };
     pipeline.transform(build_transform);
-    processors = collector.detachProcessors();
 }
 
 void ExpandStep::describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const
@@ -77,6 +75,7 @@ void ExpandStep::describePipeline(DB::IQueryPlanStep::FormatSettings & settings)
     if (!processors.empty())
         DB::IQueryPlanStep::describePipeline(processors, settings);
 }
+
 void ExpandStep::updateOutputStream()
 {
     createOutputStream(input_streams.front(), output_header, getDataStreamTraits());
