@@ -51,10 +51,10 @@ object BackendSettings extends BackendSettingsApi {
     def validateTypes: Boolean = {
       // Collect unsupported types.
       fields.map(_.dataType).collect {
-        case _: ByteType =>
         case _: ArrayType =>
-        case _: MapType =>
-        case _: StructType =>
+        case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+        // Parquet scan of nested map with struct as key type is not supported in Velox.
+        case _: ByteType =>
       }.isEmpty
     }
 

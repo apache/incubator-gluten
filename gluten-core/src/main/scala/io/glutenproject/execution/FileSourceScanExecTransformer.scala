@@ -123,11 +123,18 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override def doValidateInternal(): Boolean = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
-    if (!bucketedScan) {
-      super.doValidateInternal()
-    } else {
-      false
+    if (bucketedScan) {
+      logWarning(s"Validation failed for ${this.getClass.toString} due to " +
+        s"bucketed scan is not supported.")
+      return false
     }
+    if (relation.options.exists(option =>
+      option._1 == mergeSchemaOptionKey && option._2 == "true")) {
+      logWarning(s"Validation failed for ${this.getClass.toString} due to " +
+        s"$mergeSchemaOptionKey is not supported.")
+      return false
+    }
+    super.doValidateInternal()
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
