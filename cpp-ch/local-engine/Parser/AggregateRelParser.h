@@ -16,8 +16,8 @@ private:
     struct AggregateInfo
     {
         const substrait::AggregateRel::Measure * measure = nullptr;
-        String arg_column_name;
-        DB::DataTypePtr arg_column_type = nullptr;
+        Strings arg_column_names;
+        DB::DataTypes arg_column_types;
         String function_name;
         bool has_mismatch_nullablity = false;
     };

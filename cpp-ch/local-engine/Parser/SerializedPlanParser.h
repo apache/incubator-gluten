@@ -164,6 +164,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"bit_and", "groupBitAnd"},
     {"bit_or", "groupBitOr"},
     {"bit_xor", "groupBitXor"},
+    {"covar_pop", "covarPop"},
+    {"covar_samp", "covarSamp"},
 
     // date or datetime functions
     {"from_unixtime", "fromUnixTimestampInJodaSyntax"},

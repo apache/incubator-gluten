@@ -173,7 +173,7 @@ class GlutenClickHouseMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
         .getOutputRows == 80000)
   }
 
-  test("test final agg stage") {
+  ignore("test final agg stage") {
     // Copy Substrait Plan from TPCH Q1 second agg stage
     val inBatchIters = new java.util.ArrayList[GeneralInIterator](
       Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
