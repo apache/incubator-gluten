@@ -58,7 +58,8 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"))
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "fetchWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "fetch wait time"))
 
   override def genBatchScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new BatchScanMetricsUpdater(metrics)
@@ -90,7 +91,8 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "fetchWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "fetch wait time")
     )
 
 

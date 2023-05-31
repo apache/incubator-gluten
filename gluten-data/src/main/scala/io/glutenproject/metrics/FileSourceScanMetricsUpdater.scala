@@ -43,6 +43,7 @@ class FileSourceScanMetricsUpdater(
   val processedSplits: SQLMetric = metrics("processedSplits")
   val skippedStrides: SQLMetric = metrics("skippedStrides")
   val processedStrides: SQLMetric = metrics("processedStrides")
+  val fetchWaitTime: SQLMetric = metrics("fetchWaitTime")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
@@ -68,6 +69,7 @@ class FileSourceScanMetricsUpdater(
       processedSplits += operatorMetrics.processedSplits
       skippedStrides += operatorMetrics.skippedStrides
       processedStrides += operatorMetrics.processedStrides
+      fetchWaitTime += operatorMetrics.fetchWaitTime
     }
   }
 }

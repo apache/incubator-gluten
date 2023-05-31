@@ -43,6 +43,7 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long processedSplits;
   public long skippedStrides;
   public long processedStrides;
+  public long fetchWaitTime;
 
   /**
    * Create an instance for operator metrics.
@@ -72,7 +73,8 @@ public class OperatorMetrics implements IOperatorMetrics {
       long skippedSplits,
       long processedSplits,
       long skippedStrides,
-      long processedStrides) {
+      long processedStrides,
+      long fetchWaitTime) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -98,5 +100,6 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.processedSplits = processedSplits;
     this.skippedStrides = skippedStrides;
     this.processedStrides = processedStrides;
+    this.fetchWaitTime = fetchWaitTime;
   }
 }

@@ -55,6 +55,7 @@ struct Metrics {
   long* processedSplits;
   long* skippedStrides;
   long* processedStrides;
+  long* fetchWaitTime;
 
   Metrics(int size) : numMetrics(size) {
     inputRows = new long[numMetrics]();
@@ -82,6 +83,7 @@ struct Metrics {
     processedSplits = new long[numMetrics]();
     skippedStrides = new long[numMetrics]();
     processedStrides = new long[numMetrics]();
+    fetchWaitTime = new long[numMetrics]();
   }
 
   Metrics(const Metrics&) = delete;
@@ -115,6 +117,7 @@ struct Metrics {
     delete[] processedSplits;
     delete[] skippedStrides;
     delete[] processedStrides;
+    delete[] fetchWaitTime;
   }
 };
 
