@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 
 import scala.collection.JavaConverters._
 
-class GlutenClickHouseMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
@@ -173,7 +173,7 @@ class GlutenClickHouseMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
         .getOutputRows == 80000)
   }
 
-  ignore("test final agg stage") {
+  test("test final agg stage") {
     // Copy Substrait Plan from TPCH Q1 second agg stage
     val inBatchIters = new java.util.ArrayList[GeneralInIterator](
       Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
