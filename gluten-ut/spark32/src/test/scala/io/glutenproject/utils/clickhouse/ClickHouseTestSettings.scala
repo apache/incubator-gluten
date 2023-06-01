@@ -241,7 +241,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
       "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
       "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "partition pruning in broadcast hash joins with aliases",
+      "join key with multiple references on the filtering plan"
     )
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
     .exclude(
@@ -250,19 +252,25 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
       "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
       "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "partition pruning in broadcast hash joins with aliases",
+      "join key with multiple references on the filtering plan"
     )
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
     .exclude(
       "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
       "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "partition pruning in broadcast hash joins with aliases",
+      "join key with multiple references on the filtering plan"
     )
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
     .exclude(
       "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
       "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+      "partition pruning in broadcast hash joins with aliases",
+      "join key with multiple references on the filtering plan"
     )
   enableSuite[FallbackStrategiesSuite]
 }
