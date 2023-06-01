@@ -16,14 +16,16 @@
  */
 package io.glutenproject.execution.metrics
 
-import io.glutenproject.execution.{BasicScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformerExec}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
-class GlutenClickHouseMetricsUpdaterSuite extends GlutenClickHouseTPCHAbstractSuite {
+import scala.collection.JavaConverters._
+
+class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val resourcePath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
@@ -248,5 +250,108 @@ class GlutenClickHouseMetricsUpdaterSuite extends GlutenClickHouseTPCHAbstractSu
         assert(shjPlan.metrics("inputRows").value == 11985)
         assert(shjPlan.metrics("inputBytes").value == 299625)
     }
+  }
+
+  test("GLUTEN-1754: test agg func covar_samp, covar_pop final stage execute") {
+    val inBatchIters = new java.util.ArrayList[GeneralInIterator](0)
+    val outputAttributes = new java.util.ArrayList[Attribute](0)
+    val nativeMetricsList = GlutenClickHouseMetricsUTUtils
+      .executeSubstraitPlan(
+        substraitPlansDatPath + "/covar_samp-covar_pop-partial-agg-stage.json",
+        basePath,
+        inBatchIters,
+        outputAttributes
+      )
+
+    assert(nativeMetricsList.size == 1)
+    val nativeMetricsData = nativeMetricsList(0)
+    assert(nativeMetricsData.metricsDataList.size() == 5)
+
+    assert(nativeMetricsData.metricsDataList.get(0).getName.equals("kRead"))
+    assert(
+      nativeMetricsData.metricsDataList
+        .get(0)
+        .getSteps
+        .get(0)
+        .getProcessors
+        .get(0)
+        .getOutputRows == 600572)
+
+    assert(nativeMetricsData.metricsDataList.get(1).getName.equals("kFilter"))
+    assert(
+      nativeMetricsData.metricsDataList
+        .get(1)
+        .getSteps
+        .get(0)
+        .getProcessors
+        .get(0)
+        .getInputRows == 600572)
+    assert(
+      nativeMetricsData.metricsDataList
+        .get(1)
+        .getSteps
+        .get(0)
+        .getProcessors
+        .get(0)
+        .getOutputRows == 591673)
+
+    assert(nativeMetricsData.metricsDataList.get(2).getName.equals("kProject"))
+
+    assert(nativeMetricsData.metricsDataList.get(3).getName.equals("kProject"))
+    assert(nativeMetricsData.metricsDataList.get(4).getName.equals("kAggregate"))
+    assert(
+      nativeMetricsData.metricsDataList
+        .get(4)
+        .getSteps
+        .get(0)
+        .getProcessors
+        .get(0)
+        .getInputRows == 591677)
+    assert(
+      nativeMetricsData.metricsDataList
+        .get(4)
+        .getSteps
+        .get(0)
+        .getProcessors
+        .get(1)
+        .getOutputRows == 4)
+    assert(
+      nativeMetricsData.metricsDataList
+        .get(4)
+        .getSteps
+        .get(0)
+        .getProcessors
+        .get(0)
+        .getOutputRows == 4)
+
+    val inBatchItersFinal = new java.util.ArrayList[GeneralInIterator](
+      Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
+    val outputAttributesFinal = new java.util.ArrayList[Attribute](0)
+
+    val nativeMetricsListFinal = GlutenClickHouseMetricsUTUtils
+      .executeSubstraitPlan(
+        substraitPlansDatPath + "/covar_samp-covar_pop-final-agg-stage.json",
+        basePath,
+        inBatchItersFinal,
+        outputAttributesFinal
+      )
+
+    assert(nativeMetricsListFinal.size == 1)
+    val nativeMetricsDataFinal = nativeMetricsListFinal(0)
+    assert(nativeMetricsDataFinal.metricsDataList.size() == 3)
+
+    assert(nativeMetricsDataFinal.metricsDataList.get(0).getName.equals("kRead"))
+    assert(nativeMetricsDataFinal.metricsDataList.get(1).getName.equals("kAggregate"))
+    assert(nativeMetricsDataFinal.metricsDataList.get(1).getSteps.size() == 2)
+    assert(
+      nativeMetricsDataFinal.metricsDataList
+        .get(1)
+        .getSteps
+        .get(0)
+        .getName
+        .equals("MergingAggregated"))
+    assert(
+      nativeMetricsDataFinal.metricsDataList.get(1).getSteps.get(1).getName.equals("Expression"))
+    assert(nativeMetricsDataFinal.metricsDataList.get(2).getName.equals("kProject"))
   }
 }
