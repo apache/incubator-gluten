@@ -25,7 +25,7 @@ namespace local_engine
 //
 
 
-struct GetJsonOject
+struct GetJsonObject
 {
     static constexpr auto name{"get_json_object"};
 };

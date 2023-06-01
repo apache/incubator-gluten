@@ -585,12 +585,6 @@ void registerAllFunctions()
         auto & factory = AggregateFunctionCombinatorFactory::instance();
         registerAggregateFunctionCombinatorPartialMerge(factory);
     }
-
-    {
-        /// register ordinary functions from local_engine
-        auto & factory = FunctionFactory::instance();
-        registerFunctions(factory);
-    }
 }
 
 extern void registerAllFunctions();

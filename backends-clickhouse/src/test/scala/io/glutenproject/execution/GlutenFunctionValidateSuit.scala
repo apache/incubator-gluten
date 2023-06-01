@@ -166,4 +166,18 @@ class GlutenFunctionValidateSuit extends WholeStageTransformerSuite {
   test("Test covar_pop") {
     runQueryAndCompare("SELECT covar_pop(double_field1, int_field1) from json_test") { _ => }
   }
+
+  test("test 'function xxhash64'") {
+    val df = runQueryAndCompare(
+      "select xxhash64(id) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test 'function murmur3hash'") {
+    val df = runQueryAndCompare(
+      "select hash(id) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
 }

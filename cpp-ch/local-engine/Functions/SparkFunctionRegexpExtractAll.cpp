@@ -8,7 +8,6 @@
 #include <Functions/IFunction.h>
 #include <Functions/Regexps.h>
 #include <Interpreters/Context.h>
-#include <base/StringRef.h>
 #include <Common/FunctionDocumentation.h>
 
 namespace DB
@@ -362,7 +361,7 @@ namespace
     };
 }
 
-void registerFunctionRegexpExtractAllSpark(DB::FunctionFactory & factory)
+REGISTER_FUNCTION(RegexpExtractAllSpark)
 {
     factory.registerFunction<FunctionRegexpExtractAllSpark>(
         FunctionDocumentation{.description = R"(Extracts all the fragments of a string that matches the regexp pattern and corresponds to the regex group index.)"});

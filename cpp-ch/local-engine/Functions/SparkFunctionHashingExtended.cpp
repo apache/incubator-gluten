@@ -1,10 +1,11 @@
-#include "FunctionsHashingExtended.h"
+#include "SparkFunctionHashingExtended.h"
 
 #include <Functions/FunctionFactory.h>
 
 namespace local_engine
 {
-void registerFunctionsHashingExtended(FunctionFactory & factory)
+
+REGISTER_FUNCTION(HashingExtended)
 {
     factory.registerFunction<FunctionXxHashSpark64>();
     factory.registerFunction<FunctionMurmurHashSpark3_32>();

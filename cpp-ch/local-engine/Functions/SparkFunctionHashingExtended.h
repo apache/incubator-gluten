@@ -53,7 +53,7 @@ static ALWAYS_INLINE uint32_t rotl32(uint32_t x, int8_t r)
 static void MurmurHashSpark3_x86_32(const void * key, size_t len, uint32_t seed, void * out)
 {
     const uint8_t * data = static_cast<const uint8_t *>(key);
-    const int nblocks = len / 4;
+    const int nblocks = static_cast<int>(len >> 2);
 
     uint32_t h1 = seed;
 

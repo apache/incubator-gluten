@@ -279,7 +279,7 @@ struct NamePositionUTF8Spark
 using FunctionPositionUTF8Spark = FunctionsStringSearch<PositionSparkImpl<NamePositionUTF8Spark, PositionCaseSensitiveUTF8>>;
 
 
-void registerFunctionPositionUTF8Spark(FunctionFactory & factory)
+REGISTER_FUNCTION(PositionUTF8Spark)
 {
     factory.registerFunction<FunctionPositionUTF8Spark>();
 }
