@@ -166,13 +166,14 @@ private:
         String region_name;
         const char * amazon_suffix = ".amazonaws.com";
         const char * amazon_prefix = "https://s3.";
-        if (endpoint.find(amazon_suffix) != std::string::npos)
+        auto pos = endpoint.find(amazon_suffix);
+        if (pos != std::string::npos)
         {
             assert(endpoint.starts_with(amazon_prefix));
-            region_name = endpoint.substr(strlen(amazon_prefix), endpoint.size() - strlen(amazon_prefix) - strlen(amazon_suffix));
+            region_name = endpoint.substr(strlen(amazon_prefix), pos - strlen(amazon_prefix));
             assert(region_name.find('.') == std::string::npos);
         }
-        // for AWS CN, the endpoint is like: https://s3.cn-north-1.amazonaws.com.cn, should still work with above code (NOT TESTED)
+        // for AWS CN, the endpoint is like: https://s3.cn-north-1.amazonaws.com.cn, still works
 
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
