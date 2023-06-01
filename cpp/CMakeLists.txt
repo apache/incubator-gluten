@@ -58,8 +58,8 @@ if (NOT BUILD_VELOX_BACKEND)
   set(BUILD_VELOX_BACKEND ON)
 endif()
 
-if (NOT DEFINED ARROW_ROOT)
-  set(ARROW_ROOT ${CMAKE_SOURCE_DIR}/../ep/build-arrow/build/arrow_install)
+if (NOT DEFINED ARROW_HOME)
+  set(ARROW_HOME ${CMAKE_SOURCE_DIR}/../ep/build-arrow/build)
 endif()
 
 #
@@ -103,7 +103,6 @@ endif()
 #
 # Dependencies
 #
-
 
 include(ConfigArrow)
 

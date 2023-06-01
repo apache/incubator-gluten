@@ -7,6 +7,7 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
+ARROW_HOME=""
 ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
 RUN_SETUP_SCRIPT=ON
@@ -18,6 +19,10 @@ for arg in "$@"; do
   case $arg in
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --arrow_home=*)
+    ARROW_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_s3=*)
@@ -68,9 +73,12 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
   fi
 
-  ARROW_ROOT=$CURRENT_DIR/../../build-arrow/build/arrow_install
-  if [ -d "$ARROW_ROOT" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DArrow_DIR=${ARROW_ROOT} -DParquet_DIR=${ARROW_ROOT}"
+  # Let Velox use pre-build arrow,parquet,thrift.
+  if [ "$ARROW_HOME" == "" ]; then
+    ARROW_HOME=$CURRENT_DIR/../../build-arrow/build
+    if [ -d "$ARROW_HOME" ]; then
+      COMPILE_OPTION="$COMPILE_OPTION -DArrow_HOME=${ARROW_HOME}"
+    fi
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"

@@ -13,13 +13,13 @@ ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 NPROC=$(nproc --ignore=2)
-ARROW_ROOT=
+ARROW_HOME=
 VELOX_HOME=
 
 for arg in "$@"; do
   case $arg in
-  --arrow_root=*)
-    ARROW_ROOT=("${arg#*=}")
+  --arrow_home=*)
+    ARROW_home=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --velox_home=*)
@@ -77,9 +77,9 @@ CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
 )
-#gluten cpp will find arrow lib from ARROW_ROOT
-if [ "$ARROW_ROOT" == "" ]; then
-  ARROW_ROOT="$CURRENT_DIR/../ep/build-arrow/build/arrow_install"
+#gluten cpp will find arrow lib from ARROW_HOME
+if [ "$ARROW_HOME" == "" ]; then
+  ARROW_HOME="$CURRENT_DIR/../ep/build-arrow/build"
 fi
 
 #gluten cpp will find velox lib from VELOX_HOME
@@ -89,7 +89,7 @@ fi
 
 echo "Building gluten cpp part..."
 echo "CMAKE Arguments:"
-echo "ARROW_ROOT=${ARROW_ROOT}"
+echo "ARROW_HOME=${ARROW_HOME}"
 echo "VELOX_HOME=${VELOX_HOME}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "BUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND}"
@@ -108,7 +108,7 @@ mkdir build
 cd build
 cmake .. \
   -DBUILD_TESTS=${BUILD_TESTS} \
-  -DARROW_ROOT=${ARROW_ROOT} \
+  -DARROW_HOME=${ARROW_HOME} \
   -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
   -DBUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND} \
   -DVELOX_HOME=${VELOX_HOME} \

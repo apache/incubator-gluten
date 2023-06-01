@@ -46,9 +46,10 @@ endfunction()
 
 message(STATUS "Use existing ARROW libraries")
 
-set(ARROW_LIB_DIR "${ARROW_ROOT}/lib")
-set(ARROW_LIB64_DIR "${ARROW_ROOT}/lib64")
-set(ARROW_INCLUDE_DIR "${ARROW_ROOT}/include")
+set(ARROW_INSTALL_DIR "${ARROW_HOME}/arrow_install")
+set(ARROW_LIB_DIR "${ARROW_INSTALL_DIR}/lib")
+set(ARROW_LIB64_DIR "${ARROW_INSTALL_DIR}/lib64")
+set(ARROW_INCLUDE_DIR "${ARROW_INSTALL_DIR}/include")
 
 message(STATUS "Set Arrow Library Directory in ${ARROW_LIB_DIR} or ${ARROW_LIB64_DIR}")
 message(STATUS "Set Arrow Include Directory in ${ARROW_INCLUDE_DIR}")
@@ -56,7 +57,7 @@ message(STATUS "Set Arrow Include Directory in ${ARROW_INCLUDE_DIR}")
 if(EXISTS ${ARROW_INCLUDE_DIR}/arrow)
   set(ARROW_INCLUDE_SRC_DIR ${ARROW_INCLUDE_DIR})
 else()
-  message(FATAL_ERROR "Arrow headers not found in ${ARROW_ROOT}.")
+  message(FATAL_ERROR "Arrow headers not found in ${ARROW_INCLUDE_DIR}/arrow.")
 endif()
 
 # Copy arrow headers
