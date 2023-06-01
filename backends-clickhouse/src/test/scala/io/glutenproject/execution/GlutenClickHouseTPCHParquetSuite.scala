@@ -915,6 +915,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   //      assert(StorageJoinBuilder.nativeCachedHashTableCount == 0)
   //    }
   //  }
+
+  test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
+    spark.sql(
+      """
+        | create table test_tbl(id bigint, data map<string, string>) using parquet;
+        |""".stripMargin
+    )
+
+    spark.sql("INSERT INTO test_tbl values(1, map('k', 'v'))")
+    val sql = """
+                | select id from test_tbl lateral view
+                | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
