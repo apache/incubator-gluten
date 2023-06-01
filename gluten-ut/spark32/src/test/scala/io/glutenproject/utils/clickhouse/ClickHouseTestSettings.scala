@@ -327,7 +327,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "misc md5 function",
       "misc sha1 function",
       "misc sha2 function",
-      "misc crc32 function"
+      "misc crc32 function",
+      "concat function - arrays"
+    )
+    .includeByPrefix(
+      "reverse function - array"
     )
 
   enableSuite[GlutenDateFunctionsSuite]

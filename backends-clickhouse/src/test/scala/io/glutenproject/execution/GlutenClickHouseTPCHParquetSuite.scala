@@ -1063,6 +1063,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-1822: test reverse/concat with array type") {
+    runQueryAndCompare(
+      "select reverse(split(n_comment, ' ')), concat(split(n_comment, ' ')) from nation"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg without aqe") {
     val sql =
       """

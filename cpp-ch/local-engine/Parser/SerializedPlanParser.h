@@ -118,7 +118,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
-       {"concat", "concat"},
+       {"concat", ""}, /// dummy mapping
        {"strpos", "position"},
        {"char_length",
         "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
@@ -135,7 +135,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"unbase64", "base64Decode"},
        {"lpad", "leftPadUTF8"},
        {"rpad", "rightPadUTF8"},
-       {"reverse", "reverseUTF8"},
+       {"reverse", ""}, /// dummy mapping
        {"md5", "MD5"},
        {"translate", "translateUTF8"},
        {"repeat", "repeat"},
@@ -147,7 +147,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"murmur3hash", "murmurHashSpark3_32"},
        {"xxhash64", "xxHashSpark64"},
        {"sha1", "SHA1"},
-       {"sha2", ""}, /// dummpy mapping
+       {"sha2", ""}, /// dummy mapping
        {"crc32", "CRC32"},
 
        // in functions

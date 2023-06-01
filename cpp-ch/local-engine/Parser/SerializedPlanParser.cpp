@@ -1020,6 +1020,20 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         if (function_signature.find("vbin") != std::string::npos)
             ch_function_name = "length";
     }
+    else if (function_name == "reverse")
+    {
+        if (function.output_type().has_list())
+            ch_function_name = "arrayReverse";
+        else
+            ch_function_name = "reverseUTF8";
+    }
+    else if (function_name == "concat")
+    {
+        if (function.output_type().has_list())
+            ch_function_name = "arrayConcat";
+        else
+            ch_function_name = "concat";
+    }
     else
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);
 
