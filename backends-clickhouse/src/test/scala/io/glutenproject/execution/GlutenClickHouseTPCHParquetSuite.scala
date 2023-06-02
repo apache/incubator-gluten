@@ -949,4 +949,41 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       }
     }
   }
+
+  test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg without aqe") {
+    val sql =
+      """
+        |SELECT *
+        |	FROM (
+        |		SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |		FROM (
+        |			SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
+        |			FROM orders
+        |			GROUP BY o_orderstatus
+        |		) t1
+        |			INNER JOIN (
+        |				SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |                FROM orders
+        |                GROUP BY o_orderstatus
+        |			) t4
+        |			ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
+        |	) t5
+        |		INNER JOIN (
+        |			SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |            FROM (
+        |                SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
+        |                FROM orders
+        |                GROUP BY o_orderstatus
+        |            ) t8
+        |                INNER JOIN (
+        |                    SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |                    FROM orders
+        |                    GROUP BY o_orderstatus
+        |                ) t9
+        |                ON t8.O_ORDERSTATUS = t9.O_ORDERSTATUS
+        |            ) t12
+        |		ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { df => })
+  }
 }

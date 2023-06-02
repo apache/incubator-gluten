@@ -65,26 +65,20 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
         })
 
   protected val excludedTpcdsQueries: Set[String] = Set(
-    "q5", // attribute binding failed.
     "q14a", // inconsistent results
     "q14b", // inconsistent results
     "q17", // inconsistent results
     "q18", // inconsistent results
     "q31", // inconsistent results
-    "q32", // attribute binding failed.
-    "q36", // attribute binding failed.
     "q49", // inconsistent results
     "q61", // inconsistent results
     "q67", // inconsistent results
-    "q70", // attribute binding failed.
     "q71", // inconsistent results, unstable order
-    "q75", // attribute binding failed.
     "q77", // inconsistent results
     "q78", // inconsistent results
     "q80", // fatal
     "q83", // decimal error
-    "q90", // inconsistent results(decimal)
-    "q92" // attribute binding failed.
+    "q90" // inconsistent results(decimal)
   )
 
   protected val independentTestTpcdsQueries: Set[String] = Set("q9", "q21")
