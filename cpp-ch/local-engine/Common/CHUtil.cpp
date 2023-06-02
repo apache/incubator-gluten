@@ -644,6 +644,8 @@ void BackendInitializerUtil::init(const std::string & conf_plan)
 
             initCompiledExpressionCache();
             LOG_INFO(logger, "Init compiled expressions cache factory.");
+
+            GlobalThreadPool::initialize();
         });
 }
 
