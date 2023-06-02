@@ -61,7 +61,6 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
             }
 
             private var last_address: Long = 0
-            private var elapse: Long = 0
 
             override def hasNext: Boolean = {
               if (last_address != 0) {
@@ -77,10 +76,9 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
               val sparkRowIterator = new SparkRowIterator(slice)
               last_address =
                 cvt.convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes);
-              elapse += System.nanoTime() - start
               val block = new CHNativeBlock(last_address)
 
-              convertTime += NANOSECONDS.toMillis(elapse)
+              convertTime += NANOSECONDS.toMillis(System.nanoTime() - start)
               numInputRows += block.numRows()
               numOutputBatches += 1
 
