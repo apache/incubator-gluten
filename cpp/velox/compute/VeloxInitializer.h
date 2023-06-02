@@ -83,6 +83,7 @@ class VeloxInitializer {
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor2_;
 
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
