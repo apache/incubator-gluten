@@ -132,6 +132,14 @@ message ReadRel {
       message ArrowReadOptions {}
       message OrcReadOptions {}
       message DwrfReadOptions {}
+      message TextReadOptions {
+        string field_delimiter = 1;
+        uint64 max_block_size = 2;
+        NamedStruct schema = 3;
+      }
+      message JsonReadOptions {
+        uint64 max_block_size = 1;
+      }
 
       // The format of the files.
       oneof file_format {
@@ -140,7 +148,9 @@ message ReadRel {
         OrcReadOptions orc = 11;
         google.protobuf.Any extension = 12;
         DwrfReadOptions dwrf = 13;
-      }
+        TextReadOptions text = 14;
+        JsonReadOptions json = 15;
+     }
     }
   }
 }

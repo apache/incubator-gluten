@@ -30,6 +30,8 @@ import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.Type;
+import org.apache.spark.sql.types.StructType;
+import java.util.Map;
 
 public class ReadRelNode implements RelNode, Serializable {
   private final ArrayList<TypeNode> types = new ArrayList<>();
@@ -38,6 +40,8 @@ public class ReadRelNode implements RelNode, Serializable {
   private final SubstraitContext context;
   private final ExpressionNode filterNode;
   private final Long iteratorIndex;
+  private StructType dataSchema;
+  private Map<String, String> properties;
 
   ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
               SubstraitContext context, ExpressionNode filterNode, Long iteratorIndex) {
@@ -57,6 +61,14 @@ public class ReadRelNode implements RelNode, Serializable {
     this.filterNode = filterNode;
     this.iteratorIndex = iteratorIndex;
     this.columnTypeNodes.addAll(columnTypeNodes);
+  }
+
+  public void setDataSchema(StructType schema) {
+    this.dataSchema = schema;
+  }
+
+  public void setProperties(Map<String, String> properties) {
+    this.properties = properties;
   }
 
   @Override
@@ -87,10 +99,20 @@ public class ReadRelNode implements RelNode, Serializable {
       readBuilder.setFilter(filterNode.toProtobuf());
     }
     if (this.iteratorIndex != null) {
-      readBuilder.setLocalFiles(context.getInputIteratorNode(iteratorIndex).toProtobuf());
+      LocalFilesNode filesNode = context.getInputIteratorNode(iteratorIndex);
+      if (dataSchema != null) {
+        filesNode.setFileSchema(dataSchema);
+        filesNode.setFileReadProperties(properties);
+      }
+      readBuilder.setLocalFiles(filesNode.toProtobuf());
     } else if (context.getLocalFilesNodes() != null && !context.getLocalFilesNodes().isEmpty()) {
       Serializable currentLocalFileNode = context.getCurrentLocalFileNode();
       if (currentLocalFileNode instanceof LocalFilesNode) {
+        LocalFilesNode filesNode = (LocalFilesNode) currentLocalFileNode;
+        if (dataSchema != null) {
+          filesNode.setFileSchema(dataSchema);
+          filesNode.setFileReadProperties(properties);
+        }
         readBuilder.setLocalFiles(((LocalFilesNode)currentLocalFileNode).toProtobuf());
       } else if (currentLocalFileNode instanceof ExtensionTableNode) {
         readBuilder.setExtensionTable(((ExtensionTableNode)currentLocalFileNode).toProtobuf());

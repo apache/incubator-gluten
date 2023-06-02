@@ -19,8 +19,8 @@ public:
     struct InputFormat
     {
     public:
-        DB::InputFormatPtr input;
         std::unique_ptr<DB::ReadBuffer> read_buffer;
+        DB::InputFormatPtr input;
     };
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 

@@ -6,7 +6,10 @@
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/S3Common.h>
+#include <IO/SeekableReadBuffer.h>
+#include <IO/S3/getObjectInfo.h>
 #include <Interpreters/Context_fwd.h>
+#include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/StorageS3Settings.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
@@ -17,14 +20,16 @@
 #include <Poco/URI.h>
 #include "IO/ReadSettings.h"
 
-#include <Poco/Logger.h>
+#include <Common/Throttler.h>
+#include <Common/safe_cast.h>
 #include <Common/logger_useful.h>
+#include <Poco/Logger.h>
+#include <hdfs/hdfs.h>
 
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
 
-#include <IO/S3/getObjectInfo.h>
 #include <aws/s3/model/CopyObjectRequest.h>
 #include <aws/s3/model/DeleteObjectsRequest.h>
 #include <aws/s3/model/ListObjectsV2Request.h>
@@ -34,6 +39,10 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int BAD_ARGUMENTS;
+    extern const int CANNOT_OPEN_FILE;
+    extern const int UNKNOWN_FILE_SIZE;
+    extern const int CANNOT_SEEK_THROUGH_FILE;
+    extern const int CANNOT_CLOSE_FILE;
 }
 }
 
@@ -45,7 +54,7 @@ public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
@@ -69,7 +78,7 @@ public:
     explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool & set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
@@ -78,9 +87,107 @@ public:
         if (file_uri.getPort())
             uri_path += ":" + std::to_string(file_uri.getPort());
         DB::ReadSettings read_settings;
-        read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-            uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(), read_settings);
+        if (set_read_util_position) 
+        {
+            std::pair<size_t, size_t> start_end_pos = adjustFileReadStartAndEndPos(file_info.start(), file_info.start() + file_info.length(),
+                    uri_path, file_uri.getPath());
+            LOG_DEBUG(&Poco::Logger::get("ReadBufferBuilder"), "File read start and end position adjusted from {},{} to {},{}",
+                    file_info.start(), file_info.start() + file_info.length(), start_end_pos.first, start_end_pos.second);
+            read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
+                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
+                read_settings, start_end_pos.second);
+            if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
+            {
+                seekable_in->seek(start_end_pos.first, SEEK_SET);
+            }
+        }
+        else
+        {
+            read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
+                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
+                read_settings);
+        }
         return read_buffer;
+    }
+
+    std::pair<size_t, size_t> adjustFileReadStartAndEndPos(
+        size_t read_start_pos,
+        size_t read_end_pos,
+        std::string uri_path,
+        std::string file_path)
+    {
+        std::pair<size_t, size_t> result;
+        std::string row_delimiter = "\n";
+        size_t row_delimiter_size = row_delimiter.size();
+        std::string hdfs_file_path = uri_path + file_path;
+        auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getGlobalContext()->getConfigRef());
+        auto fs = DB::createHDFSFS(builder.get());
+        hdfsFile fin = hdfsOpenFile(fs.get(), file_path.c_str(), O_RDONLY, 0, 0, 0);
+        if (!fin)
+        {
+            throw DB::Exception(DB::ErrorCodes::CANNOT_OPEN_FILE, "Cannot open hdfs file:{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
+        }
+        auto hdfs_file_info = hdfsGetPathInfo(fs.get(), file_path.c_str());
+        if (!hdfs_file_info)
+        {
+            hdfsCloseFile(fs.get(), fin);
+            throw DB::Exception(DB::ErrorCodes::UNKNOWN_FILE_SIZE, "Cannot find out file size for :{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
+        }
+        size_t hdfs_file_size = hdfs_file_info->mSize;
+        auto getFirstRowDelimiterPos = [&](hdfsFS fs, hdfsFile fin, size_t start_pos, size_t hdfs_file_size) -> size_t
+        {
+            if (start_pos == 0 || start_pos == hdfs_file_size)
+            {
+                return start_pos;
+            }
+            size_t pos = start_pos;
+            int seek_status = hdfsSeek(fs, fin, pos);
+            if (seek_status != 0)
+            {
+                hdfsCloseFile(fs, fin);
+                throw DB::Exception(DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE, "Fail to seek HDFS file: {}, error: {}", file_path, std::string(hdfsGetLastError()));
+            }
+            char s[row_delimiter_size];
+            bool read_flag = true;
+            while (read_flag)
+            {
+                size_t read_size = hdfsRead(fs, fin, s, row_delimiter_size);
+                size_t i = 0;
+                for (; i < read_size && i < row_delimiter_size; ++i)
+                {
+                    if (s[i] != *(row_delimiter.data() + i))
+                    {
+                        break;
+                    }
+                }
+                if (i == row_delimiter_size)
+                {
+                    char r[1];
+                    // The end of row maybe '\n', '\r\n', or '\n\r'
+                    if (hdfsRead(fs, fin, r, 1) != 0 && r[0] == '\r')
+                    {
+                        return pos + 1 + row_delimiter_size;
+                    }
+                    else
+                    {
+                        return pos + row_delimiter_size;
+                    }
+                }
+                else
+                {
+                    pos += 1;
+                    hdfsSeek(fs, fin, pos);
+                }
+            }
+        };
+        result.first = getFirstRowDelimiterPos(fs.get(), fin, read_start_pos, hdfs_file_size);
+        result.second = getFirstRowDelimiterPos(fs.get(), fin, read_end_pos, hdfs_file_size);
+        int close_status = hdfsCloseFile(fs.get(), fin);
+        if (close_status != 0)
+        {
+            throw DB::Exception(DB::ErrorCodes::CANNOT_CLOSE_FILE, "Fail to close HDFS file: {}, error: {}", file_path, std::string(hdfsGetLastError()));
+        }
+        return result;
     }
 };
 #endif
@@ -110,7 +217,7 @@ public:
 
     ~S3FileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
     {
         Poco::URI file_uri(file_info.uri_file());
         const auto client = getClient();
@@ -216,7 +323,7 @@ public:
     explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &)
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;

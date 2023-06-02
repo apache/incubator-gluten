@@ -66,6 +66,14 @@ trait SparkPlanExecApi {
    */
   def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecBaseTransformer
 
+  /**
+  * Generate BasicScanTransformer
+   * @param child
+   * @return
+   */
+  def genHiveTableScanExecTransformer(child: SparkPlan) : Option[HiveTableScanExecTransformer] =
+    Option.empty
+
   /** Generate HashAggregateExecTransformer. */
   def genHashAggregateExecTransformer(
       requiredChildDistributionExpressions: Option[Seq[Expression]],
