@@ -24,13 +24,15 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.ReadRelNode
+import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
+import org.apache.spark.sql.catalyst.catalog.{ExternalCatalogUtils, HiveTableRelation}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, DynamicPruningExpression, Expression}
 import org.apache.spark.sql.connector.read.{InputPartition, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, DataSourceStrategy}
+import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, DataSourceStrategy, InMemoryFileIndex}
+import org.apache.spark.sql.execution.datasources.{DataSourceStrategy, FileStatusCache, InMemoryFileIndex, PartitionPath, PartitionSpec}
 import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -118,6 +120,47 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
     }
   }
 
+  private def getFileIndex: InMemoryFileIndex = {
+    val tableMeta = relation.tableMeta
+    val sessionState = session.sessionState
+    val fileStatusCache = FileStatusCache.getOrCreate(session)
+    if (tableMeta.partitionColumnNames.nonEmpty) {
+      val startTime = System.nanoTime()
+      val selectedPartitions = ExternalCatalogUtils.listPartitionsByFilter(
+        sessionState.conf,
+        sessionState.catalog,
+        tableMeta,
+        partitionPruningPred)
+      val partitions = selectedPartitions.map {
+        p =>
+          val path = new Path(p.location)
+          val fs = path.getFileSystem(sessionState.newHadoopConf())
+          PartitionPath(
+            p.toRow(tableMeta.partitionSchema, sessionState.conf.sessionLocalTimeZone),
+            path.makeQualified(fs.getUri, fs.getWorkingDirectory))
+      }
+      val partitionSpec = PartitionSpec(tableMeta.partitionSchema, partitions)
+      val timeNs = System.nanoTime() - startTime
+      new InMemoryFileIndex(
+        session,
+        rootPathsSpecified = partitionSpec.partitions.map(_.path),
+        parameters = Map.empty,
+        userSpecifiedSchema = Some(partitionSpec.partitionColumns),
+        fileStatusCache = fileStatusCache,
+        userSpecifiedPartitionSpec = Some(partitionSpec),
+        metadataOpsTimeNs = Some(timeNs)
+      )
+    } else {
+      new InMemoryFileIndex(
+        session,
+        tableMeta.storage.locationUri.map(new Path(_)).toSeq,
+        parameters = tableMeta.storage.properties,
+        userSpecifiedSchema = None,
+        fileStatusCache = fileStatusCache
+      )
+    }
+  }
+
   private def getHiveTableFileScan: Option[FileScan] = {
     val tableMeta = relation.tableMeta
     val defaultTableSize = session.sessionState.conf.defaultSizeInBytes
@@ -126,7 +169,6 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
       tableMeta,
       tableMeta.stats.map(_.sizeInBytes.toLong).getOrElse(defaultTableSize))
     val fileIndex = catalogFileIndex.filterPartitions(partitionPruningPred)
-
     val planOutput = output.asInstanceOf[Seq[AttributeReference]]
     var hasComplexType = false
     val outputFieldTypes = new ArrayBuffer[StructField]()
