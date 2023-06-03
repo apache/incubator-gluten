@@ -12,7 +12,7 @@ ENDFOREACH()
 
 add_custom_target(
         generate_substrait
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/../../../contrib/protobuf-cmake/protoc -I${CMAKE_CURRENT_SOURCE_DIR} -I${ClickHouse_SOURCE_DIR}/contrib/protobuf/src --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/ ${protobuf_files}
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/../../../contrib/google-protobuf-cmake/protoc -I${CMAKE_CURRENT_SOURCE_DIR} -I${ClickHouse_SOURCE_DIR}/contrib/google-protobuf/src --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/ ${protobuf_files}
         DEPENDS protoc
         COMMENT "Running cpp protocol buffer compiler"
         VERBATIM )
