@@ -82,17 +82,18 @@ add_library(${LOCALENGINE_SHARED_LIB} SHARED
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC
         -Wno-shorten-64-to-32)
 
-target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
-
+target_link_libraries(${LOCALENGINE_SHARED_LIB}
+PUBLIC
         clickhouse_new_delete
         clickhouse_common_config
         clickhouse_common_io
         clickhouse_parsers
         clickhouse_storages_system
-        substrait
         loggers
         gluten_clickhouse_backend_libs
         ch_contrib::protobuf
+PRIVATE
+        substrait
 )
 
 if (ENABLE_LOCAL_FORMATS)

@@ -21,7 +21,7 @@ set_source_files_properties(${SUBSTRAIT_SRCS} PROPERTIES GENERATED TRUE)
 
 add_library(substrait ${SUBSTRAIT_SRCS})
 add_dependencies(substrait generate_substrait)
-target_compile_options(substrait PUBLIC -fPIC -Wno-reserved-identifier -Wno-deprecated)
+target_compile_options(substrait PUBLIC -fPIC -Wno-reserved-identifier -Wno-deprecated -Wno-shadow-field)
 target_include_directories(substrait SYSTEM BEFORE PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(substrait ch_contrib::protobuf)
 
