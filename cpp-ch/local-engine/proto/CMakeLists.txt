@@ -12,7 +12,7 @@ ENDFOREACH()
 
 add_custom_target(
         generate_substrait
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/../../../contrib/protobuf-cmake/protoc -I${CMAKE_CURRENT_SOURCE_DIR} -I${ClickHouse_SOURCE_DIR}/contrib/protobuf/src --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/ ${protobuf_files}
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/../../../contrib/google-protobuf-cmake/protoc -I${CMAKE_CURRENT_SOURCE_DIR} -I${ClickHouse_SOURCE_DIR}/contrib/google-protobuf/src --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/ ${protobuf_files}
         DEPENDS protoc
         COMMENT "Running cpp protocol buffer compiler"
         VERBATIM )
@@ -21,7 +21,7 @@ set_source_files_properties(${SUBSTRAIT_SRCS} PROPERTIES GENERATED TRUE)
 
 add_library(substrait ${SUBSTRAIT_SRCS})
 add_dependencies(substrait generate_substrait)
-target_compile_options(substrait PUBLIC -fPIC -Wno-reserved-identifier -Wno-deprecated)
+target_compile_options(substrait PUBLIC -fPIC -Wno-reserved-identifier -Wno-deprecated -Wno-shadow-field)
 target_include_directories(substrait SYSTEM BEFORE PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(substrait ch_contrib::protobuf)
 
