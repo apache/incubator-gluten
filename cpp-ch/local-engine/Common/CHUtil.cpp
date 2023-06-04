@@ -585,12 +585,6 @@ void registerAllFunctions()
         auto & factory = AggregateFunctionCombinatorFactory::instance();
         registerAggregateFunctionCombinatorPartialMerge(factory);
     }
-
-    {
-        /// register ordinary functions from local_engine
-        auto & factory = FunctionFactory::instance();
-        registerFunctions(factory);
-    }
 }
 
 extern void registerAllFunctions();
@@ -650,6 +644,8 @@ void BackendInitializerUtil::init(const std::string & conf_plan)
 
             initCompiledExpressionCache();
             LOG_INFO(logger, "Init compiled expressions cache factory.");
+
+            GlobalThreadPool::initialize();
         });
 }
 

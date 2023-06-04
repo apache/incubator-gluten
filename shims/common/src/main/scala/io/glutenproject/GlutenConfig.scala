@@ -208,6 +208,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
+  def getInputRowMaxBlockSize: Long =
+    conf.getConfString("spark.gluten.sql.input.row.max.block.size", "8192").toLong
 }
 
 object GlutenConfig {

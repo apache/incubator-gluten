@@ -17,10 +17,17 @@
 
 package io.glutenproject.substrait.rel;
 
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.expression.ConverterUtils;
+import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
+import io.substrait.proto.Type;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class LocalFilesNode implements Serializable {
   private final Integer index;
@@ -35,11 +42,15 @@ public class LocalFilesNode implements Serializable {
     OrcReadFormat(),
     DwrfReadFormat(),
     MergeTreeReadFormat(),
+    TextReadFormat(),
+    JsonReadFormat(),
     UnknownFormat()
   }
 
   private ReadFileFormat fileFormat = ReadFileFormat.UnknownFormat;
   private Boolean iterAsInput = false;
+  private StructType fileSchema;
+  private Map<String, String> fileReadProperties;
 
   LocalFilesNode(Integer index, ArrayList<String> paths,
                  ArrayList<Long> starts, ArrayList<Long> lengths,
@@ -55,6 +66,14 @@ public class LocalFilesNode implements Serializable {
     this.index = null;
     this.paths.add(iterPath);
     this.iterAsInput = true;
+  }
+
+  public void setFileSchema(StructType schema) {
+    this.fileSchema = schema;
+  }
+
+  public void setFileReadProperties(Map<String, String> fileReadProperties) {
+    this.fileReadProperties = fileReadProperties;
   }
 
   public ReadRel.LocalFiles toProtobuf() {
@@ -94,6 +113,34 @@ public class LocalFilesNode implements Serializable {
           ReadRel.LocalFiles.FileOrFiles.DwrfReadOptions dwrfReadOptions =
               ReadRel.LocalFiles.FileOrFiles.DwrfReadOptions.newBuilder().build();
           fileBuilder.setDwrf(dwrfReadOptions);
+          break;
+        case TextReadFormat:
+          String fieldDelimiter =
+                  fileReadProperties.getOrDefault("field.delim", new String(new char[]{0x01}));
+          NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
+          if (fileSchema != null) {
+            Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+            nStructBuilder.setStruct(structBuilder.build());
+            for (StructField field : fileSchema.fields()) {
+              structBuilder.addTypes(
+                      ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
+              nStructBuilder.addNames(field.name());
+            }
+          }
+          ReadRel.LocalFiles.FileOrFiles.TextReadOptions textReadOptions =
+                  ReadRel.LocalFiles.FileOrFiles.TextReadOptions.newBuilder()
+                          .setFieldDelimiter(fieldDelimiter)
+                          .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                          .setSchema(nStructBuilder.build())
+                          .build();
+          fileBuilder.setText(textReadOptions);
+          break;
+        case JsonReadFormat:
+          ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
+                  ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
+                          .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                          .build();
+          fileBuilder.setJson(jsonReadOptions);
           break;
         default:
           break;

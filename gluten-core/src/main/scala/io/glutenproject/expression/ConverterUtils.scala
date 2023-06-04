@@ -20,7 +20,7 @@ package io.glutenproject.expression
 import java.util.Locale
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
+import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer, HiveTableScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.substrait.proto.Type
@@ -391,6 +391,16 @@ object ConverterUtils extends Logging {
           case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
           case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
           case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
+          case _ => ReadFileFormat.UnknownFormat
+        }
+      case f: HiveTableScanExecTransformer =>
+        f.getScan match {
+          case Some(f) =>
+            f.getClass.getSimpleName match {
+              case "TextScan" => ReadFileFormat.TextReadFormat
+              case "JsonScan" => ReadFileFormat.JsonReadFormat
+              case _ => ReadFileFormat.UnknownFormat
+            }
           case _ => ReadFileFormat.UnknownFormat
         }
       case _ => ReadFileFormat.UnknownFormat

@@ -17,18 +17,18 @@
 
 package org.apache.spark.shuffle
 
-import java.io.IOException
+import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
-import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.MemoryConsumer
+import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{SparkDirectoryUtil, Utils}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourcesUtil, Utils}
 
+import java.io.IOException
 import java.util.UUID
 
 class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -56,8 +56,6 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
     .mkChildDirs(UUID.randomUUID().toString)
     .map(_.getAbsolutePath)
     .mkString(",")
-
-  private val offHeapPerTask = GlutenConfig.getConf.taskOffHeapMemorySize
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
@@ -91,6 +89,15 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
 
   private val taskContext: TaskContext = TaskContext.get()
 
+  private def availableOffHeapPerTask(): Long = {
+    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
+    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val taskCores = conf.getInt("spark.task.cpus", 1)
+    val perTask =
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+    perTask
+  }
+
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
@@ -116,7 +123,7 @@ class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockR
         if (nativeShuffleWriter == 0) {
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
-            offHeapPerTask,
+            availableOffHeapPerTask(),
             nativeBufferSize,
             customizedCompressionCodec,
             batchCompressThreshold,

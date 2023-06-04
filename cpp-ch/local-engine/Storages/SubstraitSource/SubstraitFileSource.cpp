@@ -69,7 +69,10 @@ SubstraitFileSource::SubstraitFileSource(
         /// file partition keys are read from the file path
         for (const auto & key : partition_keys)
         {
-            to_read_header.erase(key);
+            if (to_read_header.findByName(key))
+            {
+                to_read_header.erase(key);
+            }
         }
     }
 }
@@ -83,7 +86,6 @@ DB::Chunk SubstraitFileSource::generate()
             /// all files finished
             return {};
         }
-
         DB::Chunk chunk;
         if (file_reader->pull(chunk))
         {

@@ -144,7 +144,7 @@ StringRef VariableLengthDataReader::readUnalignedBytes(const char * buffer, size
 
 Field VariableLengthDataReader::readDecimal(const char * buffer, size_t length) const
 {
-    assert(sizeof(Decimal128) <= length);
+    assert(sizeof(Decimal128) >= length);
 
     char decimal128_fix_data[sizeof(Decimal128)] = {};
     memcpy(decimal128_fix_data + sizeof(Decimal128) - length, buffer, length); // padding

@@ -915,6 +915,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   //      assert(StorageJoinBuilder.nativeCachedHashTableCount == 0)
   //    }
   //  }
+
+  test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
+    spark.sql(
+      """
+        | create table test_tbl(id bigint, data map<string, string>) using parquet;
+        |""".stripMargin
+    )
+
+    spark.sql("INSERT INTO test_tbl values(1, map('k', 'v'))")
+    val sql = """
+                | select id from test_tbl lateral view
+                | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
@@ -933,5 +948,42 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         df => getExecutedPlan(df).count(plan => plan.isInstanceOf[ColumnarToRowExec]) == 0
       }
     }
+  }
+
+  test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg without aqe") {
+    val sql =
+      """
+        |SELECT *
+        |	FROM (
+        |		SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |		FROM (
+        |			SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
+        |			FROM orders
+        |			GROUP BY o_orderstatus
+        |		) t1
+        |			INNER JOIN (
+        |				SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |                FROM orders
+        |                GROUP BY o_orderstatus
+        |			) t4
+        |			ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
+        |	) t5
+        |		INNER JOIN (
+        |			SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |            FROM (
+        |                SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
+        |                FROM orders
+        |                GROUP BY o_orderstatus
+        |            ) t8
+        |                INNER JOIN (
+        |                    SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |                    FROM orders
+        |                    GROUP BY o_orderstatus
+        |                ) t9
+        |                ON t8.O_ORDERSTATUS = t9.O_ORDERSTATUS
+        |            ) t12
+        |		ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { df => })
   }
 }

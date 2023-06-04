@@ -33,7 +33,6 @@ add_headers_and_sources(shuffle Shuffle)
 add_headers_and_sources(operator Operator)
 add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
-add_headers_and_sources(functions Functions)
 
 include_directories(
         ${JNI_INCLUDE_DIRS}
@@ -55,37 +54,46 @@ if (ENABLE_LOCAL_FORMATS)
 endif()
 
 add_subdirectory(Storages/SubstraitSource)
+add_subdirectory(Functions)
 
-add_library(${LOCALENGINE_SHARED_LIB} SHARED
+add_library(gluten_clickhouse_backend_libs
         ${builder_sources}
         ${parser_sources}
         ${storages_sources}
         ${common_sources}
         ${external_sources}
         ${shuffle_sources}
-        ${jni_sources}
         ${operator_sources}
-        ${aggregate_functions_sources}
-        ${functions_sources}
-        local_engine_jni.cpp $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
+        ${aggregate_functions_sources})
+
+target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
+        substait_source                         # compile options from substait_source  
+        clickhouse_aggregate_functions
+        clickhouse_functions
+        gluten_spark_functions
+        ch_contrib::xxHash
+)
+
+add_library(${LOCALENGINE_SHARED_LIB} SHARED
+        ${jni_sources}
+        local_engine_jni.cpp
+        $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
 
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC
         -Wno-shorten-64-to-32)
 
-target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC
-
+target_link_libraries(${LOCALENGINE_SHARED_LIB}
+PUBLIC
         clickhouse_new_delete
-        clickhouse_aggregate_functions
         clickhouse_common_config
         clickhouse_common_io
-        clickhouse_functions
         clickhouse_parsers
         clickhouse_storages_system
-        substrait
         loggers
-        substait_source
-        ch_contrib::xxHash
+        gluten_clickhouse_backend_libs
         ch_contrib::protobuf
+PRIVATE
+        substrait
 )
 
 if (ENABLE_LOCAL_FORMATS)
@@ -99,18 +107,6 @@ else()
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
         -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
 endif()
-
-#set(CPACK_PACKAGE_VERSION 0.1.0)
-#set(CPACK_GENERATOR "RPM")
-#set(CPACK_PACKAGE_NAME "local_engine_jni")
-#set(CPACK_PACKAGE_RELEASE 1)
-#set(CPACK_CMAKE_GENERATOR Ninja)
-#set(CPACK_PACKAGE_CONTACT "neng.liu@kyligence.io")
-#set(CPACK_PACKAGE_VENDOR "Kyligence")
-#set(CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
-#set(CPACK_RPM_PACKAGE_AUTOREQPROV "no")
-#set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.${CMAKE_SYSTEM_PROCESSOR}")
-#include(CPack)
 
 if (ENABLE_TESTS)
     add_subdirectory(tests)

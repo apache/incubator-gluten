@@ -5,7 +5,7 @@
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
-// clang-format off
+
 #if USE_PARQUET
 #include <Storages/SubstraitSource/ParquetFormatFile.h>
 #endif
@@ -13,7 +13,10 @@
 #if USE_ORC
 #include <Storages/SubstraitSource/OrcFormatFile.h>
 #endif
-// clang-format on
+#if USE_HIVE
+#include <Storages/SubstraitSource/TextFormatFile.h>
+#endif
+#include <Storages/SubstraitSource/JsonFormatFile.h>
 
 namespace DB
 {
@@ -53,6 +56,17 @@ FormatFilePtr FormatFileUtil::createFile(
     }
 #endif
 
+#if USE_HIVE
+    if (file.has_text())
+    {
+        return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);
+    }
+#endif
+
+    if (file.has_json())
+    {
+        return std::make_shared<JsonFormatFile>(context, file, read_buffer_builder);
+    }
     throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Format not supported:{}", file.DebugString());
     __builtin_unreachable();
 }

@@ -14,8 +14,7 @@ public:
     explicit ReadBufferBuilder(DB::ContextPtr context_) : context(context_) { }
     virtual ~ReadBufferBuilder() = default;
     /// build a new read buffer
-    virtual std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) = 0;
-
+    virtual std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool & set_read_util_position=false) = 0;
 protected:
     DB::ContextPtr context;
 };

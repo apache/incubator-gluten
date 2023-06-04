@@ -32,7 +32,7 @@ namespace
 
         bool useDefaultImplementationForConstants() const override { return true; }
 
-        bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & arguments) const override { return false; }
+        bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & /*arguments*/) const override { return false; }
 
         DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
         {
@@ -48,7 +48,7 @@ namespace
         }
 
         ColumnPtr
-        executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
+        executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t /*input_rows_count*/) const override
         {
             auto from_type = arguments[0].type;
 
@@ -84,7 +84,7 @@ namespace
     };
 }
 
-void registerFunctionReinterpretAsStringSpark(FunctionFactory & factory)
+REGISTER_FUNCTION(ReinterpretAsStringSpark)
 {
     factory.registerFunction<FunctionReinterpretAsStringSpark>();
 }

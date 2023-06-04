@@ -25,18 +25,14 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Average, Covariance, Final, Partial, PartialMerge}
-import org.apache.spark.sql.catalyst.expressions.aggregate.CollectList
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
-import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 
 import com.google.protobuf.Any
 
 import java.util
-import java.util.Locale
 
 object CHHashAggregateExecTransformer {
   def getAggregateResultAttributes(
@@ -78,6 +74,8 @@ case class CHHashAggregateExecTransformer(
   lazy val aggregateResultAttributes =
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
+  protected val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
+
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
@@ -92,10 +90,7 @@ case class CHHashAggregateExecTransformer(
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
       // are in the one WholeStageTransformer.
-      if (
-        child.isInstanceOf[CHHashAggregateExecTransformer] &&
-        childCtx.outputAttributes == aggregateResultAttributes
-      ) {
+      if (!modes.contains(Partial)) {
         (
           getAggRel(context, operatorId, aggParams, childCtx.root),
           childCtx.outputAttributes,
@@ -115,22 +110,8 @@ case class CHHashAggregateExecTransformer(
       aggParams.isReadRel = true
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
-      // 1. When the child is file scan rdd ( in case of separating file scan )
-      // 2. When the child is Union all operator
       val (inputAttrs, outputAttrs) =
-        if (
-          (child.find(_.isInstanceOf[Exchange]).isEmpty
-            && child.find(_.isInstanceOf[QueryStageExec]).isEmpty)
-          || (child.isInstanceOf[InputAdapter]
-            && child.asInstanceOf[InputAdapter].child.isInstanceOf[UnionExecTransformer])
-        ) {
-          for (attr <- child.output) {
-            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-          }
-
-          (child.output, aggregateResultAttributes)
-        } else {
+        if (!modes.contains(Partial)) {
           for (attr <- aggregateResultAttributes) {
             val colName = if (aggregateAttributes.contains(attr)) {
               // for aggregate func
@@ -147,6 +128,13 @@ case class CHHashAggregateExecTransformer(
             typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
           }
           (aggregateResultAttributes, output)
+        } else {
+          for (attr <- child.output) {
+            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+          }
+
+          (child.output, aggregateResultAttributes)
         }
 
       // The iterator index will be added in the path of LocalFiles.

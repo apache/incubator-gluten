@@ -106,10 +106,10 @@ object VeloxBackendSettings extends BackendSettings {
                   })
                 orderSpec foreach (order =>
                   order.dataType match {
-                    case ByteType | ShortType | IntegerType | LongType =>
+                    case ByteType | ShortType | IntegerType | LongType | DateType =>
                     case _ =>
-                      throw new UnsupportedOperationException("Only integral type is supported" +
-                          " for sort key when literal bound type is used!")
+                      throw new UnsupportedOperationException("Only integral type & date type are" +
+                          " supported for sort key when literal bound type is used!")
                   })
                 val rawValue = e.eval().toString.toLong
                 if (isUpperBound && rawValue < 0) {

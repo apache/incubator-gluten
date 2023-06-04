@@ -1,4 +1,3 @@
-#include <Columns/ColumnFixedString.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeString.h>
 #include <Functions/FunctionFactory.h>
@@ -91,7 +90,7 @@ namespace
         }
 
         ColumnPtr
-        executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
+        executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & /*result_type*/, size_t input_rows_count) const override
         {
             const ColumnString * src_str_col = checkAndGetColumn<ColumnString>(arguments[0].column.get());
             if (!src_str_col)
@@ -168,7 +167,7 @@ namespace
     using FunctionTrimRightSpark = TrimSparkFunction<TrimModeRight>;
 }
 
-void registerFunctionTrimSpark(FunctionFactory & factory)
+REGISTER_FUNCTION(TrimSpark)
 {
     factory.registerFunction<FunctionTrimBothSpark>();
     factory.registerFunction<FunctionTrimLeftSpark>();
