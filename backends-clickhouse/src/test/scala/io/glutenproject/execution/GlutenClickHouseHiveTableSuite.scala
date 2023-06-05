@@ -496,6 +496,9 @@ class GlutenClickHouseHiveTableSuite()
     val partitionPath = tablePath + "/" + "_temp_day=2023_06_05kids"
     val succ = fs.mkdirs(new Path(partitionPath))
     assert(succ, true)
+    val partitionDataFilePath = partitionPath + "/abc.txt"
+    val createSucc = fs.createNewFile(new Path(partitionDataFilePath))
+    assert(createSucc, true)
     val sql =
       s"""
          | select string_field, day, count(*) from $txt_table_name group by string_field, day
