@@ -165,7 +165,12 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     val exprNode = filterNodes.orNull
 
     val relNode = RelBuilder.makeReadRel(
-      typeNodes, nameList, columnTypeNodes, exprNode, context, context.nextOperatorId(this.nodeName))
+      typeNodes,
+      nameList,
+      columnTypeNodes,
+      exprNode,
+      context,
+      context.nextOperatorId(this.nodeName))
     TransformContext(output, output, relNode)
   }
 

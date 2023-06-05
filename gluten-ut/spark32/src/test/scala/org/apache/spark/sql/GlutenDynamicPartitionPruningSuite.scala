@@ -613,6 +613,28 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPr
       }
     }
   }
+
+  test("partition pruning in broadcast hash joins with aliases two") {
+    Given("alias with simple join condition, using attribute names only")
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
+      val df = sql(
+        """
+          |SELECT f.date_id, f.pid, f.sid FROM
+          |(select date_id, product_id as pid, store_id as sid from fact_stats) as f
+          |JOIN dim_stats s
+          |ON f.sid = s.store_id WHERE s.country = 'DE'
+        """.stripMargin)
+
+      checkPartitionPruningPredicate(df, false, true)
+
+      checkAnswer(df,
+        Row(1030, 2, 3) ::
+          Row(1040, 2, 3) ::
+          Row(1050, 2, 3) ::
+          Row(1060, 2, 3) :: Nil
+      )
+    }
+  }
 }
 
 class GlutenDynamicPartitionPruningV1SuiteAEOn extends GlutenDynamicPartitionPruningV1Suite
@@ -652,6 +674,96 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn extends GlutenDynamicPartitionPru
       checkPartitionPruningPredicate(df, true, false)
       checkAnswer(df, Row(1000, 1) :: Row(1010, 2) :: Row(1020, 2) :: Nil)
     }
+  }
+
+  test("partition pruning in broadcast hash joins with aliases11") {
+    Given("alias with simple join condition, using attribute names only")
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
+      val df = sql(
+        """
+          |SELECT f.date_id, f.pid, f.sid FROM
+          |(select date_id, product_id as pid, store_id as sid from fact_stats) as f
+          |JOIN dim_stats s
+          |ON f.sid = s.store_id WHERE s.country = 'DE'
+        """.stripMargin)
+
+      checkPartitionPruningPredicate(df, false, true)
+
+      checkAnswer(df,
+        Row(1030, 2, 3) ::
+          Row(1040, 2, 3) ::
+          Row(1050, 2, 3) ::
+          Row(1060, 2, 3) :: Nil
+      )
+    }
+
+    Given("alias with expr as join condition")
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
+      val df = sql(
+        """
+          |SELECT f.date_id, f.pid, f.sid FROM
+          |(SELECT date_id, product_id AS pid, store_id AS sid FROM fact_stats) AS f
+          |JOIN dim_stats s
+          |ON f.sid + 1 = s.store_id + 1 WHERE s.country = 'DE'
+        """.stripMargin)
+
+      checkPartitionPruningPredicate(df, false, true)
+
+      checkAnswer(df,
+        Row(1030, 2, 3) ::
+          Row(1040, 2, 3) ::
+          Row(1050, 2, 3) ::
+          Row(1060, 2, 3) :: Nil
+      )
+    }
+
+    Given("alias over multiple sub-queries with simple join condition")
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
+      val df = sql(
+        """
+          |SELECT f.date_id, f.pid, f.sid FROM
+          |(SELECT date_id, pid_d AS pid, sid_d AS sid FROM
+          |  (select date_id, product_id AS pid_d, store_id AS sid_d FROM fact_stats) fs
+          |  JOIN dim_store ds ON fs.sid_d = ds.store_id) f
+          |JOIN dim_stats s
+          |ON f.sid  = s.store_id  WHERE s.country = 'DE'
+        """.stripMargin)
+
+      checkPartitionPruningPredicate(df, false, true)
+
+      checkAnswer(df,
+        Row(1030, 2, 3) ::
+          Row(1040, 2, 3) ::
+          Row(1050, 2, 3) ::
+          Row(1060, 2, 3) :: Nil
+      )
+    }
+
+    /* Given("alias over multiple sub-queries with simple join condition")
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
+      val df = sql(
+        """
+          |SELECT f.date_id, f.pid_d as pid, f.sid_d as sid FROM
+          | (SELECT date_id, pid_dd AS pid_d, sid_dd AS sid_d FROM
+          |  (
+          |   (select date_id, product_id AS pid_dd, store_id AS sid_dd FROM fact_stats) fss
+          |     JOIN dim_store ds ON fss.sid_dd = ds.store_id
+          |   ) fs
+          |  JOIN dim_store ds ON fs.sid_dd = ds.store_id
+          | ) f
+          |JOIN dim_stats s
+          |ON f.sid_d  = s.store_id  WHERE s.country = 'DE'
+        """.stripMargin)
+
+      checkPartitionPruningPredicate(df, false, true)
+
+      checkAnswer(df,
+        Row(1030, 2, 3) ::
+          Row(1040, 2, 3) ::
+          Row(1050, 2, 3) ::
+          Row(1060, 2, 3) :: Nil
+      )
+    } */
   }
 }
 

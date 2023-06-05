@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
-import org.apache.spark.sql.execution.ReusedSubqueryExec
+import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, ReusedSubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
@@ -127,6 +127,10 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     )
   }
 
+  test("TPCDS Q555") {
+    runTPCDSQuery("q5") { df => }
+  }
+
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q9") {
@@ -140,6 +144,17 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
           // and on Spark 3.3, there are 5 AdaptiveSparkPlanExec and 10 ReusedSubqueryExec
           assert(subqueryAdaptiveSparkPlan.filter(_ == true).size == 15)
       }
+    }
+  }
+
+  test("GLUTEN-1848: Fix execute subquery repeatedly issue with ReusedSubquery") {
+    runTPCDSQuery("q5") {
+      df =>
+        val subqueriesId = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case s: ColumnarSubqueryBroadcastExec => s.id
+          case r: ReusedSubqueryExec => r.child.id
+        }
+        assert(subqueriesId.distinct.size == 1)
     }
   }
 

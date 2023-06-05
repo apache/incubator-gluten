@@ -75,7 +75,7 @@ case class ClickHouseBuildSideRelation(
    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
    * @return
    */
-  override def transform(keys: Expression): Array[InternalRow] = {
+  override def transform(key: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
     // native block reader
     val input = new ByteArrayInputStream(allBatches)
@@ -95,7 +95,7 @@ case class ClickHouseBuildSideRelation(
     // Expression compute, return block iterator
     val expressionEval = new SimpleExpressionEval(
       new ColumnarNativeIterator(broadCastIter.asJava),
-      PlanNodesUtil.genProjectionsPlanNode(Seq(keys), output))
+      PlanNodesUtil.genProjectionsPlanNode(key, output))
 
     try {
       // convert columnar to row
