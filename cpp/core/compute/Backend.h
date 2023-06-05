@@ -124,11 +124,7 @@ using BackendFactory = std::shared_ptr<Backend> (*)();
 struct BackendFactoryContext {
   std::mutex mutex;
 
-  enum {
-    kBackendFactoryInvalid,
-    kBackendFactoryDefault,
-    kBackendFactoryWithConf
-  } type = kBackendFactoryInvalid;
+  enum { kBackendFactoryInvalid, kBackendFactoryDefault, kBackendFactoryWithConf } type = kBackendFactoryInvalid;
 
   union {
     BackendFactoryWithConf backendFactoryWithConf;
