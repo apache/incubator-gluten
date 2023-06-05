@@ -33,7 +33,13 @@
 
 using namespace facebook;
 
-static std::unordered_map<std::string, std::string> sparkConfs;
+namespace {
+
+std::shared_ptr<gluten::Backend> VeloxBackendFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
+  return std::make_shared<gluten::VeloxBackend>(sparkConfs);
+}
+
+} // namespace
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,9 +85,9 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_initiali
     jclass clazz,
     jbyteArray planArray) {
   JNI_METHOD_START
-  sparkConfs = gluten::getConfMap(env, planArray);
-  gluten::setBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs); });
-  gluten::VeloxInitializer::initialize(sparkConfs);
+  auto sparkConfs = gluten::getConfMap(env, planArray);
+  gluten::setBackendFactory(VeloxBackendFactory, sparkConfs);
+  gluten::VeloxInitializer::create(sparkConfs);
   JNI_METHOD_END()
 }
 

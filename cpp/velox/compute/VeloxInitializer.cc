@@ -266,9 +266,10 @@ void VeloxInitializer::initIOExecutor(const std::unordered_map<std::string, std:
   }
 }
 
-void VeloxInitializer::initialize(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxInitializer::create(const std::unordered_map<std::string, std::string>& conf) {
   std::lock_guard<std::mutex> lockGuard(mutex_);
   if (instance_ != nullptr) {
+    assert(false);
     throw gluten::GlutenException("VeloxInitializer already set");
   }
   instance_.reset(new gluten::VeloxInitializer(conf));

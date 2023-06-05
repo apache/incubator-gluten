@@ -55,8 +55,12 @@ class DummyBackend final : public Backend {
   };
 };
 
+static std::shared_ptr<Backend> DummyBackendFactory() {
+  return std::make_shared<DummyBackend>();
+}
+
 TEST(TestExecBackend, CreateBackend) {
-  setBackendFactory([] { return std::make_shared<DummyBackend>(); });
+  setBackendFactory(DummyBackendFactory);
   auto backendP = createBackend();
   auto& backend = *backendP.get();
   ASSERT_EQ(typeid(backend), typeid(DummyBackend));

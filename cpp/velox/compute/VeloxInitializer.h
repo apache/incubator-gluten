@@ -43,7 +43,7 @@ class VeloxInitializer {
     }
   }
 
-  static void initialize(const std::unordered_map<std::string, std::string>& conf);
+  static void create(const std::unordered_map<std::string, std::string>& conf);
 
   static std::shared_ptr<VeloxInitializer> get();
 

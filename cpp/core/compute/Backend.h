@@ -118,7 +118,67 @@ class Backend : public std::enable_shared_from_this<Backend> {
   std::unordered_map<std::string, std::string> confMap_;
 };
 
-void setBackendFactory(std::function<std::shared_ptr<Backend>()> factory);
+using BackendFactoryWithConf = std::shared_ptr<Backend> (*)(const std::unordered_map<std::string, std::string>&);
+using BackendFactory = std::shared_ptr<Backend> (*)();
+
+struct BackendFactoryContext {
+  std::mutex mutex;
+
+  enum { kBackendFactoryInvalid, kBackendFactoryDefault, kBackendFactoryWithConf } type = kBackendFactoryInvalid;
+
+  union {
+    BackendFactoryWithConf backendFactoryWithConf;
+    BackendFactory backendFactory;
+  };
+
+  std::unordered_map<std::string, std::string> sparkConfs;
+
+  void set(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs = {}) {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
+    if (type != kBackendFactoryInvalid) {
+      assert(false);
+      abort();
+      return;
+    }
+
+    type = kBackendFactoryWithConf;
+    backendFactoryWithConf = factory;
+    this->sparkConfs.clear();
+    for (auto& x : sparkConfs) {
+      this->sparkConfs[x.first] = x.second;
+    }
+  }
+
+  void set(BackendFactory factory) {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+    if (type != kBackendFactoryInvalid) {
+      assert(false);
+      abort();
+      return;
+    }
+
+    type = kBackendFactoryDefault;
+    backendFactory = factory;
+  }
+
+  std::shared_ptr<Backend> create() {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+    if (type == kBackendFactoryInvalid) {
+      assert(false);
+      abort();
+      return nullptr;
+    } else if (type == kBackendFactoryWithConf) {
+      return backendFactoryWithConf(sparkConfs);
+    } else {
+      return backendFactory();
+    }
+  }
+};
+
+void setBackendFactory(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs);
+
+void setBackendFactory(BackendFactory factory);
 
 std::shared_ptr<Backend> createBackend();
 
