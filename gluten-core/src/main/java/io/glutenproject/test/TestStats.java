@@ -121,7 +121,6 @@ public class TestStats {
         if (UT_ENV) {
             if (caseInfos.containsKey(currentCase)) {
                 CaseInfo info = caseInfos.get(currentCase);
-                info.stack.clear();
                 info.stack.add(className);
             }
         }

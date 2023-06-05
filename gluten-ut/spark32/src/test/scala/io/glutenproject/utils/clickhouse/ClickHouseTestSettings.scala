@@ -34,6 +34,28 @@ class ClickHouseTestSettings extends BackendTestSettings {
   /**
    * Enable All expression UT.
    */
+  enableSuite[GlutenCastSuiteWithAnsiModeOn]
+    .exclude(
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
+  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
+    .exclude(
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
+  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
+    .exclude(
+      "cast string to date",
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
+  enableSuite[GlutenTryCastSuite]
+    .exclude(
+      "cast string to date",
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
   enableSuite[GlutenArithmeticExpressionSuite].exclude(
     "/ (Divide) basic",
     "% (Remainder)", // CH will throw exception when right is zero
