@@ -127,7 +127,7 @@ class GlutenClickHouseHiveTableSuite()
     "array_field array<int>," +
     "array_field_with_null array<int>," +
     "map_field map<int, long>," +
-    "map_field_with_null map<int, long>," +
+    "map_field_with_null map<int, long>, " +
     "day string) partitioned by(day) stored as textfile"
   private val json_table_create_sql = "create table if not exists %s (".format(json_table_name) +
     "string_field string," +
@@ -144,7 +144,7 @@ class GlutenClickHouseHiveTableSuite()
     "array_field_with_null array<int>," +
     "map_field map<int,long>," +
     "map_field_with_null map<int,long>, " +
-    "day string) partitioned by (day) " +
+    "day string) partitioned by(day)" +
     "ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'" +
     "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'" +
     "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
@@ -498,8 +498,7 @@ class GlutenClickHouseHiveTableSuite()
     assert(succ, true)
     val sql =
       s"""
-         | select count(*) from $txt_table_name
-         | where day = '2023-06-05'
+         | select string_field, day, count(*) from $txt_table_name group by string_field, day
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
