@@ -20,6 +20,13 @@ package io.glutenproject.utils.velox
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql.catalyst.expressions.{GlutenAnsiCastSuiteWithAnsiModeOff, GlutenAnsiCastSuiteWithAnsiModeOn, GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCastSuiteWithAnsiModeOn, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenHashExpressionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite}
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuite, GlutenDataSourceV2Suite, GlutenFileDataSourceV2FallBackSuite, GlutenLocalScanSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
+import org.apache.spark.sql.execution.datasources.{GlutenBucketingUtilsSuite, GlutenCSVReadSchemaSuite, GlutenDataSourceStrategySuite, GlutenDataSourceSuite, GlutenFileFormatWriterSuite, GlutenFileIndexSuite, GlutenFileSourceStrategySuite, GlutenHadoopFileLinesReaderSuite, GlutenHeaderCSVReadSchemaSuite, GlutenJsonReadSchemaSuite, GlutenMergedOrcReadSchemaSuite, GlutenMergedParquetReadSchemaSuite, GlutenOrcCodecSuite, GlutenOrcReadSchemaSuite, GlutenParquetCodecSuite, GlutenParquetReadSchemaSuite, GlutenPathFilterStrategySuite, GlutenPathFilterSuite, GlutenPruneFileSourcePartitionsSuite, GlutenVectorizedOrcReadSchemaSuite, GlutenVectorizedParquetReadSchemaSuite}
+import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
+import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
+import org.apache.spark.sql.execution.datasources.orc.{GlutenOrcColumnarBatchReaderSuite, GlutenOrcFilterSuite, GlutenOrcPartitionDiscoverySuite, GlutenOrcSourceSuite, GlutenOrcV1FilterSuite, GlutenOrcV1PartitionDiscoverySuite, GlutenOrcV1QuerySuite, GlutenOrcV1SchemaPruningSuite, GlutenOrcV2QuerySuite, GlutenOrcV2SchemaPruningSuite}
+import org.apache.spark.sql.execution.datasources.parquet.{GlutenParquetColumnIndexSuite, GlutenParquetCompressionCodecPrecedenceSuite, GlutenParquetEncodingSuite, GlutenParquetFileFormatV1Suite, GlutenParquetFileFormatV2Suite, GlutenParquetIOSuite, GlutenParquetInteroperabilitySuite, GlutenParquetProtobufCompatibilitySuite, GlutenParquetRebaseDatetimeV1Suite, GlutenParquetRebaseDatetimeV2Suite, GlutenParquetSchemaInferenceSuite, GlutenParquetSchemaSuite, GlutenParquetThriftCompatibilitySuite, GlutenParquetV1FilterSuite, GlutenParquetV1PartitionDiscoverySuite, GlutenParquetV1QuerySuite, GlutenParquetV1SchemaPruningSuite, GlutenParquetV2FilterSuite, GlutenParquetV2PartitionDiscoverySuite, GlutenParquetV2QuerySuite, GlutenParquetV2SchemaPruningSuite}
+import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
+import org.apache.spark.sql.execution.datasources.v2.GlutenFileTableSuite
 import org.apache.spark.sql.{GlutenBloomFilterAggregateQuerySuite, GlutenJsonFunctionsSuite, GlutenStringFunctionsSuite}
 
 class VeloxTestSettings extends BackendTestSettings {
@@ -161,4 +168,596 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Substring")
     .exclude("string for ascii")
     .exclude("replace")
+  enableSuite[GlutenBinaryFileFormatSuite]
+    // Exception.
+    .exclude("column pruning - non-readable file")
+  enableSuite[GlutenCSVv1Suite]
+  enableSuite[GlutenCSVv2Suite]
+  enableSuite[GlutenCSVLegacyTimeParserSuite]
+
+  enableSuite[GlutenOrcColumnarBatchReaderSuite]
+  enableSuite[GlutenOrcFilterSuite]
+    .exclude("SPARK-32622: case sensitivity in predicate pushdown")
+  enableSuite[GlutenOrcPartitionDiscoverySuite]
+    .exclude("read partitioned table - normal case")
+    .exclude("read partitioned table - with nulls")
+  enableSuite[GlutenOrcV1PartitionDiscoverySuite]
+    .exclude("read partitioned table - normal case")
+    .exclude("read partitioned table - with nulls")
+    .exclude("read partitioned table - partition key included in orc file")
+    .exclude("read partitioned table - with nulls and partition keys are included in Orc file")
+  enableSuite[GlutenOrcV1QuerySuite]
+    // Rewrite to disable Spark's columnar reader.
+    .exclude("Simple selection form ORC table")
+    .exclude("simple select queries")
+    .exclude("overwriting")
+    .exclude("self-join")
+    .exclude("columns only referenced by pushed down filters should remain")
+    .exclude("SPARK-5309 strings stored using dictionary compression in orc")
+    // For exception test.
+    .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+    .exclude("Read/write binary data")
+    .exclude("Read/write all types with non-primitive type")
+    .exclude("Creating case class RDD table")
+    .exclude("save and load case class RDD with `None`s as orc")
+    .exclude("SPARK-16610: Respect orc.compress (i.e., OrcConf.COMPRESS) when" +
+      " compression is unset")
+    .exclude("Compression options for writing to an ORC file (SNAPPY, ZLIB and NONE)")
+    .exclude("appending")
+    .exclude("nested data - struct with array field")
+    .exclude("nested data - array of struct")
+    .exclude("SPARK-9170: Don't implicitly lowercase of user-provided columns")
+    .exclude("SPARK-10623 Enable ORC PPD")
+    .exclude("SPARK-14962 Produce correct results on array type with isnotnull")
+    .exclude("SPARK-15198 Support for pushing down filters for boolean types")
+    .exclude("Support for pushing down filters for decimal types")
+    .exclude("Support for pushing down filters for timestamp types")
+    .exclude("column nullability and comment - write and then read")
+    .exclude("Empty schema does not read data from ORC file")
+    .exclude("read from multiple orc input paths")
+    .exclude("Enabling/disabling ignoreCorruptFiles")
+    .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
+    .exclude("LZO compression options for writing to an ORC file")
+    .exclude("Schema discovery on empty ORC files")
+    .exclude("SPARK-21791 ORC should support column names with dot")
+    .exclude("SPARK-25579 ORC PPD should support column names with dot")
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
+    .exclude("SPARK-37728: Reading nested columns with ORC vectorized reader should not")
+    .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    .exclude("Read/write all timestamp types")
+    .exclude("SPARK-37463: read/write Timestamp ntz to Orc with different time zone")
+    .exclude("SPARK-39381: Make vectorized orc columar writer batch size configurable")
+    .exclude("SPARK-39830: Reading ORC table that requires type promotion may throw AIOOBE")
+  enableSuite[GlutenOrcV2QuerySuite]
+    .exclude("Read/write binary data")
+    .exclude("Read/write all types with non-primitive type")
+    // Rewrite to disable Spark's columnar reader.
+    .exclude("Simple selection form ORC table")
+    .exclude("Creating case class RDD table")
+    .exclude("save and load case class RDD with `None`s as orc")
+    .exclude("SPARK-16610: Respect orc.compress (i.e., OrcConf.COMPRESS) when compression is unset")
+    .exclude("Compression options for writing to an ORC file (SNAPPY, ZLIB and NONE)")
+    .exclude("appending")
+    .exclude("nested data - struct with array field")
+    .exclude("nested data - array of struct")
+    .exclude("SPARK-9170: Don't implicitly lowercase of user-provided columns")
+    .exclude("SPARK-10623 Enable ORC PPD")
+    .exclude("SPARK-14962 Produce correct results on array type with isnotnull")
+    .exclude("SPARK-15198 Support for pushing down filters for boolean types")
+    .exclude("Support for pushing down filters for decimal types")
+    .exclude("Support for pushing down filters for timestamp types")
+    .exclude("column nullability and comment - write and then read")
+    .exclude("Empty schema does not read data from ORC file")
+    .exclude("read from multiple orc input paths")
+    .exclude("Enabling/disabling ignoreCorruptFiles")
+    .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
+    .exclude("LZO compression options for writing to an ORC file")
+    .exclude("Schema discovery on empty ORC files")
+    .exclude("SPARK-21791 ORC should support column names with dot")
+    .exclude("SPARK-25579 ORC PPD should support column names with dot")
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
+    .exclude("SPARK-37728: Reading nested columns with ORC vectorized reader should not")
+    .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    .exclude("Read/write all timestamp types")
+    .exclude("SPARK-37463: read/write Timestamp ntz to Orc with different time zone")
+    .exclude("SPARK-39381: Make vectorized orc columar writer batch size configurable")
+    .exclude("SPARK-39830: Reading ORC table that requires type promotion may throw AIOOBE")
+    .exclude("simple select queries")
+    .exclude("overwriting")
+    .exclude("self-join")
+    .exclude("columns only referenced by pushed down filters should remain")
+    .exclude("SPARK-5309 strings stored using dictionary compression in orc")
+    // For exception test.
+    .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+  enableSuite[GlutenOrcSourceSuite]
+    // Rewrite to disable Spark's columnar reader.
+    .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .exclude("SPARK-31238, SPARK-31423: rebasing dates in write")
+    .exclude("SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
+    .exclude("SPARK-31284, SPARK-31423: rebasing timestamps in write")
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
+    // Ignored to disable vectorized reading check.
+    .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    .exclude("create temporary orc table")
+    .exclude("create temporary orc table as")
+    .exclude("appending insert")
+    .exclude("overwrite insert")
+    .exclude("SPARK-34897: Support reconcile schemas based on index after nested column pruning")
+    .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
+    .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
+  enableSuite[GlutenOrcV1FilterSuite]
+    .exclude("SPARK-32622: case sensitivity in predicate pushdown")
+  enableSuite[GlutenOrcV1SchemaPruningSuite]
+    .exclude(
+      "Spark vectorized reader - without partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - with partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after outer join")
+    // Vectorized reading.
+    .exclude("Spark vectorized reader - without partition data column - " +
+      "select only expressions without references")
+    .exclude("Spark vectorized reader - with partition data column - " +
+      "select only expressions without references")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select a single complex field")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select a single complex field")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field and its parent struct")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field and its parent struct")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field and its parent struct")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field and its parent struct")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field array and its parent struct array")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field array and its parent struct array")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field array and its parent struct array")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field array and its parent struct array")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field and the partition column")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field and the partition column")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field and the partition column")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field and the partition column")
+    .exclude("Spark vectorized reader - without partition data column - partial schema intersection - select missing subfield")
+    .exclude("Spark vectorized reader - with partition data column - partial schema intersection - select missing subfield")
+    .exclude("Non-vectorized reader - without partition data column - partial schema intersection - select missing subfield")
+    .exclude("Non-vectorized reader - with partition data column - partial schema intersection - select missing subfield")
+    .exclude(
+      "Spark vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude("Spark vectorized reader - with partition data column - no unnecessary schema pruning")
+    .exclude(
+      "Non-vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude("Non-vectorized reader - with partition data column - no unnecessary schema pruning")
+    .exclude("Spark vectorized reader - without partition data column - empty schema intersection")
+    .exclude("Spark vectorized reader - with partition data column - empty schema intersection")
+    .exclude("Non-vectorized reader - without partition data column - empty schema intersection")
+    .exclude("Non-vectorized reader - with partition data column - empty schema intersection")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field and is null expression in project")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field and is null expression in project")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field and is null expression in project")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field and is null expression in project")
+    .exclude("Spark vectorized reader - without partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Spark vectorized reader - with partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Non-vectorized reader - without partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Non-vectorized reader - with partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Spark vectorized reader - without partition data column - select nested field from a complex map value using map_values")
+    .exclude("Spark vectorized reader - with partition data column - select nested field from a complex map value using map_values")
+    .exclude("Non-vectorized reader - without partition data column - select nested field from a complex map value using map_values")
+    .exclude("Non-vectorized reader - with partition data column - select nested field from a complex map value using map_values")
+    .exclude("Spark vectorized reader - without partition data column - select explode of nested field of array of struct")
+    .exclude("Spark vectorized reader - with partition data column - select explode of nested field of array of struct")
+    .exclude("Non-vectorized reader - without partition data column - select explode of nested field of array of struct")
+    .exclude("Non-vectorized reader - with partition data column - select explode of nested field of array of struct")
+    .exclude("Non-vectorized reader - without partition data column - select one deep nested complex field after join")
+    .exclude("Non-vectorized reader - with partition data column - select one deep nested complex field after join")
+    .exclude("Non-vectorized reader - without partition data column - select one deep nested complex field after outer join")
+    .exclude("Non-vectorized reader - with partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - without partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Spark vectorized reader - without partition data column - select nested field in window function")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in window function")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in window function")
+    .exclude(
+      "Non-vectorized reader - with partition data column - select nested field in window function")
+    .exclude("Spark vectorized reader - without partition data column - select nested field in window function and then order by")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in window function and then order by")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in window function and then order by")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in window function and then order by")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Sort")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in Sort")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in Sort")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in Sort")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Expand")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in Expand")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select nested field in Expand")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in Expand")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Case-sensitive parser - mixed-case schema - select with exact column names")
+    .exclude("Case-insensitive parser - mixed-case schema - select with exact column names")
+    .exclude("Case-insensitive parser - mixed-case schema - select with lowercase column names")
+    .exclude(
+      "Case-insensitive parser - mixed-case schema - select with different-case column names")
+    .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("SPARK-36352: Spark should check result plan's output schema name")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+  enableSuite[GlutenOrcV2SchemaPruningSuite]
+    .exclude(
+      "Spark vectorized reader - without partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - with partition data column - select only top-level fields")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after join")
+    .exclude("Spark vectorized reader - " +
+      "without partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - " +
+      "with partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field with disabled nested schema pruning")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select a single complex field")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select a single complex field")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field and its parent struct")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field and its parent struct")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field and its parent struct")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field and its parent struct")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field array and its parent struct array")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field array and its parent struct array")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field array and its parent struct array")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field array and its parent struct array")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field and the partition column")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field and the partition column")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field and the partition column")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field and the partition column")
+    .exclude("Spark vectorized reader - without partition data column - partial schema intersection - select missing subfield")
+    .exclude("Spark vectorized reader - with partition data column - partial schema intersection - select missing subfield")
+    .exclude("Non-vectorized reader - without partition data column - partial schema intersection - select missing subfield")
+    .exclude("Non-vectorized reader - with partition data column - partial schema intersection - select missing subfield")
+    .exclude(
+      "Spark vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude("Spark vectorized reader - with partition data column - no unnecessary schema pruning")
+    .exclude(
+      "Non-vectorized reader - without partition data column - no unnecessary schema pruning")
+    .exclude("Non-vectorized reader - with partition data column - no unnecessary schema pruning")
+    .exclude("Spark vectorized reader - without partition data column - empty schema intersection")
+    .exclude("Spark vectorized reader - with partition data column - empty schema intersection")
+    .exclude("Non-vectorized reader - without partition data column - empty schema intersection")
+    .exclude("Non-vectorized reader - with partition data column - empty schema intersection")
+    .exclude("Spark vectorized reader - without partition data column - select a single complex field and is null expression in project")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field and is null expression in project")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field and is null expression in project")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field and is null expression in project")
+    .exclude("Spark vectorized reader - without partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Spark vectorized reader - with partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Non-vectorized reader - without partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Non-vectorized reader - with partition data column - select nested field from a complex map key using map_keys")
+    .exclude("Spark vectorized reader - without partition data column - select nested field from a complex map value using map_values")
+    .exclude("Spark vectorized reader - with partition data column - select nested field from a complex map value using map_values")
+    .exclude("Non-vectorized reader - without partition data column - select nested field from a complex map value using map_values")
+    .exclude("Non-vectorized reader - with partition data column - select nested field from a complex map value using map_values")
+    .exclude("Spark vectorized reader - without partition data column - select explode of nested field of array of struct")
+    .exclude("Spark vectorized reader - with partition data column - select explode of nested field of array of struct")
+    .exclude("Non-vectorized reader - without partition data column - select explode of nested field of array of struct")
+    .exclude("Non-vectorized reader - with partition data column - select explode of nested field of array of struct")
+    .exclude("Non-vectorized reader - without partition data column - select one deep nested complex field after join")
+    .exclude("Non-vectorized reader - with partition data column - select one deep nested complex field after join")
+    .exclude("Non-vectorized reader - without partition data column - select one deep nested complex field after outer join")
+    .exclude("Non-vectorized reader - with partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - without partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Spark vectorized reader - without partition data column - select nested field in window function")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in window function")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in window function")
+    .exclude(
+      "Non-vectorized reader - with partition data column - select nested field in window function")
+    .exclude("Spark vectorized reader - without partition data column - select nested field in window function and then order by")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in window function and then order by")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in window function and then order by")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in window function and then order by")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Sort")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in Sort")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in Sort")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in Sort")
+    .exclude(
+      "Spark vectorized reader - without partition data column - select nested field in Expand")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in Expand")
+    .exclude(
+      "Non-vectorized reader - without partition data column - select nested field in Expand")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in Expand")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-32163: nested pruning should work even with cosmetic variations")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38918: nested schema pruning with correlated subqueries")
+    .exclude("Case-sensitive parser - mixed-case schema - select with exact column names")
+    .exclude("Case-insensitive parser - mixed-case schema - select with exact column names")
+    .exclude("Case-insensitive parser - mixed-case schema - select with lowercase column names")
+    .exclude(
+      "Case-insensitive parser - mixed-case schema - select with different-case column names")
+    .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from array")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34963: extract case-insensitive struct field from struct")
+    .exclude("SPARK-36352: Spark should check result plan's output schema name")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated EXISTS subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated IN subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+  enableSuite[GlutenParquetColumnIndexSuite]
+  enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
+  enableSuite[GlutenParquetEncodingSuite]
+  enableSuite[GlutenParquetFileFormatV1Suite]
+  enableSuite[GlutenParquetFileFormatV2Suite]
+  enableSuite[GlutenParquetV1FilterSuite]
+    // Rewrite.
+    .exclude("Filter applied on merged Parquet schema with new column should work")
+    .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .exclude("filter pushdown - date")
+    // Ignore Spark's filter pushdown check.
+    .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
+    .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
+    .exclude("Filters should be pushed down for Parquet readers at row group level")
+    .exclude("filter pushdown - StringStartsWith")
+    .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
+    .exclude("Support Parquet column index")
+    .exclude("SPARK-34562: Bloom filter push down")
+    .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
+  enableSuite[GlutenParquetV2FilterSuite]
+    // Rewrite.
+    .exclude("Filter applied on merged Parquet schema with new column should work")
+    .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .exclude("filter pushdown - date")
+    // Ignore Spark's filter pushdown check.
+    .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
+    .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
+    .exclude("Filters should be pushed down for Parquet readers at row group level")
+    .exclude("filter pushdown - StringStartsWith")
+    .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
+    .exclude("Support Parquet column index")
+    .exclude("SPARK-34562: Bloom filter push down")
+    .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
+  enableSuite[GlutenParquetInteroperabilitySuite]
+    .exclude("parquet timestamp conversion")
+  enableSuite[GlutenParquetIOSuite]
+    // Disable Spark's vectorized reading tests.
+    .exclude("Standard mode - fixed-length decimals")
+    .exclude("Legacy mode - fixed-length decimals")
+    .exclude("SPARK-34167: read LongDecimals with precision < 10, VectorizedReader true")
+    .exclude("read dictionary encoded decimals written as FIXED_LEN_BYTE_ARRAY")
+    .exclude("read dictionary encoded decimals written as INT64")
+    .exclude("read dictionary encoded decimals written as INT32")
+    .exclude("SPARK-34817: Read UINT_64 as Decimal from parquet")
+    // Spark plans scan schema as (i16/i32/i64) so the fallback does not take effect.
+    // But Velox reads data based on the schema acquired from file metadata,
+    // while i8 is not supported, so error occurs.
+    .exclude("SPARK-34817: Read UINT_8/UINT_16/UINT_32 from parquet")
+    // Exception.
+    .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
+    // Rewrite to align exception msg.
+    .exclude("SPARK-35640: int as long should throw schema incompatible error")
+    // Timestamp is read as INT96.
+    .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
+  enableSuite[GlutenParquetV1PartitionDiscoverySuite]
+    // Timezone is not supported yet.
+    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
+  enableSuite[GlutenParquetV2PartitionDiscoverySuite]
+    // Timezone is not supported yet.
+    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
+  enableSuite[GlutenParquetProtobufCompatibilitySuite]
+  enableSuite[GlutenParquetV1QuerySuite]
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    .exclude("Enabling/disabling ignoreCorruptFiles")
+    .exclude("returning batch for wide table")
+    // decimal failed ut
+    .exclude("SPARK-34212 Parquet should read decimals correctly")
+    // Timestamp is read as INT96.
+    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
+    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
+    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
+  enableSuite[GlutenParquetV2QuerySuite]
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    .exclude("Enabling/disabling ignoreCorruptFiles")
+    .exclude("returning batch for wide table")
+    // decimal failed ut
+    .exclude("SPARK-34212 Parquet should read decimals correctly")
+    // Timestamp is read as INT96.
+    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
+    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
+    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
+  // requires resource files from Vanilla spark jar
+  // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
+  // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
+  enableSuite[GlutenParquetV1SchemaPruningSuite]
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .excludeByPrefix("Spark vectorized reader - ")
+  enableSuite[GlutenParquetV2SchemaPruningSuite]
+    // spark.sql.parquet.enableVectorizedReader=true not supported
+    .excludeByPrefix("Spark vectorized reader - ")
+  enableSuite[GlutenParquetRebaseDatetimeV1Suite]
+    // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
+    .excludeByPrefix("SPARK-31159")
+    .excludeByPrefix("SPARK-35427")
+  enableSuite[GlutenParquetRebaseDatetimeV2Suite]
+    // jar path and ignore PARQUET_REBASE_MODE_IN_READ
+    .excludeByPrefix("SPARK-31159")
+    .excludeByPrefix("SPARK-35427")
+  enableSuite[GlutenParquetSchemaInferenceSuite]
+  enableSuite[GlutenParquetSchemaSuite]
+    // error message mismatch is accepted
+    .exclude("schema mismatch failure error message for parquet reader")
+    .exclude("schema mismatch failure error message for parquet vectorized reader")
+  enableSuite[GlutenParquetThriftCompatibilitySuite]
+    // Rewrite for file locating.
+    .exclude("Read Parquet file generated by parquet-thrift")
+  enableSuite[GlutenTextV1Suite]
+  enableSuite[GlutenTextV2Suite]
+  enableSuite[GlutenFileTableSuite]
+  enableSuite[GlutenBucketingUtilsSuite]
+  enableSuite[GlutenDataSourceStrategySuite]
+  enableSuite[GlutenDataSourceSuite]
+  enableSuite[GlutenFileFormatWriterSuite]
+    .excludeByPrefix("empty file should be skipped while write to file")
+  enableSuite[GlutenFileIndexSuite]
+  enableSuite[GlutenParquetCodecSuite]
+    // Unsupported compression codec.
+    .exclude("write and read - file source parquet - codec: lz4")
+  enableSuite[GlutenOrcCodecSuite]
+  enableSuite[GlutenFileSourceStrategySuite]
+    // Plan comparison.
+    .exclude("partitioned table - after scan filters")
+  enableSuite[GlutenHadoopFileLinesReaderSuite]
+  enableSuite[GlutenPathFilterStrategySuite]
+  enableSuite[GlutenPathFilterSuite]
+  enableSuite[GlutenPruneFileSourcePartitionsSuite]
+  enableSuite[GlutenCSVReadSchemaSuite]
+  enableSuite[GlutenHeaderCSVReadSchemaSuite]
+  enableSuite[GlutenJsonReadSchemaSuite]
+  enableSuite[GlutenOrcReadSchemaSuite]
+    .exclude("append column into middle")
+    .exclude("hide column in the middle")
+    .exclude("change column position")
+    .exclude("change column type from boolean to byte/short/int/long")
+    .exclude("read as string")
+    .exclude("change column type from byte to short/int/long")
+    .exclude("change column type from short to int/long")
+    .exclude("change column type from int to long")
+    .exclude("read byte, int, short, long together")
+    .exclude("change column type from float to double")
+    .exclude("read float and double together")
+    .exclude("change column type from float to decimal")
+    .exclude("change column type from double to decimal")
+    .exclude("read float, double, decimal together")
+    .exclude("add a nested column at the end of the leaf struct column")
+    .exclude("add a nested column in the middle of the leaf struct column")
+    .exclude("add a nested column at the end of the middle struct column")
+    .exclude("add a nested column in the middle of the middle struct column")
+    .exclude("hide a nested column at the end of the leaf struct column")
+    .exclude("hide a nested column in the middle of the leaf struct column")
+    .exclude("hide a nested column at the end of the middle struct column")
+    .exclude("hide a nested column in the middle of the middle struct column")
+  enableSuite[GlutenVectorizedOrcReadSchemaSuite]
+    // Rewrite to disable Spark's vectorized reading.
+    .exclude("change column position")
+    .exclude("read byte, int, short, long together")
+    .exclude("read float and double together")
+    .exclude("append column into middle")
+    .exclude("add a nested column at the end of the leaf struct column")
+    .exclude("add a nested column in the middle of the leaf struct column")
+    .exclude("add a nested column at the end of the middle struct column")
+    .exclude("add a nested column in the middle of the middle struct column")
+    .exclude("hide a nested column at the end of the leaf struct column")
+    .exclude("hide a nested column in the middle of the leaf struct column")
+    .exclude("hide a nested column at the end of the middle struct column")
+    .exclude("hide a nested column in the middle of the middle struct column")
+    .exclude("change column type from boolean to byte/short/int/long")
+    .exclude("change column type from byte to short/int/long")
+    .exclude("change column type from short to int/long")
+    .exclude("change column type from int to long")
+    .exclude("change column type from float to double")
+    .exclude("Gluten - read byte, int, short, long together")
+    .exclude("Gluten - read float and double together")
+  enableSuite[GlutenMergedOrcReadSchemaSuite]
+    .exclude("append column into middle")
+    .exclude("add a nested column at the end of the leaf struct column")
+    .exclude("add a nested column in the middle of the leaf struct column")
+    .exclude("add a nested column at the end of the middle struct column")
+    .exclude("add a nested column in the middle of the middle struct column")
+    .exclude("hide a nested column at the end of the leaf struct column")
+    .exclude("hide a nested column in the middle of the leaf struct column")
+    .exclude("hide a nested column at the end of the middle struct column")
+    .exclude("hide a nested column in the middle of the middle struct column")
+    .exclude("change column type from boolean to byte/short/int/long")
+    .exclude("change column type from byte to short/int/long")
+    .exclude("change column type from short to int/long")
+    .exclude("change column type from int to long")
+    .exclude("read byte, int, short, long together")
+    .exclude("change column type from float to double")
+    .exclude("read float and double together")
+  enableSuite[GlutenParquetReadSchemaSuite]
+  enableSuite[GlutenVectorizedParquetReadSchemaSuite]
+  enableSuite[GlutenMergedParquetReadSchemaSuite]
 }
