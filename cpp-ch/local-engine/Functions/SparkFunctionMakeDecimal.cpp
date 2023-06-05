@@ -3,8 +3,8 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
+#include "SparkFunctionCheckDecimalOverflow.h"
 
-#include <Core/AccurateComparison.h>
 
 namespace DB
 {
@@ -38,47 +38,6 @@ enum class ConvertExceptionMode
     Null /// Return ColumnNullable with NULLs when value cannot be parsed.
 };
 
-template <typename From, typename To>
-Field convertNumericTypeImpl(const Field & from)
-{
-    To result;
-    if (!accurate::convertNumeric(from.get<From>(), result))
-        return {};
-    return result;
-}
-
-template <typename To>
-Field convertNumericType(const Field & from)
-{
-    if (from.getType() == Field::Types::UInt64)
-        return convertNumericTypeImpl<UInt64, To>(from);
-    if (from.getType() == Field::Types::Int64)
-        return convertNumericTypeImpl<Int64, To>(from);
-    if (from.getType() == Field::Types::UInt128)
-        return convertNumericTypeImpl<UInt128, To>(from);
-    if (from.getType() == Field::Types::Int128)
-        return convertNumericTypeImpl<Int128, To>(from);
-    if (from.getType() == Field::Types::UInt256)
-        return convertNumericTypeImpl<UInt256, To>(from);
-    if (from.getType() == Field::Types::Int256)
-        return convertNumericTypeImpl<Int256, To>(from);
-
-    throw Exception(ErrorCodes::TYPE_MISMATCH, "Type mismatch. Expected: Integer. Got: {}", from.getType());
-}
-
-inline UInt32 extractArgument(const ColumnWithTypeAndName & named_column)
-{
-    Field from;
-    named_column.column->get(0, from);
-    Field to = convertNumericType<UInt32>(from);
-    if (to.isNull())
-    {
-        throw Exception(
-            ErrorCodes::DECIMAL_OVERFLOW, "{} convert overflow, precision/scale value must in UInt32", named_column.type->getName());
-    }
-    return static_cast<UInt32>(to.get<UInt32>());
-}
-
 namespace
 {
     /// Create decimal with nested value, precision and scale. Required 3 arguments.
@@ -95,16 +54,10 @@ namespace
         String getName() const override { return name; }
         size_t getNumberOfArguments() const override { return 3; }
         bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & /*arguments*/) const override { return false; }
+        bool useDefaultImplementationForConstants() const override { return true; }
 
         DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
         {
-            if (arguments.size() != 3)
-                throw Exception(
-                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
-                    "Number of arguments for function {} doesn't match: passed {}, should be 3.",
-                    getName(),
-                    arguments.size());
-
             if (!isInteger(arguments[0].type) || !isInteger(arguments[1].type) || !isInteger(arguments[2].type))
                 throw Exception(
                     ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
@@ -112,9 +65,6 @@ namespace
                     arguments[0].type->getName(),
                     arguments[1].type->getName(),
                     arguments[2].type->getName());
-
-            if (!arguments[1].column || !arguments[2].column)
-                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
 
             DataTypePtr res = createDecimal<DataTypeDecimal>(extractArgument(arguments[1]), extractArgument(arguments[2]));
             if constexpr (exception_mode == ConvertExceptionMode::Null)
@@ -126,13 +76,6 @@ namespace
         ColumnPtr
         executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
         {
-            if (arguments.size() != 3)
-                throw Exception(
-                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
-                    "Number of arguments for function {} doesn't match: passed {}, should be 3.",
-                    getName(),
-                    arguments.size());
-
             const auto & unscale_column = arguments[0];
             if (!unscale_column.column)
                 throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
@@ -212,7 +155,7 @@ namespace
                             if constexpr (exception_mode == ConvertExceptionMode::Null)
                             {
                                 vec_to[i] = static_cast<ToFieldType>(0);
-                                (*vec_null_map_to)[i] = true;
+                                (*vec_null_map_to)[i] = 1;
                             }
                             else
                                 throw Exception(
@@ -231,18 +174,14 @@ namespace
                     return true;
                 }
                 else
-                {
                     return false;
-                }
             };
 
             bool r = callOnIndexAndDataType<DataType>(src_column.type->getTypeId(), call);
 
             if (!r)
-            {
                 throw Exception(
                     ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type {} of argument of function {}", src_column.type->getName(), name);
-            }
 
             return result_column;
         }
@@ -277,7 +216,7 @@ namespace
     using FunctionMakeDecimalOrNull = FunctionMakeDecimal<NameMakeDecimalOrNull, ConvertExceptionMode::Null>;
 }
 
-void registerFunctionFunctionMakeDecimal(FunctionFactory & factory)
+REGISTER_FUNCTION(MakeDecimal)
 {
     factory.registerFunction<FunctionMakeDecimalThrow>(FunctionDocumentation{.description = R"(
 Create a decimal value by use nested type. If overflow throws exception.
@@ -286,5 +225,4 @@ Create a decimal value by use nested type. If overflow throws exception.
 Create a decimal value by use nested type. If overflow return `NULL`.
 )"});
 }
-
 }

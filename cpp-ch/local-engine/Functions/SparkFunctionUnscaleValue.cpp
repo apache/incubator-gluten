@@ -47,16 +47,10 @@ namespace
         String getName() const override { return name; }
         size_t getNumberOfArguments() const override { return 1; }
         bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & /*arguments*/) const override { return false; }
+        bool useDefaultImplementationForConstants() const override { return true; }
 
         DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
         {
-            if (arguments.size() != 1)
-                throw Exception(
-                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
-                    "Number of arguments for function {} doesn't match: passed {}, should be 1.",
-                    getName(),
-                    arguments.size());
-
             if (!isDecimal(arguments[0].type))
                 throw Exception(
                     ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
@@ -79,17 +73,7 @@ namespace
         ColumnPtr
         executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
         {
-            if (arguments.size() != 1)
-                throw Exception(
-                    ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
-                    "Number of arguments for function {} doesn't match: passed {}, should be 1.",
-                    getName(),
-                    arguments.size());
-
             const auto & src_column = arguments[0];
-            if (!src_column.column)
-                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
-
             ColumnPtr result_column;
             auto call = [&](const auto & types) -> bool
             {
@@ -98,14 +82,7 @@ namespace
                 using ColVecType = ColumnDecimal<Type>;
                 using NativeT = typename Type::NativeType;
 
-                if (const ColumnConst * const_column = checkAndGetColumnConst<ColVecType>(src_column.column.get()))
-                {
-                    result_column = unscaleValue<NativeT>(
-                        *checkAndGetColumn<ColVecType>(&const_column->getDataColumn()), result_type, input_rows_count);
-                    result_column = ColumnConst::create(result_column, result_column->size());
-                    return true;
-                }
-                else if (const ColVecType * col_vec = checkAndGetColumn<ColVecType>(src_column.column.get()))
+                if (const ColVecType * col_vec = checkAndGetColumn<ColVecType>(src_column.column.get()))
                 {
                     result_column = unscaleValue<NativeT>(*col_vec, result_type, input_rows_count);
                     return true;
@@ -136,7 +113,7 @@ namespace
 
 }
 
-void registerFunctionUnscaleValue(FunctionFactory & factory)
+REGISTER_FUNCTION(UnscaleValue)
 {
     factory.registerFunction<FunctionUnscaleValue<NameUnscaleValue>>(FunctionDocumentation{.description = R"(
 Get decimal nested Integer value.
