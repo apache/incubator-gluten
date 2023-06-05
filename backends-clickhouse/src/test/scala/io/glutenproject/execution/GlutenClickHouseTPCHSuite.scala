@@ -471,6 +471,21 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).isNullAt(3))
   }
 
+  test("test 'function json_tuple'") {
+    val df = spark.sql(
+      """
+        | select
+        | json_tuple('{"hello":"world", "hello1":"world1", "hello2":["a","b"]}', 'hello', 'hello1','hello2', 'hello3')
+        | from lineitem where l_linenumber = 3 and l_orderkey < 3 limit 1
+        |""".stripMargin
+    )
+    val result = df.collect()
+    assert(result(0).getString(0).equals("world"))
+    assert(result(0).getString(1).equals("world1"))
+    assert(result(0).getString(2).equals("[\"a\",\"b\"]"))
+    assert(result(0).isNullAt(3))
+  }
+
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
