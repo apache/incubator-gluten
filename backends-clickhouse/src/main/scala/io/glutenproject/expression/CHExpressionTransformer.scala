@@ -22,6 +22,7 @@ import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
@@ -211,5 +212,50 @@ case class CHEqualNullSafeTransformer(
       Lists.newArrayList(andNode, orNode),
       Lists.newArrayList(new BooleanLiteralNode(true), new BooleanLiteralNode(false)),
       equalNode)
+  }
+}
+
+case class CHSizeExpressionTransformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    original: Size)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+
+    if (SQLConf.get.legacySizeOfNull) {
+      // when legacySizeOfNull is true, size(null) should return -1
+      // so we wrap it to if(isnull(child), -1, size(child))
+      val childNode = child.doTransform(args)
+      val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+
+      val sizeFuncName = ConverterUtils.makeFuncName(
+        substraitExprName,
+        original.children.map(_.dataType),
+        FunctionConfig.OPT)
+      val sizeFuncId = ExpressionBuilder.newScalarFunction(functionMap, sizeFuncName)
+
+      val exprNodes = Lists.newArrayList(childNode)
+      val typeNode = ConverterUtils.getTypeNode(original.dataType, original.child.nullable)
+      val sizeFuncNode = ExpressionBuilder.makeScalarFunction(sizeFuncId, exprNodes, typeNode)
+
+      // isnull(child)
+      val isNullFuncName = ConverterUtils.makeFuncName(
+        ExpressionNames.IS_NULL,
+        original.children.map(_.dataType),
+        FunctionConfig.OPT)
+      val isNullFuncId = ExpressionBuilder.newScalarFunction(functionMap, isNullFuncName)
+      val isNullNode = ExpressionBuilder.makeScalarFunction(
+        isNullFuncId,
+        Lists.newArrayList(childNode),
+        TypeBuilder.makeBoolean(false))
+
+      new IfThenNode(
+        Lists.newArrayList(isNullNode),
+        Lists.newArrayList(new IntLiteralNode(-1)),
+        sizeFuncNode)
+    } else {
+      new UnaryExpressionTransformer(substraitExprName, child, original).doTransform(args)
+    }
   }
 }

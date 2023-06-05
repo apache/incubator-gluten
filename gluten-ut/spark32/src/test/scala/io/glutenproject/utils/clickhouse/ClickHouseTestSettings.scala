@@ -314,7 +314,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include(
       "conditional function: least",
       "conditional function: greatest",
+      "array size function - legacy",
       "array size function",
+      "map size function - legacy",
       "map size function",
       "map_entries"
     )

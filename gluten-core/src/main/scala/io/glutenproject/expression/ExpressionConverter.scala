@@ -583,9 +583,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case j: JsonTuple =>
         val children = j.children.map(child =>
           replaceWithExpressionTransformer(child, attributeSeq))
-        new JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
+        JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
       // The other expression case must be put before LeafExpression, UnaryExpression,
       // BinaryExpression, TernaryExpression, QuaternaryExpression
+      case size: Size =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(size.child, attributeSeq),
+          size)
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName.get, l)
       case u: UnaryExpression =>

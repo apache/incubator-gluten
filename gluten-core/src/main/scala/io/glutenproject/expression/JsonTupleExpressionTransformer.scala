@@ -28,7 +28,7 @@ import org.apache.spark.sql.types.ArrayType
 case class JsonTupleExpressionTransformer(
     substraitExprName: String,
     children: Array[ExpressionTransformer],
-    original: Expression) extends ExpressionTransformer  with Logging{
+    original: Expression) extends ExpressionTransformer with Logging {
 
   override def doTransform(args: Object): ExpressionNode = {
     val jsonExpr = children.head
