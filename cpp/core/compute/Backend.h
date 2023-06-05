@@ -118,21 +118,21 @@ class Backend : public std::enable_shared_from_this<Backend> {
   std::unordered_map<std::string, std::string> confMap_;
 };
 
-using BackendFactory1 = std::shared_ptr<Backend> (*)(const std::unordered_map<std::string, std::string>&);
-using BackendFactory2 = std::shared_ptr<Backend> (*)();
+using BackendFactoryWithConf = std::shared_ptr<Backend> (*)(const std::unordered_map<std::string, std::string>&);
+using BackendFactory = std::shared_ptr<Backend> (*)();
 
 struct BackendFactoryContext {
   std::mutex mutex;
 
   int type = 0;
   union {
-    BackendFactory1 backendFactory1;
-    BackendFactory2 backendFactory2;
+    BackendFactoryWithConf backendFactoryWithConf;
+    BackendFactory backendFactory;
   };
 
   std::unordered_map<std::string, std::string> sparkConfs;
 
-  void set(BackendFactory1 factory, const std::unordered_map<std::string, std::string>& sparkConfs = {}) {
+  void set(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs = {}) {
     std::lock_guard<std::mutex> lockGuard(mutex);
 
     if (type != 0) {
@@ -142,14 +142,14 @@ struct BackendFactoryContext {
     }
 
     type = 1;
-    backendFactory1 = factory;
+    backendFactoryWithConf = factory;
     this->sparkConfs.clear();
     for (auto& x : sparkConfs) {
       this->sparkConfs[x.first] = x.second;
     }
   }
 
-  void set(BackendFactory2 factory) {
+  void set(BackendFactory factory) {
     std::lock_guard<std::mutex> lockGuard(mutex);
     if (type != 0) {
       assert(false);
@@ -158,7 +158,7 @@ struct BackendFactoryContext {
     }
 
     type = 2;
-    backendFactory2 = factory;
+    backendFactory = factory;
   }
 
   std::shared_ptr<Backend> create() {
@@ -168,16 +168,16 @@ struct BackendFactoryContext {
       abort();
       return nullptr;
     } else if (type == 1) {
-      return backendFactory1(sparkConfs);
+      return backendFactoryWithConf(sparkConfs);
     } else {
-      return backendFactory2();
+      return backendFactory();
     }
   }
 };
 
-void setBackendFactory(BackendFactory1 factory, const std::unordered_map<std::string, std::string>& sparkConfs);
+void setBackendFactory(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs);
 
-void setBackendFactory(BackendFactory2 factory);
+void setBackendFactory(BackendFactory factory);
 
 std::shared_ptr<Backend> createBackend();
 

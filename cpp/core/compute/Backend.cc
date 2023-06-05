@@ -24,17 +24,17 @@ static BackendFactoryContext* getBackendFactoryContext() {
   return backendFactoryCtx;
 }
 
-void setBackendFactory(BackendFactory1 factory, const std::unordered_map<std::string, std::string>& sparkConfs) {
+void setBackendFactory(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs) {
   getBackendFactoryContext()->set(factory, sparkConfs);
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory1." << std::endl;
+  std::cout << "Set backend factory with conf." << std::endl;
 #endif
 }
 
-void setBackendFactory(BackendFactory2 factory) {
+void setBackendFactory(BackendFactory factory) {
   getBackendFactoryContext()->set(factory);
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory2." << std::endl;
+  std::cout << "Set backend factory." << std::endl;
 #endif
 }
 
