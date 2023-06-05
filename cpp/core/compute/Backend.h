@@ -124,7 +124,12 @@ using BackendFactory = std::shared_ptr<Backend> (*)();
 struct BackendFactoryContext {
   std::mutex mutex;
 
-  int type = 0;
+  enum {
+    kBackendFactoryInvalid,
+    kBackendFactoryDefault,
+    kBackendFactoryWithConf
+  } type = kBackendFactoryInvalid;
+
   union {
     BackendFactoryWithConf backendFactoryWithConf;
     BackendFactory backendFactory;
@@ -135,13 +140,13 @@ struct BackendFactoryContext {
   void set(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs = {}) {
     std::lock_guard<std::mutex> lockGuard(mutex);
 
-    if (type != 0) {
+    if (type != kBackendFactoryInvalid) {
       assert(false);
       abort();
       return;
     }
 
-    type = 1;
+    type = kBackendFactoryWithConf;
     backendFactoryWithConf = factory;
     this->sparkConfs.clear();
     for (auto& x : sparkConfs) {
@@ -151,23 +156,23 @@ struct BackendFactoryContext {
 
   void set(BackendFactory factory) {
     std::lock_guard<std::mutex> lockGuard(mutex);
-    if (type != 0) {
+    if (type != kBackendFactoryInvalid) {
       assert(false);
       abort();
       return;
     }
 
-    type = 2;
+    type = kBackendFactoryDefault;
     backendFactory = factory;
   }
 
   std::shared_ptr<Backend> create() {
     std::lock_guard<std::mutex> lockGuard(mutex);
-    if (type == 0) {
+    if (type == kBackendFactoryInvalid) {
       assert(false);
       abort();
       return nullptr;
-    } else if (type == 1) {
+    } else if (type == kBackendFactoryWithConf) {
       return backendFactoryWithConf(sparkConfs);
     } else {
       return backendFactory();
