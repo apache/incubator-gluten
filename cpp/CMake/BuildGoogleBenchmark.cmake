@@ -24,6 +24,10 @@ set(GLUTEN_GBENCHMARK_SOURCE_URL
     "https://github.com/ursa-labs/thirdparty/releases/download/latest/gbenchmark-${GLUTEN_GBENCHMARK_BUILD_VERSION}.tar.gz")
 set(GLUTEN_GBENCHMARK_BUILD_SHA256_CHECKSUM "1f71c72ce08d2c1310011ea6436b31e39ccab8c2db94186d26657d41747c85d6")
 
+if(DEFINED ENV{GLUTEN_GBENCHMARK_SOURCE_URL})
+  set(GLUTEN_GBENCHMARK_SOURCE_URL "$ENV{GLUTEN_GBENCHMARK_SOURCE_URL}")
+endif()
+
 set(GBENCHMARK_CMAKE_ARGS "-fPIC -w")
 
 message(STATUS "Building google benchmark from source")
