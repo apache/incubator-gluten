@@ -24,11 +24,9 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, ColumnarBatchSerializer}
 import io.glutenproject.backendsapi.SparkPlanExecApi
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, FilterExecBaseTransformer, FilterExecTransformer, GlutenBroadcastHashJoinExecTransformer, RowToArrowColumnarExec, RowToColumnarExecBase, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, ShuffledHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase}
-import io.glutenproject.expression.{AliasTransformerBase, ExpressionNames, ExpressionTransformer, AliasTransformer, HashExpressionTransformer, NamedStructTransformer, Sig}
-
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, FilterExecBaseTransformer, FilterExecTransformer, GlutenBroadcastHashJoinExecTransformer, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, RowToArrowColumnarExec, RowToColumnarExecBase, ShuffledHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase}
+import io.glutenproject.expression.{AliasTransformer, AliasTransformerBase, ExpressionNames, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sig}
 import org.apache.commons.lang3.ClassUtils
-
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -39,7 +37,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.{SparkPlan, VeloxColumnarToRowExec}
 import org.apache.spark.sql.catalyst.AggregateFunctionRewriteRule
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, Literal, NamedExpression, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, GetStructField, Literal, NamedExpression, StringTrim}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -263,6 +261,17 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
                                          original: CreateNamedStruct,
                                          attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     NamedStructTransformer(substraitExprName, original, attributeSeq)
+  }
+
+
+  /**
+   * Generate an ExpressionTransformer to transform GetStructFiled expression.
+   */
+  override def genGetStructFieldTransformer(substraitExprName: String,
+                                            childTransformer: ExpressionTransformer,
+                                            ordinal: Int,
+                                            original: GetStructField): ExpressionTransformer = {
+    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
   }
 
   /**

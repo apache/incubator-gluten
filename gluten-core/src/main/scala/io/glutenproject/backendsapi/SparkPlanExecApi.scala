@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasTransformerBase, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformerBase, NamedStructTransformerBase, Sha1Transformer, Sha2Transformer, Sig}
+import io.glutenproject.expression.{AliasTransformerBase, ExpressionTransformer, GetStructFieldTransformerBase, HashExpressionTransformerBase, NamedStructTransformerBase, Sha1Transformer, Sha2Transformer, Sig}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -211,14 +211,13 @@ trait SparkPlanExecApi {
 
   /**
    * Generate an ExpressionTransformer to transform GetStructFiled expression.
-   * GetStructFieldTransformer is the default implementation.
    */
   def genGetStructFieldTransformer(
       substraitExprName: String,
       childTransformer: ExpressionTransformer,
       ordinal: Int,
       original: GetStructField): ExpressionTransformer = {
-    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+    new GetStructFieldTransformerBase(substraitExprName, childTransformer, ordinal, original)
   }
 
   /** Generate an expression transformer to transform NamedStruct to Substrait. */

@@ -20,7 +20,7 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.expression.ExpressionConverter.replaceWithExpressionTransformer
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, SelectionNode, StructLiteralNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.{IntegerType, LongType}
 
@@ -54,6 +54,26 @@ case class NamedStructTransformer(substraitExprName: String,
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class GetStructFieldTransformer(substraitExprName: String,
+                                childTransformer: ExpressionTransformer,
+                                ordinal: Int,
+                                original: GetStructField)
+  extends GetStructFieldTransformerBase(substraitExprName, childTransformer, ordinal, original) {
+
+  override def doTransform(args: Object): ExpressionNode = {
+    val childNode = childTransformer.doTransform(args)
+    childNode match {
+      case node: StructLiteralNode =>
+        node.getFieldLiteral(ordinal)
+      case node: SelectionNode =>
+        // Append the nested index to selection node.
+        node.addNestedChildIdx(new Integer(ordinal))
+      case other =>
+        throw new UnsupportedOperationException(s"$other is not supported.")
+    }
   }
 }
 
