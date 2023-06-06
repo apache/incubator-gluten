@@ -79,6 +79,7 @@ public:
     template <typename Parser>
     void registerFunctionParser()
     {
+        // std::cout << "register function parser with name:" << Parser::name << std::endl;
         auto creator
             = [](SerializedPlanParser * plan_parser) -> std::shared_ptr<FunctionParser> { return std::make_shared<Parser>(plan_parser); };
 

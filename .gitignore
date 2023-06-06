@@ -83,5 +83,5 @@ cpp/**/example/**/*
 
 dist/
 
-/cpp-ch/local-engine/Functions/*_udf
-!/cpp-ch/local-engine/Functions/example_udf
+/cpp-ch/local-engine/Parser/*_udf
+!/cpp-ch/local-engine/Parser/example_udf

@@ -96,7 +96,7 @@ static void readData(const String & path, const std::map<String, Field> & fields
 
     InputFormatPtr format;
     if constexpr (std::is_same_v<InputFormat, DB::ParquetBlockInputFormat>)
-        format = std::make_shared<InputFormat>(in.get(), nullptr, header, settings, 1, 8192);
+        format = std::make_shared<InputFormat>(*in, header, settings, 1, 8192);
     else
         format = std::make_shared<InputFormat>(in, header, settings);
 

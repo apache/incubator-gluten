@@ -131,7 +131,7 @@ DB::ContextMutablePtr global_context;
             [min_block, max_block](MergeTreeData::DataPartPtr part)
             { return part->info.min_block >= min_block && part->info.max_block <= max_block; });
         auto step = custom_merge_tree.reader.readFromParts(
-            selected_parts, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
+            selected_parts, {}, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
 
         auto query_plan = QueryPlan();
         query_plan.addStep(std::move(step));
@@ -251,7 +251,7 @@ DB::ContextMutablePtr global_context;
             { return part->info.min_block >= min_block && part->info.max_block <= max_block; });
 
         auto step = custom_merge_tree.reader.readFromParts(
-            selected_parts, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
+            selected_parts, {}, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
         auto query_plan = QueryPlan();
         query_plan.addStep(std::move(step));
 
@@ -340,7 +340,7 @@ DB::ContextMutablePtr global_context;
             { return part->info.min_block >= min_block && part->info.max_block <= max_block; });
 
         auto step = custom_merge_tree.reader.readFromParts(
-            selected_parts, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
+            selected_parts, {}, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
         auto query_plan = QueryPlan();
         query_plan.addStep(std::move(step));
 
@@ -901,7 +901,8 @@ DB::ContextMutablePtr global_context;
         local_engine::SerializedPlanParser parser(context);
         auto query_plan = parser.parse(plan_string);
         auto parser_us = stopwatch.elapsedMicroseconds() - context_us;
-        local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context);
+        auto query_context = local_engine::SerializedPlanParser::global_context;
+        local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context, query_context);
         auto executor_us = stopwatch.elapsedMicroseconds() - parser_us;
         executor->execute(std::move(query_plan));
         auto execute_us = stopwatch.elapsedMicroseconds() - executor_us;
@@ -1317,7 +1318,7 @@ public:
             { return part->info.min_block >= min_block && part->info.max_block <= max_block; });
 
         auto step = custom_merge_tree.reader.readFromParts(
-            selected_parts, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
+            selected_parts, {}, names_and_types_list.getNames(), snapshot, *query_info, global_context, 10000, 1);
         auto query_plan = QueryPlan();
         query_plan.addStep(std::move(step));
 
@@ -1365,7 +1366,7 @@ QueryPlanPtr readFromMergeTree(MergeTreeWithSnapshot storage)
     auto data_parts = storage.merge_tree->getDataPartsVectorForInternalUsage();
     auto query_plan = std::make_unique<QueryPlan>();
     auto step = storage.merge_tree->reader.readFromParts(
-        data_parts, storage.columns.getNames(), storage.snapshot, *query_info, global_context, 10000, 1);
+        data_parts, {}, storage.columns.getNames(), storage.snapshot, *query_info, global_context, 10000, 1);
     query_plan->addStep(std::move(step));
     return query_plan;
 }

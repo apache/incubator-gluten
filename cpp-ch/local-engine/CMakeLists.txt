@@ -34,15 +34,6 @@ add_headers_and_sources(operator Operator)
 add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
 
-# Add udf sources files in sub directories to functions_sources
-option(ENABLE_LOCAL_UDFS "Build udfs in 'local-engine/Functions/*_udf' subdirectories" ON)
-if (ENABLE_LOCAL_UDFS)
-    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Functions/*_udf)
-    foreach(child ${children})
-        add_headers_and_sources(functions ${child})
-    endforeach()
-endif ()
-
 include_directories(
         ${JNI_INCLUDE_DIRS}
         ${CMAKE_CURRENT_BINARY_DIR}/proto
@@ -83,9 +74,21 @@ target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
         ch_contrib::xxHash
 )
 
+# Add udf sources files in sub directories to functions_sources
+option(ENABLE_LOCAL_UDFS "Build udfs in 'local-engine/Parser/*_udf' subdirectories" ON)
+if (ENABLE_LOCAL_UDFS)
+    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Parser/*_udf)
+    foreach(child ${children})
+        add_headers_and_sources(local_udfs ${child})
+    endforeach()
+endif ()
+
+# Notice: soures files under Parser/*_udf subdirectories must be built into target ${LOCALENGINE_SHARED_LIB} directly
+#         to make sure all function parsers are registered successly.
 add_library(${LOCALENGINE_SHARED_LIB} SHARED
         ${jni_sources}
         local_engine_jni.cpp
+        ${local_udfs_sources}
         $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
 
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC

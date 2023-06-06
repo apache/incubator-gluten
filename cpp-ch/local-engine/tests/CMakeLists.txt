@@ -41,9 +41,8 @@ target_compile_options(benchmark PUBLIC
 set(LOCAL_ENGINE_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine")
 
 add_gtest_sources(local_engine_gtest .)
-# add_gtest_sources(local_engine_gtest ../Functions/example_udf/tests)
 if (ENABLE_LOCAL_UDFS)
-    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Functions/*_udf/tests)
+    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_udf/tests)
     foreach(child ${children})
         add_gtest_sources(local_engine_gtest ${child})
     endforeach()
