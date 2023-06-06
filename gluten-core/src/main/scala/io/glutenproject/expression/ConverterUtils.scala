@@ -400,8 +400,6 @@ object ConverterUtils extends Logging {
             f.getClass.getSimpleName match {
               case "TextScan" => ReadFileFormat.TextReadFormat
               case "JsonScan" => ReadFileFormat.JsonReadFormat
-              // TODO:need repaired by kyspark
-              case "GlutenTextScan" => ReadFileFormat.TextReadFormat
               case _ => ReadFileFormat.UnknownFormat
             }
           case _ => ReadFileFormat.UnknownFormat
