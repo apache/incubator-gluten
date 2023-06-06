@@ -180,8 +180,7 @@ jobs:
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
           cd /var/cache/spark33 && \
-          git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git spark331 &&\
-          cd /var/cache/spark33/spark331 && ./build/mvn -Pyarn -DskipTests install
+          [ ! -d "spark331" ]&& git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git spark331 && cd /var/cache/spark33/spark331 && ./build/mvn -Pyarn -DskipTests install
           '
       - name: Build Gluten velox third party
         run: |
