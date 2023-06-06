@@ -941,8 +941,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   ignore("test 'hive udf'") {
     val jarPath = "backends-clickhouse/src/test/resources/udfs/hive-test-udfs.jar"
     val jarUrl = s"file://${System.getProperty("user.dir")}/$jarPath"
-    spark.sql(s"CREATE FUNCTION my_add as " +
-      "'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
+    spark.sql(
+      s"CREATE FUNCTION my_add as " +
+        "'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
     runQueryAndCompare("select my_add(id, id+1) from range(10)")(
       checkOperatorMatch[ProjectExecTransformer])
   }

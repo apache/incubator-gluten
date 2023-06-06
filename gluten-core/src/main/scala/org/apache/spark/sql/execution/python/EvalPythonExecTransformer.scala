@@ -107,7 +107,7 @@ case class EvalPythonExecTransformer(
 
     val context = new SubstraitContext
     val args = context.registeredFunction
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]
     child.output.zipWithIndex.foreach(
@@ -144,7 +144,7 @@ case class EvalPythonExecTransformer(
     }
 
     val args = context.registeredFunction
-    val operatorId = context.nextOperatorId
+    val operatorId = context.nextOperatorId(this.nodeName)
     val expressionNodes = new java.util.ArrayList[ExpressionNode]
     child.output.zipWithIndex.foreach(
       x => expressionNodes.add(ExpressionBuilder.makeSelection(x._2)))
