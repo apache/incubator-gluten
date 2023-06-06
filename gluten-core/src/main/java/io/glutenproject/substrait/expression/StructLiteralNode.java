@@ -32,58 +32,62 @@ public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
 
   public LiteralNode getFieldLiteral(int index) {
     InternalRow value = getValue();
-    ArrayList<TypeNode> fieldTypes = ((StructNode) getTypeNode()).getFieldTypes();
-    if (fieldTypes.get(index) instanceof BooleanTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getBoolean(index), fieldTypes.get(index));
+    TypeNode type = ((StructNode) getTypeNode()).getFieldTypes().get(index);
+
+    if (type instanceof BooleanTypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getBoolean(index), type);
     }
-    if (fieldTypes.get(index) instanceof I8TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getByte(index), fieldTypes.get(index));
+    if (type instanceof I8TypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getByte(index), type);
     }
-    if (fieldTypes.get(index) instanceof I16TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getShort(index), fieldTypes.get(index));
+    if (type instanceof I16TypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getShort(index), type);
     }
-    if (fieldTypes.get(index) instanceof I32TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getInt(index), fieldTypes.get(index));
+    if (type instanceof I32TypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getInt(index), type);
     }
-    if (fieldTypes.get(index) instanceof I64TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getLong(index), fieldTypes.get(index));
+    if (type instanceof I64TypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getLong(index), type);
     }
-    if (fieldTypes.get(index) instanceof FP32TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getFloat(index), fieldTypes.get(index));
+    if (type instanceof FP32TypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getFloat(index), type);
     }
-    if (fieldTypes.get(index) instanceof FP64TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getDouble(index), fieldTypes.get(index));
+    if (type instanceof FP64TypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getDouble(index), type);
     }
-    if (fieldTypes.get(index) instanceof DateTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getInt(index), fieldTypes.get(index));
+    if (type instanceof DateTypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getInt(index), type);
     }
-    if (fieldTypes.get(index) instanceof TimestampTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getLong(index), fieldTypes.get(index));
+    if (type instanceof TimestampTypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getLong(index), type);
     }
-    if (fieldTypes.get(index) instanceof StringTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getUTF8String(index), fieldTypes.get(index));
+    if (type instanceof StringTypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getUTF8String(index), type);
     }
-    if (fieldTypes.get(index) instanceof BinaryTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getBinary(index), fieldTypes.get(index));
+    if (type instanceof BinaryTypeNode) {
+      return ExpressionBuilder.makeLiteral(value.getBinary(index), type);
     }
-    if (fieldTypes.get(index) instanceof DecimalTypeNode) {
+    if (type instanceof DecimalTypeNode) {
       return ExpressionBuilder.makeLiteral(
-              value.getDecimal(index, ((DecimalTypeNode) fieldTypes.get(index)).precision,
-                      ((DecimalTypeNode) fieldTypes.get(index)).scale),
-              fieldTypes.get(index));
+              value.getDecimal(index, ((DecimalTypeNode) type).precision,
+                      ((DecimalTypeNode) type).scale),
+              type);
     }
-    if (fieldTypes.get(index) instanceof ListNode) {
-      return ExpressionBuilder.makeLiteral(value.getArray(index), fieldTypes.get(index));
+    if (type instanceof ListNode) {
+      return ExpressionBuilder.makeLiteral(value.getArray(index), type);
     }
-    if (fieldTypes.get(index) instanceof MapNode) {
-      return ExpressionBuilder.makeLiteral(value.getMap(index), fieldTypes.get(index));
+    if (type instanceof MapNode) {
+      return ExpressionBuilder.makeLiteral(value.getMap(index), type);
     }
-    if (fieldTypes.get(index) instanceof StructNode) {
+    if (type instanceof StructNode) {
       return ExpressionBuilder.makeLiteral(value.getStruct(index,
-              ((StructNode) fieldTypes.get(index)).getFieldTypes().size()), fieldTypes.get(index));
+              ((StructNode) type).getFieldTypes().size()), type);
+    }
+    if (type instanceof NothingNode) {
+      return ExpressionBuilder.makeNullLiteral(type);
     }
     throw new UnsupportedOperationException(
-            fieldTypes.get(index).toString() + " is not supported in getFieldLiteral.");
+            type.toString() + " is not supported in getFieldLiteral.");
   }
 
   @Override
