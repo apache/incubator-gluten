@@ -23,8 +23,6 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
 
-import java.util.ArrayList;
-
 public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
   public StructLiteralNode(InternalRow row, TypeNode typeNode) {
     super(row, typeNode);
