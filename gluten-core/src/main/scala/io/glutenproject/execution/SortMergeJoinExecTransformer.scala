@@ -256,6 +256,9 @@ case class SortMergeJoinExecTransformer(
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
+      logValidateFailureWithoutThrowable(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: {Join type ${joinType}}")
       return false
     }
     val relNode = try {
@@ -279,7 +282,13 @@ case class SortMergeJoinExecTransformer(
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if (!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }

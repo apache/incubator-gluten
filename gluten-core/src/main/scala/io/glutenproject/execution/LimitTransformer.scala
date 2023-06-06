@@ -99,7 +99,13 @@ case class LimitTransformer(child: SparkPlan,
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if (!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }

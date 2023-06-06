@@ -138,6 +138,11 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     }
 
   def tagNotTransformable(plan: SparkPlan): SparkPlan = {
+    // scalastyle:off println
+    println(
+      s"Validation failed for ${this.getClass.toString}" +
+        s"due to Not supported: FallbackMultiCodegens.")
+    // scalastyle:on println
     TransformHints.tagNotTransformable(plan)
     plan
   }
@@ -202,6 +207,11 @@ case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan]
         case _ => false
       }
     if (hasOneRowRelation) {
+      // scalastyle:off println
+      println(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: FallbackOneRowRelation.")
+      // scalastyle:on println
       plan.foreach(TransformHints.tagNotTransformable)
     }
     plan
@@ -313,6 +323,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       plan match {
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar BatchScan not enabled")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             // IF filter expressions aren't empty, we need to transform the inner operators.
@@ -326,6 +341,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: FileSourceScanExec =>
           if (!enableColumnarFileScan) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar FileScan not enabled in FileSourceScanExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             // IF filter expressions aren't empty, we need to transform the inner operators.
@@ -347,6 +367,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: InMemoryTableScanExec =>
           // ColumnarInMemoryTableScanExec.scala appears to be out-of-date
           //   and need some tests before being enabled.
+          // scalastyle:off println
+          println (
+            s"Validation failed for ${this.getClass.toString}" +
+              s"due to Not supported: InMemoryTableScanExec.")
+          // scalastyle:on println
           TransformHints.tagNotTransformable(plan)
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
           if (!enableColumnarHiveTableScan) {
@@ -356,6 +381,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: ProjectExec =>
           if (!enableColumnarProject) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar project not enabled")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = ProjectExecTransformer(plan.projectList, plan.child)
@@ -366,6 +396,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             plan.child.isInstanceOf[BatchScanExec]
           // When scanOnly is enabled, filter after scan will be offloaded.
           if ((!scanOnly && !enableColumnarFilter) || (scanOnly && !childIsScan)) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: ScanOnly enabled and plan child is not Scan in FilterExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -374,6 +409,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: HashAggregateExec =>
           if (!enableColumnarHashAgg) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar HashAggregate not enabled in HashAggregateExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -389,9 +429,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: SortAggregateExec =>
           if (!BackendsApiManager.getSettings.replaceSortAggWithHashAgg) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: replaceSortAggWithHashAgg not enabled")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           }
           if (!enableColumnarHashAgg) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar HashAgg not enabled in SortAggregateExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           }
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -406,6 +456,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar HashAgg not enabled in ObjectHashAggregateExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -421,6 +476,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: UnionExec =>
           if (!enableColumnarUnion) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar Union not enabled in UnionExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = UnionExecTransformer(plan.children)
@@ -428,6 +488,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: ExpandExec =>
           if (!enableColumnarExpand) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar Expand not enabled in ExpandExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = ExpandExecTransformer(plan.projections,
@@ -436,6 +501,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: SortExec =>
           if (!enableColumnarSort) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar Sort not enabled in SortExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = SortExecTransformer(
@@ -444,6 +514,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: ShuffleExchangeExec =>
           if (!enableColumnarShuffle) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar Shuffle not enabled in ShuffleExchangeExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = ColumnarShuffleExchangeExec(
@@ -455,6 +530,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: ShuffledHashJoinExec =>
           if (!enableColumnarShuffledHashJoin) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar shufflehashjoin not enabled "
+                + s"in ShuffledHashJoinExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -472,6 +553,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: BroadcastExchangeExec =>
           // columnar broadcast is enabled only when columnar bhj is enabled.
           if (!enableColumnarBroadcastExchange) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar BroadcastExchange "
+                + s"not enabled in BroadcastExchangeExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
@@ -485,6 +572,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           //  Currently their doBroadcast() methods just propagate child's broadcast
           //  payloads which is not right in speaking of columnar.
           if (!enableColumnarBroadcastJoin) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar BroadcastJoin "
+                + s"not enabled in BroadcastHashJoinExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(bhj)
           } else {
             val isBhjTransformable: Boolean = {
@@ -560,6 +653,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar sortmergejoin "
+                + s"not enabled in enableColumnarSortMergeJoin or is FullOuter join")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = SortMergeJoinExecTransformer(
@@ -574,6 +673,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: WindowExec =>
           if (!enableColumnarWindow) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar window "
+                + s"not enabled in WindowExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = WindowExecTransformer(
@@ -585,6 +690,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: CoalesceExec =>
           if (!enableColumnarCoalesce) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar coalesce "
+                + s"not enabled in CoalesceExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
@@ -592,6 +703,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: GlobalLimitExec =>
           if (!enableColumnarLimit) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar limit "
+                + s"not enabled in GlobalLimitExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = LimitTransformer(plan.child, 0L, plan.limit)
@@ -599,6 +716,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: LocalLimitExec =>
           if (!enableColumnarLimit) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar Limit "
+                + s"not enabled in LocalLimitExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = LimitTransformer(plan.child, 0L, plan.limit)
@@ -606,6 +729,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case plan: GenerateExec =>
           if (!enableColumnarGenerate) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: columnar generate "
+                + s"not enabled in GenerateExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = GenerateExecTransformer(plan.generator, plan.requiredChildOutput,
@@ -619,6 +748,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           TransformHints.tagTransformable(plan)
         case plan: TakeOrderedAndProjectExec =>
           if (!enableTakeOrderedAndProject) {
+            // scalastyle:off println
+            println(
+              s"Validation failed for ${this.getClass.toString}" +
+                s"due to Not supported: TakeOrderedAndProject "
+                + s"not enabled in TakeOrderedAndProjectExec")
+            // scalastyle:on println
             TransformHints.tagNotTransformable(plan)
           } else {
             var tagged = false
@@ -645,6 +780,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         logWarning(
           s"Fall back to use row-based operators, error is ${e.getMessage}," +
             s"original sparkplan is ${plan.getClass}(${plan.children.toList.map(_.getClass)})")
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to Not supported: ${e.getMessage}," +
+            s"original sparkplan is ${plan.getClass}(${plan.children.toList.map(_.getClass)})")
+        // scalastyle:on println
         TransformHints.tagNotTransformable(plan)
     }
   }

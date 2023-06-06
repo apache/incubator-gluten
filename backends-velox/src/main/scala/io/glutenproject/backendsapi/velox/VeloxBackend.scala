@@ -50,18 +50,31 @@ object BackendSettings extends BackendSettingsApi {
     // Validate if all types are supported.
     def validateTypes: Boolean = {
       // Collect unsupported types.
-      fields.map(_.dataType).collect {
-        case _: ArrayType =>
-        case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
-        // Parquet scan of nested map with struct as key type is not supported in Velox.
+      val unsupportedDataTypes = fields.map(_.dataType).collect {
         case _: ByteType =>
-      }.isEmpty
+        case _: ArrayType =>
+        case _: MapType if mapType.keyType.isInstanceOf[StructType] => "StructType in MapType"
+        // Parquet scan of nested map with struct as key type is not supported in Velox.
+      }
+      for (unsupportedDataType <- unsupportedDataTypes) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to Not supported: data type $unsupportedDataType in file schema. ")
+        // scalastyle:on println
+      }
+      unsupportedDataTypes.isEmpty
     }
 
     def validateFilePath: Boolean = {
       // Fallback to vanilla spark when the input path
       // does not contain the partition info.
       if (partTable && !paths.forall(_.contains("="))) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to Not supported: input path doesn't contain split info. ")
+        // scalastyle:on println
         return false
       }
       true

@@ -209,9 +209,15 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
   override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportExpandExec()) {
+      logValidateFailureWithoutThrowable(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: {ExpandExec}. ")
       return false
     }
     if (projections.isEmpty) {
+      logValidateFailureWithoutThrowable(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: {empty projections in ExpandExec}. ")
       return false
     }
 
@@ -232,7 +238,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if(!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }

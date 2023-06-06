@@ -175,7 +175,9 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
-      logDebug(s"Not support window function")
+      logValidateFailureWithoutThrowable(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: {windowExpression}. ")
       return false
     }
     val substraitContext = new SubstraitContext
@@ -196,7 +198,13 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext,
         Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if (!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }

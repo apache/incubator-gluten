@@ -246,6 +246,9 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
   override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
+      logValidateFailureWithoutThrowable(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: {SortExec}. ")
       return false
     }
     val substraitContext = new SubstraitContext
@@ -263,7 +266,13 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if (!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }

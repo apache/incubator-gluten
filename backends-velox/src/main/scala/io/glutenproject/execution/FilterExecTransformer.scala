@@ -57,7 +57,13 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val validator = new NativePlanEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      val isSupported = validator.doValidate(planNode.toProtobuf.toByteArray)
+      if (!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }

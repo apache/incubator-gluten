@@ -72,6 +72,11 @@ case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPl
               }
             }
             if (!isTransformable) {
+              // scalastyle:off println
+              println(
+                s"Validation failed for ${this.getClass.toString}" +
+                  s"due to Not supported: FallbackBroadcastExchange.")
+              // scalastyle:on println
               TransformHints.tagNotTransformable(bhj)
               TransformHints.tagNotTransformable(exchange)
             }

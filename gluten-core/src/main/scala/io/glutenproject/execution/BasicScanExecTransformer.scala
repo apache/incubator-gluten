@@ -83,8 +83,8 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     if (!BackendsApiManager.getTransformerApiInstance
       .supportsReadFileFormat(
         fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
-      logDebug(
-        s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
+      logValidateFailureWithoutThrowable(
+        s"Validation failed for ${this.getClass.toString} due to Not supported: {$fileFormat}")
       return false
     }
 
@@ -100,7 +100,13 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
 
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if (!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }

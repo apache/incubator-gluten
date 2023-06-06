@@ -132,7 +132,9 @@ abstract class HashAggregateExecBaseTransformer(
       case d: DecimalType => true
       case a: ArrayType => true
       case n: NullType => true
-      case other => logInfo(s"Type ${dataType} not support"); false
+      case other => logValidateFailureWithoutThrowable(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: {data type ${dataType}}"); false
     }
   }
 
@@ -159,7 +161,13 @@ abstract class HashAggregateExecBaseTransformer(
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if(!isSupported) {
+        logValidateFailureWithoutThrowable(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to native check failure. ")
+      }
+      isSupported
     } else {
       true
     }
