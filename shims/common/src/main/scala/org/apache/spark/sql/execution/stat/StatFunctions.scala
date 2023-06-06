@@ -34,9 +34,9 @@ import java.util.Locale
  * This file is copied from Spark
  *
  * The df.describe() and df.summary() issues are fixed by
- * https://github.com/apache/spark/pull/40914. We picked it into Gluten to
- * fix the describe and summary issue. And this file can be removed
- * after upgrading spark version to 3.4 or higher version.
+ * https://github.com/apache/spark/pull/40914. We picked it into Gluten to fix the describe and
+ * summary issue. And this file can be removed after upgrading spark version to 3.4 or higher
+ * version.
  */
 object StatFunctions extends Logging {
 
