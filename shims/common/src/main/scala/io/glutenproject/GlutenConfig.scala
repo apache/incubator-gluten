@@ -16,7 +16,6 @@
  */
 package io.glutenproject
 
-import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf

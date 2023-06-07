@@ -18,9 +18,9 @@
 package io.glutenproject.columnarbatch;
 
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
-import io.glutenproject.utils.GlutenArrowAbiUtil;
-import io.glutenproject.utils.GlutenArrowUtil;
-import io.glutenproject.utils.GlutenImplicitClass;
+import io.glutenproject.utils.ArrowAbiUtil;
+import io.glutenproject.utils.ArrowUtil;
+import io.glutenproject.utils.ImplicitClass;
 import io.glutenproject.vectorized.ArrowWritableColumnVector;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
@@ -91,7 +91,7 @@ public class ArrowColumnarBatches {
           "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n" +
           "spark.sql.orc.enableVectorizedReader=false\n");
     }
-    GlutenIndicatorVector iv = (GlutenIndicatorVector) input.column(0);
+    IndicatorVector iv = (IndicatorVector) input.column(0);
     final long handle = iv.getNativeHandle();
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
          ArrowArray cArray = ArrowArray.allocateNew(allocator);
@@ -101,16 +101,16 @@ public class ArrowColumnarBatches {
           cArray.memoryAddress());
 
       Data.exportSchema(allocator,
-          GlutenArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+          ArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
 
-      ColumnarBatch output = GlutenArrowAbiUtil.importToSparkColumnarBatch(
+      ColumnarBatch output = ArrowAbiUtil.importToSparkColumnarBatch(
           allocator, arrowSchema, cArray);
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
-      GlutenIndicatorVector giv = (GlutenIndicatorVector) input.column(0);
-      GlutenImplicitClass.ArrowColumnarBatchRetainer retainer =
-          new GlutenImplicitClass.ArrowColumnarBatchRetainer(output);
+      IndicatorVector giv = (IndicatorVector) input.column(0);
+      ImplicitClass.ArrowColumnarBatchRetainer retainer =
+          new ImplicitClass.ArrowColumnarBatchRetainer(output);
       for (long i = 0; i < (giv.refCnt() - 1); i++) {
         retainer.retain();
       }
@@ -132,7 +132,7 @@ public class ArrowColumnarBatches {
     }
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
          ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      GlutenArrowAbiUtil.exportFromSparkColumnarBatch(
+      ArrowAbiUtil.exportFromSparkColumnarBatch(
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),
           cArray.memoryAddress());
@@ -155,7 +155,7 @@ public class ArrowColumnarBatches {
       if (refCnt == -1L) {
         throw new IllegalStateException();
       }
-      final GlutenIndicatorVector giv = (GlutenIndicatorVector) output.column(0);
+      final IndicatorVector giv = (IndicatorVector) output.column(0);
       for (long i = 0; i < (refCnt - 1); i++) {
         giv.retain();
       }
@@ -173,7 +173,7 @@ public class ArrowColumnarBatches {
 
   /**
    * Ensure the input batch is offloaded as native-based columnar batch
-   * (See {@link GlutenIndicatorVector} and {@link GlutenPlaceholderVector}).
+   * (See {@link IndicatorVector} and {@link PlaceholderVector}).
    */
   public static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (GlutenColumnarBatches.isIntermediateColumnarBatch(batch)) {

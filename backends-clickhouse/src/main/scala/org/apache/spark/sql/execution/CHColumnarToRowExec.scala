@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.GlutenColumnarToRowExecBase
+import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
@@ -31,8 +31,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.concurrent.duration.NANOSECONDS
 
-case class CHColumnarToRowExec(child: SparkPlan)
-  extends GlutenColumnarToRowExecBase(child = child) {
+case class CHColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBase(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"
 
   override def buildCheck(): Unit = {
@@ -57,7 +56,7 @@ case class CHColumnarToRowExec(child: SparkPlan)
         case d: NullType =>
         case _ =>
           throw new UnsupportedOperationException(
-            s"${field.dataType} is not supported in GlutenColumnarToRowExecBase.")
+            s"${field.dataType} is not supported in ColumnarToRowExecBase.")
       }
     }
   }

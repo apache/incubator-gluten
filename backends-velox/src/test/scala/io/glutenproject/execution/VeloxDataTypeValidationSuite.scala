@@ -18,18 +18,17 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+
 import java.io.File
-
-import io.glutenproject.utils.GlutenArrowUtil
+import io.glutenproject.utils.ArrowUtil
 import io.glutenproject.vectorized.ArrowWritableColumnVector
-
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util.GenericArrayData
 import org.apache.spark.sql.execution.VeloxColumnarToRowExec
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtil
 import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, MapType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.utils.SparkVectorUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnarMap}
 import org.apache.spark.unsafe.types.CalendarInterval
 
@@ -206,7 +205,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       val executedPlan = getExecutedPlan(df)
       assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
       assert(executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]))
-      assert(executedPlan.exists(plan => plan.isInstanceOf[VeloxHashAggregateExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[HashAggregateExecTransformer]))
       assert(executedPlan.exists(plan => plan.isInstanceOf[SortExecTransformer]))
     }}
 
@@ -215,7 +214,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       "group by rollup(date, string) order by date, string") { df => {
       val executedPlan = getExecutedPlan(df)
       assert(executedPlan.exists(plan => plan.isInstanceOf[ExpandExecTransformer]))
-      assert(executedPlan.exists(plan => plan.isInstanceOf[GlutenFilterExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[FilterExecTransformer]))
     }}
 
     // Validation: Union.
@@ -258,7 +257,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
       runQueryAndCompare("select type1.date from type1," +
         " type2 where type1.date = type2.date") {
-        checkOperatorMatch[GlutenShuffledHashJoinExecTransformer]
+        checkOperatorMatch[ShuffledHashJoinExecTransformer]
       }
     }
 

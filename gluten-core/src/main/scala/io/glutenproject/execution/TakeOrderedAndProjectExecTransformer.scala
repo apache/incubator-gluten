@@ -70,8 +70,8 @@ case class TakeOrderedAndProjectExecTransformer(limit: Int,
     } else {
       // The child should have been replaced by ColumnarCollapseTransformStages.
       val limitExecPlan = child match {
-        case wholeStage: WholeStageTransformerExec =>
-          // remove this WholeStageTransformerExec, put the new sort, limit and project
+        case wholeStage: WholeStageTransformer =>
+          // remove this WholeStageTransformer, put the new sort, limit and project
           // into a new whole stage.
           val wholeStageChild = wholeStage.child
           val sortExecPlan = SortExecTransformer(sortOrder, false, wholeStageChild)
@@ -85,7 +85,7 @@ case class TakeOrderedAndProjectExecTransformer(limit: Int,
       val finalLimitPlan = if (childRDDPartsNum == 1) {
           limitExecPlan
       } else {
-        val sortStagePlan = WholeStageTransformerExec(limitExecPlan)(
+        val sortStagePlan = WholeStageTransformer(limitExecPlan)(
           transformStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
         val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(
@@ -103,7 +103,7 @@ case class TakeOrderedAndProjectExecTransformer(limit: Int,
       }
 
       val finalPlan =
-        WholeStageTransformerExec(projectPlan)(transformStageCounter.incrementAndGet())
+        WholeStageTransformer(projectPlan)(transformStageCounter.incrementAndGet())
 
       finalPlan.doExecuteColumnar()
     }

@@ -20,7 +20,7 @@ package org.apache.spark.shuffle
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.GlutenArrowAbiUtil
+import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{JniByteInputStreams, ShuffleReaderJniWrapper}
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
@@ -28,7 +28,7 @@ import org.apache.celeborn.client.read.RssInputStream
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
+import org.apache.spark.sql.utils.SparkSchemaUtil
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -68,7 +68,7 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
       private lazy val shuffleReaderHandle = {
         val arrowSchema =
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-        GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.INSTANCE.make(
           jniByteInputStream, cSchema.memoryAddress(),
           NativeMemoryAllocators.contextInstance.getNativeInstanceId)

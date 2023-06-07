@@ -18,7 +18,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.GlutenColumnarToRowExecBase
+import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.utils.LogicalPlanSelector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
@@ -103,7 +103,7 @@ object GlutenColumnarRules {
       case rc @ DataWritingCommandExec(cmd, child) if isGlutenInsertInto(cmd) =>
         child match {
           // if the child is columnar, we can just wrap&transfer the columnar data
-          case c2r: GlutenColumnarToRowExecBase =>
+          case c2r: ColumnarToRowExecBase =>
             rc.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
           // If the child is aqe, we make aqe "support columnar",
           // then aqe itself will guarantee to generate columnar outputs.

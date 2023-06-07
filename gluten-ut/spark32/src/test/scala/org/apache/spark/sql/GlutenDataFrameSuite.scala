@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{ProjectExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.execution.{ProjectExecTransformer, WholeStageTransformer}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression}
@@ -230,8 +230,8 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
     }
     val df = spark.range(1).select(expr1, expr2.otherwise(0))
     checkAnswer(df, Row(0, 10) :: Nil)
-    // We check WholeStageTransformerExec instead of WholeStageCodegenExec
-    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[WholeStageTransformerExec]).isDefined)
+    // We check WholeStageTransformer instead of WholeStageCodegenExec
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[WholeStageTransformer]).isDefined)
   }
 
   import testImplicits._

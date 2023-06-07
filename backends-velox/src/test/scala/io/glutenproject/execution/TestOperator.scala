@@ -406,7 +406,7 @@ class TestOperator extends WholeStageTransformerSuite {
     val result = df.select($"DecimalCol" cast DecimalType(38, 33))
       .select(col("DecimalCol")).agg(avg($"DecimalCol"))
     assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
-    checkOperatorMatch[VeloxHashAggregateExecTransformer](result)
+    checkOperatorMatch[HashAggregateExecTransformer](result)
   }
 
   test("orc scan") {

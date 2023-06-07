@@ -17,13 +17,13 @@
 
 package org.apache.spark.sql.execution.datasources.velox
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenIndicatorVector}
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
 
 import java.io.IOException
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
-import io.glutenproject.utils.{GlutenArrowAbiUtil, GlutenArrowUtil, VeloxDatasourceUtil}
-import io.glutenproject.vectorized.ArrowWritableColumnVector
+import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
+
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
@@ -45,7 +45,7 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
   override def inferSchema(sparkSession: SparkSession,
                            options: Map[String, String],
                            files: Seq[FileStatus]): Option[StructType] = {
-    VeloxDatasourceUtil.readSchema(files)
+    DatasourceUtil.readSchema(files)
   }
 
   override def prepareWrite(sparkSession: SparkSession,
@@ -70,7 +70,7 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         val datasourceJniWrapper = new DatasourceJniWrapper()
         val allocator = ArrowBufferAllocators.contextInstance()
         try {
-          GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+          ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
           instanceId = datasourceJniWrapper.nativeInitDatasource(
             originPath, cSchema.memoryAddress())
         } catch {
@@ -86,8 +86,8 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            if (batch.column(0).isInstanceOf[GlutenIndicatorVector]) {
-              val giv = batch.column(0).asInstanceOf[GlutenIndicatorVector]
+            if (batch.column(0).isInstanceOf[IndicatorVector]) {
+              val giv = batch.column(0).asInstanceOf[IndicatorVector]
               giv.retain()
               writeQueue.enqueue(batch)
             } else {

@@ -25,7 +25,7 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
-abstract class AliasBaseTransformer(
+case class AliasTransformerBase(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)
@@ -45,19 +45,13 @@ abstract class AliasBaseTransformer(
   }
 }
 
-class AliasTransformer(substraitExprName: String,
-                       child: ExpressionTransformer,
-                       original: Expression)
-  extends AliasBaseTransformer(substraitExprName, child, original) {
-}
-
 case class AttributeReferenceTransformer(name: String,
-                                    ordinal: Int,
-                                    dataType: DataType,
-                                    nullable: Boolean = true,
-                                    exprId: ExprId,
-                                    qualifier: Seq[String],
-                                    metadata: Metadata = Metadata.empty)
+                                         ordinal: Int,
+                                         dataType: DataType,
+                                         nullable: Boolean = true,
+                                         exprId: ExprId,
+                                         qualifier: Seq[String],
+                                         metadata: Metadata = Metadata.empty)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

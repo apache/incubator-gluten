@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.benchmarks
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 import io.glutenproject.utils.SystemParameters
 import io.glutenproject.vectorized.JniLibLoader
 
@@ -123,7 +123,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       .map(_.asInstanceOf[FilePartition])
 
     val wholeStageTransform = parquetReadDf.queryExecution.executedPlan.collect {
-      case wholeStage: WholeStageTransformerExec => wholeStage
+      case wholeStage: WholeStageTransformer => wholeStage
     }.head
 
     // remove ProjectExecTransformer

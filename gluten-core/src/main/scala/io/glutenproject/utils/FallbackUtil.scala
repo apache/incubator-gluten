@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.execution.{GlutenColumnarToRowExecBase, GlutenRowToColumnarExec}
+import io.glutenproject.execution.{ColumnarToRowExecBase, RowToColumnarExecBase}
 import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
@@ -31,9 +31,9 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
 
   def skip(plan: SparkPlan): Boolean = {
     plan match {
-      case _: GlutenColumnarToRowExecBase =>
+      case _: ColumnarToRowExecBase =>
         true
-      case _: GlutenRowToColumnarExec =>
+      case _: RowToColumnarExecBase =>
         true
       case _: BaseSubqueryExec =>
         true

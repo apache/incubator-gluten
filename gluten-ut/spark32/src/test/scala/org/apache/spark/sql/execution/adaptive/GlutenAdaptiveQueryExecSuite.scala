@@ -17,9 +17,8 @@
 
 package org.apache.spark.sql.execution.adaptive
 
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformer, SortExecTransformer, SortMergeJoinExecTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 import org.apache.log4j.Level
-
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.execution._
@@ -126,9 +125,9 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   }
 
   private def findTopLevelShuffledHashJoinTransform(plan: SparkPlan):
-  Seq[ShuffledHashJoinExecTransformer] = {
+  Seq[ShuffledHashJoinExecTransformerBase] = {
     collect(plan) {
-      case j: ShuffledHashJoinExecTransformer => j
+      case j: ShuffledHashJoinExecTransformerBase => j
     }
   }
 
@@ -679,7 +678,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
             assert(joins.size == 1)
             joins.head match {
               case s: SortMergeJoinExecTransformer => assert(s.isSkewJoin)
-              case g: ShuffledHashJoinExecTransformer => assert(g.isSkewJoin)
+              case g: ShuffledHashJoinExecTransformerBase => assert(g.isSkewJoin)
               case _ => assert(false)
             }
             assert(joins.head.left.collect {

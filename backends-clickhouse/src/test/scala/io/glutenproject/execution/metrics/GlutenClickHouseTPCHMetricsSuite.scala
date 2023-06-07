@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.metrics
 
-import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformerExec}
+import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformer}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.vectorized.GeneralInIterator
 
@@ -156,19 +156,19 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
     val q2Df = GlutenClickHouseMetricsUTUtils
       .getTPCHQueryExecution(spark, 2, tpchQueries)
     val allWholeStageTransformers = q2Df.queryExecution.executedPlan.collect {
-      case wholeStage: WholeStageTransformerExec => wholeStage
+      case wholeStage: WholeStageTransformer => wholeStage
     }
 
     assert(allWholeStageTransformers.size == 10)
 
-    val wholeStageTransformerExec0 = allWholeStageTransformers(2)
+    val wholeStageTransformer0 = allWholeStageTransformers(2)
 
     GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
-      wholeStageTransformerExec0,
+      wholeStageTransformer0,
       metricsJsonFilePath + "/tpch-q2-wholestage-1-metrics.json"
     ) {
       () =>
-        wholeStageTransformerExec0.collect {
+        wholeStageTransformer0.collect {
           case s: FileSourceScanExecTransformer =>
             assert(s.metrics("scanTime").value == 2)
             assert(s.metrics("inputWaitTime").value == 4)
@@ -195,14 +195,14 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         }
     }
 
-    val wholeStageTransformerExec1 = allWholeStageTransformers(1)
+    val wholeStageTransformer1 = allWholeStageTransformers(1)
 
     GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
-      wholeStageTransformerExec1,
+      wholeStageTransformer1,
       metricsJsonFilePath + "/tpch-q2-wholestage-2-metrics.json"
     ) {
       () =>
-        val allGlutenPlans = wholeStageTransformerExec1.collect { case g: GlutenPlan => g }
+        val allGlutenPlans = wholeStageTransformer1.collect { case g: GlutenPlan => g }
 
         val scanPlan = allGlutenPlans(10)
         assert(scanPlan.metrics("scanTime").value == 2)
@@ -230,14 +230,14 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         assert(joinPlan.metrics("inputBytes").value == 1920000)
     }
 
-    val wholeStageTransformerExec2 = allWholeStageTransformers(0)
+    val wholeStageTransformer2 = allWholeStageTransformers(0)
 
     GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
-      wholeStageTransformerExec2,
+      wholeStageTransformer2,
       metricsJsonFilePath + "/tpch-q2-wholestage-11-metrics.json"
     ) {
       () =>
-        val allGlutenPlans = wholeStageTransformerExec2.collect { case g: GlutenPlan => g }
+        val allGlutenPlans = wholeStageTransformer2.collect { case g: GlutenPlan => g }
 
         assert(allGlutenPlans.size == 61)
 

@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, GlutenColumnarToRowExecBase, WholeStageTransformerExec}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.utils.SystemParameters
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
@@ -228,9 +228,9 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
   private def assertJoinBuildSide(sqlStr: String, joinMethod: String, buildSide: BuildSide): Any = {
     val executedPlan = stripAQEPlan(sql(sqlStr).queryExecution.executedPlan)
     executedPlan match {
-      case c2r: GlutenColumnarToRowExecBase =>
+      case c2r: ColumnarToRowExecBase =>
         c2r.child match {
-          case w: WholeStageTransformerExec =>
+          case w: WholeStageTransformer =>
             val join = w.child match {
               case b: BroadcastHashJoinExecTransformer => b
             }

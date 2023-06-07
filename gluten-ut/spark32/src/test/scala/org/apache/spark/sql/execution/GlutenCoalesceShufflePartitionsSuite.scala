@@ -209,7 +209,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
       }
       // Change the original value 2000 to 6000 for gluten. The test depends on the calculation for
       // bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
-      // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
+      // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
       withSparkSession(test, 6000, minNumPostShufflePartitions)
     }
 
@@ -259,7 +259,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
       }
       // Change the original value 16384 to 40000 for gluten. The test depends on the calculation
       // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
-      // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
+      // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
       withSparkSession(test, 40000, minNumPostShufflePartitions)
     }
 
@@ -315,7 +315,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
 
       // Change the original value 16384 to 40000 for gluten. The test depends on the calculation
       // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
-      // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
+      // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
       withSparkSession(test, 40000, minNumPostShufflePartitions)
     }
 
@@ -371,7 +371,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
 
       // Change the original value 12000 to 30000 for gluten. The test depends on the calculation
       // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
-      // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
+      // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
       withSparkSession(test, 30000, minNumPostShufflePartitions)
     }
 

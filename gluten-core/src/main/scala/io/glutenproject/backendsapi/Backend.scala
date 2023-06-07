@@ -30,7 +30,7 @@ trait Backend {
 
   def metricsApi(): MetricsApi
 
-  def settings(): BackendSettings
+  def settings(): BackendSettingsApi
 
   def contextApi(): ContextApi
 }

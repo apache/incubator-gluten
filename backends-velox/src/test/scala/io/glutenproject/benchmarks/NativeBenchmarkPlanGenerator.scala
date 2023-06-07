@@ -17,7 +17,7 @@
 
 package io.glutenproject.benchmarks
 
-import io.glutenproject.execution.{WholeStageTransformerExec, WholeStageTransformerSuite}
+import io.glutenproject.execution.{WholeStageTransformer, WholeStageTransformerSuite}
 
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.internal.SQLConf
@@ -57,12 +57,12 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
                |select * from lineitem
                |""".stripMargin)
       val executedPlan = df.queryExecution.executedPlan
-      val lastStageTransformer = executedPlan.find(_.isInstanceOf[WholeStageTransformerExec])
+      val lastStageTransformer = executedPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
-      var planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson
+      var planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.isEmpty)
       executedPlan.execute()
-      planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson
+      planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.nonEmpty)
     }
   }
@@ -78,9 +78,9 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
       executedPlan.execute()
 
       val finalPlan = executedPlan.asInstanceOf[AdaptiveSparkPlanExec].executedPlan
-      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformerExec])
+      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
-      val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson
+      val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.nonEmpty)
     }
   }
@@ -134,10 +134,10 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
             }
           case plan => plan
         }
-      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformerExec])
+      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
       val plan =
-        lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson.split('\n')
+        lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson.split('\n')
 
       val exampleJsonFile = Paths.get(generatedPlanDir, "example.json")
       Files.write(exampleJsonFile, plan.toList.asJava, StandardCharsets.UTF_8)

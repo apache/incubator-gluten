@@ -560,7 +560,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
   def transformColumnarToRowExec(plan: ColumnarToRowExec): SparkPlan = {
     if (columnarConf.enableNativeColumnarToRow) {
       val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"ColumnarPostOverrides GlutenColumnarToRowExecBase(${child.nodeName})")
+      logDebug(s"ColumnarPostOverrides ColumnarToRowExecBase(${child.nodeName})")
       val nativeConversion =
         BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
       if (nativeConversion.doValidate()) {
@@ -577,7 +577,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
       val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
+      logDebug(s"ColumnarPostOverrides RowToColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
       // The ColumnarShuffleExchangeExec node may be the top node, so we cannot remove it.
       // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check

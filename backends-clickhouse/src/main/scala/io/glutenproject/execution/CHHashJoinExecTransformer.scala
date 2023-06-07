@@ -34,7 +34,7 @@ case class CHShuffledHashJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     isSkewJoin: Boolean)
-  extends ShuffledHashJoinExecTransformer(
+  extends ShuffledHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
     joinType,

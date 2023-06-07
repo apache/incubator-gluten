@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sha1Transformer, Sha2Transformer, Sig}
+import io.glutenproject.expression.{AliasTransformerBase, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformerBase, NamedStructTransformerBase, Sha1Transformer, Sha2Transformer, Sig}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -39,12 +39,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 trait SparkPlanExecApi {
 
   /**
-   * Generate GlutenColumnarToRowExecBase.
+   * Generate ColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
+  def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase
 
   /**
    * Generate RowToColumnarExec.
@@ -52,7 +52,7 @@ trait SparkPlanExecApi {
    * @param child
    * @return
    */
-  def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec
+  def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase
 
   /**
    * Generate FilterExecTransformer.
@@ -93,7 +93,7 @@ trait SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isSkewJoin: Boolean): ShuffledHashJoinExecTransformer
+      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase
 
   /** Generate BroadcastHashJoinExecTransformer. */
   def genBroadcastHashJoinExecTransformer(
@@ -122,7 +122,7 @@ trait SparkPlanExecApi {
   def genAliasTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
-      original: Expression): AliasBaseTransformer
+      original: Expression): AliasTransformerBase
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -140,7 +140,6 @@ trait SparkPlanExecApi {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
-  // scalastyle:on argcount
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
@@ -226,9 +225,8 @@ trait SparkPlanExecApi {
   def genNamedStructTransformer(
       substraitExprName: String,
       original: CreateNamedStruct,
-      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    new NamedStructTransformer(substraitExprName, original, attributeSeq)
-  }
+      attributeSeq: Seq[Attribute]): ExpressionTransformer =
+    new NamedStructTransformerBase(substraitExprName, original, attributeSeq)
 
   /**
    * Generate an ExpressionTransformer to transform Sha2 expression. Sha2Transformer is the default
@@ -261,7 +259,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       exps: Seq[ExpressionTransformer],
       original: Expression): ExpressionTransformer = {
-    new HashExpressionTransformer(substraitExprName, exps, original)
+    new HashExpressionTransformerBase(substraitExprName, exps, original)
   }
 
   /**

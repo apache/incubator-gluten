@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.v2.velox
 
-import io.glutenproject.utils.VeloxDatasourceUtil
+import io.glutenproject.utils.DatasourceUtil
 import org.apache.hadoop.fs.FileStatus
 
 import org.apache.spark.sql.SparkSession
@@ -37,7 +37,7 @@ case class VeloxParquetTable(
                       fallbackFileFormat: Class[_ <: FileFormat])
   extends FileTable(sparkSession, options, paths, userSpecifiedSchema) {
   override def inferSchema(files: Seq[FileStatus]): Option[StructType] = {
-    VeloxDatasourceUtil.readSchema(files)
+    DatasourceUtil.readSchema(files)
   }
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {

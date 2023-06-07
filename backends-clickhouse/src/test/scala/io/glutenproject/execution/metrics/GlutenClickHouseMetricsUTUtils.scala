@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.metrics
 
-import io.glutenproject.execution.WholeStageTransformerExec
+import io.glutenproject.execution.WholeStageTransformer
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.metrics.{MetricsUtil, NativeMetrics}
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
@@ -97,16 +97,15 @@ object GlutenClickHouseMetricsUTUtils {
   }
 
   /** Execute metrics updater by metrics json file */
-  def executeMetricsUpdater(
-      wholeStageTransformerExec: WholeStageTransformerExec,
-      metricsJsonFile: String)(customCheck: () => Unit): Unit = {
-    val wholestageTransformContext = wholeStageTransformerExec.doWholestageTransform()
+  def executeMetricsUpdater(wholeStageTransformer: WholeStageTransformer, metricsJsonFile: String)(
+      customCheck: () => Unit): Unit = {
+    val wholestageTransformContext = wholeStageTransformer.doWholestageTransform()
 
-    val wholeStageTransformerExecUpdaterTree =
-      MetricsUtil.treeifyMetricsUpdaters(wholeStageTransformerExec.child)
+    val wholeStageTransformerUpdaterTree =
+      MetricsUtil.treeifyMetricsUpdaters(wholeStageTransformer.child)
     val relMap = wholestageTransformContext.substraitContext.registeredRelMap
-    val wholeStageTransformerExecUpdater = MetricsUtil.updateTransformerMetrics(
-      wholeStageTransformerExecUpdaterTree,
+    val wholeStageTransformerUpdater = MetricsUtil.updateTransformerMetrics(
+      wholeStageTransformerUpdaterTree,
       relMap,
       new java.lang.Long(relMap.size() - 1),
       wholestageTransformContext.substraitContext.registeredJoinParams,
@@ -115,7 +114,7 @@ object GlutenClickHouseMetricsUTUtils {
 
     val nativeMetrics =
       new NativeMetrics(Source.fromFile(new File(metricsJsonFile), "UTF-8").mkString)
-    wholeStageTransformerExecUpdater(nativeMetrics)
+    wholeStageTransformerUpdater(nativeMetrics)
     customCheck()
   }
 }

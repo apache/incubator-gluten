@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.{GlutenRowToColumnarExec, SparkRowIterator}
+import io.glutenproject.execution.{RowToColumnarExecBase, SparkRowIterator}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
  * @param child
  */
 case class RowToCHNativeColumnarExec(child: SparkPlan)
-  extends GlutenRowToColumnarExec(child = child) {
+  extends RowToColumnarExecBase(child = child) {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")

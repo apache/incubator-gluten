@@ -18,7 +18,7 @@
 package io.glutenproject.memory.alloc;
 
 /**
- * Like {@link io.glutenproject.vectorized.NativeExpressionEvaluator}, this along with
+ * Like {@link io.glutenproject.vectorized.NativePlanEvaluator}, this along with
  * {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory allocations.
  */
 public class NativeMemoryAllocator {
