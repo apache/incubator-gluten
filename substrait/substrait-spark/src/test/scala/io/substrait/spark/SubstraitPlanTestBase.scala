@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.util.resourceToString
 import org.apache.spark.sql.test.SharedSparkSession
 
 import io.substrait.debug.TreePrinter
-import io.substrait.expression.proto.FunctionCollector
+import io.substrait.extension.ExtensionCollector
 import io.substrait.plan.{Plan, PlanProtoConverter, ProtoPlanConverter}
 import io.substrait.proto
 import io.substrait.relation.RelProtoConverter
@@ -57,8 +57,8 @@ trait SubstraitPlanTestBase { self: SharedSparkSession =>
     val logicalPlan = plan(sql)
     val substraitRel = convert.visit(logicalPlan)
 
-    val functionCollector = new FunctionCollector
-    val relProtoConverter = new RelProtoConverter(functionCollector)
+    val extensionCollector = new ExtensionCollector
+    val relProtoConverter = new RelProtoConverter(extensionCollector)
     val builder = proto.Plan
       .newBuilder()
       .addRelations(
@@ -71,7 +71,7 @@ trait SubstraitPlanTestBase { self: SharedSparkSession =>
                 .accept(relProtoConverter))
           )
       )
-    functionCollector.addFunctionsToPlan(builder)
+    extensionCollector.addExtensionsToPlan(builder)
     builder.build()
   }
 
