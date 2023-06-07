@@ -91,11 +91,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        ctxPool, resultPool, veloxPlan_, streamIds, spillDir, sessionConf);
+        ctxPool, resultPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        ctxPool, resultPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf);
+        ctxPool, resultPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }

@@ -32,6 +32,12 @@ namespace gluten {
 
 class ResultIterator;
 
+struct SparkTaskInfo {
+  int32_t stageId;
+  int32_t partitionId;
+  int64_t taskId;
+};
+
 class Backend : public std::enable_shared_from_this<Backend> {
  public:
   Backend() {}
@@ -45,17 +51,18 @@ class Backend : public std::enable_shared_from_this<Backend> {
       const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
   void parsePlan(const uint8_t* data, int32_t size) {
-    parsePlan(data, size, -1, -1, -1);
+    parsePlan(data, size, {-1, -1, -1});
   }
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
-  void parsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
+  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
+    taskInfo_ = taskInfo;
 #ifdef GLUTEN_PRINT_DEBUG
     auto jsonPlan = substraitFromPbToJson("Plan", data, size);
     std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
-    std::cout << "Task stageId: " << stageId << ", partitionId: " << partitionId << ", taskId: " << taskId << "; "
-              << jsonPlan << std::endl;
+    std::cout << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
+              << ", taskId: " << taskInfo_.taskId << "; " << jsonPlan << std::endl;
 #endif
     GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
   }
@@ -112,8 +119,13 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return confMap_;
   }
 
+  SparkTaskInfo getSparkTaskInfo() {
+    return taskInfo_;
+  }
+
  protected:
   ::substrait::Plan substraitPlan_;
+  SparkTaskInfo taskInfo_;
   // static conf map
   std::unordered_map<std::string, std::string> confMap_;
 };

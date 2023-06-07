@@ -45,7 +45,6 @@ const std::string kProcessedStrides = "processedStrides";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
-std::atomic<int32_t> taskSerial;
 
 } // namespace
 
@@ -267,7 +266,8 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
-    const std::unordered_map<std::string, std::string>& confMap)
+    const std::unordered_map<std::string, std::string>& confMap,
+    const SparkTaskInfo taskInfo)
     : WholeStageResultIterator(pool, resultLeafPool, planNode, confMap),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
@@ -311,7 +311,10 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = std::make_shared<velox::exec::Task>(
-      fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
+      fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
+      std::move(planFragment),
+      0,
+      std::move(queryCtx));
 
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
@@ -380,14 +383,18 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
-    const std::unordered_map<std::string, std::string>& confMap)
+    const std::unordered_map<std::string, std::string>& confMap,
+    const SparkTaskInfo taskInfo)
     : WholeStageResultIterator(pool, resultLeafPool, planNode, confMap), streamIds_(streamIds) {
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = std::make_shared<velox::exec::Task>(
-      fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
+      fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
+      std::move(planFragment),
+      0,
+      std::move(queryCtx));
 
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());

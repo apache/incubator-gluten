@@ -56,7 +56,15 @@ std::shared_ptr<ResultIterator> getResultIterator(
       veloxPlanConverter->splitInfos(), veloxPlan->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      ctxPool, resultPool, veloxPlan, scanIds, setScanInfos, streamIds, "/tmp/test-spill", backend->getConfMap());
+      ctxPool,
+      resultPool,
+      veloxPlan,
+      scanIds,
+      setScanInfos,
+      streamIds,
+      "/tmp/test-spill",
+      backend->getConfMap(),
+      backend->getSparkTaskInfo());
   return std::make_shared<ResultIterator>(std::move(wholestageIter), backend);
 }
 

@@ -353,7 +353,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   }
 
   auto backend = gluten::createBackend();
-  backend->parsePlan(planData, planSize, stageId, partitionId, taskId);
+  backend->parsePlan(planData, planSize, {stageId, partitionId, taskId});
 
   auto confs = getConfMap(env, confArr);
 
