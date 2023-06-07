@@ -18,8 +18,10 @@
 #include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <jni/ReservationListenerWrapper.h>
+#include <jni/BroadcastBuildSideCache.h>
 #include <jni/jni_common.h>
 #include <jni/jni_error.h>
+#include <jni/SharedPointerWrapper.h>
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
@@ -161,6 +163,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     native_metrics_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/metrics/NativeMetrics;");
     native_metrics_constructor = local_engine::GetMethodID(env,native_metrics_class, "<init>", "(Ljava/lang/String;)V");
 
+    local_engine::BroadcastBuildSideCache::init(env);
+
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
 }
@@ -173,6 +177,7 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
 
     local_engine::JniErrorsGlobalState::instance().destroy(env);
+    local_engine::BroadcastBuildSideCache::destroy(env);
 
     env->DeleteGlobalRef(spark_row_info_class);
     env->DeleteGlobalRef(split_result_class);
@@ -896,8 +901,9 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
     auto wrapper
         = local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, io_buffer_size, join_key, join_type, struct_string);
     env->ReleaseByteArrayElements(named_struct, struct_address, JNI_ABORT);
-
-    return reinterpret_cast<jlong>(wrapper.get());
+    local_engine::SharedPointerWrapper<local_engine::StorageJoinWrapper>* obj =
+        new local_engine::SharedPointerWrapper<local_engine::StorageJoinWrapper> (wrapper);
+    return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -907,14 +913,6 @@ JNIEXPORT void Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeCleanBu
     LOCAL_ENGINE_JNI_METHOD_START
     auto hash_table_id = jstring2string(env, hash_table_id_);
     local_engine::BroadCastJoinBuilder::cleanBuildHashTable(hash_table_id, instance);
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
-}
-
-JNIEXPORT jint Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeCachedHashTableCount(
-    JNIEnv * env, jclass)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    return local_engine::BroadCastJoinBuilder::cachedHashTableCount();
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 

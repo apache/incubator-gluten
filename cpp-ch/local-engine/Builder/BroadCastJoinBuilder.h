@@ -23,7 +23,6 @@ public:
 
 private:
     std::shared_ptr<StorageJoinFromReadBuffer> storage_join;
-    std::mutex build_lock_mutex;
 };
 
 
@@ -49,15 +48,9 @@ public:
 
     static void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
 
-    static size_t cachedHashTableCount() { return storage_join_map.size(); };
-
     static std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & key);
 
     static void clean();
-
-private:
-    static std::unordered_map<std::string, std::shared_ptr<StorageJoinWrapper>> storage_join_map;
-    static std::mutex join_lock_mutex;
 };
 
 

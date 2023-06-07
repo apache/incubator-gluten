@@ -531,7 +531,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       // Spark listener message was not sent in time with ci env.
       // In tpch case, there are more then 10 hbj data has build.
       // Let's just verify it was cleaned ever.
-      assert(StorageJoinBuilder.nativeCachedHashTableCount <= 10)
+      assert(CHBroadcastBuildSideCache.size() <= 10)
     }
 
     ClickHouseLog.clearCache()

@@ -26,6 +26,7 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 
 import org.sparkproject.guava.cache.{Cache, CacheBuilder, RemovalNotification}
 
+import java.lang.{Long => jLong}
 import java.util.concurrent.TimeUnit
 
 object CHBroadcastBuildSideCache extends Logging {
@@ -35,37 +36,45 @@ object CHBroadcastBuildSideCache extends Logging {
     CHBackendSettings.GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT
   )
 
-  // Use for controling to build bhj hash table once.
+  // Use for controlling to build bhj hash table once.
   // key: hashtable id, value is hashtable backend pointer(long to string).
-  private val buildSideRelationCache: Cache[String, String] =
+  private val buildSideRelationCache: Cache[String, jLong] =
     CacheBuilder.newBuilder
       .expireAfterAccess(expiredTime, TimeUnit.SECONDS)
       .removalListener(
-        (notification: RemovalNotification[String, String]) => {
-          cleanBuildHashTable(notification.getKey, notification.getValue.toLong)
+        (notification: RemovalNotification[String, jLong]) => {
+          cleanBuildHashTable(notification.getKey, notification.getValue)
         })
-      .build[String, String]()
+      .build[String, jLong]()
 
   def getOrBuildBroadcastHashTable(
       broadcast: Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): String = {
+      broadCastContext: BroadCastHashJoinContext): jLong = {
     buildSideRelationCache
       .get(
         broadCastContext.buildHashTableId,
         () => {
           val bsr = broadcast.value.asReadOnlyCopy(broadCastContext)
-          bsr.asInstanceOf[ClickHouseBuildSideRelation].hashTableData.toString
+          bsr.asInstanceOf[ClickHouseBuildSideRelation].hashTableData
         }
       )
   }
 
+  /*
+    This is callback from c++ backend.
+   */
+  def get(broadcastHashtableId: String): Long =
+    buildSideRelationCache.getIfPresent(broadcastHashtableId)
+
   def invalidateBroadcastHashtable(broadcastHashtableId: String): Unit = {
-    val v = buildSideRelationCache.getIfPresent(broadcastHashtableId)
-    if (v != null) {
-      // Cleanup operations on the backend are idempotent.
-      buildSideRelationCache.invalidate(broadcastHashtableId)
-    }
+    // Cleanup operations on the backend are idempotent.
+    buildSideRelationCache.invalidate(broadcastHashtableId)
   }
+
+  /*
+     Only used in UT.
+   */
+  def size(): Long = buildSideRelationCache.size()
 
   private def cleanBuildHashTable(key: String, value: Long): Unit = {
     StorageJoinBuilder.nativeCleanBuildHashTable(key, value)

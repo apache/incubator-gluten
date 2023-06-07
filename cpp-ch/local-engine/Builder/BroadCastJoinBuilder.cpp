@@ -1,5 +1,7 @@
 #include "BroadCastJoinBuilder.h"
 #include <Parser/SerializedPlanParser.h>
+#include <jni/BroadcastBuildSideCache.h>
+#include <jni/SharedPointerWrapper.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CurrentThread.h>
 #include <Common/JNIUtils.h>
@@ -19,8 +21,6 @@ namespace local_engine
 {
 using namespace DB;
 
-std::unordered_map<std::string, std::shared_ptr<StorageJoinWrapper>> BroadCastJoinBuilder::storage_join_map;
-std::mutex BroadCastJoinBuilder::join_lock_mutex;
 
 struct StorageJoinContext
 {
@@ -42,21 +42,7 @@ std::shared_ptr<StorageJoinWrapper> BroadCastJoinBuilder::buildJoin(
     DB::JoinStrictness strictness_,
     const DB::ColumnsDescription & columns_)
 {
-    std::shared_ptr<StorageJoinWrapper> wrapper = nullptr;
-
-    {
-        std::lock_guard build_lock(join_lock_mutex);
-        if (unlikely(storage_join_map.contains(key)))
-        {
-            std::shared_ptr<StorageJoinFromReadBuffer> cache = storage_join_map.at(key)->getStorage();
-            wrapper = std::make_shared<StorageJoinWrapper>(cache);
-        }
-        else
-            wrapper = std::make_shared<StorageJoinWrapper>();
-
-        storage_join_map.emplace(key, wrapper);
-    }
-
+    std::shared_ptr<StorageJoinWrapper> wrapper = std::make_shared<StorageJoinWrapper>();
     wrapper->build(key, input, io_buffer_size, key_names_, kind_, strictness_, columns_);
     LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Broadcast hash table id {} cached.", key);
     return wrapper;
@@ -68,28 +54,18 @@ void BroadCastJoinBuilder::cleanBuildHashTable(const std::string & hash_table_id
     /// It always called by no thread_status. We need create first.
     /// Otherwise global tracker will not free bhj memory.
     DB::ThreadStatus thread_status;
-
-    std::lock_guard release_lock(join_lock_mutex);
-
-    if (storage_join_map.contains(hash_table_id))
-    {
-        std::shared_ptr<StorageJoinWrapper> cache = storage_join_map.at(hash_table_id);
-        if (instance == reinterpret_cast<jlong>(cache.get()))
-        {
-            storage_join_map.erase(hash_table_id);
-            LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Broadcast hash table id {} removed.", hash_table_id);
-        }
-    }
-
-    LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Broadcast hash table size is {}", storage_join_map.size());
+    SharedPointerWrapper<StorageJoinWrapper>::dispose(instance);
+    LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Broadcast hash table {} is cleaned", hash_table_id);
 }
 
 std::shared_ptr<StorageJoinFromReadBuffer> BroadCastJoinBuilder::getJoin(const std::string & key)
 {
-    if (storage_join_map.contains(key))
-        return storage_join_map.at(key)->getStorage();
-    else
-        return std::shared_ptr<StorageJoinFromReadBuffer>();
+    auto wrapper = local_engine::BroadcastBuildSideCache::get(key);
+    if (wrapper)
+    {
+        return wrapper->getStorage();
+    }
+    return std::shared_ptr<StorageJoinFromReadBuffer>();
 }
 
 std::shared_ptr<StorageJoinWrapper> BroadCastJoinBuilder::buildJoin(
@@ -143,11 +119,6 @@ std::shared_ptr<StorageJoinWrapper> BroadCastJoinBuilder::buildJoin(
 
 void BroadCastJoinBuilder::clean()
 {
-    /// It always called by no thread_status. We need create first.
-    /// Otherwise global tracker will not free bhj memory.
-    DB::ThreadStatus thread_status;
-    std::lock_guard release_lock(join_lock_mutex);
-    storage_join_map.clear();
 }
 
 void StorageJoinWrapper::build(
@@ -159,40 +130,33 @@ void StorageJoinWrapper::build(
     DB::JoinStrictness strictness_,
     const DB::ColumnsDescription & columns_)
 {
-    if (storage_join == nullptr)
+    StorageJoinContext context{key, input, io_buffer_size, key_names_, kind_, strictness_, columns_};
+    // use another thread, exclude broadcast memory allocation from current memory tracker
+    auto func = [this, &context]() -> void
     {
-        std::lock_guard build_lock(build_lock_mutex);
-        if (storage_join == nullptr)
+        try
         {
-            StorageJoinContext context{key, input, io_buffer_size, key_names_, kind_, strictness_, columns_};
-            // use another thread, exclude broadcast memory allocation from current memory tracker
-            auto func = [this, &context]() -> void
-            {
-                try
-                {
-                    storage_join = std::make_shared<StorageJoinFromReadBuffer>(
-                        std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size),
-                        StorageID("default", context.key),
-                        context.key_names,
-                        true,
-                        SizeLimits(),
-                        context.kind,
-                        context.strictness,
-                        context.columns,
-                        ConstraintsDescription(),
-                        context.key,
-                        true);
-                    LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Create broadcast storage join {}.", context.key);
-                }
-                catch (DB::Exception & e)
-                {
-                    LOG_ERROR(&Poco::Logger::get("BroadCastJoinBuilder"), "storage join create failed, {}", e.displayText());
-                }
-            };
-            ThreadFromGlobalPool build_thread(func);
-            build_thread.join();
+            storage_join = std::make_shared<StorageJoinFromReadBuffer>(
+                std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size),
+                StorageID("default", context.key),
+                context.key_names,
+                true,
+                SizeLimits(),
+                context.kind,
+                context.strictness,
+                context.columns,
+                ConstraintsDescription(),
+                context.key,
+                true);
+            LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Create broadcast storage join {}.", context.key);
         }
-    }
+        catch (DB::Exception & e)
+        {
+            LOG_ERROR(&Poco::Logger::get("BroadCastJoinBuilder"), "storage join create failed, {}", e.displayText());
+        }
+    };
+    ThreadFromGlobalPool build_thread(func);
+    build_thread.join();
 }
 
 }
