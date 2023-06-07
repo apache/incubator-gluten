@@ -127,10 +127,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     )
   }
 
-  test("TPCDS Q555") {
-    runTPCDSQuery("q5") { df => }
-  }
-
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
       runTPCDSQuery("q9") {
