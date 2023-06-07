@@ -94,10 +94,15 @@ class RelToVerboseString(addSuffix: Boolean) extends DefaultRelVisitor[String] {
         builder.append(", ")
         builder.append("filter=").append(filter)
       })
-    read.getGeneralExtension.ifPresent(
-      generalExtension => {
+    read.getExtension.ifPresent(
+      extension => {
         builder.append(", ")
-        builder.append("generalExtension=").append(generalExtension)
+        builder.append("extension=").append(extension)
+      })
+    read.getCommonExtension.ifPresent(
+      extension => {
+        builder.append(", ")
+        builder.append("commonExtension=").append(extension)
       })
   }
   override def visit(namedScan: NamedScan): String = {
