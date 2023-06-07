@@ -25,6 +25,7 @@
 #include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
 #include <IO/ReadBufferFromFile.h>
+#include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Interpreters/castColumn.h>
 #include <Parser/RelParser.h>
@@ -646,6 +647,12 @@ void BackendInitializerUtil::init(const std::string & conf_plan)
             LOG_INFO(logger, "Init compiled expressions cache factory.");
 
             GlobalThreadPool::initialize();
+
+            const size_t active_parts_loading_threads = config->getUInt("max_active_parts_loading_thread_pool_size", 64);
+            DB::getActivePartsLoadingThreadPool().initialize(
+                active_parts_loading_threads,
+                0, // We don't need any threads one all the parts will be loaded
+                active_parts_loading_threads);
         });
 }
 
