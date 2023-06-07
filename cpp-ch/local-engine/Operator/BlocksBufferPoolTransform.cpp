@@ -1,0 +1,104 @@
+#include "BlocksBufferPoolTransform.h"
+#include <QueryPipeline/Pipe.h>
+#include <QueryPipeline/QueryPipelineBuilder.h>
+
+namespace local_engine
+{
+static DB::ITransformingStep::Traits getTraits()
+{
+    return DB::ITransformingStep::Traits{
+        {
+            .returns_single_stream = false,
+            .preserves_number_of_streams = true,
+            .preserves_sorting = true,
+        },
+        {
+            .preserves_number_of_rows = true,
+        }};
+}
+
+BlocksBufferPoolTransform::BlocksBufferPoolTransform(const DB::Block & header, size_t buffer_size_)
+    : DB::IProcessor({header}, {header})
+    , buffer_size(buffer_size_)
+{
+}
+
+DB::IProcessor::Status BlocksBufferPoolTransform::prepare()
+{
+    auto & output = outputs.front();
+    auto & input = inputs.front();
+    if (output.isFinished())
+    {
+        input.close();
+        return Status::Finished;
+    }
+
+    bool has_output = false;
+    if (output.canPush() && !pending_chunks.empty())
+    {
+        output.push(std::move(pending_chunks.front()));
+        pending_chunks.pop_front();
+        has_output = true;
+    }
+
+    if (input.isFinished())
+    {
+        if (!pending_chunks.empty() || has_output)
+        {
+            return Status::PortFull;
+        }
+        output.finish();
+        return Status::Finished;
+    }
+
+    input.setNeeded();
+    if (input.hasData())
+    {
+        pending_chunks.push_back(input.pull(true));
+        if (pending_chunks.size() >= buffer_size)
+        {
+            return Status::PortFull;
+        }
+        return Status::Ready;
+    }
+    return Status::NeedData;
+}
+
+void BlocksBufferPoolTransform::work()
+{
+}
+
+BlocksBufferPoolStep::BlocksBufferPoolStep(const DB::DataStream & input_stream_, size_t buffer_size_)
+    : DB::ITransformingStep(input_stream_, input_stream_.header, getTraits())
+    , header(input_stream_.header)
+    , buffer_size(buffer_size_)
+{
+}
+
+void BlocksBufferPoolStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
+{
+    auto build_transform= [&](DB::OutputPortRawPtrs outputs){
+        DB::Processors new_processors;
+        for (auto & output : outputs)
+        {
+            auto buffer_pool_op = std::make_shared<BlocksBufferPoolTransform>(output->getHeader(), buffer_size);
+            new_processors.push_back(buffer_pool_op);
+            DB::connect(*output, buffer_pool_op->getInputs().front());
+        }
+        return new_processors;
+    };
+    pipeline.transform(build_transform);
+}
+
+void BlocksBufferPoolStep::describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const
+{
+    if (!processors.empty())
+        DB::IQueryPlanStep::describePipeline(processors, settings);
+}
+
+void BlocksBufferPoolStep::updateOutputStream()
+{
+    createOutputStream(input_streams.front(), input_streams.front().header, getDataStreamTraits());
+}
+
+}

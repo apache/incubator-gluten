@@ -37,6 +37,7 @@
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>
 #include <Operator/PartitionColumnFillingTransform.h>
+#include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/RelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
@@ -800,6 +801,15 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 }
                 steps.emplace_back(step.get());
                 query_plan->addStep(std::move(step));
+
+                // Add a buffer after source, it try to preload data from source and reduce the
+                // waiting time of downstream nodes.
+                if (context->getSettingsRef().max_threads > 1)
+                {
+                    auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
+                    steps.emplace_back(buffer_step.get());
+                    query_plan->addStep(std::move(buffer_step));
+                }
             }
             else
             {
