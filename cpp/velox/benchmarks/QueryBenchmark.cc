@@ -64,7 +64,7 @@ std::shared_ptr<ResultIterator> getResultIterator(
       streamIds,
       "/tmp/test-spill",
       backend->getConfMap(),
-      {-1, -1, -1});
+      backend->getSparkTaskInfo());
   return std::make_shared<ResultIterator>(std::move(wholestageIter), backend);
 }
 

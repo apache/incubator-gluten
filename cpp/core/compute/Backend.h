@@ -119,6 +119,10 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return confMap_;
   }
 
+  SparkTaskInfo getSparkTaskInfo() {
+    return taskInfo_;
+  }
+
  protected:
   ::substrait::Plan substraitPlan_;
   SparkTaskInfo taskInfo_;
