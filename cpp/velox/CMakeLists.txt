@@ -29,7 +29,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
 endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes -Wno-class-memaccess")
 
 set(SYSTEM_LIB_PATH "/usr/lib" CACHE PATH "System Lib dir")
 set(SYSTEM_LIB64_PATH "/usr/lib64" CACHE PATH "System Lib64 dir")
@@ -199,6 +199,7 @@ endmacro()
 set(VELOX_SRCS
     shuffle/VeloxShuffleWriter.cc
     jni/VeloxJniWrapper.cc
+    shuffle/VeloxShuffleReader.cc
     compute/VeloxBackend.cc
     compute/VeloxInitializer.cc
     compute/WholeStageResultIterator.cc
@@ -211,6 +212,7 @@ set(VELOX_SRCS
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
     utils/VeloxArrowUtils.cc
+    operators/serializer/VeloxColumnarBatchSerializer.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

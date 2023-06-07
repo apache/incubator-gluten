@@ -24,6 +24,63 @@
 
 namespace gluten {
 
+static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
+static constexpr int32_t kDefaultNumSubDirs = 64;
+static constexpr int32_t kDefaultBatchCompressThreshold = 256;
+
+struct ShuffleWriterOptions {
+  int64_t offheap_per_task = 0;
+  int32_t buffer_size = kDefaultShuffleWriterBufferSize;
+  int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
+  int32_t num_sub_dirs = kDefaultNumSubDirs;
+  int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
+  arrow::Compression::type compression_type = arrow::Compression::UNCOMPRESSED;
+
+  bool prefer_evict = true;
+  bool write_schema = true; // just used in test
+  bool buffered_write = false;
+
+  std::string data_file;
+  std::string partition_writer_type = "local";
+
+  int64_t thread_id = -1;
+  int64_t task_attempt_id = -1;
+
+  std::shared_ptr<arrow::MemoryPool> memory_pool = getDefaultArrowMemoryPool();
+
+  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
+
+  std::string partitioning_name;
+
+  static ShuffleWriterOptions defaults();
+};
+
+class ShuffleBufferPool {
+ public:
+  explicit ShuffleBufferPool(std::shared_ptr<arrow::MemoryPool> pool) : pool_(pool) {}
+
+  arrow::Status init() {
+    // Allocate first buffer for split reducer
+    ARROW_ASSIGN_OR_RAISE(combineBuffer_, arrow::AllocateResizableBuffer(0, pool_.get()));
+    RETURN_NOT_OK(combineBuffer_->Resize(0, /*shrink_to_fit =*/false));
+    return arrow::Status::OK();
+  }
+
+  arrow::Status allocate(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
+
+  void reset() {
+    if (combineBuffer_ != nullptr) {
+      combineBuffer_.reset();
+    }
+  }
+
+ private:
+  std::shared_ptr<arrow::MemoryPool> pool_;
+  // slice the buffer for each reducer's column, in this way we can combine into
+  // large page
+  std::shared_ptr<arrow::ResizableBuffer> combineBuffer_;
+};
+
 class ShuffleWriter {
  public:
   /**
@@ -43,6 +100,12 @@ class ShuffleWriter {
   virtual arrow::Status createRecordBatchFromBuffer(uint32_t partitionId, bool resetBuffers) = 0;
 
   virtual arrow::Status stop() = 0;
+
+  virtual std::shared_ptr<arrow::Schema> writeSchema();
+
+  virtual std::shared_ptr<arrow::Schema>& schema() {
+    return schema_;
+  }
 
   int32_t numPartitions() const {
     return numPartitions_;
@@ -88,16 +151,12 @@ class ShuffleWriter {
     return partitionBuffers_;
   }
 
-  std::shared_ptr<arrow::ResizableBuffer>& combineBuffer() {
-    return combineBuffer_;
+  std::shared_ptr<ShuffleBufferPool>& pool() {
+    return pool_;
   }
 
   ShuffleWriterOptions& options() {
     return options_;
-  }
-
-  std::shared_ptr<arrow::Schema>& schema() {
-    return schema_;
   }
 
   void setPartitionLengths(int32_t index, int64_t length) {
@@ -137,7 +196,8 @@ class ShuffleWriter {
       ShuffleWriterOptions options)
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
-        options_(std::move(options)) {}
+        options_(std::move(options)),
+        pool_(std::make_shared<ShuffleBufferPool>(options_.memory_pool)) {}
   virtual ~ShuffleWriter() = default;
 
   int32_t numPartitions_;
@@ -157,6 +217,7 @@ class ShuffleWriter {
   std::vector<int64_t> rawPartitionLengths_;
 
   std::shared_ptr<arrow::Schema> schema_;
+  std::shared_ptr<arrow::Schema> writeSchema_;
 
   std::vector<int64_t> partitionCachedRecordbatchSize_; // in bytes
   std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partitionCachedRecordbatch_;
@@ -164,13 +225,11 @@ class ShuffleWriter {
   // col partid
   std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partitionBuffers_;
 
-  // slice the buffer for each reducer's column, in this way we can combine into
-  // large page
-  std::shared_ptr<arrow::ResizableBuffer> combineBuffer_;
-
   std::shared_ptr<PartitionWriter> partitionWriter_;
 
   std::shared_ptr<Partitioner> partitioner_;
+
+  std::shared_ptr<ShuffleBufferPool> pool_;
 };
 
 } // namespace gluten

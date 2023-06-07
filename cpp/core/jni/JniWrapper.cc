@@ -29,6 +29,7 @@
 #include "operators/writer/Datasource.h"
 
 #include <arrow/c/bridge.h>
+#include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/ShuffleWriter.h"
@@ -59,6 +60,9 @@ static jmethodID jniByteInputStreamClose;
 static jclass splitResultClass;
 static jmethodID splitResultConstructor;
 
+static jclass columnarBatchSerializeResultClass;
+static jmethodID columnarBatchSerializeResultConstructor;
+
 static jclass serializedArrowArrayIteratorClass;
 static jclass metricsBuilderClass;
 static jmethodID metricsBuilderConstructor;
@@ -88,6 +92,8 @@ static ConcurrentMap<std::shared_ptr<Reader>> shuffleReaderHolder;
 static ConcurrentMap<std::shared_ptr<ColumnarBatch>> glutenColumnarbatchHolder;
 
 static ConcurrentMap<std::shared_ptr<Datasource>> glutenDatasourceHolder;
+
+static ConcurrentMap<std::shared_ptr<ColumnarBatchSerializer>> columnarBatchSerializerHolder;
 
 std::shared_ptr<ResultIterator> getArrayIterator(JNIEnv* env, jlong id) {
   auto handler = resultIteratorHolder.lookup(id);
@@ -272,6 +278,11 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   splitResultClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/SplitResult;");
   splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJ[J[J)V");
 
+  columnarBatchSerializeResultClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchSerializeResult;");
+  columnarBatchSerializeResultConstructor =
+      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[B)V");
+
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
   metricsBuilderConstructor =
@@ -320,6 +331,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(serializableObjBuilderClass);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
+  env->DeleteGlobalRef(columnarBatchSerializeResultClass);
   env->DeleteGlobalRef(serializedArrowArrayIteratorClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
@@ -842,7 +854,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   auto batch = glutenColumnarbatchHolder.lookup(firstBatchHandle);
   auto shuffleWriter = backend->makeShuffleWriter(
       numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions), batch->getType());
-
   return shuffleWriterHolder.insert(shuffleWriter);
   JNI_METHOD_END(-1L)
 }
@@ -961,7 +972,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   options.ipc_read_options.use_threads = false;
   std::shared_ptr<arrow::Schema> schema =
       gluten::jniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-  auto reader = std::make_shared<Reader>(in, schema, options, pool);
+
+  auto backend = gluten::createBackend();
+  auto reader = backend->getShuffleReader(in, schema, options, pool);
   return shuffleReaderHolder.insert(reader);
   JNI_METHOD_END(-1L)
 }
@@ -1110,6 +1123,99 @@ JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocStats(JNIEnv*
   //  malloc_stats_print(statsPrint, nullptr, nullptr);
   std::cout << "Calling malloc_stats... " << std::endl;
   malloc_stats();
+}
+
+JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_serialize(
+    JNIEnv* env,
+    jobject,
+    jlongArray handles,
+    jlong allocId) {
+  JNI_METHOD_START
+  int32_t numBatches = env->GetArrayLength(handles);
+  jlong* batchhandles = env->GetLongArrayElements(handles, JNI_FALSE);
+  auto* allocator = reinterpret_cast<MemoryAllocator*>(allocId);
+  GLUTEN_DCHECK(allocator != nullptr, "Memory pool does not exist or has been closed");
+  std::vector<std::shared_ptr<ColumnarBatch>> batches;
+  int64_t numRows = 0L;
+  for (int32_t i = 0; i < numBatches; i++) {
+    auto batch = glutenColumnarbatchHolder.lookup(batchhandles[i]);
+    GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(batchhandles[i]));
+    numRows += batch->getNumRows();
+    batches.emplace_back(batch);
+  }
+  env->ReleaseLongArrayElements(handles, batchhandles, JNI_ABORT);
+
+  auto backend = createBackend();
+  auto serializer = backend->getColumnarBatchSerializer(allocator, nullptr);
+  auto buffer = serializer->serializeColumnarBatches(batches);
+  auto bufferArr = env->NewByteArray(buffer->size());
+  env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
+
+  jobject columnarBatchSerializeResult =
+      env->NewObject(columnarBatchSerializeResultClass, columnarBatchSerializeResultConstructor, numRows, bufferArr);
+
+  return columnarBatchSerializeResult;
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_init(
+    JNIEnv* env,
+    jobject,
+    jlong cSchema,
+    jlong allocId) {
+  JNI_METHOD_START
+  auto* allocator = reinterpret_cast<MemoryAllocator*>(allocId);
+  GLUTEN_DCHECK(allocator != nullptr, "Memory pool does not exist or has been closed");
+  auto backend = createBackend();
+  auto serializer = backend->getColumnarBatchSerializer(allocator, reinterpret_cast<struct ArrowSchema*>(cSchema));
+  return columnarBatchSerializerHolder.insert(serializer);
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_deserialize(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jbyteArray data) {
+  JNI_METHOD_START
+  std::shared_ptr<ColumnarBatchSerializer> serializer = columnarBatchSerializerHolder.lookup(handle);
+  GLUTEN_DCHECK(serializer != nullptr, "ColumnarBatchSerializer cannot be null");
+  int32_t size = env->GetArrayLength(data);
+  jbyte* serialized = env->GetByteArrayElements(data, JNI_FALSE);
+  auto batch = serializer->deserialize(reinterpret_cast<uint8_t*>(serialized), size);
+  env->ReleaseByteArrayElements(data, serialized, JNI_ABORT);
+  return glutenColumnarbatchHolder.insert(batch);
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_close(JNIEnv* env, jobject, jlong handle) {
+  JNI_METHOD_START
+  columnarBatchSerializerHolder.erase(handle);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_insertBatch(JNIEnv* env, jobject, jlong handle) {
+  JNI_METHOD_START
+  auto batch = glutenColumnarbatchHolder.lookup(handle);
+  GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
+  return glutenColumnarbatchHolder.insert(batch);
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_closeBatches(
+    JNIEnv* env,
+    jobject,
+    jlongArray handles) {
+  JNI_METHOD_START
+  int32_t numBatches = env->GetArrayLength(handles);
+  jlong* batchhandles = env->GetLongArrayElements(handles, JNI_FALSE);
+  for (int32_t i = 0; i < numBatches; i++) {
+    glutenColumnarbatchHolder.erase(batchhandles[i]);
+  }
+  env->ReleaseLongArrayElements(handles, batchhandles, JNI_ABORT);
+  JNI_METHOD_END()
 }
 
 #ifdef __cplusplus

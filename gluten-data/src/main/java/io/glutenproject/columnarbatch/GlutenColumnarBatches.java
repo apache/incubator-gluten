@@ -17,8 +17,13 @@
 
 package io.glutenproject.columnarbatch;
 
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 public final class GlutenColumnarBatches {
 
@@ -39,6 +44,27 @@ public final class GlutenColumnarBatches {
       columnVectors[i + 1] = pv;
     }
     return new ColumnarBatch(columnVectors, numRows);
+  }
+
+  public static Iterator<InternalRow> emptyRowIterator(ColumnarBatch batch) {
+    final int maxRows = batch.numRows();
+    return new Iterator<InternalRow>() {
+      int rowId = 0;
+
+      @Override
+      public boolean hasNext() {
+        return rowId < maxRows;
+      }
+
+      @Override
+      public InternalRow next() {
+        if (rowId >= maxRows) {
+          throw new NoSuchElementException();
+        }
+        rowId++;
+        return new UnsafeRow(0);
+      }
+    };
   }
 
   public static long getNativeHandle(ColumnarBatch batch) {

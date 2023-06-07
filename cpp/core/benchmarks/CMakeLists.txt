@@ -22,5 +22,4 @@ macro(package_add_gbenchmark TESTNAME)
   set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 endmacro()
 
-package_add_gbenchmark(BenchmarkShuffleSplit ShuffleSplitBenchmark.cc)
 package_add_gbenchmark(BenchmarkCompression CompressionBenchmark.cc)

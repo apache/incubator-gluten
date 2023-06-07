@@ -52,9 +52,7 @@ arrow::Status CelebornPartitionWriter::stop() {
     }
     shuffleWriter_->setTotalBytesWritten(shuffleWriter_->totalBytesWritten() + shuffleWriter_->partitionLengths()[pid]);
   }
-  if (shuffleWriter_->combineBuffer() != nullptr) {
-    shuffleWriter_->combineBuffer().reset();
-  }
+  shuffleWriter_->pool()->reset();
   shuffleWriter_->partitionBuffer().clear();
   return arrow::Status::OK();
 };

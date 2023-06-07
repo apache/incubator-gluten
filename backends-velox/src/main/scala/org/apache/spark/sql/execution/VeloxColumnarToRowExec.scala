@@ -17,24 +17,23 @@
 
 package org.apache.spark.sql.execution
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, IndicatorVector}
+import scala.collection.JavaConverters._
+import scala.concurrent.duration.NANOSECONDS
+
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import io.glutenproject.vectorized.{NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import org.slf4j.LoggerFactory
+
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.types._
-import org.slf4j.LoggerFactory
-
-import scala.collection.JavaConverters._
-import scala.concurrent.duration.NANOSECONDS
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskResources
 
@@ -46,53 +45,25 @@ case class VeloxColumnarToRowExec(child: SparkPlan)
 
   override def buildCheck(): Unit = {
     val schema = child.schema
-    child match {
-      // Depending on the input type, VeloxColumnarToRowConverter or ArrowColumnarToRowConverter
-      // will be used. Only for columnar shuffle, ArrowColumnarToRowConverter will be used. The
-      // data type checking should align with the code in ArrowColumnarToRowConverter.cc.
-      case _: ColumnarShuffleExchangeExec =>
-        for (field <- schema.fields) {
-          field.dataType match {
-            case _: BooleanType =>
-            case _: ByteType =>
-            case _: ShortType =>
-            case _: IntegerType =>
-            case _: LongType =>
-            case _: FloatType =>
-            case _: DoubleType =>
-            case _: StringType =>
-            case _: TimestampType =>
-            case _: DateType =>
-            case _: BinaryType =>
-            case _: DecimalType =>
-            case _ =>
-              throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-                  s"VeloxColumnarToRowExec.")
-          }
-        }
-      case _ =>
-        // The below data type checking should align
-        // with the code in VeloxColumnarToRowConverter.cc.
-        for (field <- schema.fields) {
-          field.dataType match {
-            case _: BooleanType =>
-            case _: ByteType =>
-            case _: ShortType =>
-            case _: IntegerType =>
-            case _: LongType =>
-            case _: FloatType =>
-            case _: DoubleType =>
-            case _: StringType =>
-            case _: TimestampType =>
-            case _: DateType =>
-            case _: BinaryType =>
-            case _: DecimalType =>
-            case _ =>
-              throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-                  s"VeloxColumnarToRowExec")
-
-          }
-        }
+    // Depending on the input type, VeloxColumnarToRowConverter.
+    for (field <- schema.fields) {
+      field.dataType match {
+        case _: BooleanType =>
+        case _: ByteType =>
+        case _: ShortType =>
+        case _: IntegerType =>
+        case _: LongType =>
+        case _: FloatType =>
+        case _: DoubleType =>
+        case _: StringType =>
+        case _: TimestampType =>
+        case _: DateType =>
+        case _: BinaryType =>
+        case _: DecimalType =>
+        case _ =>
+          throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
+            s"VeloxColumnarToRowExec.")
+      }
     }
   }
 

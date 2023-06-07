@@ -23,9 +23,10 @@
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
 #include "operators/r2c/RowToColumnar.h"
+#include "operators/serializer/ColumnarBatchSerializer.h"
 #include "operators/writer/Datasource.h"
-#include "shuffle/ArrowShuffleWriter.h"
 #include "shuffle/ShuffleWriter.h"
+#include "shuffle/reader.h"
 #include "substrait/plan.pb.h"
 
 namespace gluten {
@@ -93,10 +94,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       const std::string& batchType) {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer,
-        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
-    return shuffle_writer;
+    throw GlutenException("Not implement makeShuffleWriter");
   }
 
   virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) {
@@ -107,6 +105,20 @@ class Backend : public std::enable_shared_from_this<Backend> {
       const std::string& filePath,
       std::shared_ptr<arrow::Schema> schema) {
     throw GlutenException("Not implement getDatasource");
+  }
+
+  virtual std::shared_ptr<Reader> getShuffleReader(
+      std::shared_ptr<arrow::io::InputStream> in,
+      std::shared_ptr<arrow::Schema> schema,
+      ReaderOptions options,
+      std::shared_ptr<arrow::MemoryPool> pool) {
+    return std::make_shared<Reader>(in, schema, options, pool);
+  }
+
+  virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
+      MemoryAllocator* allocator,
+      struct ArrowSchema* cSchema) {
+    throw GlutenException("Not implement getColumnarBatchSerializer");
   }
 
   std::unordered_map<std::string, std::string> getConfMap() {

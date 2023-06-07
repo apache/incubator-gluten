@@ -31,6 +31,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.ImplicitClass.{ArrowColumnarBatchRetainer, coalesce}
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
+
 import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
@@ -44,14 +45,14 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.utils.SparkArrowUtil
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskResources
-
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.util
+import java.{lang, util}
 import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
@@ -111,92 +112,7 @@ class IteratorHandler extends IteratorApi with Logging {
                                    concatTime: SQLMetric = null,
                                    avgCoalescedNumRows: SQLMetric = null)
   : Iterator[ColumnarBatch] = {
-
-    val beforeInput = System.nanoTime
-    if (collectTime != null) {
-      collectTime += System.nanoTime - beforeInput
-    }
-    val res: Iterator[ColumnarBatch] = {
-      new Iterator[ColumnarBatch] {
-        var numBatchesTotal: Long = _
-        var numRowsTotal: Long = _
-        TaskResources.addRecycler(100) {
-          if (avgCoalescedNumRows != null && numBatchesTotal > 0) {
-            avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
-          }
-        }
-
-        override def hasNext: Boolean = {
-          val beforeNext = System.nanoTime
-          val hasNext = iter.hasNext
-          if (collectTime != null) {
-            collectTime += System.nanoTime - beforeNext
-          }
-          hasNext
-        }
-
-        override def next(): ColumnarBatch = {
-          if (!hasNext) {
-            throw new NoSuchElementException("End of ColumnarBatch iterator")
-          }
-
-          var rowCount = 0
-          val batchesToAppend = ListBuffer[ColumnarBatch]()
-
-          while (hasNext && rowCount < recordsPerBatch) {
-            val delta = iter.next()
-            delta.retain()
-            rowCount += delta.numRows
-            batchesToAppend += delta
-          }
-
-          // chendi: We need make sure target FieldTypes are exactly the same as src
-          val expectedOutputArrowFields = if (batchesToAppend.size > 0) {
-            (0 until batchesToAppend(0).numCols).map(i => {
-              ArrowColumnarBatches
-                .ensureLoaded(
-                  ArrowBufferAllocators.contextInstance(), batchesToAppend(0)).column(i)
-                .asInstanceOf[ArrowWritableColumnVector]
-                .getValueVector
-                .getField
-            })
-          } else {
-            Nil
-          }
-
-          val resultStructType =
-            SparkArrowUtil.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
-          val beforeConcat = System.nanoTime
-          val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType)
-          val target =
-            new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), rowCount)
-          coalesce(target, batchesToAppend.toList)
-          target.setNumRows(rowCount)
-
-          if (concatTime != null) {
-            concatTime += System.nanoTime - beforeConcat
-          }
-          if (numOutputRows != null) {
-            numOutputRows += rowCount
-          }
-          if (numInputBatches != null) {
-            numInputBatches += batchesToAppend.length
-          }
-          if (numOutputBatches != null) {
-            numOutputBatches += 1
-          }
-          // used for calculating avgCoalescedNumRows
-          numRowsTotal += rowCount
-          numBatchesTotal += 1
-
-          batchesToAppend.foreach(cb => cb.close())
-
-          target
-        }
-      }
-    }
-    new CloseableColumnBatchIterator(res)
+    throw new UnsupportedOperationException("Velox backend does not support coalesce batch")
   }
 
   /**

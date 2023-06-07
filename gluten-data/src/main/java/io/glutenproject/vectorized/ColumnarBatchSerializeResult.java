@@ -15,33 +15,24 @@
  * limitations under the License.
  */
 
-#pragma once
+package io.glutenproject.vectorized;
 
-#include "memory/ColumnarBatch.h"
-#include "type.h"
+public class ColumnarBatchSerializeResult {
 
-namespace gluten {
+  private long numRows;
 
-class Reader {
- public:
-  Reader(
-      std::shared_ptr<arrow::io::InputStream> in,
-      std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool);
+  private byte[] serialized;
 
-  virtual ~Reader() = default;
+  public ColumnarBatchSerializeResult(long numRows, byte[] serialized) {
+    this.numRows = numRows;
+    this.serialized = serialized;
+  }
 
-  virtual arrow::Result<std::shared_ptr<ColumnarBatch>> next();
-  arrow::Status close();
+  public long getNumRows() {
+    return numRows;
+  }
 
- private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  std::shared_ptr<arrow::io::InputStream> in_;
-  ReaderOptions options_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-  std::unique_ptr<arrow::ipc::Message> firstMessage_;
-  bool firstMessageConsumed_ = false;
-};
-
-} // namespace gluten
+  public byte[] getSerialized() {
+    return serialized;
+  }
+}

@@ -23,8 +23,8 @@
 
 namespace gluten {
 
-void toArrowSchema(const std::shared_ptr<const facebook::velox::RowType>& rowType, struct ArrowSchema* out);
+void toArrowSchema(const facebook::velox::TypePtr& rowType, struct ArrowSchema* out);
 
-std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const facebook::velox::RowType>& rowType);
+std::shared_ptr<arrow::Schema> toArrowSchema(const facebook::velox::TypePtr& rowType);
 
 } // namespace gluten

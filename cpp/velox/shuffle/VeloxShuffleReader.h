@@ -17,31 +17,29 @@
 
 #pragma once
 
-#include "memory/ColumnarBatch.h"
-#include "type.h"
+#include "shuffle/reader.h"
+#include "velox/type/Type.h"
+#include "velox/vector/ComplexVector.h"
 
 namespace gluten {
-
-class Reader {
+class VeloxShuffleReader final : public Reader {
  public:
-  Reader(
+  explicit VeloxShuffleReader(
       std::shared_ptr<arrow::io::InputStream> in,
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool);
 
-  virtual ~Reader() = default;
+  arrow::Result<std::shared_ptr<ColumnarBatch>> next() override;
 
-  virtual arrow::Result<std::shared_ptr<ColumnarBatch>> next();
-  arrow::Status close();
+  // Visiable for testing
+  static facebook::velox::RowVectorPtr readRowVector(
+      const arrow::RecordBatch& batch,
+      facebook::velox::RowTypePtr rowType,
+      facebook::velox::memory::MemoryPool* pool);
 
  private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  std::shared_ptr<arrow::io::InputStream> in_;
-  ReaderOptions options_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-  std::unique_ptr<arrow::ipc::Message> firstMessage_;
-  bool firstMessageConsumed_ = false;
+  facebook::velox::RowTypePtr rowType_;
 };
 
 } // namespace gluten

@@ -18,24 +18,26 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
+
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.vectorized._
+import org.apache.arrow.c.ArrowSchema
+import org.apache.arrow.memory.ArrowBuf
+
+import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, SpecializedGetters, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, SpecializedGetters, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.{TaskContext, broadcast}
-import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil}
-import io.glutenproject.vectorized._
-import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-import org.apache.arrow.memory.ArrowBuf
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.Platform
 import org.apache.spark.util.memory.TaskResources
 
@@ -282,7 +284,11 @@ case class RowToArrowColumnarExec(child: SparkPlan)
         case _: DecimalType =>
         case _: DateType =>
         case _: TimestampType =>
-        case _ => return false
+        case _: MapType =>
+        case _: StructType =>
+        case _: ArrayType =>
+        case _ => throw new UnsupportedOperationException(
+          s"Type ${field.dataType.typeName} not support use native row to columnar")
       }
     }
     true
@@ -298,27 +304,19 @@ case class RowToArrowColumnarExec(child: SparkPlan)
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = schema
-    val useNative = typeCheckNative()
     child.execute().mapPartitions { rowIterator =>
-      val converter = new RowToColumnConverter(localSchema)
       val arrowSchema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
       val jniWrapper = new NativeRowToColumnarJniWrapper()
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
       var closed = false
       val r2cId = try {
-        if (useNative) {
           ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
           jniWrapper.init(cSchema.memoryAddress(),
             NativeMemoryAllocators.contextInstance().getNativeInstanceId)
-        } else {
-          closed = true
-          -1
-        }
       } finally {
         cSchema.close()
       }
-
 
       TaskResources.addRecycler(100) {
         if (!closed) {
@@ -367,7 +365,7 @@ case class RowToArrowColumnarExec(child: SparkPlan)
 
             while (rowCount < numRows && rowIterator.hasNext) {
               val row = rowIterator.next()
-              val unsafeRow = row.asInstanceOf[UnsafeRow]
+              val unsafeRow = convertToUnsafeRow(row)
               val sizeInBytes = unsafeRow.getSizeInBytes
               if ((offset + sizeInBytes) > arrowBuf.capacity()) {
                 val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
@@ -393,35 +391,21 @@ case class RowToArrowColumnarExec(child: SparkPlan)
             }
           }
 
-          def javaConvert(row: InternalRow): ColumnarBatch = {
-            logDebug("Not UnsafeRow, fallback to java based r2c")
-            val vectors: Seq[WritableColumnVector] =
-              ArrowWritableColumnVector.allocateColumns(numRows, schema)
-            var rowCount = 0
-
-            converter.convert(row, vectors.toArray)
-            rowCount += 1
-
-            while (rowCount < numRows && rowIterator.hasNext) {
-              val row = rowIterator.next()
-              converter.convert(row, vectors.toArray)
-              rowCount += 1
+          def convertToUnsafeRow(row: InternalRow): UnsafeRow = {
+            row match {
+              case unsafeRow: UnsafeRow => unsafeRow
+              case _ =>
+                val factory = UnsafeProjection
+                val converter = factory.create(localSchema)
+                converter.apply(row)
             }
-            vectors.foreach(v => v.asInstanceOf[ArrowWritableColumnVector]
-              .setValueCount(rowCount))
-            numInputRows += rowCount
-            new ColumnarBatch(vectors.toArray, rowCount)
           }
 
           override def next(): ColumnarBatch = {
             val firstRow = rowIterator.next()
             val start = System.currentTimeMillis()
-            val cb = firstRow match {
-              case unsafeRow: UnsafeRow if useNative =>
-                nativeConvert(unsafeRow)
-              case _ =>
-                javaConvert(firstRow)
-            }
+            val unsafeRow = convertToUnsafeRow(firstRow)
+            val cb = nativeConvert(unsafeRow)
             numOutputBatches += 1
             convertTime += System.currentTimeMillis() - start
             cb

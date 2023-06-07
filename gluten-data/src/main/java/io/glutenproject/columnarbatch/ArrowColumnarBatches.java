@@ -68,6 +68,10 @@ public class ArrowColumnarBatches {
     ColumnarBatchJniWrapper.INSTANCE.close(GlutenColumnarBatches.getNativeHandle(input));
   }
 
+  public static void close(long batchHanlde) {
+    ColumnarBatchJniWrapper.INSTANCE.close(batchHanlde);
+  }
+
   public static long addColumn(ColumnarBatch input, int index, ColumnarBatch col) {
     return ColumnarBatchJniWrapper.INSTANCE.addColumn(
         GlutenColumnarBatches.getNativeHandle(input), index,

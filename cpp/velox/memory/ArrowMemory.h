@@ -17,31 +17,37 @@
 
 #pragma once
 
-#include "memory/ColumnarBatch.h"
-#include "type.h"
+#include <arrow/io/memory.h>
+#include "utils/exception.h"
+#include "velox/common/memory/ByteStream.h"
 
 namespace gluten {
 
-class Reader {
+class ArrowFixedSizeBufferOutputStream : public facebook::velox::OutputStream {
  public:
-  Reader(
-      std::shared_ptr<arrow::io::InputStream> in,
-      std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool);
+  explicit ArrowFixedSizeBufferOutputStream(
+      std::shared_ptr<arrow::io::FixedSizeBufferWriter> out,
+      facebook::velox::OutputStreamListener* listener = nullptr)
+      : OutputStream(listener), out_(out) {}
 
-  virtual ~Reader() = default;
+  void write(const char* s, std::streamsize count) override {
+    GLUTEN_THROW_NOT_OK(out_->Write((void*)s, count));
+    if (listener_) {
+      listener_->onWrite(s, count);
+    }
+  }
 
-  virtual arrow::Result<std::shared_ptr<ColumnarBatch>> next();
-  arrow::Status close();
+  std::streampos tellp() const override {
+    GLUTEN_ASSIGN_OR_THROW(auto pos, out_->Tell());
+    return pos;
+  }
+
+  void seekp(std::streampos pos) override {
+    GLUTEN_THROW_NOT_OK(out_->Seek(pos));
+  }
 
  private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  std::shared_ptr<arrow::io::InputStream> in_;
-  ReaderOptions options_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-  std::unique_ptr<arrow::ipc::Message> firstMessage_;
-  bool firstMessageConsumed_ = false;
+  std::shared_ptr<arrow::io::FixedSizeBufferWriter> out_;
 };
 
 } // namespace gluten

@@ -15,33 +15,28 @@
  * limitations under the License.
  */
 
-#pragma once
+package io.glutenproject.vectorized;
 
-#include "memory/ColumnarBatch.h"
-#include "type.h"
+import io.glutenproject.init.JniInitialized;
 
-namespace gluten {
+public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
 
-class Reader {
- public:
-  Reader(
-      std::shared_ptr<arrow::io::InputStream> in,
-      std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool);
+  public static final ColumnarBatchSerializerJniWrapper INSTANCE =
+      new ColumnarBatchSerializerJniWrapper();
 
-  virtual ~Reader() = default;
+  private ColumnarBatchSerializerJniWrapper()  {}
 
-  virtual arrow::Result<std::shared_ptr<ColumnarBatch>> next();
-  arrow::Status close();
+  public native ColumnarBatchSerializeResult serialize(long[] handles, long allocId);
 
- private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  std::shared_ptr<arrow::io::InputStream> in_;
-  ReaderOptions options_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-  std::unique_ptr<arrow::ipc::Message> firstMessage_;
-  bool firstMessageConsumed_ = false;
-};
+  // Return the native ColumnarBatchSerializer handle
+  public native long init(long cSchema, long allocId);
 
-} // namespace gluten
+  public native long deserialize(long handle, byte[] data);
+
+  public native void close(long handle);
+
+  // Record the exists batch twice
+  public native long insertBatch(long handle);
+
+  public native void closeBatches(long[] handles);
+}

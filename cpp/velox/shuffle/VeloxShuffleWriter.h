@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -24,6 +41,7 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
+#include "memory/VeloxMemoryPool.h"
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
@@ -75,21 +93,21 @@ namespace gluten {
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
 class VeloxShuffleWriter final : public ShuffleWriter {
-  enum { kValidityBufferIndex = 0, kOffsetBufferIndex = 1, kValueBufferInedx = 2 };
+  enum { kValidityBufferIndex = 0, kOffsetBufferIndex = 1, kValueBufferIndex = 2 };
 
  public:
-  struct BinaryBuff {
-    BinaryBuff(uint8_t* value, uint8_t* offset, uint64_t valueCapacity, uint64_t valueOffset)
-        : value_ptr(value), offset_ptr(offset), value_capacity(valueCapacity), value_offset(valueOffset) {}
+  struct BinaryBuf {
+    BinaryBuf(uint8_t* value, uint8_t* offset, uint64_t valueCapacityIn, uint64_t valueOffsetIn)
+        : valuePtr(value), offsetPtr(offset), valueCapacity(valueCapacityIn), valueOffset(valueOffsetIn) {}
 
-    BinaryBuff(uint8_t* value, uint8_t* offset, uint64_t valueCapacity) : BinaryBuff(value, offset, valueCapacity, 0) {}
+    BinaryBuf(uint8_t* value, uint8_t* offset, uint64_t valueCapacity) : BinaryBuf(value, offset, valueCapacity, 0) {}
 
-    BinaryBuff() : BinaryBuff(nullptr, nullptr, 0, 0) {}
+    BinaryBuf() : BinaryBuf(nullptr, nullptr, 0) {}
 
-    uint8_t* value_ptr;
-    uint8_t* offset_ptr;
-    uint64_t value_capacity;
-    uint64_t value_offset;
+    uint8_t* valuePtr;
+    uint8_t* offsetPtr;
+    uint64_t valueCapacity;
+    uint64_t valueOffset;
   };
 
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
@@ -200,7 +218,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status allocateNew(uint32_t partitionId, uint32_t newSize);
 
-  arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb);
+  arrow::Status
+  cacheRecordBatch(uint32_t partitionId, int32_t numRows, const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
   arrow::Status splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv);
 
@@ -234,7 +253,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Status splitBinaryType(
       uint32_t binaryIdx,
       const facebook::velox::FlatVector<facebook::velox::StringView>& src,
-      std::vector<BinaryBuff>& dst);
+      std::vector<BinaryBuf>& dst);
 
   arrow::Status splitListArray(const facebook::velox::RowVector& rv);
 
@@ -307,7 +326,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   std::vector<uint64_t> binaryArrayEmpiricalSize_;
 
-  std::vector<std::vector<BinaryBuff>> partitionBinaryAddrs_;
+  std::vector<std::vector<BinaryBuf>> partitionBinaryAddrs_;
 
   std::vector<bool> inputHasNull_;
 }; // class VeloxShuffleWriter

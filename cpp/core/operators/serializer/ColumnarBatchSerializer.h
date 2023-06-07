@@ -17,31 +17,26 @@
 
 #pragma once
 
+#include <arrow/c/abi.h>
+
 #include "memory/ColumnarBatch.h"
-#include "type.h"
 
 namespace gluten {
 
-class Reader {
+class ColumnarBatchSerializer {
  public:
-  Reader(
-      std::shared_ptr<arrow::io::InputStream> in,
-      std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool);
+  ColumnarBatchSerializer(std::shared_ptr<arrow::MemoryPool> arrowPool, struct ArrowSchema* cSchema)
+      : arrowPool_(std::move(arrowPool)) {}
 
-  virtual ~Reader() = default;
+  virtual ~ColumnarBatchSerializer() = default;
 
-  virtual arrow::Result<std::shared_ptr<ColumnarBatch>> next();
-  arrow::Status close();
+  virtual std::shared_ptr<arrow::Buffer> serializeColumnarBatches(
+      const std::vector<std::shared_ptr<ColumnarBatch>>& batches) = 0;
 
- private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  std::shared_ptr<arrow::io::InputStream> in_;
-  ReaderOptions options_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-  std::unique_ptr<arrow::ipc::Message> firstMessage_;
-  bool firstMessageConsumed_ = false;
+  virtual std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) = 0;
+
+ protected:
+  std::shared_ptr<arrow::MemoryPool> arrowPool_;
 };
 
 } // namespace gluten

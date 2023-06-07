@@ -95,7 +95,7 @@ class LocalPartitionWriter::LocalPartitionWriterInstance {
   }
 
   arrow::Status writeSchemaPayload(arrow::io::OutputStream* os) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, partitionWriter_->getSchemaPayload(shuffleWriter_->schema()));
+    ARROW_ASSIGN_OR_RAISE(auto payload, partitionWriter_->getSchemaPayload(shuffleWriter_->writeSchema()));
     int32_t metadataLength = 0; // unused
     RETURN_NOT_OK(
         arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));
@@ -115,7 +115,8 @@ class LocalPartitionWriter::LocalPartitionWriterInstance {
   }
 
   arrow::Status writeEos(arrow::io::OutputStream* os) {
-    // write EOS
+    // This 0xFFFFFFFF value is the first 4 bytes of a valid IPC message
+    constexpr int32_t kIpcContinuationToken = -1;
     constexpr int32_t kZeroLength = 0;
     RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
     RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));
@@ -215,9 +216,7 @@ arrow::Status LocalPartitionWriter::stop() {
       shuffleWriter_->setPartitionLengths(pid, 0);
     }
   }
-  if (shuffleWriter_->combineBuffer() != nullptr) {
-    shuffleWriter_->combineBuffer().reset();
-  }
+  shuffleWriter_->pool()->reset();
   this->schema_payload_.reset();
   shuffleWriter_->partitionBuffer().clear();
 

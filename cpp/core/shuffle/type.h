@@ -30,46 +30,12 @@
 
 namespace gluten {
 
-static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
-static constexpr int32_t kDefaultNumSubDirs = 64;
-static constexpr int32_t kDefaultBatchCompressThreshold = 256;
-
-// This 0xFFFFFFFF value is the first 4 bytes of a valid IPC message
-static constexpr int32_t kIpcContinuationToken = -1;
-
 const unsigned kOnes[] = {1, 1, 1, 1, 1, 1, 1, 1};
 
 struct ReaderOptions {
   arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
 
   static ReaderOptions defaults();
-};
-
-struct ShuffleWriterOptions {
-  int64_t offheap_per_task = 0;
-  int32_t buffer_size = kDefaultShuffleWriterBufferSize;
-  int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
-  int32_t num_sub_dirs = kDefaultNumSubDirs;
-  int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
-  arrow::Compression::type compression_type = arrow::Compression::UNCOMPRESSED;
-
-  bool prefer_evict = true;
-  bool write_schema = true;
-  bool buffered_write = false;
-
-  std::string data_file;
-  std::string partition_writer_type = "local";
-
-  int64_t thread_id = -1;
-  int64_t task_attempt_id = -1;
-
-  std::shared_ptr<arrow::MemoryPool> memory_pool = getDefaultArrowMemoryPool();
-
-  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
-
-  std::string partitioning_name;
-
-  static ShuffleWriterOptions defaults();
 };
 
 namespace type {

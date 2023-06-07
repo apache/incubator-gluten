@@ -26,7 +26,6 @@
 #include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
-#include "shuffle/ArrowShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"
 
@@ -128,17 +127,19 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
     const ShuffleWriterOptions& options,
     const std::string& batchType) {
-  if (batchType == "velox") {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer,
-        VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
-    return shuffle_writer;
-  } else {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer,
-        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
-    return shuffle_writer;
-  }
+  GLUTEN_ASSIGN_OR_THROW(
+      auto shuffle_writer,
+      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+  return shuffle_writer;
+}
+
+std::shared_ptr<ColumnarBatchSerializer> VeloxBackend::getColumnarBatchSerializer(
+    MemoryAllocator* allocator,
+    struct ArrowSchema* cSchema) {
+  auto arrowPool = asWrappedArrowMemoryPool(allocator);
+  auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
+  auto ctxVeloxPool = veloxPool->addLeafChild("velox_columnar_batch_serializer");
+  return std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
 }
 
 } // namespace gluten

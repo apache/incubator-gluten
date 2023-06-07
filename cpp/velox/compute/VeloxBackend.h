@@ -28,7 +28,10 @@
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
 #include "compute/VeloxParquetDatasource.h"
+#include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "shuffle/ShuffleWriter.h"
+#include "shuffle/VeloxShuffleReader.h"
+#include "shuffle/reader.h"
 
 namespace gluten {
 // This class is used to convert the Substrait plan into Velox plan.
@@ -66,6 +69,18 @@ class VeloxBackend final : public Backend {
       override {
     return std::make_shared<VeloxParquetDatasource>(filePath, schema);
   }
+
+  std::shared_ptr<Reader> getShuffleReader(
+      std::shared_ptr<arrow::io::InputStream> in,
+      std::shared_ptr<arrow::Schema> schema,
+      ReaderOptions options,
+      std::shared_ptr<arrow::MemoryPool> pool) override {
+    return std::make_shared<VeloxShuffleReader>(in, schema, options, pool);
+  }
+
+  std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
+      MemoryAllocator* allocator,
+      struct ArrowSchema* cSchema) override;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;

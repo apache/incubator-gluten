@@ -17,9 +17,11 @@
 
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/io/interfaces.h>
+#include <arrow/ipc/options.h>
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
+#include <arrow/type_fwd.h>
 #include <benchmark/benchmark.h>
 #include <execinfo.h>
 #include <parquet/arrow/reader.h>
@@ -28,9 +30,10 @@
 #include <sys/mman.h>
 
 #include <chrono>
+#include <iostream>
 #include <utility>
 
-#include "shuffle/ArrowShuffleWriter.h"
+#include "shuffle/ShuffleWriter.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
 
@@ -49,7 +52,6 @@ void printTrace(void) {
 
 using arrow::RecordBatchReader;
 using arrow::Status;
-using gluten::ArrowShuffleWriter;
 using gluten::GlutenException;
 using gluten::ShuffleWriterOptions;
 
