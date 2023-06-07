@@ -110,4 +110,13 @@ class IgnoreNullableAndParameters(val typeToMatch: ParameterizedType)
 
   @throws[RuntimeException]
   override def visit(stringLiteral: ParameterizedType.StringLiteral): Boolean = false
+
+  override def visit(userDefined: Type.UserDefined): Boolean = {
+    if (!typeToMatch.isInstanceOf[Type.UserDefined]) {
+      return false
+    }
+    // Two user-defined types are equal if they have the same uri AND name
+    val ud = typeToMatch.asInstanceOf[Type.UserDefined]
+    ud.uri() == userDefined.uri() && ud.name() == userDefined.name()
+  }
 }
