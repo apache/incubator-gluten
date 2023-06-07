@@ -125,6 +125,7 @@ bool SubstraitFileSource::tryPrepareReader()
         file_reader = std::make_unique<EmptyFileReader>(current_file);
         return true;
     }
+
     if (!to_read_header.columns())
     {
         auto total_rows = current_file->getTotalRows();
