@@ -44,9 +44,13 @@ import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(
-  isAdaptiveContextOrTopParentExchange: Boolean) extends Rule[SparkPlan] {
+  isTopParentExchange: Boolean,
+  isAdaptiveContext: Boolean) extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+
+  val isAdaptiveContextOrTopParentExchange = isTopParentExchange || isAdaptiveContext
+  val reuseSubquery = isAdaptiveContext && conf.subqueryReuseEnabled
 
   /**
    * Insert a Project as the new child of Shuffle to calculate the hash expressions.
@@ -131,7 +135,7 @@ case class TransformPreOverrides(
         case TRANSFORM_SUPPORTED() =>
           val newScan = FilterHandler.applyFilterPushdownToScan(
             plan,
-            conf.adaptiveExecutionEnabled && conf.subqueryReuseEnabled)
+            reuseSubquery)
           newScan match {
             case ts: TransformSupport =>
               if (ts.doValidate()) {
@@ -504,7 +508,7 @@ case class TransformPreOverrides(
     case plan: FileSourceScanExec =>
       val newPartitionFilters = ExpressionConverter.transformDynamicPruningExpr(
         plan.partitionFilters,
-        conf.adaptiveExecutionEnabled && conf.subqueryReuseEnabled)
+        reuseSubquery)
       val transformer = new FileSourceScanExecTransformer(
         plan.relation,
         plan.output,
@@ -528,10 +532,10 @@ case class TransformPreOverrides(
       val newPartitionFilters: Seq[Expression] = plan.scan match {
         case scan: FileScan => ExpressionConverter.transformDynamicPruningExpr(
           scan.partitionFilters,
-          conf.adaptiveExecutionEnabled && conf.subqueryReuseEnabled)
+          reuseSubquery)
         case _ => ExpressionConverter.transformDynamicPruningExpr(
           plan.runtimeFilters,
-          conf.adaptiveExecutionEnabled && conf.subqueryReuseEnabled)
+          reuseSubquery)
       }
       val transformer = new BatchScanExecTransformer(plan.output,
         plan.scan, newPartitionFilters)
@@ -652,7 +656,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       (_: SparkSession) => FallbackEmptySchemaRelation(),
       (_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(
-        this.isTopParentExchange || this.isAdaptiveContext),
+        this.isTopParentExchange,
+        this.isAdaptiveContext),
       (_: SparkSession) => RemoveTransformHintRule(),
       (_: SparkSession) => GlutenRemoveRedundantSorts) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::

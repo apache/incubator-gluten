@@ -640,13 +640,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                   // On the other hand, it needs to use
                   // the AdaptiveSparkPlanExec.AdaptiveExecutionContext to hold the reused map
                   // for each query.
-                  newIn.child match {
-                    case a: AdaptiveSparkPlanExec =>
-                      // When AQE is on and reuseSubquery is on.
-                      if (reuseSubquery) {
-                        a.context.subqueryCache
-                          .update(newIn.canonicalized, transformSubqueryBroadcast)
-                      }
+                  if (newIn.child.isInstanceOf[AdaptiveSparkPlanExec] && reuseSubquery) {
+                    // When AQE is on and reuseSubquery is on.
+                    newIn.child.asInstanceOf[AdaptiveSparkPlanExec].context
+                      .subqueryCache.update(newIn.canonicalized, transformSubqueryBroadcast)
                   }
                   in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
                 case r: ReusedSubqueryExec if r.child.isInstanceOf[SubqueryBroadcastExec] =>
