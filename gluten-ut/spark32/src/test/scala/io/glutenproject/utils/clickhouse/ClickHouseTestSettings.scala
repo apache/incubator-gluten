@@ -18,10 +18,11 @@
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.FallbackStrategiesSuite
+import org.apache.spark.sql.execution.{FallbackStrategiesSuite, GlutenExchangeSuite, GlutenReuseExchangeAndSubquerySuite}
+import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 
 class ClickHouseTestSettings extends BackendTestSettings {
@@ -213,41 +214,29 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
     .exclude(
-      "SPARK-34436: DPP support LIKE ANY/ALL expression",
-      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
-      "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
-      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "partition pruning in broadcast hash joins with aliases",
-      "join key with multiple references on the filtering plan"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
     )
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
     .exclude(
-      "avoid reordering broadcast join keys to match input hash partitioning",
-      "SPARK-34436: DPP support LIKE ANY/ALL expression",
-      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
-      "SPARK-38570: Fix incorrect DynamicPartitionPruning caused by Literal",
-      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "partition pruning in broadcast hash joins with aliases",
-      "join key with multiple references on the filtering plan"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
     )
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
     .exclude(
-      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
-      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "partition pruning in broadcast hash joins with aliases",
-      "join key with multiple references on the filtering plan"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
     )
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
     .exclude(
-      "SPARK-36444: Remove OptimizeSubqueries from batch of PartitionPruning",
-      "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-      "partition pruning in broadcast hash joins with aliases",
-      "join key with multiple references on the filtering plan"
+      "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
     )
   enableSuite[FallbackStrategiesSuite]
+
+  enableSuite[GlutenExchangeSuite]
+    // ColumnarShuffleExchangeExec does not support doExecute() method
+    .exclude("shuffling UnsafeRows in exchange")
+    // ColumnarShuffleExchangeExec does not support SORT_BEFORE_REPARTITION
+    .exclude("SPARK-23207: Make repartition() generate consistent output")
+    // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
+    .exclude("Exchange reuse across the whole plan")
+  enableSuite[GlutenReuseExchangeAndSubquerySuite]
 }
 

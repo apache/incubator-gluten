@@ -17,22 +17,21 @@
 
 package io.glutenproject.expression
 
-import java.util.Locale
-
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer, HiveTableScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.substrait.proto.Type
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
-import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.util.Locale
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
@@ -52,7 +51,6 @@ object ConverterUtils extends Logging {
           a.toAttribute.asInstanceOf[AttributeReference]
         }
       case a: KnownFloatingPointNormalized =>
-        logInfo(s"$a")
         getAttrFromExpr(a.child)
       case a: NormalizeNaNAndZero =>
         getAttrFromExpr(a.child)

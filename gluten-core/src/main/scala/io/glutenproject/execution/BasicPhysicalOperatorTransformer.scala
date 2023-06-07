@@ -501,13 +501,17 @@ object FilterHandler {
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Push down the left conditions in Filter into Scan.
-  def applyFilterPushdownToScan(plan: FilterExec): SparkPlan = plan.child match {
+  def applyFilterPushdownToScan(
+    plan: FilterExec,
+    reuseSubquery: Boolean): SparkPlan = plan.child match {
     case fileSourceScan: FileSourceScanExec =>
       val leftFilters =
         getLeftFilters(fileSourceScan.dataFilters, flattenCondition(plan.condition))
       // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
       val newPartitionFilters =
-        ExpressionConverter.transformDynamicPruningExpr(fileSourceScan.partitionFilters)
+        ExpressionConverter.transformDynamicPruningExpr(
+          fileSourceScan.partitionFilters,
+          reuseSubquery)
       new FileSourceScanExecTransformer(
         fileSourceScan.relation,
         fileSourceScan.output,
@@ -524,7 +528,9 @@ object FilterHandler {
           val leftFilters =
             getLeftFilters(scan.dataFilters, flattenCondition(plan.condition))
           val newPartitionFilters =
-            ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters)
+            ExpressionConverter.transformDynamicPruningExpr(
+              scan.partitionFilters,
+              reuseSubquery)
           new BatchScanExecTransformer(batchScan.output, scan,
             leftFilters ++ newPartitionFilters)
         case _ =>
@@ -534,7 +540,9 @@ object FilterHandler {
           } else {
             // IF filter expressions aren't empty, we need to transform the inner operators.
             val newSource = batchScan.copy(runtimeFilters = ExpressionConverter
-              .transformDynamicPruningExpr(batchScan.runtimeFilters))
+              .transformDynamicPruningExpr(
+                batchScan.runtimeFilters,
+                reuseSubquery))
             TransformHints.tagNotTransformable(newSource)
             newSource
           }

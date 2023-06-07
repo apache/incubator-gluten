@@ -21,7 +21,7 @@ import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
-import org.apache.spark.sql.execution.ColumnarToRowExec
+import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.functions.{col, rand, when}
 
 import java.io.File
@@ -903,19 +903,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  //  test("broadcast hash data clean by expried") {
-  //    // expired 10 SECONDS
-  //    val (_, sqlStr) = getTPCHSql(2, tpchQueries)
-  //    val df = spark.sql(sqlStr)
-  //    df.rdd.count()
-  //    eventually(timeout(300.seconds), interval(12.seconds)) {
-  //      CHBroadcastBuildSideRDD.buildSideRelationCache.asMap().
-  //        forEach((key, _) => CHBroadcastBuildSideRDD.buildSideRelationCache.getIfPresent(key))
-  //
-  //      assert(StorageJoinBuilder.nativeCachedHashTableCount == 0)
-  //    }
-  //  }
-
   test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
     spark.sql(
       """
@@ -985,5 +972,73 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |		ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { df => })
+  }
+
+  test("GLUTEN-1848: Fix execute subquery repeatedly issue with ReusedSubquery") {
+    val sql =
+      """
+        |SELECT
+        |    s_suppkey,
+        |    s_name,
+        |    s_address,
+        |    s_phone,
+        |    total_revenue,
+        |    total_revenue_1
+        |FROM
+        |    supplier,
+        |    (
+        |        SELECT
+        |            l_suppkey AS supplier_no,
+        |            sum(l_extendedprice * (1 - l_discount)) AS total_revenue,
+        |            sum(l_extendedprice * l_discount) AS total_revenue_1
+        |        FROM
+        |            lineitem
+        |        WHERE
+        |            l_shipdate >= date'1996-01-01' AND l_shipdate < date'1996-01-01' + interval 3 month
+        |        GROUP BY
+        |            supplier_no) revenue0
+        |WHERE
+        |    s_suppkey = supplier_no
+        |    AND total_revenue = (
+        |        SELECT
+        |            max(total_revenue)
+        |        FROM (
+        |            SELECT
+        |                l_suppkey AS supplier_no,
+        |                sum(l_extendedprice * (1 - l_discount)) AS total_revenue
+        |            FROM
+        |                lineitem
+        |            WHERE
+        |                l_shipdate >= date'1996-01-01' AND l_shipdate < date'1996-01-01' + interval 3 month
+        |            GROUP BY
+        |                supplier_no) revenue1)
+        |    AND total_revenue_1 < (
+        |        SELECT
+        |            max(total_revenue)
+        |        FROM (
+        |            SELECT
+        |                l_suppkey AS supplier_no,
+        |                sum(l_extendedprice * (1 - l_discount)) AS total_revenue
+        |            FROM
+        |                lineitem
+        |            WHERE
+        |                l_shipdate >= date'1996-01-01' AND l_shipdate < date'1996-01-01' + interval 3 month
+        |            GROUP BY
+        |                supplier_no) revenue1)
+        |ORDER BY
+        |    s_suppkey;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val subqueriesId = df.queryExecution.executedPlan.collectWithSubqueries {
+            case s: SubqueryExec => s.id
+            case rs: ReusedSubqueryExec => rs.child.id
+          }
+          assert(subqueriesId.distinct.size == 1)
+      }
+    )
   }
 }

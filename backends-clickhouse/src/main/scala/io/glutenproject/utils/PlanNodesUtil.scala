@@ -16,14 +16,14 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression}
 
 import com.google.common.collect.Lists
 
@@ -31,7 +31,7 @@ import java.util
 
 object PlanNodesUtil {
 
-  def genProjectionsPlanNode(keys: Seq[Expression], output: Seq[Attribute]): PlanNode = {
+  def genProjectionsPlanNode(key: Expression, output: Seq[Attribute]): PlanNode = {
     val context = new SubstraitContext
 
     // input
@@ -50,54 +50,41 @@ object PlanNodesUtil {
     val readRel =
       RelBuilder.makeReadRel(typeList, nameList, null, iteratorIndex, context, operatorId)
 
-    val columnNames = keys.flatMap {
+    // replace attribute to BoundRefernce according to the output
+    val newBoundRefKey = key.transformDown {
       case expression: AttributeReference =>
-        Some(expression)
-      case _ =>
-        None
-    }
-    if (columnNames.isEmpty) {
-      throw new IllegalArgumentException(s"Key column not found in expression: $keys")
-    }
-    if (columnNames.size != 1) {
-      throw new IllegalArgumentException(s"Multiple key columns found in expression: $keys")
-    }
-    val columnExpr = columnNames.head
-
-    val columnInOutput = output.zipWithIndex.filter {
-      p: (Attribute, Int) => p._1.exprId == columnExpr.exprId || p._1.name == columnExpr.name
-    }
-    if (columnInOutput.isEmpty) {
-      throw new IllegalStateException(
-        s"Key $keys not found from build side relation output: $output")
-    }
-    if (columnInOutput.size != 1) {
-      throw new IllegalStateException(
-        s"More than one key $keys found from build side relation output: $output")
+        val columnInOutput = output.zipWithIndex.filter {
+          p: (Attribute, Int) => p._1.exprId == expression.exprId || p._1.name == expression.name
+        }
+        if (columnInOutput.isEmpty) {
+          throw new IllegalStateException(
+            s"Key $expression not found from build side relation output: $output")
+        }
+        if (columnInOutput.size != 1) {
+          throw new IllegalStateException(
+            s"More than one key $expression found from build side relation output: $output")
+        }
+        val boundReference = columnInOutput.head
+        BoundReference(boundReference._2, boundReference._1.dataType, boundReference._1.nullable)
+      case other => other
     }
 
     // project
     operatorId = context.nextOperatorId("ClickHouseBuildSideRelationProjection")
     val args = context.registeredFunction
-    val columnarProjExpr: ExpressionTransformer =
-      AttributeReferenceTransformer(
-        columnExpr.name,
-        columnInOutput.head._2,
-        columnExpr.dataType,
-        columnExpr.nullable,
-        columnExpr.exprId,
-        columnExpr.qualifier,
-        columnExpr.metadata)
+
+    val columnarProjExpr = ExpressionConverter
+      .replaceWithExpressionTransformer(newBoundRefKey, attributeSeq = output)
 
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     projExprNodeList.add(columnarProjExpr.doTransform(args))
-    val projectNode =
-      RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)
 
-    val outNames = new java.util.ArrayList[String]()
-    for (k <- keys) {
-      outNames.add(ConverterUtils.genColumnNameWithExprId(ConverterUtils.getAttrFromExpr(k)))
-    }
-    PlanBuilder.makePlan(context, Lists.newArrayList(projectNode), outNames)
+    PlanBuilder.makePlan(
+      context,
+      Lists.newArrayList(
+        RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)),
+      Lists.newArrayList(
+        ConverterUtils.genColumnNameWithExprId(ConverterUtils.getAttrFromExpr(key)))
+    )
   }
 }

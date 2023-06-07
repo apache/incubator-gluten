@@ -60,7 +60,7 @@ case class ColumnarSubqueryBroadcastExec(name: String,
 
   override def doCanonicalize(): SparkPlan = {
     val keys = buildKeys.map(k => QueryPlan.normalizeExpressions(k, child.output))
-    SubqueryBroadcastExec("dpp", index, keys, child.canonicalized)
+    copy(name = "native-dpp", buildKeys = keys, child = child.canonicalized)
   }
 
   @transient
