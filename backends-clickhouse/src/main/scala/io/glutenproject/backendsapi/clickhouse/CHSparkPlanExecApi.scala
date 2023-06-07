@@ -254,36 +254,35 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             }
         }
 
+        def wrapChild(child: SparkPlan): WholeStageTransformer = {
+          WholeStageTransformer(ProjectExecTransformer(child.output ++ appendedProjections, child))(
+            ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
+          )
+        }
+
         val newChild = child match {
           case wt: WholeStageTransformer =>
             wt.withNewChildren(
-              Seq(ProjectExecTransformer(child.output ++ appendedProjections.toSeq, wt.child)))
+              Seq(ProjectExecTransformer(child.output ++ appendedProjections, wt.child)))
           case w: WholeStageCodegenExec =>
-            w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections.toSeq, w.child)))
+            w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections, w.child)))
           case c: CoalesceBatchesExec =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
-            WholeStageTransformer(
-              ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
-              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+            wrapChild(c)
           case columnarAQEShuffleReadExec: ColumnarAQEShuffleReadExec =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
-            WholeStageTransformer(
-              ProjectExecTransformer(
-                child.output ++ appendedProjections.toSeq,
-                columnarAQEShuffleReadExec))(
-              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+            wrapChild(columnarAQEShuffleReadExec)
           case r2c: RowToCHNativeColumnarExec =>
-            WholeStageTransformer(
-              ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
-              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
-            )
+            wrapChild(r2c)
+          case union: UnionExecTransformer =>
+            wrapChild(union)
+          case other =>
+            throw new UnsupportedOperationException(
+              s"Not supported operator ${other.nodeName} for BroadcastRelation")
         }
-        (
-          newChild,
-          (child.output ++ appendedProjections.toSeq).map(_.toAttribute),
-          preProjectionBuildKeys)
+        (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
       }
     val countsAndBytes = newChild
       .executeColumnar()

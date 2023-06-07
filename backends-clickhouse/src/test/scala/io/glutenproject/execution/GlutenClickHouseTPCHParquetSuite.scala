@@ -1041,4 +1041,19 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       }
     )
   }
+
+  test("GLUTEN-1875: UnionExecTransformer for BroadcastRelation") {
+    val sql =
+      """
+        |select /*+ BROADCAST(t2) */ t1.l_orderkey, t1.l_partkey, t2.o_custkey
+        |from lineitem t1
+        |join (
+        |  select o_orderkey, o_custkey from orders
+        |  union all
+        |  select  o_orderkey, o_custkey from orders) t2
+        |on t1.l_orderkey = cast(t2.o_orderkey as int)
+        |order by t1.l_orderkey, t1.l_partkey, t2.o_custkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
