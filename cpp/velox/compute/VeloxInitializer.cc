@@ -166,8 +166,14 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   initCache(conf);
   //initIOExecutor(conf);
-  ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(16);
-  ioExecutor2_ = std::make_unique<folly::IOThreadPoolExecutor>(16);
+  int32_t ioThreads = 16;
+  auto got = conf.find(kVeloxIOThreads);
+  if (got != conf.end()) {
+    ioThreads = std::stoi(got->second);
+    LOG(INFO) << "STARTUP: Using io threads: " << ioThreads;
+  }
+  ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
+  ioExecutor2_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   FLAGS_split_preload_per_driver = 4;
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
