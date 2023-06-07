@@ -20,7 +20,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 
 import io.substrait.`type`.Type
 import io.substrait.expression.{Expression => SExpression, FunctionArg}
-import io.substrait.function.SimpleExtension
+import io.substrait.extension.SimpleExtension
 
 import scala.collection.JavaConverters
 

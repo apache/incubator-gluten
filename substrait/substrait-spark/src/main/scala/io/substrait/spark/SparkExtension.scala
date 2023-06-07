@@ -18,7 +18,7 @@ package io.substrait.spark
 
 import io.substrait.spark.expression.ToAggregateFunction
 
-import io.substrait.function.SimpleExtension
+import io.substrait.extension.SimpleExtension
 
 import java.util.Collections
 

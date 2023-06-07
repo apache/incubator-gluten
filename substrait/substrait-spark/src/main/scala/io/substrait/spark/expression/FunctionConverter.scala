@@ -27,7 +27,8 @@ import org.apache.spark.substrait.ToSubstraitType
 import com.google.common.collect.{ArrayListMultimap, Multimap}
 import io.substrait.`type`.Type
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator, FunctionArg}
-import io.substrait.function.{ParameterizedType, SimpleExtension, ToTypeString}
+import io.substrait.extension.SimpleExtension
+import io.substrait.function.{ParameterizedType, ToTypeString}
 import io.substrait.utils.Util
 
 import java.{util => ju}

@@ -21,7 +21,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 import io.substrait.`type`.Type
 import io.substrait.expression.{AggregateFunctionInvocation, Expression => SExpression, ExpressionCreator, FunctionArg}
-import io.substrait.function.SimpleExtension
+import io.substrait.extension.SimpleExtension
 import io.substrait.proto.AggregateFunction
 
 import java.util.Collections
