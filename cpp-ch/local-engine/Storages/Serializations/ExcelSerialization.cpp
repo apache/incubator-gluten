@@ -1,8 +1,11 @@
+#include "ExcelSerialization.h"
 #include <Columns/ColumnsNumber.h>
 #include <DataTypes/Serializations/SerializationDateTime64.h>
 #include <DataTypes/Serializations/SerializationNumber.h>
-#include "ExcelSerialization.h"
+#include <DataTypes/Serializations/SerializationString.h>
 #include "GlutenReadHelpers.h"
+#include "GlutenStringReader.h"
+
 
 
 namespace local_engine
@@ -29,8 +32,7 @@ void ExcelSerialization::deserializeBinary(IColumn & column, ReadBuffer & istr, 
     nested_ptr->deserializeBinary(column, istr, settings);
 }
 
-void ExcelSerialization::serializeText(
-    const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings & settings) const
+void ExcelSerialization::serializeText(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings & settings) const
 {
     nested_ptr->serializeText(column, row_num, ostr, settings);
 }
@@ -73,8 +75,7 @@ void ExcelSerialization::deserializeTextJSON(IColumn & column, ReadBuffer & istr
     nested_ptr->deserializeTextJSON(column, istr, settings);
 }
 
-void ExcelSerialization::serializeTextCSV(
-    const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings & settings) const
+void ExcelSerialization::serializeTextCSV(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings & settings) const
 {
     nested_ptr->serializeTextCSV(column, row_num, ostr, settings);
 }
@@ -87,7 +88,8 @@ void ExcelSerialization::deserializeTextCSV(IColumn & column, ReadBuffer & istr,
     }
     else if (const auto datetime64 = typeid_cast<const DB::SerializationDateTime64 *>(nested_ptr.get()))
     {
-        deserializeDatetimeTextCSV<DB::SerializationDateTime64::ColumnType>(column, istr, settings, datetime64->getTimeZone(), DateLUT::instance("UTC"));
+        deserializeDatetimeTextCSV<DB::SerializationDateTime64::ColumnType>(
+            column, istr, settings, datetime64->getTimeZone(), DateLUT::instance("UTC"));
     }
     else if (auto uint8 = typeid_cast<const SerializationNumber<DB::UInt8> *>(nested_ptr.get()))
     {
@@ -129,6 +131,10 @@ void ExcelSerialization::deserializeTextCSV(IColumn & column, ReadBuffer & istr,
     {
         deserializeNumberTextCSV<DB::Float64>(column, istr, settings);
     }
+    else if (typeid_cast<const SerializationString *>(nested_ptr.get()))
+    {
+        deserializeGlutenTextCSV(column, istr, settings, escape);
+    }
     else
     {
         nested_ptr->deserializeTextCSV(column, istr, settings);
@@ -153,11 +159,8 @@ void ExcelSerialization::deserializeDate32TextCSV(IColumn & column, ReadBuffer &
 
 template <typename ColumnType>
 void ExcelSerialization::deserializeDatetimeTextCSV(
-    IColumn & column,
-    ReadBuffer & istr,
-    const FormatSettings & settings,
-    const DateLUTImpl & time_zone,
-    const DateLUTImpl & utc_time_zone) const
+    IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const DateLUTImpl & time_zone, const DateLUTImpl & utc_time_zone)
+    const
 {
     DateTime64 x = 0;
 

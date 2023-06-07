@@ -28,6 +28,8 @@ class TextFormatReader final : public DB::CSVFormatReader
 {
 public:
     explicit TextFormatReader(DB::PeekableReadBuffer & buf_, std::vector<std::string> input_schema, const DB::FormatSettings & format_settings_);
+    void skipRowEndDelimiter() override;
+
 private:
     std::vector<String> readNames() override;
     std::vector<String> input_schema;
@@ -43,7 +45,8 @@ public:
         std::shared_ptr<DB::PeekableReadBuffer> & buf_,
         const DB::RowInputFormatParams & params_, 
         const DB::FormatSettings & format_settings_,
-        std::vector<std::string> input_schema
+        std::vector<std::string> input_schema_,
+        String escape_
     );
 
     String getName() const override { return "TextRowInputFormat"; }
@@ -54,6 +57,7 @@ protected:
 private:
 
     std::vector<std::string> input_schema;
+    String escape;
 };
 
 

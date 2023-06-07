@@ -21,7 +21,7 @@ using namespace DB;
 class ExcelSerialization final : public DB::ISerialization
 {
 public:
-    explicit ExcelSerialization(const SerializationPtr & nested_) : nested_ptr(nested_){};
+    explicit ExcelSerialization(const SerializationPtr & nested_, String & escape_) : nested_ptr(nested_), escape(escape_){};
 
     void serializeBinary(const Field & field, WriteBuffer & ostr, const FormatSettings &) const override;
     void deserializeBinary(Field & field, ReadBuffer & istr, const FormatSettings &) const override;
@@ -55,5 +55,6 @@ private:
 
 private:
     SerializationPtr nested_ptr;
+    String & escape;
 };
 }

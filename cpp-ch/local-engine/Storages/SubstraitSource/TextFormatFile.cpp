@@ -22,6 +22,7 @@ namespace local_engine
 namespace ErrorCodes
 {
     extern const int NOT_IMPLEMENTED;
+    extern const int INCORRECT_DATA;
 }
 
 TextFormatFile::TextFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
@@ -43,8 +44,8 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
         column_names.push_back(item);
     }
 
-    std::shared_ptr<local_engine::TextRowInputFormat> txt_input_format =
-        std::make_shared<local_engine::TextRowInputFormat>(header, buffer, in_params, format_settings, column_names);
+    std::shared_ptr<local_engine::TextRowInputFormat> txt_input_format
+        = std::make_shared<local_engine::TextRowInputFormat>(header, buffer, in_params, format_settings, column_names, std::move(file_info.text().escape()));
     res->input = txt_input_format;
     return res;
 }
@@ -85,10 +86,11 @@ TextRowInputFormat::TextRowInputFormat(
     std::shared_ptr<DB::PeekableReadBuffer> & buf_,
     const DB::RowInputFormatParams & params_,
     const DB::FormatSettings & format_settings_,
-    std::vector<std::string> input_schema_)
+    std::vector<std::string> input_schema_,
+    String escape_)
     : DB::CSVRowInputFormat(
         header_, buf_, params_, true, false, format_settings_, std::make_unique<TextFormatReader>(*buf_, input_schema_, format_settings_))
-    , input_schema(input_schema_)
+    , input_schema(input_schema_), escape(escape_)
 {
     DB::Serializations gluten_serializations;
     for (const auto & item : data_types)
@@ -98,12 +100,13 @@ TextRowInputFormat::TextRowInputFormat(
         {
             gluten_serializations.insert(
                 gluten_serializations.end(),
-                std::make_shared<SerializationNullable>(std::make_shared<ExcelSerialization>(nest_type.getDefaultSerialization())));
+                std::make_shared<SerializationNullable>(
+                    std::make_shared<ExcelSerialization>(nest_type.getDefaultSerialization(), escape)));
         }
         else
         {
             gluten_serializations.insert(
-                gluten_serializations.end(), std::make_shared<ExcelSerialization>(nest_type.getDefaultSerialization()));
+                gluten_serializations.end(), std::make_shared<ExcelSerialization>(nest_type.getDefaultSerialization(), escape));
         }
     }
 
@@ -144,6 +147,64 @@ TextFormatReader::TextFormatReader(
 std::vector<String> TextFormatReader::readNames()
 {
     return input_schema;
+}
+
+/// Skip `whitespace` symbols allowed in CSV.
+static inline void skipWhitespacesAndTabs(ReadBuffer & in)
+{
+    while (!in.eof() && (*in.position() == ' ' || *in.position() == '\t'))
+        ++in.position();
+}
+
+static void skipEndOfLine(ReadBuffer & in)
+{
+    /// \n (Unix) or \r\n (DOS/Windows) or \n\r (Mac OS Classic)
+
+    if (*in.position() == '\n')
+    {
+        ++in.position();
+        if (!in.eof() && *in.position() == '\r')
+            ++in.position();
+    }
+    else if (*in.position() == '\r')
+    {
+        ++in.position();
+        if (!in.eof() && *in.position() == '\n')
+            ++in.position();
+//        else
+//            throw Exception(DB::ErrorCodes::INCORRECT_DATA,
+//                            "Cannot parse CSV format: found \\r (CR) not followed by \\n (LF)."
+//                            " Line must end by \\n (LF) or \\r\\n (CR LF) or \\n\\r.");
+    }
+    else if (!in.eof())
+        throw Exception(DB::ErrorCodes::INCORRECT_DATA, "Expected end of line");
+}
+
+void TextFormatReader::skipRowEndDelimiter()
+{
+    skipWhitespacesAndTabs(*buf);
+
+    if (buf->eof())
+        return;
+
+    /// we support the extra delimiter at the end of the line
+    if (*buf->position() == format_settings.csv.delimiter)
+        ++buf->position();
+
+    skipWhitespacesAndTabs(*buf);
+    if (buf->eof())
+        return;
+
+    if (*buf->position() != '\r' && *buf->position() != '\n')
+    {
+        // remove unused chars
+        skipField();
+        skipRowEndDelimiter();
+    }
+    else
+    {
+        skipEndOfLine(*buf);
+    }
 }
 
 }

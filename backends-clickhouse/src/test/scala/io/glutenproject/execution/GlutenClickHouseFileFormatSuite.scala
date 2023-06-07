@@ -162,7 +162,6 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
-  // TODO: data pruning error.
   test("read data from csv file format witsh agg") {
     val filePath = basePath + "/csv_test_agg.csv"
     val csvFileFormat = "csv"
@@ -238,8 +237,7 @@ class GlutenClickHouseFileFormatSuite
     assert(df.collect().length == 12)
   }
 
-  // TODO: lishuai.
-  ignore("expected_end_of_line") {
+  test("expected_end_of_line") {
     val schema = StructType.apply(
       Seq(
         StructField.apply("c1", IntegerType, nullable = true),
@@ -255,10 +253,23 @@ class GlutenClickHouseFileFormatSuite
     val df = spark.read
       .option("delimiter", ",")
       .option("header", "false")
+      .option("quote", "\"")
       .schema(schema)
       .csv(csvDataPath + "/expected_end_of_line.csv")
       .toDF()
-    df.show()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("header", "false")
+        .option("quote", "\"")
+        .schema(schema)
+        .csv(csvDataPath + "/expected_end_of_line.csv")
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
   }
 
   test("csv pruning") {
@@ -287,6 +298,33 @@ class GlutenClickHouseFileFormatSuite
       true,
       df => {}
     )
+  }
+
+  test("csv \\r") {
+    val csv_path = csvDataPath + "/csv_r.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("header", "false")
+      .schema(schema)
+      .csv(csv_path)
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("header", "false")
+        .schema(schema)
+        .csv(csv_path)
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
   }
 
   test("cannot_parse_input") {
@@ -420,8 +458,7 @@ class GlutenClickHouseFileFormatSuite
     assert(csvFileScan.size == 1)
   }
 
-  // todo: lishuai
-  ignore("test read excel with escape with quote") {
+  test("test read excel with escape with quote") {
     val schema = StructType.apply(
       Seq(
         StructField.apply("a", StringType, nullable = true),
@@ -464,7 +501,6 @@ class GlutenClickHouseFileFormatSuite
 
     val df = spark.read
       .option("delimiter", ",")
-//      .option("quote", "\'")
       .option("escape", "\\")
       .schema(schema)
       .csv(csvDataPath + "/escape_without_quote.csv")
@@ -474,7 +510,6 @@ class GlutenClickHouseFileFormatSuite
     withSQLConf(vanillaSparkConfs(): _*) {
       expectedAnswer = spark.read
         .option("delimiter", ",")
-//        .option("quote", "\'")
         .option("escape", "\\")
         .schema(schema)
         .csv(csvDataPath + "/escape_without_quote.csv")
