@@ -25,6 +25,13 @@ import java.util.ArrayList;
 public class StructNode implements TypeNode, Serializable {
   private final Boolean nullable;
   private final ArrayList<TypeNode> types = new ArrayList<>();
+  private final ArrayList<String> names = new ArrayList<>();
+
+  public StructNode(Boolean nullable, ArrayList<TypeNode> types, ArrayList<String> names) {
+    this.nullable = nullable;
+    this.types.addAll(types);
+    this.names.addAll(names);
+  }
 
   public StructNode(Boolean nullable, ArrayList<TypeNode> types) {
     this.nullable = nullable;
@@ -43,7 +50,9 @@ public class StructNode implements TypeNode, Serializable {
     for (TypeNode typeNode : types) {
       structBuilder.addTypes(typeNode.toProtobuf());
     }
-
+    for (String name : names) {
+      structBuilder.addNames(name);
+    }
     Type.Builder builder = Type.newBuilder();
     builder.setStruct(structBuilder.build());
     return builder.build();
