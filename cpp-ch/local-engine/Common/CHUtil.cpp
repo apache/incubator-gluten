@@ -446,10 +446,16 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
     return ch_backend_conf;
 }
 
-void BackendInitializerUtil::initConfig(const std::string & plan)
+void BackendInitializerUtil::initConfig(std::string * plan)
 {
+    if (plan == nullptr)
+    {
+        config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
+        return;
+    }
+
     /// Parse input substrait plan, and get native conf map from it.
-    backend_conf_map = getBackendConfMap(plan);
+    backend_conf_map = getBackendConfMap(*plan);
     if (backend_conf_map.count(CH_RUNTIME_CONFIG_FILE))
     {
         if (fs::exists(CH_RUNTIME_CONFIG_FILE) && fs::is_regular_file(CH_RUNTIME_CONFIG_FILE))
@@ -588,8 +594,6 @@ void registerAllFunctions()
     }
 }
 
-extern void registerAllFunctions();
-
 void BackendInitializerUtil::registerAllFactories()
 {
     registerReadBufferBuilders();
@@ -619,9 +623,9 @@ void BackendInitializerUtil::initCompiledExpressionCache()
 #endif
 }
 
-void BackendInitializerUtil::init(const std::string & conf_plan)
+void BackendInitializerUtil::init(std::string * plan)
 {
-    initConfig(conf_plan);
+    initConfig(plan);
     initLoggers();
 
     initEnvs();

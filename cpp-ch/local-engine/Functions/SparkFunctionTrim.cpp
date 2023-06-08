@@ -150,11 +150,11 @@ namespace
             const char * char_end = char_data + size;
 
             if constexpr (TrimMode::trim_left)
-                while (char_data < char_end && trim_set.count(*char_data))
+                while (char_data < char_end && trim_set.contains(*char_data))
                     ++char_data;
 
             if constexpr (TrimMode::trim_right)
-                while (char_data < char_end && trim_set.count(*(char_end - 1)))
+                while (char_data < char_end && trim_set.contains(*(char_end - 1)))
                     --char_end;
 
             res_data = reinterpret_cast<const UInt8 *>(char_data);

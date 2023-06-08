@@ -1,3 +1,6 @@
+#include "config.h"
+
+#if USE_ORC
 #include <future>
 #include <memory>
 #include <Core/Block.h>
@@ -11,7 +14,9 @@
 #include <Storages/SubstraitSource/OrcFormatFile.h>
 #include <Storages/SubstraitSource/OrcUtil.h>
 #include <gtest/gtest.h>
+#include <Common/Config.h>
 
+#if USE_LOCAL_FORMATS
 
 class TestOrcInputFormat : public local_engine::ORCBlockInputFormat
 {
@@ -132,3 +137,7 @@ TEST(OrcInputFormat, CallGenerate)
     auto chunk = input_format->callGenerate();
     EXPECT_TRUE(chunk.getNumRows() == 2);
 }
+
+#endif
+
+#endif

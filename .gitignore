@@ -24,7 +24,6 @@
 .mtj.tmp/
 
 # Package Files #
-*.jar
 *.war
 *.ear
 
@@ -83,3 +82,6 @@ cpp/**/example/**/*
 /cpp-ch/build_ch
 
 dist/
+
+/cpp-ch/local-engine/Parser/*_udf
+!/cpp-ch/local-engine/Parser/example_udf

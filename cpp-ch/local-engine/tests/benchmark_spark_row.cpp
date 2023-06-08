@@ -41,7 +41,7 @@ static void readParquetFile(const Block & header, const String & file, Block & b
 {
     auto in = std::make_unique<ReadBufferFromFile>(file);
     FormatSettings format_settings;
-    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings);
+    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, 1, 8192);
     auto pipeline = QueryPipeline(std::move(format));
     auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
     while (reader->pull(block))
@@ -106,7 +106,7 @@ static void BM_SparkRowToCHColumn_Lineitem(benchmark::State & state)
     };
 
     const Block header = std::move(getLineitemHeader(name_types));
-    const String file = "/data1/liyang/cppproject/gluten/jvm/src/test/resources/tpch-data/lineitem/"
+    const String file = "/data1/liyang/cppproject/gluten/gluten-core/src/test/resources/tpch-data/lineitem/"
                         "part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet";
     Block in_block;
     readParquetFile(header, file, in_block);
