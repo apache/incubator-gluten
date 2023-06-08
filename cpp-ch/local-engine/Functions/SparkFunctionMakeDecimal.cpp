@@ -55,6 +55,7 @@ namespace
         size_t getNumberOfArguments() const override { return 3; }
         bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & /*arguments*/) const override { return false; }
         bool useDefaultImplementationForConstants() const override { return true; }
+        ColumnNumbers getArgumentsThatAreAlwaysConstant() const override { return {1, 2}; }
 
         DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
         {
@@ -103,8 +104,7 @@ namespace
             UInt32 precision_value,
             UInt32 scale)
         {
-            const auto & src_column = arguments[0];
-
+            auto src_column = arguments[0];
             ColumnPtr result_column;
 
             auto call = [&](const auto & types) -> bool //-V657
@@ -126,6 +126,7 @@ namespace
                     using ToFieldType = typename ToDataType::FieldType;
                     using ToNativeType = typename ToFieldType::NativeType;
                     using ToColumnType = typename ToDataType::ColumnType;
+                    using FromFieldType = typename FromDataType::FieldType;
                     typename ToColumnType::MutablePtr col_to = ToColumnType::create(input_rows_count, scale);
 
                     auto & vec_to = col_to->getData();
@@ -134,17 +135,10 @@ namespace
                     for (size_t i = 0; i < input_rows_count; ++i)
                     {
                         ToNativeType result;
-                        Field field;
-                        src_column.column->get(i, field);
-                        bool convert_result = false;
 
-                        if constexpr (std::is_signed_v<typename FromDataType::FieldType>)
-                            convert_result = convertDecimalsFromIntegerImpl<Int64, ToNativeType>(field, result, precision_value);
-                        else if constexpr (std::is_unsigned_v<typename FromDataType::FieldType>)
-                            convert_result = convertDecimalsFromIntegerImpl<UInt64, ToNativeType>(field, result, precision_value);
-                        else if constexpr (is_big_int_v<typename FromDataType::FieldType>)
-                            convert_result = convertDecimalsFromIntegerImpl<typename FromDataType::FieldType, ToNativeType>(
-                                field, result, precision_value);
+                        const auto & vector = typeid_cast<const ColumnVector<FromFieldType> *>(arguments[0].column.get());
+                        bool convert_result
+                            = convertDecimalsFromIntegerImpl<FromFieldType, ToNativeType>(vector->getData()[i], result, precision_value);
 
                         if (convert_result)
                         {
@@ -187,13 +181,13 @@ namespace
         }
 
         template <typename FromNativeType, typename ToNativeType>
-        static bool convertDecimalsFromIntegerImpl(const Field & from, ToNativeType & result, UInt32 precision_value)
+        static bool convertDecimalsFromIntegerImpl(FromNativeType from, ToNativeType & result, UInt32 precision_value)
         {
             Field convert_to = convertNumericTypeImpl<FromNativeType, ToNativeType>(from);
             if (convert_to.isNull())
             {
                 if constexpr (ConvertExceptionMode::Throw == exception_mode)
-                    throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "{} convert overflow", from.getTypeName());
+                    throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Convert overflow");
                 else
                     return false;
             }
@@ -203,7 +197,7 @@ namespace
             if ((result < 0 && result <= -pow10) || result >= pow10)
             {
                 if constexpr (ConvertExceptionMode::Throw == exception_mode)
-                    throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "{} convert overflow", from.getTypeName());
+                    throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Convert overflow");
                 else
                     return false;
             }
