@@ -30,6 +30,7 @@ trait GlutenTestsCommonTrait
 
   override def runTest(testName: String, args: Args): Status = {
     TestStats.suiteTestNumber += 1
+    TestStats.offloadGluten = true
     TestStats.startCase(testName)
     val status = super.runTest(testName, args)
     if (TestStats.offloadGluten) {

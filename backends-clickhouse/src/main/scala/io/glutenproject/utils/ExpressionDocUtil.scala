@@ -24,6 +24,10 @@ import org.apache.spark.sql.catalyst.expressions.ExpressionInfo
 import java.io.{File, PrintWriter}
 import java.util
 
+/**
+ * This class can export all spark expressions and statistic supported of ch backend. Export string
+ * can be convert to markdown.
+ */
 object ExpressionDocUtil {
   val markdownFormat: String = "| %s | %s | %s | %s | %s |\n"
   val alreadySupported: Map[String, String] = {
@@ -42,8 +46,8 @@ object ExpressionDocUtil {
 
   def main(args: Array[String]): Unit = {
 
-    val group_ordered = new util.ArrayList[String](groupedExpressions.keySet())
-    util.Collections.sort(group_ordered)
+    val groupOrdered = new util.ArrayList[String](groupedExpressions.keySet())
+    util.Collections.sort(groupOrdered)
 
     val content = new StringBuffer()
     val summary = new StringBuffer()
@@ -53,7 +57,7 @@ object ExpressionDocUtil {
 
     var total = 0
     var support = 0
-    group_ordered.forEach(
+    groupOrdered.forEach(
       name => {
         var g_total_cnt = 0
         var g_support_cnt = 0

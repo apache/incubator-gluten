@@ -243,7 +243,6 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
     val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()

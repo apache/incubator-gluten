@@ -864,4 +864,11 @@ object GlutenConfig {
       .internal()
       .longConf
       .createWithDefault(-1L)
+
+  val UT_STATISTIC =
+    buildConf("spark.gluten.sql.ut.statistic")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
 }

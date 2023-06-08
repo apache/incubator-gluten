@@ -37,7 +37,7 @@ public class TestStats {
     public static int testUnitNumber = 0;
 
     // use the gluten backend to execute the query
-    public static boolean offloadGluten = false;
+    public static boolean offloadGluten = true;
     public static int suiteTestNumber = 0;
     public static int offloadGlutenTestNumber = 0;
 
@@ -62,6 +62,9 @@ public class TestStats {
     public static int totalOffloadGlutenCaseNumber = 0;
 
     public static void printMarkdown(String suitName) {
+        if (!UT_ENV)
+            return;
+
         String title = "print_markdown_" + suitName;
 
         String info =
@@ -101,32 +104,40 @@ public class TestStats {
     }
 
     public static void addFallBackClassName(String className) {
-        if (UT_ENV) {
-            if (caseInfos.containsKey(currentCase)
-                    && !caseInfos.get(currentCase).stack.isEmpty()) {
-                CaseInfo info = caseInfos.get(currentCase);
-                caseInfos.get(currentCase).fallbackExpressionName.add(info.stack.pop());
-                caseInfos.get(currentCase).fallbackClassName.add(className);
-            }
+        if (!UT_ENV)
+            return;
+
+        if (caseInfos.containsKey(currentCase)
+                && !caseInfos.get(currentCase).stack.isEmpty()) {
+            CaseInfo info = caseInfos.get(currentCase);
+            caseInfos.get(currentCase).fallbackExpressionName.add(info.stack.pop());
+            caseInfos.get(currentCase).fallbackClassName.add(className);
         }
     }
 
     public static void addFallBackCase() {
+        if (!UT_ENV)
+            return;
+
         if (caseInfos.containsKey(currentCase)) {
             caseInfos.get(currentCase).type = "fallback";
         }
     }
 
     public static void addExpressionClassName(String className) {
-        if (UT_ENV) {
-            if (caseInfos.containsKey(currentCase)) {
-                CaseInfo info = caseInfos.get(currentCase);
-                info.stack.add(className);
-            }
+        if (!UT_ENV)
+            return;
+
+        if (caseInfos.containsKey(currentCase)) {
+            CaseInfo info = caseInfos.get(currentCase);
+            info.stack.add(className);
         }
     }
 
     public static Set<String> getFallBackClassName() {
+        if (!UT_ENV)
+            return Collections.emptySet();
+
         if (caseInfos.containsKey(currentCase)) {
             return Collections.unmodifiableSet(
                     caseInfos.get(currentCase).fallbackExpressionName);
@@ -136,14 +147,18 @@ public class TestStats {
     }
 
     public static void addIgnoreCaseName(String caseName) {
-        if (UT_ENV) {
-            if (caseInfos.containsKey(caseName)) {
-                caseInfos.get(caseName).type = "fatal";
-            }
+        if (!UT_ENV)
+            return;
+
+        if (caseInfos.containsKey(caseName)) {
+            caseInfos.get(caseName).type = "fatal";
         }
     }
 
     public static void resetCase() {
+        if (!UT_ENV)
+            return;
+
         if (caseInfos.containsKey(currentCase)) {
             caseInfos.get(currentCase).stack.clear();
         }
@@ -151,13 +166,17 @@ public class TestStats {
     }
 
     public static void startCase(String caseName) {
-        if (UT_ENV) {
-            caseInfos.putIfAbsent(caseName, new CaseInfo());
-            currentCase = caseName;
-        }
+        if (!UT_ENV)
+            return;
+
+        caseInfos.putIfAbsent(caseName, new CaseInfo());
+        currentCase = caseName;
     }
 
     public static void endCase(boolean status) {
+        if (!UT_ENV)
+            return;
+
         if (caseInfos.containsKey(currentCase)) {
             caseInfos.get(currentCase).status = status ? "success" : "error";
         }

@@ -116,6 +116,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           .config("spark.sql.files.openCostInBytes", "134217728")
           .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
           .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+          .config(GlutenConfig.UT_STATISTIC.key, "true")
           .getOrCreate()
       } else {
         sparkBuilder
@@ -243,7 +244,6 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         case p: ProjectExecTransformer => p
       }
       if (projectTransformer.size == 1) {
-        TestStats.offloadGluten = true
         TestStats.offloadGlutenUnitNumber += 1
         logInfo("Offload to native backend in the test.\n")
       } else {

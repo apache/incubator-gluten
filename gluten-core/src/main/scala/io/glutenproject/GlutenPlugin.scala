@@ -51,7 +51,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
-    if (conf.get("spark.test.home", "") != "") {
+    if (conf.getBoolean(GlutenConfig.UT_STATISTIC.key, defaultValue = false)) {
       // Only statistic in UT, not thread safe
       TestStats.beginStatistic()
     }
