@@ -26,7 +26,6 @@
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/DebugUtils.h>
 #include <Common/Logger.h>
-#include <Common/CHUtil.h>
 #include "testConfig.h"
 
 using namespace local_engine;
@@ -271,7 +270,7 @@ TEST(TestSimpleAgg, TestGenerate)
     local_executor.execute(std::move(query_plan));
     while (local_executor.hasNext())
     {
-        auto * block = local_executor.nextColumnar();
+        auto block = local_executor.nextColumnar();
         debug::headBlock(*block);
     }
 }
@@ -355,8 +354,17 @@ TEST(ReadBufferFromFile, seekBackwards)
 
 int main(int argc, char ** argv)
 {
-    BackendInitializerUtil::init(nullptr);
-    SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
+    local_engine::Logger::initConsoleLogger();
+
+    SharedContextHolder shared_context = Context::createShared();
+    local_engine::SerializedPlanParser::global_context = Context::createGlobal(shared_context.get());
+    local_engine::SerializedPlanParser::global_context->makeGlobalContext();
+    auto config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
+    local_engine::SerializedPlanParser::global_context->setConfig(config);
+    local_engine::SerializedPlanParser::global_context->setPath("/tmp");
+    local_engine::SerializedPlanParser::global_context->getDisksMap().emplace();
+    local_engine::SerializedPlanParser::initFunctionEnv();
+    registerReadBufferBuilders();
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

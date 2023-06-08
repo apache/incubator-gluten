@@ -69,7 +69,7 @@ TEST(TestJoin, simple)
     QueryPlan right_plan;
     right_plan.addStep(std::make_unique<ReadFromPreparedSource>(Pipe(right_table)));
 
-    auto join = std::make_shared<TableJoin>(global_context->getSettings(), global_context->getGlobalTemporaryVolume());
+    auto join = std::make_shared<TableJoin>(global_context->getSettings(), global_context->getTemporaryVolume());
     join->setKind(JoinKind::Left);
     join->setStrictness(JoinStrictness::All);
     join->setColumnsFromJoinedTable(right.getNamesAndTypesList());
@@ -180,7 +180,7 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
     auto in = std::make_unique<ReadBufferFromString>(buf);
     auto metadata = local_engine::buildMetaData(right.getNamesAndTypesList(), global_context);
 
-    auto join_storage = std::shared_ptr<StorageJoinFromReadBuffer>(new StorageJoinFromReadBuffer( // NOLINT
+    auto join_storage = std::shared_ptr<StorageJoinFromReadBuffer>(new StorageJoinFromReadBuffer(
         std::move(in),
         StorageID("default", "test"),
         {"colD"},

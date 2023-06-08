@@ -1,5 +1,6 @@
-macro(add_gtest_sources prefix common_path)
-    add_glob(${prefix}_sources ${common_path}/gtest*.cpp)
+macro (grep_gtest_sources BASE_DIR DST_VAR)
+    # Cold match files that are not in tests/ directories
+    file(GLOB_RECURSE "${DST_VAR}" RELATIVE "${BASE_DIR}" "gtest*.cpp")
 endmacro()
 
 set(USE_INTERNAL_GTEST_LIBRARY 0)
@@ -10,7 +11,7 @@ include(CTest)
 
 include_directories(${GTEST_INCLUDE_DIRS})
 
-set(TEST_DATA_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine/tests")
+set(TEST_DATA_DIR "${ClickHouse_SOURCE_DIR}/utils/local-engine/tests")
 
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in
@@ -37,31 +38,16 @@ target_compile_options(benchmark PUBLIC
         -Wno-thread-safety-analysis
         )
 
+grep_gtest_sources("${CMAKE_CURRENT_SOURCE_DIR}" local_engine_gtest_sources)
 
-set(LOCAL_ENGINE_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine")
-
-add_gtest_sources(local_engine_gtest .)
-if (ENABLE_LOCAL_UDFS)
-    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_udf/tests)
-    foreach(child ${children})
-        add_gtest_sources(local_engine_gtest ${child})
-    endforeach()
-endif ()
-message("gtest_sources ${local_engine_gtest_sources}")
-
-add_executable(unit_tests_local_engine ${local_engine_gtest_sources})
+add_executable(unit_tests_local_engine ${local_engine_gtest_sources} )
 
 add_executable(benchmark_local_engine benchmark_local_engine.cpp benchmark_parquet_read.cpp benchmark_spark_row.cpp)
 
 target_include_directories(unit_tests_local_engine PRIVATE
-    ${GTEST_INCLUDE_DIRS}/include
-    ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
-)
-
-include_directories(benchmark_local_engine SYSTEM PUBLIC
-    ${FETCH_CONTENT_SOURCE_DIR_GOOGLEBENCHMARK}/include
-    ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
-)
+        ${GTEST_INCLUDE_DIRS}/include
+        )
+include_directories(benchmark_local_engine SYSTEM PUBLIC ${FETCH_CONTENT_SOURCE_DIR_GOOGLEBENCHMARK}/include ${ClickHouse_SOURCE_DIR}/utils/local_engine)
 
 target_link_libraries(unit_tests_local_engine PRIVATE ${LOCALENGINE_SHARED_LIB} _gtest_all clickhouse_parsers)
 target_link_libraries(benchmark_local_engine PRIVATE ${LOCALENGINE_SHARED_LIB} benchmark::benchmark)

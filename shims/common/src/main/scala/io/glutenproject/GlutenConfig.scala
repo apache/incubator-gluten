@@ -298,11 +298,6 @@ object GlutenConfig {
   // unit: SECONDS, default 1 day
   val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT: Int = 86400
 
-  // Supported hive/pthon/scala udf names
-  val GLUTEN_SUPPORTED_HIVE_UDFS = "spark.gluten.supported.hive.udfs"
-  val GLUTEN_SUPPORTED_PYTHON_UDFS = "spark.gluten.supported.python.udfs"
-  val GLUTEN_SUPPORTED_SCALA_UDFS = "spark.gluten.supported.scala.udfs"
-
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {

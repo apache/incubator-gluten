@@ -1,7 +1,3 @@
-#include "config.h"
-
-#if USE_PARQUET
-
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate.h>
 #include <DataTypes/DataTypeDate32.h>
@@ -25,7 +21,6 @@
 #include <gtest/gtest.h>
 #include <parquet/arrow/reader.h>
 #include <Common/DebugUtils.h>
-#include <Common/Config.h>
 
 using namespace DB;
 
@@ -88,18 +83,12 @@ static void readData(const String & path, const std::map<String, Field> & fields
     ColumnsWithTypeAndName columns;
     columns.reserve(name_and_types.size());
     for (const auto & name_and_type : name_and_types)
-        if (fields.contains(name_and_type.name))
+        if (fields.count(name_and_type.name))
             columns.emplace_back(name_and_type.type, name_and_type.name);
 
     Block header(columns);
     in = std::make_shared<ReadBufferFromFile>(path);
-
-    InputFormatPtr format;
-    if constexpr (std::is_same_v<InputFormat, DB::ParquetBlockInputFormat>)
-        format = std::make_shared<InputFormat>(*in, header, settings, 1, 8192);
-    else
-        format = std::make_shared<InputFormat>(in, header, settings);
-
+    auto format = std::make_shared<InputFormat>(*in, header, settings);
     auto pipeline = QueryPipeline(std::move(format));
     auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
 
@@ -124,17 +113,15 @@ static void readData(const String & path, const std::map<String, Field> & fields
 
 TEST(ParquetRead, ReadSchema)
 {
-    readSchema<ParquetSchemaReader>("./utils/extern-local-engine/tests/data/alltypes/alltypes_notnull.parquet");
-    readSchema<ParquetSchemaReader>("./utils/extern-local-engine/tests/data/alltypes/alltypes_null.parquet");
-#if USE_LOCAL_FORMATS
-    readSchema<OptimizedParquetSchemaReader>("./utils/extern-local-engine/tests/data/alltypes/alltypes_null.parquet");
-    readSchema<OptimizedParquetSchemaReader>("./utils/extern-local-engine/tests/data/alltypes/alltypes_null.parquet");
-#endif
+    readSchema<ParquetSchemaReader>("./utils/local-engine/tests/data/alltypes/alltypes_notnull.parquet");
+    readSchema<ParquetSchemaReader>("./utils/local-engine/tests/data/alltypes/alltypes_null.parquet");
+    readSchema<OptimizedParquetSchemaReader>("./utils/local-engine/tests/data/alltypes/alltypes_null.parquet");
+    readSchema<OptimizedParquetSchemaReader>("./utils/local-engine/tests/data/alltypes/alltypes_null.parquet");
 }
 
 TEST(ParquetRead, ReadDataNotNull)
 {
-    const String path = "./utils/extern-local-engine/tests/data/alltypes/alltypes_notnull.parquet";
+    const String path = "./utils/local-engine/tests/data/alltypes/alltypes_notnull.parquet";
     const std::map<String, Field> fields{
         {"f_array", Array{"hello", "world"}},
         {"f_bool", UInt8(1)},
@@ -272,15 +259,13 @@ TEST(ParquetRead, ReadDataNotNull)
     };
 
     readData<ParquetSchemaReader, ParquetBlockInputFormat>(path, fields);
-#if USE_LOCAL_FORMATS
     readData<OptimizedParquetSchemaReader, OptimizedParquetBlockInputFormat>(path, fields);
-#endif
 }
 
 
 TEST(ParquetRead, ReadDataNull)
 {
-    const String path = "./utils/extern-local-engine/tests/data/alltypes/alltypes_null.parquet";
+    const String path = "./utils/local-engine/tests/data/alltypes/alltypes_null.parquet";
     std::map<String, Field> fields{
         {"f_array", Null{}},        {"f_bool", Null{}},   {"f_byte", Null{}},          {"f_short", Null{}},
         {"f_int", Null{}},          {"f_long", Null{}},   {"f_float", Null{}},         {"f_double", Null{}},
@@ -292,9 +277,5 @@ TEST(ParquetRead, ReadDataNull)
     };
 
     readData<ParquetSchemaReader, ParquetBlockInputFormat>(path, fields);
-#if USE_LOCAL_FORMATS
     readData<OptimizedParquetSchemaReader, OptimizedParquetBlockInputFormat>(path, fields);
-#endif
 }
-
-#endif

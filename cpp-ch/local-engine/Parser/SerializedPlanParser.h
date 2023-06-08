@@ -222,19 +222,14 @@ struct QueryContext
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type);
 DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
 
-std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
-bool isTypeMatched(const substrait::Type & substrait_type, const DataTypePtr & ch_type);
-
 class SerializedPlanParser
 {
-private:
     friend class RelParser;
     friend class ASTParser;
-    friend class FunctionParser;
-    friend class FunctionExecutor;
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
+    static void initFunctionEnv();
     DB::QueryPlanPtr parse(const std::string & plan);
     DB::QueryPlanPtr parseJson(const std::string & json_plan);
     DB::QueryPlanPtr parse(std::unique_ptr<substrait::Plan> plan);
@@ -285,7 +280,7 @@ private:
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
     DB::ActionsDAGPtr parseFunction(
-        const Block & header,
+        const Block & input,
         const substrait::Expression & rel,
         std::string & result_name,
         std::vector<String> & required_columns,
@@ -329,9 +324,9 @@ private:
         std::vector<String> & required_columns,
         const std::string & function_name,
         const substrait::FunctionArgument & arg);
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel);
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr action_dag, const substrait::Expression & rel);
     const ActionsDAG::Node *
-    toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
+    toFunctionNode(ActionsDAGPtr action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
     void removeNullable(std::vector<String> require_columns, ActionsDAGPtr actionsDag);
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }

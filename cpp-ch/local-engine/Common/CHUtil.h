@@ -85,7 +85,6 @@ public:
     static String explainPipeline(DB::QueryPipeline & pipeline);
 };
 
-void registerAllFunctions();
 
 class BackendFinalizerUtil;
 class JNIUtils;
@@ -95,20 +94,19 @@ public:
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void init(std::string * plan);
+    static void init(const std::string & conf_plan);
 
 private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
 
-    static void initConfig(std::string * plan);
-    static void initConfig();
+    static void initConfig(const std::string & plan);
     static void initLoggers();
     static void initEnvs();
     static void initSettings();
     static void initContexts();
-    static void registerAllFactories();
     static void applyConfigAndSettings();
+    static void registerAllFactories();
     static void initCompiledExpressionCache();
 
     static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);

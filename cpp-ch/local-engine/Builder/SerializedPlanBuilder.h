@@ -21,12 +21,8 @@ enum Function
 
 using SchemaPtr = substrait::NamedStruct *;
 
-
 class SerializedPlanBuilder
 {
-private:
-    friend class FunctionExecutor;
-
 public:
     SerializedPlanBuilder();
 
