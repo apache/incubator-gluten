@@ -62,8 +62,9 @@ public class TestStats {
     public static int totalOffloadGlutenCaseNumber = 0;
 
     public static void printMarkdown(String suitName) {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         String title = "print_markdown_" + suitName;
 
@@ -104,8 +105,9 @@ public class TestStats {
     }
 
     public static void addFallBackClassName(String className) {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         if (caseInfos.containsKey(currentCase)
                 && !caseInfos.get(currentCase).stack.isEmpty()) {
@@ -116,8 +118,9 @@ public class TestStats {
     }
 
     public static void addFallBackCase() {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         if (caseInfos.containsKey(currentCase)) {
             caseInfos.get(currentCase).type = "fallback";
@@ -125,8 +128,9 @@ public class TestStats {
     }
 
     public static void addExpressionClassName(String className) {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         if (caseInfos.containsKey(currentCase)) {
             CaseInfo info = caseInfos.get(currentCase);
@@ -135,8 +139,9 @@ public class TestStats {
     }
 
     public static Set<String> getFallBackClassName() {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return Collections.emptySet();
+        }
 
         if (caseInfos.containsKey(currentCase)) {
             return Collections.unmodifiableSet(
@@ -147,8 +152,9 @@ public class TestStats {
     }
 
     public static void addIgnoreCaseName(String caseName) {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         if (caseInfos.containsKey(caseName)) {
             caseInfos.get(caseName).type = "fatal";
@@ -156,8 +162,9 @@ public class TestStats {
     }
 
     public static void resetCase() {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         if (caseInfos.containsKey(currentCase)) {
             caseInfos.get(currentCase).stack.clear();
@@ -166,16 +173,18 @@ public class TestStats {
     }
 
     public static void startCase(String caseName) {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         caseInfos.putIfAbsent(caseName, new CaseInfo());
         currentCase = caseName;
     }
 
     public static void endCase(boolean status) {
-        if (!UT_ENV)
+        if (!UT_ENV) {
             return;
+        }
 
         if (caseInfos.containsKey(currentCase)) {
             caseInfos.get(currentCase).status = status ? "success" : "error";
