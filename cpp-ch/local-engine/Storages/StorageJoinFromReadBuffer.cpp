@@ -265,7 +265,7 @@ void StorageJoinFromReadBuffer::rename(const String & /*new_path_to_table_data*/
     throw std::runtime_error("unsupported operation");
 }
 DB::SinkToStoragePtr
-StorageJoinFromReadBuffer::write(const DB::ASTPtr & /*query*/, const DB::StorageMetadataPtr & /*ptr*/, DB::ContextPtr /*context*/)
+StorageJoinFromReadBuffer::write(const DB::ASTPtr & /*query*/, const DB::StorageMetadataPtr & /*ptr*/, DB::ContextPtr /*context*/, bool /*async_insert*/)
 {
     throw std::runtime_error("unsupported operation");
 }
