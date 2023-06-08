@@ -21,8 +21,6 @@ import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-import java.util.Optional;
-
 public class CHNativeBlock {
   private long blockAddress;
 
@@ -30,12 +28,14 @@ public class CHNativeBlock {
     this.blockAddress = blockAddress;
   }
 
-  public static Optional<CHNativeBlock> fromColumnarBatch(ColumnarBatch batch) {
+  public static CHNativeBlock fromColumnarBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0 || !(batch.column(0) instanceof CHColumnVector)) {
-      return Optional.empty();
+      throw new RuntimeException(
+              "Unexpected ColumnarBatch: " + (batch.numCols() == 0 ?
+                      "zero column" : "expected CHColumnVector, but " + batch.column(0).getClass()));
     }
     CHColumnVector columnVector = (CHColumnVector) batch.column(0);
-    return Optional.of(new CHNativeBlock(columnVector.getBlockAddress()));
+    return new CHNativeBlock(columnVector.getBlockAddress());
   }
 
   private native int nativeNumRows(long blockAddress);

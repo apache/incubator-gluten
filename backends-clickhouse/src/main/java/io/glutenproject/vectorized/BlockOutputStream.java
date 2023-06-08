@@ -82,10 +82,9 @@ public class BlockOutputStream implements Closeable {
   private native void nativeFlush(long instance);
 
   public void write(ColumnarBatch cb) {
-    CHNativeBlock.fromColumnarBatch(cb).ifPresent(block -> {
-      dataSize.add(block.totalBytes());
-      nativeWrite(instance, block.blockAddress());
-    });
+    CHNativeBlock block = CHNativeBlock.fromColumnarBatch(cb);
+    dataSize.add(block.totalBytes());
+    nativeWrite(instance, block.blockAddress());
   }
 
   public void flush() throws IOException {
