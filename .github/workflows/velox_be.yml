@@ -257,8 +257,8 @@ jobs:
           mvn clean package -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh \
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh \
-            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --cpus=32 --iterations=1'
+          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh \
+            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=40g -s=10.0 --cpus=32 --iterations=1'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn
         run: |
           docker exec velox-ubuntu2204-test-$GITHUB_RUN_ID bash -c 'wget https://dlcdn.apache.org/incubator/celeborn/celeborn-0.2.0-incubating/apache-celeborn-0.2.0-incubating-bin.tgz && \
@@ -287,7 +287,7 @@ jobs:
           mvn clean package -Pspark-3.3 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh \
             --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh \
+          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh \
             --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --cpus=32 --iterations=1'
       - name: Exit docker container
         if: ${{ always() }}
