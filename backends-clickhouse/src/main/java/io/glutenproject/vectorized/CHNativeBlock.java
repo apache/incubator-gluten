@@ -32,7 +32,7 @@ public class CHNativeBlock {
     if (batch.numCols() == 0 || !(batch.column(0) instanceof CHColumnVector)) {
       throw new RuntimeException(
               "Unexpected ColumnarBatch: " + (batch.numCols() == 0 ?
-                      "zero column" : "expected CHColumnVector, but " + batch.column(0).getClass()));
+                      "0 column" : "expected CHColumnVector, but " + batch.column(0).getClass()));
     }
     CHColumnVector columnVector = (CHColumnVector) batch.column(0);
     return new CHNativeBlock(columnVector.getBlockAddress());
