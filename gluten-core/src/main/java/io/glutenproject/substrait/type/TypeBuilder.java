@@ -79,6 +79,11 @@ public class TypeBuilder {
     return new TimestampTypeNode(nullable);
   }
 
+  public static TypeNode makeStruct(Boolean nullable, ArrayList<TypeNode> types,
+                                    ArrayList<String> names) {
+    return new StructNode(nullable, types, names);
+  }
+
   public static TypeNode makeStruct(Boolean nullable, ArrayList<TypeNode> types) {
     return new StructNode(nullable, types);
   }
