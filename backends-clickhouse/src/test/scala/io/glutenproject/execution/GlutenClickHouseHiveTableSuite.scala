@@ -91,6 +91,7 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
 
   private val txt_table_name = "hive_txt_test"
   private val json_table_name = "hive_json_test"
+
   private val txt_table_create_sql = "create table if not exists %s (".format(txt_table_name) +
     "string_field string," +
     "int_field int," +
@@ -106,6 +107,7 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
     "array_field_with_null array<int>," +
     "map_field map<int, long>," +
     "map_field_with_null map<int, long>) stored as textfile"
+
   private val json_table_create_sql = "create table if not exists %s (".format(json_table_name) +
     "string_field string," +
     "int_field int," +
@@ -211,6 +213,44 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("test hive text table with unordered columns") {
+    val sql = "select decimal_field, short_field, double_field, float_field, long_field, " +
+      s"int_field, string_field from $txt_table_name order by string_field"
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("test hive text table with count(1)/count(*)") {
+    val sql1 = s"select count(1), count(*) from $txt_table_name"
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+
+    val sql2 = s"select count(*) from $txt_table_name where int_field >= 100"
+    compareResultsAgainstVanillaSpark(
+      sql2,
       true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {

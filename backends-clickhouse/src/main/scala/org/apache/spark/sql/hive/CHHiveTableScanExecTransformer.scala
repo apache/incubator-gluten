@@ -133,9 +133,7 @@ class CHHiveTableScanExecTransformer(
       Seq.apply(new Path(tableMeta.location)),
       Map.empty,
       Option.apply(tableMeta.schema))
-    val planOutput =
-      if (output.nonEmpty) output.asInstanceOf[Seq[AttributeReference]]
-      else relation.dataCols
+    val planOutput = output.asInstanceOf[Seq[AttributeReference]]
     var hasComplexType = false
     val outputFieldTypes = new ArrayBuffer[StructField]()
     planOutput.foreach(
@@ -147,6 +145,8 @@ class CHHiveTableScanExecTransformer(
         } else hasComplexType
         outputFieldTypes.append(StructField(x.name, x.dataType))
       })
+
+    // scalastyle:on println
     tableMeta.storage.inputFormat match {
       case Some("org.apache.hadoop.mapred.TextInputFormat") =>
         tableMeta.storage.serde match {
@@ -189,7 +189,7 @@ class CHHiveTableScanExecTransformer(
     if (
       transformCtx.root != null
       && transformCtx.root.isInstanceOf[ReadRelNode]
-      && scan.get.isInstanceOf[TextScan]
+      && scan.isDefined && scan.get.isInstanceOf[TextScan]
     ) {
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
       readRelNode.setDataSchema(relation.tableMeta.dataSchema)
