@@ -43,7 +43,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  velox-ubuntu2004-test:
+  velox-ubuntu2004-test-spark32:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -106,7 +106,7 @@ jobs:
         run: |
           docker stop velox-ubuntu2004-test-$GITHUB_RUN_ID || true
 
-  velox-ubuntu2004-test-slow:
+  velox-ubuntu2004-test-slow-spark32:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -180,8 +180,8 @@ jobs:
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
           cd /var/cache/spark33 && \
-          [ ! -d "spark331" ]&& git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git spark331 && cd /var/cache/spark33/spark331 && ./build/mvn -Pyarn -DskipTests install
-          '
+          cp /opt/gluten/dev/get_spark_env.sh . &&
+          ./get_spark_env.sh '
       - name: Build Gluten velox third party
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
