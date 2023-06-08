@@ -75,7 +75,9 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
     if (leftCondition == null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
-      return childCtx
+      // Since some columns' nullability will be removed after this filter, we need to update the
+      // outputAttributes of child context.
+      TransformContext(childCtx.inputAttributes, output, childCtx.root)
     }
 
     val currRel = if (childCtx != null) {

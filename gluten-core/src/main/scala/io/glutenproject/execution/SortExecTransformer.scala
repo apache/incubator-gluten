@@ -30,7 +30,6 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -296,8 +295,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         child.output)
     }
     assert(currRel != null, "Sort Rel should be valid")
-    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
-    TransformContext(inputAttributes, outputAttrs, currRel)
+    TransformContext(inputAttributes, output, currRel)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
