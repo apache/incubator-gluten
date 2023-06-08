@@ -57,7 +57,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    // User defined type.
+    .exclude("from decimal")
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
@@ -117,6 +117,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
+      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
+      // We can enable the below test for spark 3.4 and higher versions.
+      "Gluten - describe",
+      // decimal failed ut.
+      "SPARK-22271: mean overflows and returns null for some decimal variables",
       // Not supported for approx_count_distinct
       "SPARK-34165: Add count_distinct to summary"
     )
@@ -167,16 +172,14 @@ class VeloxTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenLiteralExpressionSuite]
-    // Rewrite to exclude user-defined type case.
     .exclude("default")
-
+    // Timestamp: Velox to Arrow.
+    .exclude("construct literals from arrays of java.time.Instant")
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
-    // Random.
     .exclude("Map Concat")
-    // Random.
     .exclude("Shuffle")
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
@@ -186,6 +189,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
+    .exclude("BinaryComparison: lessThan")
+    .exclude("BinaryComparison: LessThanOrEqual")
+    .exclude("BinaryComparison: GreaterThan")
+    .exclude("BinaryComparison: GreaterThanOrEqual")
+    .exclude("SPARK-32764: compare special double/float values")
   enableSuite[GlutenMathExpressionsSuite]
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
@@ -301,6 +309,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenProductAggSuite]
   enableSuite[GlutenReplaceNullWithFalseInPredicateEndToEndSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
+  enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]

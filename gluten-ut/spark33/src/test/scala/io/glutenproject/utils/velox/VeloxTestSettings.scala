@@ -20,6 +20,7 @@ package io.glutenproject.utils.velox
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql.catalyst.expressions.{GlutenAnsiCastSuiteWithAnsiModeOff, GlutenAnsiCastSuiteWithAnsiModeOn, GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCastSuiteWithAnsiModeOn, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenHashExpressionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite}
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuite, GlutenDataSourceV2Suite, GlutenFileDataSourceV2FallBackSuite, GlutenLocalScanSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
+import org.apache.spark.sql.execution.GlutenSQLWindowFunctionSuite
 import org.apache.spark.sql.execution.datasources.{GlutenBucketingUtilsSuite, GlutenCSVReadSchemaSuite, GlutenDataSourceStrategySuite, GlutenDataSourceSuite, GlutenFileFormatWriterSuite, GlutenFileIndexSuite, GlutenFileSourceStrategySuite, GlutenHadoopFileLinesReaderSuite, GlutenHeaderCSVReadSchemaSuite, GlutenJsonReadSchemaSuite, GlutenMergedOrcReadSchemaSuite, GlutenMergedParquetReadSchemaSuite, GlutenOrcCodecSuite, GlutenOrcReadSchemaSuite, GlutenParquetCodecSuite, GlutenParquetReadSchemaSuite, GlutenPathFilterStrategySuite, GlutenPathFilterSuite, GlutenPruneFileSourcePartitionsSuite, GlutenVectorizedOrcReadSchemaSuite, GlutenVectorizedParquetReadSchemaSuite}
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
 import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
@@ -27,9 +28,13 @@ import org.apache.spark.sql.execution.datasources.orc.{GlutenOrcColumnarBatchRea
 import org.apache.spark.sql.execution.datasources.parquet.{GlutenParquetColumnIndexSuite, GlutenParquetCompressionCodecPrecedenceSuite, GlutenParquetEncodingSuite, GlutenParquetFileFormatV1Suite, GlutenParquetFileFormatV2Suite, GlutenParquetIOSuite, GlutenParquetInteroperabilitySuite, GlutenParquetProtobufCompatibilitySuite, GlutenParquetRebaseDatetimeV1Suite, GlutenParquetRebaseDatetimeV2Suite, GlutenParquetSchemaInferenceSuite, GlutenParquetSchemaSuite, GlutenParquetThriftCompatibilitySuite, GlutenParquetV1FilterSuite, GlutenParquetV1PartitionDiscoverySuite, GlutenParquetV1QuerySuite, GlutenParquetV1SchemaPruningSuite, GlutenParquetV2FilterSuite, GlutenParquetV2PartitionDiscoverySuite, GlutenParquetV2QuerySuite, GlutenParquetV2SchemaPruningSuite}
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.GlutenFileTableSuite
-import org.apache.spark.sql.{GlutenBloomFilterAggregateQuerySuite, GlutenJsonFunctionsSuite, GlutenStringFunctionsSuite}
+import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
+import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, GlutenBucketedWriteWithoutHiveSupportSuite, GlutenCreateTableAsSelectSuite, GlutenDDLSourceLoadSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE, GlutenExternalCommandRunnerSuite, GlutenFilteredScanSuite, GlutenFiltersSuite, GlutenInsertSuite, GlutenPartitionedWriteSuite, GlutenPathOptionSuite, GlutenPrunedScanSuite, GlutenResolvedDataSourceSuite, GlutenSaveLoadSuite, GlutenTableScanSuite}
+import org.apache.spark.sql.{GlutenApproxCountDistinctForIntervalsQuerySuite, GlutenApproximatePercentileQuerySuite, GlutenBloomFilterAggregateQuerySuite, GlutenCTEHintSuite, GlutenCTEInlineSuiteAEOff, GlutenCTEInlineSuiteAEOn, GlutenCachedTableSuite, GlutenColumnExpressionSuite, GlutenConfigBehaviorSuite, GlutenCountMinSketchAggQuerySuite, GlutenCsvFunctionsSuite, GlutenDSV2CharVarcharTestSuite, GlutenDSV2SQLInsertTestSuite, GlutenDataFrameAggregateSuite, GlutenDataFrameComplexTypeSuite, GlutenDataFrameFunctionsSuite, GlutenDataFrameHintSuite, GlutenDataFrameImplicitsSuite, GlutenDataFrameJoinSuite, GlutenDataFrameNaFunctionsSuite, GlutenDataFramePivotSuite, GlutenDataFrameRangeSuite, GlutenDataFrameSelfJoinSuite, GlutenDataFrameSessionWindowingSuite, GlutenDataFrameSetOperationsSuite, GlutenDataFrameStatSuite, GlutenDataFrameSuite, GlutenDataFrameTimeWindowingSuite, GlutenDataFrameTungstenSuite, GlutenDataFrameWindowFramesSuite, GlutenDataFrameWriterV2Suite, GlutenDatasetAggregatorSuite, GlutenDatasetCacheSuite, GlutenDatasetOptimizationSuite, GlutenDatasetPrimitiveSuite, GlutenDatasetSerializerRegistratorSuite, GlutenDatasetSuite, GlutenDateFunctionsSuite, GlutenDeprecatedAPISuite, GlutenDynamicPartitionPruningV1SuiteAEOff, GlutenDynamicPartitionPruningV1SuiteAEOn, GlutenDynamicPartitionPruningV2SuiteAEOff, GlutenDynamicPartitionPruningV2SuiteAEOn, GlutenExpressionsSchemaSuite, GlutenExtraStrategiesSuite, GlutenFileBasedDataSourceSuite, GlutenFileScanSuite, GlutenFileSourceCharVarcharTestSuite, GlutenFileSourceSQLInsertTestSuite, GlutenGeneratorFunctionSuite, GlutenIntervalFunctionsSuite, GlutenJoinSuite, GlutenJsonFunctionsSuite, GlutenMathFunctionsSuite, GlutenMetadataCacheSuite, GlutenMiscFunctionsSuite, GlutenNestedDataSourceV1Suite, GlutenNestedDataSourceV2Suite, GlutenProcessingTimeSuite, GlutenProductAggSuite, GlutenReplaceNullWithFalseInPredicateEndToEndSuite, GlutenSQLQuerySuite, GlutenSQLQueryTestSuite, GlutenScalaReflectionRelationSuite, GlutenSerializationSuite, GlutenStatisticsCollectionSuite, GlutenStringFunctionsSuite, GlutenSubquerySuite, GlutenTypedImperativeAggregateSuite, GlutenUnwrapCastInComparisonEndToEndSuite, GlutenXPathFunctionsSuite}
 
 class VeloxTestSettings extends BackendTestSettings {
+  enableSuite[GlutenSessionExtensionSuite]
+  enableSuite[GlutenCustomerExtensionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenBloomFilterAggregateQuerySuite]
     // fallback might_contain, the input argument binary is not same with vanilla spark
@@ -760,4 +765,200 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
+  enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
+    // Exclude the following suite for plan changed from SMJ to SHJ.
+    .exclude("avoid shuffle when join 2 bucketed tables")
+    .exclude("avoid shuffle and sort when sort columns are a super set of join keys")
+    .exclude("only shuffle one side when join bucketed table and non-bucketed table")
+    .exclude("only shuffle one side when 2 bucketed tables have different bucket number")
+    .exclude("only shuffle one side when 2 bucketed tables have different bucket keys")
+    .exclude("shuffle when join keys are not equal to bucket keys")
+    .exclude("shuffle when join 2 bucketed tables with bucketing disabled")
+    .exclude("check sort and shuffle when bucket and sort columns are join keys")
+    .exclude("only sort one side when sort columns are different")
+    .exclude("only sort one side when sort columns are same but their ordering is different")
+    .exclude("SPARK-17698 Join predicates should not contain filter clauses")
+    .exclude("SPARK-19122 Re-order join predicates if they match with the child's" +
+      " output partitioning")
+    .exclude("SPARK-19122 No re-ordering should happen if set of join columns != set of child's " +
+      "partitioning columns")
+    .exclude("SPARK-29655 Read bucketed tables obeys spark.sql.shuffle.partitions")
+    .exclude("SPARK-32767 Bucket join should work if SHUFFLE_PARTITIONS larger than bucket number")
+    .exclude("bucket coalescing eliminates shuffle")
+    .exclude("bucket coalescing is not satisfied")
+    .excludeByPrefix("bucket coalescing is applied when join expressions match")
+  enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
+  enableSuite[GlutenCreateTableAsSelectSuite]
+    // TODO Gluten can not catch the spark exception in Driver side.
+    .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
+    .exclude("create a table, drop it and create another one with the same name")
+  enableSuite[GlutenDDLSourceLoadSuite]
+  enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
+  enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
+  enableSuite[GlutenExternalCommandRunnerSuite]
+  enableSuite[GlutenFilteredScanSuite]
+  enableSuite[GlutenFiltersSuite]
+  enableSuite[GlutenInsertSuite]
+  enableSuite[GlutenPartitionedWriteSuite]
+  enableSuite[GlutenPathOptionSuite]
+  enableSuite[GlutenPrunedScanSuite]
+  enableSuite[GlutenResolvedDataSourceSuite]
+  enableSuite[GlutenSaveLoadSuite]
+  enableSuite[GlutenTableScanSuite]
+  enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
+  enableSuite[GlutenApproximatePercentileQuerySuite]
+  enableSuite[GlutenCachedTableSuite]
+  enableSuite[GlutenFileSourceCharVarcharTestSuite]
+  enableSuite[GlutenDSV2CharVarcharTestSuite]
+  enableSuite[GlutenColumnExpressionSuite]
+  enableSuite[GlutenComplexTypeSuite]
+  enableSuite[GlutenConfigBehaviorSuite]
+    // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
+    .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+  enableSuite[GlutenCountMinSketchAggQuerySuite]
+  enableSuite[GlutenCsvFunctionsSuite]
+  enableSuite[GlutenCTEHintSuite]
+  enableSuite[GlutenCTEInlineSuiteAEOff]
+  enableSuite[GlutenCTEInlineSuiteAEOn]
+  enableSuite[GlutenDataFrameAggregateSuite]
+    .exclude(
+      "zero moments", // [velox does not return NaN]
+      "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
+      // incorrect result, distinct NaN case
+      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate"
+    )
+  enableSuite[GlutenDataFrameComplexTypeSuite]
+  enableSuite[GlutenDataFrameFunctionsSuite]
+  enableSuite[GlutenDataFrameHintSuite]
+  enableSuite[GlutenDataFrameImplicitsSuite]
+  enableSuite[GlutenDataFrameJoinSuite]
+  enableSuite[GlutenDataFrameNaFunctionsSuite]
+    .exclude(
+      // NaN case
+      "replace nan with float",
+      "replace nan with double"
+    )
+  enableSuite[GlutenDataFramePivotSuite]
+  enableSuite[GlutenDataFrameRangeSuite]
+  enableSuite[GlutenDataFrameSelfJoinSuite]
+  enableSuite[GlutenDataFrameSessionWindowingSuite]
+  enableSuite[GlutenDataFrameSetOperationsSuite]
+  enableSuite[GlutenDataFrameStatSuite]
+  enableSuite[GlutenDataFrameSuite]
+    // Rewrite these tests because it checks Spark's physical operators.
+    .excludeByPrefix(
+      "SPARK-22520",
+      "reuse exchange")
+    .exclude(
+      /**
+       * Rewrite these tests because the rdd partition is equal to the configuration
+       * "spark.sql.shuffle.partitions".
+       */
+      "repartitionByRange",
+      "distributeBy and localSort",
+      // Mismatch when max NaN and infinite value
+      "NaN is greater than all other non-NaN numeric values",
+      // Rewrite this test because the describe functions creates unmatched plan.
+      "describe",
+      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
+      // We can enable the below test for spark 3.4 and higher versions.
+      "Gluten - describe",
+      // decimal failed ut.
+      "SPARK-22271: mean overflows and returns null for some decimal variables",
+      // Not supported for approx_count_distinct
+      "SPARK-34165: Add count_distinct to summary"
+    )
+  enableSuite[GlutenDataFrameTimeWindowingSuite]
+  enableSuite[GlutenDataFrameTungstenSuite]
+  enableSuite[GlutenDataFrameWindowFramesSuite]
+  // spill not supported yet.
+  enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
+  enableSuite[GlutenDataFrameWriterV2Suite]
+  enableSuite[GlutenDatasetAggregatorSuite]
+  enableSuite[GlutenDatasetCacheSuite]
+  enableSuite[GlutenDatasetOptimizationSuite]
+  enableSuite[GlutenDatasetPrimitiveSuite]
+  enableSuite[GlutenDatasetSerializerRegistratorSuite]
+  enableSuite[GlutenDatasetSuite]
+    // Rewrite the following two tests in GlutenDatasetSuite.
+    .exclude("dropDuplicates: columns with same column name")
+    .exclude("groupBy.as")
+    // Map could not contain non-scalar type.
+    .exclude("as map of case class - reorder fields by name")
+  enableSuite[GlutenDateFunctionsSuite]
+  enableSuite[GlutenDeprecatedAPISuite]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+  enableSuite[GlutenExpressionsSchemaSuite]
+  enableSuite[GlutenExtraStrategiesSuite]
+  enableSuite[GlutenFileBasedDataSourceSuite]
+    // test data path is jar path, rewrite
+    .exclude("Option recursiveFileLookup: disable partition inferring")
+    // gluten executor exception cannot get in driver, rewrite
+    .exclude("Spark native readers should respect spark.sql.caseSensitive - parquet")
+    // shuffle_partitions config is different, rewrite
+    .excludeByPrefix("SPARK-22790")
+    // plan is different cause metric is different, rewrite
+    .excludeByPrefix("SPARK-25237")
+    // ignoreMissingFiles mode, wait to fix
+    .exclude("Enabling/disabling ignoreMissingFiles using parquet")
+    .exclude("Enabling/disabling ignoreMissingFiles using orc")
+    .exclude("Spark native readers should respect spark.sql.caseSensitive - orc")
+    .exclude("Return correct results when data columns overlap with partition columns")
+    .exclude("Return correct results when data columns overlap with partition " +
+      "columns (nested data)")
+    .exclude("SPARK-31116: Select nested schema with case insensitive mode")
+  enableSuite[GlutenFileScanSuite]
+  enableSuite[GlutenGeneratorFunctionSuite]
+  enableSuite[GlutenIntervalFunctionsSuite]
+  enableSuite[GlutenJoinSuite]
+  enableSuite[GlutenMathFunctionsSuite]
+  enableSuite[GlutenMetadataCacheSuite]
+    .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
+  enableSuite[GlutenMiscFunctionsSuite]
+  enableSuite[GlutenNestedDataSourceV1Suite]
+  enableSuite[GlutenNestedDataSourceV2Suite]
+  enableSuite[GlutenProcessingTimeSuite]
+  enableSuite[GlutenProductAggSuite]
+  enableSuite[GlutenReplaceNullWithFalseInPredicateEndToEndSuite]
+  enableSuite[GlutenScalaReflectionRelationSuite]
+  enableSuite[GlutenSerializationSuite]
+  // following UT is removed in spark3.3.1
+  // enableSuite[GlutenSimpleShowCreateTableSuite]
+  enableSuite[GlutenFileSourceSQLInsertTestSuite]
+  enableSuite[GlutenDSV2SQLInsertTestSuite]
+  enableSuite[GlutenSQLQuerySuite]
+    // Unstable. Needs to be fixed.
+    .exclude("SPARK-36093: RemoveRedundantAliases should not change expression's name")
+    // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
+    .exclude("SPARK-28156: self-join should not miss cached view")
+    .exclude("SPARK-33338: GROUP BY using literal map should not fail")
+    // Rewrite from ORC scan to Parquet scan because ORC is not well supported. Also disabled
+    // Spark vectorized reading because Spark's columnar output is not compatible with Velox's.
+    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
+    // Rewrite to disable plan check for SMJ because SHJ is preferred in Gluten.
+    .exclude("SPARK-11111 null-safe join should not use cartesian product")
+    // Rewrite to change the information of a caught exception.
+    .exclude("SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
+    // Different exception.
+    .exclude("run sql directly on files")
+    // Columnar shuffle cannot generate the expected number of partitions if the row of a input
+    // batch is less than the expected number of partitions.
+    .exclude("SPARK-24940: coalesce and repartition hint")
+    // Not useful and time consuming.
+    .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
+    .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
+  enableSuite[GlutenSQLQueryTestSuite]
+  enableSuite[GlutenStatisticsCollectionSuite]
+  enableSuite[GlutenSubquerySuite]
+    .excludeByPrefix(
+      "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
+    )
+  enableSuite[GlutenTypedImperativeAggregateSuite]
+  enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
+    // Rewrite with NaN test cases excluded.
+    .exclude("cases when literal is max")
+  enableSuite[GlutenXPathFunctionsSuite]
 }
