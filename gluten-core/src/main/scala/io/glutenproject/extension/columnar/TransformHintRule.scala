@@ -23,6 +23,8 @@ import io.glutenproject.execution._
 import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -36,6 +38,7 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.execution.python.EvalPythonExec
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.api.python.EvalPythonExecTransformer
 
 import scala.util.control.Breaks.{break, breakable}
@@ -201,6 +204,31 @@ case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan]
       plan.foreach(TransformHints.tagNotTransformable)
     }
     plan
+  }
+}
+
+
+/**
+ * This rule plans [[RDDScanExec]] with a fake schema to make gluten work, because gluten
+ * does not support empty output relation, see [[FallbackEmptySchemaRelation]].
+ */
+case class PlanOneRowRelation(spark: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    if (!GlutenConfig.getConf.enableOneRowRelationColumnar) {
+      return plan
+    }
+
+    plan.transform {
+      // We should make sure the output does not change, e.g.
+      // Window
+      //   OneRowRelation
+      case u: UnaryExecNode if u.child.isInstanceOf[RDDScanExec] &&
+        u.child.asInstanceOf[RDDScanExec].name == "OneRowRelation" &&
+        u.outputSet != u.child.outputSet =>
+        val rdd = spark.sparkContext.parallelize(InternalRow(null) :: Nil, 1)
+        val attr = AttributeReference("fake_column", StringType)()
+        u.withNewChildren(RDDScanExec(attr :: Nil, rdd, "OneRowRelation") :: Nil)
+    }
   }
 }
 
