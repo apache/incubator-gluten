@@ -14,9 +14,6 @@ public:
     ~TextFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
-    /// TODO implement it
-    // std::optional<size_t> getTotalRows() override  { return {}; }
 };
 
 }

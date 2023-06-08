@@ -10,9 +10,7 @@ class JsonFormatFile : public FormatFile
 public:
     explicit JsonFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
     ~JsonFormatFile() override = default;
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
-    /// TODO IMPLEMENT
-    std::optional<size_t> getTotalRows() override  { return {}; }
+    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 };
 }
