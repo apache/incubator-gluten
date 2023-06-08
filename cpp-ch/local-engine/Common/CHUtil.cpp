@@ -60,17 +60,17 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-constexpr auto VIRTUAL_ROW_COUNT_COLOUMN = "__VIRTUAL_ROW_COUNT_COLOUMNOUMN__";
+constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
 
 namespace fs = std::filesystem;
 
 DB::Block BlockUtil::buildRowCountHeader()
 {
     DB::Block header;
-    auto uint8_ty = std::make_shared<DB::DataTypeUInt8>();
-    auto col = uint8_ty->createColumn();
-    DB::ColumnWithTypeAndName named_col(std::move(col), uint8_ty, VIRTUAL_ROW_COUNT_COLOUMN);
-    header.insert(named_col);
+    auto type = std::make_shared<DB::DataTypeUInt8>();
+    auto col = type->createColumn();
+    DB::ColumnWithTypeAndName named_col(std::move(col), type, VIRTUAL_ROW_COUNT_COLUMN);
+    header.insert(std::move(named_col));
     return header.cloneEmpty();
 }
 
@@ -88,7 +88,7 @@ DB::Block BlockUtil::buildRowCountBlock(UInt64 rows)
     DB::Block block;
     auto uint8_ty = std::make_shared<DB::DataTypeUInt8>();
     auto col = uint8_ty->createColumnConst(rows, 0);
-    DB::ColumnWithTypeAndName named_col(col, uint8_ty, VIRTUAL_ROW_COUNT_COLOUMN);
+    DB::ColumnWithTypeAndName named_col(col, uint8_ty, VIRTUAL_ROW_COUNT_COLUMN);
     block.insert(named_col);
     return block;
 }
