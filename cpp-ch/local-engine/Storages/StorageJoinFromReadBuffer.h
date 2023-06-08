@@ -34,7 +34,7 @@ public:
 
     void rename(const String & new_path_to_table_data, const DB::StorageID & new_table_id) override;
     DB::HashJoinPtr getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context) const;
-    DB::SinkToStoragePtr write(const DB::ASTPtr & query, const DB::StorageMetadataPtr & ptr, DB::ContextPtr context) override;
+    DB::SinkToStoragePtr write(const DB::ASTPtr & query, const DB::StorageMetadataPtr & ptr, DB::ContextPtr context, bool async_insert) override;
     bool storesDataOnDisk() const override;
     DB::Strings getDataPaths() const override;
     DB::Pipe read(
