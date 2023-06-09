@@ -476,6 +476,7 @@ void BackendInitializerUtil::initConfig(std::string * plan)
     {
         const auto & key = kv.first;
         const auto & value = kv.second;
+        // std::cout << "set config key:" << key << ", value:" << value << std::endl;
 
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);

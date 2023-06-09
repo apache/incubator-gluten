@@ -56,6 +56,7 @@ public class CHNativeExpressionEvaluator {
 
     // Get the customer config from SparkConf for each backend
     BackendsApiManager.getTransformerApiInstance().postProcessNativeConfig(nativeConfMap, prefix);
+    // System.out.println("Native backend config: " + nativeConfMap.toString());
 
     jniWrapper.nativeInitNative(buildNativeConfNode(nativeConfMap).toProtobuf().toByteArray());
   }

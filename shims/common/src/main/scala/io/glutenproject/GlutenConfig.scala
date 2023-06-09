@@ -385,7 +385,11 @@ object GlutenConfig {
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
       (
         COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString)
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
+      ("spark.hadoop.input.connect.timeout", "180000"),
+      ("spark.hadoop.input.read.timeout", "180000"),
+      ("spark.hadoop.input.write.timeout", "180000"),
+      ("spark.hadoop.dfs.client.log.severity", "INFO")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     // velox cache and HiveConnector config
