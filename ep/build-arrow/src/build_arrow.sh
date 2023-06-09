@@ -117,6 +117,7 @@ cmake -G Ninja \
 cmake --build . --target install
 popd
 
+CPU_TARGET=${CPU_TARGET:-"x86"}
 if [ $CPU_TARGET == "aarch64" ]; then
   # Arrow C Data Interface CPP libraries
   pushd java
