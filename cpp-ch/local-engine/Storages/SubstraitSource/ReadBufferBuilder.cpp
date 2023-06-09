@@ -5,9 +5,9 @@
 #include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
+#include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
-#include <IO/S3/getObjectInfo.h>
 #include <Interpreters/Context_fwd.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
@@ -20,11 +20,11 @@
 #include <Poco/URI.h>
 #include "IO/ReadSettings.h"
 
-#include <Common/Throttler.h>
-#include <Common/safe_cast.h>
-#include <Common/logger_useful.h>
-#include <Poco/Logger.h>
 #include <hdfs/hdfs.h>
+#include <Poco/Logger.h>
+#include <Common/Throttler.h>
+#include <Common/logger_useful.h>
+#include <Common/safe_cast.h>
 
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
@@ -33,6 +33,7 @@
 #include <aws/s3/model/CopyObjectRequest.h>
 #include <aws/s3/model/DeleteObjectsRequest.h>
 #include <aws/s3/model/ListObjectsV2Request.h>
+#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -78,7 +79,8 @@ public:
     explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool & set_read_util_position) override
+    std::unique_ptr<DB::ReadBuffer>
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool & set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
@@ -87,15 +89,19 @@ public:
         if (file_uri.getPort())
             uri_path += ":" + std::to_string(file_uri.getPort());
         DB::ReadSettings read_settings;
-        if (set_read_util_position) 
+        if (set_read_util_position)
         {
-            std::pair<size_t, size_t> start_end_pos = adjustFileReadStartAndEndPos(file_info.start(), file_info.start() + file_info.length(),
-                    uri_path, file_uri.getPath());
-            LOG_DEBUG(&Poco::Logger::get("ReadBufferBuilder"), "File read start and end position adjusted from {},{} to {},{}",
-                    file_info.start(), file_info.start() + file_info.length(), start_end_pos.first, start_end_pos.second);
+            std::pair<size_t, size_t> start_end_pos
+                = adjustFileReadStartAndEndPos(file_info.start(), file_info.start() + file_info.length(), uri_path, file_uri.getPath());
+            LOG_DEBUG(
+                &Poco::Logger::get("ReadBufferBuilder"),
+                "File read start and end position adjusted from {},{} to {},{}",
+                file_info.start(),
+                file_info.start() + file_info.length(),
+                start_end_pos.first,
+                start_end_pos.second);
             read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
-                read_settings, start_end_pos.second);
+                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(), read_settings, start_end_pos.second);
             if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
             {
                 seekable_in->seek(start_end_pos.first, SEEK_SET);
@@ -104,17 +110,13 @@ public:
         else
         {
             read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
-                read_settings);
+                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(), read_settings);
         }
         return read_buffer;
     }
 
-    std::pair<size_t, size_t> adjustFileReadStartAndEndPos(
-        size_t read_start_pos,
-        size_t read_end_pos,
-        std::string uri_path,
-        std::string file_path)
+    std::pair<size_t, size_t>
+    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, std::string uri_path, std::string file_path)
     {
         std::pair<size_t, size_t> result;
         std::string row_delimiter = "\n";
@@ -125,13 +127,18 @@ public:
         hdfsFile fin = hdfsOpenFile(fs.get(), file_path.c_str(), O_RDONLY, 0, 0, 0);
         if (!fin)
         {
-            throw DB::Exception(DB::ErrorCodes::CANNOT_OPEN_FILE, "Cannot open hdfs file:{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
+            throw DB::Exception(
+                DB::ErrorCodes::CANNOT_OPEN_FILE, "Cannot open hdfs file:{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
         }
         auto hdfs_file_info = hdfsGetPathInfo(fs.get(), file_path.c_str());
         if (!hdfs_file_info)
         {
             hdfsCloseFile(fs.get(), fin);
-            throw DB::Exception(DB::ErrorCodes::UNKNOWN_FILE_SIZE, "Cannot find out file size for :{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
+            throw DB::Exception(
+                DB::ErrorCodes::UNKNOWN_FILE_SIZE,
+                "Cannot find out file size for :{}, error: {}",
+                hdfs_file_path,
+                std::string(hdfsGetLastError()));
         }
         size_t hdfs_file_size = hdfs_file_info->mSize;
         auto getFirstRowDelimiterPos = [&](hdfsFS fs, hdfsFile fin, size_t start_pos, size_t hdfs_file_size) -> size_t
@@ -145,7 +152,11 @@ public:
             if (seek_status != 0)
             {
                 hdfsCloseFile(fs, fin);
-                throw DB::Exception(DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE, "Fail to seek HDFS file: {}, error: {}", file_path, std::string(hdfsGetLastError()));
+                throw DB::Exception(
+                    DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE,
+                    "Fail to seek HDFS file: {}, error: {}",
+                    file_path,
+                    std::string(hdfsGetLastError()));
             }
             char s[row_delimiter_size];
             bool read_flag = true;
@@ -185,7 +196,8 @@ public:
         int close_status = hdfsCloseFile(fs.get(), fin);
         if (close_status != 0)
         {
-            throw DB::Exception(DB::ErrorCodes::CANNOT_CLOSE_FILE, "Fail to close HDFS file: {}, error: {}", file_path, std::string(hdfsGetLastError()));
+            throw DB::Exception(
+                DB::ErrorCodes::CANNOT_CLOSE_FILE, "Fail to close HDFS file: {}, error: {}", file_path, std::string(hdfsGetLastError()));
         }
         return result;
     }
@@ -220,17 +232,17 @@ public:
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        const auto client = getClient();
         // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
         std::string bucket = file_uri.getHost();
+        const auto client = getClient(bucket);
         std::string key = file_uri.getPath().substr(1);
         size_t object_size = DB::S3::getObjectSize(*client, bucket, key, "");
 
         auto read_buffer_creator
-            = [bucket, this](const std::string & path, size_t read_until_position) -> std::unique_ptr<DB::ReadBufferFromFileBase>
+            = [bucket, client, this](const std::string & path, size_t read_until_position) -> std::unique_ptr<DB::ReadBufferFromFileBase>
         {
             return std::make_unique<DB::ReadBufferFromS3>(
-                shared_client,
+                client,
                 bucket,
                 path,
                 "",
@@ -258,18 +270,71 @@ public:
     }
 
 private:
+    // TODO: currently every SubstraitFileSource will create its own ReadBufferBuilder,
+    // so the cached clients are not actually shared among different tasks
+    std::map<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
     std::shared_ptr<DB::S3::Client> shared_client;
     DB::ReadSettings new_settings;
 
-
-    std::shared_ptr<DB::S3::Client> getClient()
+    std::string getConfig(
+        const Poco::Util::AbstractConfiguration & config,
+        const std::string & bucket_name,
+        const std::string & config_name,
+        const std::string & default_value = "",
+        const bool require_per_bucket = false)
     {
-        if (shared_client)
-            return shared_client;
+        if (!require_per_bucket)
+            // if there's a bucket specific config, prefer it to non per bucket config
+            return config.getString(bucket_name + "." + config_name, config.getString(config_name, default_value));
+        else
+            return config.getString(bucket_name + "." + config_name, default_value);
+    }
 
+    void cacheClient(const std::string & bucket_name, const bool is_per_bucket, std::shared_ptr<DB::S3::Client> client)
+    {
+        if (is_per_bucket)
+        {
+            per_bucket_clients[bucket_name] = client;
+            if (per_bucket_clients.size() > 200)
+            {
+                //TODO: auto clean unused client when there're too many cached client
+                LOG_WARNING(&Poco::Logger::get("ReadBufferBuilder"), "Too many per_bucket_clients, {}", per_bucket_clients.size());
+            }
+        }
+        else
+        {
+            shared_client = client;
+        }
+    }
+
+    std::shared_ptr<DB::S3::Client> getClient(std::string bucket_name)
+    {
         const auto & config = context->getConfigRef();
+        bool use_assumed_role = false;
+        bool is_per_bucket = false;
+
+        if (!getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE).empty())
+            use_assumed_role = true;
+
+        if (!getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE, "", true).empty())
+            is_per_bucket = true;
+
+        if (is_per_bucket && per_bucket_clients.find(bucket_name) != per_bucket_clients.end()
+            && "true" != getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
+        {
+            std::cout << "returning a cached bucket" << std::endl;
+            return per_bucket_clients[bucket_name];
+        }
+
+        if (!is_per_bucket && shared_client
+            && "true" != getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
+        {
+            std::cout << "returning a cached bucket" << std::endl;
+            return shared_client;
+        }
+
         String config_prefix = "s3";
-        auto endpoint = config.getString(config_prefix + ".endpoint", "https://s3.us-west-2.amazonaws.com");
+        auto endpoint = getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_ENDPOINT, "https://s3.us-west-2.amazonaws.com");
         String region_name;
         const char * amazon_suffix = ".amazonaws.com";
         const char * amazon_prefix = "https://s3.";
@@ -299,19 +364,43 @@ private:
         client_configuration.retryStrategy
             = std::make_shared<Aws::Client::DefaultRetryStrategy>(config.getUInt(config_prefix + ".retry_attempts", 10));
 
-        shared_client = DB::S3::ClientFactory::instance().create(
-            client_configuration,
-            false,
-            config.getString(config_prefix + ".access_key_id", ""),
-            config.getString(config_prefix + ".secret_access_key", ""),
-            config.getString(config_prefix + ".server_side_encryption_customer_key_base64", ""),
-            {},
-            {},
-            {.use_environment_credentials
-             = config.getBool(config_prefix + ".use_environment_credentials", config.getBool("s3.use_environment_credentials", false)),
-             .use_insecure_imds_request
-             = config.getBool(config_prefix + ".use_insecure_imds_request", config.getBool("s3.use_insecure_imds_request", false))});
-        return shared_client;
+        if (use_assumed_role)
+        {
+            auto new_client = DB::S3::ClientFactory::instance().create(
+                client_configuration,
+                false,
+                config.getString(BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ""),
+                config.getString(BackendInitializerUtil::HADOOP_S3_SECRET_KEY, ""),
+                "",
+                {},
+                {},
+                {.use_environment_credentials = true,
+                 .use_insecure_imds_request = false,
+                 .role_arn = getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE),
+                 .session_name = getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
+                 .external_id = getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)});
+
+            //TODO: support online change config for cached per_bucket_clients
+            std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
+            cacheClient(bucket_name, is_per_bucket, ret);
+            return ret;
+        }
+        else
+        {
+            auto new_client = DB::S3::ClientFactory::instance().create(
+                client_configuration,
+                false,
+                config.getString(BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ""),
+                config.getString(BackendInitializerUtil::HADOOP_S3_SECRET_KEY, ""),
+                "",
+                {},
+                {},
+                {.use_environment_credentials = true, .use_insecure_imds_request = false});
+
+            std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
+            cacheClient(bucket_name, is_per_bucket, ret);
+            return ret;
+        }
     }
 };
 #endif

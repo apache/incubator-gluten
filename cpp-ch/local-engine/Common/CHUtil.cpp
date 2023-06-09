@@ -48,6 +48,7 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
+#include <regex>
 #include "CHUtil.h"
 
 namespace DB
@@ -471,7 +472,6 @@ void BackendInitializerUtil::initConfig(std::string * plan)
     else
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
 
-    /// Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
     for (const auto & kv : backend_conf_map)
     {
         const auto & key = kv.first;
@@ -479,9 +479,37 @@ void BackendInitializerUtil::initConfig(std::string * plan)
         // std::cout << "set config key:" << key << ", value:" << value << std::endl;
 
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
+        {
+            /// Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
-        else if (S3_CONFIGS.find(key) != S3_CONFIGS.end())
-            config->setString(S3_CONFIGS.at(key), value);
+        }
+        else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX + "bucket"))
+        {
+            // deal with per bucket S3 configs, e.g. fs.s3a.bucket.bucket_name.assumed.role.arn
+            // for gluten, we require first authenticate with AK/SK(or instance profile), then assume other roles with STS
+            // so only the following per-bucket configs are supported:
+            // 1. fs.s3a.bucket.bucket_name.assumed.role.arn
+            // 2. fs.s3a.bucket.bucket_name.assumed.role.session.name
+            // 3. fs.s3a.bucket.bucket_name.endpoint
+            // 4. fs.s3a.bucket.bucket_name.assumed.role.external.id (non hadoop official)
+
+            // for spark.hadoop.fs.s3a.bucket.bucket_name.assumed.role.arn, put bucket_name.fs.s3a.assumed.role.arn into config
+            std::regex base_regex("bucket\\.([^\\.]+)\\.");
+            std::smatch base_match;
+            std::string new_key = key.substr(SPARK_HADOOP_PREFIX.length());
+            if (std::regex_search(new_key, base_match, base_regex))
+            {
+                std::string bucket_name = base_match[1].str();
+                new_key.replace(base_match[0].first - new_key.begin(), base_match[0].second - base_match[0].first, "");
+                config->setString(bucket_name + "." + new_key, value);
+            }
+        }
+        else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
+        {
+            // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
+            config->setString(key.substr(SPARK_HADOOP_PREFIX.length()), value);
+        }
+
     }
 }
 

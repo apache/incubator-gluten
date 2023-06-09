@@ -99,6 +99,31 @@ public:
 
    // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
+    inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
+
+    inline static const String CH_RUNTIME_CONFIG = "runtime_config";
+    inline static const String CH_RUNTIME_CONFIG_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_CONFIG + ".";
+    inline static const String CH_RUNTIME_CONFIG_FILE = CH_RUNTIME_CONFIG_PREFIX + "config_file";
+
+    inline static const String CH_RUNTIME_SETTINGS = "runtime_settings";
+    inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS + ".";
+
+    inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
+    inline static const String SETTINGs_PATH = "local_engine.settings";
+    inline static const std::string HADOOP_S3_ACCESS_KEY = "fs.s3a.access.key";
+    inline static const std::string HADOOP_S3_SECRET_KEY = "fs.s3a.secret.key";
+    inline static const std::string HADOOP_S3_ENDPOINT = "fs.s3a.endpoint";
+    inline static const std::string HADOOP_S3_ASSUMED_ROLE = "fs.s3a.assumed.role.arn";
+    inline static const std::string HADOOP_S3_ASSUMED_SESSION_NAME = "fs.s3a.assumed.role.session.name";
+    // not hadoop official
+    inline static const std::string HADOOP_S3_ASSUMED_EXTERNAL_ID = "fs.s3a.assumed.role.external.id";
+    // hadoop official, this is used to ignore the cached client
+    inline static const std::string HADOOP_S3_CLIENT_CACHE_IGNORE = "fs.s3a.client.cached.ignore";
+    inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
+    inline static const std::string S3A_PREFIX = "fs.s3a.";
+
+
+>>>>>>> [GLUTEN-1898][CH] S3 client support per bucket configs and support assume role access
 private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
@@ -114,23 +139,6 @@ private:
     static void initCompiledExpressionCache();
 
     static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
-
-    inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
-
-    inline static const String CH_RUNTIME_CONFIG = "runtime_config";
-    inline static const String CH_RUNTIME_CONFIG_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_CONFIG + ".";
-    inline static const String CH_RUNTIME_CONFIG_FILE = CH_RUNTIME_CONFIG_PREFIX + "config_file";
-
-    inline static const String CH_RUNTIME_SETTINGS = "runtime_settings";
-    inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS + ".";
-
-    inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
-    inline static const String SETTINGs_PATH = "local_engine.settings";
-    inline static const std::string SPARK_S3_ACCESS_KEY = "spark.hadoop.fs.s3a.access.key";
-    inline static const std::string SPARK_S3_SECRET_KEY = "spark.hadoop.fs.s3a.secret.key";
-    inline static const std::string SPARK_S3_ENDPOINT = "spark.hadoop.fs.s3a.endpoint";
-    inline static const std::map<std::string, std::string> S3_CONFIGS
-        = {{SPARK_S3_ACCESS_KEY, "s3.access_key_id"}, {SPARK_S3_SECRET_KEY, "s3.secret_access_key"}, {SPARK_S3_ENDPOINT, "s3.endpoint"}};
 
     inline static std::once_flag init_flag;
     inline static std::map<std::string, std::string> backend_conf_map;
