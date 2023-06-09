@@ -94,7 +94,7 @@ protected:
                 join->kind,
                 join->strictness,
                 join->data->maps.front(),
-                [&](auto kind, auto strictness, auto & map) { chunk = createChunk<kind, strictness>(map); }))
+                [this, &chunk](auto kind, auto strictness, auto & map) { chunk = createChunk<kind, strictness>(map); }))
             throw Exception(ErrorCodes::LOGICAL_ERROR, "Logical error: unknown JOIN strictness");
         return chunk;
     }
@@ -260,44 +260,6 @@ using namespace DB;
 
 namespace local_engine
 {
-void StorageJoinFromReadBuffer::rename(const String & /*new_path_to_table_data*/, const DB::StorageID & /*new_table_id*/)
-{
-    throw std::runtime_error("unsupported operation");
-}
-DB::SinkToStoragePtr
-StorageJoinFromReadBuffer::write(const DB::ASTPtr & /*query*/, const DB::StorageMetadataPtr & /*ptr*/, DB::ContextPtr /*context*/)
-{
-    throw std::runtime_error("unsupported operation");
-}
-bool StorageJoinFromReadBuffer::storesDataOnDisk() const
-{
-    return false;
-}
-DB::Strings StorageJoinFromReadBuffer::getDataPaths() const
-{
-    throw std::runtime_error("unsupported operation");
-}
-
-void StorageJoinFromReadBuffer::finishInsert()
-{
-    in.reset();
-}
-
-DB::Pipe StorageJoinFromReadBuffer::read(
-    const DB::Names & column_names,
-    const DB::StorageSnapshotPtr & storage_snapshot,
-    DB::SelectQueryInfo & /*query_info*/,
-    DB::ContextPtr context,
-    DB::QueryProcessingStage::Enum /*processed_stage*/,
-    size_t max_block_size,
-    size_t /*num_streams*/)
-{
-    storage_snapshot->check(column_names);
-
-    Block source_sample_block = storage_snapshot->getSampleBlockForColumns(column_names);
-    RWLockImpl::LockHolder holder = tryLockTimedWithContext(rwlock, RWLockImpl::Read, context);
-    return Pipe(std::make_shared<JoinSource>(join, std::move(holder), max_block_size, source_sample_block));
-}
 
 void StorageJoinFromReadBuffer::restore()
 {
@@ -309,36 +271,19 @@ void StorageJoinFromReadBuffer::restore()
     NativeReader block_stream(*in, 0);
 
     ProfileInfo info;
-    while (Block block = block_stream.read())
     {
-        auto final_block = sample_block.cloneWithColumns(block.mutateColumns());
-        info.update(final_block);
-        insertBlock(final_block, ctx);
+        while (Block block = block_stream.read())
+        {
+            auto final_block = sample_block.cloneWithColumns(block.mutateColumns());
+            info.update(final_block);
+            join->addJoinedBlock(final_block, true);
+        }
     }
+    in.reset();
+}
 
-    finishInsert();
-}
-void StorageJoinFromReadBuffer::insertBlock(const Block & block, DB::ContextPtr context)
-{
-    TableLockHolder holder = tryLockTimedWithContext(rwlock, RWLockImpl::Write, context);
-    join->addJoinedBlock(block, true);
-}
-size_t StorageJoinFromReadBuffer::getSize(DB::ContextPtr context) const
-{
-    TableLockHolder holder = tryLockTimedWithContext(rwlock, RWLockImpl::Read, context);
-    return join->getTotalRowCount();
-}
-DB::RWLockImpl::LockHolder
-StorageJoinFromReadBuffer::tryLockTimedWithContext(const RWLock & lock, DB::RWLockImpl::Type type, DB::ContextPtr context) const
-{
-    const String query_id = context ? context->getInitialQueryId() : RWLockImpl::NO_QUERY;
-    const std::chrono::milliseconds acquire_timeout
-        = context ? context->getSettingsRef().lock_acquire_timeout : std::chrono::seconds(DBMS_DEFAULT_LOCK_ACQUIRE_TIMEOUT_SEC);
-    return tryLockTimed(lock, type, query_id, acquire_timeout);
-}
 StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     std::unique_ptr<DB::ReadBuffer> in_,
-    const StorageID & table_id_,
     const Names & key_names_,
     bool use_nulls_,
     DB::SizeLimits limits_,
@@ -347,10 +292,8 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const ColumnsDescription & columns_,
     const ConstraintsDescription & constraints_,
     const String & comment,
-    const bool overwrite_,
-    const String & relative_path_)
-    : StorageSetOrJoinBase{nullptr, relative_path_, table_id_, columns_, constraints_, comment, false}
-    , key_names(key_names_)
+    const bool overwrite_)
+    : key_names(key_names_)
     , use_nulls(use_nulls_)
     , limits(limits_)
     , kind(kind_)
@@ -358,28 +301,31 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     , overwrite(overwrite_)
     , in(std::move(in_))
 {
-    auto metadata_snapshot = getInMemoryMetadataPtr();
-    sample_block = metadata_snapshot->getSampleBlock();
+    storage_metadata_.setColumns(columns_);
+    storage_metadata_.setConstraints(constraints_);
+    storage_metadata_.setComment(comment);
+
+    sample_block = storage_metadata_.getSampleBlock();
     for (const auto & key : key_names)
-        if (!metadata_snapshot->getColumns().hasPhysical(key))
+        if (!storage_metadata_.getColumns().hasPhysical(key))
             throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE, "Key column ({}) does not exist in table declaration.", key);
 
     table_join = std::make_shared<TableJoin>(limits, use_nulls, kind, strictness, key_names);
     join = std::make_shared<HashJoin>(table_join, getRightSampleBlock(), overwrite);
     restore();
 }
-DB::HashJoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context) const
+
+DB::HashJoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/) const
 {
-    auto metadata_snapshot = getInMemoryMetadataPtr();
     if (!analyzed_join->sameStrictnessAndKind(strictness, kind))
-        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "Table {} has incompatible type of JOIN.", getStorageID().getNameForLogs());
+        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "Table {} has incompatible type of JOIN.", storage_metadata_.comment);
 
     if ((analyzed_join->forceNullableRight() && !use_nulls)
         || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls))
         throw Exception(
             ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",
-            getStorageID().getNameForLogs());
+            storage_metadata_.comment);
 
     /// TODO: check key columns
 
@@ -389,9 +335,6 @@ DB::HashJoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::Tab
     analyzed_join->setRightKeys(key_names);
 
     HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, getRightSampleBlock());
-
-    RWLockImpl::LockHolder holder = tryLockTimedWithContext(rwlock, RWLockImpl::Read, context);
-    join_clone->setLock(holder);
     join_clone->reuseJoinedData(*join);
 
     return join_clone;

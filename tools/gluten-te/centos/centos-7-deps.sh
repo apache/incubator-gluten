@@ -2,15 +2,20 @@
 
 set -ex
 
-CENTOS_MIRROR_URL=https://mirrors.edge.kernel.org/centos
-CENTOS_MIRROR_GPGKEY="${CENTOS_MIRROR_URL}/RPM-GPG-KEY-CentOS-7"
+#CENTOS_MIRROR_URL=https://mirrors.edge.kernel.org/centos
+#CENTOS_MIRROR_GPGKEY="${CENTOS_MIRROR_URL}/RPM-GPG-KEY-CentOS-7"
+#
+#cp /etc/yum.repos.d/CentOS-Base.repo /tmp/CentOS-Base.repo
+#sed -i "/^mirrorlist/d;s/^\#baseurl=/baseurl=/" /tmp/CentOS-Base.repo
+#sed -i "s|^gpgkey=.*$|gpgkey=${CENTOS_MIRROR_GPGKEY}|" /tmp/CentOS-Base.repo
+#sed -i "s|http://mirror.centos.org/centos|${CENTOS_MIRROR_URL}|" /tmp/CentOS-Base.repo
+#rm /etc/yum.repos.d/*
+#mv /tmp/CentOS-Base.repo /etc/yum.repos.d/
 
-cp /etc/yum.repos.d/CentOS-Base.repo /tmp/CentOS-Base.repo
-sed -i "/^mirrorlist/d;s/^\#baseurl=/baseurl=/" /tmp/CentOS-Base.repo
-sed -i "s|^gpgkey=.*$|gpgkey=${CENTOS_MIRROR_GPGKEY}|" /tmp/CentOS-Base.repo
-sed -i "s|http://mirror.centos.org/centos|${CENTOS_MIRROR_URL}|" /tmp/CentOS-Base.repo
-rm /etc/yum.repos.d/*
-mv /tmp/CentOS-Base.repo /etc/yum.repos.d/
+sed -e 's|^mirrorlist=|#mirrorlist=|g' \
+         -e 's|^#baseurl=http://mirror.centos.org/centos|baseurl=https://mirrors.ustc.edu.cn/centos|g' \
+         -i.bak \
+         /etc/yum.repos.d/CentOS-Base.repo
 
 # Disable fastestmirror
 sed -i "s/enabled=1/enabled=0/" /etc/yum/pluginconf.d/fastestmirror.conf 
