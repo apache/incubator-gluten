@@ -110,6 +110,8 @@ class GlutenClickHouseHiveTableSuite()
 
   private val txt_table_name = "hive_txt_test"
   private val json_table_name = "hive_json_test"
+  private val txt_table_name_space_delimiter = "hive_txt_test_space_delimiter"
+  private val txt_table_name_tab_delimiter = "hive_txt_test_tab_delimiter"
 
   private val txt_table_create_sql = "create table if not exists %s (".format(txt_table_name) +
     "string_field string," +
@@ -145,6 +147,40 @@ class GlutenClickHouseHiveTableSuite()
     "ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'" +
     "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'" +
     "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+  private val txt_space_delimiter_table_create_sql =
+    "create table if not exists %s (".format(txt_table_name_space_delimiter) +
+      "string_field string," +
+      "int_field int," +
+      "long_field long," +
+      "float_field float," +
+      "double_field double," +
+      "short_field short," +
+      "byte_field byte," +
+      "bool_field boolean," +
+      "decimal_field decimal(23, 12)," +
+      "date_field date," +
+      "array_field array<int>," +
+      "array_field_with_null array<int>," +
+      "map_field map<int, long>," +
+      "map_field_with_null map<int, long>)" +
+      "row format delimited fields terminated by ' ' stored as textfile"
+  private val txt_tab_delimiter_table_create_sql =
+    "create table if not exists %s (".format(txt_table_name_tab_delimiter) +
+      "string_field string," +
+      "int_field int," +
+      "long_field long," +
+      "float_field float," +
+      "double_field double," +
+      "short_field short," +
+      "byte_field byte," +
+      "bool_field boolean," +
+      "decimal_field decimal(23, 12)," +
+      "date_field date," +
+      "array_field array<int>," +
+      "array_field_with_null array<int>," +
+      "map_field map<int, long>," +
+      "map_field_with_null map<int, long>)" +
+      "row format delimited fields terminated by '\t' stored as textfile"
 
   def genTestData(): Seq[AllDataTypesWithComplextType] = {
     (0 to 199).map {
@@ -192,6 +228,8 @@ class GlutenClickHouseHiveTableSuite()
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     initializeTable(txt_table_name, txt_table_create_sql)
     initializeTable(json_table_name, json_table_create_sql)
+    initializeTable(txt_table_name_space_delimiter, txt_space_delimiter_table_create_sql)
+    initializeTable(txt_table_name_tab_delimiter, txt_tab_delimiter_table_create_sql)
   }
 
   test("test hive text table") {
@@ -401,6 +439,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql1 = "select * from " + default_quote_table_name
     val sql2 = "select * from " + allow_double_quote_table_name
     val sql3 = "select * from " + allow_single_quote_table_name
+
     compareResultsAgainstVanillaSpark(
       sql1,
       true,
@@ -423,6 +462,55 @@ class GlutenClickHouseHiveTableSuite()
       df => {
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("text hive table with space/tab delimiter") {
+    val txt_table_name_space_delimiter = "hive_txt_table_space_delimiter"
+    val txt_table_name_tab_delimiter = "hive_txt_table_tab_delimiter"
+    val drop_space_table_sql = "drop table if exists %s".format(txt_table_name_space_delimiter)
+    val drop_tab_table_sql = "drop table if exists %s".format(txt_table_name_tab_delimiter)
+    val create_space_table_sql =
+      "create table if not exists %s (".format(txt_table_name_space_delimiter) +
+        "int_field int," +
+        "string_field string" +
+        ") row format delimited fields terminated by ' ' stored as textfile"
+    val create_tab_table_sql =
+      "create table if not exists %s (".format(txt_table_name_tab_delimiter) +
+        "int_field int," +
+        "string_field string" +
+        ") row format delimited fields terminated by '\t' stored as textfile"
+    spark.sql(drop_space_table_sql)
+    spark.sql(drop_tab_table_sql)
+    spark.sql(create_space_table_sql)
+    spark.sql(create_tab_table_sql)
+    spark.sql("insert into %s values(1, 'ab')".format(txt_table_name_space_delimiter))
+    spark.sql("insert into %s values(1, 'ab')".format(txt_table_name_tab_delimiter))
+    val sql1 =
+      s"""
+         | select * from $txt_table_name_space_delimiter where int_field > 0
+         |""".stripMargin
+    val sql2 =
+      s"""
+         | select * from $txt_table_name_tab_delimiter where int_field > 0
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+    compareResultsAgainstVanillaSpark(
+      sql2,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
         assert(txtFileScan.size == 1)
       })
   }
