@@ -27,6 +27,11 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
     const auto & schema = file_info.text().schema();
     for (const auto & name : schema.names())
         format_settings.hive_text.input_field_names.push_back(name);
+    std::string text_field_delimiter = file_info.text().field_delimiter();
+    if (text_field_delimiter == "\t" || text_field_delimiter == " ")
+    {
+       format_settings.csv.use_whitespace_tab_as_delimiter = true;
+    }
     format_settings.hive_text.fields_delimiter = file_info.text().field_delimiter()[0];
     format_settings.csv.empty_as_default = false;
     char quote = *file_info.text().quote().data();
