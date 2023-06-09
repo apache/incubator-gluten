@@ -577,7 +577,7 @@ void BackendInitializerUtil::initContexts()
                 return std::string("/tmp/libch");
         };
 
-        global_context->setTemporaryStoragePath(config->getString("temp_data_storage_path", getDefaultPath()), 0);
+        global_context->setTemporaryStoragePath(config->getString("tmp_path", getDefaultPath()), 0);
         global_context->setPath(config->getString("path", "/"));
     }
 }
