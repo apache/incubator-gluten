@@ -17,12 +17,13 @@
 
 package io.glutenproject.execution
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{Decimal, DecimalType, StringType, StructField, StructType}
-import org.apache.spark.sql.Row
 import scala.collection.JavaConverters
 
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.RDDScanExec
 import org.apache.spark.sql.functions.{avg, col}
+import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
 class TestOperator extends WholeStageTransformerSuite {
 
@@ -418,5 +419,14 @@ class TestOperator extends WholeStageTransformerSuite {
           plan.isInstanceOf[BatchScanExecTransformer]}) == 1)
         }
       }
+  }
+
+  test("test OneRowRelation") {
+    val df = sql("SELECT 1")
+    checkAnswer(df, Row(1))
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(_.isInstanceOf[RDDScanExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+    assert(plan.find(_.isInstanceOf[RowToArrowColumnarExec]).isDefined)
   }
 }
