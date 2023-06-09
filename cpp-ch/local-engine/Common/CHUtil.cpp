@@ -515,6 +515,9 @@ void BackendInitializerUtil::initEnvs()
         std::string libhdfs3_conf = config->getString(LIBHDFS3_CONF_KEY, "");
         setenv("LIBHDFS3_CONF", libhdfs3_conf.c_str(), true); /// NOLINT
     }
+
+    /// Enable logging in libhdfs3, logs will be written to stderr
+    setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
 }
 
 void BackendInitializerUtil::initSettings()
