@@ -127,15 +127,11 @@ class CHTransformerApi extends TransformerApi with Logging {
     }
 
     val hdfsConfigPrefix = backendPrefix + ".runtime_config.hdfs."
-    injectConfig(
-      "spark.hadoop.input.connect.timeout",
-      hdfsConfigPrefix + "hadoop_input_connect_timeout")
-    injectConfig("spark.hadoop.input.read.timeout", hdfsConfigPrefix + "hadoop_input_read_timeout")
-    injectConfig(
-      "spark.hadoop.input.write.timeout",
-      hdfsConfigPrefix + "hadoop_input_write_timeout")
+    injectConfig("spark.hadoop.input.connect.timeout", hdfsConfigPrefix + "input_connect_timeout")
+    injectConfig("spark.hadoop.input.read.timeout", hdfsConfigPrefix + "input_read_timeout")
+    injectConfig("spark.hadoop.input.write.timeout", hdfsConfigPrefix + "input_write_timeout")
     injectConfig(
       "spark.hadoop.dfs.client.log.severity",
-      hdfsConfigPrefix + "hadoop_dfs_client_log_severity")
+      hdfsConfigPrefix + "dfs_client_log_severity")
   }
 }
