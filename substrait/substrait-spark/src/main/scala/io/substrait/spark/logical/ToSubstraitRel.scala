@@ -31,7 +31,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.substrait.ToSubstraitType
 import org.apache.spark.substrait.ToSubstraitType.toNamedStruct
 
-import io.substrait.`type`.Type
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator}
 import io.substrait.plan.{ImmutablePlan, ImmutableRoot, Plan}
 import io.substrait.relation
@@ -210,11 +209,6 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
       relation.Cross.builder
         .left(left)
         .right(right)
-        .deriveRecordType(
-          Type.Struct.builder
-            .from(left.getRecordType)
-            .from(right.getRecordType)
-            .build)
         .build
     } else {
       relation.Join.builder
