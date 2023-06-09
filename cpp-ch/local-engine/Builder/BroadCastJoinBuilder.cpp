@@ -172,7 +172,6 @@ void StorageJoinWrapper::build(
                 {
                     storage_join = std::make_shared<StorageJoinFromReadBuffer>(
                         std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size),
-                        StorageID("default", context.key),
                         context.key_names,
                         true,
                         SizeLimits(),
