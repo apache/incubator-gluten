@@ -181,6 +181,9 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   }
 
   def doWholestageTransform(): WholestageTransformContext = {
+    // invoke SparkPlan.prepare to do subquery preparation etc.
+    super.prepare()
+
     val substraitContext = new SubstraitContext
     val childCtx = child
       .asInstanceOf[TransformSupport]
