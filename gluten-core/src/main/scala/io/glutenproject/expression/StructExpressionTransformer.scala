@@ -23,7 +23,7 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode,
 import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateNamedStruct, GetStructField}
 import org.apache.spark.sql.types.IntegerType
 
-class GetStructFieldTransformer(
+class GetStructFieldTransformerBase(
     substraitExprName: String,
     childTransformer: ExpressionTransformer,
     ordinal: Int,
