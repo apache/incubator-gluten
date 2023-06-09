@@ -76,7 +76,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("Check the metrics values") {
     withSQLConf(("spark.gluten.sql.columnar.sort", "false")) {
-      runTPCHQuery(1) {
+      runTPCHQuery(1, noFallBack = false) {
         df =>
           val plans = df.queryExecution.executedPlan.collect {
             case scanExec: BasicScanExecTransformer => scanExec

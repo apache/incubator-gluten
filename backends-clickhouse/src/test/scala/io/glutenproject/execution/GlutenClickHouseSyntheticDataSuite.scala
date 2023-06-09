@@ -187,6 +187,8 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)
+    df.collect()
+    WholeStageTransformerSuite.checkFallBack(df)
     checkAnswer(df, expected)
   }
 
@@ -217,6 +219,8 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)
+    df.collect()
+    WholeStageTransformerSuite.checkFallBack(df)
     checkAnswer(df, expected)
   }
 
@@ -245,6 +249,8 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)
+    df.collect()
+    WholeStageTransformerSuite.checkFallBack(df)
     checkAnswer(df, expected)
   }
 

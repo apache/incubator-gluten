@@ -181,7 +181,8 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
   protected def compareResultsAgainstVanillaSpark(
       sqlStr: String,
       compareResult: Boolean = true,
-      customCheck: DataFrame => Unit): DataFrame = {
+      customCheck: DataFrame => Unit,
+      noFallBack: Boolean = true): DataFrame = {
     var expected: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
@@ -190,7 +191,10 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
     val df = spark.sql(sqlStr)
     if (compareResult) {
       checkAnswer(df, expected)
+    } else {
+      df.collect()
     }
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     customCheck(df)
     df
   }

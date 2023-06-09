@@ -74,7 +74,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
 
   test("Check the metrics values") {
     withSQLConf(("spark.gluten.sql.columnar.sort", "false")) {
-      runTPCHQuery(1) {
+      runTPCHQuery(1, noFallBack = false) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val plans = collect(df.queryExecution.executedPlan) {
@@ -160,7 +160,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
    * shuffle.partitions=1 at the same time, because OptimizeOneRowPlan rule will remove Sort
    * operator.
    */
-  ignore("TPCH Q7 - with shuffle.partitions=1") {
+  test("TPCH Q7 - with shuffle.partitions=1") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
@@ -235,7 +235,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
+    runTPCHQuery(16, noFallBack = false) { df => }
   }
 
   test("TPCH Q17") {
@@ -258,6 +258,10 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     runTPCHQuery(20) { df => }
   }
 
+  test("TPCH Q21") {
+    runTPCHQuery(21, noFallBack = false) { df => }
+  }
+
   test("TPCH Q22") {
     runTPCHQuery(22) {
       df =>
@@ -272,7 +276,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
 
   test("Test 'spark.gluten.enabled' false") {
     withSQLConf(("spark.gluten.enabled", "false")) {
-      runTPCHQuery(2) {
+      runTPCHQuery(2, noFallBack = false) {
         df =>
           val glutenPlans = collect(df.queryExecution.executedPlan) {
             case glutenPlan: GlutenPlan => glutenPlan

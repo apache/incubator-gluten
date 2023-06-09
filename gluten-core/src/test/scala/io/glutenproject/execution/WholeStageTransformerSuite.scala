@@ -17,17 +17,21 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.utils.FallbackUtil
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
 
 import java.io.File
 import scala.io.Source
 import scala.reflect.ClassTag
-
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 
 abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSparkSession {
 
@@ -125,7 +129,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       queryNum: Int,
       tpchQueries: String,
       queriesResults: String,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     val sqlNum = "q" + "%02d".format(queryNum)
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
@@ -138,15 +143,20 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       } else {
         compareResultStr(sqlNum, result, queriesResults)
       }
+    } else {
+      df.collect()
     }
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     customCheck(df)
   }
 
 
-  protected def runSql(sql: String)
-                            (customCheck: DataFrame => Unit): Seq[Row] = {
+  protected def runSql(
+    sql: String,
+    noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Seq[Row] = {
     val df = spark.sql(sql)
     val result = df.collect()
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     customCheck(df)
     result
   }
@@ -209,7 +219,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected def compareResultsAgainstVanillaSpark(
       sqlStr: String,
       compareResult: Boolean = true,
-      customCheck: DataFrame => Unit): DataFrame = {
+      customCheck: DataFrame => Unit,
+      noFallBack: Boolean = true): DataFrame = {
     var expected: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
@@ -218,15 +229,19 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     val df = spark.sql(sqlStr)
     if (compareResult) {
       checkAnswer(df, expected)
+    } else {
+      df.collect()
     }
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     customCheck(df)
     df
   }
 
   protected def runQueryAndCompare(
       sqlStr: String,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): DataFrame = {
-    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck)
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): DataFrame = {
+    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck, noFallBack)
   }
 
   /**
@@ -240,15 +255,33 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected def compareTPCHQueryAgainstVanillaSpark(
       queryNum: Int,
       tpchQueries: String,
-      customCheck: DataFrame => Unit): Unit = {
+      customCheck: DataFrame => Unit,
+      noFallBack: Boolean = true): Unit = {
     val sqlNum = "q" + "%02d".format(queryNum)
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    compareResultsAgainstVanillaSpark(sqlStr, compareResult = true, customCheck)
+    compareResultsAgainstVanillaSpark(sqlStr, compareResult = true, customCheck, noFallBack)
   }
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {
     List(("spark.gluten.enabled", "false"))
+  }
+}
+
+object WholeStageTransformerSuite extends Logging {
+
+  /**
+   * Check whether the sql is fallback
+   */
+  def checkFallBack(df: DataFrame, noFallBack: Boolean = true): Unit = {
+    if (BackendsApiManager.getBackendName
+      .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+      // When noFallBack is true, it means there is no fallback plan,
+      // otherwise there must be some fallback plans.
+      val isFallBack = FallbackUtil.isFallback(df.queryExecution.executedPlan)
+      assert(!isFallBack == noFallBack,
+        s"FallBack ${noFallBack} check error: ${df.queryExecution.executedPlan}")
+    }
   }
 }
 
