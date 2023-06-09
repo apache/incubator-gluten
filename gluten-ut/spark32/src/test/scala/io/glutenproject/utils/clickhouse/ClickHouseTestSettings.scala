@@ -70,7 +70,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "conditional function: least",
       "conditional function: greatest",
       "array size function",
-      "map size function"
+      "map size function",
+      "map_entries"
     )
 
   enableSuite[GlutenDateFunctionsSuite]
