@@ -1,0 +1,18 @@
+--- gsasl-2.2.0.orig/configure.ac	2022-08-19 08:39:48.000000000 +0000
++++ gsasl-2.2.0/configure.ac	2023-06-09 03:37:46.236461664 +0000
+@@ -279,12 +279,9 @@
+   fi
+ elif test "$gssapi_impl" = "mit"; then
+   AC_MSG_NOTICE([trying MIT])
+-  AC_PATH_PROGS(KRB5_CONFIG, [krb5-config.mit krb5-config], no)
+-  if test "$KRB5_CONFIG" != "no" ; then
+-    GSS_CFLAGS="`$KRB5_CONFIG --cflags`"
+-    GSS_LIBS="`$KRB5_CONFIG --libs gssapi`"
+-  else
+-    AC_MSG_WARN([MIT Kerberos krb5-config not found, disabling GSSAPI])
++  PKG_CHECK_MODULES(GSS, krb5-gssapi, found_krb5_gssapi=yes, found_krb5_gssapi=no)
++  if test "$found_krb5_gssapi" = "no" ; then
++    AC_MSG_WARN([MIT Kerberos not found, disabling GSSAPI])
+     gssapi_impl=no
+   fi
+ elif test "$gssapi_impl" = "heimdal"; then

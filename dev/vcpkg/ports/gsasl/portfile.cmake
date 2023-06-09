@@ -7,6 +7,7 @@ vcpkg_download_distfile(ARCHIVE
 vcpkg_extract_source_archive_ex(
     OUT_SOURCE_PATH SOURCE_PATH
     ARCHIVE "${ARCHIVE}"
+    PATCHES fix-krb5-config.patch
 )
 
 vcpkg_configure_make(
@@ -14,6 +15,7 @@ vcpkg_configure_make(
     OPTIONS
         # --disable-ntlm
         --without-stringprep
+        --with-gssapi-impl=mit
 )
 vcpkg_install_make()
 vcpkg_fixup_pkgconfig()
