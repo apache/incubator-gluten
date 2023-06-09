@@ -118,6 +118,8 @@ function check_commit {
       fi
     fi
   else
+    ## velox add fbthrift folder by root. git clean -dfx will fail.
+    sudo rm -rf fbthrift/*
     git clean -dffx :/
   fi
 
