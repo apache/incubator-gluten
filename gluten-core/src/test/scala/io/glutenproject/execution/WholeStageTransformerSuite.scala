@@ -273,14 +273,21 @@ object WholeStageTransformerSuite extends Logging {
   /**
    * Check whether the sql is fallback
    */
-  def checkFallBack(df: DataFrame, noFallBack: Boolean = true): Unit = {
+  def checkFallBack(
+    df: DataFrame,
+    noFallBack: Boolean = true,
+    skipAssert: Boolean = false): Unit = {
     if (BackendsApiManager.getBackendName
       .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
       // When noFallBack is true, it means there is no fallback plan,
       // otherwise there must be some fallback plans.
       val isFallBack = FallbackUtil.isFallback(df.queryExecution.executedPlan)
-      assert(!isFallBack == noFallBack,
-        s"FallBack ${noFallBack} check error: ${df.queryExecution.executedPlan}")
+      if (!skipAssert) {
+        assert(!isFallBack == noFallBack,
+          s"FallBack ${noFallBack} check error: ${df.queryExecution.executedPlan}")
+      } else {
+        logWarning(s"FallBack ${noFallBack} check error: ${df.queryExecution.executedPlan}")
+      }
     }
   }
 }

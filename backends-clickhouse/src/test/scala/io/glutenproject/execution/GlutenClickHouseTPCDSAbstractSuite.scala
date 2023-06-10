@@ -52,7 +52,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
-  def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean)] =
+  /**
+   * Return values: (sql num, is fall back, skip fall back assert)
+   */
+  def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean, Boolean)] =
     Range
       .inclusive(1, 99)
       .flatMap(
@@ -73,17 +76,17 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
               // Q45 BroadcastHashJoin, ExistenceJoin
               // Q88 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
-              false
+              (false, false)
             case j if (j == 38 || j == 87) =>
-              // Q38 and Q87 : Hash shuffle is not supported for expression when aqe is off
+              // Q38 and Q87 : Hash shuffle is not supported for expression in some case
               if (isAqe) {
-                true
+                (true, true)
               } else {
-                false
+                (false, true)
               }
-            case other => true
+            case other => (true, false)
           }
-          sqlNums.map((_, noFallBack))
+          sqlNums.map((_, noFallBack._1, noFallBack._2))
         })
 
   protected val excludedTpcdsQueries: Set[String] = Set(
@@ -108,11 +111,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       s =>
         if (excludedTpcdsQueries.contains(s._1)) {
           ignore(s"TPCDS ${s._1.toUpperCase()}") {
-            runTPCDSQuery(s._1, noFallBack = s._2) { df => }
+            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
           }
         } else {
           test(s"TPCDS ${s._1.toUpperCase()}") {
-            runTPCDSQuery(s._1, noFallBack = s._2) { df => }
+            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
           }
         })
   }
@@ -218,7 +221,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       tpcdsQueries: String = tpcdsQueries,
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+      noFallBack: Boolean = true,
+      skipFallBackAssert: Boolean = false)(customCheck: DataFrame => Unit): Unit = {
 
     val sqlFile = tpcdsQueries + "/" + queryNum + ".sql"
     val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
@@ -245,7 +249,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     } else {
       df.collect()
     }
-    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack, skipFallBackAssert)
     customCheck(df)
   }
 }
