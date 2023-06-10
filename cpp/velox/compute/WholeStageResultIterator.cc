@@ -1,3 +1,5 @@
+#include <hdfs/hdfs.h>
+
 #include "WholeStageResultIterator.h"
 #include "VeloxBackend.h"
 #include "VeloxInitializer.h"
@@ -55,6 +57,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
     const std::unordered_map<std::string, std::string>& confMap)
     : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+  updateHdfsTokens();
   spillStrategy_ = getConfigValue(kSpillStrategy, "threshold");
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
@@ -272,6 +275,20 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
     throw std::runtime_error("Invalid conf arg: " + errDetails);
   }
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
+}
+
+void WholeStageResultIterator::updateHdfsTokens() {
+  const auto & username = confMap_[kUGIUserName];
+  const auto & allTokens = confMap_[kUGITokens];
+
+  if (username.empty())
+    return;
+
+  hdfsSetDefautUserName(username.c_str());
+  std::vector<folly::StringPiece> tokens;
+  folly::split('\0', allTokens, tokens);
+  for (auto & token : tokens)
+    hdfsSetTokenForDefaultUser(token.data());
 }
 
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {

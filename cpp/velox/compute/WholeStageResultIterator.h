@@ -53,6 +53,9 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   /// Set the Spark confs to Velox query context.
   void setConfToQueryContext(const std::shared_ptr<facebook::velox::core::QueryCtx>& queryCtx);
 
+  /// Set latest tokens to global HiveConnector
+  void updateHdfsTokens();
+
   /// Get all the children plan node ids with postorder traversal.
   void getOrderedNodeIds(
       const std::shared_ptr<const facebook::velox::core::PlanNode>&,

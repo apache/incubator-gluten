@@ -21,9 +21,12 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
+import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -315,6 +318,11 @@ object GlutenConfig {
   val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
     "spark.gluten.sql.columnar.extended.expressions.transformer"
 
+  // Principal of current user
+  val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
+  // Tokens of current user, split by `\0`
+  val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -357,6 +365,14 @@ object GlutenConfig {
     conf
       .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // Pass the latest tokens to native
+    nativeConfMap.put(
+      GLUTEN_UGI_TOKENS,
+      UserGroupInformation.getCurrentUser.getTokens.asScala
+        .map(_.encodeToUrlString)
+        .mkString("\0"))
+    nativeConfMap.put(GLUTEN_UGI_USERNAME, UserGroupInformation.getCurrentUser.getUserName)
 
     // return
     nativeConfMap
