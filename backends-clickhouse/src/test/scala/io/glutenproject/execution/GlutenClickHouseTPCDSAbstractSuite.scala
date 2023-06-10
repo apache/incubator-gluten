@@ -52,9 +52,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
-  /**
-   * Return values: (sql num, is fall back, skip fall back assert)
-   */
+  /** Return values: (sql num, is fall back, skip fall back assert) */
   def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean, Boolean)] =
     Range
       .inclusive(1, 99)
