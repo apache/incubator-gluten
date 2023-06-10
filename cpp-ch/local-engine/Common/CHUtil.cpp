@@ -459,15 +459,16 @@ void BackendInitializerUtil::initConfig(std::string * plan)
     backend_conf_map = getBackendConfMap(*plan);
     if (backend_conf_map.count(CH_RUNTIME_CONFIG_FILE))
     {
-        if (fs::exists(CH_RUNTIME_CONFIG_FILE) && fs::is_regular_file(CH_RUNTIME_CONFIG_FILE))
+        auto config_file = backend_conf_map[CH_RUNTIME_CONFIG_FILE];
+        if (fs::exists(config_file) && fs::is_regular_file(config_file))
         {
-            ConfigProcessor config_processor(CH_RUNTIME_CONFIG_FILE, false, true);
-            config_processor.setConfigPath(fs::path(CH_RUNTIME_CONFIG_FILE).parent_path());
+            ConfigProcessor config_processor(config_file, false, true);
+            config_processor.setConfigPath(fs::path(config_file).parent_path());
             auto loaded_config = config_processor.loadConfig(false);
             config = loaded_config.configuration;
         }
         else
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} is not a valid configure file.", CH_RUNTIME_CONFIG_FILE);
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} is not a valid configure file.", config_file);
     }
     else
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
