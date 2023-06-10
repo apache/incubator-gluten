@@ -1,5 +1,3 @@
-#include <hdfs/hdfs.h>
-
 #include "WholeStageResultIterator.h"
 #include "VeloxBackend.h"
 #include "VeloxInitializer.h"
@@ -10,6 +8,8 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
+
+#include <hdfs/hdfs.h>
 
 using namespace facebook;
 
@@ -278,8 +278,8 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
 }
 
 void WholeStageResultIterator::updateHdfsTokens() {
-  const auto & username = confMap_[kUGIUserName];
-  const auto & allTokens = confMap_[kUGITokens];
+  const auto& username = confMap_[kUGIUserName];
+  const auto& allTokens = confMap_[kUGITokens];
 
   if (username.empty())
     return;
@@ -287,7 +287,7 @@ void WholeStageResultIterator::updateHdfsTokens() {
   hdfsSetDefautUserName(username.c_str());
   std::vector<folly::StringPiece> tokens;
   folly::split('\0', allTokens, tokens);
-  for (auto & token : tokens)
+  for (auto& token : tokens)
     hdfsSetTokenForDefaultUser(token.data());
 }
 
