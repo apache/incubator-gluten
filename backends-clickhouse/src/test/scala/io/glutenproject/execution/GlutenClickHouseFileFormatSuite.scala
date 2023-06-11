@@ -87,6 +87,8 @@ class GlutenClickHouseFileFormatSuite
          | from $format.`$filePath`
          |""".stripMargin
     val df2 = spark.sql(sql)
+    df2.collect()
+    WholeStageTransformerSuite.checkFallBack(df2)
     checkAnswer(df2, df1)
   }
 
@@ -106,6 +108,8 @@ class GlutenClickHouseFileFormatSuite
          | from $format.`$filePath`
          |""".stripMargin
     val df2 = spark.sql(sql)
+    df2.collect()
+    WholeStageTransformerSuite.checkFallBack(df2)
     checkAnswer(df2, df1)
   }
 
@@ -134,6 +138,8 @@ class GlutenClickHouseFileFormatSuite
          | from $format.`$filePath`
          |""".stripMargin
     val df2 = spark.sql(sql)
+    df2.collect()
+    WholeStageTransformerSuite.checkFallBack(df2)
     checkAnswer(df2, df1)
   }
 
@@ -151,7 +157,8 @@ class GlutenClickHouseFileFormatSuite
       sql,
       df => {
         assert(df.queryExecution.executedPlan.isInstanceOf[FileSourceScanExec])
-      })
+      },
+      false)
   }
 
   test("read data from csv file format with filter") {
@@ -172,7 +179,8 @@ class GlutenClickHouseFileFormatSuite
           case f: FileSourceScanExec if f.relation.fileFormat.isInstanceOf[CSVFileFormat] => f
         }
         assert(csvFileScan.size == 1)
-      }
+      },
+      false
     )
   }
 
@@ -194,7 +202,8 @@ class GlutenClickHouseFileFormatSuite
           case f: FileSourceScanExec if f.relation.fileFormat.isInstanceOf[CSVFileFormat] => f
         }
         assert(csvFileScan.size == 1)
-      }
+      },
+      false
     )
   }
 
@@ -247,14 +256,15 @@ class GlutenClickHouseFileFormatSuite
          | select *
          | from $orcFileFormat.`$filePath`
          |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, df => {})
+    compareResultsAgainstVanillaSpark(sql, true, df => {}, false)
   }
 
   def testFileFormatBase(
       filePath: String,
       fileFormat: String,
       sql: String,
-      customCheck: DataFrame => Unit
+      customCheck: DataFrame => Unit,
+      noFallBack: Boolean = true
   ): Unit = {
     spark
       .createDataFrame(genTestData())
@@ -262,7 +272,7 @@ class GlutenClickHouseFileFormatSuite
       .mode("overwrite")
       .format(fileFormat)
       .save(filePath)
-    compareResultsAgainstVanillaSpark(sql, true, customCheck)
+    compareResultsAgainstVanillaSpark(sql, true, customCheck, noFallBack)
   }
 
   /** Generate test data for primitive type */
