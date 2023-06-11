@@ -409,7 +409,7 @@ jobs:
           docker cp ~/.m2/repository velox-static-build-test-$GITHUB_RUN_ID:/root/.m2/
       - name: Build Gluten CPP library
         run: |
-          docker exec -i velox-static-build-test-$GITHUB_RUN_ID bash -l -c '
+          docker exec -i velox-static-build-test-$GITHUB_RUN_ID bash -l -ec '
           source /env.sh && \
           cd /opt/gluten && \
           sudo -E ./dev/vcpkg/setup-build-depends.sh && \
