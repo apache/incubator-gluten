@@ -18,9 +18,8 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasTransformerBase, ExpressionTransformer}
-import io.glutenproject.expression.CHSha1Transformer
-import io.glutenproject.expression.CHSha2Transformer
+import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHSha1Transformer, CHSha2Transformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -51,6 +50,8 @@ import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.hive.CHHiveTableScanExecTransformer
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.{lang, util}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -388,5 +389,114 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genHiveTableScanExecTransformer(
       child: SparkPlan): Option[HiveTableScanExecTransformer] = {
     CHHiveTableScanExecTransformer.transform(child)
+  }
+
+  /** Generate window function node */
+  override def genWindowFunctionsNode(
+      windowExpression: Seq[NamedExpression],
+      windowExpressionNodes: util.ArrayList[WindowFunctionNode],
+      originalInputAttributes: Seq[Attribute],
+      args: util.HashMap[String, lang.Long]): Unit = {
+
+    windowExpression.map {
+      windowExpr =>
+        val aliasExpr = windowExpr.asInstanceOf[Alias]
+        val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
+        val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
+        wExpression.windowFunction match {
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
+            val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
+            val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
+              new util.ArrayList[ExpressionNode](),
+              columnName,
+              ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
+              WindowExecTransformer.getFrameBound(frame.upper),
+              WindowExecTransformer.getFrameBound(frame.lower),
+              frame.frameType.sql
+            )
+            windowExpressionNodes.add(windowFunctionNode)
+          case aggExpression: AggregateExpression =>
+            val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            val aggregateFunc = aggExpression.aggregateFunction
+            val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+            if (substraitAggFuncName.isEmpty) {
+              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
+            }
+
+            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            aggregateFunc.children.foreach(
+              expr =>
+                childrenNodeList.add(
+                  ExpressionConverter
+                    .replaceWithExpressionTransformer(expr, originalInputAttributes)
+                    .doTransform(args)))
+
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
+              WindowExecTransformer.getFrameBound(frame.upper),
+              WindowExecTransformer.getFrameBound(frame.lower),
+              frame.frameType.sql
+            )
+            windowExpressionNodes.add(windowFunctionNode)
+          case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
+            val (offsetWf, frame) = wf match {
+              case lead @ Lead(input, offset, default, ignoreNulls) =>
+                // When the offset value of the lead is negative, will convert to lag function
+                lead.offset match {
+                  case IntegerLiteral(value) if value < 0 =>
+                    val newWf = Lag(input, Literal(math.abs(value)), default, ignoreNulls)
+                    (newWf, newWf.frame.asInstanceOf[SpecifiedWindowFrame])
+                  case other => (lead, lead.frame.asInstanceOf[SpecifiedWindowFrame])
+                }
+              case lag @ Lag(input, offset, default, ignoreNulls) =>
+                // When the offset value of the lag is negative, will convert to lead function
+                lag.offset match {
+                  case IntegerLiteral(value) if value > 0 =>
+                    val newWf = Lead(input, Literal(value), default, ignoreNulls)
+                    (newWf, newWf.frame.asInstanceOf[SpecifiedWindowFrame])
+                  case other => (lag, lag.frame.asInstanceOf[SpecifiedWindowFrame])
+                }
+            }
+
+            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            childrenNodeList.add(
+              ExpressionConverter
+                .replaceWithExpressionTransformer(
+                  offsetWf.input,
+                  attributeSeq = originalInputAttributes)
+                .doTransform(args))
+            childrenNodeList.add(
+              ExpressionConverter
+                .replaceWithExpressionTransformer(
+                  offsetWf.offset,
+                  attributeSeq = originalInputAttributes)
+                .doTransform(args))
+            childrenNodeList.add(
+              ExpressionConverter
+                .replaceWithExpressionTransformer(
+                  offsetWf.default,
+                  attributeSeq = originalInputAttributes)
+                .doTransform(args))
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, offsetWf).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
+              WindowExecTransformer.getFrameBound(frame.upper),
+              WindowExecTransformer.getFrameBound(frame.lower),
+              frame.frameType.sql
+            )
+            windowExpressionNodes.add(windowFunctionNode)
+          case _ =>
+            throw new UnsupportedOperationException(
+              "unsupported window function type: " +
+                wExpression.windowFunction)
+        }
+    }
   }
 }

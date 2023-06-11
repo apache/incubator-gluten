@@ -29,13 +29,15 @@ object AggregateFunctionsBuilder {
 
     var substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (substraitAggFuncName.isEmpty) {
-      throw new UnsupportedOperationException(s"Could not find valid a substrait mapping name for $aggregateFunc.")
+      throw new UnsupportedOperationException(
+        s"Could not find valid a substrait mapping name for $aggregateFunc.")
     }
 
     // Check whether each backend supports this aggregate function.
     if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(
       substraitAggFuncName.get, aggregateFunc)) {
-      throw new UnsupportedOperationException(s"Aggregate function not supported for $aggregateFunc.")
+      throw new UnsupportedOperationException(
+        s"Aggregate function not supported for $aggregateFunc.")
     }
 
     aggregateFunc match {

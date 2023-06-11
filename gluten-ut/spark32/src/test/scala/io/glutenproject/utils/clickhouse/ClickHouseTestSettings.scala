@@ -239,5 +239,23 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
+
+  enableSuite[GlutenDataFrameWindowFramesSuite]
+    .exclude(
+      "rows between should accept int/long values as boundary",
+      "reverse preceding/following range between with aggregation"
+    )
+  enableSuite[GlutenDataFrameWindowFunctionsSuite]
+    .exclude(
+      "reuse window partitionBy",
+      "reuse window orderBy",
+      "collect_list in ascending ordered window",
+      "collect_list in descending ordered window",
+      "collect_set in window",
+      "lead/lag with ignoreNulls",
+      "Window spill with less than the inMemoryThreshold",
+      "Window spill with more than the inMemoryThreshold but less than the spillThreshold",
+      "NaN and -0.0 in window partition keys"
+    )
 }
 
