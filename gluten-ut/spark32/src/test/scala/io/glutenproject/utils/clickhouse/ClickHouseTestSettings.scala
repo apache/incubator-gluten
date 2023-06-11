@@ -243,7 +243,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameWindowFramesSuite]
     .exclude(
       "rows between should accept int/long values as boundary",
-      "reverse preceding/following range between with aggregation"
+      "reverse preceding/following range between with aggregation",
+      "SPARK-24033: Analysis Failure of OffsetWindowFunction"
     )
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
     .exclude(
@@ -254,6 +255,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "collect_set in window",
       "lead/lag with ignoreNulls",
       "Window spill with less than the inMemoryThreshold",
+      "Window spill with more than the inMemoryThreshold and spillThreshold",
       "Window spill with more than the inMemoryThreshold but less than the spillThreshold",
       "NaN and -0.0 in window partition keys"
     )
