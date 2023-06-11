@@ -544,8 +544,10 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       queryNum: Int,
       tpchQueries: String = tpchQueries,
       queriesResults: String = queriesResults,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult, noFallBack)(
+      customCheck)
   }
 
 }

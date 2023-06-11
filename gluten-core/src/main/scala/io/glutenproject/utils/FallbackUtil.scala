@@ -17,11 +17,12 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.execution.{ColumnarToRowExecBase, RowToColumnarExecBase}
 import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec, QueryStageExec}
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 /** attention: if AQE is enable,This method will only be executed correctly after the execution plan
  * is fully determined
@@ -31,9 +32,9 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
 
   def skip(plan: SparkPlan): Boolean = {
     plan match {
-      case _: ColumnarToRowExecBase =>
+      case _: ColumnarToRowTransition =>
         true
-      case _: RowToColumnarExecBase =>
+      case _: RowToColumnarTransition =>
         true
       case _: BaseSubqueryExec =>
         true
@@ -47,11 +48,21 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
         true
       case _: LimitExec =>
         true
+      // for ut
+      case _: RangeExec =>
+        true
+      case _: ObjectConsumerExec =>
+        true
+      case _: LocalTableScanExec =>
+        true
+      case _: ReusedExchangeExec =>
+        true
+      case _: ColumnarAQEShuffleReadExec =>
+        true
       case _ =>
         false
     }
   }
-
 
   def isFallback(plan: SparkPlan): Boolean = {
     var fallbackOperator: Seq[SparkPlan] = null

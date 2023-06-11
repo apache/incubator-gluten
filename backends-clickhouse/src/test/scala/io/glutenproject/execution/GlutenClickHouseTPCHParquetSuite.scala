@@ -307,8 +307,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
-  ignore("TPCH Q16") {
-    runTPCHQuery(16) { df => }
+  test("TPCH Q16") {
+    runTPCHQuery(16, noFallBack = false) { df => }
   }
 
   test("TPCH Q17") {
@@ -329,6 +329,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("TPCH Q20") {
     runTPCHQuery(20) { df => }
+  }
+
+  test("TPCH Q21") {
+    runTPCHQuery(21, noFallBack = false) { df => }
   }
 
   test("test 'function pmod'") {
@@ -400,7 +404,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     checkLengthAndPlan(df, 10)
   }
 
-  ignore("test 'aggregate function collect_list'") {
+  test("test 'aggregate function collect_list'") {
     val df = runQueryAndCompare(
       "select l_orderkey,from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
         "from lineitem order by l_orderkey desc limit 10"
@@ -529,7 +533,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |order by n_regionkey
         |""".stripMargin
     runQueryAndCompare(sql)(checkOperatorMatch[WindowExecTransformer])
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("window max") {
@@ -622,7 +625,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey, n_lead
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
   }
 
   test("window lead with default value") {
@@ -634,7 +637,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |order by n_regionkey, n_nationkey, n_lead
         |""".stripMargin
 
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
   }
 
   test("window lag") {
@@ -645,7 +648,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
   }
 
   test("window lag with default value") {
@@ -656,7 +659,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey, n_lag
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
   }
 
   test("window dense_rank") {
@@ -678,10 +681,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
   }
 
-  ignore("window last value") {
+  test("window last value") {
     val sql =
       """
         |select n_regionkey, n_nationkey,
@@ -689,7 +692,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
   }
 
   test("group with rollup") {
@@ -834,7 +837,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("Test 'spark.gluten.enabled' false") {
     withSQLConf(("spark.gluten.enabled", "false")) {
-      runTPCHQuery(2) {
+      runTPCHQuery(2, noFallBack = false) {
         df =>
           val glutenPlans = df.queryExecution.executedPlan.collect {
             case glutenPlan: GlutenPlan => glutenPlan
@@ -890,8 +893,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(
       "select l_comment, trim(l_comment), trim('abcd' from l_comment), " +
         "trim(BOTH 'abcd' from l_comment), trim(LEADING 'abcd' from l_comment), " +
-        "trim(TRAILING 'abcd' from l_comment) from lineitem limit 10")(
-      checkOperatorMatch[ProjectExecTransformer])
+        "trim(TRAILING 'abcd' from l_comment) from lineitem limit 10"
+    )(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("bit_and/bit_or/bit_xor") {
@@ -939,9 +942,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       queryNum: Int,
       tpchQueries: String = tpchQueries,
       queriesResults: String = queriesResults,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    // super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
-    compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck)
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+    compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
   }
 
   test("test 'ColumnarToRowExec should not be used'") {
@@ -949,7 +952,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       "spark.gluten.sql.columnar.filescan" -> "false",
       "spark.gluten.sql.columnar.filter" -> "false"
     ) {
-      runQueryAndCompare("select l_shipdate from lineitem where l_shipdate = '1996-05-07'") {
+      runQueryAndCompare(
+        "select l_shipdate from lineitem where l_shipdate = '1996-05-07'",
+        noFallBack = false) {
         df => getExecutedPlan(df).count(plan => plan.isInstanceOf[ColumnarToRowExec]) == 0
       }
     }

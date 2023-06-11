@@ -20,40 +20,58 @@ package io.glutenproject.substrait.expression;
 import io.substrait.proto.Expression;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 
 public class SelectionNode implements ExpressionNode, Serializable {
-  private final Integer fieldIdx;
-  private final Integer childFieldIdx;
+  private final Integer fieldIndex;
 
-  SelectionNode(Integer fieldIdx) {
-    this.fieldIdx = fieldIdx;
-    this.childFieldIdx = null;
+  // The nested indices of child field. For case like a.b.c, the index of c is put at last.
+  private final ArrayList<Integer> nestedChildIndices = new ArrayList<>();
+
+  SelectionNode(Integer fieldIndex) {
+    this.fieldIndex = fieldIndex;
   }
 
-  SelectionNode(Integer fieldIdx, Integer childFieldIdx) {
-    this.fieldIdx = fieldIdx;
-    this.childFieldIdx = childFieldIdx;
+  SelectionNode(Integer fieldIndex, Integer childIndex) {
+    this.fieldIndex = fieldIndex;
+    this.nestedChildIndices.add(childIndex);
+  }
+
+  public SelectionNode addNestedChildIdx(Integer childIndex) {
+    this.nestedChildIndices.add(childIndex);
+    return this;
+  }
+
+  public Expression.ReferenceSegment createRef(
+          Integer childIdx, Expression.ReferenceSegment childRef) {
+    Expression.ReferenceSegment.StructField.Builder structBuilder =
+            Expression.ReferenceSegment.StructField.newBuilder();
+    structBuilder.setField(childIdx);
+    if (childRef != null) {
+      structBuilder.setChild(childRef);
+    }
+
+    Expression.ReferenceSegment.Builder refBuilder = Expression.ReferenceSegment.newBuilder();
+    refBuilder.setStructField(structBuilder.build());
+    return refBuilder.build();
   }
 
   @Override
   public Expression toProtobuf() {
     Expression.ReferenceSegment.StructField.Builder structBuilder =
         Expression.ReferenceSegment.StructField.newBuilder();
-    structBuilder.setField(fieldIdx);
+    structBuilder.setField(fieldIndex);
 
-    // Handle the child field indices.
-    if (childFieldIdx != null) {
-      Expression.ReferenceSegment.StructField.Builder childStructBuilder =
-          Expression.ReferenceSegment.StructField.newBuilder();
-      childStructBuilder.setField(childFieldIdx);
-      Expression.ReferenceSegment.Builder childRefBuilder =
-          Expression.ReferenceSegment.newBuilder();
-      childRefBuilder.setStructField(childStructBuilder.build());
-      structBuilder.setChild(childRefBuilder.build());
+    // Handle the nested field indices.
+    if (!nestedChildIndices.isEmpty()) {
+      Expression.ReferenceSegment childRef = null;
+      for (int i = nestedChildIndices.size() - 1; i >= 0; i--) {
+        childRef = createRef(nestedChildIndices.get(i), childRef);
+      }
+      structBuilder.setChild(childRef);
     }
 
-    Expression.ReferenceSegment.Builder refBuilder =
-        Expression.ReferenceSegment.newBuilder();
+    Expression.ReferenceSegment.Builder refBuilder = Expression.ReferenceSegment.newBuilder();
     refBuilder.setStructField(structBuilder.build());
 
     Expression.FieldReference.Builder fieldBuilder =
