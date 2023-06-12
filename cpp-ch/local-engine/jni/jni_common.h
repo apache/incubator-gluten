@@ -89,4 +89,13 @@ void safeCallVoidMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... 
     env->CallVoidMethod(obj, method_id, args...);
     LOCAL_ENGINE_JNI_JMETHOD_END(env);
 }
+
+template <typename... Args>
+jlong safeCallStaticLongMethod(JNIEnv * env, jclass clazz, jmethodID method_id, Args... args)
+{
+    LOCAL_ENGINE_JNI_JMETHOD_START
+    auto ret = env->CallStaticLongMethod(clazz, method_id, args...);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    return ret;
+}
 }

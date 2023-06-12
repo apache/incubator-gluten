@@ -662,7 +662,7 @@ void BackendInitializerUtil::init(std::string * plan)
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
-    local_engine::BroadCastJoinBuilder::clean();
+
 
     auto & global_context = SerializedPlanParser::global_context;
     auto & shared_context = SerializedPlanParser::shared_context;
@@ -677,7 +677,7 @@ void BackendFinalizerUtil::finalizeGlobally()
 
 void BackendFinalizerUtil::finalizeSessionally()
 {
-    local_engine::BroadCastJoinBuilder::clean();
+
 }
 
 }

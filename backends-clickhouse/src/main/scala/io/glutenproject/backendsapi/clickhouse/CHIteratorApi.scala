@@ -141,13 +141,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             }
           }
           val res = operator.release().toColumnarBatch
-          CHNativeBlock
-            .fromColumnarBatch(res)
-            .ifPresent(
-              block => {
-                numOutputRows += block.numRows();
-                numOutputBatches += 1;
-              })
+          numOutputRows += CHNativeBlock.fromColumnarBatch(res).numRows()
+          numOutputBatches += 1
           res
         }
 
