@@ -163,13 +163,9 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
           batches =>
             batches.map {
               batch =>
-                CHNativeBlock
-                  .fromColumnarBatch(batch)
-                  .ifPresent(
-                    block => {
-                      block.totalBytes()
-                      block.close()
-                    })
+                val block = CHNativeBlock.fromColumnarBatch(batch)
+                block.totalBytes()
+                block.close()
                 batch.numRows().toLong
             }
         }
@@ -183,36 +179,33 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
             val jniWrapper = new CHBlockConverterJniWrapper()
             batches.map {
               batch =>
-                CHNativeBlock
-                  .fromColumnarBatch(batch)
-                  .ifPresent(
-                    block => {
-                      val info = jniWrapper.convertColumnarToRow(block.blockAddress())
-                      new Iterator[InternalRow] {
-                        var rowId = 0
-                        val row = new UnsafeRow(batch.numCols())
-                        var closed = false
+                val block = CHNativeBlock.fromColumnarBatch(batch)
+                val info = jniWrapper.convertColumnarToRow(block.blockAddress())
+                new Iterator[InternalRow] {
+                  var rowId = 0
+                  val row = new UnsafeRow(batch.numCols())
+                  var closed = false
 
-                        override def hasNext: Boolean = {
-                          val result = rowId < batch.numRows()
-                          if (!result && !closed) {
-                            jniWrapper.freeMemory(info.memoryAddress, info.totalSize)
-                            closed = true
-                          }
-                          return result
-                        }
+                  override def hasNext: Boolean = {
+                    val result = rowId < batch.numRows()
+                    if (!result && !closed) {
+                      jniWrapper.freeMemory(info.memoryAddress, info.totalSize)
+                      closed = true
+                    }
+                    result
+                  }
 
-                        override def next: UnsafeRow = {
-                          if (rowId >= batch.numRows()) throw new NoSuchElementException
+                  override def next: UnsafeRow = {
+                    if (rowId >= batch.numRows()) throw new NoSuchElementException
 
-                          val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-                          row.pointTo(null, info.memoryAddress + offset, length.toInt)
-                          rowId += 1
-                          row
-                        }
-                      }.foreach(_.numFields)
-                      block.close()
-                    })
+                    val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+                    row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                    rowId += 1
+                    row
+                  }
+                }.foreach(_.numFields)
+                block.close()
+
                 batch.numRows().toLong
             }
         }

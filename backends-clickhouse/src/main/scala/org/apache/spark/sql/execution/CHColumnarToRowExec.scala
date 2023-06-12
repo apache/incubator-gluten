@@ -113,9 +113,7 @@ class CHColumnarToRowRDD(
           } else {
             val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
             val beforeConvert = System.nanoTime()
-            val blockAddress = nativeBlock
-              .orElseThrow(() => new IllegalStateException("Logic error"))
-              .blockAddress()
+            val blockAddress = nativeBlock.blockAddress()
             val info = jniWrapper.convertColumnarToRow(blockAddress)
 
             convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
@@ -131,7 +129,7 @@ class CHColumnarToRowRDD(
                   jniWrapper.freeMemory(info.memoryAddress, info.totalSize)
                   closed = true
                 }
-                return result
+                result
               }
 
               override def next: UnsafeRow = {
