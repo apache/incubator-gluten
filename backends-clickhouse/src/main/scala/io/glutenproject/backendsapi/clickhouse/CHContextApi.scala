@@ -59,6 +59,7 @@ class CHContextApi extends ContextApi with Logging {
   }
 
   override def shutdown(): Unit = {
+    CHBroadcastBuildSideCache.cleanAll()
     val kernel = new CHNativeExpressionEvaluator()
     kernel.finalizeNative()
   }

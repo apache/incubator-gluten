@@ -89,6 +89,8 @@ object CHBroadcastBuildSideCache extends Logging {
   /** Only used in UT. */
   def size(): Long = buildSideRelationCache.size()
 
+  def cleanAll(): Unit = buildSideRelationCache.invalidateAll()
+
   private def cleanBuildHashTable(key: String, value: BroadcastHashTable): Unit = {
     threadLog(s"remove bhj $key = 0x${value.pointer.toHexString}")
     if (value.relation != null) {
