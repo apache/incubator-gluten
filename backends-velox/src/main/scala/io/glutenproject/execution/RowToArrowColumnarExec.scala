@@ -394,7 +394,7 @@ case class RowToArrowColumnarExec(child: SparkPlan)
           }
 
           def javaConvert(row: InternalRow): ColumnarBatch = {
-            logInfo("Not UnsafeRow, fallback to java based r2c")
+            logDebug("Not UnsafeRow, fallback to java based r2c")
             val vectors: Seq[WritableColumnVector] =
               ArrowWritableColumnVector.allocateColumns(numRows, schema)
             var rowCount = 0
