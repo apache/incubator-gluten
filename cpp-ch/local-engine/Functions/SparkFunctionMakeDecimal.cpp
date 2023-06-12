@@ -25,11 +25,11 @@ using namespace DB;
 
 struct NameMakeDecimal
 {
-    static constexpr auto name = "makeDecimal";
+    static constexpr auto name = "makeDecimalSpark";
 };
 struct NameMakeDecimalOrNull
 {
-    static constexpr auto name = "makeDecimalOrNull";
+    static constexpr auto name = "makeDecimalSparkOrNull";
 };
 
 enum class ConvertExceptionMode
@@ -129,21 +129,19 @@ namespace
                     using FromFieldType = typename FromDataType::FieldType;
                     typename ToColumnType::MutablePtr col_to = ToColumnType::create(input_rows_count, scale);
 
+                    const auto & vector = typeid_cast<const ColumnVector<FromFieldType> *>(arguments[0].column.get());
                     auto & vec_to = col_to->getData();
+                    auto & datas = vector->getData();
                     vec_to.resize(input_rows_count);
 
                     for (size_t i = 0; i < input_rows_count; ++i)
                     {
                         ToNativeType result;
-
-                        const auto & vector = typeid_cast<const ColumnVector<FromFieldType> *>(arguments[0].column.get());
                         bool convert_result
-                            = convertDecimalsFromIntegerImpl<FromFieldType, ToNativeType>(vector->getData()[i], result, precision_value);
+                            = convertDecimalsFromIntegerImpl<FromFieldType, ToNativeType>(datas[i], result, precision_value);
 
                         if (convert_result)
-                        {
                             vec_to[i] = static_cast<ToFieldType>(result);
-                        }
                         else
                         {
                             if constexpr (exception_mode == ConvertExceptionMode::Null)
@@ -210,7 +208,7 @@ namespace
     using FunctionMakeDecimalOrNull = FunctionMakeDecimal<NameMakeDecimalOrNull, ConvertExceptionMode::Null>;
 }
 
-REGISTER_FUNCTION(MakeDecimal)
+REGISTER_FUNCTION(MakeDecimalSpark)
 {
     factory.registerFunction<FunctionMakeDecimalThrow>(FunctionDocumentation{.description = R"(
 Create a decimal value by use nested type. If overflow throws exception.

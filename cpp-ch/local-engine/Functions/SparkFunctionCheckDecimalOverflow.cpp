@@ -26,13 +26,13 @@ namespace local_engine
 {
 using namespace DB;
 
-struct CheckDecimalOverflow
+struct CheckDecimalOverflowSpark
 {
-    static constexpr auto name = "checkDecimalOverflow";
+    static constexpr auto name = "checkDecimalOverflowSpark";
 };
-struct CheckDecimalOverflowOrNull
+struct CheckDecimalOverflowSparkOrNull
 {
-    static constexpr auto name = "checkDecimalOverflowOrNull";
+    static constexpr auto name = "checkDecimalOverflowSparkOrNull";
 };
 
 enum class CheckExceptionMode
@@ -172,11 +172,11 @@ namespace
         }
     };
 
-    using FunctionCheckDecimalOverflowThrow = FunctionCheckDecimalOverflow<CheckDecimalOverflow, CheckExceptionMode::Throw>;
-    using FunctionCheckDecimalOverflowOrNull = FunctionCheckDecimalOverflow<CheckDecimalOverflowOrNull, CheckExceptionMode::Null>;
+    using FunctionCheckDecimalOverflowThrow = FunctionCheckDecimalOverflow<CheckDecimalOverflowSpark, CheckExceptionMode::Throw>;
+    using FunctionCheckDecimalOverflowOrNull = FunctionCheckDecimalOverflow<CheckDecimalOverflowSparkOrNull, CheckExceptionMode::Null>;
 }
 
-REGISTER_FUNCTION(CheckDecimalOverflow)
+REGISTER_FUNCTION(CheckDecimalOverflowSpark)
 {
     factory.registerFunction<FunctionCheckDecimalOverflowThrow>(FunctionDocumentation{.description = R"(
 Check decimal precision is overflow. If overflow throws exception.

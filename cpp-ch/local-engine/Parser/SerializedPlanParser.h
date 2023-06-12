@@ -100,7 +100,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"least", "least"},
     {"shiftleft", "bitShiftLeft"},
     {"shiftright", "bitShiftRight"},
-    {"check_overflow", "checkDecimalOverflow"},
+    {"check_overflow", "checkDecimalOverflowSpark"},
     {"factorial", "factorial"},
     {"rand", "randCanonical"},
     {"isnan", "isNaN"},
@@ -210,8 +210,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"from_json", "JSONExtract"},
     {"json_tuple", "json_tuple"},
     {"json_array_length", "JSONArrayLength"},
-    {"make_decimal", "makeDecimal"},
-    {"unscaled_value", "unscaleValue"}
+    {"make_decimal", "makeDecimalSpark"},
+    {"unscaled_value", "unscaleValueSpark"}
 };
 
 static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};

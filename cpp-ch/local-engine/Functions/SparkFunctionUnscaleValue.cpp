@@ -20,9 +20,9 @@ namespace local_engine
 {
 using namespace DB;
 
-struct NameUnscaleValue
+struct NameUnscaleValueSpark
 {
-    static constexpr auto name = "unscaleValue";
+    static constexpr auto name = "unscaleValueSpark";
 };
 
 template <typename T>
@@ -113,9 +113,9 @@ namespace
 
 }
 
-REGISTER_FUNCTION(UnscaleValue)
+REGISTER_FUNCTION(UnscaleValueSpark)
 {
-    factory.registerFunction<FunctionUnscaleValue<NameUnscaleValue>>(FunctionDocumentation{.description = R"(
+    factory.registerFunction<FunctionUnscaleValue<NameUnscaleValueSpark>>(FunctionDocumentation{.description = R"(
 Get decimal nested Integer value.
 )"});
 }
