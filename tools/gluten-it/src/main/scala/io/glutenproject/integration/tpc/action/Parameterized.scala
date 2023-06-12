@@ -205,10 +205,7 @@ case class TestResultLines(dimNames: Seq[String], metricNames: Seq[String], line
         metricNames.foreach {
           metricName =>
             val metrics = line.metrics
-            if (!metrics.contains(metricName)) {
-              values.append("N/A")
-            }
-            values.append(metrics(metricName))
+            values.append(metrics.getOrElse(metricName, "N/A"))
         }
         values.append(line.rowCount.getOrElse("N/A"))
         values.append(line.executionTimeMillis.getOrElse("N/A"))
