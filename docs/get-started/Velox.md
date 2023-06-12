@@ -306,6 +306,11 @@ Gluten with velox backend supports [Celeborn](https://github.com/apache/incubato
 
 First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
 
+Then compile Gluten according to the following statement
+```
+mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
+```
+
 Currently to use Celeborn following configurations are required in spark-defaults.conf
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
