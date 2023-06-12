@@ -625,7 +625,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey, n_lead
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window lead / lag with negative offset") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | lead(n_nationkey, -3, 2) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead1,
+        | lead(n_nationkey, 1) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lead2,
+        | lag(n_nationkey, -1, 3) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag1,
+        | lag(n_nationkey, 2) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag2
+        |from nation
+        |order by n_regionkey, n_nationkey, n_lead1, n_lead2, n_lag1, n_lag2
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("window lead with default value") {
@@ -637,7 +651,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |order by n_regionkey, n_nationkey, n_lead
         |""".stripMargin
 
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("window lag") {
@@ -648,7 +662,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("window lag with default value") {
@@ -659,7 +673,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from nation
         |order by n_regionkey, n_nationkey, n_lag
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("window dense_rank") {
@@ -807,6 +821,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val sql =
       """
         |select stddev_samp(l_orderkey), stddev_samp(l_quantity) from lineitem
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test stddev") {
+    val sql =
+      """
+        |select stddev(l_orderkey), stddev(l_quantity) from lineitem
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }

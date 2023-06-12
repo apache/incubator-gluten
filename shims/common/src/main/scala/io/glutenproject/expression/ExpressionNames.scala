@@ -24,7 +24,6 @@ object ExpressionNames {
   final val COUNT = "count"
   final val MIN = "min"
   final val MAX = "max"
-  final val STDDEV = "stddev"
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
@@ -229,6 +228,8 @@ object ExpressionNames {
   final val CUME_DIST = "cume_dist"
   final val PERCENT_RANK = "percent_rank"
   final val NTILE = "ntile"
+  final val LEAD = "lead"
+  final val LAG = "lag"
 
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"

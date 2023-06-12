@@ -19,6 +19,7 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -26,16 +27,16 @@ import io.glutenproject.expression._
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
+import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.window.WindowExecBase
@@ -83,30 +84,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
       Seq(child.executeColumnar())
   }
 
-  /* private object NoneType {
-    val NONE_TYPE = new NoneType
-  }
-
-  private class NoneType extends ArrowType {
-    override def getTypeID: ArrowType.ArrowTypeID = {
-      return ArrowTypeID.NONE
-    }
-
-    override def getType(builder: FlatBufferBuilder): Int = {
-      throw new UnsupportedOperationException()
-    }
-
-    override def toString: String = {
-      return "NONE"
-    }
-
-    override def accept[T](visitor: ArrowType.ArrowTypeVisitor[T]): T = {
-      throw new UnsupportedOperationException()
-    }
-
-    override def isComplex: Boolean = false
-  } */
-
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
@@ -116,18 +93,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
       c.getStreamedLeafPlan
     case _ =>
       this
-  }
-
-  /**
-   * Gets lower/upper bound represented in string.
-   */
-  def getFrameBound(bound: Expression): String = {
-    // The lower/upper can be either a foldable Expression or a SpecialFrameBoundary.
-    if (bound.foldable) {
-      bound.eval().toString
-    } else {
-      bound.sql
-    }
   }
 
   def getRelNode(context: SubstraitContext,
@@ -141,75 +106,12 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     val args = context.registeredFunction
     // WindowFunction Expressions
     val windowExpressions = new util.ArrayList[WindowFunctionNode]()
-    windowExpression.map { windowExpr =>
-        val aliasExpr = windowExpr.asInstanceOf[Alias]
-        val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
-        val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
-        wExpression.windowFunction match {
-          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
-            val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
-            val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
-              new util.ArrayList[ExpressionNode](),
-              columnName,
-              ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
-              getFrameBound(frame.upper),
-              getFrameBound(frame.lower),
-              frame.frameType.sql)
-            windowExpressions.add(windowFunctionNode)
-          case aggExpression: AggregateExpression =>
-            val frame = wExpression.windowSpec.
-                      frameSpecification.asInstanceOf[SpecifiedWindowFrame]
-            val aggregateFunc = aggExpression.aggregateFunction
-            val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
-            if (substraitAggFuncName.isEmpty) {
-              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
-            }
-
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            aggregateFunc.children.foreach(
-              expr => childrenNodeList.add(
-                ExpressionConverter.replaceWithExpressionTransformer(expr,
-                  originalInputAttributes).doTransform(args))
-            )
-
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
-              childrenNodeList,
-              columnName,
-              ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
-              getFrameBound(frame.upper),
-              getFrameBound(frame.lower),
-              frame.frameType.sql)
-            windowExpressions.add(windowFunctionNode)
-          case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
-            val offset_wf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
-            val frame = offset_wf.frame.asInstanceOf[SpecifiedWindowFrame]
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
-              offset_wf.input,
-              attributeSeq = originalInputAttributes).doTransform(args))
-            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
-              offset_wf.offset,
-              attributeSeq = originalInputAttributes).doTransform(args))
-            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
-              offset_wf.default,
-              attributeSeq = originalInputAttributes).doTransform(args))
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, offset_wf).toInt,
-              childrenNodeList,
-              columnName,
-              ConverterUtils.getTypeNode(offset_wf.dataType, offset_wf.nullable),
-              getFrameBound(frame.upper),
-              getFrameBound(frame.lower),
-              frame.frameType.sql)
-            windowExpressions.add(windowFunctionNode)
-          case _ =>
-            throw new UnsupportedOperationException("unsupported window function type: " +
-              wExpression.windowFunction)
-        }
-      }
+    BackendsApiManager.getSparkPlanExecApiInstance.genWindowFunctionsNode(
+      windowExpression,
+      windowExpressions,
+      originalInputAttributes,
+      args
+    )
 
     // Partition By Expressions
     val partitionsExpressions = new util.ArrayList[ExpressionNode]()
@@ -350,4 +252,18 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
     copy(child = newChild)
+}
+
+object WindowExecTransformer {
+  /**
+   * Gets lower/upper bound represented in string.
+   */
+  def getFrameBound(bound: Expression): String = {
+    // The lower/upper can be either a foldable Expression or a SpecialFrameBoundary.
+    if (bound.foldable) {
+      bound.eval().toString
+    } else {
+      bound.sql
+    }
+  }
 }

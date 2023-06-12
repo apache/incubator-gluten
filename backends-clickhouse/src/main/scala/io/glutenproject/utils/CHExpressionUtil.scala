@@ -68,7 +68,6 @@ object CHExpressionUtil {
   final val STRING_TYPE = "string"
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, ValidatorUtil] = Map(
-    STDDEV -> new ValidatorUtil(new DefaultBlackList),
     VAR_SAMP -> new ValidatorUtil(new DefaultBlackList),
     VAR_POP -> new ValidatorUtil(new DefaultBlackList),
     BLOOM_FILTER_AGG -> new ValidatorUtil(new DefaultBlackList),
