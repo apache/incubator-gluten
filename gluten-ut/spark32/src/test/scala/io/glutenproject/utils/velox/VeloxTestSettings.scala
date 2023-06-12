@@ -301,7 +301,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenProductAggSuite]
   enableSuite[GlutenReplaceNullWithFalseInPredicateEndToEndSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
-  enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]

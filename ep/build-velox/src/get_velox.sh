@@ -3,7 +3,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/yma11/velox.git
-VELOX_BRANCH=long-annonation
+VELOX_BRANCH=ut-fix
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
