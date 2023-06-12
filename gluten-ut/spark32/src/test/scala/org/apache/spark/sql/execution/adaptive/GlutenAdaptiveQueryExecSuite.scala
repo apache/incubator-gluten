@@ -184,7 +184,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Change merge join to broadcast join") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB"
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300"
     ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a where value = '1'")
@@ -222,7 +222,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Reuse the parallelism of coalesced shuffle in local shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300",
       SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "10") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a where value = '1'")
@@ -297,7 +297,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Scalar subquery") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a " +
           "where value = (SELECT max(a) from testData3)")
@@ -310,7 +310,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Scalar subquery in later stages") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT * FROM testData join testData2 ON key = a " +
           "where (value + a) = (SELECT max(a) from testData3)")
@@ -324,7 +324,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten multiple joins") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         """
           |WITH t4 AS (
@@ -367,7 +367,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten multiple joins with aggregate") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         """
           |WITH t4 AS (
@@ -474,7 +474,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse with subqueries") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT a FROM testData join testData2 ON key = a " +
           "where value = (SELECT max(a) from testData join testData2 ON key = a)")
@@ -495,7 +495,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse across subqueries") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300",
       SQLConf.SUBQUERY_REUSE_ENABLED.key -> "false") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT a FROM testData join testData2 ON key = a " +
@@ -515,7 +515,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Subquery reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT a FROM testData join testData2 ON key = a " +
           "where value >= (SELECT max(a) from testData join testData2 ON key = a) " +
@@ -563,7 +563,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.LOCAL_SHUFFLE_READER_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         """
           |SELECT * FROM testData t1 join testData2 t2
@@ -756,7 +756,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       assert(read.metrics("numPartitions").value == read.partitionSpecs.length)
       assert(read.metrics("partitionDataSize").value > 0)
 
-      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
         val (_, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT * FROM testData join testData2 ON key = a where value = '1'")
         val join = collect(adaptivePlan) {
@@ -918,7 +918,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           |ON value = b
         """.stripMargin)
 
-      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
         // Repartition with no partition num specified.
         checkBHJ(df.repartition('b),
           // The top shuffle from repartition is optimized out.
@@ -1256,7 +1256,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
 
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
       val query = "SELECT * FROM testData join testData2 ON key = a where value = '1'"
 
       withSQLConf(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key ->
@@ -1398,7 +1398,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         level = Some(Level.TRACE)) {
         withSQLConf(
           SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-          SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1MB") {
+          SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
           sql("SELECT * FROM testData join testData2 ON key = a where value = '1'").collect()
         }
       }
