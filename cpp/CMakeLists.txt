@@ -170,6 +170,14 @@ if(BUILD_BENCHMARKS)
   endif()
 endif()
 
+if(ENABLE_QAT)
+  add_definitions(-DGLUTEN_ENABLE_QAT)
+endif()
+
+if(ENABLE_IAA)
+  add_definitions(-DGLUTEN_ENABLE_IAA)
+endif()
+
 #
 # Subdirectories
 #
