@@ -37,6 +37,7 @@
   </modules>
 
   <properties>
+    <caffeine.version.java8>2.9.3</caffeine.version.java8>
     <spark32.version>3.2.2</spark32.version>
     <spark32.scala>2.12.15</spark32.scala>
     <spark32bundle.version>3.2</spark32bundle.version>
@@ -227,6 +228,11 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>${caffeine.version.java8}</version>
+      </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>
