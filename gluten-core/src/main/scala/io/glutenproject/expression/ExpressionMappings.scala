@@ -234,7 +234,9 @@ object ExpressionMappings {
     Sig[RowNumber](ROW_NUMBER),
     Sig[CumeDist](CUME_DIST),
     Sig[PercentRank](PERCENT_RANK),
-    Sig[NTile](NTILE)
+    Sig[NTile](NTILE),
+    Sig[Lead](LEAD),
+    Sig[Lag](LAG)
   )
 
   lazy val expressionsMap: Map[Class[_], String] = {

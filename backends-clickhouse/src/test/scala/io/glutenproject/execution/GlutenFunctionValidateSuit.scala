@@ -25,7 +25,6 @@ import org.apache.spark.sql.types._
 
 import java.nio.file.Files
 
-import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.collection.immutable.Seq
 
 class GlutenFunctionValidateSuit extends WholeStageTransformerSuite {
@@ -146,17 +145,21 @@ class GlutenFunctionValidateSuit extends WholeStageTransformerSuite {
   }
 
   test("Test get_json_object 7") {
-    runQueryAndCompare("SELECT get_json_object(string_field1, '$..') from json_test") { _ => }
+    runQueryAndCompare(
+      "SELECT get_json_object(string_field1, '$..') from json_test",
+      noFallBack = false) { _ => }
   }
 
   test("Test get_json_object 8") {
-    runQueryAndCompare("SELECT get_json_object(string_field1, '$..') from json_test") { _ => }
+    runQueryAndCompare(
+      "SELECT get_json_object(string_field1, '$..') from json_test",
+      noFallBack = false) { _ => }
   }
 
   test("Test get_json_object 9") {
-    runQueryAndCompare("SELECT get_json_object(string_field1, '$.x[?(@.i == 1)]') from json_test") {
-      _ =>
-    }
+    runQueryAndCompare(
+      "SELECT get_json_object(string_field1, '$.x[?(@.i == 1)]') from json_test",
+      noFallBack = false) { _ => }
   }
 
   test("Test covar_samp") {

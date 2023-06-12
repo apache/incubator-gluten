@@ -90,6 +90,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enablePreferColumnar: Boolean = conf.getConf(COLUMNAR_PREFER_ENABLED)
 
+  def enableOneRowRelationColumnar: Boolean = conf.getConf(COLUMNAR_ONE_ROW_RELATION_ENABLED)
+
   def enableColumnarIterator: Boolean = conf.getConf(COLUMNAR_ITERATOR_ENABLED)
 
   def physicalJoinOptimizationThrottle: Integer =
@@ -543,6 +545,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.preferColumnar")
       .internal()
       .doc("Prefer to use columnar operators if set to true.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_ONE_ROW_RELATION_ENABLED =
+    buildConf("spark.gluten.sql.columnar.oneRowRelation")
+      .internal()
+      .doc("Enable or disable columnar `OneRowRelation`.")
       .booleanConf
       .createWithDefault(true)
 

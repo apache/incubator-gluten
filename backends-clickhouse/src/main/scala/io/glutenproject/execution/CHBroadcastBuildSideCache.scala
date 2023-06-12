@@ -24,53 +24,75 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation}
 
-import org.sparkproject.guava.cache.{Cache, CacheBuilder, RemovalNotification}
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine, RemovalCause, RemovalListener}
 
 import java.util.concurrent.TimeUnit
 
-object CHBroadcastBuildSideCache extends Logging {
+case class BroadcastHashTable(pointer: Long, relation: ClickHouseBuildSideRelation)
+
+/**
+ * `CHBroadcastBuildSideCache` is used for controlling to build bhj hash table once.
+ *
+ * The complicated part is due to reuse exchange, where multiple BHJ IDs correspond to a
+ * `ClickHouseBuildSideRelation`.
+ */
+object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, BroadcastHashTable] {
+
+  private def threadLog(msg: => String): Unit =
+    logDebug(s"Thread: ${Thread.currentThread().getId} -- $msg")
 
   private lazy val expiredTime = SparkEnv.get.conf.getLong(
     CHBackendSettings.GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME,
     CHBackendSettings.GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT
   )
 
-  // Use for controling to build bhj hash table once.
+  // Use for controlling to build bhj hash table once.
   // key: hashtable id, value is hashtable backend pointer(long to string).
-  private val buildSideRelationCache: Cache[String, String] =
-    CacheBuilder.newBuilder
+  private val buildSideRelationCache: Cache[String, BroadcastHashTable] =
+    Caffeine.newBuilder
       .expireAfterAccess(expiredTime, TimeUnit.SECONDS)
-      .removalListener(
-        (notification: RemovalNotification[String, String]) => {
-          cleanBuildHashTable(notification.getKey, notification.getValue.toLong)
-        })
-      .build[String, String]()
+      .removalListener(this)
+      .build[String, BroadcastHashTable]()
 
   def getOrBuildBroadcastHashTable(
       broadcast: Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): String = {
+      broadCastContext: BroadCastHashJoinContext): BroadcastHashTable = {
+
     buildSideRelationCache
       .get(
         broadCastContext.buildHashTableId,
-        () => {
-          val bsr = broadcast.value.asReadOnlyCopy(broadCastContext)
-          bsr.asInstanceOf[ClickHouseBuildSideRelation].hashTableData.toString
+        (broadcast_id: String) => {
+          val (pointer, relation) =
+            broadcast.value
+              .asInstanceOf[ClickHouseBuildSideRelation]
+              .buildHashTable(broadCastContext)
+          threadLog(s"create bhj $broadcast_id = 0x${pointer.toHexString}")
+          BroadcastHashTable(pointer, relation)
         }
       )
   }
 
+  /** This is callback from c++ backend. */
+  def get(broadcastHashtableId: String): Long =
+    Option(buildSideRelationCache.getIfPresent(broadcastHashtableId))
+      .map(_.pointer)
+      .getOrElse(0)
+
   def invalidateBroadcastHashtable(broadcastHashtableId: String): Unit = {
-    val v = buildSideRelationCache.getIfPresent(broadcastHashtableId)
-    if (v != null) {
-      // Cleanup operations on the backend are idempotent.
-      buildSideRelationCache.invalidate(broadcastHashtableId)
-    }
+    // Cleanup operations on the backend are idempotent.
+    buildSideRelationCache.invalidate(broadcastHashtableId)
   }
 
-  private def cleanBuildHashTable(key: String, value: Long): Unit = {
-    StorageJoinBuilder.nativeCleanBuildHashTable(key, value)
-    logTrace(
-      s"Clean build hash table $key success." +
-        s"Cache size now is ${buildSideRelationCache.size()}")
+  /** Only used in UT. */
+  def size(): Long = buildSideRelationCache.estimatedSize()
+
+  def cleanAll(): Unit = buildSideRelationCache.invalidateAll()
+
+  override def onRemoval(key: String, value: BroadcastHashTable, cause: RemovalCause): Unit = {
+    threadLog(s"remove bhj $key = 0x${value.pointer.toHexString}")
+    if (value.relation != null) {
+      value.relation.reset()
+    }
+    StorageJoinBuilder.nativeCleanBuildHashTable(key, value.pointer)
   }
 }

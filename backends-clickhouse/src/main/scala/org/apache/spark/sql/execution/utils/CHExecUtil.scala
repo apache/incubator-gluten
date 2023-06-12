@@ -62,8 +62,7 @@ object CHExecUtil extends Logging {
             iter.flatMap(
               batch => {
                 val jniWrapper = new CHBlockConverterJniWrapper()
-                val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
-                val blockAddress = nativeBlock.get().blockAddress()
+                val blockAddress = CHNativeBlock.fromColumnarBatch(batch).blockAddress()
                 val rowInfo = jniWrapper.convertColumnarToRow(blockAddress)
 
                 // generate rows from a columnar batch
@@ -107,12 +106,10 @@ object CHExecUtil extends Logging {
       val splitIterator = new BlockSplitIterator(
         cbIter
           .map(
-            cb =>
-              CHNativeBlock
-                .fromColumnarBatch(cb)
-                .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
-                .blockAddress()
-                .asInstanceOf[java.lang.Long])
+            CHNativeBlock
+              .fromColumnarBatch(_)
+              .blockAddress()
+              .asInstanceOf[java.lang.Long])
           .asJava,
         options
       )

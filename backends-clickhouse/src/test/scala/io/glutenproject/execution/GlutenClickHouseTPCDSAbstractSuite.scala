@@ -52,16 +52,39 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
-  protected val tpcdsAllQueries: Seq[String] =
+  /** Return values: (sql num, is fall back, skip fall back assert) */
+  def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean, Boolean)] =
     Range
       .inclusive(1, 99)
       .flatMap(
         queryNum => {
-          if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
+          val sqlNums = if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
             Seq("q" + "%d".format(queryNum) + "a", "q" + "%d".format(queryNum) + "b")
           } else {
             Seq("q" + "%d".format(queryNum))
           }
+          val noFallBack = queryNum match {
+            case i
+                if (i == 10 || i == 16 || i == 28 || i == 35 || i == 45 ||
+                  i == 88 || i == 94) =>
+              // Q10 BroadcastHashJoin, ExistenceJoin
+              // Q16 ShuffledHashJoin, NOT condition
+              // Q28 BroadcastNestedLoopJoin
+              // Q35 BroadcastHashJoin, ExistenceJoin
+              // Q45 BroadcastHashJoin, ExistenceJoin
+              // Q88 BroadcastNestedLoopJoin
+              // Q94 BroadcastHashJoin, LeftSemi, NOT condition
+              (false, false)
+            case j if (j == 38 || j == 87) =>
+              // Q38 and Q87 : Hash shuffle is not supported for expression in some case
+              if (isAqe) {
+                (true, true)
+              } else {
+                (false, true)
+              }
+            case other => (true, false)
+          }
+          sqlNums.map((_, noFallBack._1, noFallBack._2))
         })
 
   protected val excludedTpcdsQueries: Set[String] = Set(
@@ -81,7 +104,19 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q90" // inconsistent results(decimal)
   )
 
-  protected val independentTestTpcdsQueries: Set[String] = Set("q9", "q21")
+  def executeTPCDSTest(isAqe: Boolean): Unit = {
+    tpcdsAllQueries(isAqe).foreach(
+      s =>
+        if (excludedTpcdsQueries.contains(s._1)) {
+          ignore(s"TPCDS ${s._1.toUpperCase()}") {
+            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
+          }
+        } else {
+          test(s"TPCDS ${s._1.toUpperCase()}") {
+            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
+          }
+        })
+  }
 
   override def beforeAll(): Unit = {
     // prepare working paths
@@ -183,7 +218,9 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       queryNum: String,
       tpcdsQueries: String = tpcdsQueries,
       queriesResults: String = queriesResults,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true,
+      skipFallBackAssert: Boolean = false)(customCheck: DataFrame => Unit): Unit = {
 
     val sqlFile = tpcdsQueries + "/" + queryNum + ".sql"
     val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
@@ -207,7 +244,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           .collect()
       }
       checkAnswer(df, expectedAnswer)
+    } else {
+      df.collect()
     }
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack, skipFallBackAssert)
     customCheck(df)
   }
 }

@@ -243,14 +243,14 @@ class BenchmarkCompression {
         break;
       }
 #ifdef GLUTEN_ENABLE_QAT
-      case gluten::QAT_GZIP: {
+      case gluten::kQatGzip: {
         qat::EnsureQatCodecRegistered("gzip");
         GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::CUSTOM));
         break;
       }
 #endif
 #ifdef GLUTEN_ENABLE_IAA
-      case gluten::QPL_GZIP: {
+      case gluten::kQplGzip: {
         qpl::EnsureQplCodecRegistered("gzip");
         GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::CUSTOM));
         break;

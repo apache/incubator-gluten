@@ -36,9 +36,7 @@ public class CHBlockWriterJniWrapper {
     if (instance == 0) {
       instance = nativeCreateInstance();
     }
-    CHNativeBlock.fromColumnarBatch(columnarBatch).ifPresent(block -> {
-      nativeWrite(instance, block.blockAddress());
-    });
+    nativeWrite(instance, CHNativeBlock.fromColumnarBatch(columnarBatch).blockAddress());
   }
 
   public byte[] collectAsByteArray() {

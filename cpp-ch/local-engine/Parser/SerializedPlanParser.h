@@ -162,6 +162,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"min", "min"},
     {"max", "max"},
     {"collect_list", "groupArray"},
+    // In Spark, stddev is the alias for stddev_samp.
+    {"stddev", "stddev_samp"},
     {"stddev_samp", "stddev_samp"},
     {"stddev_pop", "stddev_pop"},
     {"bit_and", "groupBitAnd"},

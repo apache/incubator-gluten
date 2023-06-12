@@ -353,7 +353,11 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     // Validation: BatchScan Project Aggregate Sort Limit
     // TODO validate Expand operator support Struct type ?
     runQueryAndCompare("select int, struct.struct_1 from type1 " +
-      "sort by struct.struct_1 limit 1") { _ => }
+      "sort by struct.struct_1 limit 1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan =>
+        plan.find(child => child.isInstanceOf[ProjectExecTransformer]).isDefined))
+    }}
 
     // Validation: BroadHashJoin, Filter, Project
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
