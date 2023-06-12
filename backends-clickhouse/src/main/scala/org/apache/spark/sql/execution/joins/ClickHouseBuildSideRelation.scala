@@ -45,34 +45,46 @@ case class ClickHouseBuildSideRelation(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
   )
 
-  var hashTableData: Long = 0L
-
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
   override def asReadOnlyCopy(
-      broadCastContext: BroadCastHashJoinContext): ClickHouseBuildSideRelation = {
-    val allBatches = batches.flatten
-    logDebug(
-      s"BHJ value size: " +
-        s"${broadCastContext.buildHashTableId} = ${allBatches.size}")
-    val storageJoinBuilder = new StorageJoinBuilder(
-      new OnHeapCopyShuffleInputStream(
-        new ByteArrayInputStream(allBatches),
-        customizeBufferSize,
-        false),
-      broadCastContext,
-      customizeBufferSize,
-      output.asJava,
-      newBuildKeys.asJava
-    )
-    // Build the hash table
-    hashTableData = storageJoinBuilder.build()
-    storageJoinBuilder.close()
-    this
+      broadCastContext: BroadCastHashJoinContext): ClickHouseBuildSideRelation = this
+
+  private var hashTableData: Long = 0L
+  def buildHashTable(
+      broadCastContext: BroadCastHashJoinContext): (Long, ClickHouseBuildSideRelation) =
+    synchronized {
+      if (hashTableData == 0) {
+        val allBatches = batches.flatten
+        logDebug(
+          s"BHJ value size: " +
+            s"${broadCastContext.buildHashTableId} = ${allBatches.length}")
+        val storageJoinBuilder = new StorageJoinBuilder(
+          new OnHeapCopyShuffleInputStream(
+            new ByteArrayInputStream(allBatches),
+            customizeBufferSize,
+            false),
+          broadCastContext,
+          customizeBufferSize,
+          output.asJava,
+          newBuildKeys.asJava
+        )
+        // Build the hash table
+        hashTableData = storageJoinBuilder.build()
+        storageJoinBuilder.close()
+        (hashTableData, this)
+      } else {
+        (StorageJoinBuilder.nativeCloneBuildHashTable(hashTableData), null)
+      }
+    }
+
+  def reset(): Unit = synchronized {
+    hashTableData = 0
   }
 
   /**
-   * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
+   * Transform columnar broadcast value to Array[InternalRow] by key and distinct.
+   *
    * @return
    */
   override def transform(key: Expression): Array[InternalRow] = {
