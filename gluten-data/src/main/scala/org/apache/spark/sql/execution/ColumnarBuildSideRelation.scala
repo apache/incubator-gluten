@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.memory.TaskResources
 
 case class ColumnarBuildSideRelation(mode: BroadcastMode,
   output: Seq[Attribute],
@@ -51,93 +52,113 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
     val batchIter = ArrowUtil.convertFromNetty(output, batches)
+
     // Convert columnar to Row.
-    batchIter.flatMap(batch => {
-      if (batch.numRows == 0) {
-        Iterator.empty
-      } else if (this.output.isEmpty || (batch.numCols() > 0 &&
-        !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
-        !batch.column(0).isInstanceOf[IndicatorVector])) {
-        // Fallback to ColumnarToRow
-        val localOutput = this.output
-        val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-        val arrowBatch = ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-        arrowBatch.rowIterator().asScala.map(toUnsafe)
-      } else {
-        val jniWrapper = new NativeColumnarToRowJniWrapper()
-        val offloaded =
-          ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-        val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
-        val info: NativeColumnarToRowInfo = jniWrapper.nativeConvertColumnarToRow(
-          batchHandle,
-          NativeMemoryAllocators.contextInstance().getNativeInstanceId)
-
-        val columnNames = key.flatMap {
-          case expression: AttributeReference =>
-            Some(expression)
-          case _ =>
-            None
-        }
-        if (columnNames.isEmpty) {
-          throw new IllegalArgumentException(s"Key column not found in expression: $key")
-        }
-        if (columnNames.size != 1) {
-          throw new IllegalArgumentException(s"Multiple key columns found in expression: $key")
-        }
-        val columnExpr = columnNames.head
-
-        val columnInOutput = output.zipWithIndex.filter {
-          p: (Attribute, Int) =>
-            if (output.size == 1) {
-              p._1.name == columnExpr.name
-            } else {
-              // A case where output has multiple columns with same name
-              p._1.name == columnExpr.name && p._1.exprId == columnExpr.exprId
-            }
-        }
-        if (columnInOutput.isEmpty) {
-          throw new IllegalStateException(
-            s"Key $key not found from build side relation output: $output")
-        }
-        if (columnInOutput.size != 1) {
-          throw new IllegalStateException(
-            s"More than one key $key found from build side relation output: $output")
-        }
-        val replacement =
-          BoundReference(columnInOutput.head._2, columnExpr.dataType, columnExpr.nullable)
-
-        val projExpr = key.transformDown {
-          case _: AttributeReference =>
-            replacement
-        }
-
-        val proj = UnsafeProjection.create(projExpr)
-
-        new Iterator[InternalRow] {
-          var rowId = 0
-          val row = new UnsafeRow(batch.numCols())
-          var closed = false
-
-          override def hasNext: Boolean = {
-            val result = rowId < batch.numRows()
-            if (!result && !closed) {
-              jniWrapper.nativeClose(info.instanceID)
-              closed = true
-            }
-            result
+    val jniWrapper = new NativeColumnarToRowJniWrapper()
+    var c2rId = -1L
+    var closed = false
+    val iterator = if (batchIter.hasNext) {
+      val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
+        override def hasNext: Boolean = {
+          val itHasNext = batchIter.hasNext
+          if (!itHasNext && !closed) {
+            jniWrapper.nativeClose(c2rId)
+            closed = true
           }
+          itHasNext
+        }
 
-          override def next: UnsafeRow = {
-            if (rowId >= batch.numRows()) throw new NoSuchElementException
+        override def next(): Iterator[InternalRow] = {
+          val batch = batchIter.next()
 
-            val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-            row.pointTo(null, info.memoryAddress + offset, length.toInt)
-            rowId += 1
-            row
+          if (batch.numRows == 0) {
+            Iterator.empty
+          } else if (output.isEmpty || (batch.numCols() > 0 &&
+            !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
+            !batch.column(0).isInstanceOf[IndicatorVector])) {
+            // Fallback to ColumnarToRow
+            val localOutput = output
+            val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
+            val arrowBatch = ArrowColumnarBatches
+              .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+            arrowBatch.rowIterator().asScala.map(toUnsafe)
+          } else {
+            val offloaded =
+              ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
+            val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
+
+            if (c2rId == -1) {
+              c2rId = jniWrapper.nativeColumnarToRowInit(
+                batchHandle,
+                NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+            }
+            val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
+
+            val columnNames = key.flatMap {
+              case expression: AttributeReference =>
+                Some(expression)
+              case _ =>
+                None
+            }
+            if (columnNames.isEmpty) {
+              throw new IllegalArgumentException(s"Key column not found in expression: $key")
+            }
+            if (columnNames.size != 1) {
+              throw new IllegalArgumentException(s"Multiple key columns found in expression: $key")
+            }
+            val columnExpr = columnNames.head
+
+            val columnInOutput = output.zipWithIndex.filter {
+              p: (Attribute, Int) =>
+                if (output.size == 1) {
+                  p._1.name == columnExpr.name
+                } else {
+                  // A case where output has multiple columns with same name
+                  p._1.name == columnExpr.name && p._1.exprId == columnExpr.exprId
+                }
+            }
+            if (columnInOutput.isEmpty) {
+              throw new IllegalStateException(
+                s"Key $key not found from build side relation output: $output")
+            }
+            if (columnInOutput.size != 1) {
+              throw new IllegalStateException(
+                s"More than one key $key found from build side relation output: $output")
+            }
+            val replacement =
+              BoundReference(columnInOutput.head._2, columnExpr.dataType, columnExpr.nullable)
+
+            val projExpr = key.transformDown {
+              case _: AttributeReference =>
+                replacement
+            }
+
+            val proj = UnsafeProjection.create(projExpr)
+
+            new Iterator[InternalRow] {
+              var rowId = 0
+              val row = new UnsafeRow(batch.numCols())
+
+              override def hasNext: Boolean = {
+                rowId < batch.numRows()
+              }
+
+              override def next: UnsafeRow = {
+                if (rowId >= batch.numRows()) throw new NoSuchElementException
+
+                val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+                row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                rowId += 1
+                row
+              }
+            }.map(proj).map(_.copy())
           }
-        }.map(proj).map(_.copy())
+        }
       }
-    }).toArray
+      res.flatten
+    } else {
+      Iterator.empty
+    }
+    iterator.toArray
   }
 }

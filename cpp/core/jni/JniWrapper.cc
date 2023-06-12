@@ -524,15 +524,14 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator
   JNI_METHOD_END()
 }
 
-JNIEXPORT jobject JNICALL
-Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow( // NOLINT
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowInit( // NOLINT
     JNIEnv* env,
     jobject,
     jlong batchHandle,
     jlong allocatorId) {
   JNI_METHOD_START
   std::shared_ptr<ColumnarBatch> cb = glutenColumnarbatchHolder.lookup(batchHandle);
-  int64_t numRows = cb->getNumRows();
   // convert the record batch to spark unsafe row.
   auto* allocator = reinterpret_cast<MemoryAllocator*>(allocatorId);
   if (allocator == nullptr) {
@@ -541,16 +540,26 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   auto backend = gluten::createBackend();
   std::shared_ptr<ColumnarToRowConverter> columnarToRowConverter =
       gluten::jniGetOrThrow(backend->getColumnar2RowConverter(allocator, cb));
-  gluten::jniAssertOkOrThrow(
-      columnarToRowConverter->init(),
-      "Native convert columnar to row: Init "
-      "ColumnarToRowConverter failed");
-  gluten::jniAssertOkOrThrow(
-      columnarToRowConverter->write(), "Native convert columnar to row: ColumnarToRowConverter write failed");
+  int64_t instanceID = columnarToRowConverterHolder.insert(columnarToRowConverter);
+  return instanceID;
+  JNI_METHOD_END(-1)
+}
+
+JNIEXPORT jobject JNICALL
+Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowWrite( // NOLINT
+    JNIEnv* env,
+    jobject,
+    jlong batchHandle,
+    jlong instanceId) {
+  JNI_METHOD_START
+  auto columnarToRowConverter = columnarToRowConverterHolder.lookup(instanceId);
+  std::shared_ptr<ColumnarBatch> cb = glutenColumnarbatchHolder.lookup(batchHandle);
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
 
   const auto& offsets = columnarToRowConverter->getOffsets();
   const auto& lengths = columnarToRowConverter->getLengths();
-  int64_t instanceID = columnarToRowConverterHolder.insert(columnarToRowConverter);
+
+  auto numRows = cb->getNumRows();
 
   auto offsetsArr = env->NewIntArray(numRows);
   auto offsetsSrc = reinterpret_cast<const jint*>(offsets.data());
@@ -561,7 +570,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   long address = reinterpret_cast<long>(columnarToRowConverter->getBufferAddress());
 
   jobject nativeColumnarToRowInfo = env->NewObject(
-      nativeColumnarToRowInfoClass, nativeColumnarToRowInfoConstructor, instanceID, offsetsArr, lengthsArr, address);
+      nativeColumnarToRowInfoClass, nativeColumnarToRowInfoConstructor, instanceId, offsetsArr, lengthsArr, address);
   return nativeColumnarToRowInfo;
   JNI_METHOD_END(nullptr)
 }

@@ -50,10 +50,10 @@ object ExecUtil {
     val offloaded =
       ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
     val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
-    info = jniWrapper.nativeConvertColumnarToRow(
+    val instanceId = jniWrapper.nativeColumnarToRowInit(
       batchHandle,
       NativeMemoryAllocators.contextInstance().getNativeInstanceId)
-
+    info = jniWrapper.nativeColumnarToRowWrite(batchHandle, instanceId)
 
     new Iterator[InternalRow] {
       var rowId = 0

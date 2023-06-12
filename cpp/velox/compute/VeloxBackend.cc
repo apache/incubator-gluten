@@ -108,7 +108,7 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
     auto arrowPool = asWrappedArrowMemoryPool(allocator);
     auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
     auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
-    return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, ctxVeloxPool);
+    return std::make_shared<VeloxColumnarToRowConverter>(arrowPool, ctxVeloxPool);
   } else {
     return Backend::getColumnar2RowConverter(allocator, cb);
   }

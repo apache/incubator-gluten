@@ -23,14 +23,13 @@ namespace gluten {
 
 class ArrowColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
-  ArrowColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb, std::shared_ptr<arrow::MemoryPool> memoryPool)
-      : ColumnarToRowConverter(memoryPool), rb_(rb) {}
+  ArrowColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> memoryPool) : ColumnarToRowConverter(memoryPool) {}
 
-  arrow::Status init() override;
-
-  arrow::Status write() override;
+  arrow::Status write(std::shared_ptr<ColumnarBatch> cb) override;
 
  private:
+  arrow::Status init();
+
   arrow::Status fillBuffer(
       int32_t& rowStart,
       int32_t batchRows,
