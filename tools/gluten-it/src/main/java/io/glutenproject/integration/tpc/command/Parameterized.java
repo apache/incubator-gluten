@@ -39,6 +39,9 @@ public class Parameterized implements Callable<Integer> {
   @CommandLine.Option(names = {"--warmup-iterations"}, description = "Dry-run iterations before actually run the test", defaultValue = "0")
   private int warmupIterations;
 
+  @CommandLine.Option(names = {"-m", "--metric"}, description = "Specify a series of metrics to collect during execution")
+  private String[] metrics = new String[0];
+
   @CommandLine.Option(names = {"-d", "--dim"}, description = "Set a series of dimensions consisting of possible config options, example: -d=offheap->1g,spark.memory.offHeap.enabled=true,spark.memory.offHeap.size=1g")
   private String[] dims = new String[0];
 
@@ -100,7 +103,7 @@ public class Parameterized implements Callable<Integer> {
             )).collect(Collectors.toList())).asScala();
 
     io.glutenproject.integration.tpc.action.Parameterized parameterized =
-        new io.glutenproject.integration.tpc.action.Parameterized(dataGenMixin.getScale(), this.queries, iterations, warmupIterations, parsedDims);
+        new io.glutenproject.integration.tpc.action.Parameterized(dataGenMixin.getScale(), this.queries, iterations, warmupIterations, parsedDims, metrics);
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), parameterized));
   }
 }

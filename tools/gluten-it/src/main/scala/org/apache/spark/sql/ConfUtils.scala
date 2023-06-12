@@ -19,7 +19,7 @@ package org.apache.spark.sql
 
 import org.apache.spark.SparkConf
 
-object GlutenConfUtils {
+object ConfUtils {
   object ConfImplicits {
     // thread-safe
     implicit class SparkConfWrapper(conf: SparkConf) {

@@ -3,7 +3,7 @@ package io.glutenproject.integration.tpc.action
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
 
-import org.apache.spark.sql.{GlutenSparkSessionSwitcher, GlutenTestUtils}
+import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -163,25 +163,25 @@ object QueriesCompare {
   }
 
   private[tpc] def runTpcQuery(
-      id: String,
-      explain: Boolean,
-      desc: String,
-      sessionSwitcher: GlutenSparkSessionSwitcher,
-      runner: TpcRunner): TestResultLine = {
+                                id: String,
+                                explain: Boolean,
+                                desc: String,
+                                sessionSwitcher: SparkSessionSwitcher,
+                                runner: TpcRunner): TestResultLine = {
     println(s"Running query: $id...")
     try {
       val baseLineDesc = "Vanilla Spark %s %s".format(desc, id)
       sessionSwitcher.useSession("baseline", baseLineDesc)
       runner.createTables(sessionSwitcher.spark())
       val expected =
-        runner.runTpcQuery(sessionSwitcher.spark(), id, explain = explain, baseLineDesc)
+        runner.runTpcQuery(sessionSwitcher.spark(), baseLineDesc, id, explain = explain)
       val expectedRows = expected.rows
       val testDesc = "Gluten Spark %s %s".format(desc, id)
       sessionSwitcher.useSession("test", testDesc)
       runner.createTables(sessionSwitcher.spark())
-      val result = runner.runTpcQuery(sessionSwitcher.spark(), id, explain = explain, testDesc)
+      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = explain)
       val resultRows = result.rows
-      val error = GlutenTestUtils.compareAnswers(resultRows, expectedRows, sort = true)
+      val error = TestUtils.compareAnswers(resultRows, expectedRows, sort = true)
       // A list of query ids whose corresponding query results can differ because of order.
       val unorderedQueries = Seq("q65")
       if (error.isEmpty || unorderedQueries.contains(id)) {

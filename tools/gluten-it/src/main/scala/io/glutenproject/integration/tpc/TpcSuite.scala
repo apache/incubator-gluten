@@ -8,8 +8,8 @@ import org.apache.log4j.{Level, LogManager}
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
-import org.apache.spark.sql.GlutenSparkSessionSwitcher
-import org.apache.spark.sql.GlutenConfUtils.ConfImplicits._
+import org.apache.spark.sql.SparkSessionSwitcher
+import org.apache.spark.sql.ConfUtils.ConfImplicits._
 
 abstract class TpcSuite(
   private val actions: Array[Action],
@@ -32,14 +32,14 @@ abstract class TpcSuite(
   System.setProperty("spark.testing", "true")
   resetLogLevel()
 
-  private[tpc] val sessionSwitcher: GlutenSparkSessionSwitcher = new GlutenSparkSessionSwitcher(cpus, logLevel.toString)
+  private[tpc] val sessionSwitcher: SparkSessionSwitcher = new SparkSessionSwitcher(cpus, logLevel.toString)
 
   // define initial configs
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.sources.useV1SourceList", "")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.shuffle.partitions", s"$shufflePartitions")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.executor.heartbeatInterval", "3600000")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.executor.metrics.pollingInterval", "1")
+  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.executor.heartbeatInterval", "1s") // for keeping metrics updated
+  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.executor.metrics.pollingInterval", "0")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.timeout", "3601s")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.broadcastTimeout", "1800")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.io.preferDirectBufs", "false")

@@ -17,14 +17,14 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.GlutenConfUtils.ConfImplicits._
-import org.apache.spark.sql.GlutenSparkSessionSwitcher.NONE
+import org.apache.spark.sql.ConfUtils.ConfImplicits._
+import org.apache.spark.sql.SparkSessionSwitcher.NONE
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext}
 
-class GlutenSparkSessionSwitcher(val cpus: Int, val logLevel: String) extends AutoCloseable {
+class SparkSessionSwitcher(val cpus: Int, val logLevel: String) extends AutoCloseable {
   private val sessionMap: java.util.Map[SessionToken, SparkConf] =
     new java.util.HashMap[SessionToken, SparkConf]
 
@@ -43,7 +43,7 @@ class GlutenSparkSessionSwitcher(val cpus: Int, val logLevel: String) extends Au
     testDefaults.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
 
   private var _spark: SparkSession = _
-  private var _activeSessionDesc: SessionDesc = GlutenSparkSessionSwitcher.NONE
+  private var _activeSessionDesc: SessionDesc = SparkSessionSwitcher.NONE
 
   def defaultConf(): SparkConf = {
     testDefaults
@@ -131,6 +131,6 @@ case class SessionToken(name: String)
 
 case class SessionDesc(sessionToken: SessionToken, appName: String)
 
-object GlutenSparkSessionSwitcher {
+object SparkSessionSwitcher {
   val NONE: SessionDesc = SessionDesc(SessionToken("none"), "none")
 }

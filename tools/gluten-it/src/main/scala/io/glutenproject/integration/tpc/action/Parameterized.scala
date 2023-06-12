@@ -2,12 +2,11 @@ package io.glutenproject.integration.tpc.action
 
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
-
-import org.apache.spark.sql.GlutenConfUtils.ConfImplicits._
-import org.apache.spark.sql.GlutenSparkSessionSwitcher
-
+import org.apache.spark.sql.ConfUtils.ConfImplicits._
+import org.apache.spark.sql.SparkSessionSwitcher
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import scala.collection.immutable.Map
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -16,7 +15,8 @@ class Parameterized(
     queryIds: Array[String],
     iterations: Int,
     warmupIterations: Int,
-    configDimensions: Seq[Dim])
+    configDimensions: Seq[Dim],
+    metrics: Array[String])
   extends Action {
 
   private def validateDims(configDimensions: Seq[Dim]): Unit = {
@@ -115,12 +115,7 @@ class Parameterized(
             println(s"Running tests (iteration $iteration) with coordinate $coordinate...")
             runQueryIds.map {
               queryId =>
-                Parameterized.runTpcQuery(
-                  queryId,
-                  coordinate,
-                  tpcSuite.desc(),
-                  sessionSwitcher,
-                  runner)
+                Parameterized.runTpcQuery(runner, sessionSwitcher, queryId, coordinate, tpcSuite.desc(), metrics)
             }
         }.toList
         coordinateResults
@@ -147,7 +142,7 @@ class Parameterized(
     println("")
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
-    TestResultLines(dimNames, results.filter(_.succeed)).print()
+    TestResultLines(dimNames, metrics, results.filter(_.succeed)).print()
     println("")
 
     if (passedCount == count) {
@@ -156,7 +151,7 @@ class Parameterized(
     } else {
       println("Failed queries: ")
       println("")
-      TestResultLines(dimNames, results.filter(!_.succeed)).print()
+      TestResultLines(dimNames, metrics, results.filter(!_.succeed)).print()
       println("")
     }
 
@@ -177,19 +172,22 @@ case class TestResultLine(
     coordinate: Coordinate,
     rowCount: Option[Long],
     executionTimeMillis: Option[Long],
+    metrics: Map[String, Long],
     errorMessage: Option[String])
 
-case class TestResultLines(dimNames: Seq[String], lines: Iterable[TestResultLine]) {
+case class TestResultLines(dimNames: Seq[String], metricNames: Seq[String], lines: Iterable[TestResultLine]) {
   def print(): Unit = {
     var fmt = "|%15s|%15s"
-    val dimCount = dimNames.size
-    for (_ <- 0 until dimCount) {
+    for (_ <- dimNames.indices) {
       fmt = fmt + "|%20s"
     }
+    for (_ <- metricNames.indices) {
+      fmt = fmt + "|%35s"
+    }
     fmt = fmt + "|%30s|%30s|\n"
-
     val fields = ArrayBuffer[String]("Query ID", "Succeed")
     dimNames.foreach(dimName => fields.append(dimName))
+    metricNames.foreach(metricName => fields.append(metricName))
     fields.append("Row Count")
     fields.append("Query Time (Millis)")
     printf(fmt, fields: _*)
@@ -204,6 +202,14 @@ case class TestResultLines(dimNames: Seq[String], lines: Iterable[TestResultLine
             }
             values.append(coordinate(dimName))
         }
+        metricNames.foreach {
+          metricName =>
+            val metrics = line.metrics
+            if (!metrics.contains(metricName)) {
+              values.append("N/A")
+            }
+            values.append(metrics(metricName))
+        }
         values.append(line.rowCount.getOrElse("N/A"))
         values.append(line.executionTimeMillis.getOrElse("N/A"))
         printf(fmt, values: _*)
@@ -212,18 +218,13 @@ case class TestResultLines(dimNames: Seq[String], lines: Iterable[TestResultLine
 }
 
 object Parameterized {
-  private[tpc] def runTpcQuery(
-      id: String,
-      coordinate: Coordinate,
-      desc: String,
-      sessionSwitcher: GlutenSparkSessionSwitcher,
-      runner: TpcRunner): TestResultLine = {
+  private def runTpcQuery(runner: TpcRunner, sessionSwitcher: SparkSessionSwitcher, id: String, coordinate: Coordinate, desc: String, metrics: Array[String]) = {
     println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s %s".format(desc, id, coordinate)
       sessionSwitcher.useSession(coordinate.toString, testDesc)
       runner.createTables(sessionSwitcher.spark())
-      val result = runner.runTpcQuery(sessionSwitcher.spark(), id, explain = false, testDesc)
+      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = false, metrics)
       val resultRows = result.rows
       println(
         s"Successfully ran query $id. " +
@@ -234,6 +235,7 @@ object Parameterized {
         coordinate,
         Some(resultRows.length),
         Some(result.executionTimeMillis),
+        result.metrics,
         None)
     } catch {
       case e: Exception =>
@@ -241,21 +243,21 @@ object Parameterized {
         println(
           s"Error running query $id. " +
             s" Error: ${error.get}")
-        TestResultLine(id, succeed = false, coordinate, None, None, error)
+        TestResultLine(id, succeed = false, coordinate, None, None, Map.empty, error)
     }
   }
 
   private[tpc] def warmUp(
-      id: String,
-      desc: String,
-      sessionSwitcher: GlutenSparkSessionSwitcher,
-      runner: TpcRunner): Unit = {
+                           id: String,
+                           desc: String,
+                           sessionSwitcher: SparkSessionSwitcher,
+                           runner: TpcRunner): Unit = {
     println(s"Warming up: Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s warm up".format(desc, id)
       sessionSwitcher.useSession("test", testDesc)
       runner.createTables(sessionSwitcher.spark())
-      val result = runner.runTpcQuery(sessionSwitcher.spark(), id, explain = false, testDesc)
+      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = false)
       val resultRows = result.rows
       println(
         s"Warming up: Successfully ran query $id. " +
