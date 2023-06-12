@@ -24,7 +24,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation}
 
-import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine, RemovalCause, RemovalListener}
 
 import java.util.concurrent.TimeUnit
 
@@ -36,7 +36,7 @@ case class BroadcastHashTable(pointer: Long, relation: ClickHouseBuildSideRelati
  * The complicated part is due to reuse exchange, where multiple BHJ IDs correspond to a
  * `ClickHouseBuildSideRelation`.
  */
-object CHBroadcastBuildSideCache extends Logging {
+object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, BroadcastHashTable] {
 
   private def threadLog(msg: => String): Unit =
     logDebug(s"Thread: ${Thread.currentThread().getId} -- $msg")
@@ -49,12 +49,9 @@ object CHBroadcastBuildSideCache extends Logging {
   // Use for controlling to build bhj hash table once.
   // key: hashtable id, value is hashtable backend pointer(long to string).
   private val buildSideRelationCache: Cache[String, BroadcastHashTable] =
-    CacheBuilder.newBuilder
+    Caffeine.newBuilder
       .expireAfterAccess(expiredTime, TimeUnit.SECONDS)
-      .removalListener(
-        (notification: RemovalNotification[String, BroadcastHashTable]) => {
-          cleanBuildHashTable(notification.getKey, notification.getValue)
-        })
+      .removalListener(this)
       .build[String, BroadcastHashTable]()
 
   def getOrBuildBroadcastHashTable(
@@ -64,12 +61,12 @@ object CHBroadcastBuildSideCache extends Logging {
     buildSideRelationCache
       .get(
         broadCastContext.buildHashTableId,
-        () => {
+        (broadcast_id: String) => {
           val (pointer, relation) =
             broadcast.value
               .asInstanceOf[ClickHouseBuildSideRelation]
               .buildHashTable(broadCastContext)
-          threadLog(s"create bhj ${broadCastContext.buildHashTableId} = 0x${pointer.toHexString}")
+          threadLog(s"create bhj $broadcast_id = 0x${pointer.toHexString}")
           BroadcastHashTable(pointer, relation)
         }
       )
@@ -87,11 +84,11 @@ object CHBroadcastBuildSideCache extends Logging {
   }
 
   /** Only used in UT. */
-  def size(): Long = buildSideRelationCache.size()
+  def size(): Long = buildSideRelationCache.estimatedSize()
 
   def cleanAll(): Unit = buildSideRelationCache.invalidateAll()
 
-  private def cleanBuildHashTable(key: String, value: BroadcastHashTable): Unit = {
+  override def onRemoval(key: String, value: BroadcastHashTable, cause: RemovalCause): Unit = {
     threadLog(s"remove bhj $key = 0x${value.pointer.toHexString}")
     if (value.relation != null) {
       value.relation.reset()

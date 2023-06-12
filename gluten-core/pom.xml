@@ -25,6 +25,10 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.glutenproject</groupId>
       <artifactId>${sparkshim.artifactId}</artifactId>
       <version>${project.version}</version>

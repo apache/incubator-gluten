@@ -23,7 +23,7 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 
 import org.apache.spark.rpc.GlutenRpcMessages._
-import org.sparkproject.guava.cache.{Cache, CacheBuilder, RemovalNotification}
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine, RemovalCause, RemovalListener}
 
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
@@ -93,7 +93,7 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
   }
 }
 
-object GlutenDriverEndpoint extends Logging{
+object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Set[String]]{
   private lazy val executionResourceExpiredTime = SparkEnv.get.conf.getLong(
     GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME,
     GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT
@@ -109,25 +109,26 @@ object GlutenDriverEndpoint extends Logging{
   // We set a maximum expiration time of 1 day by default
   // key: executionId, value: resourceIds
   private val executionResourceRelation: Cache[String, util.Set[String]] =
-  CacheBuilder.newBuilder
+  Caffeine.newBuilder
     .expireAfterAccess(executionResourceExpiredTime, TimeUnit.SECONDS)
-    .removalListener((notification: RemovalNotification[String, util.Set[String]]) => {
-      executorDataMap.forEach(
-        (_, executor) =>
-          executor.executorEndpointRef.send(GlutenCleanExecutionResource(
-            notification.getKey, notification.getValue))
-      )
-    })
+    .removalListener(this)
     .build[String, util.Set[String]]()
 
   def collectResources(executionId: String, resourceId: String): Unit = {
     val resources = executionResourceRelation
-      .get(executionId, () => new util.HashSet[String]())
+      .get(executionId, (_: String) => new util.HashSet[String]())
     resources.add(resourceId)
   }
 
   def invalidateResourceRelation(executionId: String): Unit = {
     executionResourceRelation.invalidate(executionId)
+  }
+
+  override def onRemoval(key: String, value: util.Set[String], cause: RemovalCause): Unit = {
+    executorDataMap.forEach(
+      (_, executor) =>
+        executor.executorEndpointRef.send(GlutenCleanExecutionResource(key, value))
+    )
   }
 }
 
