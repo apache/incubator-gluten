@@ -1,9 +1,13 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO ccat3z/libhdfs3
+    REPO ClickHouse/libhdfs3
     HEAD_REF master
-    REF baebde6c4cee7c70efc97f45d323a3a0878f3593
-    SHA512 9a8b0d68895cd6b9f3d8b255b7238805fa9542d06237708ea394b88bdf8b961764bc0e7b176481f7040c675144cf88fd007070fbd6f867ea2503709ecf88662a
+    REF 164b89253fad7991bce77882f01b51ab81d19f3d
+    SHA512 147884e82afc5726e9eff383dc227ec5ff781c7b4c6ceec32bf3fff332e7e4e0304047282cc55de52b4e6cb082e958073f60add1be0b8f2792be753acc0d68d1
+    PATCHES
+        fix-yasm.patch
+        default-socket-path.patch
+        default-user.patch
 )
 
 vcpkg_configure_cmake(

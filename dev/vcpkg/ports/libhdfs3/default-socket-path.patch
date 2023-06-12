@@ -1,0 +1,19 @@
+commit 182d28f66d7f27844be61a147d42b35ced28a33c
+Author: Lingfeng Zhang <lingfeng.zhang@intel.com>
+Date:   Thu Jun 8 15:17:13 2023 +0000
+
+    Set default socket path
+
+diff --git a/src/common/SessionConfig.cpp b/src/common/SessionConfig.cpp
+index 005b224..c9c269e 100644
+--- a/src/common/SessionConfig.cpp
++++ b/src/common/SessionConfig.cpp
+@@ -146,7 +146,7 @@ SessionConfig::SessionConfig(const Config & conf) {
+         {&rpcAuthMethod, "hadoop.security.authentication", "simple" },
+         {&kerberosCachePath, "hadoop.security.kerberos.ticket.cache.path", "" },
+         {&logSeverity, "dfs.client.log.severity", "INFO" },
+-        {&domainSocketPath, "dfs.domain.socket.path", ""}
++        {&domainSocketPath, "dfs.domain.socket.path", "/var/lib/hadoop-hdfs/dn_socket"}
+     };
+ 
+     for (size_t i = 0; i < ARRAYSIZE(boolValues); ++i) {
