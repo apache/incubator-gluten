@@ -1,6 +1,6 @@
 {
   "name": "libdwarf",
-  "version": "0.6.0",
+  "version": "20210528",
   "dependencies": [
     {
       "name": "vcpkg-cmake",
@@ -9,6 +9,7 @@
     {
       "name": "vcpkg-cmake-config",
       "host": true
-    }
+    },
+    "libelf"
   ]
 }

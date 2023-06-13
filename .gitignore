@@ -20,6 +20,9 @@
 .bloop
 .metals
 
+# clangd
+.clangd
+
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
