@@ -152,6 +152,9 @@ function setup {
     echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
     exit 1
   fi
+
+  # Install patched libhdfs3
+  "$CURRENT_DIR"/setup_libhdfs3.sh
 }
 
 CURRENT_DIR=$(

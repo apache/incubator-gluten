@@ -1,0 +1,312 @@
+commit 182d28f66d7f27844be61a147d42b35ced28a33c
+Author: Lingfeng Zhang <lingfeng.zhang@intel.com>
+Date:   Thu Jun 8 15:17:13 2023 +0000
+
+    Set default socket path
+
+diff --git a/src/common/SessionConfig.cpp b/src/common/SessionConfig.cpp
+index 005b224..c9c269e 100644
+--- a/src/common/SessionConfig.cpp
++++ b/src/common/SessionConfig.cpp
+@@ -146,7 +146,7 @@ SessionConfig::SessionConfig(const Config & conf) {
+         {&rpcAuthMethod, "hadoop.security.authentication", "simple" },
+         {&kerberosCachePath, "hadoop.security.kerberos.ticket.cache.path", "" },
+         {&logSeverity, "dfs.client.log.severity", "INFO" },
+-        {&domainSocketPath, "dfs.domain.socket.path", ""}
++        {&domainSocketPath, "dfs.domain.socket.path", "/var/lib/hadoop-hdfs/dn_socket"}
+     };
+ 
+     for (size_t i = 0; i < ARRAYSIZE(boolValues); ++i) {
+commit 60df51beedf35e3f15a25920e1e34d052499aa6a
+Author: Lingfeng Zhang <lingfeng.zhang@intel.com>
+Date:   Thu Jun 8 06:24:57 2023 +0000
+
+    Support default user
+
+diff --git a/src/client/FileSystem.cpp b/src/client/FileSystem.cpp
+index 5995f6d..57dc2cb 100644
+--- a/src/client/FileSystem.cpp
++++ b/src/client/FileSystem.cpp
+@@ -37,6 +37,7 @@
+ #include "Token.h"
+ #include "Unordered.h"
+ #include "WritableUtils.h"
++#include "client/UserInfo.h"
+ 
+ #include <algorithm>
+ #include <string>
+@@ -258,19 +259,26 @@ void FileSystem::connect(const char * uri, const char * username, const char * t
+         if (auth == AuthMethod::KERBEROS) {
+             if (username) {
+                 principal = username;
+-                std::cerr << "principal passed to FileSystem::connect is " << principal << std::endl;
++            } else {
++                principal = UserInfo::DefaultUser().getPrincipal();
+             }
+ 
++            if (!principal.empty())
++                std::cerr << "principal passed to FileSystem::connect is "
++                          << principal << std::endl;
++
+             // principal = ExtractPrincipalFromTicketCache(sconf.getKerberosCachePath());
+             const std::string & cache_path = sconf.getKerberosCachePath();
+             std::cerr << "cache_path is " << cache_path << std::endl;
+ 
++#if WITH_KERBEROS
+             if (principal.empty()) {
+                 principal = ExtractPrincipalFromTicketCache(cache_path);
+                 std::cerr << "principal obtained via ExtractPrincipalFromTicketCache is " << principal << std::endl;
+             } else {
+                 SetKRB5CCNAME(cache_path);
+             }
++#endif
+         }
+ 
+         impl = ConnectInternal(uri, principal, NULL, conf);
+diff --git a/src/client/Hdfs.cpp b/src/client/Hdfs.cpp
+index 908a2ee..24302db 100644
+--- a/src/client/Hdfs.cpp
++++ b/src/client/Hdfs.cpp
+@@ -41,6 +41,8 @@
+ #include "SessionConfig.h"
+ #include "Thread.h"
+ #include "XmlConfig.h"
++#include "client/Token.h"
++#include "client/UserInfo.h"
+ 
+ #include <vector>
+ #include <string>
+@@ -1501,6 +1503,30 @@ void hdfsFreeFileBlockLocations(BlockLocation * locations, int numOfBlock) {
+     delete [] locations;
+ }
+ 
++void hdfsSetDefautUserName(const char *userName) {
++    assert(userName && strlen(userName) > 0);
++    // TODO: Clear the tokens of old user
++    UserInfo::DefaultUser().setEffectiveUser(userName);
++}
++
++int hdfsSetTokenForDefaultUser(const char *token) {
++    assert(token && strlen(token) > 0);
++
++    try {
++        Token tk;
++        tk.fromString(token);
++        UserInfo::DefaultUser().addToken(tk);
++        return 0;
++    } catch (const std::bad_alloc &e) {
++        errno = ENOMEM;
++    } catch (...) {
++        SetLastException(Hdfs::current_exception());
++        handleException(Hdfs::current_exception());
++    }
++
++    return -1;
++}
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/client/UserInfo.cpp b/src/client/UserInfo.cpp
+index 274353f..799e571 100644
+--- a/src/client/UserInfo.cpp
++++ b/src/client/UserInfo.cpp
+@@ -27,6 +27,8 @@
+  */
+ #include "UserInfo.h"
+ 
++#include <iostream>
++#include <mutex>
+ #include <pwd.h>
+ #include <sys/types.h>
+ #include <unistd.h>
+@@ -77,5 +79,26 @@ size_t UserInfo::hash_value() const {
+     return CombineHasher(values, sizeof(values) / sizeof(values[0]));
+ }
+ 
++UserInfo UserInfo::default_user;
++
++void AuthTokens::addToken(const Token &token) {
++    std::lock_guard<std::mutex> guard(mtx);
++
++    tokens[std::make_pair(token.getKind(), token.getService())] = token;
++}
++
++const Token *AuthTokens::selectToken(const std::string &kind,
++                                     const std::string &service) const {
++    std::lock_guard<std::mutex> guard(mtx);
++
++    std::map<std::pair<std::string, std::string>, Token>::const_iterator it;
++    it = tokens.find(std::make_pair(kind, service));
++
++    if (it == tokens.end()) {
++        return NULL;
++    }
++
++    return &it->second;
++}
+ }
+ }
+diff --git a/src/client/UserInfo.h b/src/client/UserInfo.h
+index 2778da9..8dc5674 100644
+--- a/src/client/UserInfo.h
++++ b/src/client/UserInfo.h
+@@ -29,6 +29,7 @@
+ #define _HDFS_LIBHDFS3_CLIENT_USERINFO_H_
+ 
+ #include <map>
++#include <mutex>
+ #include <string>
+ 
+ #include "Hash.h"
+@@ -39,6 +40,28 @@
+ 
+ namespace Hdfs {
+ namespace Internal {
++class AuthTokens {
++  public:
++    AuthTokens() {}
++    AuthTokens(const AuthTokens &other) { tokens = other.tokens; }
++    AuthTokens &operator=(const AuthTokens &other) {
++        tokens = other.tokens;
++        return *this;
++    }
++    AuthTokens(AuthTokens &&other) { tokens = std::move(other.tokens); }
++    AuthTokens &operator=(AuthTokens &&other) {
++        tokens = std::move(other.tokens);
++        return *this;
++    }
++
++    void addToken(const Token &token);
++    const Token *selectToken(const std::string &kind,
++                             const std::string &service) const;
++
++  private:
++    std::map<std::pair<std::string, std::string>, Token> tokens;
++    mutable std::mutex mtx;
++};
+ 
+ class UserInfo {
+ public:
+@@ -74,30 +97,30 @@ public:
+                && effectiveUser == other.effectiveUser;
+     }
+ 
+-    void addToken(const Token & token) {
+-        tokens[std::make_pair(token.getKind(), token.getService())] = token;
+-    }
++    void addToken(const Token &token) { tokens.addToken(token); }
+ 
+     const Token * selectToken(const std::string & kind, const std::string & service) const {
+-        std::map<std::pair<std::string, std::string>, Token>::const_iterator it;
+-        it = tokens.find(std::make_pair(kind, service));
++        auto private_token = tokens.selectToken(kind, service);
+ 
+-        if (it == tokens.end()) {
+-            return NULL;
+-        }
++        // HACK: Share tokens in default user instance
++        if (!private_token && effectiveUser == default_user.effectiveUser)
++            return default_user.tokens.selectToken(kind, service);
+ 
+-        return &it->second;
++        return private_token;
+     }
+ 
+     size_t hash_value() const;
+ 
+ public:
+     static UserInfo LocalUser();
++    static UserInfo &DefaultUser() { return default_user; };
+ 
+-private:
++  private:
+     KerberosName effectiveUser;
+-    std::map<std::pair<std::string, std::string>, Token> tokens;
++    AuthTokens tokens;
+     std::string realUser;
++
++    static UserInfo default_user;
+ };
+ 
+ }
+diff --git a/src/client/hdfs.h b/src/client/hdfs.h
+index fdeebce..dbfde3f 100644
+--- a/src/client/hdfs.h
++++ b/src/client/hdfs.h
+@@ -737,6 +737,21 @@ BlockLocation * hdfsGetFileBlockLocations(hdfsFS fs, const char * path,
+  */
+ void hdfsFreeFileBlockLocations(BlockLocation * locations, int numOfBlock);
+ 
++/**
++ * Set the default username to use when connecting to the HDFS cluster.
++ *
++ * @param userName The user name.  The string will be shallow-copied.
++ */
++void hdfsSetDefautUserName(const char *userName);
++
++/**
++ * Set the token used to authenticate for default user
++ *
++ * @param token The token used to authenticate
++ * @return 0 on success; nonzero error code otherwise.
++ */
++int hdfsSetTokenForDefaultUser(const char *token);
++
+ #ifdef __cplusplus
+ }
+ #endif
+commit 758221a7f9a17a3f33c53324a6396d528f5bdd26
+Author: Lingfeng Zhang <lingfeng.zhang@intel.com>
+Date:   Thu Jun 8 00:31:57 2023 +0000
+
+    Fix build for asm source
+
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 63104b1..29fa2d9 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -45,8 +45,21 @@ SET(HEADER
+     common/Exception.h
+     common/XmlConfig.h)
+ 
+-ADD_LIBRARY(libhdfs3-static STATIC ${libhdfs3_SOURCES} ${libhdfs3_PROTO_SOURCES} ${libhdfs3_PROTO_HEADERS})
+-ADD_LIBRARY(libhdfs3-shared SHARED ${libhdfs3_SOURCES} ${libhdfs3_PROTO_SOURCES} ${libhdfs3_PROTO_HEADERS})
++# ASM
++if(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64|x86_64")
++    find_program(YASM_PATH NAMES yasm)
++    if(NOT YASM_PATH)
++        message(FATAL_ERROR "Please install the Yasm assembler to build libhdfs3")
++    endif()
++    add_custom_command(
++        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crc_iscsi_v_pcl.o
++        COMMAND ${YASM_PATH} -f x64 -f elf64 -X gnu -g dwarf2 -D LINUX -o ${CMAKE_CURRENT_BINARY_DIR}/crc_iscsi_v_pcl.o ${libhdfs3_COMMON_SOURCES_DIR}/crc_iscsi_v_pcl.asm
++        COMMENT "Translating Intel CRC assembly to object code")
++    set(libhdfs3_ASM_OBJECTS ${CMAKE_CURRENT_BINARY_DIR}/crc_iscsi_v_pcl.o)
++endif()
++
++ADD_LIBRARY(libhdfs3-static STATIC ${libhdfs3_SOURCES} ${libhdfs3_PROTO_SOURCES} ${libhdfs3_PROTO_HEADERS} ${libhdfs3_ASM_OBJECTS})
++ADD_LIBRARY(libhdfs3-shared SHARED ${libhdfs3_SOURCES} ${libhdfs3_PROTO_SOURCES} ${libhdfs3_PROTO_HEADERS} ${libhdfs3_ASM_OBJECTS})
+ 
+ ADD_CUSTOM_COMMAND(
+     TARGET libhdfs3-shared libhdfs3-static
+
+commit baebde6c4cee7c70efc97f45d323a3a0878f3593
+Author: Lingfeng Zhang <lingfeng.zhang@intel.com>
+Date:   Sun Jun 11 06:03:31 2023 +0000
+
+    Log yasm path
+
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 29fa2d9..7707a50 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -50,6 +50,8 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64|x86_64")
+     find_program(YASM_PATH NAMES yasm)
+     if(NOT YASM_PATH)
+         message(FATAL_ERROR "Please install the Yasm assembler to build libhdfs3")
++    else()
++        message(STATUS "Found yasm: ${YASM_PATH}")
+     endif()
+     add_custom_command(
+         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crc_iscsi_v_pcl.o
