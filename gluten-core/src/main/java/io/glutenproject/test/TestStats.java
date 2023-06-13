@@ -25,9 +25,9 @@ import java.util.*;
  * It's not thread safe.
  */
 public class TestStats {
-    private static final String header_format =
+    private static final String HEADER_FORMAT =
             "<tr><th>%s</th><th colspan=5>%s</th></tr>";
-    private static final String row_format =
+    private static final String ROW_FORMAT =
             "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
 
     private static boolean UT_ENV = false;
@@ -74,7 +74,7 @@ public class TestStats {
 
         System.out.println(
                 String.format(
-                        header_format,
+                        HEADER_FORMAT,
                         title,
                         String.format(
                                 info,
@@ -85,7 +85,7 @@ public class TestStats {
 
         caseInfos.forEach((key, value) ->
                 System.out.println(String.format(
-                        row_format,
+                        ROW_FORMAT,
                         title, key,
                         value.status,
                         value.type,
