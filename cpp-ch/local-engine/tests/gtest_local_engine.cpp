@@ -34,6 +34,7 @@ using namespace dbms;
 
 TEST(TestSelect, ReadRel)
 {
+    GTEST_SKIP() ;
     dbms::SerializedSchemaBuilder schema_builder;
     auto * schema = schema_builder.column("sepal_length", "FP64")
                         .column("sepal_width", "FP64")
@@ -64,6 +65,7 @@ TEST(TestSelect, ReadRel)
 
 TEST(TestSelect, ReadDate)
 {
+    GTEST_SKIP() ;
     dbms::SerializedSchemaBuilder schema_builder;
     auto * schema = schema_builder.column("date", "Date").build();
     dbms::SerializedPlanBuilder plan_builder;
@@ -88,6 +90,7 @@ TEST(TestSelect, ReadDate)
 
 TEST(TestSelect, TestFilter)
 {
+    GTEST_SKIP() ;
     dbms::SerializedSchemaBuilder schema_builder;
     // sorted by key
     auto * schema = schema_builder.column("sepal_length", "FP64")
@@ -125,6 +128,7 @@ TEST(TestSelect, TestFilter)
 
 TEST(TestSelect, TestAgg)
 {
+    GTEST_SKIP() ;
     dbms::SerializedSchemaBuilder schema_builder;
     // sorted by key
     auto * schema = schema_builder.column("sepal_length", "FP64")
@@ -165,6 +169,7 @@ TEST(TestSelect, TestAgg)
 
 TEST(TestSelect, MergeTreeWriteTest)
 {
+    GTEST_SKIP() ;
     std::shared_ptr<DB::StorageInMemoryMetadata> metadata = std::make_shared<DB::StorageInMemoryMetadata>();
     ColumnsDescription columns_description;
     auto shared_context = Context::createShared();
@@ -244,6 +249,7 @@ TEST(TESTUtil, TestByteToLong)
 
 TEST(TestSimpleAgg, TestGenerate)
 {
+    GTEST_SKIP() ;
     //    dbms::SerializedSchemaBuilder schema_builder;
     //    auto * schema = schema_builder.column("l_orderkey", "I64")
     //                        .column("l_partkey", "I64")

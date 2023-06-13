@@ -32,10 +32,29 @@ if (NOT EXISTS "${CH_SOURCE_DIR}/utils/extern-local-engine/")
     execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/local-engine ${CH_SOURCE_DIR}/utils/extern-local-engine)
 endif ()
 
-execute_process(COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/local-engine -regex '.*\.\(c\|cpp\|h\)' -exec clang-format-15 --verbose -i --style=file -i {} \;)
+# execute_process(COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/local-engine -regex '.*\.\(c\|cpp\|h\)' -exec clang-format-15 --verbose -i --style=file -i {} \;)
 
 set(CH_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build")
+option(ENABLE_CPP_TEST "Build CPP Unit test" ON)
 
+if (ENABLE_CPP_TEST)
+add_custom_command(
+        USES_TERMINAL
+        COMMAND
+        bash -c
+        \"cmake -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DENABLE_PROTOBUF=ON
+        -DENABLE_TESTS=ON
+        -DENABLE_JEMALLOC=ON
+        -DENABLE_MULTITARGET_CODE=ON
+        -DENABLE_EXTERN_LOCAL_ENGINE=ON
+        -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
+        -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
+        cmake --build ${CH_BINARY_DIR} --target ch unit_tests_local_engine benchmark_local_engine\"
+        OUTPUT _build_ch)
+else()
 add_custom_command(
         USES_TERMINAL
         COMMAND
@@ -51,7 +70,7 @@ add_custom_command(
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
         cmake --build ${CH_BINARY_DIR} --target ch\"
-        OUTPUT _build_ch
-)
+        OUTPUT _build_ch)
+endif()
 
 add_custom_target(build_ch ALL DEPENDS _build_ch)
