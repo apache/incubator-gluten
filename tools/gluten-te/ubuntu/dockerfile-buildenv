@@ -14,7 +14,7 @@ COPY scripts/set-login-env.sh /usr/local/sbin/set-login-env
 ARG HTTP_PROXY_HOST
 ARG HTTP_PROXY_PORT
 
-# Sometimes ENV a=b won't work when the shell is not docker-default, thus we
+# Sometimes ENV a=b won't work when the shell is not docker-default, so we
 # use both two ways to set the variables
 ENV http_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
 ENV https_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
