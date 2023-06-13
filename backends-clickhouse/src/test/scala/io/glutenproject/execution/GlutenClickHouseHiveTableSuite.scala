@@ -495,6 +495,7 @@ class GlutenClickHouseHiveTableSuite()
       s"""
          | select * from $txt_table_name_tab_delimiter where int_field > 0
          |""".stripMargin
+    
     compareResultsAgainstVanillaSpark(
       sql1,
       true,
