@@ -50,10 +50,10 @@ object ExecUtil {
     val offloaded =
       ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
     val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
-    info = jniWrapper.nativeConvertColumnarToRow(
+    val instanceId = jniWrapper.nativeColumnarToRowInit(
       batchHandle,
       NativeMemoryAllocators.contextInstance().getNativeInstanceId)
-
+    info = jniWrapper.nativeColumnarToRowWrite(batchHandle, instanceId)
 
     new Iterator[InternalRow] {
       var rowId = 0
@@ -62,7 +62,7 @@ object ExecUtil {
 
       TaskResources.addRecycler(100) {
         if (!closed) {
-          jniWrapper.nativeClose(info.instanceID)
+          jniWrapper.nativeClose(instanceId)
           closed = true
         }
       }
@@ -70,7 +70,7 @@ object ExecUtil {
       override def hasNext: Boolean = {
         val result = rowId < batch.numRows()
         if (!result && !closed) {
-          jniWrapper.nativeClose(info.instanceID)
+          jniWrapper.nativeClose(instanceId)
           closed = true
         }
         result

@@ -26,11 +26,13 @@
 #include "ArrowTypeUtils.h"
 #include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
+#include "memory/VeloxColumnarBatch.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowSerializers.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
+using arrow::MemoryPool;
 
 namespace gluten {
 
@@ -47,6 +49,7 @@ arrow::Status VeloxColumnarToRowConverter::init() {
   schema_ = schema;
 
   // The input is Arrow batch. We need to resume Velox Vector here.
+  vecs_.clear();
   resumeVeloxVector();
 
   // Calculate the initial size
@@ -54,6 +57,10 @@ arrow::Status VeloxColumnarToRowConverter::init() {
   int64_t fixedSizePerRow = calculatedFixeSizePerRow(schema_, numCols_);
 
   // Initialize the offsets_ , lengths_, buffer_cursor_
+  lengths_.clear();
+  offsets_.clear();
+  bufferCursor_.clear();
+
   lengths_.resize(numRows_, fixedSizePerRow);
   offsets_.resize(numRows_, 0);
   bufferCursor_.resize(numRows_, nullBitsetWidthInBytes_ + 8 * numCols_);
@@ -78,7 +85,13 @@ arrow::Status VeloxColumnarToRowConverter::init() {
     totalMemorySize += lengths_[rowIdx];
   }
 
-  ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(totalMemorySize, arrowPool_.get()));
+  if (buffer_ == nullptr) {
+    // First allocate memory
+    ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(totalMemorySize * 1.2, arrowPool_.get()));
+  } else if (buffer_->capacity() < totalMemorySize) {
+    ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(totalMemorySize * 1.2, arrowPool_.get()));
+  }
+
   bufferAddress_ = buffer_->mutable_data();
   memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
   return arrow::Status::OK();
@@ -91,7 +104,10 @@ void VeloxColumnarToRowConverter::resumeVeloxVector() {
   }
 }
 
-arrow::Status VeloxColumnarToRowConverter::write() {
+arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> cb) {
+  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+  rv_ = veloxBatch->getFlattenedRowVector();
+  RETURN_NOT_OK(init());
   for (int col_idx = 0; col_idx < numCols_; col_idx++) {
     auto vec = vecs_[col_idx];
     bool mayHaveNulls = vec->mayHaveNulls();
