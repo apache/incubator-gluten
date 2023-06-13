@@ -54,8 +54,9 @@ SubstraitFileSource::SubstraitFileSource(
      * independent field columns recursively, and fold the field columns back into struct columns
      * at the end.
      */
-    to_read_header = BlockUtil::flattenBlock(output_header, BlockUtil::FLAT_STRUCT, true);
-    flatten_output_header = to_read_header;
+    flatten_output_header = BlockUtil::flattenBlock(output_header, BlockUtil::FLAT_STRUCT, true);
+
+    to_read_header = flatten_output_header;
     if (file_infos.items_size())
     {
         Poco::URI file_uri(file_infos.items().Get(0).uri_file());
@@ -86,14 +87,15 @@ DB::Chunk SubstraitFileSource::generate()
             /// all files finished
             return {};
         }
+
         DB::Chunk chunk;
         if (file_reader->pull(chunk))
         {
             if (output_header.columns())
             {
-                auto result_block = foldFlattenColumns(chunk.detachColumns(), output_header);
-                auto cols = result_block.getColumns();
-                return DB::Chunk(cols, result_block.rows());
+                auto block = foldFlattenColumns(chunk.detachColumns(), output_header);
+                auto columns = block.getColumns();
+                return DB::Chunk(columns, block.rows());
             }
             else
             {
@@ -125,22 +127,22 @@ bool SubstraitFileSource::tryPrepareReader()
         file_reader = std::make_unique<EmptyFileReader>(current_file);
         return true;
     }
+
     if (!to_read_header.columns())
     {
         auto total_rows = current_file->getTotalRows();
         if (total_rows)
         {
-            file_reader = std::make_unique<ConstColumnsFileReader>(current_file, context, output_header, *total_rows);
+            file_reader = std::make_unique<ConstColumnsFileReader>(current_file, context, flatten_output_header, *total_rows);
         }
         else
         {
-            /// TODO: It may be a text format file that we do not have the stat metadata, e.g. total rows.
-            /// If we can get the file's schema, we can try to read all columns out. maybe consider make this
-            /// scan action fallback into spark
-            throw DB::Exception(
-                DB::ErrorCodes::LOGICAL_ERROR,
-                "All columns to read is partition columns, but this file({}) doesn't support this case.",
-                current_file->getURIPath());
+            /// For text/json format file, we can't get total rows from file metadata.
+            /// So we add a dummy column to indicate the number of rows.
+            auto dummy_header = BlockUtil::buildRowCountHeader();
+            auto flatten_output_header_contains_dummy = flatten_output_header;
+            flatten_output_header_contains_dummy.insertUnique(dummy_header.getByPosition(0));
+            file_reader = std::make_unique<NormalFileReader>(current_file, context, dummy_header, flatten_output_header_contains_dummy);
         }
     }
     else
@@ -304,6 +306,7 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
 {
     if (!remained_rows) [[unlikely]]
         return false;
+
     size_t to_read_rows = 0;
     if (remained_rows < block_size)
     {
@@ -360,19 +363,17 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
     DB::Chunk tmp_chunk;
     auto status = reader->pull(tmp_chunk);
     if (!status)
-    {
         return false;
-    }
 
     size_t rows = tmp_chunk.getNumRows();
     if (!rows)
         return false;
 
     auto read_columns = tmp_chunk.detachColumns();
-    DB::Columns res_columns;
     auto columns_with_name_and_type = output_header.getColumnsWithTypeAndName();
     auto partition_values = file->getFilePartitionValues();
 
+    DB::Columns res_columns;
     for (auto & column : columns_with_name_and_type)
     {
         if (to_read_header.has(column.name))
@@ -391,6 +392,7 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
             res_columns.push_back(createColumn(it->second, column.type, rows));
         }
     }
+
     chunk = DB::Chunk(std::move(res_columns), rows);
     return true;
 }
