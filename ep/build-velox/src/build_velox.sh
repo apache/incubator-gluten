@@ -153,8 +153,10 @@ function setup {
     exit 1
   fi
 
-  # Install patched libhdfs3
-  "$CURRENT_DIR"/setup_libhdfs3.sh
+  if [ $ENABLE_HDFS == "ON" ]; then
+    # Install patched libhdfs3
+    "$CURRENT_DIR"/setup_libhdfs3.sh
+  fi
 }
 
 CURRENT_DIR=$(
