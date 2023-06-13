@@ -47,7 +47,7 @@ RUN ccache -M 128G
 RUN ccache -s
 
 # Default Gluten Maven build options (empty as of now)
-ENV GLUTEN_MAVEN_OPTIONS=""
+RUN echo "export GLUTEN_MAVEN_OPTIONS=" >> /etc/profile.d/99-gluten.sh
 
 ARG BUILD_BACKEND_TYPE
 
