@@ -30,16 +30,15 @@ import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, DynamicPruningExpression, Expression}
 import org.apache.spark.sql.connector.read.{InputPartition, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, DataSourceStrategy}
+import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, DataSourceStrategy, GlutenTextBasedScanWrapper}
 import org.apache.spark.sql.execution.datasources.v2.FileScan
-import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
-import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.execution.HiveTableScanExec
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
+import org.apache.spark.sql.execution.datasources.v2.text.TextScan
+import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 
 import scala.collection.JavaConverters
 import scala.collection.mutable.ArrayBuffer
@@ -71,6 +70,10 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
     val inputPaths = scan match {
       case Some(fileScan) => fileScan.fileIndex.inputFiles.toSeq
       case _ => Seq.empty
+      case Some(f) =>
+        f.fileIndex.inputFiles.toSeq
+      case _ =>
+        Seq.empty
     }
     inputPaths
   }
@@ -139,13 +142,11 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
         } else hasComplexType
         outputFieldTypes.append(StructField(x.name, x.dataType, x.nullable))
       })
-
     tableMeta.storage.inputFormat match {
       case Some("org.apache.hadoop.mapred.TextInputFormat") =>
         tableMeta.storage.serde match {
           case Some("org.openx.data.jsonserde.JsonSerDe") =>
-            Some(
-              JsonScan(
+            val scan = JsonScan(
                 session,
                 fileIndex,
                 tableMeta.schema,
@@ -154,8 +155,8 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
                 new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
                 Array.empty,
                 partitionPruningPred,
-                Seq.empty
-              ))
+                Seq.empty)
+            Option.apply(GlutenTextBasedScanWrapper.wrap(scan, tableMeta.dataSchema))
           case _ =>
             val scan = SparkShimLoader.getSparkShims.getTextScan(
               session,
@@ -165,10 +166,9 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
               tableMeta.partitionSchema,
               new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
               partitionPruningPred,
-              Seq.empty
-            )
+              Seq.empty)
             if (!hasComplexType) {
-              Some(scan)
+              Some(GlutenTextBasedScanWrapper.wrap(scan, tableMeta.dataSchema))
             } else {
               None
             }
@@ -179,8 +179,8 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
 
   def createDefaultTextOption(): Map[String, String] = {
     var options: Map[String, String] = Map()
-    options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
-    options += ("nullValue" -> NULL_VALUE.toString)
+    options += ("field_delimiter" -> HiveTableScanExecTransformer.DEFAULT_FIELD_DELIMITER.toString)
+    options += ("nullValue" -> HiveTableScanExecTransformer.NULL_VALUE.toString)
     options
   }
 
@@ -189,7 +189,9 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
     if (
       transformCtx.root != null
         && transformCtx.root.isInstanceOf[ReadRelNode]
-        && scan.isDefined && scan.get.isInstanceOf[TextScan]
+        && scan.isDefined
+        && scan.get.isInstanceOf[GlutenTextBasedScanWrapper]
+        && scan.get.asInstanceOf[GlutenTextBasedScanWrapper].getScan.isInstanceOf[TextScan]
     ) {
       val properties = relation.tableMeta.storage.properties ++ relation.tableMeta.properties
       var options: Map[String, String] = createDefaultTextOption()
