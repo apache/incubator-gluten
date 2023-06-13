@@ -113,9 +113,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("Map Concat")
     .exclude("Shuffle")
-  enableSuite[GlutenComplexTypeSuite]
-    .exclude("CreateMap")
-    .exclude("MapFromArrays")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
