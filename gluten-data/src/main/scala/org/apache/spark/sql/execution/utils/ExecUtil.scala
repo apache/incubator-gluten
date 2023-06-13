@@ -62,7 +62,7 @@ object ExecUtil {
 
       TaskResources.addRecycler(100) {
         if (!closed) {
-          jniWrapper.nativeClose(info.instanceID)
+          jniWrapper.nativeClose(instanceId)
           closed = true
         }
       }
@@ -70,7 +70,7 @@ object ExecUtil {
       override def hasNext: Boolean = {
         val result = rowId < batch.numRows()
         if (!result && !closed) {
-          jniWrapper.nativeClose(info.instanceID)
+          jniWrapper.nativeClose(instanceId)
           closed = true
         }
         result
