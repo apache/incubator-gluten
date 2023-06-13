@@ -166,14 +166,14 @@ RowVectorPtr deserialize(
   auto childTypes = type->as<TypeKind::ROW>().children();
   readColumns(buffers, pool, numRows, childTypes, children);
   auto des = std::make_shared<RowVector>(pool, type, BufferPtr(nullptr), numRows, children);
-  {
-    // try copy
-    std::cout << "copy the velox row vector" << std::endl;
-    auto cb = std::make_shared<VeloxColumnarBatch>(des);
-    cb->getFlattenedRowVector();
-    std::cout << cb->getNumColumns() << std::endl;
-    std::cout << "copy the velox row vector end" << std::endl;
-  }
+  // {
+  //   // try copy
+  //   std::cout << "copy the velox row vector" << std::endl;
+  //   auto cb = std::make_shared<VeloxColumnarBatch>(des);
+  //   cb->getFlattenedRowVector();
+  //   std::cout << cb->getNumColumns() << std::endl;
+  //   std::cout << "copy the velox row vector end" << std::endl;
+  // }
   return des;
 }
 
