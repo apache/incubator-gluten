@@ -26,10 +26,6 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 
 class ClickHouseTestSettings extends BackendTestSettings {
-  /*
-  ExpressionSuite
-   */
-  enableSuite[GlutenDecimalExpressionSuite]
 
   /**
    * Enable All expression UT.
