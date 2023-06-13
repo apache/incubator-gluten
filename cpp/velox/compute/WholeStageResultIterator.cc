@@ -260,7 +260,6 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
 
 WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
-    std::shared_ptr<velox::memory::MemoryPool> resultLeafPool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& scanNodeIds,
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
@@ -268,7 +267,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, resultLeafPool, planNode, confMap),
+    : WholeStageResultIterator(pool, planNode, confMap),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -379,13 +378,12 @@ WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::st
 
 WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
-    std::shared_ptr<velox::memory::MemoryPool> resultLeafPool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, resultLeafPool, planNode, confMap), streamIds_(streamIds) {
+    : WholeStageResultIterator(pool, planNode, confMap), streamIds_(streamIds) {
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
