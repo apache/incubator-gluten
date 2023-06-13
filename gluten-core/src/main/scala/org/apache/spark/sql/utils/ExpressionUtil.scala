@@ -14,39 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.util
+package org.apache.spark.sql.utils
 
+import io.glutenproject.extension.{DefaultExpressionExtensionTransformer, ExpressionExtensionTrait}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.util.Utils
 
-object SparkUtil extends Logging {
+object ExpressionUtil extends Logging {
 
   /**
-   * Add the extended pre/post column rules
+   * Generate the extended expression transformer by conf
    */
-  def extendedColumnarRules(
-    session: SparkSession,
-    conf: String
-    ): List[SparkSession => Rule[SparkPlan]] = {
-    val extendedRules = conf.split(",").filter(!_.isEmpty)
-    extendedRules.map { ruleStr =>
+  def extendedExpressionTransformer(
+    extendedExpressionTransformer: String
+    ): ExpressionExtensionTrait = {
+    if (extendedExpressionTransformer.isEmpty) {
+      DefaultExpressionExtensionTransformer()
+    } else {
       try {
-        val extensionConfClass = Utils.classForName(ruleStr)
-        val extensionConf =
-          extensionConfClass.getConstructor(classOf[SparkSession]).newInstance(session)
-            .asInstanceOf[Rule[SparkPlan]]
-
-        Some((sparkSession: SparkSession) => extensionConf)
+        val extensionConfClass = Utils.classForName(extendedExpressionTransformer)
+        extensionConfClass.getConstructor().newInstance()
+          .asInstanceOf[ExpressionExtensionTrait]
       } catch {
         // Ignore the error if we cannot find the class or when the class has the wrong type.
         case e@(_: ClassCastException |
                 _: ClassNotFoundException |
                 _: NoClassDefFoundError) =>
-          logWarning(s"Cannot create extended rule $ruleStr", e)
-        None
+          logWarning(
+            s"Cannot create extended expression transformer $extendedExpressionTransformer", e)
+          DefaultExpressionExtensionTransformer()
       }
-    }.filter(!_.isEmpty).map(_.get).toList
+    }
   }
 }
