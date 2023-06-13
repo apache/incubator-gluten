@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
@@ -65,10 +66,13 @@ object ColumnarRules {
         c2r // AdaptiveSparkPlanExec.scala:536
       case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
-      case ColumnarToRowExec(child) if child.isInstanceOf[GlutenPlan] =>
-        ColumnarToRowExec(LoadArrowData(child))
-      case c2r@ColumnarToRowExec(_) =>
-        c2r
+      case c2r@ColumnarToRowExec(child) =>
+        child match {
+          case _: BatchScanExec | _: FileSourceScanExec if !child.isInstanceOf[GlutenPlan] =>
+            c2r
+          case _ =>
+            ColumnarToRowExec(LoadArrowData(child))
+        }
     }
   }
 }

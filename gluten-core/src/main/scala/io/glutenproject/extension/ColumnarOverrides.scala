@@ -608,7 +608,12 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
     case plan: ColumnarToRowExec =>
-      transformColumnarToRowExec(plan)
+      plan.child match {
+        case _: BatchScanExec | _: FileSourceScanExec =>
+          plan
+        case _ =>
+          transformColumnarToRowExec(plan)
+      }
     case r: SparkPlan
       if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar &&
         r.children.exists(_.isInstanceOf[ColumnarToRowExec]) =>

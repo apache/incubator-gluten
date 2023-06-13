@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, CartesianProductExec, SortMergeJoinExec}
