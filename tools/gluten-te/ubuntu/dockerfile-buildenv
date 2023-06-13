@@ -108,4 +108,4 @@ RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 
 # Prepare entry command
 COPY scripts/cmd.sh /root/.cmd.sh
-CMD ["bash", "/root/.cmd.sh"]
+CMD ["/root/.cmd.sh"]
