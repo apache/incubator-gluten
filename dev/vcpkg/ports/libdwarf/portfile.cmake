@@ -1,9 +1,8 @@
 vcpkg_download_distfile(ARCHIVE
     URLS
-        "https://github.com/davea42/libdwarf-code/releases/download/v0.6.0/libdwarf-0.6.0.tar.xz"
-        "https://www.prevanders.net/libdwarf-0.6.0.tar.xz"
-    FILENAME "libdwarf-0.6.0.tar.xz"
-    SHA512 839ba5e4162630ad804d76bd2aa86f35780a178dcda110106a5ee4fb27807fdf45f12e8bbb399ff53721121d0169a73335898f94218a1853116bb106dd455950
+        "https://github.com/davea42/libdwarf-code/archive/refs/tags/20210528.tar.gz"
+    FILENAME "libdwarf-20210528.tar.xz"
+    SHA512 99f39e34d4ad9a658a4c181a3e0211b4362bebe758b81297426c37b262b8480619da03e2db2472610febe8da67edf6636e04f77632792534d05d3e1edd4c89a5
 )
 
 vcpkg_extract_source_archive_ex(
@@ -11,10 +10,10 @@ vcpkg_extract_source_archive_ex(
     ARCHIVE "${ARCHIVE}"
 )
 
-vcpkg_cmake_configure(SOURCE_PATH "${SOURCE_PATH}")
+vcpkg_configure_make(SOURCE_PATH ${SOURCE_PATH} AUTOCONFIG)
+vcpkg_install_make()
 
-vcpkg_cmake_install()
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
-vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/libdwarf)
+file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/COPYING")
 vcpkg_fixup_pkgconfig()

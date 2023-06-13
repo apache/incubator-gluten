@@ -2,14 +2,14 @@ package io.glutenproject.integration.tpc
 
 import java.sql.Date
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenTypeUtils
+import org.apache.spark.sql.TypeUtils
 import org.apache.spark.sql.types.{DateType, DecimalType, DoubleType, IntegerType, LongType, StringType}
 
 object Constants {
 
-  val VANILLA_CONF: SparkConf = new SparkConf()
+  val VANILLA_CONF: SparkConf = new SparkConf(false)
 
-  val VELOX_CONF: SparkConf = new SparkConf()
+  val VELOX_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
@@ -18,7 +18,7 @@ object Constants {
     .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
 
-  val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf()
+  val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
@@ -36,7 +36,7 @@ object Constants {
 
   @deprecated
   val TYPE_MODIFIER_DATE_AS_DOUBLE: TypeModifier = new TypeModifier(
-    GlutenTypeUtils.typeAccepts(_, DateType), DoubleType) {
+    TypeUtils.typeAccepts(_, DateType), DoubleType) {
     override def modValue(from: Any): Any = {
       from match {
         case v: Date => v.getTime.asInstanceOf[Double] / 86400.0D / 1000.0D
@@ -46,7 +46,7 @@ object Constants {
 
   @deprecated
   val TYPE_MODIFIER_INTEGER_AS_DOUBLE: TypeModifier = new TypeModifier(
-    GlutenTypeUtils.typeAccepts(_, IntegerType), DoubleType) {
+    TypeUtils.typeAccepts(_, IntegerType), DoubleType) {
     override def modValue(from: Any): Any = {
       from match {
         case v: Int => v.asInstanceOf[Double]
@@ -56,7 +56,7 @@ object Constants {
 
   @deprecated
   val TYPE_MODIFIER_LONG_AS_DOUBLE: TypeModifier = new TypeModifier(
-    GlutenTypeUtils.typeAccepts(_, LongType), DoubleType) {
+    TypeUtils.typeAccepts(_, LongType), DoubleType) {
     override def modValue(from: Any): Any = {
       from match {
         case v: Long => v.asInstanceOf[Double]
@@ -66,7 +66,7 @@ object Constants {
 
   @deprecated
   val TYPE_MODIFIER_DATE_AS_STRING: TypeModifier = new TypeModifier(
-    GlutenTypeUtils.typeAccepts(_, DateType), StringType) {
+    TypeUtils.typeAccepts(_, DateType), StringType) {
     override def modValue(from: Any): Any = {
       from match {
         case v: Date => v.toString
@@ -76,7 +76,7 @@ object Constants {
 
   @deprecated
   val TYPE_MODIFIER_DECIMAL_AS_DOUBLE: TypeModifier = new TypeModifier(
-    GlutenTypeUtils.decimalAccepts, DoubleType) {
+    TypeUtils.decimalAccepts, DoubleType) {
     override def modValue(from: Any): Any = {
       from match {
         case v: java.math.BigDecimal => v.doubleValue()

@@ -3,8 +3,6 @@ ARG DOCKER_TARGET_IMAGE_BUILD_WITH_OS_IMAGE
 FROM $DOCKER_TARGET_IMAGE_BUILD_WITH_OS_IMAGE AS gluten-tpc
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
-SHELL ["/bin/bash", "-c"]
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ssh net-tools vim unzip libjemalloc-dev
 
 ARG BUILD_BACKEND_TYPE

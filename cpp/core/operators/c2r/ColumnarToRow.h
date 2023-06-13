@@ -24,6 +24,7 @@
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 #include <arrow/util/bit_util.h>
+#include "memory/ColumnarBatch.h"
 
 #include <boost/align.hpp>
 
@@ -35,8 +36,7 @@ class ColumnarToRowConverter {
 
   virtual ~ColumnarToRowConverter() = default;
 
-  virtual arrow::Status init() = 0;
-  virtual arrow::Status write() = 0;
+  virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb = nullptr) = 0;
 
   uint8_t* getBufferAddress() {
     return bufferAddress_;

@@ -79,13 +79,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) {
     auto memoryPool = asWrappedArrowMemoryPool(allocator);
-    std::shared_ptr<ArrowSchema> cSchema = cb->exportArrowSchema();
-    std::shared_ptr<ArrowArray> cArray = cb->exportArrowArray();
-    ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(cArray.get(), cSchema.get()));
-    ArrowSchemaRelease(cSchema.get());
-    ArrowArrayRelease(cArray.get());
-    return std::make_shared<ArrowColumnarToRowConverter>(rb, memoryPool);
+    return std::make_shared<ArrowColumnarToRowConverter>(memoryPool);
   }
 
   virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(

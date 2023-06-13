@@ -10,4 +10,4 @@ export EXTRA_DOCKER_OPTIONS="--name buildhere-veloxbe-dev-$TIMESTAMP --detach -v
 export PRESERVE_CONTAINER=ON
 
 $BASEDIR/../../cbash.sh 'bash /root/.cmd.sh'
-docker exec buildhere-veloxbe-dev-$TIMESTAMP bash -c '/opt/scripts/all.sh'
+docker exec buildhere-veloxbe-dev-$TIMESTAMP '/opt/scripts/all.sh'

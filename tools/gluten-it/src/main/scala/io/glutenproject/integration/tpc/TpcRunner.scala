@@ -17,12 +17,10 @@
 
 package io.glutenproject.integration.tpc
 
-import com.google.common.base.Preconditions
 import org.apache.commons.io.FileUtils
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.{QueryRunner, RunResult, SparkSession}
 
-import java.io.{ByteArrayOutputStream, File}
-import java.nio.charset.StandardCharsets
+import java.io.File
 
 class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
 
@@ -30,19 +28,9 @@ class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
     TpcRunner.createTables(spark, dataPath)
   }
 
-  def runTpcQuery(spark: SparkSession, caseId: String, explain: Boolean = false, desc: String): RunResult = {
-    spark.sparkContext.setJobDescription(desc)
-    val path = "%s/%s.sql".format(queryResourceFolder, caseId);
-    println(s"Executing SQL query from resource path $path...")
-    val sql = TpcRunner.resourceToString(path)
-    val prev = System.nanoTime()
-    val df = spark.sql(sql)
-    if (explain) {
-      df.explain(extended = true)
-    }
-    val rows = df.collect()
-    val millis = (System.nanoTime() - prev) / 1000000L
-    RunResult(rows, millis)
+  def runTpcQuery(spark: SparkSession, desc: String, caseId: String, explain: Boolean = false, metrics: Array[String] = Array()): RunResult = {
+    val path = "%s/%s.sql".format(queryResourceFolder, caseId)
+    QueryRunner.runTpcQuery(spark, desc, path, explain, metrics)
   }
 }
 
@@ -64,29 +52,7 @@ object TpcRunner {
     })
   }
 
-  private def resourceToString(resource: String): String = {
-    val inStream = classOf[TpcRunner].getResourceAsStream(resource)
-    Preconditions.checkNotNull(inStream)
-    val outStream = new ByteArrayOutputStream
-    try {
-      var reading = true
-      while (reading) {
-        inStream.read() match {
-          case -1 => reading = false
-          case c => outStream.write(c)
-        }
-      }
-      outStream.flush()
-    }
-    finally {
-      inStream.close()
-    }
-    new String(outStream.toByteArray, StandardCharsets.UTF_8)
-  }
-
   private def delete(path: String): Unit = {
     FileUtils.forceDelete(new File(path))
   }
 }
-
-case class RunResult(rows: Seq[Row], executionTimeMillis: Long)

@@ -29,17 +29,16 @@ namespace gluten {
 class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
   VeloxColumnarToRowConverter(
-      facebook::velox::RowVectorPtr rv,
       std::shared_ptr<arrow::MemoryPool> arrowPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
-      : ColumnarToRowConverter(arrowPool), rv_(rv), veloxPool_(veloxPool) {}
+      : ColumnarToRowConverter(arrowPool), veloxPool_(veloxPool) {}
 
-  arrow::Status init() override;
-
-  arrow::Status write() override;
+  arrow::Status write(std::shared_ptr<ColumnarBatch> cb) override;
 
  private:
   void resumeVeloxVector();
+
+  arrow::Status init();
 
   facebook::velox::RowVectorPtr rv_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;

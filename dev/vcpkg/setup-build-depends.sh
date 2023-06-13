@@ -6,17 +6,18 @@ set -e
 
 install_centos_any_maven() {
     if [ -z "$(which mvn)" ]; then
-        maven_install_dir=/opt/maven-3.6.3
-        if [ -d /opt/maven-3.6.3 ]; then
+        maven_version=3.9.2
+        maven_install_dir=/opt/maven-$maven_version
+        if [ -d /opt/maven-$maven_version ]; then
             echo "Failed to install maven: ${maven_install_dir} is exists" >&2
             exit 1
         fi
 
         cd /tmp
-        wget https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
-        tar -xvf apache-maven-3.6.3-bin.tar.gz
-        rm apache-maven-3.6.3-bin.tar.gz
-        mv apache-maven-3.6.3 "${maven_install_dir}"
+        wget https://downloads.apache.org/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
+        tar -xvf apache-maven-$maven_version-bin.tar.gz
+        rm apache-maven-$maven_version-bin.tar.gz
+        mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi
 }

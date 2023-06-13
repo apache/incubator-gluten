@@ -4,7 +4,7 @@ import org.apache.commons.math3.util.Precision
 
 import org.apache.spark.sql.catalyst.util.sideBySide
 
-object GlutenTestUtils {
+object TestUtils {
   private val DOUBLE_TOLERANCE = 0.00001D // 0.001%
 
   class FuzzyDouble(private val value: Double) extends Comparable[FuzzyDouble] {

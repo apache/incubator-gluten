@@ -81,8 +81,6 @@ object CHExpressionUtil {
     TO_UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
     UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
     MIGHT_CONTAIN -> new ValidatorUtil(new DefaultBlackList),
-    MAKE_DECIMAL -> new ValidatorUtil(new DefaultBlackList),
-    UNSCALED_VALUE -> new ValidatorUtil(new DefaultBlackList),
     GET_JSON_OBJECT -> new ValidatorUtil(new GetJsonObjectValidator)
   )
 }

@@ -3,7 +3,7 @@ package io.glutenproject.integration.tpc.action
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.spark.sql.GlutenSparkSessionSwitcher
+import org.apache.spark.sql.SparkSessionSwitcher
 
 case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
   extends Action {
@@ -135,17 +135,17 @@ object Queries {
   }
 
   private[tpc] def runTpcQuery(
-      id: String,
-      explain: Boolean,
-      desc: String,
-      sessionSwitcher: GlutenSparkSessionSwitcher,
-      runner: TpcRunner): TestResultLine = {
+                                id: String,
+                                explain: Boolean,
+                                desc: String,
+                                sessionSwitcher: SparkSessionSwitcher,
+                                runner: TpcRunner): TestResultLine = {
     println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s".format(desc, id)
       sessionSwitcher.useSession("test", testDesc)
       runner.createTables(sessionSwitcher.spark())
-      val result = runner.runTpcQuery(sessionSwitcher.spark(), id, explain = explain, testDesc)
+      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = explain)
       val resultRows = result.rows
       println(
         s"Successfully ran query $id. " +

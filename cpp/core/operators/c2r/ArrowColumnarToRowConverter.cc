@@ -18,11 +18,14 @@
 #include "ArrowColumnarToRowConverter.h"
 
 #include <arrow/array/array_decimal.h>
+#include <arrow/memory_pool.h>
 #include <arrow/status.h>
 #include <arrow/util/decimal.h>
 #if defined(__x86_64__)
 #include <immintrin.h>
 #endif
+
+using arrow::MemoryPool;
 
 namespace gluten {
 
@@ -43,6 +46,9 @@ arrow::Status ArrowColumnarToRowConverter::init() {
   int32_t fixedSizePerRow = calculatedFixeSizePerRow(rb_->schema(), numCols_);
 
   // Initialize the offsets_ , lengths_, buffer_cursor_
+  lengths_.clear();
+  offsets_.clear();
+  bufferCursor_.clear();
   lengths_.resize(numRows_, fixedSizePerRow);
   std::fill(lengths_.begin(), lengths_.end(), fixedSizePerRow);
 
@@ -106,13 +112,17 @@ arrow::Status ArrowColumnarToRowConverter::init() {
   }
   offsets_[numRows_] = totalMemorySize;
 
-  // allocate one more cache line to ease avx operations
-  if (buffer_ == nullptr || buffer_->capacity() < totalMemorySize + 64) {
+  if (buffer_ == nullptr) {
+    // First allocate memory
     ARROW_ASSIGN_OR_RAISE(buffer_, AllocateBuffer(totalMemorySize + 64, arrowPool_.get()));
-    memset(buffer_->mutable_data(), 0, buffer_->capacity());
+  } else if (buffer_->capacity() < totalMemorySize) {
+    // Reallocated new buffer
+    ARROW_ASSIGN_OR_RAISE(buffer_, AllocateBuffer(totalMemorySize + 64, arrowPool_.get()));
   }
 
   bufferAddress_ = buffer_->mutable_data();
+
+  memset(buffer_->mutable_data(), 0, buffer_->capacity());
 
   return arrow::Status::OK();
 }
@@ -284,7 +294,14 @@ arrow::Status ArrowColumnarToRowConverter::fillBuffer(
   return arrow::Status::OK();
 }
 
-arrow::Status ArrowColumnarToRowConverter::write() {
+arrow::Status ArrowColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> cb) {
+  std::shared_ptr<ArrowSchema> cSchema = cb->exportArrowSchema();
+  std::shared_ptr<ArrowArray> cArray = cb->exportArrowArray();
+  ARROW_ASSIGN_OR_RAISE(rb_, arrow::ImportRecordBatch(cArray.get(), cSchema.get()));
+  ArrowSchemaRelease(cSchema.get());
+  ArrowArrayRelease(cArray.get());
+  RETURN_NOT_OK(init());
+
   std::vector<std::shared_ptr<arrow::Array>> arrays;
   std::vector<std::vector<const uint8_t*>> dataptrs;
   std::vector<int64_t> colArrdataOffsets;

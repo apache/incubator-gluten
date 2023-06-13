@@ -47,7 +47,8 @@ RUN ccache -M 128G
 RUN ccache -s
 
 # Default Gluten Maven build options (empty as of now)
-ENV GLUTEN_MAVEN_OPTIONS=""
+ENV GLUTEN_MAVEN_OPTIONS=
+RUN set-login-env "GLUTEN_MAVEN_OPTIONS="
 
 ARG BUILD_BACKEND_TYPE
 

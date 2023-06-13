@@ -83,9 +83,9 @@ protected:
 
 private:
     DB::ContextPtr context;
-    DB::Block output_header;
-    DB::Block flatten_output_header; // flatten a struct column into independent field columns recursively
-    DB::Block to_read_header; // Not include partition keys
+    DB::Block output_header; /// Sample header before flatten, may contains partitions keys
+    DB::Block flatten_output_header; // Sample header after flatten, include partition keys
+    DB::Block to_read_header; // Sample header after flatten, not include partition keys
     FormatFiles files;
 
     UInt32 current_file_index = 0;

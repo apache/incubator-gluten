@@ -17,34 +17,33 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.internal.config.UNSAFE_EXCEPTION_ON_MEMORY_LEAK
-import org.apache.spark.sql.GlutenSparkSessionSwitcher.NONE
+import org.apache.spark.sql.ConfUtils.ConfImplicits._
+import org.apache.spark.sql.SparkSessionSwitcher.NONE
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext}
 
-class GlutenSparkSessionSwitcher(val cpus: Int, val logLevel: String) extends AutoCloseable {
+class SparkSessionSwitcher(val cpus: Int, val logLevel: String) extends AutoCloseable {
   private val sessionMap: java.util.Map[SessionToken, SparkConf] =
     new java.util.HashMap[SessionToken, SparkConf]
 
-  private val testDefaults = new SparkConf()
-      .set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
-      .set(UNSAFE_EXCEPTION_ON_MEMORY_LEAK, true)
-      .set(SQLConf.CODEGEN_FALLBACK.key, "false")
-      .set(SQLConf.CODEGEN_FACTORY_MODE.key, CodegenObjectFactoryMode.CODEGEN_ONLY.toString)
+  private val testDefaults = new SparkConf(false)
+      .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
+      .setWarningOnOverriding(SQLConf.CODEGEN_FALLBACK.key, "false")
+      .setWarningOnOverriding(SQLConf.CODEGEN_FACTORY_MODE.key, CodegenObjectFactoryMode.CODEGEN_ONLY.toString)
       // Disable ConvertToLocalRelation for better test coverage. Test cases built on
       // LocalRelation will exercise the optimization rules better by disabling it as
       // this rule may potentially block testing of other optimization rules such as
       // ConstantPropagation etc.
-      .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+      .setWarningOnOverriding(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
 
-  testDefaults.set(
-    StaticSQLConf.WAREHOUSE_PATH,
+  testDefaults.setWarningOnOverriding(
+    StaticSQLConf.WAREHOUSE_PATH.key,
     testDefaults.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
 
   private var _spark: SparkSession = _
-  private var _activeSessionDesc: SessionDesc = GlutenSparkSessionSwitcher.NONE
+  private var _activeSessionDesc: SessionDesc = SparkSessionSwitcher.NONE
 
   def defaultConf(): SparkConf = {
     testDefaults
@@ -63,7 +62,7 @@ class GlutenSparkSessionSwitcher(val cpus: Int, val logLevel: String) extends Au
     useSession(SessionDesc(SessionToken(token), appName))
   }
 
-  def useSession(desc: SessionDesc): Unit = synchronized {
+  private def useSession(desc: SessionDesc): Unit = synchronized {
     if (desc == _activeSessionDesc) {
       return
     }
@@ -72,9 +71,9 @@ class GlutenSparkSessionSwitcher(val cpus: Int, val logLevel: String) extends Au
     }
     println(s"Switching to ${desc} session... ")
     stopActiveSession()
-    val conf = new SparkConf()
-        .setAll(testDefaults.getAll)
-        .setAll(sessionMap.get(desc.sessionToken).getAll)
+    val conf = new SparkConf(false)
+        .setAllWarningOnOverriding(testDefaults.getAll)
+        .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
     activateSession(conf, desc.appName)
     _activeSessionDesc = desc
     println(s"Successfully switched to $desc session. ")
@@ -132,6 +131,6 @@ case class SessionToken(name: String)
 
 case class SessionDesc(sessionToken: SessionToken, appName: String)
 
-object GlutenSparkSessionSwitcher {
+object SparkSessionSwitcher {
   val NONE: SessionDesc = SessionDesc(SessionToken("none"), "none")
 }

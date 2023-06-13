@@ -33,6 +33,7 @@
 
 #include "compute/VeloxColumnarToRowConverter.h"
 #include "memory/ArrowMemoryPool.h"
+#include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "utils/TestUtils.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -154,10 +155,10 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
     auto ctxPool = getDefaultVeloxLeafMemoryPool();
     for (auto _ : state) {
       for (const auto& vector : vectors) {
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(
-            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, ctxPool);
-        TIME_NANO_OR_THROW(initTime, columnarToRowConverter->init());
-        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->write());
+        auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(arrowPool, ctxPool);
+        auto cb = std::make_shared<VeloxColumnarBatch>(row);
+        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->write(cb));
       }
     }
 
@@ -209,10 +210,11 @@ class GoogleBenchmarkColumnarToRowIterateScanBenchmark : public GoogleBenchmarkC
         numBatches += 1;
         numRows += recordBatch->num_rows();
         auto vector = recordBatch2RowVector(*recordBatch);
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(
-            std::dynamic_pointer_cast<velox::RowVector>(vector), arrowPool, ctxPool);
-        TIME_NANO_OR_THROW(initTime, columnarToRowConverter->init());
-        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->write());
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(arrowPool, ctxPool);
+        auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
+        auto cb = std::make_shared<VeloxColumnarBatch>(row);
+
+        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->write(cb));
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
       }
     }
