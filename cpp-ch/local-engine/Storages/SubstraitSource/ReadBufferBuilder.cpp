@@ -3,6 +3,9 @@
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>
 #include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
+#include <IO/CompressionMethod.h>
+#include <IO/ZlibInflatingReadBuffer.h>
+#include <IO/Bzip2ReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/S3Common.h>
@@ -54,7 +57,7 @@ public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &, const DB::CompressionMethod &) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
@@ -78,11 +81,13 @@ public:
     explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool & set_read_util_position) override
+    std::unique_ptr<DB::ReadBuffer> build(
+        const substrait::ReadRel::LocalFiles::FileOrFiles & file_info,
+        const bool & set_read_util_position,
+        const DB::CompressionMethod & txt_compression_method) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
-
         std::string uri_path = "hdfs://" + file_uri.getHost();
         if (file_uri.getPort())
             uri_path += ":" + std::to_string(file_uri.getPort());
@@ -106,6 +111,14 @@ public:
             read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
                 uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
                 read_settings);
+        }
+        if (txt_compression_method == DB::CompressionMethod::Zlib)
+        {
+            read_buffer = std::make_unique<DB::ZlibInflatingReadBuffer>(std::move(read_buffer), txt_compression_method);
+        }
+        else if (txt_compression_method == DB::CompressionMethod::Bzip2)
+        {
+            read_buffer = std::make_unique<DB::Bzip2ReadBuffer>(std::move(read_buffer));
         }
         return read_buffer;
     }
@@ -217,7 +230,7 @@ public:
 
     ~S3FileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &, const DB::CompressionMethod &) override
     {
         Poco::URI file_uri(file_info.uri_file());
         const auto client = getClient();
@@ -323,7 +336,7 @@ public:
     explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &)
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &, const DB::CompressionMethod &)
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;

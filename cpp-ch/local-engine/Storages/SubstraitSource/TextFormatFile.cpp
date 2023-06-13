@@ -2,7 +2,15 @@
 
 #include <memory>
 #include <Formats/FormatSettings.h>
+<<<<<<< HEAD
 #include <Processors/Formats/Impl/HiveTextRowInputFormat.h>
+=======
+#include <IO/SeekableReadBuffer.h>
+#include <IO/PeekableReadBuffer.h>
+#include <IO/CompressionMethod.h>
+#include <Storages/HDFS/ReadBufferFromHDFS.h>
+#include <Processors/Formats/IRowInputFormat.h>
+>>>>>>> bug fix for txt format compression
 
 namespace local_engine
 {
@@ -16,7 +24,16 @@ TextFormatFile::TextFormatFile(
 FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = std::move(read_buffer_builder->build(file_info, true));
+    DB::CompressionMethod compression_method = DB::CompressionMethod::None;
+    if (file_info.text().compression_type() == "ZLIB") 
+    {
+        compression_method = DB::CompressionMethod::Zlib;
+    }
+    else if (file_info.text().compression_type() == "BZ2")
+    {
+        compression_method = DB::CompressionMethod::Bzip2;
+    }
+    res->read_buffer = std::move(read_buffer_builder->build(file_info, true, compression_method));
 
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();
