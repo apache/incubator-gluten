@@ -878,6 +878,16 @@ JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWr
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_splitBlockByPartitionAndBucket(
+    JNIEnv * env, jclass, jlong blockAddress, jintArray partitionColIndice, jboolean hasBucket)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto * writer = reinterpret_cast<local_engine::NormalFileWriter *>(instanceId);
+    writer->close();
+    delete writer;
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
 JNIEXPORT jlong Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
     JNIEnv * env,
     jobject,

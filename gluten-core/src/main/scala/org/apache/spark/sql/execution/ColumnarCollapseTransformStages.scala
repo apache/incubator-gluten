@@ -36,6 +36,7 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
   // transformation but just for consistency
   override def supportsColumnar: Boolean = child.supportsColumnar
 
+  // this is the most important effect of this class
   override def supportCodegen: Boolean = false
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

@@ -17,7 +17,6 @@
 
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
@@ -28,6 +27,7 @@ import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -35,6 +35,8 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import com.google.common.collect.Lists
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -197,7 +199,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       .asInstanceOf[TransformSupport]
       .doTransform(substraitContext)
     if (childCtx == null) {
-      throw new NullPointerException(s"ColumnarWholestageTransformer can't doTansform on $child")
+      throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
     }
     val outNames = new java.util.ArrayList[String]()
     for (attr <- childCtx.outputAttributes) {
@@ -257,7 +259,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
 
       /**
        * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
-       * care of SCAN there won't be any other RDD for SCAN as a result, genFirstStageIterator
+       * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
        * rather than genFinalStageIterator will be invoked
        */
       // the partition size of the all BasicScanExecTransformer must be the same
@@ -312,7 +314,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       val startTime = System.nanoTime()
       val resCtx = doWholestageTransform()
 
-      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n${planJson}")
+      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
       logOnLevel(
         substraitPlanLogLevel,
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
@@ -357,7 +359,8 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     case c: TransformSupport =>
       c.columnarInputRDDs
     case _ =>
-      throw new UnsupportedOperationException
+      throw new IllegalStateException(
+        "WholeStageTransformerExec's child should be a TransformSupport ")
   }
 
   // Recreate the broadcast build side rdd with matched partition number.

@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources;
 
+import java.util.List;
+
 public class CHDatasourceJniWrapper {
 
     public native long nativeInitFileWriterWrapper(String filePath);
@@ -26,4 +28,25 @@ public class CHDatasourceJniWrapper {
     public native void write(long instanceId, long blockAddress);
 
     public native void close(long instanceId);
+
+
+    /*-
+     * The input block is already sorted by partition columns + bucket expressions. (check
+     * org.apache.spark.sql.execution.datasources.FileFormatWriter#write)
+     * However, the input block may contain parts(we call it stripe here) belonging to
+     * different partition/buckets.
+     *
+     * If bucketing is enabled, the input block's last column is guaranteed to be _bucket_value_.
+     *
+     * This function splits the input block in to several blocks, each of which belonging
+     * to the same partition/bucket. Notice the stripe will NOT contain partition columns
+     *
+     * Since all rows in a stripe share the same partition/bucket, we only need to check the heading row.
+     * So, for each stripe, the native code also returns its first row as a UnsafeRow (we call it headingRow)
+     * to help FileFormatDataWriter to aware partition/bucket changes.
+     */
+    public static native List<BlockStripe> splitBlockByPartitionAndBucket(
+            long blockAddress, int[] partitionColIndice, boolean hasBucket);
+
+    public static native void releaseStripe(long blockAddress, long headingRowAddress);
 }

@@ -17,9 +17,9 @@
 
 package io.glutenproject.utils
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 
-import io.glutenproject.GlutenConfig
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -39,8 +39,7 @@ object LogicalPlanSelector extends QueryPlanSelector[LogicalPlan] {
 }
 
 /**
- * Select to decide whether a Spark plan can be accepted by Gluten for further
- * execution.
+ * Select to decide whether a Spark plan can be accepted by Gluten for further execution.
  */
 abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
 
@@ -59,10 +58,8 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }
-    val conf: Option[String] = session.conf.getOption(GlutenConfig.GLUTEN_ENABLE_KEY)
-    val ret = conf.flatMap((x: String) =>
-      Try(x.toBoolean).toOption).getOrElse(GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT)
-    logInfo(s"shouldUseGluten: $ret")
+    val ret = GlutenConfig.getConf.enableGluten
+    logInfo(s"shouldUseGluten: ${ret}")
     ret & validate(plan)
   }
 

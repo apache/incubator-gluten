@@ -14,40 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v1.nativeparquet
+package org.apache.spark.sql.execution.datasources.v1
 
-import io.glutenproject.vectorized.CHColumnVector
+import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
+import io.glutenproject.vectorized.{CHColumnVector, CHNativeBlock}
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRow, GlutenParquetFileFormat, OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.execution.datasources.{BlockStripe, CHDatasourceJniWrapper, FakeRow, GlutenParquetWriterInjectsBase, OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.types.StructType
 
-import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
 
-class CHParquetFileFormat
-  extends GlutenParquetFileFormat
-  with DataSourceRegister
-  with Serializable {
+import scala.collection.JavaConverters._
 
-  override def inferSchema(
-      sparkSession: SparkSession,
-      options: Map[String, String],
-      files: Seq[FileStatus]): Option[StructType] = {
-    ParquetUtils.inferSchema(sparkSession, options, files)
-  }
+class CHParquetWriterInjects extends GlutenParquetWriterInjectsBase {
 
-  override def prepareWrite(
-      sparkSession: SparkSession,
-      job: Job,
-      options: Map[String, String],
-      dataSchema: StructType): OutputWriterFactory = {
-
+  def createOutputWriterFactory = {
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
         CodecConfig.from(context).getCodec.getExtension + ".parquet"
@@ -85,7 +68,31 @@ class CHParquetFileFormat
     }
   }
 
-  override def supportBatch(sparkSession: SparkSession, dataSchema: StructType): Boolean = true
+  override def inferSchema: Option[StructType] = {
+    throw new IllegalStateException("CHParquetWriterInjects does not support inferSchema")
+  }
 
-  override def shortName(): String = "native_parquet"
+  override def splitBlockByPartitionAndBucket(
+      row: InternalRow,
+      partitionColIndice: Array[Int],
+      hasBucket: Boolean): List[CHBlockStripe] = {
+    val nextBatch = row.asInstanceOf[FakeRow].batch
+
+    if (nextBatch.numRows > 0) {
+      val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
+      CHDatasourceJniWrapper
+        .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket)
+        .asScala
+        .map(
+          raw =>
+            new CHBlockStripe(
+              raw.blockAddress,
+              raw.headingRowAddress,
+              raw.headingRowBytes,
+              raw.bucketId,
+              raw.rows,
+              raw.columns))
+        .toList
+    } else throw new IllegalStateException
+  }
 }
