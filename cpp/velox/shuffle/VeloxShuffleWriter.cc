@@ -276,6 +276,8 @@ void collectBuffers(
 arrow::Status VeloxShuffleWriter::split(ColumnarBatch* cb) {
   auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
   auto& rv = *veloxColumnBatch->getFlattenedRowVector();
+  std::cout << "split " << rv.toString() << std::endl;
+  std::cout << "split " << rv.toString(0, 10) << std::endl;
   RETURN_NOT_OK(initFromRowVector(rv));
   if (options_.partitioning_name == "single") {
     std::vector<std::shared_ptr<arrow::Buffer>> buffers;
@@ -997,16 +999,17 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           auto buffers = partitionBuffers_[fixedWidthIdx][partitionId];
           if (buffers[kValidityBufferIndex] != nullptr) {
             buffers[kValidityBufferIndex] =
-                arrow::SliceBuffer(buffers[kValidityBufferIndex], 0, arrow::bit_util::BytesForBits(numRows));
+                arrow::SliceBuffer(buffers[kValidityBufferIndex], 0, BaseVector::byteSize<bool>(numRows));
           }
           if (buffers[1] != nullptr) {
             if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
               buffers[1] = arrow::SliceBuffer(buffers[1], 0, arrow::bit_util::BytesForBits(numRows));
             } else if (veloxColumnTypes_[i]->isShortDecimal()) {
-              buffers[1] =
-                  arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(arrow::Int64Type::type_id) >> 3));
+              buffers[1] = arrow::SliceBuffer(buffers[1], 0, BaseVector::byteSize<int64_t>(numRows));
             } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
               buffers[1] = arrow::SliceBuffer(buffers[1], 0, BaseVector::byteSize<Timestamp>(numRows));
+            } else if (veloxColumnTypes_[i]->isShortDecimal()) {
+              buffers[1] = arrow::SliceBuffer(buffers[1], 0, BaseVector::byteSize<int128_t>(numRows));
             } else {
               buffers[1] =
                   arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3));

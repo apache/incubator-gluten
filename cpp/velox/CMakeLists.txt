@@ -198,6 +198,7 @@ macro(find_awssdk)
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
 endmacro()
 
+add_compile_definitions(FOLLY_HAVE_INT128_T=1)
 
 # Build Velox backend.
 set(VELOX_SRCS

@@ -18,8 +18,10 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.{DecimalType, IntegerType}
 
 class GlutenDataFramePivotSuite extends DataFramePivotSuite with GlutenSQLTestsTrait {
+  import testImplicits._
 
   override def testNameBlackList: Seq[String] = Seq(
     // Replaced with the below test.
@@ -40,5 +42,39 @@ class GlutenDataFramePivotSuite extends DataFramePivotSuite with GlutenSQLTestsT
           .sum("earnings"),
       Row("d", 15000.0, 48000.0) :: Row("J", 20000.0, 30000.0) :: Nil
     )
+  }
+
+  test("gluten optimized pivot DecimalType") {
+    val df = courseSales.select($"course", $"year", $"earnings".cast(DecimalType(10, 2)))
+      .groupBy("year")
+      // pivot with extra columns to trigger optimization
+      .pivot("course", Seq("dotNET", "Java") ++ (1 to 10).map(_.toString))
+      .agg(sum($"earnings"))
+      .select("year", "dotNET", "Java")
+    df.printSchema()
+
+        assertResult(IntegerType)(df.schema("year").dataType)
+        assertResult(DecimalType(20, 2))(df.schema("Java").dataType)
+        assertResult(DecimalType(20, 2))(df.schema("dotNET").dataType)
+
+        checkAnswer(df, Row(2012, BigDecimal(1500000, 2), BigDecimal(2000000, 2)) ::
+          Row(2013, BigDecimal(4800000, 2), BigDecimal(3000000, 2)) :: Nil)
+  }
+
+  test("gluten optimized pivot DecimalType 2") {
+    val df = courseSales.select($"course", $"year", $"earnings".cast(DecimalType(10, 2)))
+      .groupBy("year")
+      // pivot with extra columns to trigger optimization
+      .pivot("course", Seq("dotNET", "Java") ++ (1 to 10).map(_.toString))
+      .agg(sum($"earnings"))
+      .select("Java")
+    df.printSchema()
+
+//    assertResult(IntegerType)(df.schema("year").dataType)
+    assertResult(DecimalType(20, 2))(df.schema("Java").dataType)
+//    assertResult(DecimalType(20, 2))(df.schema("dotNET").dataType)
+
+    checkAnswer(df, Row(2012, BigDecimal(1500000, 2), BigDecimal(2000000, 2)) ::
+      Row(2013, BigDecimal(4800000, 2), BigDecimal(3000000, 2)) :: Nil)
   }
 }

@@ -70,11 +70,26 @@ VectorPtr readFlatVector(
   std::vector<BufferPtr> stringBuffers;
   using T = typename TypeTraits<kind>::NativeType;
   if (nulls == nullptr || nulls->size() == 0) {
-    return std::make_shared<FlatVector<T>>(
+    auto vec = std::make_shared<FlatVector<T>>(
         pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
+    std::cout << "read vec " << vec->toString() << std::endl;
+    std::cout << "read vec " << vec->toString(0, 10) << std::endl;
+    // if constexpr (std::is_same_v<T, int128_t>) {
+    //   auto rowType = std::make_shared<RowType>({"row"}, {type});
+    //   auto rowVector_ = std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), length, {vec});
+    //   RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
+    //       BaseVector::create(rowVector_->type(), rowVector_->size(), rowVector_->pool()));
+    //   copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
+    // }
+
+    return vec;
   }
-  return std::make_shared<FlatVector<T>>(
+  auto vec = std::make_shared<FlatVector<T>>(
       pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
+
+  std::cout << "read vec with null" << vec->toString() << std::endl;
+  std::cout << "read vec with null" << vec->toString(0, 10) << std::endl;
+  return vec;
 }
 
 VectorPtr readFlatVectorStringView(
@@ -103,6 +118,7 @@ VectorPtr readFlatVectorStringView(
     return std::make_shared<FlatVector<StringView>>(
         pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
   }
+
   return std::make_shared<FlatVector<StringView>>(
       pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
 }
@@ -150,6 +166,14 @@ RowVectorPtr deserialize(
   auto childTypes = type->as<TypeKind::ROW>().children();
   readColumns(buffers, pool, numRows, childTypes, children);
   auto des = std::make_shared<RowVector>(pool, type, BufferPtr(nullptr), numRows, children);
+  {
+    // try copy
+    std::cout << "copy the velox row vector" << std::endl;
+    auto cb = std::make_shared<VeloxColumnarBatch>(des);
+    cb->getFlattenedRowVector();
+    std::cout << cb->getNumColumns() << std::endl;
+    std::cout << "copy the velox row vector end" << std::endl;
+  }
   return des;
 }
 

@@ -3,7 +3,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/jinchengchenghh/velox.git
-VELOX_BRANCH=serialize
+VELOX_BRANCH=fb_c5b1cfdc2
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
