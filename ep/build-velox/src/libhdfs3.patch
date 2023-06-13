@@ -310,3 +310,22 @@ index 29fa2d9..7707a50 100644
      endif()
      add_custom_command(
          OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crc_iscsi_v_pcl.o
+
+commit da7095a9bdcee295b894ec7fa54f647cd9bee75c
+Author: Lingfeng Zhang <lingfeng.zhang@intel.com>
+Date:   Tue Jun 13 03:24:53 2023 +0000
+
+    Fix misssing include
+
+diff --git a/src/client/SystemECPolicies.cpp b/src/client/SystemECPolicies.cpp
+index b2e6afb..5b1e98e 100644
+--- a/src/client/SystemECPolicies.cpp
++++ b/src/client/SystemECPolicies.cpp
+@@ -22,6 +22,7 @@
+ 
+ #include "Logger.h"
+ #include "SystemECPolicies.h"
++#include <mutex>
+ 
+ namespace Hdfs {
+ 

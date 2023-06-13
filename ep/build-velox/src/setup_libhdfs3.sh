@@ -12,6 +12,6 @@ git clone https://github.com/ClickHouse/libhdfs3.git "$SOURCE_DIR"
 cd "$SOURCE_DIR"
 
 git apply "$SCRIPT_DIR/libhdfs3.patch"
-cmake -Bbuild
+cmake -Bbuild -DWITH_KERBEROS=ON
 cmake --build build -j
 sudo cmake --install build
