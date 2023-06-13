@@ -95,6 +95,9 @@ RUN TZ=$TIMEZONE \
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen
 
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 RUN set-login-env "LANG=en_US.UTF-8"
 RUN set-login-env "LANGUAGE=en_US:en"
 RUN set-login-env "LC_ALL=en_US.UTF-8"
