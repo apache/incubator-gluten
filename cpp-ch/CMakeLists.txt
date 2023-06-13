@@ -35,7 +35,7 @@ endif ()
 # execute_process(COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/local-engine -regex '.*\.\(c\|cpp\|h\)' -exec clang-format-15 --verbose -i --style=file -i {} \;)
 
 set(CH_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build")
-option(ENABLE_CPP_TEST "Build CPP Unit test" ON)
+option(ENABLE_CPP_TEST "Build CPP Unit test" OFF)
 
 if (ENABLE_CPP_TEST)
 add_custom_command(
