@@ -140,6 +140,8 @@ public class LocalFilesNode implements Serializable {
                           .setEscape(escape)
                           .setNullValue(nullValue)
                           .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                          .setCompressionType(fileReadProperties
+                                  .getOrDefault("compressionType", "None"))
                           .setSchema(nStructBuilder.build())
                           .build();
           fileBuilder.setText(textReadOptions);
@@ -148,6 +150,8 @@ public class LocalFilesNode implements Serializable {
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
                   ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
                           .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                          .setCompressionType(fileReadProperties
+                                  .getOrDefault("compressionType", "None"))
                           .build();
           fileBuilder.setJson(jsonReadOptions);
           break;

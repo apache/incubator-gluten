@@ -41,6 +41,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.hadoop.fs.Path
+import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodecFactory, DefaultCodec}
 
 import scala.collection.JavaConverters
 import scala.collection.mutable.ArrayBuffer
@@ -96,7 +97,7 @@ class CHHiveTableScanExecTransformer(
   }
 
   override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance.genHiveTableScanTransformerMetricsUpdater(metrics)
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
@@ -123,6 +124,25 @@ class CHHiveTableScanExecTransformer(
         }
       case _ =>
         Seq.empty
+    }
+  }
+
+  private def getFileCompressionType: Option[String] = {
+    val inputFilePaths = getInputFilePaths
+    if (inputFilePaths.isEmpty) {
+      Option.empty
+    } else {
+      val codecFactory: CompressionCodecFactory = new CompressionCodecFactory(
+        session.sessionState.newHadoopConfWithOptions(relation.tableMeta.properties))
+      val compressionCodec = codecFactory.getCodec(new Path(inputFilePaths.head))
+      compressionCodec match {
+        case d: DefaultCodec =>
+          Option.apply("ZLIB")
+        case f: BZip2Codec =>
+          Option.apply("BZ2")
+        case _ =>
+          Option.empty
+      }
     }
   }
 
@@ -189,7 +209,7 @@ class CHHiveTableScanExecTransformer(
     if (
       transformCtx.root != null
       && transformCtx.root.isInstanceOf[ReadRelNode]
-      && scan.isDefined && scan.get.isInstanceOf[TextScan]
+      && scan.isDefined
     ) {
       val properties = relation.tableMeta.storage.properties ++ relation.tableMeta.properties
       var options: Map[String, String] = Map()
@@ -209,8 +229,16 @@ class CHHiveTableScanExecTransformer(
       }
 
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setDataSchema(relation.tableMeta.dataSchema)
-      readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
+      val storageProps = JavaConverters.mapAsJavaMap(relation.tableMeta.storage.properties)
+      storageProps.put("compressionType", compressionType.orNull)
+      scan.get match {
+        case t: TextScan =>
+          readRelNode.setDataSchema(relation.tableMeta.dataSchema)
+          readRelNode.setProperties(storageProps)
+        case j: JsonScan =>
+          readRelNode.setProperties(storageProps)
+        case _ =>
+      }
     }
     transformCtx
   }
