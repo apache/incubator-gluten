@@ -193,7 +193,7 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
             }
             val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
 
-            convertTime += (System.currentTimeMillis() - convertTime)
+            convertTime += (System.currentTimeMillis() - beforeConvert)
 
             new Iterator[InternalRow] {
               var rowId = 0
