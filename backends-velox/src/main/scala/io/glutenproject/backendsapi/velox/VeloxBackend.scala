@@ -43,10 +43,9 @@ class VeloxBackend extends Backend {
 }
 
 object BackendSettings extends BackendSettingsApi {
-  override def supportFileFormatRead(format: ReadFileFormat,
-                                     fields: Array[StructField],
-                                     partTable: Boolean,
-                                     paths: Seq[String]): Boolean = {
+  override def supportFileFormatRead(
+      format: ReadFileFormat,
+      fields: Array[StructField]): Boolean = {
     // Validate if all types are supported.
     def validateTypes: Boolean = {
       // Collect unsupported types.
@@ -58,17 +57,8 @@ object BackendSettings extends BackendSettingsApi {
       }.isEmpty
     }
 
-    def validateFilePath: Boolean = {
-      // Fallback to vanilla spark when the input path
-      // does not contain the partition info.
-      if (partTable && !paths.forall(_.contains("="))) {
-        return false
-      }
-      true
-    }
-
     format match {
-      case ParquetReadFormat => validateTypes && validateFilePath
+      case ParquetReadFormat => validateTypes
       case DwrfReadFormat => true
       case OrcReadFormat => fields.map(_.dataType).collect {
         case _: TimestampType =>
