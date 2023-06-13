@@ -19,7 +19,9 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -63,7 +65,10 @@ object ColumnarRules {
         c2r // AdaptiveSparkPlanExec.scala:536
       case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
-      case ColumnarToRowExec(child) => ColumnarToRowExec(LoadArrowData(child))
+      case ColumnarToRowExec(child) if child.isInstanceOf[GlutenPlan] =>
+        ColumnarToRowExec(LoadArrowData(child))
+      case c2r@ColumnarToRowExec(_) =>
+        c2r
     }
   }
 }

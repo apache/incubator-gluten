@@ -76,6 +76,25 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
   }
 
   test(GlutenTestConstants.GLUTEN_TEST +
+    "Support run with Vector reader in FileSourceScan or BatchScan") {
+    withSQLConf(
+      SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true",
+      SQLConf.CACHE_VECTORIZED_READER_ENABLED.key -> "true",
+      GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false"
+    ) {
+      withTable("t1") {
+        sql(
+          """CREATE TABLE t1(name STRING, id BINARY, part BINARY)
+            |USING PARQUET PARTITIONED BY (part)""".stripMargin)
+        sql("INSERT INTO t1 PARTITION(part = 'Spark SQL') VALUES('a', X'537061726B2053514C')")
+        checkAnswer(sql("SELECT name, cast(id as string), cast(part as string) FROM t1"),
+          Row("a", "Spark SQL", "Spark SQL"))
+      }
+    }
+  }
+
+  test(GlutenTestConstants.GLUTEN_TEST +
     "SPARK-33593: Vector reader got incorrect data with binary partition value") {
     Seq("false").foreach(value => {
       withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> value) {

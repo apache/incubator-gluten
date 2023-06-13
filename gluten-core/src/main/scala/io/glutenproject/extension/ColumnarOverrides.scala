@@ -620,6 +620,9 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
         case other =>
           replaceWithTransformerPlan(other)
       })
+    case _: BatchScanExec | _: FileSourceScanExec
+      if !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar =>
+      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
     case p =>
       p.withNewChildren(p.children.map(replaceWithTransformerPlan))
   }
