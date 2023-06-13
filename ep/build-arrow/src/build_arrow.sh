@@ -118,7 +118,7 @@ cmake --build . --target install
 popd
 
 CPU_TARGET=${CPU_TARGET:-""}
-if [ $CPU_TARGET == "aarch64" ]; then
+if [ "$CPU_TARGET" == "aarch64" ]; then
   # Arrow C Data Interface CPP libraries
   pushd java
   mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR -N
