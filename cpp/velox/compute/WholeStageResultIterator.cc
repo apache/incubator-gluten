@@ -9,7 +9,9 @@
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 
+#ifdef ENABLE_HDFS
 #include <hdfs/hdfs.h>
+#endif
 
 using namespace facebook;
 
@@ -57,7 +59,9 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
     const std::unordered_map<std::string, std::string>& confMap)
     : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+#ifdef ENABLE_HDFS
   updateHdfsTokens();
+#endif
   spillStrategy_ = getConfigValue(kSpillStrategy, "threshold");
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
@@ -277,6 +281,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
+#ifdef ENABLE_HDFS
 void WholeStageResultIterator::updateHdfsTokens() {
   const auto& username = confMap_[kUGIUserName];
   const auto& allTokens = confMap_[kUGITokens];
@@ -290,6 +295,7 @@ void WholeStageResultIterator::updateHdfsTokens() {
   for (auto& token : tokens)
     hdfsSetTokenForDefaultUser(token.data());
 }
+#endif
 
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
