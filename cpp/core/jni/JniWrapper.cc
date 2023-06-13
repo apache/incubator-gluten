@@ -569,8 +569,8 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
   env->SetIntArrayRegion(lengthsArr, 0, numRows, lengthsSrc);
   long address = reinterpret_cast<long>(columnarToRowConverter->getBufferAddress());
 
-  jobject nativeColumnarToRowInfo = env->NewObject(
-      nativeColumnarToRowInfoClass, nativeColumnarToRowInfoConstructor, offsetsArr, lengthsArr, address);
+  jobject nativeColumnarToRowInfo =
+      env->NewObject(nativeColumnarToRowInfoClass, nativeColumnarToRowInfoConstructor, offsetsArr, lengthsArr, address);
   return nativeColumnarToRowInfo;
   JNI_METHOD_END(nullptr)
 }
