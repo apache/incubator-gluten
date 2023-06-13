@@ -72,20 +72,6 @@ public class ArrowColumnarBatches {
     ColumnarBatchJniWrapper.INSTANCE.close(batchHanlde);
   }
 
-  public static long addColumn(ColumnarBatch input, int index, ColumnarBatch col) {
-    return ColumnarBatchJniWrapper.INSTANCE.addColumn(
-        GlutenColumnarBatches.getNativeHandle(input), index,
-        GlutenColumnarBatches.getNativeHandle(col));
-  }
-
-  public static long getBytes(ColumnarBatch input) {
-    return ColumnarBatchJniWrapper.INSTANCE.getBytes(GlutenColumnarBatches.getNativeHandle(input));
-  }
-
-  public static String getType(ColumnarBatch input) {
-    return ColumnarBatchJniWrapper.INSTANCE.getType(GlutenColumnarBatches.getNativeHandle(input));
-  }
-
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
     if (!GlutenColumnarBatches.isIntermediateColumnarBatch(input)) {
       throw new IllegalArgumentException("input is not intermediate Gluten columnar input. " +
@@ -128,62 +114,6 @@ public class ArrowColumnarBatches {
       transferVectors(output, input);
       return input;
     }
-  }
-
-  public static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
-    if (!isArrowColumnarBatch(input)) {
-      throw new IllegalArgumentException("batch is not Arrow columnar batch");
-    }
-    try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
-         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      ArrowAbiUtil.exportFromSparkColumnarBatch(
-          ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
-      long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),
-          cArray.memoryAddress());
-      ColumnarBatch output = GlutenColumnarBatches.create(handle);
-
-      // Follow input's reference count. This might be optimized using
-      // automatic clean-up or once the extensibility of ColumnarBatch is enriched
-      long refCnt = -1L;
-      for (int i = 0; i < input.numCols(); i++) {
-        ArrowWritableColumnVector col = ((ArrowWritableColumnVector) input.column(i));
-        long colRefCnt = col.refCnt();
-        if (refCnt == -1L) {
-          refCnt = colRefCnt;
-        } else {
-          if (colRefCnt != refCnt) {
-            throw new IllegalStateException();
-          }
-        }
-      }
-      if (refCnt == -1L) {
-        throw new IllegalStateException();
-      }
-      final IndicatorVector giv = (IndicatorVector) output.column(0);
-      for (long i = 0; i < (refCnt - 1); i++) {
-        giv.retain();
-      }
-
-      // close the input one
-      for (long i = 0; i < refCnt; i++) {
-        input.close();
-      }
-
-      // populate new vectors to input
-      transferVectors(output, input);
-      return input;
-    }
-  }
-
-  /**
-   * Ensure the input batch is offloaded as native-based columnar batch
-   * (See {@link IndicatorVector} and {@link PlaceholderVector}).
-   */
-  public static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
-    if (GlutenColumnarBatches.isIntermediateColumnarBatch(batch)) {
-      return batch;
-    }
-    return offload(allocator, batch);
   }
 
   /**

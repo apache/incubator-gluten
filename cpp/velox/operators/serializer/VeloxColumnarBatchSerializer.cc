@@ -26,7 +26,6 @@
 
 #include <iostream>
 
-// using namespace facebook;
 using namespace facebook::velox;
 
 namespace gluten {
@@ -56,18 +55,12 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
 std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBatches(
     const std::vector<std::shared_ptr<ColumnarBatch>>& batches) {
   VELOX_DCHECK(batches.size() != 0, "Should serialize at least 1 vector");
-  // auto tmpf = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[0])->getRowVector();
-  // std::cout << "serialize row vector " << tmpf->toString() << std::endl;
-  // std::cout << "serialize row vector " << tmpf->toString(0, 300) << std::endl;
   auto firstRowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[0])->getRowVector();
   auto numRows = firstRowVector->size();
   auto arena = std::make_unique<StreamArena>(veloxPool_.get());
   auto rowType = asRowType(firstRowVector->type());
   auto serializer = serde_->createSerializer(rowType, numRows, arena.get(), /* serdeOptions */ nullptr);
   for (auto& batch : batches) {
-    // auto tmpff = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch)->getRowVector();
-    // std::cout << "serialize row vector " << tmpff->toString() << std::endl;
-    // std::cout << "serialize row vector " << tmpff->toString(0, 300) << std::endl;
     auto rowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch)->getRowVector();
     auto numRows = rowVector->size();
     std::vector<IndexRange> rows(numRows);
@@ -94,5 +87,4 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchSerializer::deserialize(uint8_t
   serde_->deserialize(byteStream.get(), veloxPool_.get(), rowType_, &result, /* serdeOptions */ nullptr);
   return std::make_shared<VeloxColumnarBatch>(result);
 }
-
 } // namespace gluten

@@ -674,23 +674,21 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumRows(JNIEnv* e
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_addColumn( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_addIntColumn( // NOLINT
     JNIEnv* env,
     jobject,
     jlong handle,
     jint index,
-    jlong colHandle) {
+    jstring name,
+    jintArray colData) {
   JNI_METHOD_START
   std::shared_ptr<ColumnarBatch> batch = glutenColumnarbatchHolder.lookup(handle);
-  std::shared_ptr<ColumnarBatch> col = glutenColumnarbatchHolder.lookup(colHandle);
-#ifdef DEBUG
-  if (col->GetNumColumns() != 1) {
-    throw GlutenException("Add column should add one col");
-  }
-#endif
-  auto newBatch = batch->addColumn(index, col);
+  int32_t size = env->GetArrayLength(colData);
+  jint* col = env->GetIntArrayElements(colData, JNI_FALSE);
+  std::string colName = jStringToCString(env, name);
+  auto newBatch = batch->addIntColumn(index, colName, reinterpret_cast<uint8_t*>(col), size * sizeof(int32_t));
+  env->ReleaseIntArrayElements(colData, col, JNI_ABORT);
   glutenColumnarbatchHolder.erase(handle);
-  glutenColumnarbatchHolder.erase(colHandle);
   return glutenColumnarbatchHolder.insert(newBatch);
   JNI_METHOD_END(-1L)
 }
@@ -974,7 +972,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
       gluten::jniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 
   auto backend = gluten::createBackend();
-  auto reader = backend->getShuffleReader(in, schema, options, pool);
+  auto reader = backend->getShuffleReader(in, schema, options, pool, allocator);
   return shuffleReaderHolder.insert(reader);
   JNI_METHOD_END(-1L)
 }

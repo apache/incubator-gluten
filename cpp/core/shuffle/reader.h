@@ -18,9 +18,17 @@
 #pragma once
 
 #include "memory/ColumnarBatch.h"
-#include "type.h"
+
+#include <arrow/ipc/message.h>
+#include <arrow/ipc/options.h>
 
 namespace gluten {
+
+struct ReaderOptions {
+  arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
+
+  static ReaderOptions defaults();
+};
 
 class Reader {
  public:

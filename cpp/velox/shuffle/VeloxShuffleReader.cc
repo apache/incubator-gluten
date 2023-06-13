@@ -32,15 +32,6 @@ using namespace facebook::velox;
 namespace gluten {
 
 namespace {
-// BufferPtr convertToVeloxBuffer(std::shared_ptr<arrow::Buffer> buffer, memory::MemoryPool* pool) {
-//   // TODO: can we change to not copy buffer
-//   if (buffer == nullptr) {
-//     return nullptr;
-//   }
-//   auto veloxBuffer = AlignedBuffer::allocate<char>(buffer->size(), pool);
-//   memcpy(veloxBuffer->asMutable<uint8_t>(), buffer->data(), buffer->size());
-//   return veloxBuffer;
-// }
 
 struct BufferViewReleaser {
   BufferViewReleaser() : BufferViewReleaser(nullptr) {}
@@ -58,7 +49,7 @@ BufferPtr wrapInBufferViewAsOwner(const void* buffer, size_t length, std::shared
       static_cast<const uint8_t*>(buffer), length, {std::move(bufferReleaser)});
 }
 
-BufferPtr convertToVeloxBuffer(std::shared_ptr<arrow::Buffer> buffer, memory::MemoryPool* pool) {
+BufferPtr convertToVeloxBuffer(std::shared_ptr<arrow::Buffer> buffer) {
   if (buffer == nullptr) {
     return nullptr;
   }
@@ -69,12 +60,12 @@ template <TypeKind kind>
 VectorPtr readFlatVector(
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     int32_t& bufferIdx,
-    int32_t length,
+    uint32_t length,
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
-  auto nulls = convertToVeloxBuffer(buffers[bufferIdx], pool);
+  auto nulls = convertToVeloxBuffer(buffers[bufferIdx]);
   bufferIdx++;
-  auto values = convertToVeloxBuffer(buffers[bufferIdx], pool);
+  auto values = convertToVeloxBuffer(buffers[bufferIdx]);
   bufferIdx++;
   std::vector<BufferPtr> stringBuffers;
   using T = typename TypeTraits<kind>::NativeType;
@@ -89,14 +80,14 @@ VectorPtr readFlatVector(
 VectorPtr readFlatVectorStringView(
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     int32_t& bufferIdx,
-    int32_t length,
+    uint32_t length,
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
-  auto nulls = convertToVeloxBuffer(buffers[bufferIdx], pool);
+  auto nulls = convertToVeloxBuffer(buffers[bufferIdx]);
   bufferIdx++;
-  auto offsetBuffers = convertToVeloxBuffer(buffers[bufferIdx], pool);
+  auto offsetBuffers = convertToVeloxBuffer(buffers[bufferIdx]);
   bufferIdx++;
-  auto valueBuffers = convertToVeloxBuffer(buffers[bufferIdx], pool);
+  auto valueBuffers = convertToVeloxBuffer(buffers[bufferIdx]);
   bufferIdx++;
   const int32_t* rawOffset = offsetBuffers->as<int32_t>();
 
@@ -120,7 +111,7 @@ template <>
 VectorPtr readFlatVector<TypeKind::VARCHAR>(
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     int32_t& bufferIdx,
-    int32_t length,
+    uint32_t length,
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
   return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
@@ -130,7 +121,7 @@ template <>
 VectorPtr readFlatVector<TypeKind::VARBINARY>(
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     int32_t& bufferIdx,
-    int32_t length,
+    uint32_t length,
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
   return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
@@ -139,7 +130,7 @@ VectorPtr readFlatVector<TypeKind::VARBINARY>(
 void readColumns(
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     memory::MemoryPool* pool,
-    int32_t numRows,
+    uint32_t numRows,
     const std::vector<TypePtr>& types,
     std::vector<VectorPtr>& result) {
   int32_t bufferIdx = 0;
@@ -152,7 +143,7 @@ void readColumns(
 
 RowVectorPtr deserialize(
     RowTypePtr type,
-    int32_t numRows,
+    uint32_t numRows,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     memory::MemoryPool* pool) {
   std::vector<VectorPtr> children;
@@ -172,8 +163,8 @@ std::shared_ptr<arrow::Buffer> readColumnBuffer(const arrow::RecordBatch& batch,
 
 RowVectorPtr readRowVectorInternal(const arrow::RecordBatch& batch, RowTypePtr rowType, memory::MemoryPool* pool) {
   auto header = readColumnBuffer(batch, 0);
-  int32_t length;
-  mempcpy(&length, header->data(), sizeof(int32_t));
+  uint32_t length;
+  mempcpy(&length, header->data(), sizeof(uint32_t));
 
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
   buffers.reserve(batch.num_columns() - 1);
@@ -189,8 +180,9 @@ VeloxShuffleReader::VeloxShuffleReader(
     std::shared_ptr<arrow::io::InputStream> in,
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
-    std::shared_ptr<arrow::MemoryPool> pool)
-    : Reader(in, schema, options, pool) {
+    std::shared_ptr<arrow::MemoryPool> pool,
+    std::shared_ptr<memory::MemoryPool> veloxPool)
+    : Reader(in, schema, options, pool), veloxPool_(std::move(veloxPool)) {
   ArrowSchema cSchema;
   GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema, &cSchema));
   rowType_ = asRowType(importFromArrow(cSchema));

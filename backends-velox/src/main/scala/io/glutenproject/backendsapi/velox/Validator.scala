@@ -18,7 +18,8 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.ValidatorApi
-import io.glutenproject.execution.RowToColumnConverter
+
+import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, TimestampType}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.vectorized.NativePlanEvaluator
 
@@ -39,6 +40,27 @@ class Validator extends ValidatorApi {
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = true
 
   override def doSchemaValidate(schema: StructType): Boolean = {
-    RowToColumnConverter.supportSchema(schema)
+    for (field <- schema.fields) {
+      field.dataType match {
+        case _: BooleanType =>
+        case _: ByteType =>
+        case _: ShortType =>
+        case _: IntegerType =>
+        case _: LongType =>
+        case _: FloatType =>
+        case _: DoubleType =>
+        case _: StringType =>
+        case _: BinaryType =>
+        case _: DecimalType =>
+        case _: DateType =>
+        case _: TimestampType =>
+        case _: MapType =>
+        case _: StructType =>
+        case _: ArrayType =>
+        case _ => return false
+      }
+    }
+    true
   }
 }
+

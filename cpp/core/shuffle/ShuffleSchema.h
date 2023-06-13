@@ -22,7 +22,7 @@
 namespace gluten {
 inline std::shared_ptr<arrow::Schema> toWriteSchema(arrow::Schema& schema) {
   std::vector<std::shared_ptr<arrow::Field>> fields;
-  fields.emplace_back(std::make_shared<arrow::Field>("header", arrow::utf8()));
+  fields.emplace_back(std::make_shared<arrow::Field>("header", arrow::large_utf8()));
   for (int32_t i = 0; i < schema.num_fields(); i++) {
     switch (schema.field(i)->type()->id()) {
       case arrow::BinaryType::type_id:

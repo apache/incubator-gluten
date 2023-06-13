@@ -34,7 +34,6 @@ import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.util.SerializableJobConf
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.hive.ql.exec.Utilities
@@ -46,11 +45,12 @@ import org.apache.hadoop.io.Writable
 import org.apache.hadoop.mapred.{JobConf, Reporter}
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
-
 import java.io.IOException
 import java.net.URI
 
 import scala.collection.JavaConverters._
+
+import com.google.common.base.Preconditions
 
 /**
  * This file is copied from Spark
@@ -134,15 +134,10 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           new OutputWriter {
             override def write(row: InternalRow): Unit = {
               val batch = row.asInstanceOf[FakeRow].batch
-              if (batch.column(0).isInstanceOf[IndicatorVector]) {
-                val giv = batch.column(0).asInstanceOf[IndicatorVector]
-                giv.retain()
-                writeQueue.enqueue(batch)
-              } else {
-                val offloaded =
-                  ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-                writeQueue.enqueue(offloaded)
-              }
+              Preconditions.checkState(batch.column(0).isInstanceOf[IndicatorVector])
+              val giv = batch.column(0).asInstanceOf[IndicatorVector]
+              giv.retain()
+              writeQueue.enqueue(batch)
             }
 
             override def close(): Unit = {

@@ -80,4 +80,6 @@ trait BackendSettingsApi {
   def getBackendConfigPrefix: String
 
   def rescaleDecimalIntegralExpression(): Boolean = false
+
+  def supportCoalesceBatch(): Boolean = true
 }

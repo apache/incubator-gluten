@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.utils
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches}
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, ColumnarBatchJniWrapper, GlutenColumnarBatches}
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
@@ -47,10 +47,8 @@ object ExecUtil {
   def convertColumnarToRow(batch: ColumnarBatch): Iterator[InternalRow] = {
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     var info: NativeColumnarToRowInfo = null
-    val offloaded =
-      ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-    val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
-    val instanceId = jniWrapper.nativeColumnarToRowInit(
+    val batchHandle = GlutenColumnarBatches.getNativeHandle(batch)
+    val instanceId = jniWrapper.nativeColumnarToRowIni(
       batchHandle,
       NativeMemoryAllocators.contextInstance().getNativeInstanceId)
     info = jniWrapper.nativeColumnarToRowWrite(batchHandle, instanceId)
@@ -134,19 +132,14 @@ object ExecUtil {
         cbIter
           .filter(cb => cb.numRows != 0 && cb.numCols != 0)
           .map { cb =>
-            val pidVec = ArrowWritableColumnVector
-              .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
-              .head
+            val data = new Array[Int](cb.numRows())
             convertColumnarToRow(cb).zipWithIndex.foreach {
               case (row, i) =>
                 val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-                pidVec.putInt(i, pid)
+                data(i) = pid
             }
-            val pidBatch = new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)
-            val offloadColCb = ArrowColumnarBatches.ensureOffloaded(
-              ArrowBufferAllocators.contextInstance(),
-              pidBatch)
-            val newHandle = ArrowColumnarBatches.addColumn(cb, 0, offloadColCb)
+            val newHandle = ColumnarBatchJniWrapper.INSTANCE.addIntColumn(
+              GlutenColumnarBatches.getNativeHandle(cb), 0, "pid", data);
             (0, GlutenColumnarBatches.create(newHandle))
           }
       }

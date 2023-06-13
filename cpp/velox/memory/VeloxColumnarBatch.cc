@@ -1,5 +1,6 @@
 #include "VeloxColumnarBatch.h"
 #include "velox/type/Type.h"
+#include "velox/vector/FlatVector.h"
 
 namespace gluten {
 
@@ -20,18 +21,20 @@ RowVectorPtr makeRowVector(
   auto rowType = ROW(std::move(childNames), std::move(childTypes));
   const size_t vectorSize = children.empty() ? 0 : children.front()->size();
 
-  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), vectorSize, children);
+  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), vectorSize, std::move(children));
 }
 
 // destroyed input vector
-RowVectorPtr addColumnToVector(int32_t index, RowVectorPtr vector, RowVectorPtr col) {
+RowVectorPtr addIntColumnToVector(int32_t index, RowVectorPtr vector, std::string& name, uint8_t* data, int32_t size) {
   auto names = asRowType(vector->type())->names();
   auto newNames = std::move(names);
-  newNames.insert(newNames.begin() + index, asRowType(col->type())->nameOf(0));
-
-  auto childern = vector->children();
-  auto newChildren = std::move(childern);
-  newChildren.insert(newChildren.begin() + index, col->childAt(0));
+  newNames.insert(newNames.begin() + index, name);
+  auto newChildren = std::move(vector->children());
+  auto buffer = AlignedBuffer::allocate<char>(size, vector->pool());
+  memcpy(buffer->asMutable<char>(), data, size);
+  VectorPtr colVector = std::make_shared<FlatVector<int32_t>>(
+      vector->pool(), INTEGER(), BufferPtr(nullptr), vector->size(), buffer, std::vector<BufferPtr>());
+  newChildren.insert(newChildren.begin() + index, colVector);
   return makeRowVector(newNames, newChildren, vector->pool());
 }
 } // namespace
@@ -75,11 +78,9 @@ int64_t VeloxColumnarBatch::getBytes() {
   return flattened_->estimateFlatSize();
 }
 
-std::shared_ptr<ColumnarBatch> VeloxColumnarBatch::addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) {
-  auto cb = std::dynamic_pointer_cast<ArrowCStructColumnarBatch>(col);
-  auto rvCol = std::dynamic_pointer_cast<RowVector>(
-      velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), rowVector_->pool()));
-  auto newVector = addColumnToVector(index, rowVector_, rvCol);
+std::shared_ptr<ColumnarBatch>
+VeloxColumnarBatch::addIntColumn(int32_t index, std::string& name, uint8_t* data, int32_t size) {
+  auto newVector = addIntColumnToVector(index, rowVector_, name, data, size);
   return std::make_shared<VeloxColumnarBatch>(newVector);
 }
 

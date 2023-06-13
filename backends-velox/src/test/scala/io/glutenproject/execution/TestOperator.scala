@@ -427,6 +427,6 @@ class TestOperator extends WholeStageTransformerSuite {
     val plan = df.queryExecution.executedPlan
     assert(plan.find(_.isInstanceOf[RDDScanExec]).isDefined)
     assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
-    assert(plan.find(_.isInstanceOf[RowToArrowColumnarExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[RowToVeloxColumnarExec]).isDefined)
   }
 }

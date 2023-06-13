@@ -18,16 +18,16 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
-
 import java.io.IOException
+
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FakeRow, GlutenParquetFileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
@@ -36,8 +36,9 @@ import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import java.net.URI
+
+import com.google.common.base.Preconditions
 
 class VeloxParquetFileFormat extends GlutenParquetFileFormat
   with DataSourceRegister with Serializable {
@@ -86,15 +87,11 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            if (batch.column(0).isInstanceOf[IndicatorVector]) {
-              val giv = batch.column(0).asInstanceOf[IndicatorVector]
-              giv.retain()
-              writeQueue.enqueue(batch)
-            } else {
-              val offloaded =
-                ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-              writeQueue.enqueue(offloaded)
-            }
+            Preconditions.checkState(batch.column(0).isInstanceOf[IndicatorVector])
+            val giv = batch.column(0).asInstanceOf[IndicatorVector]
+            giv.retain()
+            writeQueue.enqueue(batch)
+
           }
 
           override def close(): Unit = {

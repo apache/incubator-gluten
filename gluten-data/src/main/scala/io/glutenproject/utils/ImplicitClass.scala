@@ -34,19 +34,4 @@ object ImplicitClass {
           .column(i).asInstanceOf[ArrowWritableColumnVector].retain())
     }
   }
-
-  def coalesce(targetBatch: ColumnarBatch, batchesToAppend: List[ColumnarBatch]): Unit = {
-    (0 until targetBatch.numCols).toList.foreach { i =>
-      val targetVector =
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), targetBatch)
-          .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
-      val vectorsToAppend = batchesToAppend.map { cb =>
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-          .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
-      }
-      VectorBatchAppender.batchAppend(targetVector, vectorsToAppend: _*)
-    }
-  }
 }

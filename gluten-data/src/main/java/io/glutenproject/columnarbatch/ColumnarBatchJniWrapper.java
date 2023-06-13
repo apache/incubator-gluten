@@ -33,7 +33,7 @@ public class ColumnarBatchJniWrapper extends JniInitialized {
 
   public native long getBytes(long handle);
 
-  public native long addColumn(long handle, int index, long colHandle);
+  public native long addIntColumn(long handle, int index,  String name, int[] colData);
 
   public native long createWithArrowArray(long cSchema, long cArray);
 

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <arrow/extension_type.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/io/interfaces.h>
 #include <arrow/ipc/options.h>
@@ -22,6 +23,7 @@
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
+#include <arrow/util/io_util.h>
 #include <benchmark/benchmark.h>
 #include <execinfo.h>
 #include <parquet/arrow/reader.h>

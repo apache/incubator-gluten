@@ -29,10 +29,12 @@ import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
 import org.apache.commons.lang3.ClassUtils
 
+import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.AggregateFunctionRewriteRule
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, GetStructField, Literal, NamedExpression, StringTrim}
@@ -41,17 +43,15 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
+import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
 import org.apache.spark.sql.execution.datasources.ColumnarToFakeRowStrategy
 import org.apache.spark.sql.execution.datasources.GlutenColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
-import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.{ShuffleDependency, SparkException}
 
 class SparkPlanExecHandler extends SparkPlanExecApi {
 
@@ -73,7 +73,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return
    */
   override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase =
-    RowToArrowColumnarExec(child)
+    RowToVeloxColumnarExec(child)
 
   /**
    * Generate FilterExecTransformer.

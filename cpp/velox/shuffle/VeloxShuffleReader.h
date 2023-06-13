@@ -28,7 +28,8 @@ class VeloxShuffleReader final : public Reader {
       std::shared_ptr<arrow::io::InputStream> in,
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool);
+      std::shared_ptr<arrow::MemoryPool> pool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
   arrow::Result<std::shared_ptr<ColumnarBatch>> next() override;
 
@@ -40,6 +41,7 @@ class VeloxShuffleReader final : public Reader {
 
  private:
   facebook::velox::RowTypePtr rowType_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 };
 
 } // namespace gluten

@@ -131,29 +131,8 @@ void VeloxParquetDatasource::close() {
 
 void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  if (veloxBatch != nullptr) {
-    parquetWriter_->write(veloxBatch->getFlattenedRowVector());
-  } else {
-    // convert arrow record batch to velox row vector
-    auto rb = arrow::ImportRecordBatch(cb->exportArrowArray().get(), cb->exportArrowSchema().get()).ValueOrDie();
-    std::vector<velox::VectorPtr> vecs;
-
-    for (int colIdx = 0; colIdx < rb->num_columns(); colIdx++) {
-      auto array = rb->column(colIdx);
-      ArrowArray cArray{};
-      ArrowSchema cSchema{};
-      arrow::Status status = arrow::ExportArray(*array, &cArray, &cSchema);
-      if (!status.ok()) {
-        throw std::runtime_error("Failed to export from Arrow record batch");
-      }
-
-      velox::VectorPtr vec = velox::importFromArrowAsOwner(cSchema, cArray, pool_.get());
-      vecs.push_back(vec);
-    }
-
-    auto rowVec = std::make_shared<velox::RowVector>(pool_.get(), type_, nullptr, rb->num_rows(), vecs, 0);
-    parquetWriter_->write(rowVec);
-  }
+  VELOX_DCHECK(veloxBatch != nullptr, "Write batch should be VeloxColumnarBatch");
+  parquetWriter_->write(veloxBatch->getFlattenedRowVector());
 }
 
 } // namespace gluten

@@ -675,7 +675,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.coalesce.batches")
       .internal()
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")

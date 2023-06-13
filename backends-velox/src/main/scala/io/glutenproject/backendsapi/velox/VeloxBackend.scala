@@ -243,4 +243,6 @@ object BackendSettings extends BackendSettingsApi {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
 
   override def rescaleDecimalIntegralExpression(): Boolean = true
+
+  override def supportCoalesceBatch(): Boolean = false
 }

@@ -17,20 +17,23 @@
 
 package io.glutenproject.backendsapi.velox
 
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.util
+import java.util.concurrent.TimeUnit
+
+import scala.collection.JavaConverters._
+
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.utils.ImplicitClass.{ArrowColumnarBatchRetainer, coalesce}
 import io.glutenproject.vectorized._
-import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
@@ -44,17 +47,9 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
-import org.apache.spark.sql.utils.SparkArrowUtil
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskResources
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
-import java.{lang, util}
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 class IteratorHandler extends IteratorApi with Logging {
 

@@ -196,10 +196,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status initColumnTypes(const facebook::velox::RowVector& rv);
 
-  arrow::Status veloxType2ArrowSchema(const facebook::velox::TypePtr& type);
-
-  facebook::velox::RowVector getStrippedRowVector(const facebook::velox::RowVector& rv) const;
-
   arrow::Status splitRowVector(const facebook::velox::RowVector& rv);
 
   arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
@@ -219,7 +215,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Status allocateNew(uint32_t partitionId, uint32_t newSize);
 
   arrow::Status
-  cacheRecordBatch(uint32_t partitionId, int32_t numRows, const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
+  cacheRecordBatch(uint32_t partitionId, uint32_t numRows, const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
   arrow::Status splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv);
 
@@ -255,13 +251,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       const facebook::velox::FlatVector<facebook::velox::StringView>& src,
       std::vector<BinaryBuf>& dst);
 
-  arrow::Status splitListArray(const facebook::velox::RowVector& rv);
-
   arrow::Result<int32_t> evictLargestPartition(int64_t* size);
 
   arrow::Status evictPartition(uint32_t partitionId);
-
-  arrow::Result<const int32_t*> getFirstColumn(const facebook::velox::RowVector& rv);
 
  protected:
   bool supportAvx512_ = false;
@@ -321,8 +313,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   std::vector<std::vector<uint8_t*>> partitionValidityAddrs_;
   std::vector<std::vector<uint8_t*>> partitionFixedWidthValueAddrs_;
-
-  std::vector<std::vector<std::shared_ptr<arrow::ArrayBuilder>>> partitionListBuilders_;
 
   std::vector<uint64_t> binaryArrayEmpiricalSize_;
 

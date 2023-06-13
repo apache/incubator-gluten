@@ -41,7 +41,7 @@ import org.apache.spark.util.memory.TaskResources
 case class ColumnarBuildSideRelation(mode: BroadcastMode,
                                    output: Seq[Attribute],
                                    batches: Array[Array[Byte]])
-  extends BuildSideRelation with Logging {
+  extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
     try {
@@ -49,7 +49,7 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
         var batchId = 0
         var closed = false
         private var finalBatch = -1L
-        val serializeHandle = {
+        val serializeHandle: Long = {
           val allocator = ArrowBufferAllocators.contextInstance()
           val cSchema = ArrowSchema.allocateNew(allocator)
           val arrowSchema = SparkArrowUtil.toArrowSchema(StructType.fromAttributes(output),

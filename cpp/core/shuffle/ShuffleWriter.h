@@ -17,10 +17,11 @@
 
 #pragma once
 
+#include <arrow/ipc/writer.h>
 #include <utility>
 
+#include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "shuffle/type.h"
 
 namespace gluten {
 
