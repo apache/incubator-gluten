@@ -95,16 +95,27 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
    */
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
-    val batchIter = ArrowUtil.convertFromNetty(output, batches)
+    val serializeHandle = {
+      val allocator = ArrowBufferAllocators.contextInstance()
+      val cSchema = ArrowSchema.allocateNew(allocator)
+      val arrowSchema = SparkArrowUtil.toArrowSchema(StructType.fromAttributes(output),
+        SQLConf.get.sessionLocalTimeZone)
+      ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+      val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(cSchema.memoryAddress(),
+        NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+      cSchema.close()
+      handle
+    }
 
     // Convert columnar to Row.
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     var c2rId = -1L
     var closed = false
-    val iterator = if (batchIter.hasNext) {
+    var batchId = 0
+    val iterator = if (batches.length > 0) {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
         override def hasNext: Boolean = {
-          val itHasNext = batchIter.hasNext
+          val itHasNext = batchId < batches.length
           if (!itHasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
             closed = true
@@ -113,24 +124,16 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
         }
 
         override def next(): Iterator[InternalRow] = {
-          val batch = batchIter.next()
-
+          val batchBytes = batches(batchId)
+          batchId += 1
+          val batchHandle = ColumnarBatchSerializerJniWrapper.INSTANCE.deserialize(
+            serializeHandle, batchBytes)
+          val batch = GlutenColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             Iterator.empty
-          } else if (output.isEmpty || (batch.numCols() > 0 &&
-            !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
-            !batch.column(0).isInstanceOf[IndicatorVector])) {
-            // Fallback to ColumnarToRow
-            val localOutput = output
-            val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-            val arrowBatch = ArrowColumnarBatches
-              .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-            arrowBatch.rowIterator().asScala.map(toUnsafe)
+          } else if (output.isEmpty) {
+            GlutenColumnarBatches.emptyRowIterator(batch).asScala
           } else {
-            val offloaded =
-              ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-            val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
-
             if (c2rId == -1) {
               c2rId = jniWrapper.nativeColumnarToRowInit(
                 batchHandle,

@@ -17,12 +17,10 @@
 
 package org.apache.spark.sql.execution.utils
 
-import scala.collection.JavaConverters.asScalaIteratorConverter
 
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, ColumnarBatchJniWrapper, GlutenColumnarBatches}
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
+import io.glutenproject.vectorized.{NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
@@ -37,8 +35,7 @@ import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{IntegerType, StructType}
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.MutablePair
 import org.apache.spark.util.memory.TaskResources
 
@@ -48,7 +45,7 @@ object ExecUtil {
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     var info: NativeColumnarToRowInfo = null
     val batchHandle = GlutenColumnarBatches.getNativeHandle(batch)
-    val instanceId = jniWrapper.nativeColumnarToRowIni(
+    val instanceId = jniWrapper.nativeColumnarToRowInit(
       batchHandle,
       NativeMemoryAllocators.contextInstance().getNativeInstanceId)
     info = jniWrapper.nativeColumnarToRowWrite(batchHandle, instanceId)
