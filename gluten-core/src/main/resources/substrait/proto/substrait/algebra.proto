@@ -143,6 +143,7 @@ message ReadRel {
       }
       message JsonReadOptions {
         uint64 max_block_size = 1;
+        string compression_type = 2;
       }
 
       // The format of the files.
