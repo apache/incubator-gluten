@@ -181,7 +181,7 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
                 .rowIterator().asScala.map(toUnsafe)
             }
           } else {
-            val beforeConvert = System.nanoTime()
+            val beforeConvert = System.currentTimeMillis()
             val offloaded =
               ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
             val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
@@ -193,7 +193,7 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
             }
             val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
 
-            convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
+            convertTime += (System.currentTimeMillis() - convertTime)
 
             new Iterator[InternalRow] {
               var rowId = 0

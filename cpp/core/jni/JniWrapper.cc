@@ -286,7 +286,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
-  nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "(J[I[IJ)V");
+  nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "([I[IJ)V");
 
   javaReservationListenerClass = createGlobalClassReference(
       env,
@@ -570,7 +570,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
   long address = reinterpret_cast<long>(columnarToRowConverter->getBufferAddress());
 
   jobject nativeColumnarToRowInfo = env->NewObject(
-      nativeColumnarToRowInfoClass, nativeColumnarToRowInfoConstructor, instanceId, offsetsArr, lengthsArr, address);
+      nativeColumnarToRowInfoClass, nativeColumnarToRowInfoConstructor, offsetsArr, lengthsArr, address);
   return nativeColumnarToRowInfo;
   JNI_METHOD_END(nullptr)
 }
