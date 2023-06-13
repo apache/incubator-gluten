@@ -54,7 +54,9 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     val sparkBuilder = SparkSession.builder()
       .master("local-cluster[2,1,1024]")
       .appName("Gluten-UT")
-      .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+      // Avoid static evaluation for literal input by spark catalyst.
+      .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName +
+          "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
       .config("spark.driver.memory", "1G")
       .config("spark.sql.adaptive.enabled", "true")
       .config("spark.sql.shuffle.partitions", "1")
@@ -64,9 +66,6 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       .config("spark.plugins", "io.glutenproject.GlutenPlugin")
       .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .config("spark.sql.warehouse.dir", warehouse)
-      // Avoid static evaluation for literal input by spark catalyst.
-      .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-        NullPropagation.ruleName)
       // Avoid the code size overflow error in Spark code generation.
       .config("spark.sql.codegen.wholeStage", "false")
 
