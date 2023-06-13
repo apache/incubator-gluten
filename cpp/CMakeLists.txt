@@ -52,6 +52,7 @@ option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
+cmake_path(GET CMAKE_SOURCE_DIR PARENT_PATH GLUTEN_HOME)
 
 if (NOT BUILD_VELOX_BACKEND)
   message(STATUS "Not select any backend, build velox backend default")
@@ -59,7 +60,7 @@ if (NOT BUILD_VELOX_BACKEND)
 endif()
 
 if (NOT DEFINED ARROW_HOME)
-  set(ARROW_HOME ${CMAKE_SOURCE_DIR}/../ep/build-arrow/build)
+  set(ARROW_HOME ${GLUTEN_HOME}/ep/build-arrow/build)
 endif()
 
 #
