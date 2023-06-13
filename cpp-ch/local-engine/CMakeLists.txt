@@ -120,7 +120,6 @@ else()
         -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
 endif()
 
-if (ENABLE_TESTS)
-    add_subdirectory(tests)
-endif ()
+add_subdirectory(tests)
+
 
