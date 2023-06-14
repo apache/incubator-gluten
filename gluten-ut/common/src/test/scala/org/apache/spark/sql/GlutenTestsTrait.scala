@@ -19,6 +19,7 @@ package org.apache.spark.sql
 
 import java.io.File
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 import io.glutenproject.GlutenConfig
@@ -39,9 +40,8 @@ import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData,
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
-import org.scalactic.TripleEqualsSupport.Spread
 
-import scala.collection.mutable
+import org.scalactic.TripleEqualsSupport.Spread
 
 trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
@@ -89,7 +89,9 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         .builder()
         .appName("Gluten-UT")
         .master(s"local[2]")
-        .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+         // Avoid static evaluation for literal input by spark catalyst.
+        .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName +
+            "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
         .config("spark.driver.memory", "1G")
         .config("spark.sql.adaptive.enabled", "true")
         .config("spark.sql.shuffle.partitions", "1")
@@ -99,9 +101,6 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config("spark.sql.warehouse.dir", warehouse)
-        // Avoid static evaluation for literal input by spark catalyst.
-        .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + ","  +
-            NullPropagation.ruleName)
         // Avoid the code size overflow error in Spark code generation.
         .config("spark.sql.codegen.wholeStage", "false")
 
