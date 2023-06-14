@@ -18,51 +18,67 @@ package io.glutenproject.utils
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, GreaterThan, LessThan, Not, Or}
+import org.apache.spark.sql.catalyst.expressions.And
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual
 
-/**
- * The logic here is that if it is not an equi-join spark will create BNLJ, which will fallback, if
- * it is an equi-join, spark will create BroadcastHashJoin or ShuffleHashJoin, for these join types,
- * we need to filter For cases that cannot be handled by the backend, 1 there are at least two
- * different tables column and Literal in the condition Or condition for comparison, for example: (a
- * join b on a.a1 = b.b1 and (a.a2 > 1 or b.b2 < 2) ) 2 tow join key for inequality comparison (!= ,
- * > , <), for example: (a join b on a.a1 > b.b1) There will be a fallback for Nullaware Jion For
- * Existence Join which is just an optimization of exist subquery, it will also fallback
- */
+// Rules:
+// 1. Only one inequality condition is allowed in clickhouse asof join, e.g. <, <=, >, >=
+// 2. Clickhouse backend do not support or/not expressions as join condition
 
 object CHJoinValidateUtil extends Logging {
   def hasTwoTableColumn(l: Expression, r: Expression): Boolean = {
     !l.references.toSeq
       .map(_.qualifier.mkString("."))
       .toSet
-      .subsetOf(r.references.toSeq.map(_.qualifier.mkString(".")).toSet)
+      .subsetOf(r.references.toSeq.map(_.qualifier.mkString(".")).toSet) && !r.references.nonEmpty
   }
 
   def doValidate(condition: Option[Expression]): Boolean = {
-    var shouldFallback = false
-    if (condition.isDefined) {
-      condition.get.transform {
-        case Or(l, r) =>
-          if (hasTwoTableColumn(l, r)) {
-            shouldFallback = true
-          }
-          Or(l, r)
-        case Not(EqualTo(l, r)) =>
-          if (l.references.nonEmpty && r.references.nonEmpty) {
-            shouldFallback = true
-          }
-          Not(EqualTo(l, r))
-        case LessThan(l, r) =>
-          if (l.references.nonEmpty && r.references.nonEmpty) {
-            shouldFallback = true
-          }
-          LessThan(l, r)
-        case GreaterThan(l, r) =>
-          if (l.references.nonEmpty && r.references.nonEmpty) {
-            shouldFallback = true
-          }
-          GreaterThan(l, r)
-      }
+    val (ok, inequalities) = doValidateInteral(condition)
+    ok && inequalities <= 1
+  }
+
+  def doValidateInteral(condition: Option[Expression]): (Boolean, Int) = {
+    if (condition.isEmpty) {
+      return (true, 0)
     }
-    shouldFallback
+
+    condition.get match {
+      case And(l, r) =>
+        val (leftOk, leftInequalities) = doValidateInteral(Some(l))
+        val (rightOk, rightInequalities) = doValidateInteral(Some(r))
+        if (!leftOk || !rightOk || leftInequalities + rightInequalities > 1) {
+          (false, 0)
+        } else {
+          (true, leftInequalities + rightInequalities)
+        }
+      case LessThan(l, r) =>
+        if (hasTwoTableColumn(l, r)) {
+          (true, 1)
+        } else {
+          (true, 0)
+        }
+      case LessThanOrEqual(l, r) =>
+        if (hasTwoTableColumn(l, r)) {
+          (true, 1)
+        } else {
+          (true, 0)
+        }
+      case GreaterThan(l, r) =>
+        if (hasTwoTableColumn(l, r)) {
+          (true, 1)
+        } else {
+          (true, 0)
+        }
+      case GreaterThanOrEqual(l, r) =>
+        if (hasTwoTableColumn(l, r)) {
+          (true, 1)
+        } else {
+          (true, 0)
+        }
+      case _: Expression =>
+        (false, 0)
+    }
   }
 }
