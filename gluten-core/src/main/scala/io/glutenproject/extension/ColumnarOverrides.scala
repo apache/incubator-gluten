@@ -609,7 +609,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
     case plan: ColumnarToRowExec =>
       plan.child match {
-        case _: BatchScanExec | _: FileSourceScanExec =>
+        case _: BatchScanExec | _: FileSourceScanExec if !plan.child.isInstanceOf[GlutenPlan] =>
           plan
         case _ =>
           transformColumnarToRowExec(plan)

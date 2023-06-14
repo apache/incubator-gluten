@@ -66,7 +66,7 @@ object ColumnarRules {
         c2r // AdaptiveSparkPlanExec.scala:536
       case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
-      case c2r@ColumnarToRowExec(child) =>
+      case c2r @ ColumnarToRowExec(child) =>
         child match {
           case _: BatchScanExec | _: FileSourceScanExec if !child.isInstanceOf[GlutenPlan] =>
             c2r
