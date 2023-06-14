@@ -41,16 +41,24 @@ import org.apache.spark.util.Utils
  * A test suite that tests various Parquet queries.
  */
 class GlutenParquetV1QuerySuite extends ParquetV1QuerySuite with GlutenSQLTestsBaseTrait {
+  override protected val vectorizedReaderEnabledKey: String =
+    SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key + "_DISABLED"
+  override protected val vectorizedReaderNestedEnabledKey: String =
+    SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
   override def withAllParquetReaders(code: => Unit): Unit = {
     // test the row-based reader
     withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false")(code)
     // Disabled: We don't yet support this case as of now
     // test the vectorized reader
-//    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
+    // withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
   }
 }
 
 class GlutenParquetV2QuerySuite extends ParquetV2QuerySuite with GlutenSQLTestsBaseTrait {
+  override protected val vectorizedReaderEnabledKey: String =
+    SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key + "_DISABLED"
+  override protected val vectorizedReaderNestedEnabledKey: String =
+    SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
   override def withAllParquetReaders(code: => Unit): Unit = {
     // test the row-based reader
     withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false")(code)

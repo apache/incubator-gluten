@@ -36,8 +36,8 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
 
   // test data path is jar path, so failed, test code is same with spark
   test("gluten Option recursiveFileLookup: disable partition inferring") {
-    val dataPath = Thread.currentThread().getContextClassLoader
-      .getResource("test-data/text-partitioned").toString
+    val dataPath = getWorkspaceFilePath(
+      "sql", "core", "src", "test", "resources").toString + "/" + "test-data/text-partitioned"
 
     val df = spark.read.format("binaryFile")
       .option("recursiveFileLookup", true)
@@ -49,7 +49,7 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
     val expectedFileList = Array(
       dataPath + "/year=2014/data.txt",
       dataPath + "/year=2015/data.txt"
-    ).map(path => new Path(path).toString)
+    ).map(path => "file:" + new Path(path).toString)
 
     assert(fileList.toSet === expectedFileList.toSet)
   }
