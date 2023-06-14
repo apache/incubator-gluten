@@ -48,7 +48,7 @@ object ShuffleUtils {
         }
       case None =>
         val sparkCodecConf = "spark.io.compression.codec"
-        val codec = conf.get(sparkCodecConf).toUpperCase(Locale.ROOT)
+        val codec = conf.get(sparkCodecConf, "LZ4").toUpperCase(Locale.ROOT)
         checkCodecValues(sparkCodecConf, codec, GlutenConfig.GLUTEN_SHUFFLE_SUPPORTED_CODEC)
         codec
     }
