@@ -1,3 +1,5 @@
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h)
+
 if (ENABLE_TESTS)
     macro(add_gtest_sources prefix common_path)
         add_glob(${prefix}_sources ${common_path}/gtest*.cpp)
@@ -12,13 +14,7 @@ if (ENABLE_TESTS)
     include_directories(${GTEST_INCLUDE_DIRS})
 
     set(TEST_DATA_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine/tests")
-
-    configure_file(
-            ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in
-            ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h
-    )
     set(HAVE_POSIX_REGEX 1)
-
     set(LOCAL_ENGINE_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine")
 
     add_gtest_sources(local_engine_gtest .)
