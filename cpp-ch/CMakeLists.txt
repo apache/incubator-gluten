@@ -69,7 +69,7 @@ add_custom_command(
         -DENABLE_EXTERN_LOCAL_ENGINE=ON
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
-        cmake --build ${CH_BINARY_DIR} --target ch benchmark_local_engine\"
+        cmake --build ${CH_BINARY_DIR} --target ch\"
         OUTPUT _build_ch)
 endif()
 
