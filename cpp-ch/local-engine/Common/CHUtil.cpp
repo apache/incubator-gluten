@@ -476,6 +476,7 @@ void BackendInitializerUtil::initConfig(std::string * plan)
     {
         const auto & key = kv.first;
         const auto & value = kv.second;
+        // std::cout << "set config key:" << key << ", value:" << value << std::endl;
 
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
@@ -514,6 +515,9 @@ void BackendInitializerUtil::initEnvs()
         std::string libhdfs3_conf = config->getString(LIBHDFS3_CONF_KEY, "");
         setenv("LIBHDFS3_CONF", libhdfs3_conf.c_str(), true); /// NOLINT
     }
+
+    /// Enable logging in libhdfs3, logs will be written to stderr
+    setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
 }
 
 void BackendInitializerUtil::initSettings()
