@@ -28,10 +28,10 @@ function get_project_version() {
 get_project_version
 
 BUILD_VERSION=${BUILD_VERSION:-${PROJECT_VERSION}}
-SPARK_MAJOR_MINOR_VERSION=${SPARK_MAJOR_MINOR_VERSION:-3.2}
 OS_VERSION=${OS_VERSION}
 OS_ARCH=$(uname -m)
-PACKAGE_NAME=gluten-${BUILD_VERSION}-spark${SPARK_MAJOR_MINOR_VERSION}-${OS_VERSION}-${OS_ARCH}
+PACKAGE_NAME=gluten-${BUILD_VERSION}-${OS_VERSION}-${OS_ARCH}
+PACKAGE_DIR_PATH="${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 
 # cleanup working directory
 [[ -d "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}" ]] && rm -rf "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
@@ -46,13 +46,15 @@ mkdir -p "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/bin
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/conf
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
+mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars
+mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark32
+mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/libs
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/logs
 
 # create BUILD_INFO
 {
   echo "BUILD_VERSION=${BUILD_VERSION}"
-  echo "SPARK_MAJOR_MINOR_VERSION=${SPARK_MAJOR_MINOR_VERSION}"
   echo "OS_VERSION=${OS_VERSION}"
   echo "OS_ARCH=${OS_ARCH}"
   echo COMMIT_SHA="$(git rev-parse HEAD)"
@@ -63,32 +65,29 @@ cp "${GLUTEN_SOURCE}"/LICENSE "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 cp "${GLUTEN_SOURCE}"/README.md "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 
 # build gluten jar
-mvn clean package -Pbackends-clickhouse -Pspark-"${SPARK_MAJOR_MINOR_VERSION}" -DskipTests -Dcheckstyle.skip
+cd "${GLUTEN_SOURCE}"
+mvn clean package -Pbackends-clickhouse -Pspark-3.2 -DskipTests -Dcheckstyle.skip
+mvn clean package -Pspark-3.3 -pl shims/spark33 -DskipTests -Dcheckstyle.skip
 
 # build libch.so
 bash "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/build_clickhouse.sh
 
 # copy gluten jar and libch.so
-cp "${GLUTEN_SOURCE}"/backends-clickhouse/target/gluten-*-jar-with-dependencies.jar "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars/gluten.jar
-cp "$GLUTEN_SOURCE"/cpp-ch/build/utils/extern-local-engine/libch.so "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/libs/libch.so
+cp "${GLUTEN_SOURCE}"/backends-clickhouse/target/gluten-*-jar-with-dependencies-exclude-sparkshims.jar "${PACKAGE_DIR_PATH}"/jars/gluten.jar
+cp "$GLUTEN_SOURCE"/cpp-ch/build/utils/extern-local-engine/libch.so "${PACKAGE_DIR_PATH}"/libs/libch.so
+cp "${GLUTEN_SOURCE}"/shims/spark32/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark32/spark32-shims.jar
+cp "${GLUTEN_SOURCE}"/shims/spark33/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark33/spark33-shims.jar
 
 # copy bin and conf
 cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/bin/* "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/bin
 cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/conf/* "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/conf
 
 # download 3rd party jars
-if [[ "${SPARK_MAJOR_MINOR_VERSION}" == "3.2" ]]; then
-  wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
-  wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
-  wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
-elif [ "${SPARK_MAJOR_MINOR_VERSION}" == "3.3" ]; then
-  wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
-  wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
-  wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
-else
-  echo "Unsupported spark version: ${SPARK_MAJOR_MINOR_VERSION}"
-  exit 1
-fi
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P "${PACKAGE_DIR_PATH}"/jars
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
 
 # build tar.gz
 cd "${GLUTEN_SOURCE}"/dist
