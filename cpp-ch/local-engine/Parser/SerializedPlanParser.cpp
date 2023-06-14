@@ -2087,7 +2087,7 @@ void SerializedPlanParser::collectJoinKeys(
     }
 }
 
-DB::QueryPlanPtr SerializedPlanParser::parseJoin(substrait::JoinRel join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *>& steps)
+DB::QueryPlanPtr SerializedPlanParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *>& steps)
 {
     google::protobuf::StringValue optimization;
     optimization.ParseFromString(join.advanced_extension().optimization().value());
@@ -2283,16 +2283,16 @@ void SerializedPlanParser::parseJoinKeysAndCondition(
     std::vector<IQueryPlanStep *>& steps)
 {
     ASTs args;
-    ASTParser astParser(context, function_mapping);
+    ASTParser ast_parser(context, function_mapping);
 
     if (join.has_expression())
     {
-        args.emplace_back(astParser.parseToAST(names, join.expression()));
+        args.emplace_back(ast_parser.parseToAST(names, join.expression()));
     }
 
     if (join.has_post_join_filter())
     {
-        args.emplace_back(astParser.parseToAST(names, join.post_join_filter()));
+        args.emplace_back(ast_parser.parseToAST(names, join.post_join_filter()));
     }
 
     if (args.empty())
@@ -2331,7 +2331,7 @@ void SerializedPlanParser::parseJoinKeysAndCondition(
         auto right_keys = table_join->rightKeysList();
         if (!left_keys->children.empty())
         {
-            auto actions = astParser.convertToActions(left->getCurrentDataStream().header.getNamesAndTypesList(), left_keys);
+            auto actions = ast_parser.convertToActions(left->getCurrentDataStream().header.getNamesAndTypesList(), left_keys);
             QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(left->getCurrentDataStream(), actions);
             before_join_step->setStepDescription("Before JOIN LEFT");
             steps.emplace_back(before_join_step.get());
@@ -2340,7 +2340,7 @@ void SerializedPlanParser::parseJoinKeysAndCondition(
 
         if (!right_keys->children.empty())
         {
-            auto actions = astParser.convertToActions(right->getCurrentDataStream().header.getNamesAndTypesList(), right_keys);
+            auto actions = ast_parser.convertToActions(right->getCurrentDataStream().header.getNamesAndTypesList(), right_keys);
             QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), actions);
             before_join_step->setStepDescription("Before JOIN RIGHT");
             steps.emplace_back(before_join_step.get());

@@ -51,7 +51,7 @@ case class CHShuffledHashJoinExecTransformer(
   override def doValidateInternal(): Boolean = {
     var shouldFallback = false
     if (substraitJoinType != JoinRel.JoinType.JOIN_TYPE_INNER) {
-      shouldFallback = CHJoinValidateUtil.doValidate(condition)
+      shouldFallback = CHJoinValidateUtil.shouldFallback(condition)
     }
     if (shouldFallback) {
       return false
@@ -90,7 +90,7 @@ case class CHBroadcastHashJoinExecTransformer(
   override def doValidateInternal(): Boolean = {
     var shouldFallback = false
     if (substraitJoinType != JoinRel.JoinType.JOIN_TYPE_INNER) {
-      shouldFallback = CHJoinValidateUtil.doValidate(condition)
+      shouldFallback = CHJoinValidateUtil.shouldFallback(condition)
     }
     if (isNullAwareAntiJoin == true) {
       shouldFallback = true

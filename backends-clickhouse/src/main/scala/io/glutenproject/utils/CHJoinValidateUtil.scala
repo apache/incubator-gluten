@@ -22,10 +22,6 @@ import org.apache.spark.sql.catalyst.expressions.And
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual
 
-// Rules:
-// 1. Only one inequality condition is allowed in clickhouse asof join, e.g. <, <=, >, >=
-// 2. Clickhouse backend do not support or/not expressions as join condition
-
 object CHJoinValidateUtil extends Logging {
   def hasTwoTableColumn(l: Expression, r: Expression): Boolean = {
     !l.references.toSeq
@@ -34,51 +30,54 @@ object CHJoinValidateUtil extends Logging {
       .subsetOf(r.references.toSeq.map(_.qualifier.mkString(".")).toSet) && !r.references.nonEmpty
   }
 
-  def doValidate(condition: Option[Expression]): Boolean = {
-    val (ok, inequalities) = doValidateInteral(condition)
-    ok && inequalities <= 1
+  // Rules:
+  // 1. Only one inequality condition is allowed in clickhouse asof join, e.g. <, <=, >, >=
+  // 2. Clickhouse backend do not support or/not expressions as join condition
+  def shouldFallback(condition: Option[Expression]): Boolean = {
+    val (fallback, inequalities) = shouldFallBackInteral(condition)
+    fallback || inequalities > 1
   }
 
-  def doValidateInteral(condition: Option[Expression]): (Boolean, Int) = {
+  def shouldFallBackInteral(condition: Option[Expression]): (Boolean, Int) = {
     if (condition.isEmpty) {
-      return (true, 0)
+      return (false, 0)
     }
 
     condition.get match {
       case And(l, r) =>
-        val (leftOk, leftInequalities) = doValidateInteral(Some(l))
-        val (rightOk, rightInequalities) = doValidateInteral(Some(r))
-        if (!leftOk || !rightOk || leftInequalities + rightInequalities > 1) {
-          (false, 0)
+        val (leftFallback, leftInequalities) = shouldFallBackInteral(Some(l))
+        val (rightFallback, rightInequalities) = shouldFallBackInteral(Some(r))
+        if (leftFallback || rightFallback || leftInequalities + rightInequalities > 1) {
+          (true, 0)
         } else {
-          (true, leftInequalities + rightInequalities)
+          (false, leftInequalities + rightInequalities)
         }
       case LessThan(l, r) =>
         if (hasTwoTableColumn(l, r)) {
-          (true, 1)
+          (false, 1)
         } else {
-          (true, 0)
+          (false, 0)
         }
       case LessThanOrEqual(l, r) =>
         if (hasTwoTableColumn(l, r)) {
-          (true, 1)
+          (false, 1)
         } else {
-          (true, 0)
+          (false, 0)
         }
       case GreaterThan(l, r) =>
         if (hasTwoTableColumn(l, r)) {
-          (true, 1)
+          (false, 1)
         } else {
-          (true, 0)
+          (false, 0)
         }
       case GreaterThanOrEqual(l, r) =>
         if (hasTwoTableColumn(l, r)) {
-          (true, 1)
+          (false, 1)
         } else {
-          (true, 0)
+          (false, 0)
         }
       case _: Expression =>
-        (false, 0)
+        (true, 0)
     }
   }
 }

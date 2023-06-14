@@ -274,9 +274,13 @@ public:
 private:
     static DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
+
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
-    DB::QueryPlanPtr parseJoin(substrait::JoinRel join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *>& steps);
+
+    DB::QueryPlanPtr
+    parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *> & steps);
+
     void parseJoinKeysAndCondition(
         std::shared_ptr<TableJoin> table_join,
         substrait::JoinRel & join,
