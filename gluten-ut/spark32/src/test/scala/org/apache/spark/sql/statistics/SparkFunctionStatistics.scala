@@ -18,25 +18,29 @@ package org.apache.spark.sql.statistics
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.utils.SystemParameters
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
-import org.apache.spark.sql.catalyst.plans.SQLHelper
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait, QueryTest, SQLQueryTestHelper, SparkSession}
+import org.apache.spark.sql.{GlutenTestConstants, QueryTest, SparkSession}
 
-class SparkFunctionStatistics extends QueryTest with SharedSparkSession with SQLHelper
-    with SQLQueryTestHelper {
+import scala.util.control.Breaks.{break, breakable}
 
-  protected var _spark: SparkSession = null
+class SparkFunctionStatistics extends QueryTest {
 
-  override protected def initializeSession(): Unit = {
-    if (_spark == null) {
+  var spark: SparkSession = null
+
+  protected def initializeSession(): Unit = {
+    if (spark == null) {
       val sparkBuilder = SparkSession
           .builder()
           .appName("Gluten-UT")
           .master(s"local[2]")
-          .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+          // Avoid static evaluation for literal input by spark catalyst.
+          .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName +
+              "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
           .config("spark.driver.memory", "1G")
           .config("spark.sql.adaptive.enabled", "true")
           .config("spark.sql.shuffle.partitions", "1")
@@ -45,14 +49,10 @@ class SparkFunctionStatistics extends QueryTest with SharedSparkSession with SQL
           .config("spark.memory.offHeap.size", "1024MB")
           .config("spark.plugins", "io.glutenproject.GlutenPlugin")
           .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-//          .config("spark.sql.warehouse.dir", warehouse)
-          // Avoid static evaluation for literal input by spark catalyst.
-          .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-              NullPropagation.ruleName)
           // Avoid the code size overflow error in Spark code generation.
           .config("spark.sql.codegen.wholeStage", "false")
 
-      _spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+      spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
         GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
         sparkBuilder
             .config("spark.io.compression.codec", "LZ4")
@@ -71,15 +71,64 @@ class SparkFunctionStatistics extends QueryTest with SharedSparkSession with SQL
     }
   }
 
-//  def main(args: Array[String]): Unit = {
-    test(GlutenTestConstants.GLUTEN_TEST + "Run spark function statistics: ") {
-//      initializeSession
-      val functionRegistry = _spark.sessionState.functionRegistry
-      print(functionRegistry.lookupFunction(functionRegistry.listFunction().head).get.getExamples)
-      val sparkBuiltInFunctions = functionRegistry.listFunction()
-      for (func <- sparkBuiltInFunctions) {
-        val exprInfo = functionRegistry.lookupFunction(func).get
-        exprInfo.getName
+  def extractQuery(examples: String): Seq[String] = {
+    examples.split("\n").map(_.trim).filter(!_.isEmpty).filter(_.startsWith(">"))
+        .map(_.replace(">", ""))
+  }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "Run spark function statistics: ") {
+    initializeSession
+    val functionRegistry = spark.sessionState.functionRegistry
+    val sparkBuiltInFunctions = functionRegistry.listFunction()
+    // According to expressionsForTimestampNTZSupport in FunctionRegistry.scala,
+    // these functions are registered only for testing, not available for end users.
+    val ignoreFunctions = FunctionRegistry.expressionsForTimestampNTZSupport.keySet
+    val supportedFunctions = new java.util.ArrayList[String]()
+    val unsupportedFunctions = new java.util.ArrayList[String]()
+    val needInspectFunctions = new java.util.ArrayList[String]()
+    for (func <- sparkBuiltInFunctions) {
+      val exprInfo = functionRegistry.lookupFunction(func).get
+      if (!ignoreFunctions.contains(exprInfo.getName)) {
+        val examples = extractQuery(exprInfo.getExamples)
+        if (examples.isEmpty) {
+          needInspectFunctions.add(exprInfo.getName)
+          print("###### Not found examples: " + exprInfo.getName + "\n")
+        }
+          var isSupported: Boolean = true
+          breakable {
+          for (example <- examples) {
+            var executedPlan: SparkPlan = null
+            try {
+              executedPlan = spark.sql(example).queryExecution.executedPlan
+            } catch {
+              case _: Throwable =>
+                needInspectFunctions.add(exprInfo.getName)
+                print("------- " + exprInfo.getName + "\n")
+                print(exprInfo.getExamples)
+                break
+            }
+            val hasFallbackProject = executedPlan.find(_.isInstanceOf[ProjectExec]).isDefined
+            if (hasFallbackProject) {
+              isSupported = false
+              break
+            }
+            val hasGlutenPlan = executedPlan.find(_.isInstanceOf[GlutenPlan]).isDefined
+            if (!hasGlutenPlan) {
+              isSupported = false
+              break
+            }
+          }
+          }
+          if (isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
+            supportedFunctions.add(exprInfo.getName)
+          } else if (!isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
+            unsupportedFunctions.add(exprInfo.getName)
+          }
       }
     }
+    print("overall functions: " + (sparkBuiltInFunctions.size - ignoreFunctions.size) + "\n")
+    print("supported functions: " + supportedFunctions.size() + "\n")
+    print("unsupported functions: " + unsupportedFunctions.size() + "\n")
+    print("need inspect functions: " + needInspectFunctions.size() + "\n")
+  }
 }
