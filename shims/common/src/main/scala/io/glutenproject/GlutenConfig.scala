@@ -885,9 +885,9 @@ object GlutenConfig {
 
   val EXTENDED_COLUMNAR_PRE_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.pre.rules")
-    .doc("A comma-separated list of classes for the extended columnar pre rules.")
-    .stringConf
-    .createWithDefaultString("")
+      .doc("A comma-separated list of classes for the extended columnar pre rules.")
+      .stringConf
+      .createWithDefaultString("")
 
   val EXTENDED_COLUMNAR_POST_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
