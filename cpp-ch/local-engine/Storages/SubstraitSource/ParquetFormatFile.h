@@ -24,7 +24,7 @@ public:
     explicit ParquetFormatFile(
         DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
     ~ParquetFormatFile() override = default;
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header, bool use_experimental_reader) override;
     std::optional<size_t> getTotalRows() override;
     bool supportSplit() override { return true; }
 

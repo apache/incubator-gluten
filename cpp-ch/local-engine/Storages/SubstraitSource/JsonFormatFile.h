@@ -13,6 +13,6 @@ public:
 
     bool supportSplit() override { return true; }
 
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header, bool) override;
 };
 }

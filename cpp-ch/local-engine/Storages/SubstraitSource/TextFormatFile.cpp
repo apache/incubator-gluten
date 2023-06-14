@@ -14,7 +14,7 @@ TextFormatFile::TextFormatFile(
 {
 }
 
-FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header, bool)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
     res->read_buffer = read_buffer_builder->build(file_info, true);

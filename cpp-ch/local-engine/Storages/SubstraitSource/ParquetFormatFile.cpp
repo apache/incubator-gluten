@@ -16,7 +16,7 @@
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
-#include <custom_parquet/CustomParquetBlockInputFormat.h>
+#include <Storages/ch_parquet/CustomParquetBlockInputFormat.h>
 
 // clang-format on
 namespace DB
@@ -35,7 +35,7 @@ ParquetFormatFile::ParquetFormatFile(
 {
 }
 
-FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header, bool use_experimental_reader)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
     res->read_buffer = read_buffer_builder->build(file_info);
@@ -53,20 +53,6 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         required_row_groups = collectRequiredRowGroups(total_row_groups);
 
     auto format_settings = DB::getFormatSettings(context);
-// clang-format off
-#if USE_LOCAL_FORMATS
-    // clang-format on
-    format_settings.parquet.import_nested = true;
-
-    std::vector<int> row_group_indices;
-    row_group_indices.reserve(required_row_groups.size());
-    for (const auto & row_group : required_row_groups)
-        row_group_indices.emplace_back(row_group.index);
-
-    auto input_format
-        = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
-// clang-format off
-#else
     // clang-format on
     std::vector<int> total_row_group_indices(total_row_groups);
     std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
@@ -84,12 +70,16 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         std::back_inserter(skip_row_group_indices));
 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
-    auto input_format = std::make_shared<DB::CustomParquetBlockInputFormat>(
-        reinterpret_cast<DB::ReadBufferFromFileBase *>(res->read_buffer.get()), header, format_settings);
-// clang-format off
-#endif
-    // clang-format on
-    res->input = input_format;
+    if (use_experimental_reader)
+    {
+        res->input = std::make_shared<DB::CustomParquetBlockInputFormat>(
+                reinterpret_cast<DB::ReadBufferFromFileBase *>(res->read_buffer.get()), header, format_settings);
+    }
+    else
+    {
+        res->input = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
+    }
+
     return res;
 }
 

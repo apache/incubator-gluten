@@ -10,7 +10,7 @@ namespace local_engine
 JsonFormatFile::JsonFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
     :FormatFile(context_, file_info_, read_buffer_builder_) {}
 
-FormatFile::InputFormatPtr JsonFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr JsonFormatFile::createInputFormat(const DB::Block & header, bool)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
     res->read_buffer = read_buffer_builder->build(file_info, true);

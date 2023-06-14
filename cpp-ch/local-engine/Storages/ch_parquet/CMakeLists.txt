@@ -1,44 +1,54 @@
+add_library(
+        parquet
+        ParquetFileReader.h
+        ParquetFileReader.cpp
+        ParquetRowGroupReader.h
+        ParquetRowGroupReader.cpp
+        ParquetColumnChunkReader.h
+        ParquetColumnChunkReader.cpp
+        PageReader.h
+        PageReader.cpp
+        RleEncoding.cpp
+        RleEncoding.h
+        Decoder.h
+        Decoder.cpp
+        ParquetColumnReader.cpp
+        ParquetColumnReader.h
+        Utils.h
+        StoredColumnReader.cpp
+        StoredColumnReader.h
+        bit_packing.h
+        bit_packing.inline.h
+        schema.h
+        schema.cpp
+        metadata.cpp
+        metadata.h
+        param.h
+        bit_util.cpp
+        bit_util.h
+        CompressCodec.cpp
+        CompressCodec.h
+        CustomParquetBlockInputFormat.cpp
+        CustomParquetBlockInputFormat.h
+        Filters.cpp
+        Filters.h)
 
-set(ARROW_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/arrow/cpp/src")
+target_include_directories(parquet PUBLIC
+        ${ClickHouse_SOURCE_DIR}/contrib/arrow/cpp/src/
+        ${CMAKE_BINARY_DIR}/contrib/thrift-cmake/thrift)
 
-macro(add_headers_and_sources_including_cc prefix common_path)
-    add_glob(${prefix}_headers ${CMAKE_CURRENT_SOURCE_DIR} ${common_path}/*.h)
-    add_glob(${prefix}_sources ${common_path}/*.cpp ${common_path}/*.c ${common_path}/*.cc ${common_path}/*.h)
-endmacro()
+target_compile_options(parquet PUBLIC
+        -Wno-suggest-destructor-override
+        -Wno-suggest-override
+        -Wno-reserved-identifier
+        -Wno-old-style-cast
+        -Wno-zero-as-null-pointer-constant
+        -Wno-shorten-64-to-32
+        -Wno-undefined-reinterpret-cast
+        )
 
-add_headers_and_sources(ch_parquet .)
-add_headers_and_sources_including_cc(ch_parquet arrow)
-
-add_library(ch_parquet ${ch_parquet_sources})
-
-target_compile_options(ch_parquet PUBLIC -fPIC
-    -Wno-shorten-64-to-32
-    -Wno-shadow-field-in-constructor
-    -Wno-return-type
-    -Wno-reserved-identifier
-    -Wno-extra-semi-stmt
-    -Wno-extra-semi
-    -Wno-unused-result
-    -Wno-unreachable-code-return
-    -Wno-unused-parameter
-    -Wno-unreachable-code
-    -Wno-pessimizing-move
-    -Wno-unreachable-code-break
-    -Wno-unused-variable
-    -Wno-inconsistent-missing-override
-    -Wno-shadow-uncaptured-local
-    -Wno-suggest-override
-    -Wno-unused-member-function
-    -Wno-deprecated-this-capture
-)
-
-target_link_libraries(ch_parquet PUBLIC
-    boost::headers_only
-    clickhouse_common_io
-)
-
-target_include_directories(ch_parquet SYSTEM BEFORE PUBLIC 
-    ${ARROW_INCLUDE_DIR} 
-    ${CMAKE_BINARY_DIR}/contrib/arrow-cmake/cpp/src
-    ${ClickHouse_SOURCE_DIR}/contrib/arrow-cmake/cpp/src
+target_link_libraries(parquet
+        clickhouse_common_io
+        dbms
+        ch_contrib::thrift
 )

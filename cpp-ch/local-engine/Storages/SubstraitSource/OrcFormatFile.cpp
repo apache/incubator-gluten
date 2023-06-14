@@ -7,147 +7,8 @@
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/SubstraitSource/OrcUtil.h>
 
-#if USE_LOCAL_FORMATS
-#include <Common/Exception.h>
-#include <DataTypes/NestedUtils.h>
-#include <Formats/FormatSettings.h>
-
-// clang-format on
-namespace DB
-{
-namespace ErrorCodes
-{
-    extern const int CANNOT_READ_ALL_DATA;
-}
-}
-#    endif
-
 namespace local_engine
 {
-#    if USE_LOCAL_FORMATS
-ORCBlockInputFormat::ORCBlockInputFormat(
-    DB::ReadBuffer & in_, DB::Block header_, const DB::FormatSettings & format_settings_, const std::vector<StripeInformation> & stripes_)
-    : IInputFormat(std::move(header_), in_), format_settings(format_settings_), stripes(stripes_)
-{
-}
-
-
-void ORCBlockInputFormat::resetParser()
-{
-    IInputFormat::resetParser();
-
-    file_reader.reset();
-    include_indices.clear();
-    include_column_names.clear();
-    block_missing_values.clear();
-    current_stripe = 0;
-}
-
-
-DB::Chunk ORCBlockInputFormat::generate()
-{
-    DB::Chunk res;
-    block_missing_values.clear();
-
-    if (!file_reader)
-        prepareReader();
-
-    if (is_stopped)
-        return {};
-
-    std::shared_ptr<arrow::RecordBatchReader> batch_reader;
-    batch_reader = fetchNextStripe();
-    if (!batch_reader)
-    {
-        return res;
-    }
-
-    std::shared_ptr<arrow::Table> table;
-    arrow::Status table_status = batch_reader->ReadAll(&table);
-    if (!table_status.ok())
-    {
-        throw DB::ParsingException(
-            DB::ErrorCodes::CANNOT_READ_ALL_DATA, "Error while reading batch of ORC data: {}", table_status.ToString());
-    }
-
-    if (!table || !table->num_rows())
-    {
-        return res;
-    }
-
-    if (format_settings.use_lowercase_column_name)
-        table = *table->RenameColumns(include_column_names);
-
-    arrow_column_to_ch_column->arrowTableToCHChunk(res, table);
-    /// If defaults_for_omitted_fields is true, calculate the default values from default expression for omitted fields.
-    /// Otherwise fill the missing columns with zero values of its type.
-    if (format_settings.defaults_for_omitted_fields)
-        for (size_t row_idx = 0; row_idx < res.getNumRows(); ++row_idx)
-            for (const auto & column_idx : missing_columns)
-                block_missing_values.setBit(column_idx, row_idx);
-    return res;
-}
-
-
-void ORCBlockInputFormat::prepareReader()
-{
-    std::shared_ptr<arrow::Schema> schema;
-    OrcUtil::getFileReaderAndSchema(*in, file_reader, schema, format_settings, is_stopped);
-    if (is_stopped)
-        return;
-
-    arrow_column_to_ch_column = std::make_unique<DB::OptimizedArrowColumnToCHColumn>(
-        getPort().getHeader(), "ORC", format_settings.orc.import_nested, format_settings.orc.allow_missing_columns);
-    missing_columns = arrow_column_to_ch_column->getMissingColumns(*schema);
-
-    std::unordered_set<String> nested_table_names;
-    if (format_settings.orc.import_nested)
-        nested_table_names = DB::Nested::getAllTableNames(getPort().getHeader());
-
-
-    /// In ReadStripe column indices should be started from 1,
-    /// because 0 indicates to select all columns.
-    int index = 1;
-    for (int i = 0; i < schema->num_fields(); ++i)
-    {
-        /// LIST type require 2 indices, STRUCT - the number of elements + 1,
-        /// so we should recursively count the number of indices we need for this type.
-        int indexes_count = OrcUtil::countIndicesForType(schema->field(i)->type());
-        const auto & name = schema->field(i)->name();
-        if (getPort().getHeader().has(name) || nested_table_names.contains(name))
-        {
-            for (int j = 0; j != indexes_count; ++j)
-            {
-                include_indices.push_back(index + j);
-                include_column_names.push_back(name);
-            }
-        }
-        index += indexes_count;
-    }
-}
-
-std::shared_ptr<arrow::RecordBatchReader> ORCBlockInputFormat::stepOneStripe()
-{
-    auto result = file_reader->NextStripeReader(format_settings.orc.row_batch_size, include_indices);
-    current_stripe += 1;
-    if (!result.ok())
-    {
-        throw DB::ParsingException(DB::ErrorCodes::CANNOT_READ_ALL_DATA, "Failed to create batch reader: {}", result.status().ToString());
-    }
-    std::shared_ptr<arrow::RecordBatchReader> batch_reader;
-    batch_reader = std::move(result).ValueOrDie();
-    return batch_reader;
-}
-
-std::shared_ptr<arrow::RecordBatchReader> ORCBlockInputFormat::fetchNextStripe()
-{
-    if (current_stripe >= stripes.size())
-        return nullptr;
-    auto & strip = stripes[current_stripe];
-    file_reader->Seek(strip.start_row);
-    return stepOneStripe();
-}
-#    endif
 
 OrcFormatFile::OrcFormatFile(
     DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
@@ -155,7 +16,7 @@ OrcFormatFile::OrcFormatFile(
 {
 }
 
-FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & header, bool-v vb)
 {
     auto file_format = std::make_shared<FormatFile::InputFormat>();
     file_format->read_buffer = read_buffer_builder->build(file_info);
@@ -172,10 +33,6 @@ FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & he
 
     auto format_settings = DB::getFormatSettings(context);
 
-#    if USE_LOCAL_FORMATS
-    format_settings.orc.import_nested = true;
-    auto input_format = std::make_shared<local_engine::ORCBlockInputFormat>(*file_format->read_buffer, header, format_settings, stripes);
-#    else
     std::vector<int> total_stripe_indices(total_stripes);
     std::iota(total_stripe_indices.begin(), total_stripe_indices.end(), 0);
 
@@ -193,7 +50,6 @@ FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & he
 
     format_settings.orc.skip_stripes = std::unordered_set<int>(skip_stripe_indices.begin(), skip_stripe_indices.end());
     auto input_format = std::make_shared<DB::ORCBlockInputFormat>(*file_format->read_buffer, header, format_settings);
-#    endif
     file_format->input = input_format;
     return file_format;
 }

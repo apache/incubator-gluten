@@ -29,7 +29,7 @@ public:
     virtual ~FormatFile() = default;
 
     /// create a new input format for reading this file
-    virtual InputFormatPtr createInputFormat(const DB::Block & header) = 0;
+    virtual InputFormatPtr createInputFormat(const DB::Block & header, bool use_experimental_reader = false) = 0;
 
     /// Spark would split a large file into small segements and read in different tasks
     /// If this file doesn't support the split feacture, only the task with offset 0 will generate data.
