@@ -63,7 +63,7 @@ private class CHColumnarBatchSerializerInstance(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT.toBoolean
   )
   private lazy val compressionCodec =
-    GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+    GlutenConfig.getConf.columnarShuffleCodec
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
