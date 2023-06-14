@@ -491,7 +491,7 @@ void BackendInitializerUtil::initConfig(std::string * plan)
             // 1. fs.s3a.bucket.bucket_name.assumed.role.arn
             // 2. fs.s3a.bucket.bucket_name.assumed.role.session.name
             // 3. fs.s3a.bucket.bucket_name.endpoint
-            // 4. fs.s3a.bucket.bucket_name.assumed.role.external.id (non hadoop official)
+            // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
 
             // for spark.hadoop.fs.s3a.bucket.bucket_name.assumed.role.arn, put bucket_name.fs.s3a.assumed.role.arn into config
             std::regex base_regex("bucket\\.([^\\.]+)\\.");

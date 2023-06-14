@@ -59,7 +59,11 @@ class S3AuthSuite extends AnyFunSuite {
   val trustedSessionName = "test-session"
   val trustedAssumeRole2 =
     "arn:aws:iam::429636537981:role/r_mhb_cross_access_to_prod2" // -> has access to parquetPath2
-  val trustedExternalId2 = "123" // notice, trustedAssumeRole2 should have external Id set
+  // here external id looks like tested. But it is not. In order to make external id work we must overwrite and
+  // modify AssumedRoleCredentialProvider, which is also modified in Kyligence/hadoop-aws. To avoid conflicts
+  // we choose not to overwrite AssumedRoleCredentialProvider in Gluten. So without Kyligence/hadoop-aws,
+  // external id is NOT supported. So currently trustedAssumeRole2 should NOT have external Id set
+  val trustedExternalId2 = "123" // it's just a placeholder !!!
   val trustedSessionName2 = "test-session-2"
 
   // a separate test case for AWS CN
@@ -69,9 +73,9 @@ class S3AuthSuite extends AnyFunSuite {
   val cnParquetPath = "s3a://mhb-cn-private/test_nation"
 
   val longRunningAuthModes = List(
-    "AKSK", // this requires providing AK/SK of the trusted user
+    "AKSK" // this requires providing AK/SK of the trusted user
     // "INSTANCE_PROFILE", // this requires running on a EC2 instance, with trusted user's instance profile
-    "PROFILE_FILE" // this requires ~/.aws/credentials configured with the trusted user
+    // "PROFILE_FILE" // this requires ~/.aws/credentials configured with the trusted user.
   )
   val enableGlutenOrNot = List(true, false)
 
@@ -90,7 +94,7 @@ class S3AuthSuite extends AnyFunSuite {
             .config(providerKey, "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
         case "INSTANCE_PROFILE" =>
           builder.config(providerKey, "com.amazonaws.auth.InstanceProfileCredentialsProvider")
-        case "PROFILE_FILE" | "PROFILE_FILE2" =>
+        case "PROFILE_FILE" =>
           builder.config(providerKey, "com.amazonaws.auth.profile.ProfileCredentialsProvider")
         case _ =>
       }
@@ -114,6 +118,12 @@ class S3AuthSuite extends AnyFunSuite {
         .config("spark.memory.offHeap.size", "1g")
         .config("spark.gluten.sql.enable.native.validation", "false")
         .config("spark.hadoop.fs.s3a.endpoint", trustedOwnedEndpoint)
+        // The following two configs are provided to help hadoop-aws to pass.
+        // They're not required by native code (they don't have prefix spark.hadoop so
+        // native code will not see them)
+        // They're also unnecessary in real EC2 instance environment (at least it's the case with Kyligence/hadoop-aws)
+        .config("fs.s3a.assumed.role.sts.endpoint.region", "us-east-1")
+        .config("fs.s3a.assumed.role.sts.endpoint", "sts.us-east-1.amazonaws.com")
         .withAuthMode(mode, assuming = false)
         .withGluten(enable)
         .enableHiveSupport()
@@ -144,7 +154,13 @@ class S3AuthSuite extends AnyFunSuite {
           "org.apache.hadoop.fs.s3a.auth.AssumedRoleCredentialProvider")
         .config("spark.hadoop.fs.s3a.assumed.role.arn", trustedAssumeRole)
         .config("spark.hadoop.fs.s3a.assumed.role.session.name", trustedSessionName)
-        // .config("spark.hadoop.fs.s3a.assumed.role.external.id", "") // trustedAssumeRole has no external id
+        // .config("spark.hadoop.fs.s3a.assumed.role.externalId", "") // trustedAssumeRole has no external id
+        // The following two configs are provided to help hadoop-aws to pass.
+        // They're not required by native code (they don't have prefix spark.hadoop so
+        // native code will not see them)
+        // They're also unnecessary in real EC2 instance environment (at least it's the case with Kyligence/hadoop-aws)
+        .config("fs.s3a.assumed.role.sts.endpoint.region", "us-east-1")
+        .config("fs.s3a.assumed.role.sts.endpoint", "sts.us-east-1.amazonaws.com")
         .withAuthMode(mode, assuming = true)
         .withGluten(enable)
         .enableHiveSupport()
@@ -175,7 +191,7 @@ class S3AuthSuite extends AnyFunSuite {
           "spark.hadoop.fs.s3a.aws.credentials.provider",
           "org.apache.hadoop.fs.s3a.auth.AssumedRoleCredentialProvider")
         .config(s"spark.hadoop.fs.s3a.bucket.$trustingBucket.assumed.role.arn", trustedAssumeRole)
-        .config(s"spark.hadoop.fs.s3a.bucket.$trustingBucket.assumed.role.external.id", "")
+        .config(s"spark.hadoop.fs.s3a.bucket.$trustingBucket.assumed.role.externalId", "")
         .config(
           s"spark.hadoop.fs.s3a.bucket.$trustingBucket.assumed.role.session.name",
           trustedSessionName)
@@ -185,9 +201,15 @@ class S3AuthSuite extends AnyFunSuite {
           s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.session.name",
           trustedSessionName2)
         .config(
-          s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.external.id",
+          s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.externalId",
           trustedExternalId2
-        ) // here external id is tested
+        )
+        // The following two configs are provided to help hadoop-aws to pass.
+        // They're not required by native code (they don't have prefix spark.hadoop so
+        // native code will not see them)
+        // They're also unnecessary in real EC2 instance environment (at least it's the case with Kyligence/hadoop-aws)
+        .config("fs.s3a.assumed.role.sts.endpoint.region", "us-east-1")
+        .config("fs.s3a.assumed.role.sts.endpoint", "sts.us-east-1.amazonaws.com")
         .withAuthMode(mode, assuming = true)
         .withGluten(enable)
         .enableHiveSupport()
@@ -217,6 +239,9 @@ class S3AuthSuite extends AnyFunSuite {
       .config("spark.hadoop.fs.s3a.endpoint", cnEndpoint)
       .config("spark.hadoop.fs.s3a.access.key", cnAK)
       .config("spark.hadoop.fs.s3a.secret.key", cnSK)
+      .config(
+        "spark.hadoop.fs.s3a.aws.credentials.provider",
+        "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
       .enableHiveSupport()
       .getOrCreate()
 
