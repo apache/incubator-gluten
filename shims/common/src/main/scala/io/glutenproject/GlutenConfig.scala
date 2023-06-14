@@ -379,8 +379,8 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SPARK_S3_ACCESS_KEY, "minio"),
-      (SPARK_S3_SECRET_KEY, "miniopass"),
+      (SPARK_S3_ACCESS_KEY, ""),
+      (SPARK_S3_SECRET_KEY, ""),
       (SPARK_S3_ENDPOINT, "localhost:9000"),
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),

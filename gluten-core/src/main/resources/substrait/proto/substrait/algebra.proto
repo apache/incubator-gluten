@@ -136,6 +136,10 @@ message ReadRel {
         string field_delimiter = 1;
         uint64 max_block_size = 2;
         NamedStruct schema = 3;
+        string quote = 4;
+        uint64 header = 5;
+        string escape = 6;
+        string null_value = 7;
       }
       message JsonReadOptions {
         uint64 max_block_size = 1;

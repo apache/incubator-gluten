@@ -191,11 +191,44 @@ class CHHiveTableScanExecTransformer(
       && transformCtx.root.isInstanceOf[ReadRelNode]
       && scan.isDefined && scan.get.isInstanceOf[TextScan]
     ) {
+      val properties = relation.tableMeta.storage.properties ++ relation.tableMeta.properties
+      var options: Map[String, String] = Map()
+      properties.foreach {
+        case ("separatorChar", v) => options += ("field_delimiter" -> v)
+        case ("field.delim", v) => options += ("field_delimiter" -> v)
+        case ("quoteChar", v) => options += ("quote" -> v)
+        case ("skip.header.line.count", v) => options += ("header" -> v)
+        case ("escapeChar", v) => options += ("escape" -> v)
+        case ("escape.delim", v) => options += ("escape" -> v)
+        case (_, _) =>
+      }
+
+      if (!options.contains("field_delimiter")) {
+        val defaultDelimiter: Char = 0x01
+        options += ("field_delimiter" -> defaultDelimiter.toString)
+      }
+
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
       readRelNode.setDataSchema(relation.tableMeta.dataSchema)
-      readRelNode.setProperties(JavaConverters.mapAsJavaMap(relation.tableMeta.storage.properties))
+      readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
     }
     transformCtx
+  }
+
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[CHHiveTableScanExecTransformer]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: CHHiveTableScanExecTransformer =>
+      that.canEqual(this) &&
+      scan == that.scan &&
+      metrics == that.metrics &&
+      filteredPartitions == that.filteredPartitions
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(super.hashCode(), scan, metrics, filteredPartitions)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
 
