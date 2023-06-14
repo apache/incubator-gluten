@@ -18,12 +18,12 @@
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
+
 import org.apache.spark.sql._
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{FallbackStrategiesSuite, GlutenExchangeSuite, GlutenReuseExchangeAndSubquerySuite}
-import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
+import org.apache.spark.sql.extension.{GlutenCustomerExpressionTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 
 class ClickHouseTestSettings extends BackendTestSettings {
 
@@ -273,6 +273,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[GlutenCustomerExtensionSuite]
+  enableSuite[GlutenCustomerExpressionTransformerSuite]
 
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(

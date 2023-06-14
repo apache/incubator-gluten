@@ -33,6 +33,8 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
+  def enableGluten: Boolean = conf.getConf(ENABLED_GLUTEN)
+
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
@@ -195,12 +197,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
 
   // A comma-separated list of classes for the extended columnar pre rules
-  def extendedColumnarPreRules: String =
-    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.pre.rules", "")
+  def extendedColumnarPreRules: String = conf.getConf(EXTENDED_COLUMNAR_PRE_RULES)
 
   // A comma-separated list of classes for the extended columnar post rules
-  def extendedColumnarPostRules: String =
-    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
+  def extendedColumnarPostRules: String = conf.getConf(EXTENDED_COLUMNAR_POST_RULES)
+
+  def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
   def printStackOnValidateFailure: Boolean =
     conf.getConf(VALIDATE_FAILURE_PRINT_STACK_ENABLED)
@@ -305,6 +307,9 @@ object GlutenConfig {
   val GLUTEN_SUPPORTED_PYTHON_UDFS = "spark.gluten.supported.python.udfs"
   val GLUTEN_SUPPORTED_SCALA_UDFS = "spark.gluten.supported.scala.udfs"
 
+  val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
+    "spark.gluten.sql.columnar.extended.expressions.transformer"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -396,6 +401,13 @@ object GlutenConfig {
     // return
     nativeConfMap
   }
+
+  val ENABLED_GLUTEN =
+    buildConf("spark.gluten.enabled")
+      .internal()
+      .doc("Whether to enable gluten. Default value is true.")
+      .booleanConf
+      .createWithDefault(true)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -871,4 +883,21 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val EXTENDED_COLUMNAR_PRE_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.pre.rules")
+      .doc("A comma-separated list of classes for the extended columnar pre rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_COLUMNAR_POST_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
+      .doc("A comma-separated list of classes for the extended columnar post rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_EXPRESSION_TRAN_CONF =
+    buildConf(GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF)
+      .doc("A class for the extended expressions transformer.")
+      .stringConf
+      .createWithDefaultString("")
 }
