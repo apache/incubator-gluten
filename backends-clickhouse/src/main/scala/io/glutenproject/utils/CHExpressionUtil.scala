@@ -81,6 +81,11 @@ object CHExpressionUtil {
     TO_UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
     UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
     MIGHT_CONTAIN -> new ValidatorUtil(new DefaultBlackList),
-    GET_JSON_OBJECT -> new ValidatorUtil(new GetJsonObjectValidator)
+    GET_JSON_OBJECT -> new ValidatorUtil(new GetJsonObjectValidator),
+    ARRAY_MAX -> new ValidatorUtil(new DefaultBlackList),
+    ARRAY_MIN -> new ValidatorUtil(new DefaultBlackList),
+    SLICE -> new ValidatorUtil(new DefaultBlackList),
+    ARRAYS_OVERLAP -> new ValidatorUtil(new DefaultBlackList),
+    SORT_ARRAY -> new ValidatorUtil(new DefaultBlackList)
   )
 }

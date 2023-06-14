@@ -61,7 +61,13 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
   final def doValidate(): Boolean = {
     try {
       TransformerState.enterValidation
-      doValidateInternal
+      val res = doValidateInternal
+
+      if (!res) {
+        TestStats.addFallBackClassName(this.getClass.toString)
+      }
+
+      res
     } finally {
       TransformerState.finishValidation
     }
@@ -237,7 +243,6 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
     val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()

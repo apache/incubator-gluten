@@ -26,10 +26,250 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 
 class ClickHouseTestSettings extends BackendTestSettings {
-  /*
-  ExpressionSuite
+
+  /**
+   * Enable All expression UT.
    */
+  enableSuite[GlutenCastSuiteWithAnsiModeOn]
+    .exclude(
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
+  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
+    .exclude(
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
+  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
+    .exclude(
+      "cast string to date",
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
+  enableSuite[GlutenTryCastSuite]
+    .exclude(
+      "cast string to date",
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone"
+    )
+  enableSuite[GlutenArithmeticExpressionSuite].exclude(
+    "/ (Divide) basic",
+    "% (Remainder)", // CH will throw exception when right is zero
+    "SPARK-17617: % (Remainder) double % double on super big double",
+    "pmod"
+  )
+  enableSuite[GlutenBitwiseExpressionsSuite]
+  enableSuite[GlutenCastSuite]
+    .exclude(
+      "cast string to date",
+      "cast string to timestamp",
+      "cast from boolean",
+      "data type casting",
+      "cast struct with a timestamp field",
+      "SPARK-27671: cast from nested null type in struct",
+      "Process Infinity, -Infinity, NaN in case insensitive manner",
+      "SPARK-22825 Cast array to string",
+      "SPARK-33291: Cast array with null elements to string",
+      "SPARK-22973 Cast map to string",
+      "SPARK-22981 Cast struct to string",
+      "SPARK-33291: Cast struct with null elements to string",
+      "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
+      "SPARK-35719: cast timestamp with local time zone to timestamp without timezone",
+      "null cast #2",
+      "cast string to date #2",
+      "casting to fixed-precision decimals",
+      "SPARK-28470: Cast should honor nullOnOverflow property",
+      "cast string to boolean II",
+      "cast from array II",
+      "cast from map II",
+      "cast from struct II",
+      "cast from date",
+      "cast from timestamp",
+      "cast a timestamp before the epoch 1970-01-01 00:00:00Z",
+      "SPARK-34727: cast from float II"
+    )
+  enableSuite[GlutenCollectionExpressionsSuite]
+    .exclude(
+      "Array and Map Size - legacy",
+      "Array contains",
+      "Sequence of numbers",
+      "Reverse",
+      "elementAt",
+      "Concat",
+      "Shuffle",
+      "SPARK-33386: element_at ArrayIndexOutOfBoundsException",
+      "SPARK-33460: element_at NoSuchElementException"
+    )
+  enableSuite[GlutenComplexTypeSuite]
+    .exclude(
+      "CreateNamedStruct",
+      "SPARK-33386: GetArrayItem ArrayIndexOutOfBoundsException",
+      "SPARK-33460: GetMapValue NoSuchElementException",
+      "CreateMap",
+      "MapFromArrays"
+    )
+  enableSuite[GlutenConditionalExpressionSuite]
+    .exclude(
+      "case when",
+      "if/case when - null flags of non-primitive types"
+    )
+  enableSuite[GlutenDateExpressionsSuite]
+    .exclude(
+      "DayOfYear",
+      "Year",
+      "Quarter",
+      "Month",
+      "Day / DayOfMonth",
+      "DayOfWeek",
+      "WeekDay",
+      "WeekOfYear",
+      "DateFormat",
+      "Hour",
+      "add_months",
+      "TruncDate",
+      "unsupported fmt fields for trunc/date_trunc results null",
+      "from_unixtime",
+      "unix_timestamp",
+      "to_unix_timestamp",
+      "to_timestamp exception mode",
+      "SPARK-31896: Handle am-pm timestamp parsing when hour is missing",
+      "TIMESTAMP_MICROS",
+      "SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError"
+    )
   enableSuite[GlutenDecimalExpressionSuite]
+  enableSuite[GlutenHashExpressionsSuite]
+    .exclude(
+      "SPARK-30633: xxHash with different type seeds",
+      "SPARK-35207: Compute hash consistent between -0.0 and 0.0"
+    )
+  enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenJsonExpressionsSuite]
+    .exclude(
+      "$.store.bicycle",
+      "$['store'].bicycle",
+      "$.store['bicycle']",
+      "$['store']['bicycle']",
+      "$.store.book",
+      "$.store.book[0]",
+      "$.store.book[*].reader",
+      "$.store.book[*]",
+      "$",
+      "$.store.book[*].category",
+      "$.store.book[*].isbn",
+      "$.store.basket[*]",
+      "$.store.basket[0][1]",
+      "$.store.basket[*][0]",
+      "$.store.basket[0][*]",
+      "$.store.basket[*][*]",
+      "$.store.basket[0][*].b",
+      "$.zip code",
+      "$.fb:testid",
+      "$..no_recursive",
+      "from_json - invalid data",
+      "from_json - input=object, schema=array, output=array of single row",
+      "from_json - input=empty array, schema=array, output=empty array",
+      "from_json - input=empty object, schema=array, output=array of single row with null",
+      "from_json - input=array of single object, schema=struct, output=single row",
+      "from_json - input=array, schema=struct, output=single row",
+      "from_json - input=empty array, schema=struct, output=single row with null",
+      "from_json - input=empty object, schema=struct, output=single row with null",
+      "SPARK-20549: from_json bad UTF-8",
+      "from_json with timestamp",
+      "to_json - struct",
+      "to_json - array",
+      "to_json - array with single empty row",
+      "to_json with timestamp",
+      "SPARK-21513: to_json support map[string, struct] to json",
+      "SPARK-21513: to_json support map[struct, struct] to json",
+      "from_json missing fields",
+      "parse date with locale",
+      "parse decimals using locale",
+      "escape",
+      "preserve newlines"
+    )
+  enableSuite[GlutenLiteralExpressionSuite]
+    .exclude(
+      "null",
+      "Gluten - default",
+      "default",
+      "decimal",
+      "array",
+      "seq", // 'Invalid Field get from type Decimal64 to type Int64
+      "map",
+      "struct",
+      "construct literals from java.time.Instant",
+      "construct literals from arrays of java.time.Instant"
+    )
+  enableSuite[GlutenMathExpressionsSuite]
+    .exclude(
+      "",
+      "tanh",
+      "ceil",
+      "floor",
+      "factorial",
+      "log", // nan null
+      "log10",
+      "log1p",
+      "log2",
+      "unhex",
+      "atan2",
+      "round/bround"
+    )
+  enableSuite[GlutenMiscExpressionsSuite]
+  enableSuite[GlutenNondeterministicSuite]
+    .exclude(
+      "MonotonicallyIncreasingID",
+      "SparkPartitionID"
+    )
+  enableSuite[GlutenNullExpressionsSuite]
+  enableSuite[GlutenPredicateSuite]
+    .exclude(
+      "IN/INSET: struct",
+      "BinaryComparison: lessThan",
+      "BinaryComparison: LessThanOrEqual",
+      "BinaryComparison: GreaterThan",
+      "BinaryComparison: GreaterThanOrEqual",
+      "EqualTo on complex type",
+      "SPARK-32764: compare special double/float values",
+      "SPARK-32110: compare special double/float values in array",
+      "SPARK-32110: compare special double/float values in struct"
+    )
+  enableSuite[GlutenRandomSuite]
+    .exclude(
+      "random",
+      "SPARK-9127 codegen with long seed"
+    )
+  enableSuite[GlutenRegexpExpressionsSuite]
+    .exclude(
+      "LIKE Pattern",
+      "LIKE Pattern ESCAPE '/'",
+      "LIKE Pattern ESCAPE '#'",
+      "LIKE Pattern ESCAPE '\"'",
+      "RLIKE Regular Expression",
+      "RegexReplace",
+      "RegexExtract",
+      "RegexExtractAll",
+      "SPLIT"
+    )
+  enableSuite[GlutenSortOrderExpressionsSuite]
+  enableSuite[GlutenStringExpressionsSuite]
+    .exclude(
+      "concat",
+      "concat_ws",
+      "SPARK-22549: ConcatWs should not generate codes beyond 64KB",
+      "StringComparison",
+      "Substring",
+      "ascii for string",
+      "string for ascii",
+      "replace",
+      "translate",
+      "INSTR",
+      "LOCATE",
+      "LPAD/RPAD",
+      "REPEAT",
+      "length for string / binary",
+      "SPARK-40213: ascii for Latin-1 Supplement characters"
+    )
 
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[GlutenCustomerExtensionSuite]
@@ -48,7 +288,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-17616: distinct aggregate combined with a non-partial aggregate", // [not urgent]
       "SPARK-17237 remove backticks in a pivot result schema", // [not urgent]
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
-      " before using it", // [not urgent]
+        " before using it", // [not urgent]
       "max_by", // [not urgent]
       "min_by", // [not urgent]
       "aggregation with filter",
@@ -90,17 +330,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "datediff"
     )
 
-  enableSuite[GlutenDateExpressionsSuite]
-    .include(
-      // "Quarter", // ch backend not support cast 'yyyy-MM-dd HH:mm:ss' as date32
-      "date_add",
-      "date_sub",
-      "datediff"
-      // "add_months" // ch date32 year's range in [1900~2299].Not support 0001-01-01
-      // "DateFormat" // ch formatDateTimeInJodaSyntax doesn't support non-constant format argument
-    )
-
-
   enableSuite[GlutenMathFunctionsSuite]
     .exclude(
       "hex",
@@ -108,27 +337,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenComplexTypesSuite]
-  enableSuite[GlutenComplexTypeSuite]
-    .exclude(
-      "CreateMap",
-      "MapFromArrays",
-      "SPARK-33460: GetMapValue NoSuchElementException"
-    )
-    .excludeByPrefix(
-      "SPARK-33386" // different result: actual: empty excepted: null
-    )
-  enableSuite[GlutenArithmeticExpressionSuite]
-    .exclude(
-      "- (UnaryMinus)",
-      "/ (Divide) basic",
-      "/ (Divide) for Long and Decimal type",
-      "% (Remainder)", // CH will throw exception when right is zero
-      "SPARK-17617: % (Remainder) double % double on super big double",
-      "pmod",
-      "SPARK-28322: IntegralDivide supports decimal type",
-      "SPARK-33008: division by zero on divide-like operations returns incorrect result",
-      "SPARK-34920: error class"
-    )
 
   // enableSuite[GlutenRegexpExpressionsSuite]
   //   .include(
@@ -136,25 +344,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   //     "RLIKE Regular Expression"
   //     "RegexExtract"
   //   )
-
-  enableSuite[GlutenJsonExpressionsSuite]
-    .include(
-      "Length of JSON array"
-    )
-
-  enableSuite[GlutenStringExpressionsSuite]
-    .include(
-      "concat_ws",
-      // "LPAD/RPAD", not ready because CH required the third arg to be constant string
-      // "translate" Not ready because CH requires from and to argument have the same length
-      "REVERSE"
-    )
-
-  enableSuite[GlutenStringFunctionsSuite]
-    .include(
-      "string concat_ws"
-      // "string translate" Not ready because CH requires from and to argument have the same length
-    )
 
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
@@ -184,16 +373,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "optimized pivot DecimalType"
     )
 
-  enableSuite[GlutenPredicateSuite]
-    .includeByPrefix(
-      "SPARK-29100"
-    )
-
-  enableSuite[GlutenColumnExpressionSuite]
-    .include(
-      "IN/INSET with bytes, shorts, ints, dates"
-    )
-
   enableSuite[GlutenJoinSuite]
     .include(
       "big inner join, 4 matches per row",
@@ -207,14 +386,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "multiple-key equi-join is hash-join",
       "full outer join",
       GlutenTestConstants.GLUTEN_TEST + "test case sensitive for BHJ"
-    )
-
-  enableSuite[GlutenHashExpressionsSuite]
-    .include(
-      "md5",
-      "sha1",
-      "sha2",
-      "crc32"
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]

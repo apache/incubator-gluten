@@ -19,6 +19,7 @@ package io.glutenproject.expression
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.test.TestStats
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
@@ -278,6 +279,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       return HiveSimpleUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
     }
 
+    TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
     val substraitExprName = ExpressionMappings.expressionsMap.get(expr.getClass)
     if (substraitExprName.isEmpty) {

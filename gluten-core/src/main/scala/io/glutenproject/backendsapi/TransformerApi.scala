@@ -59,4 +59,8 @@ trait TransformerApi {
    */
   def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
     backendPrefix: String): Unit = {}
+
+  def getSupportExpressionClassName: util.Set[String] = {
+    util.Collections.emptySet()
+  }
 }

@@ -22,7 +22,7 @@ import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.utils.CHInputPartitionsUtil
+import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
@@ -120,5 +120,9 @@ class CHTransformerApi extends TransformerApi with Logging {
           maxBytesBeforeExternalGroupBy.toLong.toString)
       }
     }
+  }
+
+  override def getSupportExpressionClassName: util.Set[String] = {
+    ExpressionDocUtil.supportExpression()
   }
 }
