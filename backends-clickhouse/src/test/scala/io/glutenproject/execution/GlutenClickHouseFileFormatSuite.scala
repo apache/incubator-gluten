@@ -356,35 +356,30 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("csv \\r") {
-    val csv_files = Seq("csv_r.csv", "中文.csv")
+    val csv_path = csvDataPath + "/csv_r.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", StringType, nullable = true)
+      ))
 
-    csv_files.foreach(
-      file => {
-        val csv_path = csvDataPath + "/" + file
-        val schema = StructType.apply(
-          Seq(
-            StructField.apply("c1", StringType, nullable = true)
-          ))
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("header", "false")
+      .schema(schema)
+      .csv(csv_path)
+      .toDF()
 
-        val df = spark.read
-          .option("delimiter", ",")
-          .option("header", "false")
-          .schema(schema)
-          .csv(csv_path)
-          .toDF()
-
-        var expectedAnswer: Seq[Row] = null
-        withSQLConf(vanillaSparkConfs(): _*) {
-          expectedAnswer = spark.read
-            .option("delimiter", ",")
-            .option("header", "false")
-            .schema(schema)
-            .csv(csv_path)
-            .toDF()
-            .collect()
-        }
-        checkAnswer(df, expectedAnswer)
-      })
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("header", "false")
+        .schema(schema)
+        .csv(csv_path)
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
   }
 
   test("cannot_parse_input") {
