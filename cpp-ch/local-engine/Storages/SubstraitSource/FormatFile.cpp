@@ -30,8 +30,8 @@ namespace ErrorCodes
 namespace local_engine
 {
 FormatFile::FormatFile(
-    DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-    : context(context_), file_info(file_info_), read_buffer_builder(read_buffer_builder_)
+    DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_, FormatFileOptionsPtr options_)
+    : context(context_), file_info(file_info_), read_buffer_builder(read_buffer_builder_), options(options_)
 {
     PartitionValues part_vals = StringUtils::parsePartitionTablePath(file_info.uri_file());
     for (const auto & part : part_vals)
@@ -42,12 +42,12 @@ FormatFile::FormatFile(
 }
 
 FormatFilePtr FormatFileUtil::createFile(
-    DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
+    DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file, FormatFile::FormatFileOptionsPtr options [[maybe_unused]])
 {
 #if USE_PARQUET
     if (file.has_parquet())
     {
-        return std::make_shared<ParquetFormatFile>(context, file, read_buffer_builder);
+        return std::make_shared<ParquetFormatFile>(context, file, read_buffer_builder, options);
     }
 #endif
 

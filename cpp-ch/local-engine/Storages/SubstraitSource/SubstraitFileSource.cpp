@@ -43,7 +43,7 @@ static DB::Block getRealHeader(const DB::Block & header)
 }
 
 SubstraitFileSource::SubstraitFileSource(
-    DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos)
+    DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos, FormatFile::FormatFileOptionsPtr options_)
     : DB::ISource(getRealHeader(header_), false), context(context_), output_header(header_)
 {
     /**
@@ -63,7 +63,7 @@ SubstraitFileSource::SubstraitFileSource(
         read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
         for (const auto & item : file_infos.items())
         {
-            files.emplace_back(FormatFileUtil::createFile(context, read_buffer_builder, item));
+            files.emplace_back(FormatFileUtil::createFile(context, read_buffer_builder, item, options_));
         }
 
         auto partition_keys = files[0]->getFilePartitionKeys();

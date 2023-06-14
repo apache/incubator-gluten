@@ -245,7 +245,25 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     assert(rel.has_local_files());
     assert(rel.has_base_schema());
     auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    auto source = std::make_shared<SubstraitFileSource>(context, header, rel.local_files());
+    if (rel.has_filter())
+    {
+        const auto & filter = rel.filter();
+        auto pushdown_filter = std::make_shared<ActionsDAG>(header.getNamesAndTypesList());
+        if (filter.has_singular_or_list())
+        {
+            const auto * in_node = parseExpression(pushdown_filter, filter);
+            pushdown_filter->addOrReplaceInOutputs(*in_node);
+        }
+        else
+        {
+            String unused;
+            std::vector<String> required_columns;
+            parseFunctionWithDAG(filter, unused, required_columns, pushdown_filter, true);
+        }
+    }
+
+    FormatFile::FormatFileOptionsPtr options = std::make_shared<FormatFile::FormatFileOptions>();
+    auto source = std::make_shared<SubstraitFileSource>(context, header, rel.local_files(), options);
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<ReadFromStorageStep>(std::move(source_pipe), "substrait local files", nullptr);
     source_step->setStepDescription("read local files");

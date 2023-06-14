@@ -16,7 +16,7 @@ OrcFormatFile::OrcFormatFile(
 {
 }
 
-FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & header, bool-v vb)
+FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & header, bool)
 {
     auto file_format = std::make_shared<FormatFile::InputFormat>();
     file_format->read_buffer = read_buffer_builder->build(file_info);

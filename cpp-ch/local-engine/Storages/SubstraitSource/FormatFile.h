@@ -10,12 +10,18 @@
 #include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <substrait/plan.pb.h>
+#include <Interpreters/ActionsDAG.h>
 
 namespace local_engine
 {
 class FormatFile
 {
 public:
+    struct FormatFileOptions
+    {
+        DB::ActionsDAGPtr pushdown_filter;
+    };
+    using FormatFileOptionsPtr = std::shared_ptr<FormatFileOptions>;
     struct InputFormat
     {
     public:
@@ -25,7 +31,7 @@ public:
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 
     FormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
+        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_, FormatFileOptionsPtr options = nullptr);
     virtual ~FormatFile() = default;
 
     /// create a new input format for reading this file
@@ -54,14 +60,17 @@ protected:
     ReadBufferBuilderPtr read_buffer_builder;
     std::vector<String> partition_keys;
     std::map<String, String> partition_values;
+    FormatFileOptionsPtr options;
+
 };
 using FormatFilePtr = std::shared_ptr<FormatFile>;
 using FormatFiles = std::vector<FormatFilePtr>;
 
 class FormatFileUtil
 {
+
 public:
     static FormatFilePtr
-    createFile(DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file);
+    createFile(DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file, FormatFile::FormatFileOptionsPtr options = nullptr);
 };
 }

@@ -73,7 +73,7 @@ private:
 class SubstraitFileSource : public DB::ISource
 {
 public:
-    SubstraitFileSource(DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
+    SubstraitFileSource(DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos, FormatFile::FormatFileOptionsPtr options);
     ~SubstraitFileSource() override = default;
 
     String getName() const override { return "SubstraitFileSource"; }

@@ -52,9 +52,7 @@ include_directories(
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
 )
 
-if (ENABLE_LOCAL_FORMATS)
-    add_subdirectory(Storages/ch_parquet)
-endif()
+add_subdirectory(Storages/ch_parquet)
 
 add_subdirectory(Storages/SubstraitSource)
 add_subdirectory(Functions)
@@ -118,10 +116,6 @@ PRIVATE
         substrait
 
 )
-
-if (ENABLE_LOCAL_FORMATS)
-    target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
-endif ()
 
 if (ENABLE_JEMALLOC)
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE

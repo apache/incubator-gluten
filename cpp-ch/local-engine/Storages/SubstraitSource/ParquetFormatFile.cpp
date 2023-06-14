@@ -12,7 +12,6 @@
 #include <Formats/FormatSettings.h>
 #include <IO/SeekableReadBuffer.h>
 #include <IO/ReadBufferFromFileBase.h>
-#include <Storages/ArrowParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
@@ -30,8 +29,8 @@ namespace ErrorCodes
 namespace local_engine
 {
 ParquetFormatFile::ParquetFormatFile(
-    DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-    : FormatFile(context_, file_info_, read_buffer_builder_)
+    DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_, FormatFile::FormatFileOptionsPtr options)
+    : FormatFile(context_, file_info_, read_buffer_builder_, options)
 {
 }
 
@@ -72,8 +71,9 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
     if (use_experimental_reader)
     {
+        std::cerr << "use new parquet reader" << std::endl;
         res->input = std::make_shared<DB::CustomParquetBlockInputFormat>(
-                reinterpret_cast<DB::ReadBufferFromFileBase *>(res->read_buffer.get()), header, format_settings);
+                reinterpret_cast<DB::ReadBufferFromFileBase *>(res->read_buffer.get()), header, options->pushdown_filter, format_settings);
     }
     else
     {

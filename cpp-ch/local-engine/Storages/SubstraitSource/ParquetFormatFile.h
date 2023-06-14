@@ -22,7 +22,7 @@ class ParquetFormatFile : public FormatFile
 {
 public:
     explicit ParquetFormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
+        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_ , FormatFile::FormatFileOptionsPtr options);
     ~ParquetFormatFile() override = default;
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header, bool use_experimental_reader) override;
     std::optional<size_t> getTotalRows() override;
