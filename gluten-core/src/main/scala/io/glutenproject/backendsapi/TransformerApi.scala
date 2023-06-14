@@ -53,6 +53,11 @@ trait TransformerApi {
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
 
   /**
+   * Get the compression method of file
+   */
+  def getInputFileCompressionMethod(filePath: String) : Option[String] = Option.empty
+
+  /**
    * Post process native config
    * For example, for ClickHouse backend, sync 'spark.executor.cores' to
    * 'spark.gluten.sql.columnar.backend.ch.runtime_settings.max_threads'

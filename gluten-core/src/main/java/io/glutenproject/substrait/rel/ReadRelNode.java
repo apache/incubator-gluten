@@ -102,8 +102,8 @@ public class ReadRelNode implements RelNode, Serializable {
       LocalFilesNode filesNode = context.getInputIteratorNode(iteratorIndex);
       if (dataSchema != null) {
         filesNode.setFileSchema(dataSchema);
-        filesNode.setFileReadProperties(properties);
       }
+      filesNode.setFileReadProperties(properties);
       readBuilder.setLocalFiles(filesNode.toProtobuf());
     } else if (context.getLocalFilesNodes() != null && !context.getLocalFilesNodes().isEmpty()) {
       Serializable currentLocalFileNode = context.getCurrentLocalFileNode();
@@ -111,8 +111,8 @@ public class ReadRelNode implements RelNode, Serializable {
         LocalFilesNode filesNode = (LocalFilesNode) currentLocalFileNode;
         if (dataSchema != null) {
           filesNode.setFileSchema(dataSchema);
-          filesNode.setFileReadProperties(properties);
         }
+        filesNode.setFileReadProperties(properties);
         readBuilder.setLocalFiles(((LocalFilesNode)currentLocalFileNode).toProtobuf());
       } else if (currentLocalFileNode instanceof ExtensionTableNode) {
         readBuilder.setExtensionTable(((ExtensionTableNode)currentLocalFileNode).toProtobuf());

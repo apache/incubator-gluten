@@ -39,9 +39,8 @@ import org.apache.spark.sql.hive.execution.HiveTableScanExec
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodecFactory, DefaultCodec}
+import java.util
 
 import scala.collection.JavaConverters
 import scala.collection.mutable.ArrayBuffer
@@ -72,8 +71,10 @@ class CHHiveTableScanExecTransformer(
 
   override def getInputFilePaths: Seq[String] = {
     val inputPaths = scan match {
-      case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
-      case _ => Seq.empty
+      case Some(f) =>
+        f.fileIndex.inputFiles.toSeq
+      case _ =>
+        Seq.empty
     }
     inputPaths
   }
@@ -127,25 +128,6 @@ class CHHiveTableScanExecTransformer(
     }
   }
 
-  private def getFileCompressionType: Option[String] = {
-    val inputFilePaths = getInputFilePaths
-    if (inputFilePaths.isEmpty) {
-      Option.empty
-    } else {
-      val codecFactory: CompressionCodecFactory = new CompressionCodecFactory(
-        session.sessionState.newHadoopConfWithOptions(relation.tableMeta.properties))
-      val compressionCodec = codecFactory.getCodec(new Path(inputFilePaths.head))
-      compressionCodec match {
-        case d: DefaultCodec =>
-          Option.apply("ZLIB")
-        case f: BZip2Codec =>
-          Option.apply("BZ2")
-        case _ =>
-          Option.empty
-      }
-    }
-  }
-
   private def getHiveTableFileScan: Option[FileScan] = {
     val tableMeta = relation.tableMeta
     val fileIndex = new InMemoryFileIndex(
@@ -165,20 +147,20 @@ class CHHiveTableScanExecTransformer(
         } else hasComplexType
         outputFieldTypes.append(StructField(x.name, x.dataType))
       })
-
+    val tableMetaProps = JavaConverters.mapAsJavaMap(tableMeta.properties)
     // scalastyle:on println
     tableMeta.storage.inputFormat match {
       case Some("org.apache.hadoop.mapred.TextInputFormat") =>
         tableMeta.storage.serde match {
           case Some("org.openx.data.jsonserde.JsonSerDe") =>
             Option.apply(
-              JsonScan(
+              new CHJsonScan(
                 session,
                 fileIndex,
                 tableMeta.schema,
                 StructType(outputFieldTypes.toArray),
                 tableMeta.partitionSchema,
-                new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
+                new CaseInsensitiveStringMap(tableMetaProps),
                 Array.empty,
                 partitionPruningPred,
                 Seq.empty
@@ -190,7 +172,7 @@ class CHHiveTableScanExecTransformer(
               tableMeta.schema,
               StructType(outputFieldTypes.toArray),
               tableMeta.partitionSchema,
-              new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
+              new CaseInsensitiveStringMap(tableMetaProps),
               partitionPruningPred,
               Seq.empty
             )
@@ -230,7 +212,6 @@ class CHHiveTableScanExecTransformer(
 
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
       val storageProps = JavaConverters.mapAsJavaMap(relation.tableMeta.storage.properties)
-      storageProps.put("compressionType", compressionType.orNull)
       scan.get match {
         case t: TextScan =>
           readRelNode.setDataSchema(relation.tableMeta.dataSchema)
@@ -271,7 +252,7 @@ object CHHiveTableScanExecTransformer {
       hiveTableScan.requestedAttributes,
       hiveTableScan.relation,
       hiveTableScan.partitionPruningPred)(hiveTableScan.session)
-    if (hiveTableScanTransformer.scan == null) {
+    if (hiveTableScanTransformer.scan.isEmpty) {
       Option.empty
     } else {
       Option.apply(hiveTableScanTransformer)

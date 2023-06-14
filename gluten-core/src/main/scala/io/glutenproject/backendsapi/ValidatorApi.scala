@@ -89,6 +89,11 @@ trait ValidatorApi {
   def doValidate(plan: PlanNode): Boolean
 
   /**
+   * Validate against Compression method, such as bzip2.
+   */
+  def doCompressionSplittableValidate(compressionMethod: String): Boolean = false
+
+  /**
    * Validate the input schema.
    * Transformers like UnionExecTransformer that do not generate Substrait plan
    * need to validate the input schema and fall back if there are any unsupported types.

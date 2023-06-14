@@ -400,7 +400,9 @@ object ConverterUtils extends Logging {
             f.getClass.getSimpleName match {
               case "TextScan" => ReadFileFormat.TextReadFormat
               case "JsonScan" => ReadFileFormat.JsonReadFormat
-              case _ => ReadFileFormat.UnknownFormat
+              case "CHTextScan" => ReadFileFormat.TextReadFormat
+              case "CHJsonScan" => ReadFileFormat.JsonReadFormat
+              case _ => ReadFileFormat.JsonReadFormat
             }
           case _ => ReadFileFormat.UnknownFormat
         }

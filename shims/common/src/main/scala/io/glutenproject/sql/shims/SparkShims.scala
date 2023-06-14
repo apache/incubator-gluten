@@ -63,5 +63,6 @@ trait SparkShims {
       readPartitionSchema: StructType,
       options: CaseInsensitiveStringMap,
       partitionFilters: Seq[Expression] = Seq.empty,
-      dataFilters: Seq[Expression] = Seq.empty): TextScan
+      dataFilters: Seq[Expression] = Seq.empty,
+      splittable: Boolean): TextScan
 }

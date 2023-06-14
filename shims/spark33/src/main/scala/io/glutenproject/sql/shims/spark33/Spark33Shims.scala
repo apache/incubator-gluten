@@ -29,6 +29,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Dist
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.CHTextScan
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
@@ -84,8 +85,9 @@ class Spark33Shims extends SparkShims {
       readPartitionSchema: StructType,
       options: CaseInsensitiveStringMap,
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): TextScan = {
-    new TextScan(
+      dataFilters: Seq[Expression],
+      splittable: Boolean): TextScan = {
+    new CHTextScan(
       sparkSession,
       fileIndex,
       dataSchema,
@@ -93,6 +95,7 @@ class Spark33Shims extends SparkShims {
       readPartitionSchema,
       options,
       partitionFilters,
-      dataFilters)
+      dataFilters,
+      splittable)
   }
 }
