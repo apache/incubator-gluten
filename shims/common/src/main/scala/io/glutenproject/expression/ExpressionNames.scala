@@ -57,6 +57,7 @@ object ExpressionNames {
   final val REGEXP_EXTRACT = "regexp_extract"
   final val REGEXP_EXTRACT_ALL = "regexp_extract_all"
   final val EQUAL = "equal"
+  final val EQUAL_NULL_SAFE = "equal_null_safe"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"
   final val GREATER_THAN = "gt"

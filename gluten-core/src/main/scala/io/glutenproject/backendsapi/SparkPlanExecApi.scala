@@ -231,6 +231,14 @@ trait SparkPlanExecApi {
       attributeSeq: Seq[Attribute]): ExpressionTransformer =
     new NamedStructTransformerBase(substraitExprName, original, attributeSeq)
 
+  def genEqualNullSafeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: EqualNullSafe): ExpressionTransformer = {
+    new BinaryExpressionTransformer(substraitExprName, left, right, original)
+  }
+
   /**
    * Generate an ExpressionTransformer to transform Sha2 expression. Sha2Transformer is the default
    * implementation.

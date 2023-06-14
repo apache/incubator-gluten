@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHSha1Transformer, CHSha2Transformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
+import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHEqualNullSafeTransformer, CHSha1Transformer, CHSha2Transformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
 
@@ -362,6 +362,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List(ColumnarToFakeRowStrategy)
+
+  override def genEqualNullSafeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: EqualNullSafe): ExpressionTransformer = {
+    CHEqualNullSafeTransformer(substraitExprName, left, right, original)
+  }
 
   /** Generate an ExpressionTransformer to transform Sha2 expression. */
   override def genSha2Transformer(
