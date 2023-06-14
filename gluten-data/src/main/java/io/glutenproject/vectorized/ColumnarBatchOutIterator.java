@@ -21,8 +21,6 @@ import io.glutenproject.columnarbatch.GlutenColumnarBatches;
 import io.glutenproject.metrics.IMetrics;
 import java.io.IOException;
 import java.util.List;
-
-import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -38,7 +36,9 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
 
   private native long nativeNext(long nativeHandle);
 
-  private native void nativeClose(long nativeHandle, String taskTag);
+  private native long nativeSpill(long nativeHandle, long size);
+
+  private native void nativeClose(long nativeHandle);
 
   private native IMetrics nativeFetchMetrics(long nativeHandle);
 
@@ -61,9 +61,12 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
     return nativeFetchMetrics(handle);
   }
 
+  public long spill(long size) {
+    return nativeSpill(handle, size);
+  }
+
   @Override
   public void closeInternal() {
-    String taskTag = TaskContext.get().stageId() + "_" + TaskContext.get().taskAttemptId();
-    nativeClose(handle, taskTag);
+    nativeClose(handle);
   }
 }

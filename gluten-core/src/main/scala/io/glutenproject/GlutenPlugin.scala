@@ -94,11 +94,6 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     val offHeapPerTask = offHeapSize / (executorCores / taskCores)
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
 
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
-      conf.set(GlutenConfig.GLUTEN_VELOX_SPILL_ENABLED_KEY, "true")
-      conf.set(GlutenConfig.GLUTEN_VELOX_SPILL_MODE_KEY, "static")
-    }
-
     // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
     if (BackendsApiManager.getSettings.disableVanillaColumnarReaders()) {
       // FIXME Hongze 22/12/06

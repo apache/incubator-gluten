@@ -68,6 +68,4 @@ public class PlanEvaluatorJniWrapper extends JniInitialized {
    * @param nativeHandler nativeHandler that needs to be closed
    */
   native void nativeClose(long nativeHandler);
-
-  native long nativeSpill(String taskTag, long targetSize);
 }

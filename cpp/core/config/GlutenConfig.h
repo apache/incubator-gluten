@@ -22,6 +22,9 @@
 #include <unordered_map>
 
 namespace gluten {
+
+// store configurations that are general to all backend types
+
 const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";
@@ -29,10 +32,6 @@ const std::string kCaseSensitive = "spark.sql.caseSensitive";
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
 
 const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
-
-const std::string kSpillEnabled = "spark.gluten.sql.columnar.backend.velox.spillEnabled";
-
-const std::string kSpillMode = "spark.gluten.sql.columnar.backend.velox.spillMode";
 
 const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
 

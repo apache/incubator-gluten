@@ -16,6 +16,9 @@ namespace gluten {
 namespace {
 // Velox configs
 const std::string kHiveConnectorId = "test-hive";
+
+// memory
+const std::string kSpillMode = "spark.gluten.sql.columnar.backend.velox.spillMode";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -46,6 +49,16 @@ const std::string kProcessedStrides = "processedStrides";
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 
 } // namespace
+
+WholeStageResultIterator::WholeStageResultIterator(
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
+    std::shared_ptr<facebook::velox::memory::MemoryPool> resultLeafPool,
+    const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
+    const std::unordered_map<std::string, std::string>& confMap)
+    : veloxPlan_(planNode), confMap_(confMap), pool_(pool), resultLeafPool_(resultLeafPool) {
+  spillMode_ = getConfigValue(kSpillMode, "auto");
+  getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
+}
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
@@ -80,7 +93,10 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
 }
 
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
-  return pool_->reclaim(size);
+  if (spillMode_ == "auto") {
+    return pool_->reclaim(size);
+  }
+  return 0;
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(
@@ -231,7 +247,11 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
     configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
 
     // Spill configs
-    configs[velox::core::QueryConfig::kSpillEnabled] = getConfigValue(kSpillEnabled, "true");
+    if (spillMode_ == "none") {
+      configs[velox::core::QueryConfig::kSpillEnabled] = "false";
+    } else {
+      configs[velox::core::QueryConfig::kSpillEnabled] = "true";
+    }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] = getConfigValue(kAggregationSpillEnabled, "true");
     configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(kJoinSpillEnabled, "true");
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(kOrderBySpillEnabled, "true");

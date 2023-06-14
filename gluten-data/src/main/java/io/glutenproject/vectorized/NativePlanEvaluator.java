@@ -33,12 +33,13 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.SparkDirectoryUtil;
-import org.apache.spark.util.memory.TaskResources;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class NativePlanEvaluator {
 
@@ -65,41 +66,34 @@ public class NativePlanEvaluator {
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
       throws RuntimeException, IOException {
-    long allocId;
-    if (BackendsApiManager.getBackendName().equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND()) &&
-      GlutenConfig.getConf().veloxSpillEnabled() &&
-      "dynamic".equalsIgnoreCase(GlutenConfig.getConf().veloxSillMode())) {
-      allocId = NativeMemoryAllocators.createSpillable(
+    final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
+    final long allocId = NativeMemoryAllocators.createSpillable(
         (size, trigger) -> {
-          if (!TaskResources.inSparkTask()) {
-            throw new IllegalStateException("Not in a Spark task");
-          }
-          TaskContext tc = TaskContext.get();
-          String taskTag = tc.stageId() + "_" + tc.taskAttemptId();
-          return jniWrapper.nativeSpill(taskTag, size);
+          ColumnarBatchOutIterator instance = Optional.of(outIterator.get()).orElseThrow(
+              () -> new IllegalStateException(
+                  "Fatal: spill() called before a output iterator " +
+                      "is created. This behavior should be optimized by moving memory " +
+                      "allocations from create() to hasNext()/next()"));
+          return instance.spill(size);
         }).getNativeInstanceId();
-    } else {
-      allocId = NativeMemoryAllocators.contextInstance().getNativeInstanceId();
-    }
-
-    long handle =
-        jniWrapper.nativeCreateKernelWithIterator(allocId, getPlanBytesBuf(wsPlan),
-            iterList.toArray(new GeneralInIterator[0]), TaskContext.get().stageId(),
-            TaskContext.getPartitionId(), TaskContext.get().taskAttemptId(),
-            DebugUtil.saveInputToFile(),
-            SparkDirectoryUtil
-                .namespace("gluten-spill")
-                .mkChildDirRoundRobin(UUID.randomUUID().toString())
-                .getAbsolutePath(),
-            buildNativeConfNode(
-                GlutenConfig.getNativeSessionConf(
-                    BackendsApiManager.getSettings().getBackendConfigPrefix(),
-                    SQLConf.get().getAllConfs()
-                )).toProtobuf().toByteArray());
-    return createOutIterator(handle, outAttrs);
+    long handle = jniWrapper.nativeCreateKernelWithIterator(allocId, getPlanBytesBuf(wsPlan),
+        iterList.toArray(new GeneralInIterator[0]), TaskContext.get().stageId(),
+        TaskContext.getPartitionId(), TaskContext.get().taskAttemptId(),
+        DebugUtil.saveInputToFile(),
+        SparkDirectoryUtil
+            .namespace("gluten-spill")
+            .mkChildDirRoundRobin(UUID.randomUUID().toString())
+            .getAbsolutePath(),
+        buildNativeConfNode(
+            GlutenConfig.getNativeSessionConf(
+                BackendsApiManager.getSettings().getBackendConfigPrefix(),
+                SQLConf.get().getAllConfs()
+            )).toProtobuf().toByteArray());
+    outIterator.set(createOutIterator(handle, outAttrs));
+    return outIterator.get();
   }
 
-  private GeneralOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs)
+  private ColumnarBatchOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs)
       throws IOException {
     return new ColumnarBatchOutIterator(nativeHandle, outAttrs);
   }

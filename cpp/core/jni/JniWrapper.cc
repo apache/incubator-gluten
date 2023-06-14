@@ -378,30 +378,8 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     inputIters.push_back(std::move(resultIter));
   }
 
-  auto taskTag = std::to_string(stageId) + "_" + std::to_string(taskId);
   std::shared_ptr<ResultIterator> resIter = backend->getResultIterator(allocator, localDirStr, inputIters, confs);
-  auto id = resultIteratorHolder.insert(std::move(resIter));
-  backend->setTaskResultIteratorId(taskTag, id);
-  return id;
-  JNI_METHOD_END(-1)
-}
-
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSpill( // NOLINT
-    JNIEnv* env,
-    jobject,
-    jstring taskTag,
-    jlong targetSize) {
-  JNI_METHOD_START
-  auto taskTagStr = jStringToCString(env, taskTag);
-  auto backend = gluten::createBackend();
-  auto id = backend->getTaskResultIteratorId(taskTagStr);
-  auto iter = getArrayIterator(env, id);
-  if (iter == nullptr) {
-    std::string errorMessage = "faked to get batch iterator";
-    gluten::jniThrow(errorMessage);
-  }
-  jlong spilledSize = iter->spillFixedSize(targetSize);
-  return spilledSize;
+  return resultIteratorHolder.insert(std::move(resIter));
   JNI_METHOD_END(-1)
 }
 
@@ -531,11 +509,21 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeClose(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeSpill(
     JNIEnv* env,
     jobject this_obj,
     jlong id,
-    jstring taskTag) { // NOLINT
+    jlong size) { // NOLINT
+  JNI_METHOD_START
+  auto it = resultIteratorHolder.lookup(id);
+  return it->spillFixedSize(size);
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeClose(
+    JNIEnv* env,
+    jobject this_obj,
+    jlong id) { // NOLINT
   JNI_METHOD_START
 #ifdef GLUTEN_PRINT_DEBUG
   auto it = resultIteratorHolder.lookup(id);
@@ -544,9 +532,6 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator
   }
 #endif
   resultIteratorHolder.erase(id);
-  auto backend = gluten::createBackend();
-  auto taskTagStr = jStringToCString(env, taskTag);
-  backend->eraseTaskMap(taskTagStr);
   JNI_METHOD_END()
 }
 

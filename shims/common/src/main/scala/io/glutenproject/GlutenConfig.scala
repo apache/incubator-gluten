@@ -188,8 +188,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
-  def veloxSpillEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SPILL_ENABLED)
-
   def veloxSillMode: String = conf.getConf(COLUMNAR_VELOX_SPILL_MODE)
 
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
@@ -814,24 +812,18 @@ object GlutenConfig {
       .intConf
       .createWithDefault(2)
 
-  val COLUMNAR_VELOX_SPILL_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.spillEnabled")
-      .internal()
-      .doc("Whether spill is enabled on Velox backend")
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_VELOX_SPILL_MODE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.spillMode")
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
       .internal()
       .doc(
-        "When the spill mode is static, velox spills according to the specified threshold." +
-          "When the spill mode is dynamic, velox's spill is triggered by Spark memory management " +
-          "according to actual needs ")
+        "none: Disable spill on Velox backend; " +
+          "threshold: Use spark.gluten.sql.columnar.backend.velox.memoryCapRatio " +
+          "to calculate a memory threshold number for triggering spill; " +
+          "auto: Let Spark memory manager manage Velox's spilling")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("static", "dynamic"))
-      .createWithDefault("static")
+      .checkValues(Set("none", "threshold", "auto"))
+      .createWithDefault("auto")
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")

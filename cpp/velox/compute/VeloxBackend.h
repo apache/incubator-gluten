@@ -67,8 +67,6 @@ class VeloxBackend final : public Backend {
     return std::make_shared<VeloxParquetDatasource>(filePath, schema);
   }
 
-  void eraseTaskMap(const std::string& taskTag) override;
-
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;
   }

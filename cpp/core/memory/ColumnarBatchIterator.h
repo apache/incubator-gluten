@@ -31,7 +31,7 @@ class ColumnarBatchIterator {
   virtual std::shared_ptr<ColumnarBatch> next() = 0;
 
   virtual int64_t spillFixedSize(int64_t size) {
-    return -1;
+    return 0L;
   }
 };
 } // namespace gluten

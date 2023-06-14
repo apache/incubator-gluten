@@ -67,7 +67,8 @@ const std::string kVeloxIOThreadsDefault = "0";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
 
-// mem ratios and thresholds
+// spill, mem ratios and thresholds
+const std::string kSpillMode = "spark.gluten.sql.columnar.backend.velox.spillMode";
 const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
 const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
 
@@ -80,6 +81,18 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   velox::filesystems::registerLocalFileSystem();
 
   std::unordered_map<std::string, std::string> configurationValues;
+
+  // spill mode
+  std::string spillMode;
+  {
+    auto got = conf.find(kSpillMode);
+    if (got == conf.end()) {
+      // not found
+      spillMode = "auto";
+    } else {
+      spillMode = got->second;
+    }
+  }
 
   // mem cap ratio
   float_t memCapRatio;
@@ -96,14 +109,17 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   // mem tracker
   int64_t maxMemory;
   {
-    auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
-    if (got == conf.end() ||
-        (conf.find(kSpillEnabled) != conf.end() && boost::algorithm::to_lower_copy(conf.at(kSpillEnabled)) == "true" &&
-         conf.find(kSpillMode) != conf.end() && conf.at(kSpillMode) == "dynamic")) {
-      // not found
-      maxMemory = facebook::velox::memory::kMaxMemory;
+    if (spillMode == "threshold") {
+      auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
+      if (got == conf.end()) {
+        // not found
+        maxMemory = facebook::velox::memory::kMaxMemory;
+      } else {
+        maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+      }
     } else {
-      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+      // no spill, or managed by Spark
+      maxMemory = facebook::velox::memory::kMaxMemory;
     }
   }
 
