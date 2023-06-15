@@ -379,8 +379,8 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SPARK_S3_ACCESS_KEY, "minio"),
-      (SPARK_S3_SECRET_KEY, "miniopass"),
+      (SPARK_S3_ACCESS_KEY, ""),
+      (SPARK_S3_SECRET_KEY, ""),
       (SPARK_S3_ENDPOINT, "localhost:9000"),
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
@@ -390,7 +390,11 @@ object GlutenConfig {
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
       (
         COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString)
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
+      ("spark.hadoop.input.connect.timeout", "180000"),
+      ("spark.hadoop.input.read.timeout", "180000"),
+      ("spark.hadoop.input.write.timeout", "180000"),
+      ("spark.hadoop.dfs.client.log.severity", "INFO")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     // velox cache and HiveConnector config

@@ -103,7 +103,6 @@ class CHTransformerApi extends TransformerApi with Logging {
   override def postProcessNativeConfig(
       nativeConfMap: util.Map[String, String],
       backendPrefix: String): Unit = {
-    // IMPLEMENT POST PROCESS FOR CLICKHOUSE BACKEND
     val settingPrefix = backendPrefix + ".runtime_settings."
     if (nativeConfMap.getOrDefault("spark.memory.offHeap.enabled", "false").toBoolean) {
       val offHeapSize =
@@ -120,6 +119,20 @@ class CHTransformerApi extends TransformerApi with Logging {
           maxBytesBeforeExternalGroupBy.toLong.toString)
       }
     }
+
+    val injectConfig: (String, String) => Unit = (srcKey, dstKey) => {
+      if (nativeConfMap.containsKey(srcKey)) {
+        nativeConfMap.put(dstKey, nativeConfMap.get(srcKey))
+      }
+    }
+
+    val hdfsConfigPrefix = backendPrefix + ".runtime_config.hdfs."
+    injectConfig("spark.hadoop.input.connect.timeout", hdfsConfigPrefix + "input_connect_timeout")
+    injectConfig("spark.hadoop.input.read.timeout", hdfsConfigPrefix + "input_read_timeout")
+    injectConfig("spark.hadoop.input.write.timeout", hdfsConfigPrefix + "input_write_timeout")
+    injectConfig(
+      "spark.hadoop.dfs.client.log.severity",
+      hdfsConfigPrefix + "dfs_client_log_severity")
   }
 
   override def getSupportExpressionClassName: util.Set[String] = {

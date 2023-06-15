@@ -129,7 +129,7 @@ function check_commit {
 }
 
 function setup {
-  if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
+  if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
     scripts/setup-ubuntu.sh
   elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     case "$LINUX_VERSION_ID" in
