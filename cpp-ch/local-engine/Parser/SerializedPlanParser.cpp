@@ -639,7 +639,6 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
         std::string json;
         pb_util::MessageToJsonString(*plan, &json, options);
         LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "substrait plan:\n{}", json);
-        std::cout << "substrait plan:" << json << std::endl;
     }
     parseExtensions(plan->extensions());
     if (plan->relations_size() == 1)
@@ -2113,8 +2112,7 @@ DB::QueryPlanPtr SerializedPlanParser::parseJoin(
     else if (join.type() == substrait::JoinRel_JoinType_JOIN_TYPE_LEFT)
     {
         table_join->setKind(DB::JoinKind::Left);
-        // table_join->setStrictness(DB::JoinStrictness::All);
-        table_join->setStrictness(DB::JoinStrictness::Asof);
+        table_join->setStrictness(DB::JoinStrictness::All);
     }
     else if (join.type() == substrait::JoinRel_JoinType_JOIN_TYPE_OUTER)
     {
