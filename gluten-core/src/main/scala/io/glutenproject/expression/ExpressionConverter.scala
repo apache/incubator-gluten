@@ -735,4 +735,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       }
     }
   }
+  
+  def numOfAsofCondition(condition: Expression): Int = {
+    condition match {
+      case _: GreaterThan | _: GreaterThanOrEqual | _: LessThanOrEqual | _: LessThan => 1
+      case b: BinaryExpression => {
+        numOfAsofCondition(b.left) + numOfAsofCondition(b.right)
+      }
+      case _ => 0
+    }
+  }
 }

@@ -228,6 +228,14 @@ trait HashJoinLikeExecTransformer
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
       return false
     }
+    if (!condition.isEmpty) {
+      val numOfAsof = ExpressionConverter.numOfAsofCondition(condition.get)
+      if (numOfAsof > 1) {
+        logValidateFailure(
+          s"Validation failed for ${this.getClass.toString} due to unequal condition more than one", null)
+        return false
+      }
+    }
     val relNode = try {
       JoinUtils.createJoinRel(
         streamedKeyExprs,
@@ -298,8 +306,12 @@ trait HashJoinLikeExecTransformer
       joinParams.buildPreProjectionNeeded = true
     }
 
+    var finalJoinType = substraitJoinType
     if (!condition.isEmpty) {
       joinParams.isWithCondition = true
+      val numOfAsof = ExpressionConverter.numOfAsofCondition(condition.get)
+      if (numOfAsof == 1)
+          finalJoinType = JoinRel.JoinType.JOIN_TYPE_ASOF
     }
 
     if (this.isInstanceOf[BroadcastHashJoinExecTransformer]) {
@@ -310,7 +322,7 @@ trait HashJoinLikeExecTransformer
       streamedKeyExprs,
       buildKeyExprs,
       condition,
-      substraitJoinType,
+      finalJoinType,
       exchangeTable,
       joinType,
       genJoinParametersBuilder(),

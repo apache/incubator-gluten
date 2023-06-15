@@ -189,6 +189,7 @@ message JoinRel {
     // This join is useful for nested sub-queries where we need exactly one tuple in output (or throw exception)
     // See Section 3.2 of https://15721.courses.cs.cmu.edu/spring2018/papers/16-optimizer2/hyperjoins-btw2017.pdf
     JOIN_TYPE_SINGLE = 8;
+    JOIN_TYPE_ASOF = 9;
   }
 
   substrait.extensions.AdvancedExtension advanced_extension = 10;

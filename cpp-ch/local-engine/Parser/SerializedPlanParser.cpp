@@ -2118,6 +2118,11 @@ DB::QueryPlanPtr SerializedPlanParser::parseJoin(substrait::JoinRel join, DB::Qu
         table_join->setKind(DB::JoinKind::Full);
         table_join->setStrictness(DB::JoinStrictness::All);
     }
+    else if (join.type() == substrait::JoinRel_JoinType_JOIN_TYPE_ASOF)
+    {
+        table_join->setKind(DB::JoinKind::Inner);
+        table_join->setStrictness(DB::JoinStrictness::Asof);
+    }
     else
     {
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join.type()));
