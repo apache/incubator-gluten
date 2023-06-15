@@ -294,6 +294,15 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     expr match {
+      case extendedExpr
+        if ExpressionMappings.expressionExtensionTransformer
+          .extensionExpressionsMapping.contains(extendedExpr.getClass) =>
+        // Use extended expression transformer to replace custom expression first
+        ExpressionMappings.expressionExtensionTransformer
+          .replaceWithExtensionExpressionTransformer(
+            substraitExprName.get,
+            extendedExpr,
+            attributeSeq)
       case c: CreateArray =>
         val children =
           c.children.map(child => replaceWithExpressionTransformer(child, attributeSeq))
@@ -568,15 +577,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         val children = j.children.map(child =>
           replaceWithExpressionTransformer(child, attributeSeq))
         new JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
-      case extendedExpr
-        if ExpressionMappings.expressionExtensionTransformer
-          .extensionExpressionsMapping.contains(extendedExpr.getClass) =>
-        // Use extended expression transformer to replace custom expression
-        ExpressionMappings.expressionExtensionTransformer
-          .replaceWithExtensionExpressionTransformer(
-            substraitExprName.get,
-            extendedExpr,
-            attributeSeq)
       // The other expression case must be put before LeafExpression, UnaryExpression,
       // BinaryExpression, TernaryExpression, QuaternaryExpression
       case l: LeafExpression =>
