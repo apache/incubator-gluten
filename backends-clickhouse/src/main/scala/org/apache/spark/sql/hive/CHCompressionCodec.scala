@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.hive
 
+import io.glutenproject.backendsapi.BackendsApiManager
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodecFactory, DefaultCodec}
@@ -43,4 +45,13 @@ object CHCompressionCodec {
       case _ => CHCompressionCodec.none.name
     }
   }
+
+  def compressionSplittable(path: String): Boolean = {
+    val codec = getCompressionCodec(path)
+    codec match {
+      case "None" => true
+      case _ => BackendsApiManager.getValidatorApiInstance.doCompressionSplittableValidate(codec)
+    }
+  }
+
 }

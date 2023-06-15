@@ -166,7 +166,7 @@ class CHHiveTableScanExecTransformer(
                 Array.empty,
                 partitionPruningPred,
                 Seq.empty,
-                false
+                CHCompressionCodec.compressionSplittable
               ))
           case _ =>
             val scan = SparkShimLoader.getSparkShims.getTextScan(
@@ -178,7 +178,7 @@ class CHHiveTableScanExecTransformer(
               new CaseInsensitiveStringMap(tableMetaProps),
               partitionPruningPred,
               Seq.empty,
-              true
+              CHCompressionCodec.compressionSplittable
             )
             if (!hasComplexType) {
               Option.apply(scan)

@@ -36,7 +36,7 @@ class CHJsonScan(
     pushedFilters: Array[Filter],
     partitionFilters: Seq[Expression] = Seq.empty,
     dataFilters: Seq[Expression] = Seq.empty,
-    compressionSplittable: Boolean = false)
+    compressionSplittable: (String) => Boolean)
   extends JsonScan(
     sparkSession,
     fileIndex,
@@ -49,6 +49,6 @@ class CHJsonScan(
     dataFilters) {
 
   override def isSplitable(path: Path): Boolean = {
-    super.isSplitable(path) && compressionSplittable
+    super.isSplitable(path) && compressionSplittable(path.toUri.getPath)
   }
 }

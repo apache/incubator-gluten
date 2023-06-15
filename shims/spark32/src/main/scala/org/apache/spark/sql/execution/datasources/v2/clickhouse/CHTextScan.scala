@@ -33,7 +33,7 @@ class CHTextScan(
     options: CaseInsensitiveStringMap,
     partitionFilters: Seq[Expression] = Seq.empty,
     dataFilters: Seq[Expression] = Seq.empty,
-    compressionSplittable: Boolean)
+    compressionSplittable: (String) => Boolean)
   extends TextScan(
     sparkSession,
     fileIndex,
@@ -44,6 +44,6 @@ class CHTextScan(
     dataFilters) {
 
   override def isSplitable(path: Path): Boolean = {
-    super.isSplitable(path) && compressionSplittable
+    super.isSplitable(path) && compressionSplittable(path.toUri.getPath)
   }
 }

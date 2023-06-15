@@ -86,7 +86,7 @@ class Spark33Shims extends SparkShims {
       options: CaseInsensitiveStringMap,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression],
-      compressionSplittable: Boolean = false): TextScan = {
+      compressionSplittable: (String) => Boolean): TextScan = {
     new CHTextScan(
       sparkSession,
       fileIndex,
