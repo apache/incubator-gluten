@@ -283,7 +283,7 @@ private:
 
     void parseJoinKeysAndCondition(
         std::shared_ptr<TableJoin> table_join,
-        substrait::JoinRel & join,
+        const substrait::JoinRel & join,
         DB::QueryPlanPtr & left,
         DB::QueryPlanPtr & right,
         const NamesAndTypesList & alias_right,
