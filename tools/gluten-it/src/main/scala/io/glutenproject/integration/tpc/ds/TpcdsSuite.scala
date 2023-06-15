@@ -7,6 +7,7 @@ import org.apache.log4j.Level
 import org.apache.spark.SparkConf
 
 class TpcdsSuite(
+  val masterUrl: String,
   val actions: Array[Action],
   val testConf: SparkConf,
   val baselineConf: SparkConf,
@@ -16,16 +17,15 @@ class TpcdsSuite(
   val enableUi: Boolean,
   val enableHsUi: Boolean,
   val hsUiPort: Int,
-  val cpus: Int,
   val offHeapSize: String,
   val disableAqe: Boolean,
   val disableBhj: Boolean,
   val disableWscg: Boolean,
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(
-  actions, testConf, baselineConf, extraSparkConf,
+  masterUrl, actions, testConf, baselineConf, extraSparkConf,
   logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort,
-  cpus, offHeapSize, disableAqe, disableBhj, disableWscg,
+  offHeapSize, disableAqe, disableBhj, disableWscg,
   shufflePartitions, minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
@@ -33,7 +33,7 @@ class TpcdsSuite(
   override private[tpc] def dataWritePath(scale: Double): String = TPCDS_WRITE_PATH + s"-$scale"
 
   override private[tpc] def createDataGen(scale: Double, genPartitionedData: Boolean): DataGen = new TpcdsDataGen(sessionSwitcher.spark(),
-    scale, cpus, dataWritePath(scale), typeModifiers(), genPartitionedData)
+    scale, shufflePartitions, dataWritePath(scale), typeModifiers(), genPartitionedData)
 
   override private[tpc] def queryResource(): String = {
     "/tpcds-queries"

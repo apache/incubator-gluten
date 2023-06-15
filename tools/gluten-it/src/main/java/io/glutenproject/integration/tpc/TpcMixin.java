@@ -1,6 +1,7 @@
 package io.glutenproject.integration.tpc;
 
 import io.glutenproject.integration.tpc.action.Action;
+import io.glutenproject.integration.tpc.command.SparkRunModes;
 import io.glutenproject.integration.tpc.ds.TpcdsSuite;
 import io.glutenproject.integration.tpc.h.TpchSuite;
 import org.apache.log4j.Level;
@@ -10,6 +11,7 @@ import scala.Predef;
 import scala.collection.JavaConverters;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 public class TpcMixin {
@@ -37,8 +39,8 @@ public class TpcMixin {
   @CommandLine.Option(names = {"--history-ui-port"}, description = "Port that Spark history server UI binds to", defaultValue = "18080")
   private int hsUiPort;
 
-  @CommandLine.Option(names = {"--cpus"}, description = "Executor cpu number", defaultValue = "2")
-  private int cpus;
+  @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
+  SparkRunModes.ModeEnumeration runModeEnumeration;
 
   @CommandLine.Option(names = {"--off-heap-size"}, description = "Off heap memory size per executor", defaultValue = "6g")
   private String offHeapSize;
@@ -98,21 +100,22 @@ public class TpcMixin {
     }
 
     scala.collection.immutable.Map<String, String> extraSparkConfScala =
-        JavaConverters.mapAsScalaMapConverter(extraSparkConf).asScala().toMap(
+        JavaConverters.mapAsScalaMapConverter(
+            mergeMapSafe(extraSparkConf, runModeEnumeration.extraSparkConf())).asScala().toMap(
             Predef.conforms());
 
     final TpcSuite suite;
     switch (benchmarkType) {
       case "h":
-        suite = new TpchSuite(actions, testConf, baselineConf,
-            extraSparkConfScala, level, errorOnMemLeak, enableUi,
-            enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
+        suite = new TpchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
+            baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
+            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       case "ds":
-        suite = new TpcdsSuite(actions, testConf, baselineConf, extraSparkConfScala,
-            level, errorOnMemLeak, enableUi,
-            enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
+        suite = new TpcdsSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
+            baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
+            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       default:
@@ -131,6 +134,18 @@ public class TpcMixin {
       return -1;
     }
     return 0;
+  }
+
+  private <K,V> Map<K, V> mergeMapSafe(Map<K, V> conf, Map<? extends K, ? extends V> other) {
+    other.keySet().forEach(k -> {
+      if (conf.containsKey(k)) {
+        throw new IllegalArgumentException("Key already exists in conf: " + k);
+      }
+    });
+
+    HashMap<K, V> copy = new HashMap<>(conf);
+    copy.putAll(other);
+    return Collections.unmodifiableMap(copy);
   }
 
 }

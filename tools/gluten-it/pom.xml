@@ -79,6 +79,7 @@
       <groupId>io.glutenproject</groupId>
       <artifactId>gluten-package</artifactId>
       <version>${gluten.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>

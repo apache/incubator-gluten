@@ -17,19 +17,20 @@
 
 package org.apache.spark.sql
 
+import org.apache.hadoop.fs.LocalFileSystem
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher.NONE
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
-import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext}
+import org.apache.spark.{SparkConf, SparkContext}
 
-class SparkSessionSwitcher(val cpus: Int, val logLevel: String) extends AutoCloseable {
+class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends AutoCloseable {
   private val sessionMap: java.util.Map[SessionToken, SparkConf] =
     new java.util.HashMap[SessionToken, SparkConf]
 
   private val testDefaults = new SparkConf(false)
-      .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
+      .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[LocalFileSystem].getName)
       .setWarningOnOverriding(SQLConf.CODEGEN_FALLBACK.key, "false")
       .setWarningOnOverriding(SQLConf.CODEGEN_FACTORY_MODE.key, CodegenObjectFactoryMode.CODEGEN_ONLY.toString)
       // Disable ConvertToLocalRelation for better test coverage. Test cases built on
@@ -114,7 +115,7 @@ class SparkSessionSwitcher(val cpus: Int, val logLevel: String) extends AutoClos
     if (hasActiveSession()) {
       throw new IllegalStateException()
     }
-    _spark = new SparkSession(new SparkContext(s"local[$cpus]", appName, conf))
+    _spark = new SparkSession(new SparkContext(masterUrl, appName, conf))
     _spark.sparkContext.setLogLevel(logLevel)
   }
 
