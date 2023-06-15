@@ -21,16 +21,7 @@ TextFormatFile::TextFormatFile(
 FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    DB::CompressionMethod compression_method = DB::CompressionMethod::None;
-    if (file_info.text().compression_type() == "ZLib") 
-    {
-        compression_method = DB::CompressionMethod::Zlib;
-    }
-    else if (file_info.text().compression_type() == "BZip2")
-    {
-        compression_method = DB::CompressionMethod::Bzip2;
-    }
-    res->read_buffer = std::move(read_buffer_builder->build(file_info, true, compression_method));
+    res->read_buffer = std::move(read_buffer_builder->build(file_info, true));
 
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();

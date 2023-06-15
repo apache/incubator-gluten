@@ -6,6 +6,7 @@
 #include <Poco/Logger.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
+#include <Common/ExceptionUtils.h>
 
 namespace DB
 {
@@ -98,4 +99,59 @@ jlong safeCallStaticLongMethod(JNIEnv * env, jclass clazz, jmethodID method_id, 
     LOCAL_ENGINE_JNI_JMETHOD_END(env);
     return ret;
 }
+
+template <typename... Args>
+jobject safeCallStaticObjectMethod(JNIEnv * env, jclass clazz, jmethodID method_id, Args... args)
+{
+    LOCAL_ENGINE_JNI_JMETHOD_START
+    auto ret = env->CallStaticObjectMethod(clazz, method_id, args...);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    return ret;
+}
+
+[[maybe_unused]] static std::string jstring2string(JNIEnv * env, jstring jStr)
+{
+    try
+    {
+        if (!jStr)
+            return "";
+        
+        jclass string_class = env->GetObjectClass(jStr);
+        jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
+        jbyteArray string_jbytes
+            = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
+
+        size_t length = static_cast<size_t>(env->GetArrayLength(string_jbytes));
+        jbyte * p_bytes = env->GetByteArrayElements(string_jbytes, nullptr);
+
+        std::string ret = std::string(reinterpret_cast<char *>(p_bytes), length);
+        env->ReleaseByteArrayElements(string_jbytes, p_bytes, JNI_ABORT);
+
+        env->DeleteLocalRef(string_jbytes);
+        env->DeleteLocalRef(string_class);
+        return ret;
+    }
+    catch (DB::Exception & e)
+    {
+        local_engine::ExceptionUtils::handleException(e);
+    }
+}
+
+[[maybe_unused]] static jstring stringTojstring(JNIEnv * env, const char * pat)
+{
+    try
+    {
+        jclass strClass = (env)->FindClass("java/lang/String");
+        jmethodID ctorID = (env)->GetMethodID(strClass, "<init>", "([BLjava/lang/String;)V");
+        jbyteArray bytes = (env)->NewByteArray(strlen(pat));
+        (env)->SetByteArrayRegion(bytes, 0, strlen(pat), reinterpret_cast<const jbyte *>(pat));
+        jstring encoding = (env)->NewStringUTF("UTF-8");
+        return static_cast<jstring>((env)->NewObject(strClass, ctorID, bytes, encoding));
+    }
+    catch (DB::Exception & e)
+    {
+        local_engine::ExceptionUtils::handleException(e);
+    }
+}
+
 }

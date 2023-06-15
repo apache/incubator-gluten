@@ -14,16 +14,7 @@ JsonFormatFile::JsonFormatFile(DB::ContextPtr context_, const substrait::ReadRel
 FormatFile::InputFormatPtr JsonFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    DB::CompressionMethod compression_method = DB::CompressionMethod::None;
-    if (file_info.json().compression_type() == "ZLib") 
-    {
-        compression_method = DB::CompressionMethod::Zlib;
-    }
-    else if (file_info.json().compression_type() == "BZip2")
-    {
-        compression_method = DB::CompressionMethod::Bzip2;
-    }
-    res->read_buffer = std::move(read_buffer_builder->build(file_info, true, compression_method));
+    res->read_buffer = std::move(read_buffer_builder->build(file_info, true));
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
     size_t max_block_size = file_info.json().max_block_size();
     DB::RowInputFormatParams in_params = {max_block_size};

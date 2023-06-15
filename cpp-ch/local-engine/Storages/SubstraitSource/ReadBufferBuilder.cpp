@@ -52,13 +52,16 @@ namespace ErrorCodes
 
 namespace local_engine
 {
+jclass local_engine::HDFSFileCompressionCodec::compression_codec_class = nullptr;
+jmethodID local_engine::HDFSFileCompressionCodec::compression_codec_get = nullptr;
+
 class LocalFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &, const DB::CompressionMethod &) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
@@ -81,13 +84,8 @@ class HDFSFileReadBufferBuilder : public ReadBufferBuilder
 public:
     explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
-    static jclass compression_codec_class;
-    static jmethodID compression_codec_get;
 
-    std::unique_ptr<DB::ReadBuffer> build(
-        const substrait::ReadRel::LocalFiles::FileOrFiles & file_info,
-        const bool & set_read_util_position,
-        const DB::CompressionMethod & txt_compression_method) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool & set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
@@ -99,6 +97,7 @@ public:
         {
             std::pair<size_t, size_t> start_end_pos = adjustFileReadStartAndEndPos(file_info.start(), file_info.start() + file_info.length(),
                     uri_path, file_uri.getPath());
+            std::cout << "file.start:" << file_info.start() << "file.end:" << file_info.start() + file_info.length() << std::endl;
             LOG_DEBUG(&Poco::Logger::get("ReadBufferBuilder"), "File read start and end position adjusted from {},{} to {},{}",
                     file_info.start(), file_info.start() + file_info.length(), start_end_pos.first, start_end_pos.second);
             read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
@@ -115,24 +114,19 @@ public:
                 uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
                 read_settings);
         }
-        std::string compression_method = getCompressionCodec()
-        if (txt_compression_method == DB::CompressionMethod::Zlib)
+        if (file_info.has_text() || file_info.has_json())
         {
-            read_buffer = std::make_unique<DB::ZlibInflatingReadBuffer>(std::move(read_buffer), txt_compression_method);
-        }
-        else if (txt_compression_method == DB::CompressionMethod::Bzip2)
-        {
-            read_buffer = std::make_unique<DB::Bzip2ReadBuffer>(std::move(read_buffer));
+            DB::CompressionMethod compression_method = HDFSFileCompressionCodec::getCompressionCodec(file_uri.getPath());
+            if (compression_method == DB::CompressionMethod::Zlib)
+            {
+                read_buffer = std::make_unique<DB::ZlibInflatingReadBuffer>(std::move(read_buffer), compression_method);
+            }
+            else if (compression_method == DB::CompressionMethod::Bzip2)
+            {
+                read_buffer = std::make_unique<DB::Bzip2ReadBuffer>(std::move(read_buffer));
+            }
         }
         return read_buffer;
-    }
-
-    std::string getCompressionCodec(jobject java_obj, std::string file_path) {
-        GET_JNIENV(env)
-        jstring codec
-            = safeCallIntMethod(env, java_obj, HDFSFileReadBufferBuilder::compression_codec_get, file_path);
-        CLEAN_JNIENV
-        return codec;
     }
 
     std::pair<size_t, size_t> adjustFileReadStartAndEndPos(
@@ -242,7 +236,7 @@ public:
 
     ~S3FileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &, const DB::CompressionMethod &) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
     {
         Poco::URI file_uri(file_info.uri_file());
         const auto client = getClient();
@@ -348,7 +342,7 @@ public:
     explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &, const DB::CompressionMethod &)
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &)
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
