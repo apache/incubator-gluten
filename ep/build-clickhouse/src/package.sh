@@ -67,7 +67,7 @@ cp "${GLUTEN_SOURCE}"/README.md "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 # build gluten jar
 cd "${GLUTEN_SOURCE}"
 mvn clean package -Pbackends-clickhouse -Pspark-3.2 -DskipTests -Dcheckstyle.skip
-mvn clean package -Pspark-3.3 -pl shims/spark33 -DskipTests -Dcheckstyle.skip
+mvn clean package -Pspark-3.3 -am -pl shims/spark33 -DskipTests -Dcheckstyle.skip
 
 # build libch.so
 bash "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/build_clickhouse.sh
