@@ -38,9 +38,9 @@ std::shared_ptr<ResultIterator> getResultIterator(
     std::shared_ptr<Backend> backend,
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos,
     std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
-  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
+  auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild("query_benchmark_result_iterator");
-  auto resultPool = defaultLeafVeloxMemoryPool();
+  auto resultPool = getDefaultVeloxLeafMemoryPool();
 
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
   auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, resultPool);
@@ -57,6 +57,7 @@ std::shared_ptr<ResultIterator> getResultIterator(
 
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
       ctxPool,
+      resultPool,
       veloxPlan,
       scanIds,
       setScanInfos,

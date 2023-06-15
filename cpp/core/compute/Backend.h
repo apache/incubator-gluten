@@ -78,7 +78,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   virtual arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) {
-    auto memoryPool = asArrowMemoryPool(allocator);
+    auto memoryPool = asWrappedArrowMemoryPool(allocator);
     return std::make_shared<ArrowColumnarToRowConverter>(memoryPool);
   }
 

@@ -189,7 +189,7 @@ arrow::Status VeloxShuffleWriter::split(ColumnarBatch* cb) {
     RETURN_NOT_OK(initFromRowVector(*vp));
     // 1. convert RowVector to RecordBatch
     ArrowArray arrowArray;
-    velox::exportToArrow(vp, arrowArray, defaultLeafVeloxMemoryPool().get());
+    velox::exportToArrow(vp, arrowArray, getDefaultVeloxLeafMemoryPool().get());
 
     auto result = arrow::ImportRecordBatch(&arrowArray, schema_);
     RETURN_NOT_OK(result);
@@ -703,7 +703,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
       // TODO: rethink the cost of `exportToArrow+ImportArray`
       ArrowArray arrowArray;
-      velox::exportToArrow(column, arrowArray, defaultLeafVeloxMemoryPool().get());
+      velox::exportToArrow(column, arrowArray, getDefaultVeloxLeafMemoryPool().get());
 
       auto result = arrow::ImportArray(&arrowArray, arrowColumnTypes_[colIdx]);
       RETURN_NOT_OK(result);
@@ -739,7 +739,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
   arrow::Status VeloxShuffleWriter::veloxType2ArrowSchema(const velox::TypePtr& type) {
     auto out = std::make_shared<ArrowSchema>();
-    auto rvp = velox::RowVector::createEmpty(type, defaultLeafVeloxMemoryPool().get());
+    auto rvp = velox::RowVector::createEmpty(type, getDefaultVeloxLeafMemoryPool().get());
 
     // get ArrowSchema from velox::RowVector
     velox::exportToArrow(rvp, *out);

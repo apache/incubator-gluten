@@ -45,7 +45,7 @@ namespace gluten {
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
 
-  auto veloxPool = asAggregateVeloxMemoryPool(gluten::defaultMemoryAllocator().get());
+  auto veloxPool = asWrappedVeloxAggregateMemoryPool(gluten::defaultMemoryAllocator().get());
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {

@@ -103,7 +103,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrap
 
   // A query context used for function validation.
   velox::core::QueryCtx queryCtx;
-  auto pool = gluten::defaultLeafVeloxMemoryPool().get();
+  auto pool = gluten::getDefaultVeloxLeafMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
