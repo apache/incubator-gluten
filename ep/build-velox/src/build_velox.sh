@@ -76,9 +76,9 @@ function compile {
   # Let Velox use pre-build arrow,parquet,thrift.
   if [ "$ARROW_HOME" == "" ]; then
     ARROW_HOME=$CURRENT_DIR/../../build-arrow/build
-    if [ -d "$ARROW_HOME" ]; then
-      COMPILE_OPTION="$COMPILE_OPTION -DArrow_HOME=${ARROW_HOME}"
-    fi
+  fi
+  if [ -d "$ARROW_HOME" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DArrow_HOME=${ARROW_HOME}"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
@@ -127,25 +127,25 @@ function setup {
     scripts/setup-ubuntu.sh
   elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     case "$LINUX_VERSION_ID" in
-      8) scripts/setup-centos8.sh ;;
-      7)
-        scripts/setup-centos7.sh
-        set +u
-        export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-        source /opt/rh/devtoolset-9/enable
-        set -u
+    8) scripts/setup-centos8.sh ;;
+    7)
+      scripts/setup-centos7.sh
+      set +u
+      export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+      source /opt/rh/devtoolset-9/enable
+      set -u
       ;;
-      *)
-        echo "Unsupport centos version: $LINUX_VERSION_ID"
-        exit 1
+    *)
+      echo "Unsupport centos version: $LINUX_VERSION_ID"
+      exit 1
       ;;
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
     case "$LINUX_VERSION_ID" in
-      3) scripts/setup-centos8.sh ;;
-      *)
-        echo "Unsupport alinux version: $LINUX_VERSION_ID"
-        exit 1
+    3) scripts/setup-centos8.sh ;;
+    *)
+      echo "Unsupport alinux version: $LINUX_VERSION_ID"
+      exit 1
       ;;
     esac
   else
