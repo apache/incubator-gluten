@@ -31,7 +31,16 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
     const auto & schema = file_info.text().schema();
     for (const auto & name : schema.names())
-        format_settings.hive_text.input_field_names.push_back(name);
+    {
+        if (name == "L_LINENUMBER")
+        {
+            format_settings.hive_text.input_field_names.push_back("l_linenumber");
+        }
+        else
+        {
+            format_settings.hive_text.input_field_names.push_back(name);
+        }
+    }
     format_settings.hive_text.fields_delimiter = file_info.text().field_delimiter()[0];
     res->input = std::make_shared<DB::HiveTextRowInputFormat>(header, *(res->read_buffer), params, format_settings);
     return res;

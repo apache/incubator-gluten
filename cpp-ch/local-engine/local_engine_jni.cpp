@@ -114,10 +114,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::ReservationListenerWrapper::reservation_listener_unreserve
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "unreserve", "(J)J");
 
-    // local_engine::HDFSFileCompressionCodec::compression_codec_class
-    //     = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/hive/CHCompressionCodec;");
-    // local_engine::HDFSFileCompressionCodec::compression_codec_get
-    //     = local_engine::GetStaticMethodID(env, local_engine::HDFSFileCompressionCodec::compression_codec_class, "getCompressionCodec", "(Ljava/lang/String;)Ljava/lang/String;");
+    local_engine::HDFSFileCompressionCodec::compression_codec_class
+        = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/hive/CHCompressionCodec;");
+    local_engine::HDFSFileCompressionCodec::compression_codec_get
+        = local_engine::GetStaticMethodID(env, local_engine::HDFSFileCompressionCodec::compression_codec_class, "getCompressionCodec", "(Ljava/lang/String;)Ljava/lang/String;");
 
     native_metrics_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/metrics/NativeMetrics;");
     native_metrics_constructor = local_engine::GetMethodID(env, native_metrics_class, "<init>", "(Ljava/lang/String;)V");
