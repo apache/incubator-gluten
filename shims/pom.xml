@@ -53,9 +53,6 @@
   <profiles>
     <profile>
       <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
       <modules>
         <module>common</module>
         <module>spark32</module>
@@ -63,6 +60,9 @@
     </profile>
     <profile>
       <id>spark-3.3</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
       <modules>
         <module>common</module>
         <module>spark33</module>
