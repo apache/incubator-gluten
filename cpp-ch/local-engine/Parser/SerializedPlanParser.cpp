@@ -240,13 +240,13 @@ bool SerializedPlanParser::isReadRelFromJava(const substrait::ReadRel & rel)
     return rel.local_files().items().size() == 1 && rel.local_files().items().at(0).uri_file().starts_with("iterator");
 }
 
-QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrait::ReadRel & rel)
+QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrait::ReadRel & rel, std::vector<String>& not_nullable_columns)
 {
     assert(rel.has_local_files());
     assert(rel.has_base_schema());
     auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     FormatFile::FormatFileOptionsPtr options = std::make_shared<FormatFile::FormatFileOptions>();
-    if (rel.has_filter())
+    if (rel.has_filter() && context->getConfigRef().getBool("use_experimental_parquet_reader", false))
     {
         const auto & filter = rel.filter();
         auto pushdown_filter = std::make_shared<ActionsDAG>(header.getNamesAndTypesList());
@@ -258,8 +258,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
         else
         {
             String unused;
-            std::vector<String> required_columns;
-            parseFunctionWithDAG(filter, unused, required_columns, pushdown_filter, true);
+            parseFunctionWithDAG(filter, unused, not_nullable_columns, pushdown_filter, true);
         }
         options->pushdown_filter = pushdown_filter;
     }
@@ -267,6 +266,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<ReadFromStorageStep>(std::move(source_pipe), "substrait local files", nullptr);
     source_step->setStepDescription("read local files");
+
     return source_step;
 }
 
@@ -625,17 +625,28 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             {
                 query_plan = std::make_unique<QueryPlan>();
                 QueryPlanStepPtr step;
+                std::vector<DB::String> not_null_columns;
                 if (isReadRelFromJava(read))
                 {
                     step = parseReadRealWithJavaIter(read);
                 }
                 else
                 {
-                    step = parseReadRealWithLocalFile(read);
+                    step = parseReadRealWithLocalFile(read, not_null_columns);
                 }
+
                 steps.emplace_back(step.get());
                 query_plan->addStep(std::move(step));
-
+                if (!not_null_columns.empty())
+                {
+                    auto input_header = query_plan->getCurrentDataStream().header;
+                    std::erase_if(not_null_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
+                    auto* remove_null_step = addRemoveNullableStep(*query_plan, not_null_columns);
+                    if (remove_null_step)
+                    {
+                        steps.emplace_back(remove_null_step);
+                    }
+                }
                 // Add a buffer after source, it try to preload data from source and reduce the
                 // waiting time of downstream nodes.
                 if (context->getSettingsRef().max_threads > 1)

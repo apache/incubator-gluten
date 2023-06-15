@@ -16,13 +16,13 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
-
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -52,7 +52,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.{lang, util}
-
 import scala.collection.mutable.ArrayBuffer
 
 class CHSparkPlanExecApi extends SparkPlanExecApi {
@@ -96,7 +95,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       case scan: BatchScanExec if scan.batch.isInstanceOf[ClickHouseScan] =>
         CHFilterExecTransformer(condition, child)
       case _ =>
-        FilterExecTransformer(condition, child)
+          if (GlutenConfig.getConf.enableNewParquetReader) {
+            CHFilterExecTransformer(condition, child)
+          } else {
+            FilterExecTransformer(condition, child)
+          }
+
     }
   }
 

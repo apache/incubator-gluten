@@ -71,7 +71,6 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
     if (use_experimental_reader)
     {
-        std::cerr << "use new parquet reader" << std::endl;
         res->input = std::make_shared<DB::CustomParquetBlockInputFormat>(
                 reinterpret_cast<DB::ReadBufferFromFileBase *>(res->read_buffer.get()), header, options->pushdown_filter, format_settings);
     }

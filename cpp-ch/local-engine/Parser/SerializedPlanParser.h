@@ -251,7 +251,7 @@ public:
     DB::QueryPlanPtr parseJson(const std::string & json_plan);
     DB::QueryPlanPtr parse(std::unique_ptr<substrait::Plan> plan);
 
-    DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
+    DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel, std::vector<String>& not_nullable_columns);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
     // mergetree need create two steps in parse, can't return single step
     DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel, std::vector<IQueryPlanStep *>& steps);
