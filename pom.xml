@@ -49,11 +49,11 @@
     <delta.version>${delta20.version}</delta.version>
     <delta.binary.version>20</delta.binary.version>
     <scala.binary.version>2.12</scala.binary.version>
-    <scala.version>${spark32.scala}</scala.version>
-    <spark.version>${spark32.version}</spark.version>
+    <scala.version>${spark33.scala}</scala.version>
+    <spark.version>${spark33.version}</spark.version>
     <spark.major.version>3</spark.major.version>
     <celeborn.version>0.2.1-incubating</celeborn.version>
-    <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
+    <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
     <arrow.version>12.0.0</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>${hadoop.version}</hadoop.version>
@@ -66,7 +66,7 @@
     <!-- For unit tests -->
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
     <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
-    <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
+    <fasterxml.spark33.version>2.13.5</fasterxml.spark33.version>
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
     <junit.version>4.13.1</junit.version>
 
@@ -111,9 +111,6 @@
   <profiles>
     <profile>
       <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
       <properties>
         <scala.version>${spark32.scala}</scala.version>
         <spark.major.version>3</spark.major.version>
@@ -126,6 +123,9 @@
     </profile>
     <profile>
       <id>spark-3.3</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
       <properties>
         <scala.version>${spark33.scala}</scala.version>
         <spark.major.version>3</spark.major.version>
@@ -138,11 +138,6 @@
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
-      <activation>
-        <property>
-          <name>!hadoop.version</name>
-        </property>
-      </activation>
       <properties>
         <hadoop.version>2.7.4</hadoop.version>
       </properties>
@@ -155,20 +150,13 @@
     </profile>
     <profile>
       <id>hadoop-3.3</id>
+      <activation>
+        <property>
+          <name>!hadoop.version</name>
+        </property>
+      </activation>
       <properties>
-        <hadoop.version>3.3.1</hadoop.version>
-      </properties>
-    </profile>
-    <profile>
-      <id>dataproc-2.0</id>
-      <properties>
-        <hadoop.version>3.2.2</hadoop.version>
-      </properties>
-    </profile>
-    <profile>
-      <id>emr-6.3.0</id>
-      <properties>
-        <hadoop.version>3.2.2</hadoop.version>
+        <hadoop.version>3.3.5</hadoop.version>
       </properties>
     </profile>
     <profile>
@@ -278,6 +266,14 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-mapper-asl</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.velocity</groupId>
+            <artifactId>velocity</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -444,6 +440,10 @@
             <groupId>io.netty</groupId>
             <artifactId>netty</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-mapper-asl</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -503,6 +503,57 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
         <version>3.2.1</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.8.9</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-text</artifactId>
+        <version>1.10.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ivy</groupId>
+        <artifactId>ivy</artifactId>
+        <version>2.5.1</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-all</artifactId>
+        <version>4.1.94.Final</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.thrift</groupId>
+        <artifactId>libthrift</artifactId>
+        <version>0.18.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-core</artifactId>
+        <version>10.0.16</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>3.21.7</version>
+      </dependency>
+      <dependency>
+        <groupId>net.minidev</groupId>
+        <artifactId>json-smart</artifactId>
+        <version>2.4.9</version>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>1.1.10.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-http</artifactId>
+        <version>11.0.15</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
