@@ -122,8 +122,6 @@ public:
     inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
     inline static const std::string S3A_PREFIX = "fs.s3a.";
 
-
->>>>>>> [GLUTEN-1898][CH] S3 client support per bucket configs and support assume role access
 private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
