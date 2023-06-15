@@ -1,4 +1,4 @@
-# A Quick Gudie for Mantaining Vcpkg Depends 
+# A Quick Gudie for Maintenancing Vcpkg Depends 
 
 It is recommanded to read [vcpkg documents](https://learn.microsoft.com/en-us/vcpkg/).
 It is quite easy to understand if you have experience in packaging on linux or mac homebrew.
