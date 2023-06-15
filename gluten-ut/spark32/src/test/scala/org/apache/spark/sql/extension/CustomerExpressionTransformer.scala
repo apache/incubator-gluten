@@ -50,13 +50,14 @@ class CustomAddExpressionTransformer(
 
 case class CustomerExpressionTransformer() extends ExpressionExtensionTrait {
 
+  lazy val expressionSigs = Seq(
+    Sig[CustomAdd]("add")
+  )
   /**
    * Generate the extension expressions list,
    * format: Sig[XXXExpression]("XXXExpressionName")
    */
-  override def extensionExpressionsMapping: Seq[Sig] = Seq(
-    Sig[CustomAdd]("add")
-  )
+  override def expressionSigList: Seq[Sig] = expressionSigs
 
   /**
    * Replace extension expression to transformer.

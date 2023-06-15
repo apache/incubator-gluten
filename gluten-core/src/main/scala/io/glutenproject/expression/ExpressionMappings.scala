@@ -242,8 +242,7 @@ object ExpressionMappings {
 
   def expressionsMap: Map[Class[_], String] =
     defaultExpressionsMap ++
-      expressionExtensionTransformer.extensionExpressionsMapping.map(s => (s.expClass, s.name))
-        .toMap[Class[_], String]
+      expressionExtensionTransformer.extensionExpressionsMapping
 
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {
     (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++

@@ -17,6 +17,7 @@
 package org.apache.spark.sql.extension
 
 import io.glutenproject.execution.ProjectExecTransformer
+import io.glutenproject.expression.ExpressionConverter
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
@@ -99,9 +100,18 @@ class GlutenCustomerExpressionTransformerSuite extends GlutenSQLTestsTrait {
     checkAnswer(df,
       Seq(Row(101, 201.1), Row(102, 202.2)))
 
-    val projectTransformer = df.queryExecution.executedPlan.collect {
+    val projectTransformers = df.queryExecution.executedPlan.collect {
       case p: ProjectExecTransformer => p
     }
-    assert(!projectTransformer.isEmpty, s"query plan: ${df.queryExecution.executedPlan}")
+    assert(!projectTransformers.isEmpty, s"query plan: ${df.queryExecution.executedPlan}")
+
+    val projectExecTransformer = projectTransformers(0)
+    val childOut = projectExecTransformer.child.output
+    val exprTransformers =
+      ExpressionConverter
+        .replaceWithExpressionTransformer(
+          projectExecTransformer.projectList(0).asInstanceOf[Alias].child,
+          attributeSeq = childOut)
+    assert(exprTransformers.isInstanceOf[CustomAddExpressionTransformer])
   }
 }
