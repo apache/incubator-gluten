@@ -76,11 +76,25 @@ const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velo
 
 namespace gluten {
 
+void VeloxInitializer::log(const std::unordered_map<std::string, std::string>& conf) {
+  std::ostringstream oss;
+  oss << "STARTUP: VeloxInitializer conf = {\n";
+  for (auto& [k, v] : conf) {
+    oss << " {" << k << ", " << v << "}\n";
+  }
+  oss << "}\n";
+  oss << "memPoolOptions = {";
+  oss << " alignment:" << memPoolOptions_.alignment;
+  oss << ", capacity:" << (memPoolOptions_.capacity >> 20) << "M";
+  oss << ", trackUsage:" << (int)memPoolOptions_.trackUsage;
+  oss << " }\n";
+  oss << "spillThreshold = " << (spillThreshold_ >> 20) << "M";
+  LOG(INFO) << oss.str();
+}
+
 void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& conf) {
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
-
-  std::unordered_map<std::string, std::string> configurationValues;
 
   // spill mode
   std::string spillMode;
@@ -95,53 +109,37 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   }
 
   // mem cap ratio
-  float_t memCapRatio;
-  {
-    auto got = conf.find(kMemoryCapRatio);
-    if (got == conf.end()) {
-      // not found
-      memCapRatio = 0.75;
-    } else {
-      memCapRatio = std::stof(got->second);
-    }
+  float_t memCapRatio = 0.75;
+  auto got = conf.find(kMemoryCapRatio);
+  if (got != conf.end()) {
+    memCapRatio = std::stof(got->second);
   }
 
   // mem tracker
-  int64_t maxMemory;
-  {
-    if (spillMode == "threshold") {
-      auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
-      if (got == conf.end()) {
-        // not found
-        maxMemory = facebook::velox::memory::kMaxMemory;
-      } else {
-        maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
-      }
-    } else {
-      // no spill, or managed by Spark
-      maxMemory = facebook::velox::memory::kMaxMemory;
+  int64_t maxMemory = facebook::velox::memory::kMaxMemory;
+  if (spillMode == "threshold") {
+    auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
+    if (got != conf.end()) {
+      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
     }
   }
 
   memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .capacity = maxMemory};
 
   // spill threshold ratio (out of the memory cap)
-  float_t spillThresholdRatio;
-  {
-    auto got = conf.find(kSpillThresholdRatio);
-    if (got == conf.end()) {
-      // not found
-      spillThresholdRatio = 0.6;
-    } else {
-      spillThresholdRatio = std::stof(got->second);
-    }
+  float_t spillThresholdRatio = 0.6;
+  got = conf.find(kSpillThresholdRatio);
+  if (got != conf.end()) {
+    spillThresholdRatio = std::stof(got->second);
   }
+
   spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);
 
 #ifdef ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
 #endif
 
+  std::unordered_map<std::string, std::string> configurationValues;
 #ifdef ENABLE_S3
   velox::filesystems::registerS3FileSystem();
 
@@ -184,6 +182,9 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   initCache(conf);
   initIOExecutor(conf);
+
+  log(conf);
+
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
@@ -201,7 +202,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   }
 }
 
-velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
+velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
   return asyncDataCache_.get();
 }
 

@@ -47,7 +47,7 @@ class VeloxInitializer {
 
   static std::shared_ptr<VeloxInitializer> get();
 
-  facebook::velox::memory::MemoryAllocator* getAsyncDataCache();
+  facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
 
   const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
     return memPoolOptions_;
@@ -65,6 +65,8 @@ class VeloxInitializer {
   void init(const std::unordered_map<std::string, std::string>& conf);
   void initCache(const std::unordered_map<std::string, std::string>& conf);
   void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
+
+  void log(const std::unordered_map<std::string, std::string>& conf);
 
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";

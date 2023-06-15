@@ -88,3 +88,7 @@ The df.describe() method can not work in Gluten with spark 3.2 and spark 3.3, wh
 
 ### Parquet Write supported configurations.
 Currently, parquet write only support spark.sql.parquet.compression.codec and parquet.block.size two configurations. Other configurations will not take effect. 
+
+### Spill
+
+`OutOfMemoryExcetpion` may still be triggered within current implementation of spill-to-disk feature, when shuffle partitions is set to a large number. When this case happens, please try reduce the partition number to get rid of the OOM.

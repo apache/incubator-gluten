@@ -162,6 +162,62 @@ jobs:
         run: |
           docker stop velox-ubuntu2004-test-slow-$GITHUB_RUN_ID || true
 
+  velox-ubuntu2004-test-spark33-slow:
+    runs-on: velox-self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup docker container
+        run: |
+          EXTRA_DOCKER_OPTIONS="--name velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID --volume velox-spark33-slow-cache:/var/cache/spark33 -e NUM_THREADS=30 --detach" \
+          NON_INTERACTIVE=ON \
+          MOUNT_MAVEN_CACHE=OFF \
+          OS_IMAGE=ubuntu:20.04 \
+          tools/gluten-te/ubuntu/cbash.sh sleep 14400
+      - name: Setup maven cache
+        run: |
+          docker cp ~/.m2/repository velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID:/root/.m2/
+      - name: Compile Spark3.3
+        run: |
+          docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
+          cd /var/cache/spark33 && \
+          cp /opt/gluten/dev/get_spark_env.sh . &&
+          ./get_spark_env.sh '
+      - name: Build Gluten velox third party
+        run: |
+          docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
+          cd /opt/gluten/ep/build-arrow/src && \
+          ./get_arrow.sh  && \
+          ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
+          cd /opt/gluten/ep/build-velox/src && \
+          ./get_velox.sh && \
+          ./build_velox.sh'
+      - name: Build Gluten CPP library
+        run: |
+          docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
+          cd /opt/gluten/cpp && \
+          mkdir build && cd build && cmake .. && make -j'
+      - name: Build for Spark 3.3.0
+        run: |
+          docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -DskipTests -Dspark33.version=3.3.0'
+      - name: Build and Run unit test for Spark 3.3.1(slow tests)
+        run: |
+          docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Pspark-ut -DargLine="-Dspark.test.home=/var/cache/spark33/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3
+        run: |
+          docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean package -Pspark-3.3 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1'
+      - name: Exit docker container
+        if: ${{ always() }}
+        run: |
+          docker stop velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID || true
+
   velox-ubuntu2004-test-spark33:
     runs-on: velox-self-hosted
     steps:
@@ -201,10 +257,10 @@ jobs:
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -l -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -DskipTests -Dspark33.version=3.3.0'
-      - name: Build and Run unit test for Spark 3.3.1
+      - name: Build and Run unit test for Spark 3.3.1(other tests)
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Pspark-ut  -DargLine="-Dspark.test.home=/var/cache/spark33/spark331"'
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Pspark-ut -DargLine="-Dspark.test.home=/var/cache/spark33/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten/tools/gluten-it && \

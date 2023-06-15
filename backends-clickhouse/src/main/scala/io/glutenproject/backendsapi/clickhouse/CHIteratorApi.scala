@@ -42,6 +42,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
@@ -71,7 +72,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             val lengths = new java.util.ArrayList[java.lang.Long]()
             f.files.foreach {
               file =>
-                paths.add(file.filePath)
+                paths.add(new URI(file.filePath).toASCIIString)
                 starts.add(java.lang.Long.valueOf(file.start))
                 lengths.add(java.lang.Long.valueOf(file.length))
             }
