@@ -29,7 +29,7 @@ using namespace facebook;
 namespace gluten {
 
 void toArrowSchema(const std::shared_ptr<const velox::RowType>& rowType, struct ArrowSchema* out) {
-  exportToArrow(velox::BaseVector::create(rowType, 0, getDefaultVeloxLeafMemoryPool().get()), *out);
+  exportToArrow(velox::BaseVector::create(rowType, 0, defaultLeafVeloxMemoryPool().get()), *out);
 }
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const velox::RowType>& rowType) {

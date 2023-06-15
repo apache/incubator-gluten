@@ -63,7 +63,7 @@ struct ShuffleWriterOptions {
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
 
-  std::shared_ptr<arrow::MemoryPool> memory_pool = getDefaultArrowMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> memory_pool = defaultArrowMemoryPool();
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 

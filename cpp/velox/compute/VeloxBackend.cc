@@ -71,11 +71,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
     inputIters_ = std::move(inputs);
   }
 
-  auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
+  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator");
   // TODO: wait shuffle split velox to velox, then the input ColumnBatch is RowVector, no need pool to convert
   // https://github.com/oap-project/gluten/issues/1434
-  auto resultPool = getDefaultVeloxLeafMemoryPool();
+  auto resultPool = defaultLeafVeloxMemoryPool();
   // auto resultPool = veloxPool->addLeafChild("input_row_vector_pool");
   auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_, resultPool);
   veloxPlan_ = veloxPlanConverter->toVeloxPlan(substraitPlan_);
@@ -91,11 +91,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        ctxPool, resultPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
+        ctxPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        ctxPool, resultPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
+        ctxPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
@@ -105,8 +105,8 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
     std::shared_ptr<ColumnarBatch> cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
-    auto arrowPool = asWrappedArrowMemoryPool(allocator);
-    auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
+    auto arrowPool = asArrowMemoryPool(allocator);
+    auto veloxPool = asAggregateVeloxMemoryPool(allocator);
     auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
     return std::make_shared<VeloxColumnarToRowConverter>(arrowPool, ctxVeloxPool);
   } else {
@@ -118,7 +118,7 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
     MemoryAllocator* allocator,
     struct ArrowSchema* cSchema) {
   // TODO: wait to fix task memory pool
-  auto veloxPool = getDefaultVeloxLeafMemoryPool();
+  auto veloxPool = defaultLeafVeloxMemoryPool();
   // AsWrappedVeloxAggregateMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
