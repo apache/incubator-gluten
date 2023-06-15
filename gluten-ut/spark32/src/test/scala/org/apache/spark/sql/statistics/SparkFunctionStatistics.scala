@@ -72,8 +72,8 @@ class SparkFunctionStatistics extends QueryTest {
   }
 
   def extractQuery(examples: String): Seq[String] = {
-    examples.split("\n").map(_.trim).filter(!_.isEmpty).filter(_.startsWith(">"))
-        .map(_.replace(">", ""))
+    examples.split("\n").map(_.trim).filter(!_.isEmpty).filter(_.startsWith("> SELECT"))
+        .map(_.replace("> SELECT", "SELECT"))
   }
 
   test(GlutenTestConstants.GLUTEN_TEST + "Run spark function statistics: ") {
@@ -82,29 +82,36 @@ class SparkFunctionStatistics extends QueryTest {
     val sparkBuiltInFunctions = functionRegistry.listFunction()
     // According to expressionsForTimestampNTZSupport in FunctionRegistry.scala,
     // these functions are registered only for testing, not available for end users.
-    val ignoreFunctions = FunctionRegistry.expressionsForTimestampNTZSupport.keySet
+    // Other functions like current_database is NOT necessarily offloaded to native.
+    val ignoreFunctions = FunctionRegistry.expressionsForTimestampNTZSupport.keySet ++
+        Seq("get_fake_app_name", "current_catalog", "current_database")
     val supportedFunctions = new java.util.ArrayList[String]()
     val unsupportedFunctions = new java.util.ArrayList[String]()
     val needInspectFunctions = new java.util.ArrayList[String]()
+
     for (func <- sparkBuiltInFunctions) {
       val exprInfo = functionRegistry.lookupFunction(func).get
       if (!ignoreFunctions.contains(exprInfo.getName)) {
         val examples = extractQuery(exprInfo.getExamples)
         if (examples.isEmpty) {
           needInspectFunctions.add(exprInfo.getName)
-          print("###### Not found examples: " + exprInfo.getName + "\n")
+          // scalastyle:off println
+          println("## Not found examples for " + exprInfo.getName)
+          // scalastyle:on println
         }
-          var isSupported: Boolean = true
-          breakable {
+        var isSupported: Boolean = true
+        breakable {
           for (example <- examples) {
             var executedPlan: SparkPlan = null
             try {
               executedPlan = spark.sql(example).queryExecution.executedPlan
             } catch {
-              case _: Throwable =>
+              case t: Throwable =>
                 needInspectFunctions.add(exprInfo.getName)
-                print("------- " + exprInfo.getName + "\n")
-                print(exprInfo.getExamples)
+                // scalastyle:off println
+                println("-- Need inspect " + exprInfo.getName)
+                println(exprInfo.getExamples)
+                // scalastyle:on println
                 break
             }
             val hasFallbackProject = executedPlan.find(_.isInstanceOf[ProjectExec]).isDefined
@@ -117,18 +124,53 @@ class SparkFunctionStatistics extends QueryTest {
               isSupported = false
               break
             }
+            break
           }
-          }
-          if (isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
-            supportedFunctions.add(exprInfo.getName)
-          } else if (!isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
-            unsupportedFunctions.add(exprInfo.getName)
-          }
+        }
+        if (isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
+          supportedFunctions.add(exprInfo.getName)
+        } else if (!isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
+          unsupportedFunctions.add(exprInfo.getName)
+        }
       }
     }
-    print("overall functions: " + (sparkBuiltInFunctions.size - ignoreFunctions.size) + "\n")
-    print("supported functions: " + supportedFunctions.size() + "\n")
-    print("unsupported functions: " + unsupportedFunctions.size() + "\n")
-    print("need inspect functions: " + needInspectFunctions.size() + "\n")
+    // scalastyle:off println
+    println("Overall functions: " + (sparkBuiltInFunctions.size - ignoreFunctions.size))
+    println("Supported functions: " + supportedFunctions.size())
+    println("Unsupported functions: " + unsupportedFunctions.size())
+    println("Need inspect functions: " + needInspectFunctions.size())
+    // scalastyle:on println
+    // For correction.
+    val supportedCastAliasFunctions = Seq("boolean", "tinyint", "smallint", "int", "bigint",
+      "float", "double", "decimal", "date", "binary", "string")
+    for (func <- supportedCastAliasFunctions) {
+      if (needInspectFunctions.contains(func)) {
+        needInspectFunctions.remove(func)
+        supportedFunctions.add(func)
+      }
+    }
+
+    // For wrongly recognized unsupported case.
+    if (unsupportedFunctions.remove("%")) {
+      supportedFunctions.add("%")
+    }
+    // For wrongly recognized supported case.
+    Seq("array_contains", "map_keys", "get_json_object").foreach(
+      name => {
+        if (supportedFunctions.remove(name)) {
+          unsupportedFunctions.add(name)
+        }
+      })
+    // Functions in needInspectFunctions were checked.
+    unsupportedFunctions.addAll(needInspectFunctions)
+    // scalastyle:off println
+    println("---------------")
+    println("Supported functions corrected: " + supportedFunctions.size())
+    println("Unsupported functions corrected: " + unsupportedFunctions.size())
+    println("Support list:")
+    println(supportedFunctions)
+    println("Not support list:")
+    println(unsupportedFunctions)
+    // scalastyle:on println
   }
 }
