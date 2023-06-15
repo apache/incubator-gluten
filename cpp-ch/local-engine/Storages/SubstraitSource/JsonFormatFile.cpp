@@ -15,11 +15,11 @@ FormatFile::InputFormatPtr JsonFormatFile::createInputFormat(const DB::Block & h
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
     DB::CompressionMethod compression_method = DB::CompressionMethod::None;
-    if (file_info.text().compression_type() == "ZLIB") 
+    if (file_info.json().compression_type() == "ZLib") 
     {
         compression_method = DB::CompressionMethod::Zlib;
     }
-    else if (file_info.text().compression_type() == "BZ2")
+    else if (file_info.json().compression_type() == "BZip2")
     {
         compression_method = DB::CompressionMethod::Bzip2;
     }

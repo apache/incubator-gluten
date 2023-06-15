@@ -28,6 +28,7 @@
 #include <Common/logger_useful.h>
 #include <Poco/Logger.h>
 #include <hdfs/hdfs.h>
+#include <jni.h>
 
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
@@ -80,6 +81,8 @@ class HDFSFileReadBufferBuilder : public ReadBufferBuilder
 public:
     explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
+    static jclass compression_codec_class;
+    static jmethodID compression_codec_get;
 
     std::unique_ptr<DB::ReadBuffer> build(
         const substrait::ReadRel::LocalFiles::FileOrFiles & file_info,
@@ -112,6 +115,7 @@ public:
                 uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
                 read_settings);
         }
+        std::string compression_method = getCompressionCodec()
         if (txt_compression_method == DB::CompressionMethod::Zlib)
         {
             read_buffer = std::make_unique<DB::ZlibInflatingReadBuffer>(std::move(read_buffer), txt_compression_method);
@@ -121,6 +125,14 @@ public:
             read_buffer = std::make_unique<DB::Bzip2ReadBuffer>(std::move(read_buffer));
         }
         return read_buffer;
+    }
+
+    std::string getCompressionCodec(jobject java_obj, std::string file_path) {
+        GET_JNIENV(env)
+        jstring codec
+            = safeCallIntMethod(env, java_obj, HDFSFileReadBufferBuilder::compression_codec_get, file_path);
+        CLEAN_JNIENV
+        return codec;
     }
 
     std::pair<size_t, size_t> adjustFileReadStartAndEndPos(
