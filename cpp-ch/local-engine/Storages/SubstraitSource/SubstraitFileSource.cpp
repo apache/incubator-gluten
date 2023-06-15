@@ -350,7 +350,7 @@ NormalFileReader::NormalFileReader(
     FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & to_read_header_, const DB::Block & output_header_)
     : FileReaderWrapper(file_), context(context_), to_read_header(to_read_header_), output_header(output_header_)
 {
-    input_format = file->createInputFormat(to_read_header,context->getConfigRef().getBool("use_experimental_parquet_reader"));
+    input_format = file->createInputFormat(to_read_header,context->getConfigRef().getBool("use_experimental_parquet_reader", false));
     DB::Pipe pipe(input_format->input);
     pipeline = std::make_unique<DB::QueryPipeline>(std::move(pipe));
     reader = std::make_unique<DB::PullingPipelineExecutor>(*pipeline);
