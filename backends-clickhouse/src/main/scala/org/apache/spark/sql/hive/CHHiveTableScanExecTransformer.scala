@@ -39,7 +39,9 @@ import org.apache.spark.sql.hive.execution.HiveTableScanExec
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import org.apache.hadoop.fs.Path
+
 import java.util
 
 import scala.collection.JavaConverters
@@ -163,7 +165,8 @@ class CHHiveTableScanExecTransformer(
                 new CaseInsensitiveStringMap(tableMetaProps),
                 Array.empty,
                 partitionPruningPred,
-                Seq.empty
+                Seq.empty,
+                false
               ))
           case _ =>
             val scan = SparkShimLoader.getSparkShims.getTextScan(
@@ -174,7 +177,8 @@ class CHHiveTableScanExecTransformer(
               tableMeta.partitionSchema,
               new CaseInsensitiveStringMap(tableMetaProps),
               partitionPruningPred,
-              Seq.empty
+              Seq.empty,
+              true
             )
             if (!hasComplexType) {
               Option.apply(scan)

@@ -16,12 +16,31 @@
  */
 package org.apache.spark.sql.hive
 
-case class CHCompressionCodec(name: String, supported: Boolean) {
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodecFactory, DefaultCodec}
+import org.slf4j.LoggerFactory
 
-}
+case class CHCompressionCodec(name: String, supported: Boolean) {}
 
 object CHCompressionCodec {
+  val log = LoggerFactory.getLogger(classOf[CHCompressionCodec])
   val bzip2 = new CHCompressionCodec("BZip2", true)
   val zlib = new CHCompressionCodec("ZLib", true)
-  val unknown = new CHCompressionCodec("Unknown", false)
+  val none = new CHCompressionCodec("None", true)
+  val codecFactory: CompressionCodecFactory = createCodecFactory
+
+  private def createCodecFactory: CompressionCodecFactory = {
+    val conf = new Configuration()
+    new CompressionCodecFactory(conf)
+  }
+
+  def getCompressionCodec(path: String): String = {
+    val codec = codecFactory.getCodec(new Path(path))
+    codec match {
+      case d: DefaultCodec => CHCompressionCodec.zlib.name
+      case b: BZip2Codec => CHCompressionCodec.bzip2.name
+      case _ => CHCompressionCodec.none.name
+    }
+  }
 }

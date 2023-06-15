@@ -23,6 +23,8 @@ import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
+import org.apache.hadoop.fs.Path
+
 class CHTextScan(
     sparkSession: SparkSession,
     fileIndex: PartitioningAwareFileIndex,
@@ -32,7 +34,7 @@ class CHTextScan(
     options: CaseInsensitiveStringMap,
     partitionFilters: Seq[Expression] = Seq.empty,
     dataFilters: Seq[Expression] = Seq.empty,
-    splittable: Boolean)
+    compressionSplittable: Boolean = false)
   extends TextScan(
     sparkSession,
     fileIndex,
@@ -42,4 +44,8 @@ class CHTextScan(
     options,
     partitionFilters,
     dataFilters) {
+
+  override def isSplitable(path: Path): Boolean = {
+    super.isSplitable(path) && compressionSplittable
+  }
 }

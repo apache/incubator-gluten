@@ -138,8 +138,4 @@ class CHTransformerApi extends TransformerApi with Logging {
   override def getSupportExpressionClassName: util.Set[String] = {
     ExpressionDocUtil.supportExpression()
   }
-
-  override def getInputFileCompressionMethod(filePath: String): Option[String] = {
-
-  }
 }

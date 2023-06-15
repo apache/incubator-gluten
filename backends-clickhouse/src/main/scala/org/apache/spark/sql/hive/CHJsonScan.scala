@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.hive
 
-import io.glutenproject.backendsapi.BackendsApiManager
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
@@ -24,8 +23,8 @@ import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodecFactory, DefaultCodec}
 
 class CHJsonScan(
     sparkSession: SparkSession,
@@ -36,7 +35,8 @@ class CHJsonScan(
     options: CaseInsensitiveStringMap,
     pushedFilters: Array[Filter],
     partitionFilters: Seq[Expression] = Seq.empty,
-    dataFilters: Seq[Expression] = Seq.empty)
+    dataFilters: Seq[Expression] = Seq.empty,
+    compressionSplittable: Boolean = false)
   extends JsonScan(
     sparkSession,
     fileIndex,
@@ -49,23 +49,6 @@ class CHJsonScan(
     dataFilters) {
 
   override def isSplitable(path: Path): Boolean = {
-    val codecFactory: CompressionCodecFactory = new CompressionCodecFactory(
-      sparkSession.sessionState.newHadoopConfWithOptions(Map.empty))
-    val compressionCodec = codecFactory.getCodec(path)
-    if (compressionCodec == null) {
-      super.isSplitable(path)
-    } else {
-      var compressionMethod = null.asInstanceOf[String]
-      compressionCodec match {
-        case d: DefaultCodec =>
-          compressionMethod = CHCompressionCodec.zlib.name
-        case b: BZip2Codec =>
-          compressionMethod = CHCompressionCodec.bzip2.name
-        case _ =>
-          compressionMethod = CHCompressionCodec.unknown.name
-      }
-      super.isSplitable(path) && BackendsApiManager
-          .getValidatorApiInstance.doCompressionSplittableValidate(compressionMethod)
-    }
+    super.isSplitable(path) && compressionSplittable
   }
 }
