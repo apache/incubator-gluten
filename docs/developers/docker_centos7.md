@@ -24,12 +24,13 @@ yum -y install \
     java-1.8.0-openjdk \
     java-1.8.0-openjdk-devel \
     ninja-build \
-    wget
+    wget \
+    sudo
 
 # gluten need maven version >=3.6.3
-wget https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
-tar -xvf apache-maven-3.6.3-bin.tar.gz
-mv apache-maven-3.6.3 /usr/lib/maven
+wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+tar -xvf apache-maven-3.8.8-bin.tar.gz
+mv apache-maven-3.8.8 /usr/lib/maven
 export MAVEN_HOME=/usr/lib/maven
 export PATH=${PATH}:${MAVEN_HOME}/bin
 
@@ -44,5 +45,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 git clone https://github.com/oap-project/gluten.git
 cd gluten
+
+# To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
 ./dev/buildbundle-veloxbe.sh
 ```
