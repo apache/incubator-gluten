@@ -75,7 +75,7 @@ const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velo
 
 namespace gluten {
 
-void VeloxInitializer::log(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxInitializer::printConf(const std::unordered_map<std::string, std::string>& conf) {
   std::ostringstream oss;
   oss << "STARTUP: VeloxInitializer conf = {\n";
   for (auto& [k, v] : conf) {
@@ -168,7 +168,9 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   initCache(conf);
   initIOExecutor(conf);
 
-  log(conf);
+#ifdef GLUTEN_PRINT_DEBUG
+  printConf(conf);
+#endif
 
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
@@ -282,9 +284,8 @@ void VeloxInitializer::create(const std::unordered_map<std::string, std::string>
 std::shared_ptr<VeloxInitializer> VeloxInitializer::get() {
   std::lock_guard<std::mutex> lockGuard(mutex_);
   if (instance_ == nullptr) {
-    std::cout
-        << "VeloxInitializer not set, using default VeloxInitializer instance. This should only happen in test code."
-        << std::endl;
+    LOG(INFO)
+        << "VeloxInitializer not set, using default VeloxInitializer instance. This should only happen in test code.";
     static const std::unordered_map<std::string, std::string> kEmptyConf;
     static std::shared_ptr<VeloxInitializer> defaultInstance{new gluten::VeloxInitializer(kEmptyConf)};
     return defaultInstance;
