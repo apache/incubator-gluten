@@ -20,6 +20,7 @@ import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHSha1Transformer, CHSha2Transformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
+import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -381,8 +382,21 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
+   * Define whether the join operator is fallback because of the join operator is not supported by
+   * backend
+   */
+  override def joinFallback(
+      JoinType: JoinType,
+      leftOutputSet: AttributeSet,
+      rightOutputSet: AttributeSet,
+      condition: Option[Expression]): Boolean = {
+    return CHJoinValidateUtil.shouldFallback(JoinType, leftOutputSet, rightOutputSet, condition)
+  }
+
+  /**
    * Generate an BasicScanExecTransformer to transfrom hive table scan. Currently only for CH
    * backend.
+   *
    * @param child
    * @return
    */

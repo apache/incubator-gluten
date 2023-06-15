@@ -81,6 +81,10 @@ object BackendSettings extends BackendSettingsApi {
 
   override def supportSortExec(): Boolean = true
 
+  override def supportSortMergeJoinExec(): Boolean = {
+    GlutenConfig.getConf.enableColumnarSortMergeJoin
+  }
+
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     var allSupported = true
     breakable {

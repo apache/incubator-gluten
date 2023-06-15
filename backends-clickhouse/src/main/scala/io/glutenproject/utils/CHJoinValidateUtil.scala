@@ -17,7 +17,8 @@
 package io.glutenproject.utils
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, GreaterThan, LessThan, Not, Or}
+import org.apache.spark.sql.catalyst.expressions.{AttributeSet, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Not, Or}
+import org.apache.spark.sql.catalyst.plans.JoinType
 
 /**
  * The logic here is that if it is not an equi-join spark will create BNLJ, which will fallback, if
@@ -30,37 +31,59 @@ import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, GreaterTh
  */
 
 object CHJoinValidateUtil extends Logging {
-  def hasTwoTableColumn(l: Expression, r: Expression): Boolean = {
-    !l.references.toSeq
-      .map(_.qualifier.mkString("."))
-      .toSet
-      .subsetOf(r.references.toSeq.map(_.qualifier.mkString(".")).toSet)
+  def hasTwoTableColumn(
+      leftOutputSet: AttributeSet,
+      rightOutputSet: AttributeSet,
+      l: Expression,
+      r: Expression): Boolean = {
+    val allReferences = l.references ++ r.references
+    !(allReferences.subsetOf(leftOutputSet) || allReferences.subsetOf(rightOutputSet))
   }
 
-  def doValidate(condition: Option[Expression]): Boolean = {
+  def shouldFallback(
+      joinType: JoinType,
+      leftOutputSet: AttributeSet,
+      rightOutputSet: AttributeSet,
+      condition: Option[Expression]): Boolean = {
     var shouldFallback = false
+    if (joinType.toString.contains("ExistenceJoin")) {
+      return true
+    }
+    if (joinType.sql.equals("INNER")) {
+      return shouldFallback
+    }
     if (condition.isDefined) {
       condition.get.transform {
         case Or(l, r) =>
-          if (hasTwoTableColumn(l, r)) {
+          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
             shouldFallback = true
           }
           Or(l, r)
         case Not(EqualTo(l, r)) =>
-          if (l.references.nonEmpty && r.references.nonEmpty) {
+          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
             shouldFallback = true
           }
           Not(EqualTo(l, r))
         case LessThan(l, r) =>
-          if (l.references.nonEmpty && r.references.nonEmpty) {
+          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
             shouldFallback = true
           }
           LessThan(l, r)
+        case LessThanOrEqual(l, r) =>
+          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
+            shouldFallback = true
+          }
+          LessThanOrEqual(l, r)
         case GreaterThan(l, r) =>
-          if (l.references.nonEmpty && r.references.nonEmpty) {
+          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
             shouldFallback = true
           }
           GreaterThan(l, r)
+        case GreaterThanOrEqual(l, r) =>
+          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
+            shouldFallback = true
+          }
+          GreaterThanOrEqual(l, r)
       }
     }
     shouldFallback
