@@ -30,7 +30,6 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.types._
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.NANOSECONDS
@@ -40,7 +39,6 @@ import org.apache.spark.util.memory.TaskResources
 
 case class VeloxColumnarToRowExec(child: SparkPlan)
   extends ColumnarToRowExecBase(child = child) {
-  private val LOG = LoggerFactory.getLogger(classOf[VeloxColumnarToRowExec])
 
   override def nodeName: String = "VeloxColumnarToRowExec"
 
