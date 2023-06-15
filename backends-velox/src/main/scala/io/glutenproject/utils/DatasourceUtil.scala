@@ -17,6 +17,8 @@
 
 package io.glutenproject.utils
 
+import java.util
+
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import org.apache.arrow.c.ArrowSchema
@@ -35,7 +37,8 @@ object DatasourceUtil {
   def readSchema(file: FileStatus): Option[StructType] = {
     val allocator = ArrowBufferAllocators.contextInstance()
     val datasourceJniWrapper = new DatasourceJniWrapper()
-    val instanceId = datasourceJniWrapper.nativeInitDatasource(file.getPath.toString, -1)
+    val instanceId = datasourceJniWrapper.nativeInitDatasource(
+      file.getPath.toString, -1, new util.HashMap[String, String]())
     val cSchema = ArrowSchema.allocateNew(allocator)
     datasourceJniWrapper.inspectSchema(instanceId, cSchema.memoryAddress())
     try {
