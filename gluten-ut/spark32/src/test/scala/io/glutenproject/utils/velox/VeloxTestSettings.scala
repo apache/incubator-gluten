@@ -49,7 +49,8 @@ class VeloxTestSettings extends BackendTestSettings {
       // incorrect result, distinct NaN case
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       // Replaced with another test.
-      "SPARK-19471: AggregationIterator does not initialize the generated result projection"
+      "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
+          " before using it"
     )
 
   enableSuite[GlutenCastSuite]

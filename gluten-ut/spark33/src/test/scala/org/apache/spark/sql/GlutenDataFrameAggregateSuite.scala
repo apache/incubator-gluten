@@ -18,8 +18,12 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
-import org.apache.spark.sql.execution.aggregate.SortAggregateExec
+import org.apache.spark.sql.execution.WholeStageCodegenExec
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.internal.SQLConf
+
+import scala.util.Random
 
 class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenSQLTestsTrait {
 
