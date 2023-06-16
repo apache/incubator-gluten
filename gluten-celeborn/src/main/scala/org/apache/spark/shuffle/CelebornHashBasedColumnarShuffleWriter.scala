@@ -19,7 +19,6 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
-import io.glutenproject.execution.ShuffleUtils
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.vectorized._
 import org.apache.celeborn.client.ShuffleClient
@@ -63,7 +62,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   private val blockManager = SparkEnv.get.blockManager
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
-  private val customizedCompressionCodec = ShuffleUtils.getCompressionCodec(conf)
+  private val customizedCompressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
 
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold

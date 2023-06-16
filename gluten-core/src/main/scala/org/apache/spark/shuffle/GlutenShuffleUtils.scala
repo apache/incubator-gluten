@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution
+package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.config._
 
 import java.util.Locale
 
-object ShuffleUtils {
+object GlutenShuffleUtils {
   def checkCodecValues(codecConf: String, codec: String, validValues: Set[String]): Unit = {
     if (!validValues.contains(codec)) {
       throw new IllegalArgumentException(
@@ -36,20 +37,21 @@ object ShuffleUtils {
     val glutenConfig = GlutenConfig.getConf
     glutenConfig.columnarShuffleCodec match {
       case Some(codec) =>
-        val glutenCodecConf = "spark.gluten.sql.columnar.shuffle.codec"
+        val glutenCodecKey = GlutenConfig.COLUMNAR_SHUFFLE_CODEC.key
         if (glutenConfig.columnarShuffleEnableQat) {
-          checkCodecValues(glutenCodecConf, codec, GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC)
+          checkCodecValues(glutenCodecKey, codec, GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC)
           GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
         } else if (glutenConfig.columnarShuffleEnableIaa) {
-          checkCodecValues(glutenCodecConf, codec, GlutenConfig.GLUTEN_IAA_SUPPORTED_CODEC)
+          checkCodecValues(glutenCodecKey, codec, GlutenConfig.GLUTEN_IAA_SUPPORTED_CODEC)
           GlutenConfig.GLUTEN_IAA_CODEC_PREFIX + codec
         } else {
           codec
         }
       case None =>
-        val sparkCodecConf = "spark.io.compression.codec"
-        val codec = conf.get(sparkCodecConf, "LZ4").toUpperCase(Locale.ROOT)
-        checkCodecValues(sparkCodecConf, codec, GlutenConfig.GLUTEN_SHUFFLE_SUPPORTED_CODEC)
+        val sparkCodecKey = IO_COMPRESSION_CODEC.key
+        val codec =
+          conf.get(sparkCodecKey, IO_COMPRESSION_CODEC.defaultValueString).toUpperCase(Locale.ROOT)
+        checkCodecValues(sparkCodecKey, codec, GlutenConfig.GLUTEN_SHUFFLE_SUPPORTED_CODEC)
         codec
     }
   }
