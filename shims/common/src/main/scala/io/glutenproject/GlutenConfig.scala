@@ -295,8 +295,6 @@ object GlutenConfig {
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
-  val GLUTEN_VELOX_SPILL_MODE_KEY = "spark.gluten.sql.columnar.backend.velox.spillMode"
-
   // Whether load DLL from jars
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
