@@ -67,21 +67,21 @@ public class ReadRelNode implements RelNode, Serializable {
   }
 
   public void setDataSchema(StructType schema) {
+    // this.dataSchema = schema;
     this.dataSchema = new StructType();
-
     for (StructField field : schema.fields()) {
       Boolean found = false;
       for (int i = 0; i < names.size(); i++) {
         // Case-insensitive schema matching
         if (field.name().equalsIgnoreCase(names.get(i))) {
-          this.dataSchema.add(names.get(i), field.dataType(), field.nullable(), field.metadata());
+          this.dataSchema = this.dataSchema.add(names.get(i), field.dataType(), field.nullable(), field.metadata());
           found = true;
           break;
         }
       }
 
       if (!found) {
-        this.dataSchema.add(field);
+        this.dataSchema = this.dataSchema.add(field);
       }
     }
   }

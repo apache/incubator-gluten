@@ -275,6 +275,24 @@ class GlutenClickHouseHiveTableSuite()
       })
   }
 
+  test("hive text table select complex type columns with fallback") {
+    val sql = s"select int_field, array_field, map_field from $txt_table_name order by int_field"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+  }
+
+  test("hive text table case-insensitive column matching") {
+    val sql = s"select SHORT_FIELD, int_field, LONG_field from $txt_table_name order by int_field"
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
   test("test hive json table") {
     val sql =
       s"""
