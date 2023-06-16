@@ -148,7 +148,7 @@ cd /path_to_gluten
 # For spark3.2.x
 mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -prss -Pspark-3.3 -DskipTests
+mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 ```
 
 ## 2.3 HDFS support
