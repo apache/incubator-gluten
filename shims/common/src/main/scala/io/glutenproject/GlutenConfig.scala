@@ -826,7 +826,7 @@ object GlutenConfig {
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .checkValues(Set("none", "threshold", "auto"))
-      .createWithDefault("auto")
+      .createWithDefault("threshold")
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")

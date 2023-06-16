@@ -52,11 +52,10 @@ const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 
 WholeStageResultIterator::WholeStageResultIterator(
     std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> resultLeafPool,
     const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
     const std::unordered_map<std::string, std::string>& confMap)
-    : veloxPlan_(planNode), confMap_(confMap), pool_(pool), resultLeafPool_(resultLeafPool) {
-  spillMode_ = getConfigValue(kSpillMode, "auto");
+    : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+  spillMode_ = getConfigValue(kSpillMode, "threshold");
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
 

@@ -102,7 +102,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     auto got = conf.find(kSpillMode);
     if (got == conf.end()) {
       // not found
-      spillMode = "auto";
+      spillMode = "threshold";
     } else {
       spillMode = got->second;
     }
