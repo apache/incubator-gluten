@@ -30,6 +30,7 @@ import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.Type;
+import javolution.io.Struct.Bool;
 
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -68,14 +69,19 @@ public class ReadRelNode implements RelNode, Serializable {
   public void setDataSchema(StructType schema) {
     this.dataSchema = new StructType();
 
-    // Case-insensitive schema matching
     for (StructField field : schema.fields()) {
+      Boolean found = false;
       for (int i = 0; i < names.size(); i++) {
+        // Case-insensitive schema matching
         if (field.name().equalsIgnoreCase(names.get(i))) {
           this.dataSchema.add(names.get(i), field.dataType(), field.nullable(), field.metadata());
-        } else {
-          this.dataSchema.add(field);
+          found = true;
+          break;
         }
+      }
+
+      if (!found) {
+        this.dataSchema.add(field);
       }
     }
   }
