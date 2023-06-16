@@ -11,7 +11,7 @@
       <outputDirectory>/</outputDirectory>
       <useProjectArtifact>true</useProjectArtifact>
       <unpack>true</unpack>
-      <scope>runtime</scope>
+      <scope>compile</scope>
     </dependencySet>
   </dependencySets>
   <containerDescriptorHandlers>
