@@ -18,16 +18,16 @@ ARG HTTP_PROXY_PORT
 # use both two ways to set the variables
 ENV http_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
 ENV https_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
-ENV no_proxy=localhost,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+ENV no_proxy=localhost,127.0.0.1,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 ENV HTTP_PROXY=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
 ENV HTTPS_PROXY=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
-ENV NO_PROXY=localhost,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+ENV NO_PROXY=localhost,127.0.0.1,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 RUN set-login-env "http_proxy=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}"
 RUN set-login-env "https_proxy=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}"
-RUN set-login-env "no_proxy=localhost,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+RUN set-login-env "no_proxy=localhost,127.0.0.1,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 RUN set-login-env "HTTP_PROXY=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}"
 RUN set-login-env "HTTPS_PROXY=${HTTP_PROXY_HOST:+http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT}"
-RUN set-login-env "NO_PROXY=localhost,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+RUN set-login-env "NO_PROXY=localhost,127.0.0.1,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 RUN if [ -n "$HTTP_PROXY_HOST" ]; then echo "Acquire::http::Proxy \"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT\";" >> /etc/apt/apt.conf; fi
 RUN if [ -n "$HTTP_PROXY_HOST" ]; then echo "Acquire::https::Proxy \"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT\";" >> /etc/apt/apt.conf; fi
