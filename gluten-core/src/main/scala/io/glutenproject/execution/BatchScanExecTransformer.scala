@@ -50,8 +50,8 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     scan match {
       case parquetScan: ParquetScan if parquetScan.options.containsKey(mergeSchemaOptionKey) &&
         parquetScan.options.get(mergeSchemaOptionKey) == "true" =>
-        logWarning(s"Validation failed for ${this.getClass.toString} due to " +
-          s"$mergeSchemaOptionKey is not supported.")
+        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to ",
+          new UnsupportedOperationException(s"$mergeSchemaOptionKey is not supported."))
         return false
       case _ =>
     }
