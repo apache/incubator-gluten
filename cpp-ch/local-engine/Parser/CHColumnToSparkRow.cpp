@@ -680,7 +680,7 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
             if (elem.isNull())
                 bitSet(buffer_address + offset + start + 8, i);
             else
-                // writer.write(elem, buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+            {
                 if (writer.getWhichDataType().isFloat32())
                 {
                     // We can not use get<char>() directly here to process Float32 field,
@@ -693,6 +693,7 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
                     writer.unsafeWrite(
                         reinterpret_cast<const char *>(&elem.get<char>()),
                         buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+            }
         }
     }
     else
@@ -793,7 +794,6 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
         if (BackingDataLengthCalculator::isFixedLengthDataType(removeNullable(field_type)))
         {
             FixedLengthDataWriter writer(field_type);
-            // writer.write(field_value, buffer_address + offset + start + len_null_bitmap + i * 8);
             if (writer.getWhichDataType().isFloat32())
             {
                 // We can not use get<char>() directly here to process Float32 field,
