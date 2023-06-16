@@ -1,5 +1,7 @@
 package io.glutenproject.integration.tpc.command;
 
+import org.apache.spark.launcher.SparkLauncher;
+import org.apache.spark.util.Utils;
 import picocli.CommandLine;
 
 import java.io.File;
@@ -63,7 +65,7 @@ public final class SparkRunModes {
     @CommandLine.Option(names = {"--local"}, description = "Run in Spark local mode", required = true)
     private boolean enabled;
 
-    @CommandLine.Option(names = {"--local-threads"}, description = "Local mode: Run Spark locally with as many worker threads", defaultValue = "4")
+    @CommandLine.Option(names = {"--threads"}, description = "Local mode: Run Spark locally with as many worker threads", defaultValue = "4")
     private int localThreads;
 
     @Override
@@ -88,14 +90,20 @@ public final class SparkRunModes {
     @CommandLine.Option(names = {"--local-cluster"}, description = "Run in Spark local cluster mode", required = true)
     private boolean enabled;
 
-    @CommandLine.Option(names = {"--local-cluster-workers"}, description = "Local cluster mode: Number of workers", defaultValue = "2")
+    @CommandLine.Option(names = {"--workers"}, description = "Local cluster mode: Number of workers", defaultValue = "2")
     private int lcWorkers;
 
-    @CommandLine.Option(names = {"--local-cluster-cores"}, description = "Local cluster mode: Number of cores per worker", defaultValue = "2")
-    private int lcCores;
+    @CommandLine.Option(names = {"--worker-cores"}, description = "Local cluster mode: Number of cores per worker", defaultValue = "2")
+    private int lcWorkerCores;
 
-    @CommandLine.Option(names = {"--local-cluster-mem"}, description = "Local cluster mode: Memory per worker in MiB", defaultValue = "1024")
-    private int lcMem;
+    @CommandLine.Option(names = {"--worker-mem"}, description = "Local cluster mode: Memory per worker", defaultValue = "4g")
+    private String lcWorkerMem;
+
+    @CommandLine.Option(names = {"--executor-cores"}, description = "Local cluster mode: Number of cores per executor", defaultValue = "1")
+    private int lcExecutorCores;
+
+    @CommandLine.Option(names = {"--executor-mem"}, description = "Local cluster mode: Memory per executor", defaultValue = "2g")
+    private String lcExecutorMem;
 
     @Override
     public String getSparkMasterUrl() {
@@ -105,7 +113,7 @@ public final class SparkRunModes {
       if (!System.getenv().containsKey("SPARK_HOME")) {
         throw new IllegalArgumentException("SPARK_HOME not set! Please use --local if there is no local Spark build");
       }
-      return String.format("local-cluster[%d,%d,%d]", lcWorkers, lcCores, lcMem);
+      return String.format("local-cluster[%d,%d,%d]", lcWorkers, lcWorkerCores, Utils.byteStringAsMb(lcWorkerMem));
     }
 
     @Override
@@ -119,6 +127,8 @@ public final class SparkRunModes {
       }).reduce((s1, s2) -> s1 + File.pathSeparator + s2);
 
       final Map<String, String> extras = new HashMap<>();
+      extras.put(SparkLauncher.EXECUTOR_CORES, String.valueOf(lcExecutorCores));
+      extras.put(SparkLauncher.EXECUTOR_MEMORY, lcExecutorMem);
       extraClassPath.ifPresent(path -> extras.put("spark.executor.extraClassPath", path));
       return extras;
     }
