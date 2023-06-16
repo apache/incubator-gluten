@@ -84,7 +84,8 @@ class SparkFunctionStatistics extends QueryTest {
     // these functions are registered only for testing, not available for end users.
     // Other functions like current_database is NOT necessarily offloaded to native.
     val ignoreFunctions = FunctionRegistry.expressionsForTimestampNTZSupport.keySet ++
-        Seq("get_fake_app_name", "current_catalog", "current_database")
+        Seq("get_fake_app_name", "current_catalog", "current_database", "spark_partition_id",
+          "current_user", "current_timezone")
     val supportedFunctions = new java.util.ArrayList[String]()
     val unsupportedFunctions = new java.util.ArrayList[String]()
     val needInspectFunctions = new java.util.ArrayList[String]()
@@ -151,11 +152,16 @@ class SparkFunctionStatistics extends QueryTest {
     }
 
     // For wrongly recognized unsupported case.
-    if (unsupportedFunctions.remove("%")) {
-      supportedFunctions.add("%")
-    }
+    Seq("%", "ceil", "floor", "first", "first_value", "last", "last_value", "hash", "mod").foreach(
+      name => {
+        if (unsupportedFunctions.remove(name)) {
+          supportedFunctions.add(name)
+        }
+      }
+    )
     // For wrongly recognized supported case.
-    Seq("array_contains", "map_keys", "get_json_object").foreach(
+    Seq("array_contains", "map_keys", "get_json_object", "element_at", "map_from_arrays", "map_values",
+        "struct", "array").foreach(
       name => {
         if (supportedFunctions.remove(name)) {
           unsupportedFunctions.add(name)
@@ -165,6 +171,7 @@ class SparkFunctionStatistics extends QueryTest {
     unsupportedFunctions.addAll(needInspectFunctions)
     // scalastyle:off println
     println("---------------")
+    println("Overall functions: " + (sparkBuiltInFunctions.size - ignoreFunctions.size))
     println("Supported functions corrected: " + supportedFunctions.size())
     println("Unsupported functions corrected: " + unsupportedFunctions.size())
     println("Support list:")
