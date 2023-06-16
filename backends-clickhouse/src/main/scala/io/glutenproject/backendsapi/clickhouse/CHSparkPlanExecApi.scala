@@ -377,7 +377,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: Sha2): ExpressionTransformer = {
-    new CHSha2Transformer(substraitExprName, left, right, original)
+    CHSha2Transformer(substraitExprName, left, right, original)
   }
 
   /** Generate an ExpressionTransformer to transform Sha1 expression. */
@@ -385,7 +385,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       original: Sha1): ExpressionTransformer = {
-    new CHSha1Transformer(substraitExprName, child, original)
+    CHSha1Transformer(substraitExprName, child, original)
   }
 
   /**
