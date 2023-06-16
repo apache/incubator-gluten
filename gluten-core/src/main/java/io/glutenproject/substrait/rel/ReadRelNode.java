@@ -30,10 +30,10 @@ import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.Type;
-import javolution.io.Struct.Bool;
 
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+
 import java.util.Map;
 
 public class ReadRelNode implements RelNode, Serializable {
