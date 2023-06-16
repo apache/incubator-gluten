@@ -92,7 +92,7 @@ bool readDatetime64TextWithExcel(
 
     UInt16 year = 0;
     UInt8 month = 0;
-    UInt8 day = 1;
+    UInt8 day = 0;
     UInt8 hour = 0;
     UInt8 minute = 0;
     UInt8 second = 0;
@@ -191,6 +191,9 @@ bool readDatetime64TextWithExcel(
             buf.position() = buf.position() + 3;
     }
 
+    if (!day)
+        day = 1;
+
     time_t datetime = time_zone.makeDateTime(year, month, day, hour, minute, second);
     return DB::DecimalUtils::tryGetDecimalFromComponents<DB::DateTime64>(datetime, fractional, scale, datetime64);
 }
@@ -207,7 +210,7 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
     /// The delimiters can be arbitrary characters, like YYYY!MM, but obviously not digits.
     UInt16 year = 0;
     UInt8 month = 0;
-    UInt8 day = 1;
+    UInt8 day = 0;
 
     char first_digits[std::numeric_limits<UInt64>::digits10];
     size_t num_first_digits = readDigits(first_digits, sizeof(first_digits), buf);
@@ -278,6 +281,9 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
     }
     else
         return false;
+
+    if (!day)
+        day = 1;
 
     date = LocalDate(year, month, day);
     return true;

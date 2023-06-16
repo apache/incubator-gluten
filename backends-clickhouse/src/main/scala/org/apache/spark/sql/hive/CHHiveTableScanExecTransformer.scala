@@ -192,14 +192,17 @@ class CHHiveTableScanExecTransformer(
       && scan.isDefined && scan.get.isInstanceOf[TextScan]
     ) {
       val properties = relation.tableMeta.storage.properties ++ relation.tableMeta.properties
-      var options: Map[String, String] = Map()
+      var options: Map[String, String] = createDefaultTextOption()
+      // property key string read from org.apache.hadoop.hive.serde.serdeConstants
       properties.foreach {
         case ("separatorChar", v) => options += ("field_delimiter" -> v)
         case ("field.delim", v) => options += ("field_delimiter" -> v)
         case ("quoteChar", v) => options += ("quote" -> v)
+        case ("quote.delim", v) => options += ("quote" -> v)
         case ("skip.header.line.count", v) => options += ("header" -> v)
         case ("escapeChar", v) => options += ("escape" -> v)
         case ("escape.delim", v) => options += ("escape" -> v)
+        case ("serialization.null.format", v) => options += ("nullValue" -> v)
         case (_, _) =>
       }
 
@@ -229,6 +232,17 @@ class CHHiveTableScanExecTransformer(
   override def hashCode(): Int = {
     val state = Seq(super.hashCode(), scan, metrics, filteredPartitions)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
+
+  def createDefaultTextOption(): Map[String, String] = {
+    var options: Map[String, String] = Map()
+
+    val defaultDelimiter: Char = 0x01
+    options += ("field_delimiter" -> defaultDelimiter.toString)
+
+    val nullValue: Char = 0x00
+    options += ("nullValue" -> nullValue.toString)
+    options
   }
 }
 

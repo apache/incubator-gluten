@@ -42,7 +42,6 @@ public:
 
     String getName() const { return "ExcelRowInputFormat"; }
 
-
 private:
     String escape;
 };
@@ -55,8 +54,10 @@ public:
     std::vector<String> readNames() override;
     std::vector<String> readTypes() override;
     void skipRowEndDelimiter() override;
+    bool readField(DB::IColumn & column, const DB::DataTypePtr & type, const DB::SerializationPtr & serialization, bool is_last_file_column, const String & column_name) override;
 
 private:
+    void preSkipNullValue();
     static void skipEndOfLine(DB::ReadBuffer & in);
     static void skipWhitespacesAndTabs(DB::ReadBuffer & in);
 

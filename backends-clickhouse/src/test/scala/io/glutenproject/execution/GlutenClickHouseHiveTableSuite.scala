@@ -30,20 +30,20 @@ import org.scalatest.BeforeAndAfterAll
 import java.io.File
 
 case class AllDataTypesWithComplextType(
-    string_field: String,
-    int_field: java.lang.Integer,
-    long_field: java.lang.Long,
-    float_field: java.lang.Float,
-    double_field: java.lang.Double,
-    short_field: java.lang.Short,
-    byte_field: java.lang.Byte,
-    boolean_field: java.lang.Boolean,
-    decimal_field: java.math.BigDecimal,
-    date_field: java.sql.Date,
-    array: Seq[Int],
-    arrayContainsNull: Seq[Option[Int]],
-    map: Map[Int, Long],
-    mapValueContainsNull: Map[Int, Option[Long]]
+    string_field: String = null,
+    int_field: java.lang.Integer = null,
+    long_field: java.lang.Long = null,
+    float_field: java.lang.Float = null,
+    double_field: java.lang.Double = null,
+    short_field: java.lang.Short = null,
+    byte_field: java.lang.Byte = null,
+    boolean_field: java.lang.Boolean = null,
+    decimal_field: java.math.BigDecimal = null,
+    date_field: java.sql.Date = null,
+    array: Seq[Int] = null,
+    arrayContainsNull: Seq[Option[Int]] = null,
+    map: Map[Int, Long] = null,
+    mapValueContainsNull: Map[Int, Option[Long]] = null
 )
 
 class GlutenClickHouseHiveTableSuite()
@@ -148,22 +148,26 @@ class GlutenClickHouseHiveTableSuite()
   def genTestData(): Seq[AllDataTypesWithComplextType] = {
     (0 to 199).map {
       i =>
-        AllDataTypesWithComplextType(
-          s"$i",
-          i,
-          i.toLong,
-          i.toFloat,
-          i.toDouble,
-          i.toShort,
-          i.toByte,
-          i % 2 == 0,
-          new java.math.BigDecimal(i + ".56"),
-          new java.sql.Date(System.currentTimeMillis()),
-          Seq.apply(i + 1, i + 2, i + 3),
-          Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
-          Map.apply((i + 1, i + 2), (i + 3, i + 4)),
-          Map.empty
-        )
+        if (i % 100 == 1) {
+          AllDataTypesWithComplextType()
+        } else {
+          AllDataTypesWithComplextType(
+            s"$i",
+            i,
+            i.toLong,
+            i.toFloat,
+            i.toDouble,
+            i.toShort,
+            i.toByte,
+            i % 2 == 0,
+            new java.math.BigDecimal(i + ".56"),
+            new java.sql.Date(System.currentTimeMillis()),
+            Seq.apply(i + 1, i + 2, i + 3),
+            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
+            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
+            Map.empty
+          )
+        }
     }
   }
 
