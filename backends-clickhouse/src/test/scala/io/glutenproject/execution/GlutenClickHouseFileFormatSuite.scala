@@ -22,7 +22,8 @@ import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.types.{StructField, _}
 
-import java.util.Date
+import java.sql.{Date, Timestamp}
+import java.util
 
 import scala.language.implicitConversions
 
@@ -147,8 +148,7 @@ class GlutenClickHouseFileFormatSuite
     checkAnswer(df2, df1)
   }
 
-  // TODO: lishuai empty value "" in spark is null but ch not same
-  ignore("read data from csv file format") {
+  test("read data from csv file format") {
     val filePath = basePath + "/csv_test.csv"
     val csvFileFormat = "csv"
     val sql =
@@ -161,9 +161,12 @@ class GlutenClickHouseFileFormatSuite
       csvFileFormat,
       sql,
       df => {
-        assert(df.queryExecution.executedPlan.isInstanceOf[FileSourceScanExecTransformer])
-      },
-      noFallBack = false)
+        val csvFileScan = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(csvFileScan.size == 1)
+      }
+    )
   }
 
   test("read data from csv file format with filter") {
@@ -188,13 +191,12 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
-  // TODO: lishuai empty value "" in spark is null but ch not same
-  ignore("read data from csv file format witsh agg") {
+  test("read data from csv file format witsh agg") {
     val filePath = basePath + "/csv_test_agg.csv"
     val csvFileFormat = "csv"
     val sql =
       s"""
-         | select _c7, sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
+         | select _c7, count(_c0), sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
          | from $csvFileFormat.`$filePath`
          | group by _c7
          |""".stripMargin
@@ -385,6 +387,47 @@ class GlutenClickHouseFileFormatSuite
         }
         checkAnswer(df, expectedAnswer)
       })
+  }
+
+  test("fix: read field value wrong") {
+    implicit class StringToDate(s: String) {
+      def date: Date = Date.valueOf(s)
+      def timestamp: Timestamp = Timestamp.valueOf(s)
+    }
+
+    val csv_path = csvDataPath + "/field_value_wrong.csv"
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("a", DateType, nullable = true),
+        StructField.apply("b", TimestampType, nullable = true)
+      ))
+
+    val data = new util.ArrayList[Row]()
+    data.add(Row("2023-06-16".date, "2023-06-16 18:00:05".timestamp))
+
+    spark
+      .createDataFrame(data, schema)
+      .write
+      .mode("overwrite")
+      .format("csv")
+      .options(options)
+      .save(csv_path)
+
+    spark.read
+      .options(options)
+      .schema(schema)
+      .csv(csv_path)
+      .toDF()
+      .createTempView("field_read_wrong")
+
+    compareResultsAgainstVanillaSpark(
+      "select * from field_read_wrong",
+      compareResult = true,
+      _ => {})
   }
 
   test("cannot_parse_input") {
@@ -716,7 +759,7 @@ class GlutenClickHouseFileFormatSuite
     val schema = new StructType()
       .add("a", StringType)
 
-    val fileName = basePath + "/parquet_test_" + new Date().getTime + "_empty.parquet"
+    val fileName = basePath + "/parquet_test_" + System.currentTimeMillis() + "_empty.parquet"
 
     spark.createDataFrame(data, schema).toDF().write.parquet(fileName)
     fileName

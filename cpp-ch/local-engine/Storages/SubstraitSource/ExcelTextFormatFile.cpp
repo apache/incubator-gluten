@@ -57,6 +57,11 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     format_settings.csv.skip_first_lines = file_info.text().header();
     format_settings.csv.null_representation = file_info.text().null_value();
 
+    if (format_settings.csv.null_representation.empty())
+        format_settings.csv.empty_as_default = true;
+    else
+        format_settings.csv.empty_as_default = false;
+
     char quote = *file_info.text().quote().data();
     if (quote == '\'')
     {
@@ -131,6 +136,44 @@ std::vector<String> ExcelTextFormatReader::readNames()
 std::vector<String> ExcelTextFormatReader::readTypes()
 {
     throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "ExcelTextRowInputFormat::readTypes is not implemented");
+}
+
+bool ExcelTextFormatReader::readField(
+    DB::IColumn & column,
+    const DB::DataTypePtr & type,
+    const DB::SerializationPtr & serialization,
+    bool is_last_file_column,
+    const String & column_name)
+{
+    preSkipNullValue();
+    return CSVFormatReader::readField(column, type, serialization, is_last_file_column, column_name);
+}
+
+void ExcelTextFormatReader::preSkipNullValue()
+{
+    // null_representation is empty and value is "" or '' in spark return null
+    if (format_settings.csv.null_representation.empty()
+        && (format_settings.csv.allow_single_quotes || format_settings.csv.allow_double_quotes)
+        && (*buf->position() == '\'' || *buf->position() == '\"'))
+    {
+        PeekableReadBufferCheckpoint checkpoint{*buf, false};
+        char maybe_quote = *buf->position();
+        ++buf->position();
+
+        if (!buf->eof() && *buf->position() == maybe_quote)
+            ++buf->position();
+        else
+        {
+            buf->rollbackToCheckpoint();
+            return;
+        }
+
+        bool at_delimiter = !buf->eof() && *buf->position() == format_settings.csv.delimiter;
+        bool at_line_end = buf->eof() || *buf->position() == '\n' || *buf->position() == '\r';
+
+        if (!at_delimiter && !at_line_end)
+            buf->rollbackToCheckpoint();
+    }
 }
 
 void ExcelTextFormatReader::skipRowEndDelimiter()
