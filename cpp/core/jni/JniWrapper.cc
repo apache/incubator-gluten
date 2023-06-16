@@ -993,7 +993,8 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
     JNIEnv* env,
     jobject obj,
     jstring filePath,
-    jlong cSchema) {
+    jlong cSchema,
+    jbyteArray options) {
   auto backend = gluten::createBackend();
 
   std::shared_ptr<Datasource> datasource = nullptr;
@@ -1002,9 +1003,12 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
     // Only inspect the schema and not write
     datasource = backend->getDatasource(jStringToCString(env, filePath), nullptr);
   } else {
+    auto sparkOptions = gluten::getConfMap(env, options);
+    auto sparkConf = backend->getConfMap();
+    sparkOptions.insert(sparkConf.begin(), sparkConf.end());
     auto schema = gluten::jniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
     datasource = backend->getDatasource(jStringToCString(env, filePath), schema);
-    datasource->init(backend->getConfMap());
+    datasource->init(sparkOptions);
   }
 
   int64_t instanceID = glutenDatasourceHolder.insert(datasource);
@@ -1040,12 +1044,12 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
     jlong instanceId,
     jobject iter) {
   JNI_METHOD_START
-  auto backend = gluten::createBackend();
+  auto datasource = glutenDatasourceHolder.lookup(instanceId);
 
   while (env->CallBooleanMethod(iter, veloxColumnarbatchScannerHasNext)) {
     jlong handler = env->CallLongMethod(iter, veloxColumnarbatchScannerNext);
     auto batch = glutenColumnarbatchHolder.lookup(handler);
-    glutenDatasourceHolder.lookup(instanceId)->write(batch);
+    datasource->write(batch);
     glutenColumnarbatchHolder.erase(handler);
   }
 

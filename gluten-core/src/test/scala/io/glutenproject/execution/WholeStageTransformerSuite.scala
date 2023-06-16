@@ -46,6 +46,15 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     sparkContext.setLogLevel("WARN")
   }
 
+  protected override def afterAll(): Unit = {
+    if (TPCHTables != null) {
+      TPCHTables.keys.foreach { v =>
+        spark.sessionState.catalog.dropTempView(v)
+      }
+    }
+    super.afterAll()
+  }
+
   protected def createTPCHNotNullTables(): Unit = {
     TPCHTables = Seq(
       "customer",

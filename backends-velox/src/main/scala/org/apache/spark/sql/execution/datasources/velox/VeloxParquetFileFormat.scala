@@ -17,9 +17,14 @@
 
 package org.apache.spark.sql.execution.datasources.velox
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
-
 import java.io.IOException
+import java.net.URI
+
+import scala.collection.mutable
+import scala.collection.JavaConverters._
+
+import io.glutenproject.GlutenConfig
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
@@ -27,17 +32,17 @@ import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.parquet.hadoop.codec.CodecConfig
+import org.apache.parquet.hadoop.util.ContextUtil
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
 import org.apache.spark.sql.execution.datasources.{FakeRow, GlutenParquetFileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.net.URI
 
 class VeloxParquetFileFormat extends GlutenParquetFileFormat
   with DataSourceRegister with Serializable {
@@ -52,6 +57,17 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
                             job: Job,
                             options: Map[String, String],
                             dataSchema: StructType): OutputWriterFactory = {
+    // pass compression to job conf so that the file extension can be aware of it.
+    val conf = ContextUtil.getConfiguration(job)
+    val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
+    conf.set(ParquetOutputFormat.COMPRESSION, parquetOptions.compressionCodecClassName)
+    // pass options to native so that velox can take user-specified conf to write parquet,
+    // i.e., compression and block size.
+    val sparkOptions = new mutable.HashMap[String, String]()
+    sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, parquetOptions.compressionCodecClassName)
+    options.get(GlutenConfig.PARQUET_BLOCK_SIZE).foreach { blockSize =>
+      sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
+    }
 
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
@@ -72,7 +88,7 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         try {
           ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
           instanceId = datasourceJniWrapper.nativeInitDatasource(
-            originPath, cSchema.memoryAddress())
+            originPath, cSchema.memoryAddress(), sparkOptions.asJava)
         } catch {
           case e: IOException =>
             throw new RuntimeException(e)

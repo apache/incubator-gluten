@@ -18,16 +18,25 @@
 package io.glutenproject.spark.sql.execution.datasources.velox;
 
 import io.glutenproject.init.JniInitialized;
+import io.glutenproject.init.JniUtils;
 import org.apache.spark.sql.execution.datasources.VeloxColumnarBatchIterator;
 
 import java.io.IOException;
+import java.util.Map;
 
+/**
+ * The jni file is at `cpp/core/jni/JniWrapper.cc`
+ */
 public class DatasourceJniWrapper extends JniInitialized {
 
   public DatasourceJniWrapper() throws IOException {
   }
 
-  public native long nativeInitDatasource(String filePath, long cSchema);
+  public long nativeInitDatasource(String filePath, long cSchema, Map<String, String> options) {
+    return nativeInitDatasource(filePath, cSchema, JniUtils.toNativeConf(options));
+  }
+
+  public native long nativeInitDatasource(String filePath, long cSchema, byte[] options);
 
   public native void inspectSchema(long instanceId, long cSchemaAddress);
 
