@@ -331,10 +331,10 @@ class VeloxMemoryPool final : public velox::memory::MemoryPool {
       bool threadSafe,
       std::shared_ptr<facebook::velox::memory::MemoryReclaimer> reclaimer) override {
     return std::make_shared<VeloxMemoryPool>(
-        veloxAlloc_,
+        parent,
         name,
         kind,
-        parent,
+        veloxAlloc_,
         glutenAlloc_,
         nullptr,
         -1,

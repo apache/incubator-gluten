@@ -188,7 +188,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
-  def veloxSillMode: String = conf.getConf(COLUMNAR_VELOX_SPILL_MODE)
+  def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
 
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
@@ -815,7 +815,7 @@ object GlutenConfig {
       .intConf
       .createWithDefault(2)
 
-  val COLUMNAR_VELOX_SPILL_MODE =
+  val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
       .internal()
       .doc(

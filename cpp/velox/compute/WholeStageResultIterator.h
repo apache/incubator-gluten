@@ -73,7 +73,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 
   // spill
-  std::string spillMode_;
+  std::string spillStrategy_;
 
   std::shared_ptr<Metrics> metrics_ = nullptr;
 

@@ -68,7 +68,7 @@ const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backe
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
 
 // spill, mem ratios and thresholds
-const std::string kSpillMode = "spark.gluten.sql.columnar.backend.velox.spillMode";
+const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
 const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
 
@@ -97,14 +97,14 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   velox::filesystems::registerLocalFileSystem();
 
   // spill mode
-  std::string spillMode;
+  std::string spillStrategy;
   {
-    auto got = conf.find(kSpillMode);
+    auto got = conf.find(kSpillStrategy);
     if (got == conf.end()) {
       // not found
-      spillMode = "threshold";
+      spillStrategy = "threshold";
     } else {
-      spillMode = got->second;
+      spillStrategy = got->second;
     }
   }
 
@@ -117,7 +117,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // mem tracker
   int64_t maxMemory = facebook::velox::memory::kMaxMemory;
-  if (spillMode == "threshold") {
+  if (spillStrategy == "threshold") {
     auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
     if (got != conf.end()) {
       maxMemory = (long)(memCapRatio * (double)std::stol(got->second));

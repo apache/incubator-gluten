@@ -18,7 +18,7 @@ namespace {
 const std::string kHiveConnectorId = "test-hive";
 
 // memory
-const std::string kSpillMode = "spark.gluten.sql.columnar.backend.velox.spillMode";
+const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -55,7 +55,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
     const std::unordered_map<std::string, std::string>& confMap)
     : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
-  spillMode_ = getConfigValue(kSpillMode, "threshold");
+  spillStrategy_ = getConfigValue(kSpillStrategy, "threshold");
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
 
@@ -92,7 +92,7 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
 }
 
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
-  if (spillMode_ == "auto") {
+  if (spillStrategy_ == "auto") {
     return pool_->reclaim(size);
   }
   return 0;
@@ -246,7 +246,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
     configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
 
     // Spill configs
-    if (spillMode_ == "none") {
+    if (spillStrategy_ == "none") {
       configs[velox::core::QueryConfig::kSpillEnabled] = "false";
     } else {
       configs[velox::core::QueryConfig::kSpillEnabled] = "true";
