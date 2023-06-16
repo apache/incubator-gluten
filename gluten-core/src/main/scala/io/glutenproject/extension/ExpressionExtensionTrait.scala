@@ -21,11 +21,18 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 
 trait ExpressionExtensionTrait {
+
   /**
    * Generate the extension expressions list,
    * format: Sig[XXXExpression]("XXXExpressionName")
    */
-  def extensionExpressionsMapping: Seq[Sig]
+  def expressionSigList: Seq[Sig]
+
+  /**
+   * Generate the extension expressions mapping map
+   */
+  def extensionExpressionsMapping: Map[Class[_], String] =
+    expressionSigList.map(s => (s.expClass, s.name)).toMap[Class[_], String]
 
   /**
    * Replace extension expression to transformer.
@@ -42,7 +49,7 @@ case class DefaultExpressionExtensionTransformer() extends ExpressionExtensionTr
    * Generate the extension expressions list,
    * format: Sig[XXXExpression]("XXXExpressionName")
    */
-  override def extensionExpressionsMapping: Seq[Sig] = Seq.empty[Sig]
+  override def expressionSigList: Seq[Sig] = Seq.empty[Sig]
 
   /**
    * Replace extension expression to transformer.
