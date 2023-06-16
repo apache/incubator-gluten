@@ -43,17 +43,17 @@ class S3AuthSuite extends AnyFunSuite {
   // this is the "trusting user part", e.g. data in customer's bucket
   val trustingBucket = "mhb-dev-bucket" // in us-west-2, @ global dev
   val trustingParquetPath = s"s3a://$trustingBucket/tpch10_nation"
-  val trustingEndpoint = "https://s3.us-west-2.amazonaws.com"
+  val trustingEndpoint = "s3.us-west-2.amazonaws.com"
   val trustingBucket2 = "mhb-dev-bucket-us-east-2" // another bucket in us-west-2, @ global dev
   val trustingParquetPath2 = s"s3a://$trustingBucket2/tpch10_nation"
-  val trustingEndpoint2 = "https://s3.us-east-2.amazonaws.com"
+  val trustingEndpoint2 = "s3.us-east-2.amazonaws.com"
 
   // this is the "trusted user part", e.g. consumer of customer's data
   val trustedAK = "" // @ global prod
   val trustedSK = ""
   val trustedOwnedBucket = "mhb-prod-bucket" // another bucket in us-west-2
   val trustedOwnedParquetPath = s"s3a://$trustedOwnedBucket/tpch10_nation"
-  val trustedOwnedEndpoint = "https://s3.us-west-2.amazonaws.com"
+  val trustedOwnedEndpoint = "s3.us-west-2.amazonaws.com"
   val trustedAssumeRole =
     "arn:aws:iam::429636537981:role/r_mhb_cross_access_to_prod" // -> has access to parquetPath
   val trustedSessionName = "test-session"
@@ -67,7 +67,7 @@ class S3AuthSuite extends AnyFunSuite {
   val trustedSessionName2 = "test-session-2"
 
   // a separate test case for AWS CN
-  val cnEndpoint = "https://s3.cn-northwest-1.amazonaws.com.cn"
+  val cnEndpoint = "s3.cn-northwest-1.amazonaws.com.cn"
   val cnAK = ""
   val cnSK = ""
   val cnParquetPath = "s3a://mhb-cn-private/test_nation"

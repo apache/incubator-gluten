@@ -322,19 +322,26 @@ private:
         if (is_per_bucket && per_bucket_clients.find(bucket_name) != per_bucket_clients.end()
             && "true" != getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
         {
-            std::cout << "returning a cached bucket" << std::endl;
             return per_bucket_clients[bucket_name];
         }
 
         if (!is_per_bucket && shared_client
             && "true" != getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
         {
-            std::cout << "returning a cached bucket" << std::endl;
             return shared_client;
         }
 
         String config_prefix = "s3";
         auto endpoint = getConfig(config, bucket_name, BackendInitializerUtil::HADOOP_S3_ENDPOINT, "https://s3.us-west-2.amazonaws.com");
+        if (!endpoint.starts_with("https://"))
+        {
+            if (endpoint.starts_with("s3"))
+                // as https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.0.1/bk_cloud-data-access/content/s3-config-parameters.html
+                // the fs.s3a.endpoint does not contain https:// prefix
+                endpoint = "https://" + endpoint;
+            else
+                throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "S3 Endpoint format not right: {}", endpoint);
+        }
         String region_name;
         const char * amazon_suffix = ".amazonaws.com";
         const char * amazon_prefix = "https://s3.";
@@ -345,7 +352,7 @@ private:
             region_name = endpoint.substr(strlen(amazon_prefix), pos - strlen(amazon_prefix));
             assert(region_name.find('.') == std::string::npos);
         }
-        // for AWS CN, the endpoint is like: https://s3.cn-north-1.amazonaws.com.cn, still works
+        // for AWS CN, the endpoint is like: https://s3.cn-north-1.amazonaws.com.cn, can still work
 
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
