@@ -253,5 +253,4 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       rand(Random.nextLong()), randn(Random.nextLong())
     ).foreach(assertNoExceptions)
   }
-
 }

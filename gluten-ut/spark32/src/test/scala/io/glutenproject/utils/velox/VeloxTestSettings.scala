@@ -225,9 +225,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
-      // Result depends on the implementation for nondeterministic expression rand.
-      // Not really an issue.
-      .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
+    // Result depends on the implementation for nondeterministic expression rand.
+    // Not really an issue.
+    .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenComplexTypesSuite]
     // Incorrect result for array and length.

@@ -201,4 +201,52 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
         _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
     }
   }
+
+  // Ported from spark DataFrameAggregateSuite only with plan check changed.
+  private def assertNoExceptions(c: Column): Unit = {
+    for ((wholeStage, useObjectHashAgg) <-
+             Seq((true, true), (true, false), (false, true), (false, false))) {
+      withSQLConf(
+        (SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, wholeStage.toString),
+        (SQLConf.USE_OBJECT_HASH_AGG.key, useObjectHashAgg.toString)) {
+
+        val df = Seq(("1", 1), ("1", 2), ("2", 3), ("2", 4)).toDF("x", "y")
+
+        // test case for HashAggregate
+        val hashAggDF = df.groupBy("x").agg(c, sum("y"))
+        hashAggDF.collect()
+        val hashAggPlan = hashAggDF.queryExecution.executedPlan
+        if (wholeStage) {
+          assert(find(hashAggPlan) {
+            case WholeStageCodegenExec(_: HashAggregateExec) => true
+            // If offloaded, spark whole stage codegen takes no effect and a gluten hash agg is
+            // expected to be used.
+            case _: HashAggregateExecBaseTransformer => true
+            case _ => false
+          }.isDefined)
+        } else {
+          assert(stripAQEPlan(hashAggPlan).isInstanceOf[HashAggregateExec])
+        }
+
+        // test case for ObjectHashAggregate and SortAggregate
+        val objHashAggOrSortAggDF = df.groupBy("x").agg(c, collect_list("y"))
+        objHashAggOrSortAggDF.collect()
+        val objHashAggOrSortAggPlan =
+          stripAQEPlan(objHashAggOrSortAggDF.queryExecution.executedPlan)
+        if (useObjectHashAgg) {
+          assert(objHashAggOrSortAggPlan.isInstanceOf[ObjectHashAggregateExec])
+        } else {
+          assert(objHashAggOrSortAggPlan.isInstanceOf[SortAggregateExec])
+        }
+      }
+    }
+  }
+
+  test(GlutenTestConstants + "SPARK-19471: AggregationIterator does not initialize the generated" +
+      " result projection before using it") {
+    Seq(
+      monotonically_increasing_id(), spark_partition_id(),
+      rand(Random.nextLong()), randn(Random.nextLong())
+    ).foreach(assertNoExceptions)
+  }
 }
