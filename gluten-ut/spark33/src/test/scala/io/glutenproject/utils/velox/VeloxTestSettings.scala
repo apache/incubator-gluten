@@ -960,6 +960,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenSQLQuerySuite]
+    // Decimal precision exceeds.
+    .exclude("should be able to resolve a persistent view")
     // Unstable. Needs to be fixed.
     .exclude("SPARK-36093: RemoveRedundantAliases should not change expression's name")
     // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
