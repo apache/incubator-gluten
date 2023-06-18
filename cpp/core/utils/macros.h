@@ -55,6 +55,15 @@
     time += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count(); \
   } while (false);
 
+#define TIME_NANO_START(time) \
+  {                           \
+    auto time##Start = std::chrono::steady_clock::now();
+
+#define TIME_NANO_END(time)                                                                      \
+  auto time##End = std::chrono::steady_clock::now();                                             \
+  time += std::chrono::duration_cast<std::chrono::nanoseconds>(time##End - time##Start).count(); \
+  }
+
 #define TIME_NANO_OR_RAISE(time, expr)                                                 \
   do {                                                                                 \
     auto start = std::chrono::steady_clock::now();                                     \

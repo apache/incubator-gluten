@@ -269,6 +269,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
   for (auto pid = 0; pid < numPartitions_; ++pid) {
     if (partition2RowCount_[pid] > 0) {
       // make sure the size to be allocated is larger than the size to be filled
+      // partitionBufferManager[pid]->prepareNextSplit();
       if (partition2BufferSize_[pid] == 0) {
         // allocate buffer if it's not yet allocated
         auto newSize = std::max(calculatePartitionBufferSize(rv), partition2RowCount_[pid]);
@@ -282,6 +283,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
             // if the partition size after split is already larger than
             // allocated buffer size, need reallocate
             RETURN_NOT_OK(createRecordBatchFromBuffer(pid, /*reset_buffers = */ true));
+            // partitionEvictor[pid]->doEvict();
 
             // splill immediately
             RETURN_NOT_OK(evictPartition(pid));
@@ -290,6 +292,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
             // partition size after split is smaller than buffer size, no need
             // to reset buffer, reuse it.
             RETURN_NOT_OK(createRecordBatchFromBuffer(pid, /*reset_buffers = */ false));
+            // partitionEvictor[pid]->doEvict();
             RETURN_NOT_OK(evictPartition(pid));
           }
         } else {
@@ -1007,9 +1010,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
                 << std::to_string(retry) << " retry to allocate new buffer for partition "
                 << std::to_string(partitionId) << std::endl;
 
-      int64_t evictedSize;
-      ARROW_ASSIGN_OR_RAISE(auto partition_to_evict, evictLargestPartition(&evictedSize));
-      if (partition_to_evict == -1) {
+      int64_t evictedSize = 0;
+      RETURN_NOT_OK(evictPartitionsOnDemand(&evictedSize));
+      if (evictedSize <= 0) {
         std::cout << "Failed to allocate new buffer for partition " << std::to_string(partitionId)
                   << ". No partition buffer to evict." << std::endl;
         return status;
@@ -1193,9 +1196,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     auto tryCount = 0;
     while (currentEvicted < size && tryCount < 5) {
       tryCount++;
-      int64_t singleCallEvicted;
-      ARROW_ASSIGN_OR_RAISE(int32_t evicted_partition_id, evictLargestPartition(&singleCallEvicted))
-      if (evicted_partition_id == -1) {
+      int64_t singleCallEvicted = 0;
+      RETURN_NOT_OK(evictPartitionsOnDemand(&singleCallEvicted));
+      if (singleCallEvicted <= 0) {
         break;
       }
       currentEvicted += singleCallEvicted;
@@ -1204,33 +1207,41 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     return arrow::Status::OK();
   }
 
-  arrow::Result<int32_t> VeloxShuffleWriter::evictLargestPartition(int64_t * size) {
-    // evict the largest partition
-    auto maxSize = 0;
-    int32_t partitionToEvict = -1;
-    for (auto i = 0; i < numPartitions_; ++i) {
-      if (partitionCachedRecordbatchSize_[i] > maxSize) {
-        maxSize = partitionCachedRecordbatchSize_[i];
-        partitionToEvict = i;
+  arrow::Status VeloxShuffleWriter::evictPartitionsOnDemand(int64_t * size) {
+    if (options_.prefer_evict) {
+      // evict the largest partition
+      auto maxSize = 0;
+      int32_t partitionToEvict = -1;
+      for (auto i = 0; i < numPartitions_; ++i) {
+        if (partitionCachedRecordbatchSize_[i] > maxSize) {
+          maxSize = partitionCachedRecordbatchSize_[i];
+          partitionToEvict = i;
+        }
       }
-    }
-    if (partitionToEvict != -1) {
-      RETURN_NOT_OK(evictPartition(partitionToEvict));
+      if (partitionToEvict != -1) {
+        RETURN_NOT_OK(evictPartition(partitionToEvict));
 #ifdef GLUTEN_PRINT_DEBUG
-      std::cout << "Evicted partition " << std::to_string(partitionToEvict) << ", " << std::to_string(maxSize)
-                << " bytes released" << std::endl;
+        std::cout << "Evicted partition " << std::to_string(partitionToEvict) << ", " << std::to_string(maxSize)
+                  << " bytes released" << std::endl;
 #endif
-      *size = maxSize;
+        *size = maxSize;
+      } else {
+        *size = 0;
+      }
     } else {
-      *size = 0;
+      // Evict all cached partitions
+      int64_t totalCachedSize =
+          std::accumulate(partitionCachedRecordbatchSize_.begin(), partitionCachedRecordbatchSize_.end(), 0);
+      RETURN_NOT_OK(evictPartition(-1));
+#ifdef GLUTEN_PRINT_DEBUG
+      std::cout << "Evicted all partition. " << std::to_string(totalCachedSize) << " bytes released" << std::endl;
+#endif
+      *size = totalCachedSize;
     }
-    return partitionToEvict;
+    return arrow::Status::OK();
   }
 
-  arrow::Status VeloxShuffleWriter::evictPartition(uint32_t partitionId) {
-    RETURN_NOT_OK(partitionWriter_->evictPartition(partitionId));
-
-    // reset validity buffer after evict
+  arrow::Status VeloxShuffleWriter::resetValidityBuffers(uint32_t partitionId) {
     std::for_each(
         partitionBuffers_.begin(), partitionBuffers_.end(), [partitionId](std::vector<arrow::BufferVector>& bufs) {
           if (bufs[partitionId].size() != 0 && bufs[partitionId][0] != nullptr) {
@@ -1239,7 +1250,21 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             memset(addr, 0xff, bufs[partitionId][0]->capacity());
           }
         });
+    return arrow::Status::OK();
+  }
 
+  // TODO: Move into PartitionWriter
+  arrow::Status VeloxShuffleWriter::evictPartition(int32_t partitionId) {
+    RETURN_NOT_OK(partitionWriter_->evictPartition(partitionId));
+    // reset validity buffer after evict
+    if (partitionId == -1) {
+      // Reset for all partitions
+      for (auto i = 0; i < numPartitions_; ++i) {
+        RETURN_NOT_OK(resetValidityBuffers(i));
+      }
+    } else {
+      RETURN_NOT_OK(resetValidityBuffers(partitionId));
+    }
     return arrow::Status::OK();
   }
 

@@ -179,20 +179,21 @@ class BenchmarkShuffleSplit {
   void operator()(benchmark::State& state) {
     // SetCPU(state.thread_index());
     arrow::Compression::type compressionType = (arrow::Compression::type)state.range(1);
+    bool preferEvict = state.range(2);
 
     std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
 
     const int numPartitions = state.range(0);
 
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
-        std::make_shared<LocalPartitionWriterCreator>();
+        std::make_shared<LocalPartitionWriterCreator>(preferEvict);
 
     auto options = ShuffleWriterOptions::defaults();
     options.compression_type = compressionType;
     options.buffer_size = kSplitBufferSize;
     options.buffered_write = true;
     options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
-    options.prefer_evict = true;
+    options.prefer_evict = preferEvict;
     options.write_schema = false;
     options.memory_pool = pool;
     options.partitioning_name = "rr";
@@ -430,6 +431,7 @@ int main(int argc, char** argv) {
   uint32_t threads = 1;
   std::string datafile;
   auto compressionCodec = arrow::Compression::LZ4_FRAME;
+  bool preferEvict = true;
 
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--iterations") == 0) {
@@ -442,6 +444,8 @@ int main(int argc, char** argv) {
       datafile = argv[i + 1];
     } else if (strcmp(argv[i], "--qat") == 0) {
       compressionCodec = arrow::Compression::GZIP;
+    } else if (strcmp(argv[i], "--prefer-cache") == 0) {
+      preferEvict = false;
     }
   }
   std::cout << "iterations = " << iterations << std::endl;
@@ -470,6 +474,7 @@ int main(int argc, char** argv) {
       ->Args({
           partitions,
           compressionCodec,
+          preferEvict,
       })
       ->Threads(threads)
       ->ReportAggregatesOnly(false)

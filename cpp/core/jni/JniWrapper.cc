@@ -828,7 +828,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", localDirs, 1);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
-    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>();
+    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>(preferEvict);
   } else if (partitionWriterType == "celeborn") {
     shuffleWriterOptions.partition_writer_type = "celeborn";
     jclass celebornPartitionPusherClass =

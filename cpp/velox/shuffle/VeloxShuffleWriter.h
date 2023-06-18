@@ -238,13 +238,15 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status splitListArray(const facebook::velox::RowVector& rv);
 
-  arrow::Result<int32_t> evictLargestPartition(int64_t* size);
+  arrow::Status evictPartitionsOnDemand(int64_t* size);
 
-  arrow::Status evictPartition(uint32_t partitionId);
+  arrow::Status evictPartition(int32_t partitionId);
 
   arrow::Result<const int32_t*> getFirstColumn(const facebook::velox::RowVector& rv);
 
  protected:
+  arrow::Status resetValidityBuffers(uint32_t partitionId);
+
   bool supportAvx512_ = false;
 
   // store arrow column types

@@ -28,9 +28,33 @@
 
 namespace gluten {
 
-class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
+class LocalPartitionWriterBase : public ShuffleWriter::PartitionWriter {
+ protected:
+  explicit LocalPartitionWriterBase(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
+
+  arrow::Status setLocalDirs();
+
+  std::string nextSpilledFileDir();
+
+  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> getSchemaPayload(std::shared_ptr<arrow::Schema> schema);
+
+  arrow::Status openDataFile();
+
+  virtual arrow::Status clearResource();
+
+  // configured local dirs for spilled file
+  int32_t dirSelection_ = 0;
+  std::vector<int32_t> subDirSelection_;
+  std::vector<std::string> configuredDirs_;
+
+  // shared among all partitions
+  std::shared_ptr<arrow::ipc::IpcPayload> schemaPayload_;
+  std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
+};
+
+class PreferEvictPartitionWriter : public LocalPartitionWriterBase {
  public:
-  explicit LocalPartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
+  explicit PreferEvictPartitionWriter(ShuffleWriter* shuffleWriter) : LocalPartitionWriterBase(shuffleWriter) {}
 
   arrow::Status init() override;
 
@@ -38,30 +62,80 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
 
   arrow::Status stop() override;
 
-  std::string nextSpilledFileDir();
-
-  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> getSchemaPayload(std::shared_ptr<arrow::Schema> schema);
-
-  std::string spilled_file_;
-  std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os_;
-  std::shared_ptr<arrow::io::OutputStream> data_file_os_;
-  // configured local dirs for spilled file
-  int32_t dir_selection_ = 0;
-  std::vector<int32_t> sub_dir_selection_;
-  std::vector<std::string> configured_dirs_;
-
   class LocalPartitionWriterInstance;
 
-  std::vector<std::shared_ptr<LocalPartitionWriterInstance>> partition_writer_instance_;
+  std::vector<std::shared_ptr<LocalPartitionWriterInstance>> partitionWriterInstances_;
 
-  // shared by all partition writers
-  std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
+ private:
+  arrow::Status clearResource() override;
+};
+
+class PreferCachePartitionWriter : public LocalPartitionWriterBase {
+ public:
+  explicit PreferCachePartitionWriter(ShuffleWriter* shuffleWriter) : LocalPartitionWriterBase(shuffleWriter) {}
+
+  arrow::Status init() override;
+
+  arrow::Status evictPartition(int32_t partitionId) override;
+
+  arrow::Status stop() override;
+
+ private:
+  arrow::Status clearResource() override;
+
+  // TODO: helper methods
+  arrow::Status writeSchemaPayload(arrow::io::OutputStream* os) {
+    ARROW_ASSIGN_OR_RAISE(auto payload, getSchemaPayload(shuffleWriter_->schema()));
+    int32_t metadataLength = 0; // unused
+    RETURN_NOT_OK(
+        arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));
+    return arrow::Status::OK();
+  }
+
+  arrow::Status flushCachedPayloads(
+      arrow::io::OutputStream* os,
+      std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>& payloads) {
+    int32_t metadataLength = 0; // unused
+#ifndef SKIPWRITE
+    for (auto& payload : payloads) {
+      RETURN_NOT_OK(
+          arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));
+      // Dismiss payload immediately
+      payload = nullptr;
+    }
+#endif
+    return arrow::Status::OK();
+  }
+
+  arrow::Status writeEos(arrow::io::OutputStream* os) {
+    // write EOS
+    constexpr int32_t kZeroLength = 0;
+    RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
+    RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));
+    return arrow::Status::OK();
+  }
+
+  struct PartitionSpillInfo {
+    int32_t partitionId;
+    int64_t start;
+    int64_t length; // in Bytes
+  };
+
+  struct SpillInfo {
+    std::string spilledFile;
+    std::vector<PartitionSpillInfo> partitionSpillInfos;
+  };
+
+  std::vector<SpillInfo> spills_;
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
  public:
-  LocalPartitionWriterCreator();
+  LocalPartitionWriterCreator(bool preferEvict);
 
   arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
+
+ private:
+  bool preferEvict_;
 };
 } // namespace gluten
