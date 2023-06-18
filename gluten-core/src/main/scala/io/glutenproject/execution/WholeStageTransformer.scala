@@ -54,7 +54,11 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
 
   lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
   lazy val printStackOnValidateFailure = GlutenConfig.getConf.printStackOnValidateFailure
+  var validateLog: Vector[String] = Vector()
 
+  def appendValidateLog (log: String): Unit = {
+    validateLog = validateLog :+ log
+  }
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
@@ -81,11 +85,10 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
     } else {
       logOnLevel(validateFailureLogLevel, msg)
     }
-
   }
-  def logValidateFailureWithoutThrowable(msg: => String): Unit = {
-      logOnLevel(validateFailureLogLevel, msg)
-  }
+//  def logValidateFailureWithoutThrowable(msg: => String): Unit = {
+//      logOnLevel(validateFailureLogLevel, msg)
+//  }
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.

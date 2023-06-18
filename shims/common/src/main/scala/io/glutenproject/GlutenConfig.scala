@@ -916,7 +916,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("INFO")
+      .createWithDefault("DEBUG")
 
   val SOFT_AFFINITY_LOG_LEVEL =
     buildConf("spark.gluten.soft-affinity.logLevel")

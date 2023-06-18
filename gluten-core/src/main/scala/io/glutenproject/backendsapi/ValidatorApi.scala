@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.expression.{ExpressionMappings, ExpressionNames}
 import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.validate.NativePlanValidatorInfo
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructType
@@ -88,6 +89,7 @@ trait ValidatorApi {
    */
   def doValidate(plan: PlanNode): Boolean
 
+  def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidatorInfo
   /**
    * Validate the input schema.
    * Transformers like UnionExecTransformer that do not generate Substrait plan

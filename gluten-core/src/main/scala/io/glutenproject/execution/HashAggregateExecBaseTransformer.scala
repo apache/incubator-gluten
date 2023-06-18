@@ -132,9 +132,10 @@ abstract class HashAggregateExecBaseTransformer(
       case d: DecimalType => true
       case a: ArrayType => true
       case n: NullType => true
-      case other => logValidateFailureWithoutThrowable(
+      case other => this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {data type ${dataType}}"); false
+          s"due to Not supported: {data type ${dataType}}");
+        false
     }
   }
 
@@ -147,8 +148,8 @@ abstract class HashAggregateExecBaseTransformer(
         getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
       } catch {
         case e: Throwable =>
-          logValidateFailure(
-            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+          this.appendValidateLog(
+            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
           return false
       }
     }
@@ -161,13 +162,18 @@ abstract class HashAggregateExecBaseTransformer(
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
-      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
-      if(!isSupported) {
-        logValidateFailureWithoutThrowable(
-          s"Validation failed for ${this.getClass.toString}" +
-            s"due to native check failure. ")
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val logs = validateInfo.getFallbackInfo()
+        for (i <- 0 until logs.size()) {
+          this.appendValidateLog(logs.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s"due to native check failure.")
+        return false
       }
-      isSupported
+      true
     } else {
       true
     }

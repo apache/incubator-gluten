@@ -256,7 +256,7 @@ case class SortMergeJoinExecTransformer(
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
-      logValidateFailureWithoutThrowable(
+      this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
           s"due to Not supported: {Join type ${joinType}}")
       return false
@@ -275,20 +275,25 @@ case class SortMergeJoinExecTransformer(
         substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
-      if (!isSupported) {
-        logValidateFailureWithoutThrowable(
-          s"Validation failed for ${this.getClass.toString}" +
-            s"due to native check failure. ")
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val logs = validateInfo.getFallbackInfo()
+        for (i <- 0 until logs.size()) {
+          this.appendValidateLog(logs.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s"due to native check failure.")
+        return false
       }
-      isSupported
+      true
     } else {
       true
     }

@@ -123,9 +123,8 @@ case class EvalPythonExecTransformer(
         RelBuilder.makeProjectRel(null, expressionNodes, context, operatorId)
       } catch {
         case e: Throwable =>
-          logValidateFailure(
-            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}",
-            e)
+          this.appendValidateLog(
+            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
           return false
       }
 

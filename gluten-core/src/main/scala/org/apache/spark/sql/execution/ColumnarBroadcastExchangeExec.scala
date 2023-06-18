@@ -51,6 +51,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   lazy val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
     promise.future
 
+  var validateLog: Vector[String] = Vector()
+
   @transient
   override lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] = {
     SQLExecution.withThreadLocalCaptured[broadcast.Broadcast[Any]](
@@ -132,6 +134,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
       true
     case _ =>
       // IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
+      validateLog = validateLog :+ "Validation failed for" +
+        " ColumnarBroadcastExchangeExec due to only support HashedRelationBroadcastMode."
       false
   }
 

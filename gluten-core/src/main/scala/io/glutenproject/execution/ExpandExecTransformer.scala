@@ -209,13 +209,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
   override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportExpandExec()) {
-      logValidateFailureWithoutThrowable(
+      this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
           s"due to Not supported: {ExpandExec}. ")
       return false
     }
     if (projections.isEmpty) {
-      logValidateFailureWithoutThrowable(
+      this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
           s"due to Not supported: {empty projections in ExpandExec}. ")
       return false
@@ -231,20 +231,25 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
-      if(!isSupported) {
-        logValidateFailureWithoutThrowable(
-          s"Validation failed for ${this.getClass.toString}" +
-            s"due to native check failure. ")
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val logs = validateInfo.getFallbackInfo()
+        for (i <- 0 until logs.size()) {
+          this.appendValidateLog(logs.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s"due to native check failure.")
+        return false
       }
-      isSupported
+      true
     } else {
       true
     }

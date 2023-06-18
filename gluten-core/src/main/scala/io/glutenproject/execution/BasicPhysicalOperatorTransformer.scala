@@ -155,8 +155,8 @@ abstract class FilterExecTransformerBase(val cond: Expression,
         substraitContext, cond, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to ${e.getMessage}")
         return false
     }
 
@@ -164,9 +164,8 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
       if (!(child.isInstanceOf[DataSourceScanExec] ||
         child.isInstanceOf[DataSourceV2ScanExecBase])) {
-        logValidateFailureWithoutThrowable(
-          s"Validation failed for ${this.getClass.toString}" +
-            s"due to Not supported: {child is not DataSourceScanExec or DataSourceV2ScanExecBase}")
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s"due to Not supported: {child is not DataSourceScanExec or DataSourceV2ScanExecBase}")
         return false
       }
     }
@@ -174,13 +173,18 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
-      if (!isSupported) {
-        logValidateFailureWithoutThrowable(
-          s"Validation failed for ${this.getClass.toString}" +
-            s"due to native check failure. ")
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val logs = validateInfo.getFallbackInfo()
+        for (i <- 0 until logs.size()) {
+          this.appendValidateLog(logs.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s"due to native check failure.")
+        return false
       }
-      isSupported
+      true
     } else {
       true
     }
@@ -255,20 +259,25 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         substraitContext, projectList, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val isSupported = BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
-      if (!isSupported) {
-        logValidateFailureWithoutThrowable(
-          s"Validation failed for ${this.getClass.toString}" +
-            s"due to native check failure. ")
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val logs = validateInfo.getFallbackInfo()
+        for (i <- 0 until logs.size()) {
+          this.appendValidateLog(logs.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s"due to native check failure.")
+        return false
       }
-      isSupported
+      true
     } else {
       true
     }
@@ -395,6 +404,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
   override def supportsColumnar: Boolean = true
 
+  var validateLog: Vector[String] = Vector()
+
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map { attrs =>
       val firstAttr = attrs.head
@@ -435,7 +446,12 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
   def doValidate(): Boolean = {
-    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)
+    if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
+      validateLog = validateLog :+ "Validation failed for" +
+        " UnionExecTransformer due to schema check failed."
+      return false
+    }
+    true
   }
 }
 

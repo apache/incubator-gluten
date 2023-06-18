@@ -51,8 +51,8 @@ object BackendSettings extends BackendSettingsApi {
     def validateTypes: Boolean = {
       // Collect unsupported types.
       val unsupportedDataTypes = fields.map(_.dataType).collect {
-        case _: ByteType =>
-        case _: ArrayType =>
+        case _: ByteType => "ByteType"
+        case _: ArrayType => "ArrayType"
         case _: MapType if mapType.keyType.isInstanceOf[StructType] => "StructType in MapType"
         // Parquet scan of nested map with struct as key type is not supported in Velox.
       }
@@ -60,7 +60,7 @@ object BackendSettings extends BackendSettingsApi {
         // scalastyle:off println
         println(
           s"Validation failed for ${this.getClass.toString}" +
-            s"due to Not supported: data type $unsupportedDataType in file schema. ")
+            s"due to Not supported: data type $unsupportedDataType. in file schema. ")
         // scalastyle:on println
       }
       unsupportedDataTypes.isEmpty
@@ -83,9 +83,18 @@ object BackendSettings extends BackendSettingsApi {
     format match {
       case ParquetReadFormat => validateTypes && validateFilePath
       case DwrfReadFormat => true
-      case OrcReadFormat => fields.map(_.dataType).collect {
-        case _: TimestampType =>
-      }.isEmpty
+      case OrcReadFormat =>
+        val unsupportedDataTypes = fields.map(_.dataType).collect {
+          case _: TimestampType => "TimestampType"
+        }
+        for (unsupportedDataType <- unsupportedDataTypes) {
+          // scalastyle:off println
+          println(
+            s"Validation failed for ${this.getClass.toString}" +
+              s"due to Not supported: data type $unsupportedDataType. in file schema. ")
+          // scalastyle:on println
+        }
+        unsupportedDataTypes.isEmpty
       case _ => false
     }
   }

@@ -45,16 +45,41 @@ std::shared_ptr<gluten::Backend> VeloxBackendFactory(const std::unordered_map<st
 extern "C" {
 #endif
 
+static jclass nativePlanValidatorInfoClass;
+static jmethodID nativePlanvalidatorInfoConstructor;
+
+jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  jmethodID ret = getMethodId(env, thisClass, name, sig);
+  if (ret == nullptr) {
+    std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
+    gluten::jniThrow(errorMessage);
+  }
+  return ret;
+}
+
+jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
+  jclass globalClass = createGlobalClassReference(env, className);
+  if (globalClass == nullptr) {
+    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for" + std::string(className);
+    gluten::jniThrow(errorMessage);
+  }
+  return globalClass;
+}
+
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
     return JNI_ERR;
   }
+
   // logging
   google::InitGoogleLogging("gluten");
   FLAGS_logtostderr = true;
   gluten::getJniErrorsState()->initialize(env);
-
+  nativePlanValidatorInfoClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/validate/NativePlanValidatorInfo;");
+  nativePlanvalidatorInfoConstructor =
+      getMethodIdOrError(env, nativePlanValidatorInfoClass, "<init>", "(ZLjava/util/Vector;)V");
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -64,6 +89,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
+  env->DeleteGlobalRef(nativePlanValidatorInfoClass);
   google::ShutdownGoogleLogging();
 }
 
@@ -115,6 +141,42 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrap
     return false;
   }
   JNI_METHOD_END(false)
+}
+
+JNIEXPORT jobject JNICALL
+Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidateWithFallBackLog( // NOLINT
+    JNIEnv* env,
+    jobject obj,
+    jbyteArray planArray) {
+  JNI_METHOD_START
+  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planSize = env->GetArrayLength(planArray);
+  ::substrait::Plan subPlan;
+  gluten::parseProtobuf(planData, planSize, &subPlan);
+
+  // A query context used for function validation.
+  velox::core::QueryCtx queryCtx;
+  auto pool = gluten::defaultLeafVeloxMemoryPool().get();
+  // An execution context used for function validation.
+  velox::core::ExecCtx execCtx(pool, &queryCtx);
+
+  velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
+  try {
+    auto isSupported = planValidator.validate(subPlan);
+    auto logs = planValidator.getValidateLog();
+    auto ret_logs = env->NewObjectArray(logs.size(), env->FindClass("java/lang/String"), nullptr);
+    for (int i = 0; i < logs.size(); i++) {
+      env->SetObjectArrayElement(ret_logs, i, env->NewStringUTF(logs[i].c_str()));
+    }
+    return env->NewObject(nativePlanValidatorInfoClass, nativePlanvalidatorInfoConstructor, isSupported, ret_logs);
+  } catch (std::invalid_argument& e) {
+    LOG(INFO) << "Failed to validate substrait plan because " << e.what();
+    // return false;
+    auto isSupported = false;
+    auto ret_logs = env->NewObjectArray(0, env->FindClass("java/lang/String"), nullptr);
+    return env->NewObject(nativePlanValidatorInfoClass, nativePlanvalidatorInfoConstructor, isSupported, ret_logs);
+  }
+  JNI_METHOD_END(nullptr)
 }
 
 #ifdef __cplusplus
