@@ -32,4 +32,37 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(con
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<facebook::velox::RowVector>(vp));
 }
 
+uint64_t parseMemoryEnv(const std::string& envStr) {
+  const char* memoryEnv = std::getenv(envStr.c_str());
+  if (memoryEnv != nullptr) {
+    std::string memory = memoryEnv;
+    uint64_t shift = 0;
+
+    switch (memory.back()) {
+      case 'G':
+      case 'g':
+        shift = 30;
+        memory.pop_back();
+        break;
+      case 'M':
+      case 'm':
+        shift = 20;
+        memory.pop_back();
+        break;
+      default:
+        std::cerr << "Memory value should have a G, g, M or m suffix: " << memoryEnv << std::endl;
+        return std::numeric_limits<uint64_t>::max();
+    }
+
+    try {
+      return std::stoul(memory) << shift;
+    } catch (const std::invalid_argument& e) {
+      std::cerr << "Invalid memory format: " << memoryEnv << std::endl;
+    } catch (const std::out_of_range& e) {
+      std::cerr << "Memory value out of range: " << memoryEnv << std::endl;
+    }
+  }
+  return std::numeric_limits<uint64_t>::max();
+}
+
 } // namespace gluten

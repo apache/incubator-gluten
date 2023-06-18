@@ -20,16 +20,15 @@
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
-#include <arrow/util/io_util.h>
 #include <benchmark/benchmark.h>
 #include <execinfo.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
 #include <sched.h>
-#include <sys/mman.h>
 
 #include <chrono>
 
+#include "benchmarks/BenchmarkUtils.h"
 #include "memory/ColumnarBatch.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
@@ -57,87 +56,14 @@ using gluten::GlutenException;
 using gluten::ShuffleWriterOptions;
 using gluten::VeloxShuffleWriter;
 
-namespace gluten {
+DEFINE_bool(prefer_evict, true, "SplitOptions prefer_evict=true");
+DEFINE_int32(partitions, -1, "Shuffle partitions");
+DEFINE_string(file, "", "Input file to split");
 
-#define ALIGNMENT 2 * 1024 * 1024
+namespace gluten {
 
 const int kBatchBufferSize = 4096;
 const int kSplitBufferSize = 4096;
-
-// #define ENABLELARGEPAGE
-
-class LargePageMemoryPool : public arrow::MemoryPool {
- public:
-  explicit LargePageMemoryPool() {}
-
-  ~LargePageMemoryPool() override = default;
-
-  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      return pool_->Allocate(size, out);
-    } else {
-      Status st = pool_->AlignAllocate(size, out, ALIGNMENT);
-      madvise(*out, size, /*MADV_HUGEPAGE */ 14);
-      //std::cout << "Allocate: size = " << size << " addr = "  \
-          << std::hex << (uint64_t)*out  << " end = " << std::hex << (uint64_t)(*out+size) << std::dec << std::endl;
-      return st;
-    }
-#else
-    return pool_->Allocate(size, out);
-#endif
-  }
-
-  Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
-    return pool_->Reallocate(oldSize, newSize, ptr);
-#ifdef ENABLELARGEPAGE
-    if (new_size < 2 * 1024 * 1024) {
-      return pool_->Reallocate(old_size, new_size, ptr);
-    } else {
-      Status st = pool_->AlignReallocate(old_size, new_size, ptr, ALIGNMENT);
-      madvise(*ptr, new_size, /*MADV_HUGEPAGE */ 14);
-      return st;
-    }
-#else
-    return pool_->Reallocate(oldSize, newSize, ptr);
-#endif
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      pool_->Free(buffer, size);
-    } else {
-      pool_->Free(buffer, size, ALIGNMENT);
-    }
-#else
-    pool_->Free(buffer, size);
-#endif
-  }
-
-  int64_t bytes_allocated() const override {
-    return pool_->bytes_allocated();
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  std::string backend_name() const override {
-    return "LargePageMemoryPool";
-  }
-
-  int64_t total_bytes_allocated() const {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const {
-    return pool_->num_allocations();
-  }
-
- private:
-  MemoryPool* pool_ = arrow::default_memory_pool();
-};
 
 class BenchmarkShuffleSplit {
  public:
@@ -177,23 +103,22 @@ class BenchmarkShuffleSplit {
   }
 
   void operator()(benchmark::State& state) {
-    // SetCPU(state.thread_index());
-    arrow::Compression::type compressionType = (arrow::Compression::type)state.range(1);
-    bool preferEvict = state.range(2);
+    if (FLAGS_cpu != -1) {
+      setCpu(FLAGS_cpu + state.thread_index());
+    } else {
+      setCpu(state.thread_index());
+    }
 
-    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
-
-    const int numPartitions = state.range(0);
+    std::shared_ptr<arrow::MemoryPool> pool = getDefaultArrowMemoryPool();
 
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
-        std::make_shared<LocalPartitionWriterCreator>(preferEvict);
+        std::make_shared<LocalPartitionWriterCreator>(FLAGS_prefer_evict);
 
     auto options = ShuffleWriterOptions::defaults();
-    options.compression_type = compressionType;
     options.buffer_size = kSplitBufferSize;
     options.buffered_write = true;
     options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
-    options.prefer_evict = preferEvict;
+    options.prefer_evict = FLAGS_prefer_evict;
     options.write_schema = false;
     options.memory_pool = pool;
     options.partitioning_name = "rr";
@@ -211,7 +136,7 @@ class BenchmarkShuffleSplit {
         numBatches,
         numRows,
         splitTime,
-        numPartitions,
+        FLAGS_partitions,
         partitionWriterCreator,
         options,
         state);
@@ -232,7 +157,7 @@ class BenchmarkShuffleSplit {
     state.counters["num_rows"] =
         benchmark::Counter(numRows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["num_partitions"] =
-        benchmark::Counter(numPartitions, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        benchmark::Counter(FLAGS_partitions, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["batch_buffer_size"] =
         benchmark::Counter(kBatchBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["split_buffer_size"] =
@@ -337,14 +262,19 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << localSchema->ToString() << std::endl;
 
+    auto* pool = options.memory_pool.get();
     GLUTEN_ASSIGN_OR_THROW(shuffleWriter, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator, options));
+    auto ipcMemoryPool = std::make_shared<MMapMemoryPool>();
+    ipcMemoryPool->SetSpillFunc(
+        [shuffleWriter](int64_t size, int64_t* actual) { return shuffleWriter->evictFixedSize(size, actual); });
+    options.ipc_write_options.memory_pool = ipcMemoryPool.get();
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
+        pool, ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
     std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
     GLUTEN_THROW_NOT_OK(parquetReader->GetRecordBatchReader(rowGroupIndices_, localColumnIndices, &recordBatchReader));
@@ -395,6 +325,12 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << schema_->ToString() << std::endl;
 
+    auto* pool = options.memory_pool.get();
+    auto ipcMemoryPool = std::make_shared<MMapMemoryPool>();
+    auto* shuffleWriterPtr = shuffleWriter.get();
+    ipcMemoryPool->SetSpillFunc(
+        [shuffleWriterPtr](int64_t size, int64_t* actual) { return shuffleWriterPtr->evictFixedSize(size, actual); });
+    options.ipc_write_options.memory_pool = ipcMemoryPool.get();
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
         VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
@@ -404,7 +340,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
+        pool, ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
     for (auto _ : state) {
       std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
@@ -426,62 +362,36 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
 } // namespace gluten
 
 int main(int argc, char** argv) {
-  uint32_t iterations = 1;
-  uint32_t partitions = 192;
-  uint32_t threads = 1;
-  std::string datafile;
-  auto compressionCodec = arrow::Compression::LZ4_FRAME;
-  bool preferEvict = true;
-
-  for (int i = 0; i < argc; i++) {
-    if (strcmp(argv[i], "--iterations") == 0) {
-      iterations = atol(argv[i + 1]);
-    } else if (strcmp(argv[i], "--partitions") == 0) {
-      partitions = atol(argv[i + 1]);
-    } else if (strcmp(argv[i], "--threads") == 0) {
-      threads = atol(argv[i + 1]);
-    } else if (strcmp(argv[i], "--file") == 0) {
-      datafile = argv[i + 1];
-    } else if (strcmp(argv[i], "--qat") == 0) {
-      compressionCodec = arrow::Compression::GZIP;
-    } else if (strcmp(argv[i], "--prefer-cache") == 0) {
-      preferEvict = false;
-    }
-  }
-  std::cout << "iterations = " << iterations << std::endl;
-  std::cout << "partitions = " << partitions << std::endl;
-  std::cout << "threads = " << threads << std::endl;
-  std::cout << "datafile = " << datafile << std::endl;
-
-  /*
-    sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_CacheScan_Benchmark
-    bck(datafile);
-
-    benchmark::RegisterBenchmark("BenchmarkShuffleSplit::CacheScan", bck)
-        ->Iterations(iterations)
-        ->Args({partitions, arrow::Compression::GZIP})
-        ->Threads(threads)
-        ->ReportAggregatesOnly(false)
-        ->MeasureProcessCPUTime()
-        ->Unit(benchmark::kSecond);
-
-  */
-
-  gluten::BenchmarkShuffleSplitIterateScanBenchmark bck(datafile);
-
-  benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", bck)
-      ->Iterations(iterations)
-      ->Args({
-          partitions,
-          compressionCodec,
-          preferEvict,
-      })
-      ->Threads(threads)
-      ->ReportAggregatesOnly(false)
-      ->MeasureProcessCPUTime()
-      ->Unit(benchmark::kSecond);
-
   benchmark::Initialize(&argc, argv);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+  if (FLAGS_file.size() == 0) {
+    std::cerr << "No input data file. Please specify via argument --file" << std::endl;
+  }
+
+  if (FLAGS_partitions == -1) {
+    FLAGS_partitions = std::thread::hardware_concurrency();
+  }
+
+  gluten::BenchmarkShuffleSplitIterateScanBenchmark iterateScanBenchmark(FLAGS_file);
+
+  auto bm = benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", iterateScanBenchmark)
+                ->Args({
+                    FLAGS_prefer_evict,
+                })
+                ->ReportAggregatesOnly(false)
+                ->MeasureProcessCPUTime()
+                ->Unit(benchmark::kSecond);
+
+  if (FLAGS_threads > 0) {
+    bm->Threads(FLAGS_threads);
+  } else {
+    bm->ThreadRange(1, std::thread::hardware_concurrency());
+  }
+  if (FLAGS_iterations > 0) {
+    bm->Iterations(FLAGS_iterations);
+  }
+
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();
 }

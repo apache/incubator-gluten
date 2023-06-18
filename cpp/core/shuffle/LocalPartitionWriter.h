@@ -92,18 +92,26 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
     return arrow::Status::OK();
   }
 
+  arrow::Status flushCachedPayload(
+      arrow::io::OutputStream* os,
+      std::shared_ptr<arrow::ipc::IpcPayload>& payload,
+      int32_t* metadataLength) {
+#ifndef SKIPWRITE
+    RETURN_NOT_OK(
+        arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, metadataLength));
+    // Dismiss payload immediately
+    payload = nullptr;
+#endif
+    return arrow::Status::OK();
+  }
+
   arrow::Status flushCachedPayloads(
       arrow::io::OutputStream* os,
       std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>& payloads) {
     int32_t metadataLength = 0; // unused
-#ifndef SKIPWRITE
     for (auto& payload : payloads) {
-      RETURN_NOT_OK(
-          arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));
-      // Dismiss payload immediately
-      payload = nullptr;
+      RETURN_NOT_OK(flushCachedPayload(os, payload, &metadataLength));
     }
-#endif
     return arrow::Status::OK();
   }
 
@@ -127,6 +135,7 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   };
 
   std::vector<SpillInfo> spills_;
+  bool inStop_{false};
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {

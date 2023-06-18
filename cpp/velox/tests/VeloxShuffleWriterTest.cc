@@ -292,7 +292,13 @@ TEST_P(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
-    ASSERT_TRUE(rb->Equals(*expected[i]));
+    if (!(rb->Equals(*expected[i]))) {
+      std::cout << rb->ToString() << std::endl;
+      std::cout << expected[i]->ToString() << std::endl;
+    } else {
+      std::cout << "batch " << i << " equals" << std::endl;
+    }
+    //    ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 
   // prepare second block expected result

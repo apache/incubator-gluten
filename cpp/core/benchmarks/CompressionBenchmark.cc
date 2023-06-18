@@ -117,81 +117,6 @@ class MyMemoryPool final : public arrow::MemoryPool {
   arrow::internal::MemoryPoolStats stats_;
 };
 
-// #define ENABLELARGEPAGE
-
-class LargePageMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit LargePageMemoryPool() {}
-
-  ~LargePageMemoryPool() override = default;
-
-  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      return pool_->Allocate(size, out);
-    } else {
-      Status st = pool_->AlignAllocate(size, out, ALIGNMENT);
-      madvise(*out, size, /*MADV_HUGEPAGE */ 14);
-      //std::cout << "Allocate: size = " << size << " addr = "  \
-         << std::hex << (uint64_t)*out  << " end = " << std::hex << (uint64_t)(*out+size) << std::dec << std::endl;
-      return st;
-    }
-#else
-    return pool_->Allocate(size, out);
-#endif
-  }
-
-  Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
-    return pool_->Reallocate(oldSize, newSize, ptr);
-#ifdef ENABLELARGEPAGE
-    if (new_size < 2 * 1024 * 1024) {
-      return pool_->Reallocate(old_size, new_size, ptr);
-    } else {
-      Status st = pool_->AlignReallocate(old_size, new_size, ptr, ALIGNMENT);
-      madvise(*ptr, new_size, /*MADV_HUGEPAGE */ 14);
-      return st;
-    }
-#else
-    return pool_->Reallocate(oldSize, newSize, ptr);
-#endif
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      pool_->Free(buffer, size);
-    } else {
-      pool_->Free(buffer, size, ALIGNMENT);
-    }
-#else
-    pool_->Free(buffer, size);
-#endif
-  }
-
-  int64_t bytes_allocated() const override {
-    return pool_->bytes_allocated();
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  int64_t total_bytes_allocated() const override {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const override {
-    throw pool_->num_allocations();
-  }
-
-  std::string backend_name() const override {
-    return "LargePageMemoryPool";
-  }
-
- private:
-  MemoryPool* pool_ = arrow::default_memory_pool();
-};
-
 class BenchmarkCompression {
  public:
   explicit BenchmarkCompression(const std::string& fileName, uint32_t splitBufferSize) {
@@ -259,7 +184,7 @@ class BenchmarkCompression {
       default:
         throw GlutenException("Codec not supported. Only support LZ4 or QATGzip");
     }
-    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
+    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>();
     ipcWriteOptions.memory_pool = pool.get();
 
     int64_t elapseRead = 0;

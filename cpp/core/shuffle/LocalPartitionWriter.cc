@@ -253,6 +253,14 @@ arrow::Status PreferCachePartitionWriter::evictPartition(int32_t partitionId /* 
     return arrow::Status::Invalid("Cannot spill single partition. Invalid code path.");
   }
 
+  if (inStop_) {
+    return arrow::Status::OutOfMemory("Cannot evict partition ", partitionId, " because writer is stopped.");
+  }
+
+  if (shuffleWriter_->totalCachedPayloadSize() <= 0) {
+    return arrow::Status::OutOfMemory("No partition to evict.");
+  }
+
   int64_t evictTime = 0;
   TIME_NANO_START(evictTime)
   ARROW_ASSIGN_OR_RAISE(auto spilledFile, createTempShuffleFile(nextSpilledFileDir()));
@@ -285,6 +293,8 @@ arrow::Status PreferCachePartitionWriter::evictPartition(int32_t partitionId /* 
 }
 
 arrow::Status PreferCachePartitionWriter::stop() {
+  inStop_ = true;
+
   int64_t totalWriteTime = 0;
   int64_t totalBytesEvicted = 0;
   int64_t totalBytesWritten = 0;
@@ -327,7 +337,6 @@ arrow::Status PreferCachePartitionWriter::stop() {
       }
     }
     // 6. Write cached batches
-    RETURN_NOT_OK(shuffleWriter_->createRecordBatchFromBuffer(pid, true));
     auto cachedPayloadSize = shuffleWriter_->partitionCachedRecordbatchSize()[pid];
     if (cachedPayloadSize > 0) {
       if (firstWrite) {
@@ -342,12 +351,29 @@ arrow::Status PreferCachePartitionWriter::stop() {
       shuffleWriter_->partitionCachedRecordbatch()[pid].clear();
       shuffleWriter_->setPartitionCachedRecordbatchSize(pid, 0);
     }
-    // 7. Write EOS if any payload written.
+    // 7. Write the last payload.
+    ARROW_ASSIGN_OR_RAISE(auto rb, shuffleWriter_->createArrowRecordBatchFromBuffer(pid, true));
+    if (rb) {
+      if (firstWrite) {
+        // Write schema payload for this partition
+        if (writeSchema) {
+          RETURN_NOT_OK(writeSchemaPayload(dataFileOs_.get()));
+        }
+        firstWrite = false;
+      }
+      // Record rawPartitionLength and flush the last payload.
+      ARROW_ASSIGN_OR_RAISE(auto lastPayload, shuffleWriter_->createArrowIpcPayload(*rb, false));
+      shuffleWriter_->setRawPartitionLength(
+          pid, shuffleWriter_->rawPartitionLengths()[pid] + lastPayload->raw_body_length);
+      int32_t metadataLength = 0; // unused
+      RETURN_NOT_OK(flushCachedPayload(dataFileOs_.get(), lastPayload, &metadataLength));
+    }
+    // 8. Write EOS if any payload written.
     if (!firstWrite) {
       RETURN_NOT_OK(writeEos(dataFileOs_.get()));
     }
     ARROW_ASSIGN_OR_RAISE(auto endInFinalFile, dataFileOs_->Tell());
-    // 8. Record partition length.
+
     shuffleWriter_->setPartitionLengths(pid, endInFinalFile - startInFinalFile);
   }
 
