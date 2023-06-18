@@ -297,8 +297,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
             if (rb) {
               RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
             }
-          }
-          // partitionEvictor[pid]->doEvict();
+          } // rb destructed
           if (options_.prefer_evict) {
             // if prefer_evict is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));
@@ -313,8 +312,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
             if (rb) {
               RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
             }
-          }
-          // partitionEvictor[pid]->doEvict();
+          } // rb destructed
           if (options_.prefer_evict) {
             // if prefer_evict is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));

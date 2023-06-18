@@ -18,8 +18,6 @@
 #include "ArrowMemoryPool.h"
 #include "utils/exception.h"
 
-#include <sys/mman.h>
-
 namespace gluten {
 
 std::shared_ptr<arrow::MemoryPool> asArrowMemoryPool(MemoryAllocator* allocator) {

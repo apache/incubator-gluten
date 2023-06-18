@@ -109,7 +109,7 @@ class BenchmarkShuffleSplit {
       setCpu(state.thread_index());
     }
 
-    std::shared_ptr<arrow::MemoryPool> pool = getDefaultArrowMemoryPool();
+    std::shared_ptr<arrow::MemoryPool> pool = defaultArrowMemoryPool();
 
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
         std::make_shared<LocalPartitionWriterCreator>(FLAGS_prefer_evict);

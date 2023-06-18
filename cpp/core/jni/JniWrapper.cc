@@ -29,7 +29,6 @@
 #include "operators/writer/Datasource.h"
 
 #include <arrow/c/bridge.h>
-#include "../../velox/utils/VeloxArrowUtils.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/ShuffleWriter.h"

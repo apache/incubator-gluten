@@ -34,8 +34,6 @@ namespace gluten {
 
 arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb);
 
-uint64_t parseMemoryEnv(const std::string& envStr);
-
 /**
  * arrow::MemoryPool instance used by tests and benchmarks
  */
@@ -265,7 +263,6 @@ class MMapMemoryPool : public LargeMemoryPool {
       std::cout << "stack: " << boost::stacktrace::stacktrace() << std::endl;
       return arrow::Status::OutOfMemory(" mmap error ", size);
     } else {
-      madvise(*out, size, MADV_HUGEPAGE);
       madvise(*out, size, MADV_WILLNEED);
       return arrow::Status::OK();
     }
