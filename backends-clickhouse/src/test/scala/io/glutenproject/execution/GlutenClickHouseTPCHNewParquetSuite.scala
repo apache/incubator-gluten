@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
@@ -44,8 +45,10 @@ class GlutenClickHouseTPCHNewParquetSuite extends GlutenClickHouseTPCHAbstractSu
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.gluten.supported.scala.udfs", "my_add")
       .set("spark.gluten.supported.hive.udfs", "my_add")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config" +
-        ".use_experimental_parquet_reader", "true")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_config" +
+          ".use_experimental_parquet_reader",
+        "true")
   }
 
   override protected val createNullableTables = true

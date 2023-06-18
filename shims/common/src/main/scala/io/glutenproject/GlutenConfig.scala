@@ -232,8 +232,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.input.row.max.block.size", "8192").toLong
 
   def enableNewParquetReader: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.backend." +
-      "ch.runtime_config.use_experimental_parquet_reader", "false").toBoolean
+    conf
+      .getConfString(
+        "spark.gluten.sql.columnar.backend." +
+          "ch.runtime_config.use_experimental_parquet_reader",
+        "false")
+      .toBoolean
 }
 
 object GlutenConfig {

@@ -246,9 +246,13 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     assert(rel.has_base_schema());
     auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     FormatFile::FormatFileOptionsPtr options = std::make_shared<FormatFile::FormatFileOptions>();
+
     if (rel.has_filter() && context->getConfigRef().getBool("use_experimental_parquet_reader", false))
     {
         const auto & filter = rel.filter();
+        NonNullableColumnsResolver non_nullable_columns_resolver(header, *this, rel.filter());
+        auto columns = non_nullable_columns_resolver.resolve();
+        not_nullable_columns.insert(not_nullable_columns.end(), columns.begin(), columns.end());
         auto pushdown_filter = std::make_shared<ActionsDAG>(header.getNamesAndTypesList());
         if (filter.has_singular_or_list())
         {
@@ -258,7 +262,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
         else
         {
             String unused;
-            parseFunctionWithDAG(filter, unused, not_nullable_columns, pushdown_filter, true);
+            parseFunctionWithDAG(filter, unused, pushdown_filter, true);
         }
         options->pushdown_filter = pushdown_filter;
     }

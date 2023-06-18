@@ -29,7 +29,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header, bool)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
     res->read_buffer = read_buffer_builder->build(file_info, true);
