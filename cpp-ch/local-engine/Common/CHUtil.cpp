@@ -578,8 +578,9 @@ void BackendInitializerUtil::initContexts()
 
         auto getDefaultPath = [] -> auto
         {
+            bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
             char buffer[PATH_MAX];
-            if (getcwd(buffer, sizeof(buffer)) != nullptr)
+            if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
                 return std::string(buffer) + "/tmp/libch";
             else
                 return std::string("/tmp/libch");
