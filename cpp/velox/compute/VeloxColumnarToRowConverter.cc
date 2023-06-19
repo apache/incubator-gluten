@@ -235,7 +235,7 @@ arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> 
       }
       default:
         return arrow::Status::Invalid(
-            "Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");
+            "Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxColumnarToRow conversion.");
     }
 
 #undef SERIALIZE_COLUMN

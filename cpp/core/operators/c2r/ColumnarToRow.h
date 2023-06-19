@@ -32,7 +32,7 @@ namespace gluten {
 
 class ColumnarToRowConverter {
  public:
-  ColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> arrowPool) : arrowPool_(arrowPool) {}
+  explicit ColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> arrowPool) : arrowPool_(arrowPool) {}
 
   virtual ~ColumnarToRowConverter() = default;
 

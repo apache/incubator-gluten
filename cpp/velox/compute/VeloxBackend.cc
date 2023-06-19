@@ -103,8 +103,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
 arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar2RowConverter(
     MemoryAllocator* allocator,
     std::shared_ptr<ColumnarBatch> cb) {
-  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  if (veloxBatch != nullptr) {
+  if (auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)) {
     auto arrowPool = asArrowMemoryPool(allocator);
     auto veloxPool = asAggregateVeloxMemoryPool(allocator);
     auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
