@@ -66,7 +66,7 @@ class VeloxInitializer {
   void initCache(const std::unordered_map<std::string, std::string>& conf);
   void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
 
-  void log(const std::unordered_map<std::string, std::string>& conf);
+  void printConf(const std::unordered_map<std::string, std::string>& conf);
 
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
