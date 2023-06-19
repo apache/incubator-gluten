@@ -148,12 +148,12 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
         }
 
         override def hasNext: Boolean = {
-          val isEmpty = batches.isEmpty
-          if (isEmpty && !closed) {
+          val hasNext = batches.hasNext
+          if (!hasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
             closed = true
           }
-          isEmpty
+          hasNext
         }
 
         override def next(): Iterator[InternalRow] = {
