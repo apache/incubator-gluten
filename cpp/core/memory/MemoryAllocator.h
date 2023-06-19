@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "arrow/memory_pool.h"
@@ -44,6 +45,8 @@ class MemoryAllocator {
   virtual bool unreserveBytes(int64_t size) = 0;
 
   virtual int64_t getBytes() const = 0;
+
+  virtual std::string toString() const = 0;
 };
 
 class AllocationListener {
@@ -81,6 +84,8 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
 
   int64_t getBytes() const override;
 
+  std::string toString() const override;
+
  private:
   MemoryAllocator* delegated_;
   std::shared_ptr<AllocationListener> listener_;
@@ -106,6 +111,8 @@ class StdMemoryAllocator final : public MemoryAllocator {
   bool unreserveBytes(int64_t size) override;
 
   int64_t getBytes() const override;
+
+  std::string toString() const override;
 
  private:
   std::atomic_int64_t bytes_{0};
