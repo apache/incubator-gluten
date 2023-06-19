@@ -43,7 +43,7 @@ namespace ErrorCodes
     extern const int CANNOT_OPEN_FILE;
     extern const int UNKNOWN_FILE_SIZE;
     extern const int CANNOT_SEEK_THROUGH_FILE;
-    extern const int CANNOT_CLOSE_FILE;
+    extern const int CANNOT_READ_FROM_FILE_DESCRIPTOR;
 }
 }
 
@@ -156,7 +156,7 @@ public:
                 auto n = hdfsRead(fs, fin, buf, buf_size);
                 if (n < 0)
                     throw DB::Exception(
-                        DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE,
+                        DB::ErrorCodes::CANNOT_READ_FROM_FILE_DESCRIPTOR,
                         "Fail to read HDFS file: {}, error: {}",
                         file_path,
                         std::string(hdfsGetLastError()));
