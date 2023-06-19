@@ -303,6 +303,14 @@ private:
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
+    DB::ActionsDAGPtr parseJsonTuple(
+        const Block & input,
+        const substrait::Expression & rel,
+        std::vector<String> & result_names,
+        std::vector<String> & required_columns,
+        DB::ActionsDAGPtr actions_dag = nullptr,
+        bool keep_result = false,
+        bool position = false);
     const ActionsDAG::Node * parseFunctionWithDAG(
         const substrait::Expression & rel,
         std::string & result_name,
