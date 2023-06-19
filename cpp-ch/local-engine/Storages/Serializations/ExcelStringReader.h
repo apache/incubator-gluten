@@ -36,12 +36,10 @@ static inline void glutenRead(IColumn & column, Reader && reader)
 
 
 template <typename Vector, bool include_quotes = false>
-void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, String & escape_value);
+void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value);
 
 
-
-void deserializeGlutenTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, String & escape_value);
-
+void deserializeGlutenTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value);
 
 
 }

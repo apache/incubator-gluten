@@ -1,27 +1,19 @@
 #pragma once
 
-#include <DataTypes/Serializations/ISerialization.h>
-#include <base/extended_types.h>
+#include <DataTypes/Serializations/SerializationDate32.h>
+#include <DataTypes/Serializations/SerializationNumber.h>
 #include <Common/DateLUTImpl.h>
-
-
-namespace DB
-{
-namespace ErrorCodes
-{
-    extern const int ATTEMPT_TO_READ_AFTER_EOF;
-}
-}
 
 namespace local_engine
 {
 using namespace DB;
 
-
-class ExcelSerialization final : public DB::ISerialization
+template <is_decimal T>
+class ExcelDecimalSerialization final : public DB::ISerialization
 {
 public:
-    explicit ExcelSerialization(const SerializationPtr & nested_, String escape_) : nested_ptr(nested_), escape(escape_){};
+    explicit ExcelDecimalSerialization(const SerializationPtr & nested_, UInt32 precision_, UInt32 scale_)
+        : nested_ptr(nested_), precision(precision_), scale(scale_){};
 
     void serializeBinary(const Field &, WriteBuffer &, const FormatSettings &) const override
     {
@@ -75,25 +67,13 @@ public:
     {
         throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
     };
-    void deserializeTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const override;
 
-private:
-    void deserializeDate32TextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const;
+    void deserializeTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings &) const override;
 
-    template <typename T>
-    requires is_arithmetic_v<T>
-    void deserializeNumberTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings &) const;
-
-    template <typename T>
-    void deserializeDatetimeTextCSV(
-        IColumn & column,
-        ReadBuffer & istr,
-        const FormatSettings & settings,
-        const DateLUTImpl & time_zone,
-        const DateLUTImpl & utc_time_zone) const;
 
 private:
     SerializationPtr nested_ptr;
-    String escape;
+    const UInt32 precision;
+    const UInt32 scale;
 };
 }

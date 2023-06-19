@@ -207,11 +207,6 @@ class CHHiveTableScanExecTransformer(
         case (_, _) =>
       }
 
-      if (!options.contains("field_delimiter")) {
-        val defaultDelimiter: Char = 0x01
-        options += ("field_delimiter" -> defaultDelimiter.toString)
-      }
-
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
       readRelNode.setDataSchema(relation.tableMeta.dataSchema)
       readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))

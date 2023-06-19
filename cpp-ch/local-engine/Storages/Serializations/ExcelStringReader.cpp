@@ -1,20 +1,20 @@
+#include <bit>
+#include <IO/Operators.h>
 #include <base/hex.h>
 #include <Common/PODArray.h>
 #include <Common/StringUtils/StringUtils.h>
 #include <Common/memcpySmall.h>
-#include <IO/Operators.h>
-#include <bit>
 
 #include "ExcelStringReader.h"
 
 
 #ifdef __SSE2__
-#include <emmintrin.h>
+#    include <emmintrin.h>
 #endif
 
 #if defined(__aarch64__) && defined(__ARM_NEON)
 #    include <arm_neon.h>
-#      pragma clang diagnostic ignored "-Wreserved-identifier"
+#    pragma clang diagnostic ignored "-Wreserved-identifier"
 #endif
 
 
@@ -37,16 +37,8 @@ inline void appendToStringOrVector(PaddedPODArray<UInt8> & s, ReadBuffer & rb, c
         s.insert(rb.position(), end);
 }
 
-
-template<typename T>
-concept WithResize = requires (T value)
-{
-    { value.resize(1) };
-    { value.size() } -> std::integral<>;
-};
-
 template <typename Vector, bool include_quotes>
-void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, String & escape_value)
+void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value)
 {
     /// Empty string
     if (buf.eof())
@@ -93,7 +85,7 @@ void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings:
                 s.push_back(*next_pos);
                 ++next_pos;
                 buf.position() = next_pos;
-                continue ;
+                continue;
             }
 
             buf.position() = next_pos;
@@ -128,14 +120,19 @@ void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings:
         {
             PeekableReadBuffer * peekable_buf = dynamic_cast<PeekableReadBuffer *>(&buf);
             if (!peekable_buf)
-                throw Exception(ErrorCodes::LOGICAL_ERROR, "Reading CSV string with custom delimiter is allowed only when using PeekableReadBuffer");
+                throw Exception(
+                    ErrorCodes::LOGICAL_ERROR, "Reading CSV string with custom delimiter is allowed only when using PeekableReadBuffer");
 
             while (true)
             {
                 if (peekable_buf->eof())
-                    throw Exception(ErrorCodes::INCORRECT_DATA, "Unexpected EOF while reading CSV string, expected custom delimiter \"{}\"", custom_delimiter);
+                    throw Exception(
+                        ErrorCodes::INCORRECT_DATA,
+                        "Unexpected EOF while reading CSV string, expected custom delimiter \"{}\"",
+                        custom_delimiter);
 
-                char * next_pos = reinterpret_cast<char *>(memchr(peekable_buf->position(), custom_delimiter[0], peekable_buf->available()));
+                char * next_pos
+                    = reinterpret_cast<char *>(memchr(peekable_buf->position(), custom_delimiter[0], peekable_buf->available()));
                 if (!next_pos)
                     next_pos = peekable_buf->buffer().end();
 
@@ -199,8 +196,7 @@ void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings:
                     }
                 }
 #endif
-                while (next_pos < buf.buffer().end()
-                       && *next_pos != delimiter && *next_pos != '\r' && *next_pos != '\n')
+                while (next_pos < buf.buffer().end() && *next_pos != delimiter && *next_pos != '\r' && *next_pos != '\n')
                     ++next_pos;
             }();
 
@@ -210,24 +206,12 @@ void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings:
             if (!buf.hasPendingData())
                 continue;
 
-            if constexpr (WithResize<Vector>)
-            {
-                /** CSV format can contain insignificant spaces and tabs.
-                * Usually the task of skipping them is for the calling code.
-                * But in this case, it will be difficult to do this, so remove the trailing whitespace by ourself.
-                */
-                size_t size = s.size();
-                while (size > 0 && (s[size - 1] == ' ' || s[size - 1] == '\t'))
-                    --size;
-
-                s.resize(size);
-            }
             return;
         }
     }
 }
 
-void deserializeGlutenTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, String & escape_value)
+void deserializeGlutenTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value)
 {
     glutenRead(column, [&](ColumnString::Chars & data) { readGlutenCSVStringInto(data, istr, settings.csv, escape_value); });
 }

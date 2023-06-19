@@ -13,6 +13,20 @@
 namespace local_engine
 {
 
+inline bool checkDate(const UInt16 & year, const UInt8 & month_, const UInt8 & day_)
+{
+    auto is_leap_year_ = (year % 400 == 0) || (year % 100 != 0 && year % 4 == 0);
+
+    if ((month_ == 1 || month_ == 3 || month_ == 5 || month_ == 7 || month_ == 8 || month_ == 10 || month_ == 12) && day_ >= 1
+        && day_ <= 31)
+        return true;
+    else if (month_ == 2 && ((is_leap_year_ && day_ >= 1 && day_ <= 29) || (!is_leap_year_ && day_ >= 1 && day_ <= 28)))
+        return true;
+    else if ((month_ == 4 || month_ == 6 || month_ == 9 || month_ == 11) && day_ >= 1 && day_ <= 30)
+        return true;
+    return false;
+}
+
 inline size_t readDigits(char * res, size_t max_chars, DB::ReadBuffer & in)
 {
     size_t num_chars = 0;
@@ -69,50 +83,39 @@ void readDateTime64Text(
     bool quote);
 
 bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool is_us_style);
-void readGlutenDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettings & settings);
-
-template <typename T>
-inline void readGlutenFloatText(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
-{
-    {
-        char * pos = buf.position();
-        if (local_engine::readGlutenFloatTextFastImpl(x, buf, has_quote, settings))
-            return;
-        else
-            buf.position() = pos;
-
-        DB::readFloatTextFast(x, buf);
-    }
-}
+bool readDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettings & settings);
 
 
 template <typename T>
-inline void readGlutenIntegerText(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+inline bool readGlutenIntegerText(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
     if constexpr (std::is_same_v<decltype(x), bool &>)
+    {
         readBoolText(x, buf);
+        return true;
+    }
     else
-        readGlutenIntTextImpl(x, buf, has_quote, settings);
+        return readGlutenIntTextImpl(x, buf, has_quote, settings);
 }
 
-inline void readGlutenText(is_floating_point auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+inline bool readGlutenText(is_floating_point auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
-    readGlutenFloatText(x, buf, has_quote, settings);
+    return readGlutenFloatTextFastImpl(x, buf, has_quote, settings);
 }
 
-inline void readGlutenText(is_integer auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+inline bool readGlutenText(is_integer auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
-    readGlutenIntegerText(x, buf, has_quote, settings);
+    return readGlutenIntegerText(x, buf, has_quote, settings);
 }
 
-inline void readGlutenText(LocalDate & x, DB::ReadBuffer & buf, bool /*has_quote*/, const DB::FormatSettings & settings)
+inline bool readGlutenText(LocalDate & x, DB::ReadBuffer & buf, bool /*has_quote*/, const DB::FormatSettings & settings)
 {
-    readGlutenDateText(x, buf, settings);
+    return readDateText(x, buf, settings);
 }
 
 /// CSV, for numbers, dates: quotes are optional, no special escaping rules.
 template <typename T>
-inline void readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
+bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
     if (buf.eof())
         DB::throwReadAfterEOF();
@@ -125,23 +128,42 @@ inline void readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings 
         ++buf.position();
     }
 
-    readGlutenText(x, buf, has_quote, settings);
+    /// deal empty string ""
+    if ((has_quote && !buf.eof() && *buf.position() == maybe_quote)
+        || (!has_quote && !buf.eof() && (*buf.position() == settings.csv.delimiter || *buf.position() == '\n' || *buf.position() == '\r')))
+        return false;
+
+    bool result = readGlutenText(x, buf, has_quote, settings);
+    if (!result)
+        return false;
 
     if (maybe_quote == '\'' || maybe_quote == '\"')
         assertChar(maybe_quote, buf);
+
+    while (!buf.eof() && *buf.position() == ' ')
+    {
+        //ignore end whitespace
+        ++buf.position();
+    }
+
+
+    if (!buf.eof() && (*buf.position() != settings.csv.delimiter && *buf.position() != '\n' && *buf.position() != '\r'))
+        return false;
+
+    return true;
 }
 
 
 template <typename T>
     requires is_arithmetic_v<T>
-inline void readCSV(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
+inline bool readCSV(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
-    readCSVSimple(x, buf, settings);
+    return readCSVSimple(x, buf, settings);
 }
 
-inline void readCSV(LocalDate & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
+inline bool readCSV(LocalDate & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
-    readCSVSimple(x, buf, settings);
+    return readCSVSimple(x, buf, settings);
 }
 
 }
