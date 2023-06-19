@@ -7,7 +7,7 @@ GLUTEN_IT_JVM_ARGS=${GLUTEN_IT_JVM_ARGS:-"-Xmx2G -XX:ErrorFile=/var/log/java/hs_
 BASEDIR=$(dirname $0)
 
 LIB_DIR=$BASEDIR/../dist/target/lib
-if [[ ! -e $LIB_DIR ]]; then
+if [[ ! -d $LIB_DIR ]]; then
   echo "Lib directory not found at $LIB_DIR. Please build gluten-it first. For example: mvn clean install"
   exit 1
 fi
