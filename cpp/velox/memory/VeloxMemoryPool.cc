@@ -328,10 +328,17 @@ class VeloxMemoryPool final : public velox::memory::MemoryPool {
       std::shared_ptr<MemoryPool> parent,
       const std::string& name,
       MemoryPool::Kind kind,
-      bool /*unused*/,
-      std::shared_ptr<facebook::velox::memory::MemoryReclaimer> /*unused*/) override {
+      bool threadSafe,
+      std::shared_ptr<facebook::velox::memory::MemoryReclaimer> reclaimer) override {
     return std::make_shared<VeloxMemoryPool>(
-        parent, name, kind, veloxAlloc_, glutenAlloc_, nullptr, -1, Options{.alignment = alignment_});
+        parent,
+        name,
+        kind,
+        veloxAlloc_,
+        glutenAlloc_,
+        nullptr,
+        -1,
+        Options{.alignment = alignment_, .reclaimer = std::move(reclaimer), .threadSafe = threadSafe});
   }
 
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the

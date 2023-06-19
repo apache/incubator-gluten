@@ -72,7 +72,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   }
 
   auto veloxPool = asAggregateVeloxMemoryPool(allocator);
-  auto ctxPool = veloxPool->addAggregateChild("result_iterator");
+  auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
+
   // TODO: wait shuffle split velox to velox, then the input ColumnBatch is RowVector, no need pool to convert
   // https://github.com/oap-project/gluten/issues/1434
   auto resultPool = defaultLeafVeloxMemoryPool();

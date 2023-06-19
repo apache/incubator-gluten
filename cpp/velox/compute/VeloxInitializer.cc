@@ -67,7 +67,8 @@ const std::string kVeloxIOThreadsDefault = "0";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
 
-// mem ratios and thresholds
+// spill, mem ratios and thresholds
+const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
 const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
 
@@ -95,6 +96,18 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
+  // spill mode
+  std::string spillStrategy;
+  {
+    auto got = conf.find(kSpillStrategy);
+    if (got == conf.end()) {
+      // not found
+      spillStrategy = "threshold";
+    } else {
+      spillStrategy = got->second;
+    }
+  }
+
   // mem cap ratio
   float_t memCapRatio = 0.75;
   auto got = conf.find(kMemoryCapRatio);
@@ -104,12 +117,14 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // mem tracker
   int64_t maxMemory = facebook::velox::memory::kMaxMemory;
-  got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
-  if (got != conf.end()) {
-    maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+  if (spillStrategy == "threshold") {
+    auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
+    if (got != conf.end()) {
+      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+    }
   }
 
-  memPoolOptions_ = {facebook::velox::memory::MemoryAllocator::kMaxAlignment, maxMemory};
+  memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .capacity = maxMemory};
 
   // spill threshold ratio (out of the memory cap)
   float_t spillThresholdRatio = 0.6;

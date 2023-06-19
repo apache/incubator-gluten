@@ -509,6 +509,17 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
   JNI_METHOD_END(nullptr)
 }
 
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeSpill(
+    JNIEnv* env,
+    jobject this_obj,
+    jlong id,
+    jlong size) { // NOLINT
+  JNI_METHOD_START
+  auto it = resultIteratorHolder.lookup(id);
+  return it->spillFixedSize(size);
+  JNI_METHOD_END(-1L)
+}
+
 JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeClose(
     JNIEnv* env,
     jobject this_obj,

@@ -57,6 +57,10 @@ class ResultIterator {
     return exportNanos_;
   }
 
+  int64_t spillFixedSize(int64_t size) {
+    return iter_->spillFixedSize(size);
+  }
+
  private:
   void checkValid() const {
     if (iter_ == nullptr) {

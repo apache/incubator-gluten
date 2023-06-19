@@ -36,6 +36,8 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
 
   private native long nativeNext(long nativeHandle);
 
+  private native long nativeSpill(long nativeHandle, long size);
+
   private native void nativeClose(long nativeHandle);
 
   private native IMetrics nativeFetchMetrics(long nativeHandle);
@@ -57,6 +59,10 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
   @Override
   public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
     return nativeFetchMetrics(handle);
+  }
+
+  public long spill(long size) {
+    return nativeSpill(handle, size);
   }
 
   @Override

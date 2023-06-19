@@ -16,10 +16,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   WholeStageResultIterator(
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
-      const std::unordered_map<std::string, std::string>& confMap)
-      : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
-    getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
-  }
+      const std::unordered_map<std::string, std::string>& confMap);
 
   virtual ~WholeStageResultIterator() {
     if (task_ != nullptr && task_->isRunning()) {
@@ -29,6 +26,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   };
 
   std::shared_ptr<ColumnarBatch> next() override;
+
+  int64_t spillFixedSize(int64_t size) override;
 
   std::shared_ptr<Metrics> getMetrics(int64_t exportNanos) {
     collectMetrics();
@@ -72,6 +71,9 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::unordered_map<std::string, std::string> confMap_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
+
+  // spill
+  std::string spillStrategy_;
 
   std::shared_ptr<Metrics> metrics_ = nullptr;
 

@@ -188,6 +188,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
+  def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -819,6 +821,19 @@ object GlutenConfig {
       .doc("The split preload per task")
       .intConf
       .createWithDefault(2)
+
+  val COLUMNAR_VELOX_SPILL_STRATEGY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
+      .internal()
+      .doc(
+        "none: Disable spill on Velox backend; " +
+          "threshold: Use spark.gluten.sql.columnar.backend.velox.memoryCapRatio " +
+          "to calculate a memory threshold number for triggering spill; " +
+          "auto: Let Spark memory manager manage Velox's spilling")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValues(Set("none", "threshold", "auto"))
+      .createWithDefault("threshold")
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
