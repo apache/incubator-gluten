@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eux
+set -euf
 
 GLUTEN_VERSION=0.5.0-SNAPSHOT
 GLUTEN_IT_VERSION=1.0-SNAPSHOT
