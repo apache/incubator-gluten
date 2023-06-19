@@ -128,7 +128,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     }
   }
 
-  memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .capacity = maxMemory};
+  memPoolOptions_ = {.alignment = 16, .capacity = maxMemory};
 
   // spill threshold ratio (out of the memory cap)
   float_t spillThresholdRatio = 0.6;

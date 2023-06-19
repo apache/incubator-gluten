@@ -114,6 +114,12 @@ int64_t ListenableMemoryAllocator::getBytes() const {
   return bytes_;
 }
 
+std::string ListenableMemoryAllocator::toString() const {
+  std::string str = "ListenableMemoryAllocator delegate:";
+  str += delegated_->toString();
+  return str;
+}
+
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {
   *out = std::malloc(size);
   bytes_ += size;
@@ -178,6 +184,10 @@ bool StdMemoryAllocator::unreserveBytes(int64_t size) {
 
 int64_t StdMemoryAllocator::getBytes() const {
   return bytes_;
+}
+
+std::string StdMemoryAllocator::toString() const {
+  return "StdMemoryAllocator";
 }
 
 std::shared_ptr<MemoryAllocator> defaultMemoryAllocator() {
