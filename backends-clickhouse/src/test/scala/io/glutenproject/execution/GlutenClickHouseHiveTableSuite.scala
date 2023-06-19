@@ -127,8 +127,7 @@ class GlutenClickHouseHiveTableSuite()
     "array_field array<int>," +
     "array_field_with_null array<int>," +
     "map_field map<int, long>," +
-    "map_field_with_null map<int, long>, " +
-    "day string) partitioned by(day) stored as textfile"
+    "map_field_with_null map<int, long>) stored as textfile"
   private val json_table_create_sql = "create table if not exists %s (".format(json_table_name) +
     "string_field string," +
     "int_field int," +
@@ -202,8 +201,8 @@ class GlutenClickHouseHiveTableSuite()
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
-    initializeTable(txt_table_name, txt_table_create_sql)
-    initializeTable(json_table_name, json_table_create_sql)
+    initializeTable(txt_table_name, txt_table_create_sql, null)
+    initializeTable(json_table_name, json_table_create_sql, "2023-06-05")
   }
 
   test("test hive text table") {
@@ -489,10 +488,10 @@ class GlutenClickHouseHiveTableSuite()
       })
   }
 
-  test("test hive text table with illegal partition path") {
+  test("test hive table with illegal partition path") {
     val path = new Path(sparkConf.get("spark.sql.warehouse.dir"))
     val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
-    val tablePath = path.toUri.getPath + "/" + txt_table_name
+    val tablePath = path.toUri.getPath + "/" + json_table_name
     val partitionPath = tablePath + "/" + "_temp_day=2023_06_05kids"
     val succ = fs.mkdirs(new Path(partitionPath))
     assert(succ, true)
@@ -501,7 +500,7 @@ class GlutenClickHouseHiveTableSuite()
     assert(createSucc, true)
     val sql =
       s"""
-         | select string_field, day, count(*) from $txt_table_name group by string_field, day
+         | select string_field, day, count(*) from $json_table_name group by string_field, day
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
