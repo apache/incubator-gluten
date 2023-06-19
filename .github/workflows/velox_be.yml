@@ -70,6 +70,7 @@ jobs:
       - name: Build Gluten CPP library
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -l -c '
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
       - name: Build for Spark 3.2.0
@@ -133,6 +134,7 @@ jobs:
       - name: Build Gluten CPP library
         run: |
           docker exec velox-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -l -c '
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 && \
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake .. && make -j'
       - name: Build for Spark 3.2.0
