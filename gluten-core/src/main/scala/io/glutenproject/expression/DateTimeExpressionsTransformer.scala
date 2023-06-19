@@ -71,7 +71,7 @@ class DateDiffTransformer(substraitExprName: String, endDate: ExpressionTransfor
       original.endDate.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
-    val expressionNodes = if (BackendsApiManager.veloxBackend) {
+    val expressionNodes = if (BackendsApiManager.chBackend) {
       // In CH backend, datediff params are ('day', startDate, endDate).
       Lists.newArrayList(
         ExpressionBuilder.makeStringLiteral("day"), startDateNode, endDateNode)
