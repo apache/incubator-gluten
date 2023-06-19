@@ -176,9 +176,9 @@ abstract class FilterExecTransformerBase(val cond: Expression,
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
       if (!validateInfo.isSupported) {
-        val logs = validateInfo.getFallbackInfo()
-        for (i <- 0 until logs.size()) {
-          this.appendValidateLog(logs.get(i))
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
           s"due to native check failure.")
@@ -269,9 +269,9 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
       if (!validateInfo.isSupported) {
-        val logs = validateInfo.getFallbackInfo()
-        for (i <- 0 until logs.size()) {
-          this.appendValidateLog(logs.get(i))
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size() ) {
+          this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
           s"due to native check failure.")

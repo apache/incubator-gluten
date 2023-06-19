@@ -59,9 +59,9 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
       val validator = new NativePlanEvaluator()
       val validateInfo = validator.doValidateWithFallBackLog(planNode.toProtobuf.toByteArray)
       if (!validateInfo.isSupported) {
-        val logs = validateInfo.getFallbackInfo()
-        for (i <- 0 until logs.size()) {
-          this.appendValidateLog(logs.get(i))
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
           s"due to native check failure.")

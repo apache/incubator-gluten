@@ -53,7 +53,7 @@ object BackendSettings extends BackendSettingsApi {
       val unsupportedDataTypes = fields.map(_.dataType).collect {
         case _: ByteType => "ByteType"
         case _: ArrayType => "ArrayType"
-        case _: MapType if mapType.keyType.isInstanceOf[StructType] => "StructType in MapType"
+        case mapType: MapType if mapType.keyType.isInstanceOf[StructType] => "StructType as Key in MapType"
         // Parquet scan of nested map with struct as key type is not supported in Velox.
       }
       for (unsupportedDataType <- unsupportedDataTypes) {

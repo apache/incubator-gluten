@@ -20,10 +20,12 @@ package io.glutenproject.validate;
 import java.util.Vector;
 public class NativePlanValidatorInfo {
     private final boolean isSupported;
-    private final Vector<String> fallbackInfo;
-    NativePlanValidatorInfo(boolean isSupported, Vector<String> fallbackInfo) {
+    private Vector<String> fallbackInfo = new Vector<>();
+    NativePlanValidatorInfo(boolean isSupported, String[] fallbackInfo) {
         this.isSupported = isSupported;
-        this.fallbackInfo = fallbackInfo;
+        for(int i = 0; i < fallbackInfo.length; i++) {
+            this.fallbackInfo.add(fallbackInfo[i]);
+        }
     }
     public boolean isSupported(){
         return isSupported;

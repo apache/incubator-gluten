@@ -79,7 +79,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   nativePlanValidatorInfoClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/validate/NativePlanValidatorInfo;");
   nativePlanvalidatorInfoConstructor =
-      getMethodIdOrError(env, nativePlanValidatorInfoClass, "<init>", "(ZLjava/util/Vector;)V");
+      getMethodIdOrError(env, nativePlanValidatorInfoClass, "<init>", "(Z[Ljava/lang/String;)V");
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
