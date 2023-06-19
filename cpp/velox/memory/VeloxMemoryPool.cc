@@ -114,7 +114,14 @@ class VeloxMemoryPool final : public velox::memory::MemoryPool {
     reserve(alignedSize);
     void* buffer;
     try {
-      if (!glutenAlloc_->allocateAligned(alignment_, alignedSize, &buffer)) {
+      bool succeed = false;
+      if (alignment_ > velox::memory::MemoryAllocator::kMinAlignment) {
+        succeed = glutenAlloc_->allocateAligned(alignment_, alignedSize, &buffer);
+      } else {
+        succeed = glutenAlloc_->allocate(alignedSize, &buffer);
+      }
+
+      if (!succeed) {
         VELOX_FAIL(fmt::format("VeloxMemoryPool: Failed to allocate {} bytes", alignedSize))
       }
     } catch (std::exception& e) {
@@ -133,11 +140,18 @@ class VeloxMemoryPool final : public velox::memory::MemoryPool {
     reserve(alignedSize);
     void* buffer;
     try {
-      bool succeed = glutenAlloc_->allocateAligned(alignment_, alignedSize, &buffer);
+      bool succeed = false, zerod = false;
+      if (alignment_ > velox::memory::MemoryAllocator::kMinAlignment) {
+        succeed = glutenAlloc_->allocateAligned(alignment_, alignedSize, &buffer);
+      } else {
+        succeed = glutenAlloc_->allocateZeroFilled(alignedSize, 1, &buffer);
+        zerod = true;
+      }
+
       if (!succeed) {
         VELOX_FAIL(fmt::format(
             "VeloxMemoryPool: Failed to allocate (zero filled) {} members, {} bytes for each", alignedSize, 1))
-      } else {
+      } else if (!zerod) {
         memset(buffer, 0, alignedSize);
       }
     } catch (std::exception& e) {
@@ -163,7 +177,13 @@ class VeloxMemoryPool final : public velox::memory::MemoryPool {
     reserve(alignedNewSize);
     void* newP;
     try {
-      bool succeed = glutenAlloc_->allocateAligned(alignment_, alignedNewSize, &newP);
+      bool succeed = false;
+      if (alignment_ > velox::memory::MemoryAllocator::kMinAlignment) {
+        succeed = glutenAlloc_->allocateAligned(alignment_, alignedNewSize, &newP);
+      } else {
+        succeed = glutenAlloc_->allocate(alignedNewSize, &newP);
+      }
+
       VELOX_CHECK(succeed)
     } catch (std::exception& e) {
       free(p, alignedSize);
