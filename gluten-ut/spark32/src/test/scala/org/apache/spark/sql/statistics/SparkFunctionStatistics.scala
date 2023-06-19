@@ -135,7 +135,7 @@ class SparkFunctionStatistics extends QueryTest {
         }
         if (isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
           supportedFunctions.add(exprInfo.getName)
-        } else if (!isSupported && !needInspectFunctions.contains(exprInfo.getName)) {
+        } else if (!isSupported) {
           unsupportedFunctions.add(exprInfo.getName)
         }
       }
