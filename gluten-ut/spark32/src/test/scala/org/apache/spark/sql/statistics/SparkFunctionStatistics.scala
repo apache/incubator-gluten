@@ -28,6 +28,11 @@ import org.apache.spark.sql.{GlutenTestConstants, QueryTest, SparkSession}
 
 import scala.util.control.Breaks.{break, breakable}
 
+/**
+ * TODO:
+ * There are some false positive & false negative cases for some functions.
+ * For such situation, we need to use a suitable test sql to do the check.
+ */
 class SparkFunctionStatistics extends QueryTest {
 
   var spark: SparkSession = null
