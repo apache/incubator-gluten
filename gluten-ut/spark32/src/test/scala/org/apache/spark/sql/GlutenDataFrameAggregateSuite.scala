@@ -229,7 +229,8 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
             case _ => false
           }.isDefined)
         } else {
-          assert(stripAQEPlan(hashAggPlan).isInstanceOf[HashAggregateExec])
+          assert(stripAQEPlan(hashAggPlan).isInstanceOf[HashAggregateExec] ||
+              stripAQEPlan(hashAggPlan).isInstanceOf[HashAggregateExecBaseTransformer])
         }
 
         // test case for ObjectHashAggregate and SortAggregate
