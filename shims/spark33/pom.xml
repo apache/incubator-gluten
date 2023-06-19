@@ -65,6 +65,14 @@
       <plugin>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
+        <configuration>
+            <argLine>
+                --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                --add-opens=java.base/java.nio=ALL-UNNAMED
+                --add-opens=java.base/java.util=ALL-UNNAMED
+                --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+            </argLine>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
