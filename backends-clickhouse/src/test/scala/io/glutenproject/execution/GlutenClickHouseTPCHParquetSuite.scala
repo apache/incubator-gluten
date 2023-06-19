@@ -1143,4 +1143,19 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
           true,
           { _ => }))
   }
+
+  test("GLUTEN-2005: Json_tuple return cause data loss") {
+    spark.sql(
+      """
+        | create table test_2005(id bigint, data string, name string) using parquet;
+        |""".stripMargin
+    )
+    spark.sql("insert into test_2005 values(1, '{\"a\":\"b\", \"c\":\"d\"}', 'gluten')")
+    val sql =
+      """
+        | select json_tuple(data, 'a', 'c'), name from test_2005
+        |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
