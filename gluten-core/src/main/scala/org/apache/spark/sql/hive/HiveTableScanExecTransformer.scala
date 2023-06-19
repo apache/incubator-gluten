@@ -61,24 +61,7 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
 
   override def filterExprs(): Seq[Expression] = Seq.empty
 
-  override def outputAttributes(): Seq[Attribute] = {
-    var outputEmptyOrOnlyPartitionColumns = true
-    if (output.isEmpty) {
-      outputEmptyOrOnlyPartitionColumns = true
-    } else {
-      output.foreach(
-        x => {
-          if (!relation.partitionCols.contains(x)) {
-            outputEmptyOrOnlyPartitionColumns = false
-          }
-        })
-    }
-    if (outputEmptyOrOnlyPartitionColumns) {
-      output ++ relation.dataCols
-    } else {
-      output
-    }
-  }
+  override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[Seq[InputPartition]] = filteredPartitions
 
