@@ -10,7 +10,7 @@
   <packaging>pom</packaging>
   <modules>
     <module>common</module>
-    <module>dist</module>
+    <module>package</module>
   </modules>
 
   <properties>
