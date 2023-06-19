@@ -152,7 +152,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2
         run: |
           docker exec velox-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.2 \
+          mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -208,7 +208,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3
         run: |
           docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.3 \
+          mvn clean install -Pspark-3.3 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -264,7 +264,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.3 \
+          mvn clean install -Pspark-3.3 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -310,7 +310,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2
         run: |
           docker exec velox-ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.2 \
+          mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
@@ -324,7 +324,7 @@ jobs:
           mkdir /opt/hadoop && chmod 777 /opt/hadoop && \
           echo -e "celeborn.worker.flusher.threads 32\nceleborn.worker.storage.dirs /opt\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.2.0-incubating-bin/conf/celeborn-defaults.conf && \
           bash apache-celeborn-0.2.0-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.2.0-incubating-bin/sbin/start-worker.sh && \
-          cd /opt/gluten/tools/gluten-it && mvn clean package -Pspark-3.2 \
+          cd /opt/gluten/tools/gluten-it && mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -340,7 +340,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.3
         run: |
           docker exec velox-ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.3 \
+          mvn clean install -Pspark-3.3 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
@@ -389,7 +389,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           docker exec velox-centos8-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.2 \
+          mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh queries-compare \
@@ -438,7 +438,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           docker exec velox-centos7-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.2 \
+          mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh queries-compare \
@@ -477,7 +477,7 @@ jobs:
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -DskipTests -Dspark32.version=3.2.2 && \
           cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.2'
+          mvn clean install -Pspark-3.2'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30" \
