@@ -110,8 +110,6 @@ class GlutenClickHouseHiveTableSuite()
 
   private val txt_table_name = "hive_txt_test"
   private val json_table_name = "hive_json_test"
-  private val txt_table_name_space_delimiter = "hive_txt_test_space_delimiter"
-  private val txt_table_name_tab_delimiter = "hive_txt_test_tab_delimiter"
 
   private val txt_table_create_sql = "create table if not exists %s (".format(txt_table_name) +
     "string_field string," +
@@ -147,40 +145,6 @@ class GlutenClickHouseHiveTableSuite()
     "ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'" +
     "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'" +
     "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
-  private val txt_space_delimiter_table_create_sql =
-    "create table if not exists %s (".format(txt_table_name_space_delimiter) +
-      "string_field string," +
-      "int_field int," +
-      "long_field long," +
-      "float_field float," +
-      "double_field double," +
-      "short_field short," +
-      "byte_field byte," +
-      "bool_field boolean," +
-      "decimal_field decimal(23, 12)," +
-      "date_field date," +
-      "array_field array<int>," +
-      "array_field_with_null array<int>," +
-      "map_field map<int, long>," +
-      "map_field_with_null map<int, long>)" +
-      "row format delimited fields terminated by ' ' stored as textfile"
-  private val txt_tab_delimiter_table_create_sql =
-    "create table if not exists %s (".format(txt_table_name_tab_delimiter) +
-      "string_field string," +
-      "int_field int," +
-      "long_field long," +
-      "float_field float," +
-      "double_field double," +
-      "short_field short," +
-      "byte_field byte," +
-      "bool_field boolean," +
-      "decimal_field decimal(23, 12)," +
-      "date_field date," +
-      "array_field array<int>," +
-      "array_field_with_null array<int>," +
-      "map_field map<int, long>," +
-      "map_field_with_null map<int, long>)" +
-      "row format delimited fields terminated by '\t' stored as textfile"
 
   def genTestData(): Seq[AllDataTypesWithComplextType] = {
     (0 to 199).map {
@@ -228,8 +192,6 @@ class GlutenClickHouseHiveTableSuite()
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     initializeTable(txt_table_name, txt_table_create_sql)
     initializeTable(json_table_name, json_table_create_sql)
-    initializeTable(txt_table_name_space_delimiter, txt_space_delimiter_table_create_sql)
-    initializeTable(txt_table_name_tab_delimiter, txt_tab_delimiter_table_create_sql)
   }
 
   test("test hive text table") {

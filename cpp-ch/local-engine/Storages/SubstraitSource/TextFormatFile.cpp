@@ -30,7 +30,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
     std::string text_field_delimiter = file_info.text().field_delimiter();
     if (text_field_delimiter == "\t" || text_field_delimiter == " ")
     {
-       format_settings.csv.use_whitespace_tab_as_delimiter = true;
+       format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
     }
     format_settings.hive_text.fields_delimiter = file_info.text().field_delimiter()[0];
     format_settings.csv.empty_as_default = false;
