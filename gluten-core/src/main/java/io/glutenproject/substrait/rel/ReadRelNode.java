@@ -74,7 +74,8 @@ public class ReadRelNode implements RelNode, Serializable {
       for (int i = 0; i < names.size(); i++) {
         // Case-insensitive schema matching
         if (field.name().equalsIgnoreCase(names.get(i))) {
-          this.dataSchema = this.dataSchema.add(names.get(i), field.dataType(), field.nullable(), field.metadata());
+          this.dataSchema = this.dataSchema.add(
+            names.get(i), field.dataType(), field.nullable(), field.metadata());
           found = true;
           break;
         }
