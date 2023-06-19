@@ -59,8 +59,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
       // .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
       //     NullPropagation.ruleName)
 
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (BackendsApiManager.chBackend) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")

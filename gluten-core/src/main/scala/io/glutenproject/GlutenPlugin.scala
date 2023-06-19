@@ -77,7 +77,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   }
 
   private def showGlutenBuildInfo(): Unit = {
-    val veloxInfo = if (veloxEnabled) {
+    val veloxInfo = if (BackendsApiManager.veloxBackend) {
       s"""
         |Velox branch: $VELOX_BRANCH
         |Velox revision: $VELOX_REVISION
@@ -98,7 +98,8 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
         |Build branch: $BRANCH
         |Build revision: $REVISION
         |Build revision time: $REVISION_TIME
-        |Build date: ${BUILD_DATE}${veloxInfo}
+        |Build date: $BUILD_DATE
+        |Repo url: $REPO_URL $veloxInfo
         |======================================
         """.stripMargin
     logInfo(buildInfo)

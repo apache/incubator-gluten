@@ -17,6 +17,8 @@
 
 package io.glutenproject.backendsapi
 
+import io.glutenproject.GlutenConfig
+
 import java.util.ServiceLoader
 
 import scala.collection.JavaConverters
@@ -70,6 +72,9 @@ object BackendsApiManager {
   def getBackendName: String = {
     manager.glutenBackendName
   }
+
+  def veloxBackend: Boolean = getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
+  def chBackend: Boolean = getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
 
   def getContextApiInstance: ContextApi = {
     manager.contextApi

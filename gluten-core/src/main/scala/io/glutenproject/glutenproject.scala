@@ -66,7 +66,6 @@ package object glutenproject {
   val REVISION_TIME: String = BuildInfo.revisionTime
   val BUILD_DATE: String = BuildInfo.buildDate
   val REPO_URL: String = BuildInfo.repoUrl
-  val veloxEnabled: Boolean = BuildInfo.veloxBranch != BuildInfo.unknown
   val VELOX_BRANCH: String = BuildInfo.veloxBranch
   val VELOX_REVISION: String = BuildInfo.veloxRevision
   val VELOX_REVISION_TIME: String = BuildInfo.veloxRevisionTime

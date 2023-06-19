@@ -71,8 +71,7 @@ class DateDiffTransformer(substraitExprName: String, endDate: ExpressionTransfor
       original.endDate.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
-    val expressionNodes = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    val expressionNodes = if (BackendsApiManager.veloxBackend) {
       // In CH backend, datediff params are ('day', startDate, endDate).
       Lists.newArrayList(
         ExpressionBuilder.makeStringLiteral("day"), startDateNode, endDateNode)
