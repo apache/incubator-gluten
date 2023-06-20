@@ -317,4 +317,31 @@ class GlutenClickHouseHiveTableSuite()
       }
     )
   }
+
+  test("GLUTEN-: Bug fix not allow single/double quotes") {
+    val quote_table_name = "test_2077"
+    val drop_table_sql = "drop table if exists %s".format(quote_table_name)
+    val create_table_sql =
+      "create table if not exists %s (".format(quote_table_name) +
+        "id bigint," +
+        "name string," +
+        "sex string) stored as textfile"
+    spark.sql(drop_table_sql)
+    spark.sql(create_table_sql);
+    val insert_sql =
+      s"""
+         | insert into $quote_table_name values(1, "\"a\"", "\'b\'")
+         |""".stripMargin
+    spark.sql(insert_sql)
+
+    val sql = "select * from " + quote_table_name
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan =
+          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
+  }
 }
