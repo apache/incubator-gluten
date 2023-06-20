@@ -178,7 +178,7 @@ static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
       "root",
       velox::memory::MemoryPool::Kind::kAggregate,
       getDefaultVeloxMemoryManager(),
-      nullptr,
+      facebook::velox::memory::MemoryReclaimer::create(),
       nullptr,
       options);
   defaultPoolRoot->setHighUsageCallback(
@@ -193,7 +193,8 @@ std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
 
 std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
   static std::atomic_uint32_t id = 0;
-  auto pool = rootVeloxMemoryPool()->addAggregateChild("wrapped_root" + std::to_string(id++));
+  auto pool = rootVeloxMemoryPool()->addAggregateChild(
+      "wrapped_root" + std::to_string(id++), facebook::velox::memory::MemoryReclaimer::create());
   auto wrapped = std::dynamic_pointer_cast<VeloxMemoryPool>(pool);
   VELOX_CHECK_NOT_NULL(wrapped);
   velox::memory::MemoryAllocator* veloxAlloc = wrapped->getAllocator();
