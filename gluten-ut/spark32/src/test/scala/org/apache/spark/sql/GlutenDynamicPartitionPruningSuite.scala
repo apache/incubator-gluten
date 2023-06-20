@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer}
+import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, VeloxFilterExecTransformer}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -354,11 +354,6 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
   override def checkUnpushedFilters(df: DataFrame): Boolean = {
     find(df.queryExecution.executedPlan) {
       case FilterExec(condition, _) =>
-        splitConjunctivePredicates(condition).exists {
-          case _: DynamicPruningExpression => true
-          case _ => false
-        }
-      case FilterExecTransformer(condition, _) =>
         splitConjunctivePredicates(condition).exists {
           case _: DynamicPruningExpression => true
           case _ => false
