@@ -169,7 +169,7 @@ std::shared_ptr<DB::ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
             else if (startsWith(function_signature, "posexplode:"))
                 actions_dag = parseArrayJoin(header, expr, result_names, useless, actions_dag, true, true);
             else if (startsWith(function_signature, "json_tuple:"))
-                actions_dag = parseJsonTuple(header, expr, result_names, useless, actions_dag, true, false);
+                actions_dag = parseJsonTuple(header, expr, result_names, actions_dag, true, false);
             else
             {
                 result_names.resize(1);
@@ -1633,7 +1633,6 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
     const Block & input,
     const substrait::Expression & rel,
     std::vector<String> & result_names,
-    std::vector<String> & required_columns,
     ActionsDAGPtr actions_dag,
     bool keep_result,
     bool position)
@@ -1646,17 +1645,9 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
     {
         return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     };
-    if (!rel.has_scalar_function())
-    {
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "The root of expression should be a scalar function:\n {}", rel.DebugString());
-    }
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
     auto function_name = getFunctionName(function_signature, scalar_function);
-    if (function_name != "json_tuple")
-    {
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "The expression is not json_tuple, can not be parsed.");
-    }
     auto args = scalar_function.arguments();
     if (args.size() < 2)
     {
