@@ -177,7 +177,7 @@ static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
       "root",
       velox::memory::MemoryPool::Kind::kAggregate,
       getDefaultVeloxMemoryManager(),
-      nullptr,
+      facebook::velox::memory::MemoryReclaimer::create(),
       nullptr,
       options);
   defaultPoolRoot->setHighUsageCallback(
