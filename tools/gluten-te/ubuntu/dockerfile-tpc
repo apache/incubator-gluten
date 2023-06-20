@@ -14,7 +14,7 @@ RUN GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2" \
 
 RUN GLUTEN_IT_MAVEN_OPTIONS=$(cat ~/.gluten-it-mvn-options) \
     && cd /opt/gluten/tools/gluten-it \
-    && bash -c "mvn clean package $GLUTEN_IT_MAVEN_OPTIONS"
+    && bash -c "mvn clean install $GLUTEN_IT_MAVEN_OPTIONS"
 
 FROM gluten-tpc AS gluten-tpc-gdb
 

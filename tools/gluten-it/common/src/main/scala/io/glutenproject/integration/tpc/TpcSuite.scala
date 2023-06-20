@@ -12,6 +12,7 @@ import org.apache.spark.sql.SparkSessionSwitcher
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 
 abstract class TpcSuite(
+  private val masterUrl: String,
   private val actions: Array[Action],
   private val testConf: SparkConf,
   private val baselineConf: SparkConf,
@@ -21,7 +22,6 @@ abstract class TpcSuite(
   private val enableUi: Boolean,
   private val enableHsUi: Boolean,
   private val hsUiPort: Int,
-  private val cpus: Int,
   private val offHeapSize: String,
   private val disableAqe: Boolean,
   private val disableBhj: Boolean,
@@ -29,10 +29,9 @@ abstract class TpcSuite(
   private val shufflePartitions: Int,
   private val minimumScanPartitions: Boolean) {
 
-  System.setProperty("spark.testing", "true")
   resetLogLevel()
 
-  private[tpc] val sessionSwitcher: SparkSessionSwitcher = new SparkSessionSwitcher(cpus, logLevel.toString)
+  private[tpc] val sessionSwitcher: SparkSessionSwitcher = new SparkSessionSwitcher(masterUrl, logLevel.toString)
 
   // define initial configs
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.sources.useV1SourceList", "")
@@ -88,7 +87,6 @@ abstract class TpcSuite(
 
   def startHistoryServer(): Unit = {
     val conf = new SparkConf(false)
-    conf.remove("spark.testing")
     conf.setWarningOnOverriding("spark.history.ui.port", s"$hsUiPort")
     conf.setWarningOnOverriding("spark.history.fs.logDirectory", historyWritePath())
     HistoryServerHelper.startHistoryServer(conf)
