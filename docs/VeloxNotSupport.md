@@ -87,7 +87,7 @@ Exception occurs when Velox TableScan is used to read files with unsupported com
 ### Parquet Write.
 
 * Supported configurations: Currently, parquet write only support spark.sql.parquet.compression.codec and parquet.block.size two configurations. Other configurations will not take effect. 
-* Notes: We implemented the insert into command by overriding HiveFileFormat in Vanilla spark. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. It should be noted that if the user also modifies the HiveFileFormat, the user's changes may be overwritten.
+* Notes: We implemented the insert into command by overriding HiveFileFormat in Vanilla spark. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/developers/NewToGluten.md). It should be noted that if the user also modifies the HiveFileFormat, the user's changes may be overwritten.
 
 ### Spill
 
