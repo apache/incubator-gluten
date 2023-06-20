@@ -258,9 +258,7 @@ case class Md5Transformer(substraitExprName: String, child: ExpressionTransforme
   with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (
-      BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-    ) {
+    if (BackendsApiManager.chBackend) {
       // In Spark: md5(str)
       // In CH: lower(hex(md5(str)))
       // So we need to wrap md5(str) with lower and hex in substrait plan for clickhouse backend.

@@ -25,6 +25,7 @@ import io.glutenproject.test.TestStats
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
+import org.apache.spark.internal.Logging
 import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
@@ -47,9 +48,11 @@ class GlutenPlugin extends SparkPlugin {
   }
 }
 
-private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
+private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
+    showGlutenBuildInfo()
+
     val conf = pluginContext.conf()
     if (conf.getBoolean(GlutenConfig.UT_STATISTIC.key, defaultValue = false)) {
       // Only statistic in UT, not thread safe
@@ -71,6 +74,35 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
 
   override def shutdown(): Unit = {
     BackendsApiManager.getContextApiInstance.shutdown()
+  }
+
+  private def showGlutenBuildInfo(): Unit = {
+    val veloxInfo = if (BackendsApiManager.veloxBackend) {
+      s"""
+        |Velox branch: $VELOX_BRANCH
+        |Velox revision: $VELOX_REVISION
+        |Velox revision time: $VELOX_REVISION_TIME""".stripMargin
+    } else {
+      ""
+    }
+    val buildInfo =
+      s"""
+        |======================================
+        |Gluten build info:
+        |Gluten version: $VERSION
+        |GCC version: $GCC_VERSION
+        |Java version: $JAVA_COMPILE_VERSION
+        |Scala version: $SCALA_COMPILE_VERSION
+        |Spark version: $SPARK_COMPILE_VERSION
+        |Hadoop version: $HADOOP_COMPILE_VERSION
+        |Build branch: $BRANCH
+        |Build revision: $REVISION
+        |Build revision time: $REVISION_TIME
+        |Build date: $BUILD_DATE
+        |Repo url: $REPO_URL $veloxInfo
+        |======================================
+        """.stripMargin
+    logInfo(buildInfo)
   }
 
   def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {

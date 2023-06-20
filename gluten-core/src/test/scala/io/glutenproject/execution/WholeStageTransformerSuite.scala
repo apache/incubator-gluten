@@ -286,8 +286,7 @@ object WholeStageTransformerSuite extends Logging {
     df: DataFrame,
     noFallBack: Boolean = true,
     skipAssert: Boolean = false): Unit = {
-    if (BackendsApiManager.getBackendName
-      .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (BackendsApiManager.chBackend) {
       // When noFallBack is true, it means there is no fallback plan,
       // otherwise there must be some fallback plans.
       val isFallBack = FallbackUtil.isFallback(df.queryExecution.executedPlan)

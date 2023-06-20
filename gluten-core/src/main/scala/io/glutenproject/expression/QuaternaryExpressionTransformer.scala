@@ -35,7 +35,7 @@ class RegExpReplaceTransformer(substraitExprName: String, subject: ExpressionTra
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
+    if (BackendsApiManager.veloxBackend) {
       QuaternaryExpressionTransformer(substraitExprName, subject, regexp, rep, pos, original)
         .doTransform(args)
     }
