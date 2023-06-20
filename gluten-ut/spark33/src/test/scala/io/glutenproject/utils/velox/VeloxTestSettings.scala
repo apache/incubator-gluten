@@ -637,6 +637,11 @@ class VeloxTestSettings extends BackendTestSettings {
     // Struct reader does not support implicit schema pruning.
     .exclude("vectorized reader: missing some struct fields")
     .exclude("vectorized reader: missing all struct fields")
+    // TODO: Unsupported Array schema in Parquet.
+    .exclude("vectorized reader: optional array with required elements")
+    .exclude("vectorized reader: required array with required elements")
+    .exclude("vectorized reader: required array with optional elements")
+    .exclude("vectorized reader: required array with legacy format")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
