@@ -316,23 +316,20 @@ class GlutenClickHouseHiveTableSuite()
         assert(jsonFileScan.size == 1)
       }
     )
+
   }
 
   test("GLUTEN-: Bug fix not allow single/double quotes") {
     val quote_table_name = "test_2077"
+    val data_path = getClass.getResource("/").getPath + "/text-data/quote"
     val drop_table_sql = "drop table if exists %s".format(quote_table_name)
     val create_table_sql =
       "create table if not exists %s (".format(quote_table_name) +
-        "id bigint," +
-        "name string," +
-        "sex string) stored as textfile"
+        "a string," +
+        "b string, c string) row format delimited fields terminated by ',' stored as textfile LOCATION \"%s\""
+          .format(data_path)
     spark.sql(drop_table_sql)
     spark.sql(create_table_sql);
-    val insert_sql =
-      s"""
-         | insert into $quote_table_name values(1, "\"a\"", "\'b\'")
-         |""".stripMargin
-    spark.sql(insert_sql)
 
     val sql = "select * from " + quote_table_name
     compareResultsAgainstVanillaSpark(
@@ -344,4 +341,5 @@ class GlutenClickHouseHiveTableSuite()
         assert(txtFileScan.size == 1)
       })
   }
+
 }
