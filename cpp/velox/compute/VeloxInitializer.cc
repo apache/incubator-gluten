@@ -38,6 +38,7 @@
 #include "velox/exec/Operator.h"
 
 DECLARE_int32(split_preload_per_driver);
+DECLARE_bool(SkipRowSortInWindowOp);
 
 using namespace facebook;
 
@@ -93,6 +94,9 @@ void VeloxInitializer::printConf(const std::unordered_map<std::string, std::stri
 }
 
 void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& conf) {
+  // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
+  // There is no need to sort the rows in window op again.
+  FLAGS_SkipRowSortInWindowOp = true;
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
