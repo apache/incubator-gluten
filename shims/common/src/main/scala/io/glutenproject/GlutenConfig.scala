@@ -253,7 +253,8 @@ object GlutenConfig {
   val S3_USE_INSTANCE_CREDENTIALS = "fs.s3a.use.instance.credentials"
   val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = HADOOP_PREFIX + S3_USE_INSTANCE_CREDENTIALS
 
-  val GLUTEN_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("LZ4", "ZSTD")
+  val GLUTEN_SHUFFLE_SUPPORTED_CODEC: Set[String] =
+    Set("LZ4", "ZSTD", "SNAPPY") // "SNAPPY" is only valid for CH backend.
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
   // QAT config
