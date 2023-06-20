@@ -264,10 +264,6 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
 
     auto* pool = options.memory_pool.get();
     GLUTEN_ASSIGN_OR_THROW(shuffleWriter, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator, options));
-    auto ipcMemoryPool = std::make_shared<MMapMemoryPool>();
-    ipcMemoryPool->SetSpillFunc(
-        [shuffleWriter](int64_t size, int64_t* actual) { return shuffleWriter->evictFixedSize(size, actual); });
-    options.ipc_write_options.memory_pool = ipcMemoryPool.get();
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 
