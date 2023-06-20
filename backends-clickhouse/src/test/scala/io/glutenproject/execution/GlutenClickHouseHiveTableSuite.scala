@@ -319,14 +319,16 @@ class GlutenClickHouseHiveTableSuite()
 
   }
 
-  test("GLUTEN-: Bug fix not allow single/double quotes") {
-    val quote_table_name = "test_2077"
+  test("GLUTEN-2019: Bug fix not allow single/double quotes") {
+    val quote_table_name = "test_2019"
     val data_path = getClass.getResource("/").getPath + "/text-data/quote"
     val drop_table_sql = "drop table if exists %s".format(quote_table_name)
     val create_table_sql =
       "create table if not exists %s (".format(quote_table_name) +
         "a string," +
-        "b string, c string) row format delimited fields terminated by ',' stored as textfile LOCATION \"%s\""
+        "b string, " +
+        "c string)" +
+        " row format delimited fields terminated by ',' stored as textfile LOCATION \"%s\""
           .format(data_path)
     spark.sql(drop_table_sql)
     spark.sql(create_table_sql);
