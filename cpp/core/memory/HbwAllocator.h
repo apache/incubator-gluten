@@ -41,10 +41,6 @@ class HbwMemoryAllocator final : public MemoryAllocator {
 
   bool unreserveBytes(int64_t size) override;
 
-  std::string toString() const override {
-    return "HbwMemoryAllocator";
-  }
-
   int64_t getBytes() const override;
 
  private:
