@@ -22,6 +22,7 @@ import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
+import org.apache.spark.shuffle.GlutenShuffleUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -63,7 +64,7 @@ private class CHColumnarBatchSerializerInstance(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT.toBoolean
   )
   private lazy val compressionCodec =
-    GlutenConfig.getConf.columnarShuffleCodec
+    GlutenShuffleUtils.getCompressionCodec(SparkEnv.get.conf)
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
