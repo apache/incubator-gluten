@@ -68,6 +68,9 @@ install_centos_7() {
         make install -j
         cd
         rm -rf /tmp/automake
+
+        # Fix aclocal search path
+        echo /usr/share/aclocal > /usr/local/share/aclocal/dirlist
     fi
 
     install_centos_any_maven
