@@ -146,7 +146,6 @@ class CHHiveTableScanExecTransformer(
         outputFieldTypes.append(StructField(x.name, x.dataType))
       })
 
-    // scalastyle:on println
     tableMeta.storage.inputFormat match {
       case Some("org.apache.hadoop.mapred.TextInputFormat") =>
         tableMeta.storage.serde match {
@@ -257,7 +256,7 @@ object CHHiveTableScanExecTransformer {
       hiveTableScan.requestedAttributes,
       hiveTableScan.relation,
       hiveTableScan.partitionPruningPred)(hiveTableScan.session)
-    if (hiveTableScanTransformer.scan == null) {
+    if (hiveTableScanTransformer.scan.isEmpty) {
       Option.empty
     } else {
       Option.apply(hiveTableScanTransformer)

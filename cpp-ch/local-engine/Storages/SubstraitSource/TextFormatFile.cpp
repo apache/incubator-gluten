@@ -20,7 +20,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
 
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();
-    DB::RowInputFormatParams params = {max_block_size};
+    DB::RowInputFormatParams params = {.max_block_size = max_block_size};
 
     /// Initialize format settings
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
