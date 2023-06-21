@@ -141,7 +141,7 @@ bool StdMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t 
   if (newSize <= 0) {
     return false;
   }
-  void* reallocatedP = std::malloc(newSize);
+  void* reallocatedP = std::aligned_alloc(alignment, newSize);
   if (!reallocatedP) {
     return false;
   }
