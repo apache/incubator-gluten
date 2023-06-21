@@ -8,7 +8,7 @@ MAVEN_M2_DIR=$(HOME)/.m2
 $(info $(GLUTEN_REPO))
 
 .PHONY: docker-image build
-build: docker-image
+build: docker-image | $(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR)
 	docker run --rm -ti \
 		-v $(GLUTEN_REPO):$(GLUTEN_REPO) \
 		-v $(VCPKG_BINARY_CACHE_DIR):/home/build/.cache/vcpkg \
@@ -26,3 +26,6 @@ docker-image:
 		--build-arg BUILDER_GID=`id -g` \
 		--tag "$(DOCKER_IMAGE)" \
 		.
+
+$(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR): %:
+	mkdir -p $@
