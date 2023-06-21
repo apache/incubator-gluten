@@ -77,13 +77,15 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   }
 
   private def showGlutenBuildInfo(): Unit = {
-    val veloxInfo = if (BackendsApiManager.veloxBackend) {
-      s"""
-        |Velox branch: $VELOX_BRANCH
-        |Velox revision: $VELOX_REVISION
-        |Velox revision time: $VELOX_REVISION_TIME""".stripMargin
-    } else {
-      ""
+    val backendInfo = BackendsApiManager.getBackendName.toLowerCase() match {
+      case "velox" => s"""
+                         |Velox branch: $VELOX_BRANCH
+                         |Velox revision: $VELOX_REVISION
+                         |Velox revision time: $VELOX_REVISION_TIME""".stripMargin
+      case "ch" => s"""
+                      |CH branch: $CH_BRANCH
+                      |CH commit: $CH_COMMIT""".stripMargin
+      case _ => ""
     }
     val buildInfo =
       s"""
@@ -99,7 +101,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
         |Build revision: $REVISION
         |Build revision time: $REVISION_TIME
         |Build date: $BUILD_DATE
-        |Repo url: $REPO_URL $veloxInfo
+        |Repo url: $REPO_URL $backendInfo
         |======================================
         """.stripMargin
     logInfo(buildInfo)
