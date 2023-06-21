@@ -59,16 +59,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
-  private val customizedCompressionCodec = {
-    val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-    if (GlutenConfig.getConf.columnarShuffleEnableQat) {
-      GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
-    } else if (GlutenConfig.getConf.columnarShuffleEnableIaa) {
-      GlutenConfig.GLUTEN_IAA_CODEC_PREFIX + codec
-    } else {
-      codec
-    }
-  }
+  private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
 
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
@@ -125,7 +116,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
             dep.nativePartitioning,
             availableOffHeapPerTask(),
             nativeBufferSize,
-            customizedCompressionCodec,
+            compressionCodec,
             batchCompressThreshold,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
