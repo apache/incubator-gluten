@@ -279,5 +279,3 @@ Most of them are same as the common linux packages layout, except:
 > Binary caching saves copies of library binaries in a shared location that can be accessed by vcpkg for future installs. This means that, as a user, you should only need to build dependencies from source once. If vcpkg is asked to install the same library with the same build configuration in the future, it will copy the built binaries from the cache and finish the operation in seconds.
 
 Binary cache is enabled by default. Cache files is located in `~/.cache/vcpkg/archives`. See [binary cache](https://learn.microsoft.com/en-us/vcpkg/users/binarycaching).
-
-
