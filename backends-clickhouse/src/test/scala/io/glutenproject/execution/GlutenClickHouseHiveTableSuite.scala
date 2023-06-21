@@ -319,23 +319,70 @@ class GlutenClickHouseHiveTableSuite()
 
   }
 
-  test("GLUTEN-2019: Bug fix not allow single/double quotes") {
-    val quote_table_name = "test_2019"
-    val data_path = getClass.getResource("/").getPath + "/text-data/quote"
-    val drop_table_sql = "drop table if exists %s".format(quote_table_name)
-    val create_table_sql =
-      "create table if not exists %s (".format(quote_table_name) +
+  test("GLUTEN-2019: Bug fix not allow quotes") {
+    val default_quote_table_name = "test_2019_default"
+    val allow_double_quote_table_name = "test_2019_allow_double"
+    val allow_single_quote_table_name = "test_2019_allow_single"
+    val default_data_path = getClass.getResource("/").getPath + "/text-data/default"
+    val allow_double_data_path = getClass.getResource("/").getPath + "/text-data/double-quote"
+    val allow_single_data_path = getClass.getResource("/").getPath + "/text-data/single-quote"
+    val drop_default_table_sql = "drop table if exists %s".format(default_quote_table_name)
+    val drop_double_quote_table_sql =
+      "drop table if exists %s".format(allow_double_quote_table_name)
+    val drop_single_quote_table_sql =
+      "drop table if exists %s".format(allow_single_quote_table_name)
+    val create_default_table_sql =
+      "create table if not exists %s (".format(default_quote_table_name) +
         "a string," +
         "b string, " +
         "c string)" +
         " row format delimited fields terminated by ',' stored as textfile LOCATION \"%s\""
-          .format(data_path)
-    spark.sql(drop_table_sql)
-    spark.sql(create_table_sql);
+          .format(default_data_path)
+    val create_double_quote_table_sql =
+      "create table if not exists %s (".format(allow_double_quote_table_name) +
+        "a string," +
+        "b string, " +
+        "c string)" +
+        "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'" +
+        " WITH SERDEPROPERTIES ('separatorChar' = ',', 'quoteChar' = '\"')" +
+        " stored as textfile LOCATION \"%s\"".format(allow_double_data_path)
+    val create_single_quote_table_sql =
+      "create table if not exists %s (".format(allow_single_quote_table_name) +
+        "a string," +
+        "b string, " +
+        "c string)" +
+        "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'" +
+        " WITH SERDEPROPERTIES (\"separatorChar\" = \",\", \"quoteChar\" = \"\'\")" +
+        " stored as textfile LOCATION \"%s\"".format(allow_single_data_path)
 
-    val sql = "select * from " + quote_table_name
+    spark.sql(drop_default_table_sql)
+    spark.sql(drop_double_quote_table_sql)
+    spark.sql(drop_single_quote_table_sql)
+    spark.sql(create_default_table_sql)
+    spark.sql(create_double_quote_table_sql)
+    spark.sql(create_single_quote_table_sql)
+
+    val sql1 = "select * from " + default_quote_table_name
+    val sql2 = "select * from " + allow_double_quote_table_name
+    val sql3 = "select * from " + allow_single_quote_table_name
     compareResultsAgainstVanillaSpark(
-      sql,
+      sql1,
+      true,
+      df => {
+        val txtFileScan =
+          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
+    compareResultsAgainstVanillaSpark(
+      sql2,
+      true,
+      df => {
+        val txtFileScan =
+          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
+    compareResultsAgainstVanillaSpark(
+      sql3,
       true,
       df => {
         val txtFileScan =
