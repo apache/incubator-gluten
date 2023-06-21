@@ -18,15 +18,15 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
+import io.glutenproject.execution.datasource.GlutenOutputWriterFactoryCreator
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 import io.glutenproject.expression.UDFMappings
-
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.datasources.VeloxOutputWriterFactoryCreator
 
 import java.util.Locale
-
 import scala.sys.process._
 
 class ContextInitializer extends ContextApi {
@@ -82,6 +82,8 @@ class ContextInitializer extends ContextApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
+
+    GlutenOutputWriterFactoryCreator.setInstance(new VeloxOutputWriterFactoryCreator())
   }
 
   override def shutdown(): Unit = {

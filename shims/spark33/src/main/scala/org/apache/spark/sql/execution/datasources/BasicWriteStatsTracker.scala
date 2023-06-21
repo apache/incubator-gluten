@@ -33,6 +33,11 @@ import java.nio.charset.StandardCharsets
 import scala.collection.mutable
 
 /**
+ * This class is copied from Spark 3.3.1 and modified for Gluten. Gluten should make sure this class
+ * is loaded before the original class.
+ */
+
+/**
  * Simple metrics collected during an instance of [[FileFormatDataWriter]]. These were first
  * introduced in https://github.com/apache/spark/pull/18159 (SPARK-20703).
  */
@@ -170,7 +175,7 @@ class BasicWriteTaskStatsTracker(
     }
 
     if (numSubmittedFiles != numFiles) {
-      logInfo(
+      logWarning(
         s"Expected $numSubmittedFiles files, but only saw $numFiles. " +
           "This could be due to the output format not writing empty files, " +
           "or files being not immediately visible in the filesystem.")
@@ -201,7 +206,7 @@ class BasicWriteJobStatsTracker(
 
   override def processStats(stats: Seq[WriteTaskStats], jobCommitTime: Long): Unit = {
     val sparkContext = SparkContext.getActive.get
-    var partitionsSet: mutable.Set[InternalRow] = mutable.HashSet.empty
+    val partitionsSet: mutable.Set[InternalRow] = mutable.HashSet.empty
     var numFiles: Long = 0L
     var totalNumBytes: Long = 0L
     var totalNumOutput: Long = 0L

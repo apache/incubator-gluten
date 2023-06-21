@@ -17,23 +17,22 @@
 
 package org.apache.spark.sql.execution.datasources
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.utils.LogicalPlanSelector
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.{DataWritingCommand, DataWritingCommandExec}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.InsertIntoHiveDirCommand
-import org.apache.spark.sql.types.{DataType, Decimal}
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy {
   override def apply(plan: LogicalPlan): Seq[SparkPlan] =
@@ -41,7 +40,7 @@ case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy {
       plan match {
         case FakeRowLogicAdaptor(child: LogicalPlan) =>
           Seq(FakeRowAdaptor(planLater(child)))
-        case other =>
+        case _ =>
           Nil
       }
     }
@@ -87,20 +86,25 @@ object GlutenColumnarRules {
 
   // TODO: support Insert clause
 
-  def isGlutenInsertInto(cmd: DataWritingCommand): Boolean = {
-    cmd match {
-      case command: InsertIntoHadoopFsRelationCommand =>
-        command.fileFormat.isInstanceOf[GlutenParquetFileFormat]
-      case command: InsertIntoHiveDirCommand =>
-        command.storage.outputFormat.get.equals(
-          "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
-      case _ => false
+  private def isSupported(cmd: DataWritingCommand): Boolean = {
+    if (!GlutenConfig.getConf.enableNativeParquetWriter) {
+      false
+    } else {
+      cmd match {
+        case command: InsertIntoHadoopFsRelationCommand =>
+          command.fileFormat.isInstanceOf[GlutenParquetFileFormat] || command.fileFormat
+            .isInstanceOf[ParquetFileFormat]
+        case command: InsertIntoHiveDirCommand =>
+          command.storage.outputFormat.get
+            .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
+        case _ => false
+      }
     }
   }
 
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
-    override def apply(p: SparkPlan): SparkPlan = p match {
-      case rc @ DataWritingCommandExec(cmd, child) if isGlutenInsertInto(cmd) =>
+    override def apply(p: SparkPlan): SparkPlan = p.transformDown {
+      case rc @ DataWritingCommandExec(cmd, child) if isSupported(cmd) =>
         child match {
           // if the child is columnar, we can just wrap&transfer the columnar data
           case c2r: ColumnarToRowExecBase =>
@@ -122,7 +126,6 @@ object GlutenColumnarRules {
                   ))))
           case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
         }
-      case plan: SparkPlan => plan.withNewChildren(plan.children.map(apply))
     }
   }
 }

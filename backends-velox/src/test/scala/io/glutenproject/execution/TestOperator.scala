@@ -93,13 +93,15 @@ class TestOperator extends WholeStageTransformerSuite {
   }
   
   test("velox parquet write") {
-    withTempDir { dir =>
-      val path = dir.toURI.getPath
-      val df = runQueryAndCompare(
-        "select * from lineitem where l_comment is not null " +
-          "and l_orderkey = 1") { _ => }
+    withSQLConf("spark.gluten.sql.native.parquet.writer.enabled" -> "true") {
+      withTempDir { dir =>
+        val path = dir.toURI.getPath
+        val df = runQueryAndCompare(
+          "select * from lineitem where l_comment is not null " +
+            "and l_orderkey = 1") { _ => }
 
-      df.write.mode("append").format("velox").save(path)
+        df.write.mode("append").format("velox").save(path)
+      }
     }
   }
 

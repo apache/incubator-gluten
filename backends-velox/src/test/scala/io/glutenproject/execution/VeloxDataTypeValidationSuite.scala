@@ -523,14 +523,16 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Velox Parquet Write") {
-    withTempDir { dir =>
-      val write_path = dir.toURI.getPath
-      val data_path = getClass.getResource("/").getPath + "/data-type-validation-data/type1"
-      val df = spark.read.format("parquet").load(data_path)
+    withSQLConf("spark.gluten.sql.native.parquet.writer.enabled" -> "true") {
+      withTempDir { dir =>
+        val write_path = dir.toURI.getPath
+        val data_path = getClass.getResource("/").getPath + "/data-type-validation-data/type1"
+        val df = spark.read.format("parquet").load(data_path)
 
-      // Timestamp and map type is not supported.
-      df.drop("timestamp").drop("map").
-        write.mode("append").format("velox").save(write_path)
+        // Timestamp and map type is not supported.
+        df.drop("timestamp").drop("map").
+          write.mode("append").format("velox").save(write_path)
+      }
     }
   }
 }

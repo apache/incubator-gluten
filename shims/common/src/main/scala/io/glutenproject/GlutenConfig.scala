@@ -43,6 +43,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
 
+  def enableNativeParquetWriter: Boolean = conf.getConf(NATIVE_PARQUET_WRITER_ENABLED)
+
   def enableColumnarBatchScan: Boolean = conf.getConf(COLUMNAR_BATCHSCAN_ENABLED)
 
   def enableColumnarFileScan: Boolean = conf.getConf(COLUMNAR_FILESCAN_ENABLED)
@@ -458,6 +460,13 @@ object GlutenConfig {
           "this config should be removed.")
       .booleanConf
       .createWithDefault(true)
+
+  val NATIVE_PARQUET_WRITER_ENABLED =
+    buildConf("spark.gluten.sql.native.parquet.writer.enabled")
+      .internal()
+      .doc("Enable native parquet writer.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_BATCHSCAN_ENABLED =
     buildConf("spark.gluten.sql.columnar.batchscan")

@@ -208,6 +208,7 @@
                     <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$CovarianceCounter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.parquet.*</ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>

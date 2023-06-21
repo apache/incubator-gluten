@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import org.apache.spark.SparkConf
+
 class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -25,6 +27,11 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.gluten.sql.native.parquet.writer.enabled", "true")
   }
 
   test("test write parquet with compression codec") {
