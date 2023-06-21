@@ -268,7 +268,7 @@ packages/thrift_x64-linux-avx/
         └── thrift
 ```
 
-Most of them are same as the linux packages, except:
+Most of them are same as the common linux packages layout, except:
 
 * `debug/lib`: debug-build libraries
 * `share/$package`: cmake module (aka `/usr/lib/cmake/$package`), copyright, usage info, vcpkg abi (hash of build scripts).
