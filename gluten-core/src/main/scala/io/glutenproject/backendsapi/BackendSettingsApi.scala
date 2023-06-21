@@ -32,6 +32,7 @@ trait BackendSettingsApi {
                             paths: Seq[String]): Boolean = false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
+  def supportSortMergeJoinExec(): Boolean = true
   def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     false
   }
