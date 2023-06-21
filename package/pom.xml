@@ -31,6 +31,28 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
+
+    <!-- Do not remove the following. They are for enforcer plugin -->
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <artifactId>gluten-package</artifactId>
@@ -127,6 +149,78 @@
             </fileset>
           </filesets>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.3.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>extra-enforcer-rules</artifactId>
+            <version>1.7.0</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>enforce-versions</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>3.6.3</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+          <execution>
+            <id>enforce-ban-duplicate-classes</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <banDuplicateClasses>
+                  <ignoreClasses>
+                    <!-- The UnusedStubClass from Spark -->
+                    <ignoreClass>org.apache.spark.unused.UnusedStubClass</ignoreClass>
+                    <!-- jdo -->
+                    <ignoreClass>javax.jdo.*</ignoreClass>
+                    <!-- log4j -->
+                    <ignoreClass>org.apache.commons.logging.*</ignoreClass>
+                    <!-- hive -->
+                    <ignoreClass>org.apache.hadoop.hive.*</ignoreClass>
+                    <!-- celeborn -->
+                    <ignoreClass>org.apache.spark.sql.execution.columnar.ByteBufferHelper</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.columnar.ByteBufferHelper$</ignoreClass>
+                    <!-- The overridden class list by Gluten. Carefully add entries to this list only when you knew exactly what is going to happen -->
+                    <ignoreClass>org.apache.spark.rdd.EmptyRDD</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat$$$$anon$1</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.hive.execution.HiveOutputWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStats</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStats$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStatsTracker</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStatsTracker$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$CovarianceCounter</ignoreClass>
+                  </ignoreClasses>
+                  <scopes>
+                    <scope>compile</scope>
+                    <scope>provided</scope>
+                  </scopes>
+                  <findAllDuplicates>true</findAllDuplicates>
+                  <ignoreWhenIdentical>true</ignoreWhenIdentical>
+                </banDuplicateClasses>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
