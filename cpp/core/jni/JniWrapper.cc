@@ -754,6 +754,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jboolean preferEvict,
     jlong allocatorId,
     jboolean writeSchema,
+    jboolean writeEOS,
     jlong firstBatchHandle,
     jlong taskAttemptId,
     jint pushBufferMaxSize,
@@ -816,6 +817,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     }
 
     shuffleWriterOptions.write_schema = writeSchema;
+    shuffleWriterOptions.write_eos = writeEOS;
     shuffleWriterOptions.prefer_evict = preferEvict;
 
     if (numSubDirs > 0) {

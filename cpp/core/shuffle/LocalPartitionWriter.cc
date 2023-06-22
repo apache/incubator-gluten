@@ -96,7 +96,9 @@ class PreferEvictPartitionWriter::LocalPartitionWriterInstance {
     }
 
     RETURN_NOT_OK(writeRecordBatchPayload(dataFileOs.get()));
-    RETURN_NOT_OK(writeEos(dataFileOs.get()));
+    if (shuffleWriter_->options().write_eos) {
+      RETURN_NOT_OK(writeEos(dataFileOs.get()));
+    }
     clearCache();
 
     ARROW_ASSIGN_OR_RAISE(auto after_write, dataFileOs->Tell());

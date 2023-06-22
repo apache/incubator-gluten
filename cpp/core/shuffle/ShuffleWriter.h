@@ -45,6 +45,7 @@ struct ShuffleWriterOptions {
   bool prefer_evict = true;
   bool write_schema = false;
   bool buffered_write = false;
+  bool write_eos = true;
 
   std::string data_file;
   std::string partition_writer_type = "local";
