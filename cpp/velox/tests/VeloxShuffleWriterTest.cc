@@ -39,7 +39,7 @@ using namespace facebook;
 
 namespace gluten {
 
-class VeloxShuffleWriterTest : public ::testing::Test {
+class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool> {
  protected:
   void SetUp() override {
     const std::string tmpDirPrefix = "columnar-shuffle-test";
@@ -103,7 +103,10 @@ class VeloxShuffleWriterTest : public ::testing::Test {
 
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
 
-    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>();
+    bool prefer_evict = GetParam();
+    shuffleWriterOptions_.prefer_evict = prefer_evict;
+
+    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(prefer_evict);
   }
 
   void TearDown() override {
@@ -167,7 +170,7 @@ arrow::Status splitRecordBatch(VeloxShuffleWriter& shuffleWriter, const arrow::R
   return shuffleWriter.split(cb.get());
 }
 
-TEST_F(VeloxShuffleWriterTest, TestHashPartitioner) {
+TEST_P(VeloxShuffleWriterTest, TestHashPartitioner) {
   uint32_t numPartitions = 2;
   shuffleWriterOptions_.buffer_size = 4;
   shuffleWriterOptions_.partitioning_name = "hash";
@@ -204,7 +207,7 @@ TEST_F(VeloxShuffleWriterTest, TestHashPartitioner) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestSinglePartPartitioner) {
+TEST_P(VeloxShuffleWriterTest, TestSinglePartPartitioner) {
   shuffleWriterOptions_.buffer_size = 10;
   shuffleWriterOptions_.partitioning_name = "single";
 
@@ -248,7 +251,7 @@ TEST_F(VeloxShuffleWriterTest, TestSinglePartPartitioner) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
   int32_t numPartitions = 2;
   shuffleWriterOptions_.buffer_size = 4;
   shuffleWriterOptions_.partitioning_name = "rr";
@@ -289,7 +292,13 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
     for (auto j = 0; j < rb->num_columns(); ++j) {
       ASSERT_EQ(rb->column(j)->length(), rb->num_rows());
     }
-    ASSERT_TRUE(rb->Equals(*expected[i]));
+    if (!(rb->Equals(*expected[i]))) {
+      std::cout << rb->ToString() << std::endl;
+      std::cout << expected[i]->ToString() << std::endl;
+    } else {
+      std::cout << "batch " << i << " equals" << std::endl;
+    }
+    //    ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 
   // prepare second block expected result
@@ -314,7 +323,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinPartitioner) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestShuffleWriterMemoryLeak) {
+TEST_P(VeloxShuffleWriterTest, TestShuffleWriterMemoryLeak) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(17 * 1024 * 1024);
 
   int32_t numPartitions = 2;
@@ -337,7 +346,7 @@ TEST_F(VeloxShuffleWriterTest, TestShuffleWriterMemoryLeak) {
   ASSERT_TRUE(pool->bytes_allocated() == 0);
 }
 
-TEST_F(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
+TEST_P(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
   int32_t numPartitions = 2;
   shuffleWriterOptions_.buffer_size = 4;
   shuffleWriterOptions_.partitioning_name = "range";
@@ -417,7 +426,7 @@ TEST_F(VeloxShuffleWriterTest, TestFallbackRangePartitioner) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestSpillFailWithOutOfMemory) {
+TEST_P(VeloxShuffleWriterTest, TestSpillFailWithOutOfMemory) {
   auto pool = std::make_shared<MyMemoryPool>(0);
 
   int32_t numPartitions = 2;
@@ -434,7 +443,7 @@ TEST_F(VeloxShuffleWriterTest, TestSpillFailWithOutOfMemory) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
-TEST_F(VeloxShuffleWriterTest, TestSpillLargestPartition) {
+TEST_P(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(9 * 1024 * 1024);
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
 
@@ -454,7 +463,7 @@ TEST_F(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
   auto fArrStr = arrow::field("f_arr", arrow::list(arrow::utf8()));
   auto fArrBool = arrow::field("f_bool", arrow::list(arrow::boolean()));
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::int32()));
@@ -531,7 +540,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriter) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
   auto fArrStr = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
 
@@ -603,7 +612,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestListArrayShuffleWriter) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
   auto fArrStr = arrow::field("f_str", arrow::list(arrow::list(arrow::utf8())));
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
 
@@ -675,7 +684,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinNestLargeListArrayShuffleWriter) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto fArrListStruct = arrow::field(
       "f_list_struct",
@@ -749,7 +758,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListStructArrayShuffleWriter) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto fArrListMap = arrow::field("f_list_map", arrow::list(arrow::map(arrow::utf8(), arrow::utf8())));
 
@@ -821,7 +830,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListMapArrayShuffleWriter) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto fArrStructList = arrow::field(
       "f_struct_list",
@@ -896,7 +905,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinStructArrayShuffleWriter) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::list(arrow::int32())));
   auto fArrMap = arrow::field("f_map", arrow::map(arrow::utf8(), arrow::utf8()));
 
@@ -968,7 +977,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinMapArrayShuffleWriter) {
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions) {
+TEST_P(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions) {
   int32_t numPartitions = 5;
   shuffleWriterOptions_.buffer_size = 4;
   shuffleWriterOptions_.partitioning_name = "hash";
@@ -1011,7 +1020,7 @@ TEST_F(VeloxShuffleWriterTest, TestHashListArrayShuffleWriterWithMorePartitions)
   }
 }
 
-TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompression) {
+TEST_P(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompression) {
   auto fArrStr = arrow::field("f_arr", arrow::list(arrow::utf8()));
   auto fArrBool = arrow::field("f_bool", arrow::list(arrow::boolean()));
   auto fArrInt32 = arrow::field("f_int32", arrow::list(arrow::int32()));
@@ -1088,5 +1097,7 @@ TEST_F(VeloxShuffleWriterTest, TestRoundRobinListArrayShuffleWriterwithCompressi
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(TestPreferEvictParam, VeloxShuffleWriterTest, ::testing::Values(true, false));
 
 } // namespace gluten

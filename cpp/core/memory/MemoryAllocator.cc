@@ -17,6 +17,7 @@
 
 #include "MemoryAllocator.h"
 #include "HbwAllocator.h"
+#include "utils/macros.h"
 
 namespace gluten {
 
@@ -140,6 +141,13 @@ bool StdMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void
 bool StdMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) {
   if (newSize <= 0) {
     return false;
+  }
+  if (newSize <= size) {
+    auto aligned = ROUND_TO_LINE(newSize, alignment);
+    if (aligned <= size) {
+      // shrink-to-fit
+      return reallocate(p, size, aligned, out);
+    }
   }
   void* reallocatedP = std::aligned_alloc(alignment, newSize);
   if (!reallocatedP) {

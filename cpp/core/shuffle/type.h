@@ -51,7 +51,7 @@ struct ShuffleWriterOptions {
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
   int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
-  arrow::Compression::type compression_type = arrow::Compression::UNCOMPRESSED;
+  arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
 
   bool prefer_evict = true;
   bool write_schema = true;
@@ -64,6 +64,9 @@ struct ShuffleWriterOptions {
   int64_t task_attempt_id = -1;
 
   std::shared_ptr<arrow::MemoryPool> memory_pool = defaultArrowMemoryPool();
+
+  // For tests.
+  std::shared_ptr<arrow::MemoryPool> ipc_memory_pool;
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 

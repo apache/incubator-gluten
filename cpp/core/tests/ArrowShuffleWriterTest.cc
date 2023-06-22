@@ -150,7 +150,7 @@ class ArrowShuffleWriterTest : public ::testing::Test {
     makeInputBatch(hashInputData1_, hashSchema_, &hashInputBatch1_);
     makeInputBatch(hashInputData2_, hashSchema_, &hashInputBatch2_);
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
-    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>();
+    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(shuffleWriterOptions_.prefer_evict);
   }
 
   void TearDown() override {
