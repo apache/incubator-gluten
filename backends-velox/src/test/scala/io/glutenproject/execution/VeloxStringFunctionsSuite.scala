@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.{Alias, Literal}
@@ -295,9 +297,12 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, like($NULL_STR_COL, '%a%') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, l_comment " +
-      s"from $LINEITEM_TABLE where l_comment like '%a%' limit $LENGTH") {
-      checkOperatorMatch[ProjectExecTransformer] }
+    withSQLConf(GlutenConfig.VANILLA_COLUMNAR_READERS_ENABLED.key -> "false") {
+      runQueryAndCompare(s"select l_orderkey, l_comment " +
+        s"from $LINEITEM_TABLE where l_comment like '%a%' limit $LENGTH") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+    }
     runQueryAndCompare(s"select l_orderkey, like(l_comment, ' ') " +
       s"from $LINEITEM_TABLE where l_comment like ''  limit $LENGTH") { _ => }
     runQueryAndCompare(s"select l_orderkey, like($NULL_STR_COL, '%a%') " +
