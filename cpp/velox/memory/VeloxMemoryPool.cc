@@ -44,12 +44,8 @@ std::shared_ptr<velox::memory::MemoryUsageTracker> createMemoryUsageTracker(
   if (parent == nullptr) {
     if (options.trackUsage) {
       auto tracker = velox::memory::MemoryUsageTracker::create(options.capacity, options.checkUsageLeak);
-      tracker->setHighUsageCallback([=](velox::memory::MemoryUsageTracker& t) {
-        if (t.reservedBytes() >= spillThreshold) {
-          return true;
-        }
-        return false;
-      });
+      tracker->setHighUsageCallback(
+          [=](velox::memory::MemoryUsageTracker& t) { return t.reservedBytes() >= spillThreshold; });
       return tracker;
     }
     return nullptr;
@@ -65,17 +61,17 @@ std::shared_ptr<velox::memory::MemoryUsageTracker> createMemoryUsageTracker(
 
 //  The code is originated from /velox/common/memory/Memory.h
 //  Removed memory manager.
-class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
+class VeloxMemoryPool final : public velox::memory::MemoryPool {
  public:
   using DestructionCallback = std::function<void(MemoryPool*)>;
 
   // Should perhaps make this method private so that we only create node through
   // parent.
-  WrappedVeloxMemoryPool(
-      velox::memory::MemoryAllocator* veloxAlloc,
+  VeloxMemoryPool(
+      std::shared_ptr<velox::memory::MemoryPool> parent,
       const std::string& name,
       Kind kind,
-      std::shared_ptr<velox::memory::MemoryPool> parent,
+      velox::memory::MemoryAllocator* veloxAlloc,
       gluten::MemoryAllocator* glutenAlloc,
       DestructionCallback destructionCb,
       int64_t spillThreshold,
@@ -87,7 +83,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
         destructionCb_(std::move(destructionCb)),
         localMemoryUsage_{} {}
 
-  ~WrappedVeloxMemoryPool() {
+  ~VeloxMemoryPool() {
     const auto remainingBytes = memoryUsageTracker_->currentBytes();
     VELOX_CHECK_EQ(
         0,
@@ -119,7 +115,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
     void* buffer;
     try {
       if (!glutenAlloc_->allocate(alignedSize, &buffer)) {
-        VELOX_FAIL(fmt::format("WrappedVeloxMemoryPool: Failed to allocate {} bytes", alignedSize))
+        VELOX_FAIL(fmt::format("VeloxMemoryPool: Failed to allocate {} bytes", alignedSize))
       }
     } catch (std::exception& e) {
       release(alignedSize);
@@ -140,7 +136,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       bool succeed = glutenAlloc_->allocateZeroFilled(alignedSize, 1, &buffer);
       if (!succeed) {
         VELOX_FAIL(fmt::format(
-            "WrappedVeloxMemoryPool: Failed to allocate (zero filled) {} members, {} bytes for each", alignedSize, 1))
+            "VeloxMemoryPool: Failed to allocate (zero filled) {} members, {} bytes for each", alignedSize, 1))
       }
     } catch (std::exception& e) {
       release(alignedSize);
@@ -171,7 +167,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       free(p, alignedSize);
       release(alignedNewSize);
       VELOX_MEM_ALLOC_ERROR(fmt::format(
-          "WrappedVeloxMemoryPool {} failed with {} new bytes and {} old bytes from {}, cause: {}",
+          "VeloxMemoryPool {} failed with {} new bytes and {} old bytes from {}, cause: {}",
           __FUNCTION__,
           newSize,
           size,
@@ -192,7 +188,7 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
 
     auto alignedSize = sizeAlign(size);
     if (!glutenAlloc_->free(p, alignedSize)) {
-      VELOX_FAIL(fmt::format("WrappedVeloxMemoryPool: Failed to free {} bytes", alignedSize))
+      VELOX_FAIL(fmt::format("VeloxMemoryPool: Failed to free {} bytes", alignedSize))
     }
     release(alignedSize);
   }
@@ -332,10 +328,17 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
       std::shared_ptr<MemoryPool> parent,
       const std::string& name,
       MemoryPool::Kind kind,
-      bool /*unused*/,
-      std::shared_ptr<facebook::velox::memory::MemoryReclaimer> /*unused*/) override {
-    return std::make_shared<WrappedVeloxMemoryPool>(
-        veloxAlloc_, name, kind, parent, glutenAlloc_, nullptr, -1, Options{.alignment = alignment_});
+      bool threadSafe,
+      std::shared_ptr<facebook::velox::memory::MemoryReclaimer> reclaimer) override {
+    return std::make_shared<VeloxMemoryPool>(
+        parent,
+        name,
+        kind,
+        veloxAlloc_,
+        glutenAlloc_,
+        nullptr,
+        -1,
+        Options{.alignment = alignment_, .reclaimer = std::move(reclaimer), .threadSafe = threadSafe});
   }
 
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the
@@ -426,26 +429,15 @@ class WrappedVeloxMemoryPool final : public velox::memory::MemoryPool {
   velox::memory::MemoryUsage subtreeMemoryUsage_;
 };
 
-std::shared_ptr<velox::memory::MemoryPool> asWrappedVeloxAggregateMemoryPool(gluten::MemoryAllocator* allocator) {
-  static std::atomic_uint32_t id = 0;
-  auto pool = getDefaultVeloxAggregateMemoryPool()->addAggregateChild("wrapped_root" + std::to_string(id++));
-  auto wrapped = std::dynamic_pointer_cast<WrappedVeloxMemoryPool>(pool);
-  VELOX_CHECK_NOT_NULL(wrapped);
-  wrapped->setGlutenAllocator(allocator);
-  return pool;
-}
-
-std::shared_ptr<velox::memory::MemoryPool> getDefaultVeloxAggregateMemoryPool() {
-  facebook::velox::memory::MemoryPool::Options options;
-  int64_t spillThreshold;
-  options = gluten::VeloxInitializer::get()->getMemoryPoolOptions();
-  spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
+static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
+  auto options = gluten::VeloxInitializer::get()->getMemoryPoolOptions();
+  int64_t spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
   static auto veloxAlloc = facebook::velox::memory::MemoryAllocator::createDefaultInstance();
-  static std::shared_ptr<WrappedVeloxMemoryPool> defaultPoolRoot = std::make_shared<WrappedVeloxMemoryPool>(
-      veloxAlloc.get(),
+  static std::shared_ptr<VeloxMemoryPool> defaultPoolRoot = std::make_shared<VeloxMemoryPool>(
+      nullptr,
       "root",
       velox::memory::MemoryPool::Kind::kAggregate,
-      nullptr,
+      veloxAlloc.get(),
       defaultMemoryAllocator().get(),
       nullptr,
       spillThreshold,
@@ -453,9 +445,18 @@ std::shared_ptr<velox::memory::MemoryPool> getDefaultVeloxAggregateMemoryPool() 
   return defaultPoolRoot;
 }
 
-std::shared_ptr<velox::memory::MemoryPool> getDefaultVeloxLeafMemoryPool() {
-  static std::shared_ptr<velox::memory::MemoryPool> defaultPool =
-      getDefaultVeloxAggregateMemoryPool()->addLeafChild("default_pool");
+std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
+  static std::shared_ptr<velox::memory::MemoryPool> defaultPool = rootVeloxMemoryPool()->addLeafChild("default_leaf");
   return defaultPool;
 }
+
+std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
+  static std::atomic_uint32_t id = 0;
+  auto pool = rootVeloxMemoryPool()->addAggregateChild("wrapped_root" + std::to_string(id++));
+  auto wrapped = std::dynamic_pointer_cast<VeloxMemoryPool>(pool);
+  VELOX_CHECK_NOT_NULL(wrapped);
+  wrapped->setGlutenAllocator(allocator);
+  return pool;
+}
+
 } // namespace gluten

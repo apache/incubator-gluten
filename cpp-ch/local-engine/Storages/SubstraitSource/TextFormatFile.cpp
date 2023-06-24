@@ -20,7 +20,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
 
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();
-    DB::RowInputFormatParams params = {max_block_size};
+    DB::RowInputFormatParams params = {.max_block_size = max_block_size};
 
     /// Initialize format settings
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
@@ -28,6 +28,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
     for (const auto & name : schema.names())
         format_settings.hive_text.input_field_names.push_back(name);
     format_settings.hive_text.fields_delimiter = file_info.text().field_delimiter()[0];
+    format_settings.csv.empty_as_default = false;
 
     res->input = std::make_shared<DB::HiveTextRowInputFormat>(header, *(res->read_buffer), params, format_settings);
     return res;

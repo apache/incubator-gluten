@@ -27,9 +27,9 @@ object SparkUtil extends Logging {
    * Add the extended pre/post column rules
    */
   def extendedColumnarRules(
-                             session: SparkSession,
-                             conf: String
-                           ): List[SparkSession => Rule[SparkPlan]] = {
+    session: SparkSession,
+    conf: String
+    ): List[SparkSession => Rule[SparkPlan]] = {
     val extendedRules = conf.split(",").filter(!_.isEmpty)
     extendedRules.map { ruleStr =>
       try {

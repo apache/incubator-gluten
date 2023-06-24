@@ -20,34 +20,48 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
 
+import org.apache.commons.io.FileUtils
 import org.scalatest.BeforeAndAfterAll
 
+import java.io.File
+
 case class AllDataTypesWithComplextType(
-    string_field: String,
-    int_field: java.lang.Integer,
-    long_field: java.lang.Long,
-    float_field: java.lang.Float,
-    double_field: java.lang.Double,
-    short_field: java.lang.Short,
-    byte_field: java.lang.Byte,
-    boolean_field: java.lang.Boolean,
-    decimal_field: java.math.BigDecimal,
-    date_field: java.sql.Date,
-    array: Seq[Int],
-    arrayContainsNull: Seq[Option[Int]],
-    map: Map[Int, Long],
-    mapValueContainsNull: Map[Int, Option[Long]]
+    string_field: String = null,
+    int_field: java.lang.Integer = null,
+    long_field: java.lang.Long = null,
+    float_field: java.lang.Float = null,
+    double_field: java.lang.Double = null,
+    short_field: java.lang.Short = null,
+    byte_field: java.lang.Byte = null,
+    boolean_field: java.lang.Boolean = null,
+    decimal_field: java.math.BigDecimal = null,
+    date_field: java.sql.Date = null,
+    array: Seq[Int] = null,
+    arrayContainsNull: Seq[Option[Int]] = null,
+    map: Map[Int, Long] = null,
+    mapValueContainsNull: Map[Int, Option[Long]] = null
 )
 
-class GlutenClickHouseHiveTableSuite(var testAppName: String)
-  extends GlutenQueryTest
+class GlutenClickHouseHiveTableSuite()
+  extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper
   with SharedSparkSession
   with BeforeAndAfterAll {
+
+  override protected val resourcePath: String =
+    "../../../../gluten-core/src/test/resources/tpch-data"
+
+  override protected val tablesPath: String = basePath + "/tpch-data"
+  override protected val tpchQueries: String =
+    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+  override protected val queriesResults: String = rootPath + "queries-output"
+  override protected def createTPCHNullableTables(): Unit = {}
+
+  override protected def createTPCHNotNullTables(): Unit = {}
 
   override protected def sparkConf: SparkConf = {
     new SparkConf()
@@ -82,10 +96,14 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
   }
 
   override protected def spark: SparkSession = {
+    val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
     SparkSession
       .builder()
       .config(sparkConf)
       .enableHiveSupport()
+      .config(
+        "javax.jdo.option.ConnectionURL",
+        s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
       .getOrCreate()
   }
 
@@ -130,22 +148,26 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
   def genTestData(): Seq[AllDataTypesWithComplextType] = {
     (0 to 199).map {
       i =>
-        AllDataTypesWithComplextType(
-          s"$i",
-          i,
-          i.toLong,
-          i.toFloat,
-          i.toDouble,
-          i.toShort,
-          i.toByte,
-          i % 2 == 0,
-          new java.math.BigDecimal(i + ".56"),
-          new java.sql.Date(System.currentTimeMillis()),
-          Seq.apply(i + 1, i + 2, i + 3),
-          Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
-          Map.apply((i + 1, i + 2), (i + 3, i + 4)),
-          Map.empty
-        )
+        if (i % 100 == 1) {
+          AllDataTypesWithComplextType()
+        } else {
+          AllDataTypesWithComplextType(
+            s"$i",
+            i,
+            i.toLong,
+            i.toFloat,
+            i.toDouble,
+            i.toShort,
+            i.toByte,
+            i % 2 == 0,
+            new java.math.BigDecimal(i + ".56"),
+            new java.sql.Date(System.currentTimeMillis()),
+            Seq.apply(i + 1, i + 2, i + 3),
+            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
+            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
+            Map.empty
+          )
+        }
     }
   }
 
@@ -157,48 +179,18 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
     spark.sql("insert into %s select * from tmp_t".format(table_name))
   }
 
-  def this() {
-    this("GlutenClickHouseHiveTableTest")
-  }
-
-  protected def vanillaSparkConfs(): Seq[(String, String)] = {
-    List(("spark.gluten.enabled", "false"))
-  }
-
-  override protected def beforeAll(): Unit = {
+  override def beforeAll(): Unit = {
+    // prepare working paths
+    val basePathDir = new File(basePath)
+    if (basePathDir.exists()) {
+      FileUtils.forceDelete(basePathDir)
+    }
+    FileUtils.forceMkdir(basePathDir)
+    FileUtils.forceMkdir(new File(warehouse))
+    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
+    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     initializeTable(txt_table_name, txt_table_create_sql)
     initializeTable(json_table_name, json_table_create_sql)
-  }
-
-  override def afterAll(): Unit = {
-    spark.stop()
-    SparkSession.clearActiveSession()
-    SparkSession.clearDefaultSession()
-  }
-
-  /**
-   * run a query with native engine as well as vanilla spark then compare the result set for
-   * correctness check
-   */
-  protected def compareResultsAgainstVanillaSpark(
-      sqlStr: String,
-      compareResult: Boolean = true,
-      customCheck: DataFrame => Unit,
-      noFallBack: Boolean = true): DataFrame = {
-    var expected: Seq[Row] = null
-    withSQLConf(vanillaSparkConfs(): _*) {
-      val df = spark.sql(sqlStr)
-      expected = df.collect()
-    }
-    val df = spark.sql(sqlStr)
-    if (compareResult) {
-      checkAnswer(df, expected)
-    } else {
-      df.collect()
-    }
-    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
-    customCheck(df)
-    df
   }
 
   test("test hive text table") {
@@ -255,6 +247,43 @@ class GlutenClickHouseHiveTableSuite(var testAppName: String)
     val sql2 = s"select count(*) from $txt_table_name where int_field >= 100"
     compareResultsAgainstVanillaSpark(
       sql2,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("fix bug: hive text table limit with fallback") {
+    val sql =
+      s"""
+         | select string_field
+         | from $txt_table_name
+         | order by string_field
+         | limit 10
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("hive text table select complex type columns with fallback") {
+    val sql = s"select int_field, array_field, map_field from $txt_table_name order by int_field"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+  }
+
+  test("hive text table case-insensitive column matching") {
+    val sql = s"select SHORT_FIELD, int_field, LONG_field from $txt_table_name order by int_field"
+    compareResultsAgainstVanillaSpark(
+      sql,
       true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {

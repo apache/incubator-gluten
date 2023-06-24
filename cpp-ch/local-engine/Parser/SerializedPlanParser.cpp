@@ -1013,7 +1013,19 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     {
         if (args.size() < 2)
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
-        ch_function_name = getDecimalFunction(output_type.decimal(), args.at(1).value().literal().boolean());
+        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
+        auto null_on_overflow = args.at(1).value().literal().boolean();
+        if (null_on_overflow)
+            ch_function_name = ch_function_name + "OrNull";
+    }
+    else if (function_name == "make_decimal")
+    {
+        if (args.size() < 3)
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 3 args.");
+        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
+        auto null_on_overflow = args.at(2).value().literal().boolean();
+        if (null_on_overflow)
+            ch_function_name = ch_function_name + "OrNull";
     }
     else if (function_name == "char_length")
     {
@@ -1270,30 +1282,34 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
 
             ActionsDAG::NodeRawConstPtrs new_args;
-            new_args.reserve(2);
+            new_args.reserve(3);
+            new_args.emplace_back(args[0]);
 
-            // if toDecimalxxOrNull, first arg need string type
-            if (scalar_function.arguments().at(1).value().literal().boolean())
-            {
-                std::string check_overflow_args_trans_function = "toString";
-                DB::ActionsDAG::NodeRawConstPtrs to_string_args({args[0]});
-
-                auto to_string_cast = FunctionFactory::instance().get(check_overflow_args_trans_function, context);
-                std::string to_string_cast_args_name = join(to_string_args, ',');
-                result_name = check_overflow_args_trans_function + "(" + to_string_cast_args_name + ")";
-                const auto * to_string_cast_node = &actions_dag->addFunction(to_string_cast, to_string_args, result_name);
-                new_args.emplace_back(to_string_cast_node);
-            }
-            else
-            {
-                new_args.emplace_back(args[0]);
-            }
-
-            auto type = std::make_shared<DataTypeUInt32>();
+            UInt32 precision = rel.scalar_function().output_type().decimal().precision();
             UInt32 scale = rel.scalar_function().output_type().decimal().scale();
-            new_args.emplace_back(
-                &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, scale), type, getUniqueName(toString(scale)))));
+            auto uint32_type = std::make_shared<DataTypeUInt32>();
+            new_args.emplace_back(&actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
+            new_args.emplace_back(&actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
+            args = std::move(new_args);
+        }
+        else if (startsWith(function_signature, "make_decimal:"))
+        {
+            if (scalar_function.arguments().size() < 3)
+                throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least three args.");
 
+            ActionsDAG::NodeRawConstPtrs new_args;
+            new_args.reserve(3);
+            new_args.emplace_back(args[0]);
+
+            UInt32 precision = rel.scalar_function().output_type().decimal().precision();
+            UInt32 scale = rel.scalar_function().output_type().decimal().scale();
+            auto uint32_type = std::make_shared<DataTypeUInt32>();
+            new_args.emplace_back(&actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
+            new_args.emplace_back(&actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
             args = std::move(new_args);
         }
 

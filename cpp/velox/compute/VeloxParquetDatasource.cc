@@ -45,7 +45,7 @@ namespace gluten {
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
 
-  auto veloxPool = asWrappedVeloxAggregateMemoryPool(gluten::defaultMemoryAllocator().get());
+  auto veloxPool = asAggregateVeloxMemoryPool(gluten::defaultMemoryAllocator().get());
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
@@ -71,31 +71,38 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
 
   type_ = velox::importFromArrow(cSchema);
 
-  auto blockSize = 1024;
+  auto blockSize = 134217728; // 128MB
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
     blockSize = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
   }
-  auto compressionCodec = arrow::Compression::UNCOMPRESSED;
+  auto compressionCodec = arrow::Compression::SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
-    // spark support uncompressed snappy, gzip, lzo, brotli, lz4, zstd.
+    // spark support none, uncompressed, snappy, gzip, lzo, brotli, lz4, zstd.
     if (boost::iequals(compressionCodecStr, "snappy")) {
       compressionCodec = arrow::Compression::SNAPPY;
     } else if (boost::iequals(compressionCodecStr, "gzip")) {
       compressionCodec = arrow::Compression::GZIP;
     } else if (boost::iequals(compressionCodecStr, "lzo")) {
-      compressionCodec = arrow::Compression::LZO;
+      // arrow does not support write parquet using lzo
+      // https://issues.apache.org/jira/browse/ARROW-12430
+      throw GlutenException("Gluten does not support write parquet using lzo.");
     } else if (boost::iequals(compressionCodecStr, "brotli")) {
+      // please make sure `brotli` is enabled when compiling
       compressionCodec = arrow::Compression::BROTLI;
     } else if (boost::iequals(compressionCodecStr, "lz4")) {
       compressionCodec = arrow::Compression::LZ4;
     } else if (boost::iequals(compressionCodecStr, "zstd")) {
       compressionCodec = arrow::Compression::ZSTD;
+    } else if (boost::iequals(compressionCodecStr, "uncompressed")) {
+      compressionCodec = arrow::Compression::UNCOMPRESSED;
+    } else if (boost::iequals(compressionCodecStr, "none")) {
+      compressionCodec = arrow::Compression::UNCOMPRESSED;
     }
   }
 
   auto properities =
-      ::parquet::WriterProperties::Builder().write_batch_size(blockSize)->compression(compressionCodec)->build();
+      ::parquet::WriterProperties::Builder().max_row_group_length(blockSize)->compression(compressionCodec)->build();
 
   // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
   std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});

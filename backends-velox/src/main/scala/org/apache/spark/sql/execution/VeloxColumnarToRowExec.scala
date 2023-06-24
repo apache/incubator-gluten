@@ -21,26 +21,22 @@ import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatch
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowJniWrapper}
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.types._
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.NANOSECONDS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskResources
 
 case class VeloxColumnarToRowExec(child: SparkPlan)
   extends ColumnarToRowExecBase(child = child) {
-  private val LOG = LoggerFactory.getLogger(classOf[VeloxColumnarToRowExec])
 
   override def nodeName: String = "VeloxColumnarToRowExec"
 
@@ -136,7 +132,10 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
     // Init NativeColumnarToRow with the first ColumnarBatch
     var c2rId = -1L
     var closed = false
-    if (batches.hasNext) {
+
+    if (batches.isEmpty) {
+      Iterator.empty
+    } else {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
 
         TaskResources.addRecycler(100) {
@@ -147,12 +146,12 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
         }
 
         override def hasNext: Boolean = {
-          val itHasNext = batches.hasNext
-          if (!itHasNext && !closed) {
+          val hasNext = batches.hasNext
+          if (!hasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
             closed = true
           }
-          itHasNext
+          hasNext
         }
 
         override def next(): Iterator[InternalRow] = {
@@ -169,8 +168,6 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
           } else if (output.isEmpty || nonGlutenBatch) {
             // Fallback to ColumnarToRow of vanilla Spark.
             val localOutput = output
-            numInputBatches += 1
-            numOutputRows += batch.numRows()
 
             val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
             if (nonGlutenBatch) {
@@ -182,9 +179,9 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
             }
           } else {
             val beforeConvert = System.currentTimeMillis()
-            val offloaded =
+            val offLoadedBatch =
               ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-            val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
+            val batchHandle = GlutenColumnarBatches.getNativeHandle(offLoadedBatch)
 
             if (c2rId == -1) {
               c2rId = jniWrapper.nativeColumnarToRowInit(
@@ -204,9 +201,8 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
               }
 
               override def next: UnsafeRow = {
-                if (rowId >= batch.numRows()) throw new NoSuchElementException
                 val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-                row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                row.pointTo(null, info.memoryAddress + offset, length)
                 rowId += 1
                 row
               }
@@ -215,8 +211,6 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
         }
       }
       res.flatten
-    } else {
-      Iterator.empty
     }
   }
 

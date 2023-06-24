@@ -95,7 +95,7 @@ class GoogleBenchmarkColumnarToRow {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::getDefaultVeloxLeafMemoryPool().get());
+    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
   }
 
  protected:
@@ -151,8 +151,8 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
     std::cout << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows << std::endl;
 
     // reuse the columnarToRowConverter for batches caused system % increase a lot
-    auto arrowPool = getDefaultArrowMemoryPool();
-    auto ctxPool = getDefaultVeloxLeafMemoryPool();
+    auto arrowPool = defaultArrowMemoryPool();
+    auto ctxPool = defaultLeafVeloxMemoryPool();
     for (auto _ : state) {
       for (const auto& vector : vectors) {
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
@@ -201,8 +201,8 @@ class GoogleBenchmarkColumnarToRowIterateScanBenchmark : public GoogleBenchmarkC
     ASSERT_NOT_OK(::parquet::arrow::FileReader::Make(
         arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
-    auto arrowPool = getDefaultArrowMemoryPool();
-    auto ctxPool = getDefaultVeloxLeafMemoryPool();
+    auto arrowPool = defaultArrowMemoryPool();
+    auto ctxPool = defaultLeafVeloxMemoryPool();
     for (auto _ : state) {
       ASSERT_NOT_OK(parquetReader->GetRecordBatchReader(rowGroupIndices_, columnIndices_, &recordBatchReader));
       TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));

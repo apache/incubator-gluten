@@ -94,6 +94,14 @@ class ArrowShuffleWriter final : public ShuffleWriter {
     return std::accumulate(rawPartitionLengths_.begin(), rawPartitionLengths_.end(), 0LL);
   }
 
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> createArrowRecordBatchFromBuffer(
+      uint32_t partitionId,
+      bool resetBuffers) override;
+
+  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> createArrowIpcPayload(
+      const arrow::RecordBatch& rb,
+      bool reuseBuffers) override;
+
   // for testing
   const std::string& dataFile() const {
     return options_.data_file;

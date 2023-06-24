@@ -46,6 +46,15 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     sparkContext.setLogLevel("WARN")
   }
 
+  protected override def afterAll(): Unit = {
+    if (TPCHTables != null) {
+      TPCHTables.keys.foreach { v =>
+        spark.sessionState.catalog.dropTempView(v)
+      }
+    }
+    super.afterAll()
+  }
+
   protected def createTPCHNotNullTables(): Unit = {
     TPCHTables = Seq(
       "customer",
@@ -277,8 +286,7 @@ object WholeStageTransformerSuite extends Logging {
     df: DataFrame,
     noFallBack: Boolean = true,
     skipAssert: Boolean = false): Unit = {
-    if (BackendsApiManager.getBackendName
-      .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (BackendsApiManager.chBackend) {
       // When noFallBack is true, it means there is no fallback plan,
       // otherwise there must be some fallback plans.
       val isFallBack = FallbackUtil.isFallback(df.queryExecution.executedPlan)

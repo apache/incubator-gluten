@@ -263,7 +263,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
   val enableColumnarSort: Boolean = !scanOnly && columnarConf.enableColumnarSort
   val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
-  val enableColumnarSortMergeJoin: Boolean = !scanOnly && columnarConf.enableColumnarSortMergeJoin
+  val enableColumnarSortMergeJoin: Boolean = !scanOnly &&
+    BackendsApiManager.getSettings.supportSortMergeJoinExec()
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
   val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
   val enableColumnarProject: Boolean = !scanOnly && columnarConf.enableColumnarProject

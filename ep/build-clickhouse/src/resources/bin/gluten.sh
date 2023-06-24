@@ -21,14 +21,27 @@ function start() {
   DRIVER_OPTIONS=${DRIVER_OPTIONS:-"-Dlog4j.configuration=file:${GLUTEN_HOME}/conf/log4j.properties"}
   DRIVER_OPTIONS="${DRIVER_OPTIONS} $(cat ${GLUTEN_HOME}/conf/gluten.properties | grep "^spark.driver.extraJavaOptions" | cut -d "=" -f 2)"
 
+  GLUTEN_JARS=${GLUTEN_HOME}/jars/*
+  echo "GLUTEN_JARS: ${GLUTEN_JARS} will be loaded."
+
+  if [ "${SPARK_MAJOR_MINOR_VERSION}" == "3.2" ]; then
+      EXTRA_JARS=${GLUTEN_HOME}/extraJars/spark33/*
+  elif [ "${SPARK_MAJOR_MINOR_VERSION}" == "3.3" ]; then
+      EXTRA_JARS=${GLUTEN_HOME}/extraJars/spark33/*
+  else
+      echo "Unsupported spark version: ${SPARK_MAJOR_MINOR_VERSION}"
+      exit 1
+  fi
+  echo "EXTRA_JARS: ${EXTRA_JARS} will be loaded."
+
   export LD_PRELOAD=${GLUTEN_HOME}/libs/libch.so
   export SPARK_LOG_DIR=${GLUTEN_HOME}/logs
 
   rm -f ${GLUTEN_HOME}/logs/spark-*.out*
   nohup ${SPARK_HOME}/sbin/start-thriftserver.sh \
     --properties-file ${GLUTEN_HOME}/conf/spark-default.conf \
-    --conf spark.driver.extraClassPath=${GLUTEN_HOME}/jars/* \
-    --conf spark.executor.extraClassPath=${GLUTEN_HOME}/jars/* \
+    --conf spark.driver.extraClassPath=${GLUTEN_JARS}:${EXTRA_JARS} \
+    --conf spark.executor.extraClassPath=${GLUTEN_JARS}:${EXTRA_JARS} \
     --conf spark.driver.extraJavaOptions=${DRIVER_OPTIONS} \
     --conf spark.gluten.sql.columnar.libpath=${GLUTEN_HOME}/libs/libch.so \
     --verbose \
@@ -40,6 +53,13 @@ function start() {
 
 function stop() {
   ${SPARK_HOME}/sbin/stop-thriftserver.sh
+  sleep 5
+  if [[ $(ps -ef | grep -v grep | grep -c "org.apache.spark.sql.hive.thriftserver.HiveThriftServer2") -eq 0 ]]; then
+    echo "Gluten spark thriftserver is stopped."
+  else
+    echo "Gluten spark thriftserver is still running. Please stop it manually."
+    exit 1
+  fi
 }
 
 [[ $# -eq 0 ]] && echo "No arguments provided. Usage: $0 [start|stop|restart]" && exit 1

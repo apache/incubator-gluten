@@ -19,6 +19,7 @@ package org.apache.spark.sql
 
 import java.io.File
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 import io.glutenproject.GlutenConfig
@@ -39,9 +40,8 @@ import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData,
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
-import org.scalactic.TripleEqualsSupport.Spread
 
-import scala.collection.mutable
+import org.scalactic.TripleEqualsSupport.Spread
 
 trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
@@ -80,6 +80,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     logInfo("Test suite: " + this.getClass.getSimpleName +
       "; Suite test number: " + TestStats.suiteTestNumber +
       "; OffloadGluten number: " + TestStats.offloadGlutenTestNumber + "\n")
+    TestStats.printMarkdown(this.getClass.getSimpleName)
     TestStats.reset()
   }
 
@@ -89,7 +90,9 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         .builder()
         .appName("Gluten-UT")
         .master(s"local[2]")
-        .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+         // Avoid static evaluation for literal input by spark catalyst.
+        .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName +
+            "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
         .config("spark.driver.memory", "1G")
         .config("spark.sql.adaptive.enabled", "true")
         .config("spark.sql.shuffle.partitions", "1")
@@ -99,14 +102,10 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config("spark.sql.warehouse.dir", warehouse)
-        // Avoid static evaluation for literal input by spark catalyst.
-        .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + ","  +
-            NullPropagation.ruleName)
         // Avoid the code size overflow error in Spark code generation.
         .config("spark.sql.codegen.wholeStage", "false")
 
-      _spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-        GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+      _spark = if (BackendsApiManager.chBackend) {
         sparkBuilder
           .config("spark.io.compression.codec", "LZ4")
           .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
@@ -115,6 +114,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           .config("spark.sql.files.openCostInBytes", "134217728")
           .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
           .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+          .config(GlutenConfig.UT_STATISTIC.key, "true")
           .getOrCreate()
       } else {
         sparkBuilder
@@ -235,18 +235,22 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     }
     val resultDF = df.select(Column(expression))
     val result = resultDF.collect()
+    TestStats.testUnitNumber = TestStats.testUnitNumber + 1
     if (checkDataTypeSupported(expression) &&
         expression.children.forall(checkDataTypeSupported)) {
       val projectTransformer = resultDF.queryExecution.executedPlan.collect {
         case p: ProjectExecTransformer => p
       }
       if (projectTransformer.size == 1) {
+        TestStats.offloadGlutenUnitNumber += 1
         logInfo("Offload to native backend in the test.\n")
       } else {
         logInfo("Not supported in native backend, fall back to vanilla spark in the test.\n")
+        shouldNotFallback()
       }
     } else {
       logInfo("Has unsupported data type, fall back to vanilla spark.\n")
+      shouldNotFallback()
     }
 
     if (!(checkResult(result.head.get(0), expected, expression.dataType, expression.nullable)
@@ -261,6 +265,20 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           s"actual: ${result.head.get(0)}, " +
           s"expected: $expected$input")
     }
+  }
+
+  def shouldNotFallback(): Unit = {
+    TestStats.offloadGluten = false
+    if (BackendsApiManager.getBackendName != GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND) {
+      return
+    }
+
+    val supportedExpr = BackendsApiManager.getTransformerApiInstance.getSupportExpressionClassName
+    TestStats.getFallBackClassName.forEach(fallbackClassName => {
+      assert(!supportedExpr.contains(fallbackClassName),
+        "\nCH has already support %s, suggest not fallback, please fix it"
+          .format(fallbackClassName))
+    })
   }
 
   def canConvertToDataFrame(inputRow: InternalRow): Boolean = {

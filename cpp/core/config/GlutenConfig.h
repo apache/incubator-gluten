@@ -22,6 +22,9 @@
 #include <unordered_map>
 
 namespace gluten {
+
+// store configurations that are general to all backend types
+
 const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";

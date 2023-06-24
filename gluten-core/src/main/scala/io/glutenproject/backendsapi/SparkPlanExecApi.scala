@@ -271,6 +271,15 @@ trait SparkPlanExecApi {
   def extraExpressionMappings: Seq[Sig] = Seq.empty
 
   /**
+   * Define whether the join operator is fallback because of
+   * the join operator is not supported by backend
+   */
+  def joinFallback(JoinType: JoinType,
+                   leftOutputSet: AttributeSet,
+                   right: AttributeSet,
+                   condition: Option[Expression]): Boolean = false
+
+  /**
    * default function to generate window function node
    */
   def genWindowFunctionsNode(

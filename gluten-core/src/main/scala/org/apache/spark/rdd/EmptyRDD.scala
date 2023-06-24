@@ -36,9 +36,7 @@ import scala.reflect.ClassTag
 private[spark] class EmptyRDD[T: ClassTag](sc: SparkContext) extends RDD[T](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
-    if (
-      BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-    ) {
+    if (BackendsApiManager.chBackend) {
       Array(new MyEmptyRDDPartition(0))
     } else {
       Array.empty
