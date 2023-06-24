@@ -85,7 +85,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
 
     // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
-    if (BackendsApiManager.getSettings.disableVanillaColumnarReaders()) {
+    if (BackendsApiManager.getSettings.disableVanillaColumnarReaders(conf)) {
       // FIXME Hongze 22/12/06
       //  BatchScan.scala in shim was not always loaded by class loader.
       //  The file should be removed and the "ClassCastException" issue caused by

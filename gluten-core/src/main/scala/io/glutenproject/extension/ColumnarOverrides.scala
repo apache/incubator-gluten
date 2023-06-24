@@ -608,12 +608,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
     case plan: ColumnarToRowExec =>
-      plan.child match {
-        case _: BatchScanExec | _: FileSourceScanExec if !plan.child.isInstanceOf[GlutenPlan] =>
-          plan
-        case _ =>
-          transformColumnarToRowExec(plan)
-      }
+      transformColumnarToRowExec(plan)
     case r: SparkPlan
       if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar &&
         r.children.exists(_.isInstanceOf[ColumnarToRowExec]) =>
@@ -625,9 +620,6 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
         case other =>
           replaceWithTransformerPlan(other)
       })
-    case _: BatchScanExec | _: FileSourceScanExec
-      if !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar =>
-      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
     case p =>
       p.withNewChildren(p.children.map(replaceWithTransformerPlan))
   }
@@ -638,6 +630,39 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
     planChangeLogger.logRule(ruleName, plan, newPlan)
     newPlan
   }
+}
+
+// This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
+// to support vanilla columnar scan.
+case class VanillaColumnarPlanOverrides(session: SparkSession)
+  extends Rule[SparkPlan] {
+  @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+
+  def replaceVithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
+    case c2r: ColumnarToRowExecBase if isVanillaColumnarReader(c2r.child) =>
+      ColumnarToRowExec(c2r.child)
+    case c2r: ColumnarToRowExec if isVanillaColumnarReader(c2r.child) =>
+      c2r
+    case _ if isVanillaColumnarReader(plan) =>
+      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
+    case _ =>
+      plan.withNewChildren(plan.children.map(replaceVithVanillaColumnarToRow))
+  }
+
+  def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
+    case _: BatchScanExec | _: FileSourceScanExec | _: InMemoryTableScanExec =>
+      !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+    case _ => false
+  }
+
+  def apply(plan: SparkPlan): SparkPlan =
+    if (GlutenConfig.getConf.enableVanillaColumnarReaders) {
+      val newPlan = replaceVithVanillaColumnarToRow(plan)
+      planChangeLogger.logRule(ruleName, plan, newPlan)
+      newPlan
+    } else {
+      plan
+    }
 }
 
 case class ColumnarOverrideRules(session: SparkSession)
@@ -682,7 +707,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
-    List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext)) :::
+    List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext),
+      (s: SparkSession) => VanillaColumnarPlanOverrides(s)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
       SparkUtil.extendedColumnarRules(

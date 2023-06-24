@@ -140,8 +140,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def supportExpandExec(): Boolean = true
 
-  override def disableVanillaColumnarReaders(): Boolean = true
-
   override def excludeScanExecFromCollapsedStage(): Boolean =
     SQLConf.get
       .getConfString(GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT)

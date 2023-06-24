@@ -17,6 +17,7 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.extension.GlutenPlan
@@ -27,6 +28,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -68,7 +70,9 @@ object ColumnarRules {
         c2r // AdaptiveSparkPlanExec.scala:546
       case c2r @ ColumnarToRowExec(child) =>
         child match {
-          case _: BatchScanExec | _: FileSourceScanExec if !child.isInstanceOf[GlutenPlan] =>
+          case _: BatchScanExec | _: FileSourceScanExec | _: InMemoryTableScanExec
+              if GlutenConfig.getConf.enableVanillaColumnarReaders &&
+                !child.isInstanceOf[GlutenPlan] =>
             c2r
           case _ =>
             ColumnarToRowExec(LoadArrowData(child))

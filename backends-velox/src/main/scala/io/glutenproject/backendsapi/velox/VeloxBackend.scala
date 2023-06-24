@@ -187,8 +187,6 @@ object BackendSettings extends BackendSettingsApi {
       }
   }
 
-  override def disableVanillaColumnarReaders(): Boolean = true
-
   /**
    * Check whether plan is Count(1).
    * @param plan: The Spark plan to check.
