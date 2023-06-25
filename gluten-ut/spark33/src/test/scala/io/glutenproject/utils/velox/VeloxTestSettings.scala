@@ -955,6 +955,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // requires resource files from Vanilla spark jar
     .exclude("SPARK-32908: maximum target error in percentile_approx")
   enableSuite[GlutenCachedTableSuite]
+    // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
+    .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]
