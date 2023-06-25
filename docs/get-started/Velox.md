@@ -6,14 +6,14 @@ parent: Getting-Started
 ---
 Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
-# 1 Prerequisite
+# Prerequisite
 
-Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04/Ubuntu22.04/Centos8</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
+Currently, Gluten+Velox backend is only tested on <b>Ubuntu20.04/Ubuntu22.04/Centos8</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
 common OS and conda env deployment.
 
-Gluten builds with Spark3.2.x and Spark3.3.3 now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
+Gluten builds with Spark3.2.x and Spark3.3.x now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
 
-Velox uses the script `setup-ubuntu.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
+Velox uses the script `scripts/setup-xxx.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
 So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
 ```bash
@@ -21,31 +21,32 @@ So we need to install all of them manually. Also, we need to set up the `JAVA_HO
 ## install gcc and libraries to build arrow
 apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
 ```
-<b>For x86_64</b>
+**For x86_64**
 ```bash
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 ```
-<b>For aarch64</b>
+**For aarch64**
 ```bash
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-arm64
 export PATH=$JAVA_HOME/bin:$PATH
 ```
-<b>Get gluten</b>
+**Get gluten**
 ```bash
 ## config maven, like proxy in ~/.m2/settings.xml
 
 ## fetch gluten code
 git clone https://github.com/oap-project/gluten.git
 ```
-# 2 Build Gluten with Velox Backend
+# Build Gluten with Velox Backend
 
 It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
 [Gluten Usage](./GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
-<b>For x86_64 build:</b>
+**For x86_64 build**
+
 ```bash
 cd /path_to_gluten
 
@@ -57,7 +58,8 @@ cd /path_to_gluten
 # ./dev/buildbundle-veloxbe.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
 ```
 
-<b>For aarch64 build, set the CPU_TARGET to "aarch64":</b>
+**For aarch64 build:**
+
 ```bash
 export CPU_TARGET="aarch64"
 
@@ -66,32 +68,34 @@ cd /path_to_gluten
 ./dev/builddeps-veloxbe.sh
 ```
 
-<b>Alternatively you may build gluten step by step as below.</b>
+**Build Velox or Arrow separately**
+
+Scripts under `/path_to_gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_arrow.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
+
+Velox can use pre-build arrow/parquet lib from ARROW_HOME parsed by --arrow_home to decrease build time.
+Gluten cpp module need a required VELOX_HOME parsed by --velox_home and an optional ARROW_HOME by --arrow_home, if you specify custom ep location, make sure these variables be passed correctly.
 
 ```bash
-## fetch arrow and compile
+## fetch Arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
+## you could use custom ep location by --arrow_home=custom_path
 ./get_arrow.sh
 ./build_arrow.sh
 
-## fetch velox
+## fetch Velox and compile
 cd /path_to_gluten/ep/build-velox/src/
+## you could use custom ep location by --velox_home=custom_path
 ./get_velox.sh
-## compile velox
+## if you use custom arrow_home, should be specified here by --arrow_home=custom_path
 ./build_velox.sh
 
-## compile gluten cpp
+## compile Gluten cpp module
 cd /path_to_gluten/cpp
-mkdir build
-cd build
-cmake -DBUILD_VELOX_BACKEND=ON ..
+## if you use custom velox_home or arrow_home, make sure specified here by --arrow_home or --velox_home 
+./compile.sh --build_velox_backend=ON
 make -j
 
-# You can also use CMAKE command to compile
-# cd /path_to_gluten/cpp
-# mkdir build && cd build && cmake .. && make -j
-
-## compile gluten jvm and package jar
+## compile Gluten java module and create package jar
 cd /path_to_gluten
 # For spark3.2.x
 mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
@@ -102,56 +106,7 @@ notes：The compilation of `Velox` using the script of `build_velox.sh` may fail
 
 Once building successfully, the Jar file will be generated in the directory: package/target/<gluten-jar> for Spark 3.2.2/Spark 3.3.1.
 
-## 2.1 Specify velox home directory
-
-You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it as below.
-
-```bash
-step 1: recompile velox, set velox_home in build_velox.sh
-cd /path_to_gluten/ep/build_velox/src
-./build_velox.sh  --velox_home=/your_specified_velox_path
-
-step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
-cd /path_to_gluten/cpp
-mkdir build
-cd build
-cmake -DBUILD_VELOX_BACKEND=ON -DVELOX_HOME=/your_specified_velox_path ..
-make -j
-
-step 3: package jar
-cd /path_to_gluten
-# For spark3.2.x
-mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
-# For spark3.3.x
-mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
-```
-
-## 2.2 Arrow home directory
-
-Arrow home can be set as the same of Velox. We will soon switch to upstream Arrow. Currently the shuffle still uses Arrow's IPC interface.
-You can also clone the Arrow source from [OAP/Arrow](https://github.com/oap-project/arrow) to some other folder then specify it as below.
-
-```bash
-step 1: set ARROW_SOURCE_DIR in build_arrow.sh and compile
-cd /path_to_gluten/ep/build-arrow/src/
-./build_arrow.sh
-
-step 2: set ARROW_ROOT
-cd /path_to_gluten/cpp
-mkdir build
-cd build
-cmake -DBUILD_VELOX_BACKEND=ON -DARROW_ROOT=/your_arrow_lib ..
-make -j
-
-step 3: package jar
-cd /path_to_gluten
-# For spark3.2.x
-mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
-# For spark3.3.x
-mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
-```
-
-## 2.3 HDFS support
+## HDFS support
 
 Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/tree/master/depends/libhdfs3) library. The libhdfs3 provides native API for Hadoop I/O without the drawbacks of JNI. It also provides advanced authentication like Kerberos based. Please note this library has several dependencies which may require extra installations on Driver and Worker node.
 
@@ -200,7 +155,7 @@ Here are two steps to enable kerberos.
 ```
 The ticket cache file can be found by `klist`.
 
-## 2.5 AWS S3 support
+## AWS S3 support
 
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
 A new build option for S3(enable_s3) is added. Below command is used to enable this feature
@@ -244,7 +199,7 @@ Note that `spark.hadoop.fs.s3a.iam.role.session.name` is optional.
 
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
-## 2.6 Celeborn support
+## Celeborn support
 
 Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
 
@@ -275,17 +230,17 @@ spark.sql.adaptive.localShuffleReader.enabled false
 spark.dynamicAllocation.enabled false
 ```
 
-# 3 Coverage
+# Coverage
 Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [The Operators and Functions Support Progress](../SupportProgress.md).
 
 > Velox doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)), so as Gluten. Once ANSI mode is enabled in Spark config, Gluten will fallback to Vanilla Spark.
 
 
-# 4 High-Bandwidth Memory (HBM) support
+# High-Bandwidth Memory (HBM) support
 
 Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It is implemented on top of [Memkind library](http://memkind.github.io/memkind/). You can refer to memkind's [readme](https://github.com/memkind/memkind#memkind) for more details.
 
-## 4.1 Build Gluten with HBM
+## Build Gluten with HBM
 
 Gluten will internally build and link to a specific version of Memkind library and [hwloc](https://github.com/open-mpi/hwloc). Other dependencies should be installed on Driver and Worker node first:
 
@@ -302,11 +257,11 @@ cd /path_to_gluten
 ./dev/buildbundle-veloxbe.sh --enable_hbm=ON
 ```
 
-## 4.2 Configure and enable HBM in Spark Application
+## Configure and enable HBM in Spark Application
 
 At runtime, `MEMKIND_HBW_NODES` enviroment variable is detected for configuring HBM NUMA nodes. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`. Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.
 
-# 5 Spill (Experimental)
+# Spill (Experimental)
 
 Velox backend supports spilling-to-disk.
 
@@ -354,13 +309,13 @@ The 30% of off-heap memory is preserved for the operators in Velox that doesn't 
 
 It's worth noting that the 45% of off-heap memory is not shared across Velox operators in a single task. This could cause OOM if more than one memory-consuming operators are there in the task. If so, please try decreasing `spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio` to make each operator manage its own share. 
 
-# 6 Intel® QuickAssist Technology (QAT) support
+# Intel® QuickAssist Technology (QAT) support
 
 Gluten supports using Intel® QuickAssist Technology (QAT) for data compression during Spark Shuffle. It benefits from QAT Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
 
 This feature is based on QAT driver library and [QATzip](https://github.com/intel/QATzip) library. Please manually download QAT driver for your system, and follow its README to build and install on all Driver and Worker node: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
 
-## 6.1 Build Gluten with QAT
+## Build Gluten with QAT
 
 Gluten will internally build and link to a specific version of QATzip library. Please **uninstall QATzip library** before building Gluten if it's already installed. Additional environment set-up are also required:
 
@@ -398,7 +353,7 @@ cd /path_to_gluten
 ./dev/buildbundle-veloxbe.sh --enable_qat=ON
 ```
 
-## 6.2 Enable QAT with Gzip Compression for shuffle compression
+## Enable QAT with Gzip Compression for shuffle compression
 
 1. To enable QAT at run-time, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](../qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
 
@@ -445,7 +400,7 @@ There is 8 QAT acceleration device(s) in the system:
 while :; do cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/fw_counters; sleep 1; done
 ```
 
-## 6.3 QAT driver references
+## QAT driver references
 
 **Documentation**
 
@@ -465,13 +420,13 @@ Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.i
 
 For more Intel® QuickAssist Technology resources go to [Intel® QuickAssist Technology (Intel® QAT)](https://developer.intel.com/quickassist)
 
-# 7 Intel® In-memory Analytics Accelerator (IAA/IAX) support
+# Intel® In-memory Analytics Accelerator (IAA/IAX) support
 
 Similar to Intel® QAT, Gluten supports using Intel® In-memory Analytics Accelerator (IAA, also called IAX) for data compression during Spark Shuffle. It benefits from IAA Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
 
 This feature is based on Intel® [QPL](https://github.com/intel/qpl).
 
-## 7.1 Build Gluten with IAA
+## Build Gluten with IAA
 
 Gluten will internally build and link to a specific version of QPL library, but extra environment setup is still required. Please refer to [QPL Installation Guide](https://intel.github.io/qpl/documentation/get_started_docs/installation.html) to install dependencies and configure accelerators.
 
@@ -493,7 +448,7 @@ cd /path_to_gluten
 ./dev/buildbundle-veloxbe.sh --enable_iaa=ON
 ```
 
-## 6.2 Enable IAA with Gzip Compression for shuffle compression
+## Enable IAA with Gzip Compression for shuffle compression
 
 1. To enable QAT at run-time, first make sure you have configured the IAA Work-Queues correctly, and the file permissions of /dev/iax/wqX.0 are correct.
 
@@ -521,7 +476,7 @@ crw-rw---- 1 root iaa 509, 4 Apr  5 18:54 wq9.0
 --conf spark.gluten.sql.columnar.shuffle.codecBackend=iaa
 ```
 
-## 7.3 IAA references
+## IAA references
 
 **Intel® IAA Enabling Guide**
 
@@ -531,11 +486,11 @@ Check out the [Intel® In-Memory Analytics Accelerator (Intel® IAA) Enabling Gu
 
 Check out the [Intel® Query Processing Library (Intel® QPL) Documentation](https://intel.github.io/qpl/index.html)
 
-# 8 Test TPC-H or TPC-DS on Gluten with Velox backend
+# Test TPC-H or TPC-DS on Gluten with Velox backend
 
 All TPC-H and TPC-DS queries are supported in Gluten Velox backend.  
 
-## 8.1 Data preparation
+## Data preparation
 
 The data generation scripts are [TPC-H dategen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
 [TPC-DS dategen script](../backends-velox/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
@@ -548,7 +503,7 @@ Some other versions of TPC-DS and TPC-H queries are also provided, but are **not
 - the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
 - the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../tools/gluten-it/src/main/resources/tpcds-queries-nodecimal-nodate) (outdated).
 
-## 8.2 Submit the Spark SQL job
+## Submit the Spark SQL job
 
 Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
 
@@ -581,12 +536,12 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
 
 Refer to [Gluten parameters ](../Configuration.md) for more details of each parameter used by Gluten.
 
-## 8.3 Result
+## Result
 *wholestagetransformer* indicates that the offload works.
 
 ![TPC-H Q6](../image/TPC-H_Q6_DAG.png)
 
-## 8.4 Performance
+## Performance
 
 Below table shows the TPC-H Q1 and Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
 Both Parquet and ORC datasets are sf1024.
@@ -596,6 +551,6 @@ Both Parquet and ORC datasets are sf1024.
 | TPC-H Q6 | 13.6 | 21.6  | 34.9 |
 | TPC-H Q1 | 26.1 | 76.7 | 84.9 |
 
-# 9 External reference setup
+# External reference setup
 
 TO ease your first-hand experience of using Gluten, we have set up an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com.
