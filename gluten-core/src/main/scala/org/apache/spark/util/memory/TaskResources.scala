@@ -18,7 +18,7 @@
 package org.apache.spark.util.memory
 
 import io.glutenproject.memory.TaskMemoryMetrics
-import org.apache.spark.TaskContext
+import org.apache.spark.{TaskContext, TaskKilledException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
@@ -69,7 +69,10 @@ object TaskResources extends Logging {
             override def onTaskFailure(context: TaskContext, error: Throwable): Unit = {
               // TODO:
               // The general duty of printing error message should not reside in memory module
-              logError(s"Task ${context.taskAttemptId()} failed by error: ", error)
+              error match {
+                case e: TaskKilledException if e.reason == "another attempt succeeded" =>
+                case _ => logError(s"Task ${context.taskAttemptId()} failed by error: ", error)
+              }
             }
           })
         tc.addTaskCompletionListener(
