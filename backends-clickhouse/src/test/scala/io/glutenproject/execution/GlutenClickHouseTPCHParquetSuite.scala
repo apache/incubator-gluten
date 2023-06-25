@@ -688,26 +688,60 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  test("window first value") {
+  test("window first value with nulls") {
     val sql =
       """
-        |select n_regionkey, n_nationkey,
-        | first_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
-        |from nation
-        |order by n_regionkey, n_nationkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  test("window last value") {
+  test("window first value ignore nulls") {
     val sql =
       """
-        |select n_regionkey, n_nationkey,
-        | last_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
-        |from nation
-        |order by n_regionkey, n_nationkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey, true) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window last value with nulls") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   last_value(n_nationkey) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window last value ignore nulls") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   last_value(n_nationkey, true) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("group with rollup") {
@@ -1156,7 +1190,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       """
         | select tuple_data, json_tuple(json_data, 'a', 'c'), name from test_2005
         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 
+  test("GLUTEN-2060 null count") {
+    val sql =
+      """
+        |select
+        | count(a),count(b), count(1), count(distinct(a)), count(distinct(b)) 
+        |from
+        | values (1, null), (2,2) as data(a,b)
+        |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }

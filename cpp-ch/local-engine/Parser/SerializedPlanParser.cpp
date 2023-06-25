@@ -452,7 +452,6 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
                 throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", data_type->getName());
             }
             auto args_types = tuple_type->getElements();
-
             auto agg_function_name = getFunctionName(name_parts[3], {});
             AggregateFunctionProperties properties;
             auto tmp = AggregateFunctionFactory::instance().get(agg_function_name, args_types, {}, properties);

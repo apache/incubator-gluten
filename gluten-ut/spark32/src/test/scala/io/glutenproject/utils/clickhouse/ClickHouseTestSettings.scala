@@ -433,7 +433,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Window spill with less than the inMemoryThreshold",
       "Window spill with more than the inMemoryThreshold and spillThreshold",
       "Window spill with more than the inMemoryThreshold but less than the spillThreshold",
-      "NaN and -0.0 in window partition keys"
+      "NaN and -0.0 in window partition keys",
+      "SPARK-21258: complex object in combination with spilling"
     )
 }
 

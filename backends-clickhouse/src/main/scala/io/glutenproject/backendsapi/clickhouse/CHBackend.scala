@@ -132,6 +132,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
                 _: DenseRank =>
               allSupported = allSupported && true
             case _ =>
+              logDebug(s"Not support window function: ${wExpression.getClass}")
               allSupported = false
               break
           }

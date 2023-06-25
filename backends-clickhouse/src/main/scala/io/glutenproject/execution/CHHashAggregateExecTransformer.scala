@@ -112,20 +112,19 @@ case class CHHashAggregateExecTransformer(
       val nameList = new util.ArrayList[String]()
       val (inputAttrs, outputAttrs) =
         if (!modes.contains(Partial)) {
+          var resultAttrIndex = 0
           for (attr <- aggregateResultAttributes) {
-            val colName = if (aggregateAttributes.contains(attr)) {
-              // for aggregate func
-              ConverterUtils.genColumnNameWithExprId(attr) +
-                "#Partial#" + ConverterUtils.getShortAttributeName(attr)
-            } else {
-              // for group by cols
-              ConverterUtils.genColumnNameWithExprId(attr)
-            }
+            val colName = getIntermediateAggregateResultColumnName(
+              resultAttrIndex,
+              aggregateResultAttributes,
+              groupingExpressions,
+              aggregateExpressions)
             nameList.add(colName)
             val (dataType, nullable) =
               getIntermediateAggregateResultType(attr, aggregateExpressions)
             nameList.addAll(ConverterUtils.collectStructFieldNames(dataType))
             typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
+            resultAttrIndex += 1
           }
           (aggregateResultAttributes, output)
         } else {
@@ -297,6 +296,23 @@ case class CHHashAggregateExecTransformer(
   override def isStreaming: Boolean = false
 
   def numShufflePartitions: Option[Int] = Some(0)
+
+  // aggResultAttributes is groupkeys ++ aggregate expressions
+  def getIntermediateAggregateResultColumnName(
+      columnIndex: Int,
+      aggResultAttributes: Seq[Attribute],
+      groupingExprs: Seq[NamedExpression],
+      aggExpressions: Seq[AggregateExpression]): String = {
+    val resultAttr = aggResultAttributes(columnIndex)
+    if (columnIndex < groupingExprs.length) {
+      ConverterUtils.genColumnNameWithExprId(resultAttr)
+    } else {
+      val aggExpr = aggExpressions(columnIndex - groupingExprs.length)
+      var aggFunctionName =
+        AggregateFunctionsBuilder.getSubstraitFunctionName(aggExpr.aggregateFunction).get
+      ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
+    }
+  }
 
   def getIntermediateAggregateResultType(
       attr: Attribute,
