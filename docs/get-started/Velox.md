@@ -153,31 +153,22 @@ mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 
 ## 2.3 HDFS support
 
-Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/tree/master/depends/libhdfs3) library. The libhdfs3 provides native API for Hadoop I/O without the drawbacks of JNI. It also provides advanced authentatication like Kerberos based. Please note this library has serveral depedencies which may require extra installations on Driver and Worker node.
-On Ubuntu 20.04 the required depedencis are libiberty-dev, libxml2-dev, libkrb5-dev, libgsasl7-dev, libuuid1, uuid-dev. The packages can be installed via below command:
-```
-sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
-```
-To build Gluten with HDFS support, below command is provided:
-```
-cd /path_to_gluten/ep/build-velox/src
-./get_velox.sh --enable_hdfs=ON
-./build_velox.sh --enable_hdfs=ON
+Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/tree/master/depends/libhdfs3) library. The libhdfs3 provides native API for Hadoop I/O without the drawbacks of JNI. It also provides advanced authentication like Kerberos based. Please note this library has several dependencies which may require extra installations on Driver and Worker node.
 
-cd /path_to_gluten/cpp
-mkdir build
-cd build
-cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HDFS=ON ..
-make -j
+### Build with HDFS support
+To build Gluten with HDFS support, below command is suggested:
 
+```
 cd /path_to_gluten
-mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
+./dev/buildbundle-veloxbe.sh --enable_hdfs=ON
 ```
-It is supported to access data on different HDFS endpoints.
-The endpoint info (hdfs://host:port) contained in a given hdfs file path will be used to initialize an hdfs client.
 
-If your HDFS is in HA mode, you need to set the [LIBHDFS3_CONF](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/depends/libhdfs3/src/client/Hdfs.cpp#L173) environment variable to specify hdfs client configuration file.
-An alternative, you can also make a [hdfs-client.xml](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/depends/libhdfs3/src/client/Hdfs.cpp#L185) and upload it to cluster.
+### Configuration about HDFS support
+ 
+HDFS uris (hdfs://host:port) will be extracted from a valid hdfs file path to initialize hdfs client, you do not need to specify it explicitly.
+
+libhdfs3 need a configuration file and [example here](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/src/backend/utils/misc/etc/hdfs-client.xml), this file is a bit different from hdfs-site.xml and core-site.xml.
+Download that example config file to local and do some needed modifications to support HA or else, then set env variable like below to use it, or upload it to HDFS to use, more details [here](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/depends/libhdfs3/src/client/Hdfs.cpp#L171-L189).
 
 ```
 // Spark local mode
@@ -190,60 +181,12 @@ export LIBHDFS3_CONF="/path/to/hdfs-client.xml"
 cp /path/to/hdfs-client.xml hdfs-client.xml
 --files hdfs-client.xml
 ```
-If Gluten is used in a fully-prepared Hadoop cluster, you can directly use the hdfs-site.xml of the cluster.
-
-In the configuration file, you need to set the HDFS HA-related configuration.
-
-```
-<property>
-   <name>dfs.nameservices</name>
-   <value>EXAMPLENAMESERVICE</value>
-</property>
-
-<property>
-    <name>dfs.ha.namenodes.EXAMPLENAMESERVICE</name>
-    <value>ns1,ns2</value>
-</property>
-
-<property>
-    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns1</name>
-    <value>hdfs://ns1:8020</value>
-</property>
-
-<property>
-    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns2</name>
-    <value>hdfs://ns2:8020</value>
-</property>
-```
-
-One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
-
-By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
-
-```
-sudo mkdir -p /var/lib/hadoop-hdfs/
-sudo chown <sparkuser>:<sparkuser> /var/lib/hadoop-hdfs/
-```
-
-You also need to add configuration to the "hdfs-site.xml" as below:
-
-```
-<property>
-   <name>dfs.client.read.shortcircuit</name>
-   <value>true</value>
-</property>
-
-<property>
-   <name>dfs.domain.socket.path</name>
-   <value>/var/lib/hadoop-hdfs/dn_socket</value>
-</property>
-```
 
 ### Kerberos support
 
 Here are two steps to enable kerberos.
 
-- Make sure the hdfs config file contains
+- Make sure the hdfs-client.xml contains
 ```
 <property>
     <name>hadoop.security.authentication</name>
@@ -257,12 +200,6 @@ Here are two steps to enable kerberos.
 ```
 The ticket cache file can be found by `klist`.
 
-## 2.4 Yarn Cluster mode
-
-Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its depedencies should be installed on each worker node. Users may requried to setup extra LD_LIBRARY_PATH if the depedencies are not on system's default library path. On Ubuntu 20.04 the dependencies can be installed with below command:
-```
-sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
-```
 ## 2.5 AWS S3 support
 
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
