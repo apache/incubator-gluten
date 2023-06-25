@@ -458,8 +458,8 @@ jobs:
           EXTRA_DOCKER_OPTIONS="--name velox-static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --volume velox-vcpkg-binary-cache:/var/cache/vcpkg --env VCPKG_BINARY_SOURCES=clear;files,/var/cache/vcpkg,readwrite --detach" \
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
-          OS_IMAGE=centos:8 \
-          OS_VERSION=8 \
+          OS_IMAGE=centos:7 \
+          OS_VERSION=7 \
           tools/gluten-te/centos/cbash.sh sleep 14400
       - name: Setup maven cache
         run: |

@@ -4,6 +4,10 @@ set -e
 
 ## Install functions begin
 
+function semver {
+    echo "$@" | awk -F. '{ printf("%d%03d%03d", $1,$2,$3); }'
+}
+
 install_centos_any_maven() {
     if [ -z "$(which mvn)" ]; then
         maven_version=3.9.2
@@ -23,10 +27,12 @@ install_centos_any_maven() {
 }
 
 install_centos_7() {
+    export PATH=/usr/local/bin:$PATH
+
     yum -y install epel-release centos-release-scl
     yum -y install \
         wget curl tar zip unzip which \
-        cmake3 ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake3 ninja-build perl-IPC-Cmd autoconf libtool \
         devtoolset-9 \
         bison \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
@@ -50,6 +56,21 @@ install_centos_7() {
         make install
         cd
         rm -rf /tmp/flex
+    fi
+
+    # automake>=1.14
+    installed_automake_version="$(aclocal --version | sed -En "1s/^.* ([1-9\.]*)$/\1/p")"
+    if [ "$(semver "$installed_automake_version")" -lt "$(semver 1.14)" ]; then
+        mkdir -p /tmp/automake
+        wget -O - http://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz | tar -x --xz -C /tmp/automake --strip-components=1
+        cd /tmp/automake
+        ./configure
+        make install -j
+        cd
+        rm -rf /tmp/automake
+
+        # Fix aclocal search path
+        echo /usr/share/aclocal > /usr/local/share/aclocal/dirlist
     fi
 
     install_centos_any_maven
