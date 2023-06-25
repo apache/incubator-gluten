@@ -16,6 +16,9 @@
  */
 package org.apache.spark.util
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.spark.SparkConf
+import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.SparkSession
@@ -48,5 +51,9 @@ object SparkUtil extends Logging {
         None
       }
     }.filter(!_.isEmpty).map(_.get).toList
+  }
+
+  def newConfiguration(conf: SparkConf): Configuration = {
+    SparkHadoopUtil.get.newConfiguration(conf)
   }
 }

@@ -336,6 +336,8 @@ object GlutenConfig {
   // Tokens of current user, split by `\0`
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
+  val AUTO_GENERATE_LIBHDFS3_CONF_KEY = "spark.gluten.generate.libhdfs3.conf.auto"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {

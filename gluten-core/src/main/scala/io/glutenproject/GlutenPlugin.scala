@@ -32,8 +32,9 @@ import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.sql.utils.ExpressionUtil
-import org.apache.spark.util.SparkResourcesUtil
+import org.apache.spark.util.{SparkResourcesUtil, SparkUtil}
 
+import java.io.{File, FileOutputStream}
 import java.util
 import java.util.{Collections, Objects}
 import scala.language.implicitConversions
@@ -151,7 +152,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   }
 }
 
-private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
+private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin with Logging {
   private var executorEndpoint: GlutenExecutorEndpoint = _
 
   /**
@@ -167,11 +168,37 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
       throw new IllegalArgumentException(s"Must set 'spark.memory.offHeap.enabled' to true" +
         s" and set off heap memory size by option 'spark.memory.offHeap.size'")
     }
+
+    if (conf.getBoolean(GlutenConfig.AUTO_GENERATE_LIBHDFS3_CONF_KEY, defaultValue = false)) {
+      // Generate libhdfs3 conf file from spark hadoop configuration
+      generateLibhdfs3Conf(conf)
+    }
+
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getContextApiInstance.initialize(conf)
 
     executorEndpoint = new GlutenExecutorEndpoint(ctx.executorID(), conf)
+  }
+
+  private def generateLibhdfs3Conf(sparkConf: SparkConf): Unit = {
+    val conf = SparkUtil.newConfiguration(sparkConf)
+    val libhdfs3ConfFile = new File(System.getenv("LIBHDFS3_CONF"))
+    if (!libhdfs3ConfFile.exists) {
+      logInfo(s"Writing Hadoop configuration to $libhdfs3ConfFile")
+      var fileOutputStream: FileOutputStream = null
+      try {
+        fileOutputStream = new FileOutputStream(libhdfs3ConfFile)
+        conf.writeXml(fileOutputStream)
+      } catch {
+        case e: Exception =>
+            logError(s"Failed to write Hadoop configuration to $libhdfs3ConfFile", e)
+      } finally {
+        if (fileOutputStream != null) fileOutputStream.close()
+      }
+    } else {
+        logWarning(s"Libhdfs3 conf already exists at $libhdfs3ConfFile")
+    }
   }
 
   /**
