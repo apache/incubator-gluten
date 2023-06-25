@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include "VeloxShuffleWriter.h"
 #include "compute/ArrowTypeUtils.h"
 #include "memory/ArrowMemory.h"
@@ -229,17 +246,15 @@ arrow::Status VeloxShuffleWriter::init() {
 
 arrow::Status VeloxShuffleWriter::initIpcWriteOptions() {
   auto& ipcWriteOptions = options_.ipc_write_options;
-  //  if (options_.prefer_evict) {
-  //    ipcWriteOptions.memory_pool = options_.memory_pool.get();
-  //  } else {
-  //    if (!options_.ipc_memory_pool) {
-  //      auto ipcMemoryPool = std::make_shared<MMapMemoryPool>();
-  //      ipcMemoryPool->SetSpillFunc([this](int64_t size, int64_t* actual) { return this->evictFixedSize(size, actual);
-  //      }); options_.ipc_memory_pool = std::move(ipcMemoryPool);
-  //    }
-  //    ipcWriteOptions.memory_pool = options_.ipc_memory_pool.get();
-  //  }
-  ipcWriteOptions.memory_pool = options_.memory_pool.get();
+  if (options_.prefer_evict) {
+    ipcWriteOptions.memory_pool = options_.memory_pool.get();
+  } else {
+    if (!options_.ipc_memory_pool) {
+      auto ipcMemoryPool = std::make_shared<LargeMemoryPool>(options_.memory_pool.get());
+      options_.ipc_memory_pool = std::move(ipcMemoryPool);
+    }
+    ipcWriteOptions.memory_pool = options_.ipc_memory_pool.get();
+  }
   ipcWriteOptions.use_threads = false;
 
   tinyBatchWriteOptions_ = ipcWriteOptions;
@@ -413,6 +428,9 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
 arrow::Status VeloxShuffleWriter::stop() {
   EVAL_START("write", options_.thread_id)
   RETURN_NOT_OK(partitionWriter_->stop());
+  if (options_.ipc_memory_pool != options_.memory_pool) {
+    options_.ipc_memory_pool.reset();
+  }
   EVAL_END("write", options_.thread_id, options_.task_attempt_id)
 
   return arrow::Status::OK();
@@ -1133,22 +1151,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           }
         }
       }
-    } else {
-      // With compression, make buffers shrink-to-fit
-      for (auto i = 0; i < payload->body_buffers.size(); ++i) {
-        auto& buffer = payload->body_buffers[i];
-        if (buffer && buffer->size() > 0) {
-          if (buffer->parent()) { // A compressed Buffer is created from SliceBuffer(parent)
-            auto parent = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffer->parent());
-            RETURN_NOT_OK(parent->Resize(buffer->size(), /* shrink_to_fit= */ true));
-            if (parent->data() != buffer->data()) {
-              payload->body_buffers[i] = arrow::SliceBuffer(parent, 0, buffer->size());
-            }
-          } else {
-            return arrow::Status::Invalid("Cannot shrink buffer.");
-          }
-        }
-      }
     }
     return payload;
   }
@@ -1323,13 +1325,16 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       }
     } else {
       // Evict all cached partitions
-      int64_t totalCachedSize =
-          std::accumulate(partitionCachedRecordbatchSize_.begin(), partitionCachedRecordbatchSize_.end(), 0);
-      RETURN_NOT_OK(evictPartition(-1));
+      int64_t totalCachedSize = totalCachedPayloadSize();
+      if (totalCachedPayloadSize() <= 0) {
+        *size = 0;
+      } else {
+        RETURN_NOT_OK(evictPartition(-1));
 #ifdef GLUTEN_PRINT_DEBUG
-      std::cout << "Evicted all partition. " << std::to_string(totalCachedSize) << " bytes released" << std::endl;
+        std::cout << "Evicted all partition. " << std::to_string(totalCachedSize) << " bytes released" << std::endl;
 #endif
-      *size = totalCachedSize;
+        *size = totalCachedSize;
+      }
     }
     return arrow::Status::OK();
   }

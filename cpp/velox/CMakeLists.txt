@@ -221,6 +221,7 @@ set(VELOX_SRCS
     compute/VeloxPlanConverter.cc
     compute/VeloxRowToColumnarConverter.cc
     compute/VeloxParquetDatasource.cc
+    memory/LargeMemoryPool.cc
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
     utils/VeloxArrowUtils.cc
