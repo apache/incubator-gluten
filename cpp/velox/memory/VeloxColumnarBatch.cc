@@ -22,18 +22,6 @@ RowVectorPtr makeRowVector(
 
   return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), vectorSize, children);
 }
-
-// destroyed input vector
-RowVectorPtr addColumnToVector(int32_t index, RowVectorPtr vector, RowVectorPtr col) {
-  auto names = asRowType(vector->type())->names();
-  auto newNames = std::move(names);
-  newNames.insert(newNames.begin() + index, asRowType(col->type())->nameOf(0));
-
-  auto childern = vector->children();
-  auto newChildren = std::move(childern);
-  newChildren.insert(newChildren.begin() + index, col->childAt(0));
-  return makeRowVector(newNames, newChildren, vector->pool());
-}
 } // namespace
 
 void VeloxColumnarBatch::ensureFlattened() {
@@ -70,28 +58,9 @@ std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   return out;
 }
 
-int64_t VeloxColumnarBatch::getBytes() {
+int64_t VeloxColumnarBatch::numBytes() {
   ensureFlattened();
   return flattened_->estimateFlatSize();
-}
-
-std::shared_ptr<ColumnarBatch> VeloxColumnarBatch::addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) {
-  auto cb = std::dynamic_pointer_cast<ArrowCStructColumnarBatch>(col);
-  auto rvCol = std::dynamic_pointer_cast<RowVector>(
-      velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), rowVector_->pool()));
-  auto newVector = addColumnToVector(index, rowVector_, rvCol);
-  return std::make_shared<VeloxColumnarBatch>(newVector);
-}
-
-void VeloxColumnarBatch::saveToFile(std::shared_ptr<ArrowWriter> writer) {
-  auto schema = exportArrowSchema();
-  auto maybeBatch = arrow::ImportRecordBatch(exportArrowArray().get(), schema.get());
-  if (!maybeBatch.ok()) {
-    throw gluten::GlutenException("Get batch failed!");
-    return;
-  }
-  GLUTEN_THROW_NOT_OK(writer->initWriter(*maybeBatch.ValueOrDie()->schema().get()));
-  GLUTEN_THROW_NOT_OK(writer->writeInBatches(maybeBatch.ValueOrDie()));
 }
 
 velox::RowVectorPtr VeloxColumnarBatch::getRowVector() const {
@@ -103,15 +72,35 @@ velox::RowVectorPtr VeloxColumnarBatch::getFlattenedRowVector() {
   return flattened_;
 }
 
-velox::RowVectorPtr convertBatch(
-    std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
+std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::from(
+    facebook::velox::memory::MemoryPool* pool,
     std::shared_ptr<ColumnarBatch> cb) {
-  if (cb->getType() != "velox") {
-    auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), pool.get());
-    return std::dynamic_pointer_cast<velox::RowVector>(vp);
-  } else {
-    return std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
+  if (cb->getType() == "velox") {
+    return std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   }
+  if (cb->getType() == "composite") {
+    auto composite = std::dynamic_pointer_cast<gluten::CompositeColumnarBatch>(cb);
+    auto children = composite->getBatches();
+    std::vector<std::string> childNames;
+    std::vector<VectorPtr> childVectors;
+
+    for (const auto& child : children) {
+      auto asVelox = from(pool, child);
+      auto names = facebook::velox::asRowType(asVelox->getRowVector()->type())->names();
+      for (const auto& name : names) {
+        childNames.push_back(name);
+      }
+      auto vectors = asVelox->getRowVector()->children();
+      for (const auto& vector : vectors) {
+        childVectors.push_back(vector);
+      }
+    }
+
+    auto compositeVeloxVector = makeRowVector(childNames, childVectors, pool);
+    return std::make_shared<VeloxColumnarBatch>(compositeVeloxVector);
+  }
+  auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), pool);
+  return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
 } // namespace gluten

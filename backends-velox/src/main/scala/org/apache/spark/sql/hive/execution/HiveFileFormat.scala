@@ -148,7 +148,7 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
                 writeQueue.enqueue(batch)
               } else {
                 val offloaded =
-                  ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
+                  ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
                 writeQueue.enqueue(offloaded)
               }
             }

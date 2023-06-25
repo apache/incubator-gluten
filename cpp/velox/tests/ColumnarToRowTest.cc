@@ -67,7 +67,8 @@ class ColumnarToRowTest : public ::testing::Test {
   void testConvertBatch(std::shared_ptr<RecordBatch> inputBatch) {
     auto converter = std::make_shared<ArrowColumnarToRowConverter>(arrowPool_);
     auto cb = std::make_shared<ArrowColumnarBatch>(inputBatch);
-    jniAssertOkOrThrow(converter->write(cb), "Native convert columnar to row: ColumnarToRowConverter write failed");
+    gluten::arrowAssertOkOrThrow(
+        converter->write(cb), "Native convert columnar to row: ColumnarToRowConverter write failed");
   }
 
  private:

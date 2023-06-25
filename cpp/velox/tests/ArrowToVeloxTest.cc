@@ -17,6 +17,7 @@
 
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
+#include "utils/ArrowStatus.h"
 #include "utils/TestUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -48,7 +49,7 @@ void checkBatchEqual(std::shared_ptr<RecordBatch> inputBatch, bool checkMetadata
   ArrowSchema arrowSchema;
   velox::exportToArrow(vp, arrowArray, defaultLeafVeloxMemoryPool().get());
   velox::exportToArrow(vp, arrowSchema);
-  auto in = gluten::jniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
+  auto in = gluten::arrowGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
   ASSERT_TRUE(in->Equals(*inputBatch, checkMetadata)) << in->ToString() << inputBatch->ToString();
 }
 
@@ -122,7 +123,7 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
   velox::exportToArrow(row, arrowArray, defaultLeafVeloxMemoryPool().get());
   velox::exportToArrow(row, arrowSchema);
 
-  auto in = gluten::jniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
+  auto in = gluten::arrowGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
   EXPECT_TRUE(in->Equals(*inputBatch));
   ArrowArrayRelease(&arrowArray);
 }
