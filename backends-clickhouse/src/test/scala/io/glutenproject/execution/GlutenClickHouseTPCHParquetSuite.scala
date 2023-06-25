@@ -20,9 +20,10 @@ import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.functions.{col, rand, when}
+import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
 
@@ -1100,5 +1101,13 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |order by t1.l_orderkey, t1.l_partkey, t2.o_custkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-1956: fix error conversion of Float32 in CHColumnToSparkRow") {
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
+      runQueryAndCompare(
+        "select struct(1.0f), array(2.0f), map('a', 3.0f) from range(1)"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 }

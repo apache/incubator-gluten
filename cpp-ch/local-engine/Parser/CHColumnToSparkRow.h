@@ -168,6 +168,8 @@ public:
     /// It is unsafe unless you know what you are doing.
     virtual void unsafeWrite(const char * __restrict src, char * __restrict buffer);
 
+    const DB::WhichDataType & getWhichDataType() const { return which; }
+
 private:
     // const DB::DataTypePtr type;
     const DB::DataTypePtr type_without_nullable;
