@@ -66,17 +66,12 @@ function check_spark_version() {
   fi
   echo "SPARK_HOME=${SPARK_HOME}"
   SPARK_VERSION=$(cat ${SPARK_HOME}/RELEASE | grep "^Spark" | cut -d " " -f 2)
-  BUILD_INFO_FILE=$(cd $(dirname -- $0)/..; pwd -P)/BUILD_INFO
-  if [[ ! -f "${BUILD_INFO_FILE}" ]]; then
-    echo "[ERROR] file BUILD_INFO not found."
+  SPARK_MAJOR_MINOR_VERSION=$(echo ${SPARK_VERSION} | cut -d '.' -f 1-2)
+  if [[ "${SPARK_MAJOR_MINOR_VERSION}" != "3.2" ]] && [[ "${SPARK_MAJOR_MINOR_VERSION}" != "3.3" ]]; then
+    echo "[ERROR] SPARK_VERSION ${SPARK_VERSION} which defined in $SPARK_HOME/RELEASE, is not supported. Please use spark 3.2 or spark 3.3."
     exit 1
   fi
-  BUILD_SPARK_MAJOR_MINOR_VERSION=$(cat ${BUILD_INFO_FILE} | grep "^SPARK_MAJOR_MINOR_VERSION=" | cut -d "=" -f 2)
-  # only compare major and minor version
-  SPARK_MAJOR_MINOR_VERSION=$(echo ${SPARK_VERSION} | cut -d '.' -f 1-2)
-  if [[ "${SPARK_MAJOR_MINOR_VERSION}" != "${BUILD_SPARK_MAJOR_MINOR_VERSION}" ]]; then
-    echo "[WARNING] SPARK_MAJOR_MINOR_VERSION ${SPARK_MAJOR_MINOR_VERSION} is not same as ${BUILD_SPARK_MAJOR_MINOR_VERSION} which is defined in BUILD_INFO."
-  fi
+  export SPARK_MAJOR_MINOR_VERSION=${SPARK_MAJOR_MINOR_VERSION}
   echo "SPARK_VERSION=${SPARK_VERSION}"
 }
 

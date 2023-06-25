@@ -81,7 +81,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   // we don't try deleting files, etc twice.
   private var stopping = false
   private var mapStatus: MapStatus = _
-  private var nativeShuffleWriter: Long = 0
+  private var nativeShuffleWriter: Long = -1L
 
   private var splitResult: SplitResult = _
 
@@ -116,7 +116,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val handle = GlutenColumnarBatches.getNativeHandle(cb)
-        if (nativeShuffleWriter == 0) {
+        if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
             availableOffHeapPerTask(),
@@ -128,10 +128,10 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             NativeMemoryAllocators
               .createSpillable(new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
-                  if (nativeShuffleWriter == 0) {
+                  if (nativeShuffleWriter == -1L) {
                     throw new IllegalStateException(
-                      "Fatal: spill() called before a shuffle shuffle writer " +
-                        "evaluator is created. This behavior should be" +
+                      "Fatal: spill() called before a celeborn shuffle writer " +
+                        "is created. This behavior should be" +
                         "optimized by moving memory " +
                         "allocations from make() to split()")
                   }
@@ -160,7 +160,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
     }
 
     val startTime = System.nanoTime()
-    if (nativeShuffleWriter != 0) {
+    if (nativeShuffleWriter != -1L) {
       splitResult = jniWrapper.stop(nativeShuffleWriter)
     }
 
@@ -193,9 +193,9 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
         None
       }
     } finally {
-      if (nativeShuffleWriter != 0) {
+      if (nativeShuffleWriter != -1L) {
         closeShuffleWriter()
-        nativeShuffleWriter = 0
+        nativeShuffleWriter = -1L
       }
       client.cleanup(appId, shuffleId, mapId, context.attemptNumber)
     }

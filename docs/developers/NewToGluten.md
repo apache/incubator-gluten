@@ -364,3 +364,39 @@ spark-shell --name run_gluten \
  --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
 
 ```
+
+# How to prioritize loading Gluten jars in Spark 
+
+To implement the Insert into directory function in gluten, it is necessary to overwrite the implementation of HiveFileFormat in vanilla spark. Therefore, when running a program that uses gluten, it is essential to ensure that the gluten jar is loaded prior to the vanilla spark jar. In this section, we will provide some configuration settings in `$SPARK_HOME/conf/spark-defaults.conf` for Yarn client, Yarn cluster, and Local&Standalone mode to guarantee that the gluten jar is prioritized.
+
+## Configurations for Yarn Client mode
+
+```
+// spark will upload the gluten jar to hdfs and then the nodemanager will fetch the gluten jar before start the executor process. Here also can set the spark.jars.
+spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The absolute path on running node
+spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The relative path under the executor working directory
+spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+```
+
+## Configurations for Yarn Cluster mode
+```
+spark.driver.userClassPathFirst = true
+spark.executor.userClassPathFirst = true
+
+spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The relative path under the executor working directory
+spark.driver.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The relative path under the executor working directory
+spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+```
+## Configurations for Local & Standalone mode
+```
+// The absolute path on running node
+spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The absolute path on running node
+spark.executor.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+```
+
+

@@ -3,7 +3,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_BRANCH=branch-1.0
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
@@ -161,7 +161,7 @@ git submodule update --init --recursive
 # apply patches
 sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
 sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
-if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
+if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
   process_setup_ubuntu
 elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
   case "$LINUX_VERSION_ID" in

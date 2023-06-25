@@ -1,67 +1,47 @@
-macro(add_gtest_sources prefix common_path)
-    add_glob(${prefix}_sources ${common_path}/gtest*.cpp)
-endmacro()
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h)
 
-set(USE_INTERNAL_GTEST_LIBRARY 0)
-set(BENCHMARK_ENABLE_TESTING OFF)
+if (ENABLE_TESTS)
+    macro(add_gtest_sources prefix common_path)
+        add_glob(${prefix}_sources ${common_path}/gtest*.cpp)
+    endmacro()
 
-enable_testing()
-include(CTest)
+    set(USE_INTERNAL_GTEST_LIBRARY 0)
+    set(BENCHMARK_ENABLE_TESTING OFF)
 
-include_directories(${GTEST_INCLUDE_DIRS})
+    enable_testing()
+    include(CTest)
 
-set(TEST_DATA_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine/tests")
+    include_directories(${GTEST_INCLUDE_DIRS})
 
-configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in
-        ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h
-)
-set(HAVE_POSIX_REGEX 1)
-include(FetchContent)
-FetchContent_Declare(googlebenchmark GIT_REPOSITORY https://github.com/google/benchmark GIT_TAG main)
-FetchContent_MakeAvailable(googlebenchmark)
-include_directories(
-        ${builder_headers}
-        ${parser_headers}
-)
+    set(TEST_DATA_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine/tests")
+    set(HAVE_POSIX_REGEX 1)
+    set(LOCAL_ENGINE_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine")
 
-target_compile_options(benchmark PUBLIC
-        -Wno-extra-semi-stmt
-        -Wno-format-nonliteral
-        -Wno-missing-noreturn
-        -Wno-old-style-cast
-        -Wno-undef
-        -Wno-used-but-marked-unused
-        -Wno-zero-as-null-pointer-constant
-        -Wno-shift-sign-overflow
-        -Wno-thread-safety-analysis
-        )
+    add_gtest_sources(local_engine_gtest .)
+    if (ENABLE_LOCAL_UDFS)
+        file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_udf/tests)
+        foreach(child ${children})
+            add_gtest_sources(local_engine_gtest ${child})
+        endforeach()
 
+        file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_udf)
+        foreach(child ${children})
+            add_headers_and_sources(local_udfs_test ${child})
+        endforeach()
+    endif ()
 
-set(LOCAL_ENGINE_DIR "${ClickHouse_SOURCE_DIR}/utils/extern-local-engine")
+    message("gtest_sources ${local_engine_gtest_sources}")
+    message("local UDFs: ${local_udfs_test_sources}")
 
-add_gtest_sources(local_engine_gtest .)
-if (ENABLE_LOCAL_UDFS)
-    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_udf/tests)
-    foreach(child ${children})
-        add_gtest_sources(local_engine_gtest ${child})
-    endforeach()
-endif ()
-message("gtest_sources ${local_engine_gtest_sources}")
-
-add_executable(unit_tests_local_engine ${local_engine_gtest_sources})
-
-add_executable(benchmark_local_engine benchmark_local_engine.cpp benchmark_parquet_read.cpp benchmark_spark_row.cpp)
-
-target_include_directories(unit_tests_local_engine PRIVATE
-    ${GTEST_INCLUDE_DIRS}/include
-    ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
-)
-
-include_directories(benchmark_local_engine SYSTEM PUBLIC
-    ${FETCH_CONTENT_SOURCE_DIR_GOOGLEBENCHMARK}/include
-    ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
-)
-
-target_link_libraries(unit_tests_local_engine PRIVATE ${LOCALENGINE_SHARED_LIB} _gtest_all clickhouse_parsers)
-target_link_libraries(benchmark_local_engine PRIVATE ${LOCALENGINE_SHARED_LIB} benchmark::benchmark)
+    add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_udfs_test_sources})
+    target_include_directories(unit_tests_local_engine PRIVATE
+        ${GTEST_INCLUDE_DIRS}/include
+        ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
+    target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs _gtest_all clickhouse_parsers loggers)
+else()
+    include_directories(benchmark_local_engine SYSTEM PUBLIC
+        ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
+    )
+    add_executable(benchmark_local_engine benchmark_local_engine.cpp benchmark_parquet_read.cpp benchmark_spark_row.cpp)
+    target_link_libraries(benchmark_local_engine PRIVATE gluten_clickhouse_backend_libs ch_contrib::gbenchmark_all loggers)
+endif()

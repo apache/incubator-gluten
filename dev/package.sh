@@ -35,7 +35,7 @@ function process_setup_centos_7 {
   cp /usr/local/lib/{libre2.so.10,libhdfs3.so.1,libboost_context.so.1.72.0,libboost_filesystem.so.1.72.0,libboost_program_options.so.1.72.0,libboost_system.so.1.72.0,libboost_thread.so.1.72.0,libboost_regex.so.1.72.0,libprotobuf.so.32} $THIRDPARTY_LIB/
 }
 
-if [ "$LINUX_OS" == "ubuntu" ]; then
+if [ "$LINUX_OS" == "ubuntu" || "$LINUX_OS" == "pop" ]; then
   if [ "$VERSION" == "20.04" ]; then
     process_setup_ubuntu_2004
   elif [ "$VERSION" == "22.04" ]; then

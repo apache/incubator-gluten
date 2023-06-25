@@ -36,6 +36,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
 
+  // The key of merge schema option in Parquet reader.
+  protected val mergeSchemaOptionKey = "mergeschema"
+
   def filterExprs(): Seq[Expression]
 
   def outputAttributes(): Seq[Attribute]

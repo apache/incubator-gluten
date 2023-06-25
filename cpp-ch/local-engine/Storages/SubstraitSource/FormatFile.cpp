@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <IO/ReadBufferFromFile.h>
+#include "Common/CHUtil.h"
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
@@ -15,6 +16,7 @@
 #endif
 #if USE_HIVE
 #include <Storages/SubstraitSource/TextFormatFile.h>
+#include <Storages/SubstraitSource/ExcelTextFormatFile.h>
 #endif
 #include <Storages/SubstraitSource/JsonFormatFile.h>
 
@@ -59,7 +61,11 @@ FormatFilePtr FormatFileUtil::createFile(
 #if USE_HIVE
     if (file.has_text())
     {
-        return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);
+        if (context->getSettings().has(BackendInitializerUtil::USE_EXCEL_PARSER)
+            && context->getSettings().getString(BackendInitializerUtil::USE_EXCEL_PARSER) == "'true'")
+            return std::make_shared<ExcelTextFormatFile>(context, file, read_buffer_builder);
+        else
+            return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);
     }
 #endif
 

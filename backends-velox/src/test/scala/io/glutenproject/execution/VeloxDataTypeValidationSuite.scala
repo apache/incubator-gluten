@@ -306,11 +306,17 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
 
   test("Map type") {
     // Validation: BatchScan Project Limit
-    runQueryAndCompare("select map from type1 limit 1") { _ => }
+    runQueryAndCompare("select map from type1 limit 1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+    }}
     // Validation: BatchScan Project Aggregate Sort Limit
     // TODO validate Expand operator support map type ?
     runQueryAndCompare("select map['key'] from type1 group by map['key']" +
-      " sort by map['key'] limit 1") { _ => }
+      " sort by map['key'] limit 1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+    }}
 
     // Validation: BroadHashJoin, Filter, Project
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
@@ -321,6 +327,32 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
     runQueryAndCompare("select type1.map['key'] from type1," +
       " type2 where type1.map['key'] = type2.map['key']") { _ => }
+  }
+
+  test("Struct type") {
+    // Validation: BatchScan Project Limit
+    runQueryAndCompare("select struct from type1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+    }}
+    // Validation: BatchScan Project Aggregate Sort Limit
+    // TODO validate Expand operator support Struct type ?
+    runQueryAndCompare("select int, struct.struct_1 from type1 " +
+      "sort by struct.struct_1 limit 1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]))
+    }}
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.struct.struct_1 from type1," +
+      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.struct.struct_1 from type1," +
+      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
   }
 
   test("Decimal type") {
@@ -345,29 +377,6 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       assert(executedPlan.exists(plan =>
         plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
     }}
-  }
-
-  test("Struct type") {
-    // Validation: BatchScan Project Limit
-    runQueryAndCompare("select struct from type1") { _ => }
-    // Validation: BatchScan Project Aggregate Sort Limit
-    // TODO validate Expand operator support Struct type ?
-    runQueryAndCompare("select int, struct.struct_1 from type1 " +
-      "sort by struct.struct_1 limit 1") { df => {
-      val executedPlan = getExecutedPlan(df)
-      assert(executedPlan.exists(plan =>
-        plan.find(child => child.isInstanceOf[ProjectExecTransformer]).isDefined))
-    }}
-
-    // Validation: BroadHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
-    runQueryAndCompare("select type1.struct.struct_1 from type1," +
-      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
-
-    // Validation: ShuffledHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
-    runQueryAndCompare("select type1.struct.struct_1 from type1," +
-      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
   }
 
   test("RowToArrow and VeloxToRow") {

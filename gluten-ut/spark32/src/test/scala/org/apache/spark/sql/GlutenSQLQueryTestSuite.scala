@@ -170,8 +170,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     attempt.isSuccess && attempt.get == 0
   }
 
-  private val isCHBackend = BackendsApiManager.getBackendName
-    .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+  private val isCHBackend = BackendsApiManager.chBackend
 
   protected override def sparkConf: SparkConf = {
     val conf = super.sparkConf

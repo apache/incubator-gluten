@@ -29,5 +29,9 @@ class ColumnarBatchIterator {
 
   // null means stream end
   virtual std::shared_ptr<ColumnarBatch> next() = 0;
+
+  virtual int64_t spillFixedSize(int64_t size) {
+    return 0L;
+  }
 };
 } // namespace gluten

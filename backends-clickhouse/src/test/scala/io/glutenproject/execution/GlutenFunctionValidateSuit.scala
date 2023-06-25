@@ -27,7 +27,7 @@ import java.nio.file.Files
 
 import scala.collection.immutable.Seq
 
-class GlutenFunctionValidateSuit extends WholeStageTransformerSuite {
+class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
   override protected val resourcePath: String = {
     "../../../../gluten-core/src/test/resources/tpch-data"
   }

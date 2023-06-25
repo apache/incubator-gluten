@@ -1,6 +1,8 @@
 
-if (COMPILER_CLANG)
+if (COMPILER_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
     set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_WRAPPER}")
+else()
+    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_PATH}")
 endif ()
 
 option(ENABLE_LOCAL_FORMATS "Use ORC/Parquet input formats defined in utils/local-engine/, notice that it is not stable and has some known issues. We suggest setting it to OFF in production environment." OFF)
@@ -27,6 +29,7 @@ add_headers_and_sources(builder Builder)
 add_headers_and_sources(parser Parser)
 add_headers_and_sources(storages Storages)
 add_headers_and_sources(storages Storages/Output)
+add_headers_and_sources(storages Storages/Serializations)
 add_headers_and_sources(common Common)
 add_headers_and_sources(external External)
 add_headers_and_sources(shuffle Shuffle)
@@ -64,7 +67,8 @@ add_library(gluten_clickhouse_backend_libs
         ${external_sources}
         ${shuffle_sources}
         ${operator_sources}
-        ${aggregate_functions_sources})
+        ${aggregate_functions_sources}
+        ${jni_sources})
 
 target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
         substait_source                         # compile options from substait_source  
@@ -75,7 +79,7 @@ target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
 )
 
 # Add udf sources files in sub directories to functions_sources
-option(ENABLE_LOCAL_UDFS "Build udfs in 'local-engine/Parser/*_udf' subdirectories" ON)
+option(ENABLE_LOCAL_UDFS "Build UDFs in 'local-engine/Parser/*_udf' subdirectories" ON)
 if (ENABLE_LOCAL_UDFS)
     file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Parser/*_udf)
     foreach(child ${children})
@@ -86,7 +90,6 @@ endif ()
 # Notice: soures files under Parser/*_udf subdirectories must be built into target ${LOCALENGINE_SHARED_LIB} directly
 #         to make sure all function parsers are registered successly.
 add_library(${LOCALENGINE_SHARED_LIB} SHARED
-        ${jni_sources}
         local_engine_jni.cpp
         ${local_udfs_sources}
         $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
@@ -112,15 +115,14 @@ if (ENABLE_LOCAL_FORMATS)
     target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 endif ()
 
-if (ENABLE_TESTS)
-    add_subdirectory(tests)
-else ()
-    if (ENABLE_JEMALLOC)
-        target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
-            -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map -Wl,-Bsymbolic-functions)
-    else()
-        target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
-            -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
-    endif()
-endif ()
+if (ENABLE_JEMALLOC)
+    target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
+        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map -Wl,-Bsymbolic-functions)
+else()
+    target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
+        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
+endif()
+
+add_subdirectory(tests)
+
 

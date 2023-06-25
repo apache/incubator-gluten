@@ -18,6 +18,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ExpressionNames._
+import io.glutenproject.extension.ExpressionExtensionTrait
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -239,11 +240,16 @@ object ExpressionMappings {
     Sig[Lag](LAG)
   )
 
-  lazy val expressionsMap: Map[Class[_], String] = {
+  def expressionsMap: Map[Class[_], String] =
+    defaultExpressionsMap ++
+      expressionExtensionTransformer.extensionExpressionsMapping
+
+  private lazy val defaultExpressionsMap: Map[Class[_], String] = {
     (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++
       BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)
       .map(s => (s.expClass, s.name))
       .toMap[Class[_], String]
   }
 
+  var expressionExtensionTransformer: ExpressionExtensionTrait = _
 }

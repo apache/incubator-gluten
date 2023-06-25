@@ -38,6 +38,7 @@
 #include "velox/exec/Operator.h"
 
 DECLARE_int32(split_preload_per_driver);
+DECLARE_bool(SkipRowSortInWindowOp);
 
 using namespace facebook;
 
@@ -67,7 +68,8 @@ const std::string kVeloxIOThreadsDefault = "0";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
 
-// mem ratios and thresholds
+// spill, mem ratios and thresholds
+const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kMemoryCapRatio = "spark.gluten.sql.columnar.backend.velox.memoryCapRatio";
 const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio";
 
@@ -75,55 +77,73 @@ const std::string kSpillThresholdRatio = "spark.gluten.sql.columnar.backend.velo
 
 namespace gluten {
 
+void VeloxInitializer::printConf(const std::unordered_map<std::string, std::string>& conf) {
+  std::ostringstream oss;
+  oss << "STARTUP: VeloxInitializer conf = {\n";
+  for (auto& [k, v] : conf) {
+    oss << " {" << k << ", " << v << "}\n";
+  }
+  oss << "}\n";
+  oss << "memPoolOptions = {";
+  oss << " alignment:" << memPoolOptions_.alignment;
+  oss << ", capacity:" << (memPoolOptions_.capacity >> 20) << "M";
+  oss << ", trackUsage:" << (int)memPoolOptions_.trackUsage;
+  oss << " }\n";
+  oss << "spillThreshold = " << (spillThreshold_ >> 20) << "M";
+  LOG(INFO) << oss.str();
+}
+
 void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& conf) {
+  // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
+  // There is no need to sort the rows in window op again.
+  FLAGS_SkipRowSortInWindowOp = true;
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
-  std::unordered_map<std::string, std::string> configurationValues;
-
-  // mem cap ratio
-  float_t memCapRatio;
+  // spill mode
+  std::string spillStrategy;
   {
-    auto got = conf.find(kMemoryCapRatio);
+    auto got = conf.find(kSpillStrategy);
     if (got == conf.end()) {
       // not found
-      memCapRatio = 0.75;
+      spillStrategy = "threshold";
     } else {
-      memCapRatio = std::stof(got->second);
+      spillStrategy = got->second;
     }
   }
 
+  // mem cap ratio
+  float_t memCapRatio = 0.75;
+  auto got = conf.find(kMemoryCapRatio);
+  if (got != conf.end()) {
+    memCapRatio = std::stof(got->second);
+  }
+
   // mem tracker
-  int64_t maxMemory;
-  {
+  int64_t maxMemory = facebook::velox::memory::kMaxMemory;
+  if (spillStrategy == "threshold") {
     auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
-    if (got == conf.end()) {
-      // not found
-      maxMemory = facebook::velox::memory::kMaxMemory;
-    } else {
+    if (got != conf.end()) {
       maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
     }
   }
 
-  memPoolOptions_ = {facebook::velox::memory::MemoryAllocator::kMaxAlignment, maxMemory};
+  memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .capacity = maxMemory};
 
   // spill threshold ratio (out of the memory cap)
-  float_t spillThresholdRatio;
-  {
-    auto got = conf.find(kSpillThresholdRatio);
-    if (got == conf.end()) {
-      // not found
-      spillThresholdRatio = 0.6;
-    } else {
-      spillThresholdRatio = std::stof(got->second);
-    }
+  float_t spillThresholdRatio = 0.6;
+  got = conf.find(kSpillThresholdRatio);
+  if (got != conf.end()) {
+    spillThresholdRatio = std::stof(got->second);
   }
+
   spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);
 
 #ifdef ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
 #endif
 
+  std::unordered_map<std::string, std::string> configurationValues;
 #ifdef ENABLE_S3
   velox::filesystems::registerS3FileSystem();
 
@@ -166,6 +186,11 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   initCache(conf);
   initIOExecutor(conf);
+
+#ifdef GLUTEN_PRINT_DEBUG
+  printConf(conf);
+#endif
+
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
@@ -183,7 +208,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   }
 }
 
-velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() {
+velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
   return asyncDataCache_.get();
 }
 
@@ -278,9 +303,8 @@ void VeloxInitializer::create(const std::unordered_map<std::string, std::string>
 std::shared_ptr<VeloxInitializer> VeloxInitializer::get() {
   std::lock_guard<std::mutex> lockGuard(mutex_);
   if (instance_ == nullptr) {
-    std::cout
-        << "VeloxInitializer not set, using default VeloxInitializer instance. This should only happen in test code."
-        << std::endl;
+    LOG(INFO)
+        << "VeloxInitializer not set, using default VeloxInitializer instance. This should only happen in test code.";
     static const std::unordered_map<std::string, std::string> kEmptyConf;
     static std::shared_ptr<VeloxInitializer> defaultInstance{new gluten::VeloxInitializer(kEmptyConf)};
     return defaultInstance;

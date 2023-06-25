@@ -190,9 +190,9 @@
         <configuration>
           <finalName>${jar.assembly.name.prefix}-${project.version}-spark-${sparkbundle.version}
           </finalName>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
+          <descriptors>
+            <descriptor>src/main/resources/gluten-source-exclude-sparkshims.xml</descriptor>
+          </descriptors>
         </configuration>
         <executions>
           <execution>

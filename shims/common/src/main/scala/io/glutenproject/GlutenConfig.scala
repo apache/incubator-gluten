@@ -33,6 +33,8 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
+  def enableGluten: Boolean = conf.getConf(ENABLED_GLUTEN)
+
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
@@ -186,6 +188,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
+  def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -195,12 +199,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
 
   // A comma-separated list of classes for the extended columnar pre rules
-  def extendedColumnarPreRules: String =
-    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.pre.rules", "")
+  def extendedColumnarPreRules: String = conf.getConf(EXTENDED_COLUMNAR_PRE_RULES)
 
   // A comma-separated list of classes for the extended columnar post rules
-  def extendedColumnarPostRules: String =
-    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
+  def extendedColumnarPostRules: String = conf.getConf(EXTENDED_COLUMNAR_POST_RULES)
+
+  def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
   def printStackOnValidateFailure: Boolean =
     conf.getConf(VALIDATE_FAILURE_PRINT_STACK_ENABLED)
@@ -235,6 +239,7 @@ object GlutenConfig {
   val HADOOP_PREFIX = "spark.hadoop."
 
   // S3 config
+  val S3A_PREFIX = "fs.s3a."
   val S3_ACCESS_KEY = "fs.s3a.access.key"
   val SPARK_S3_ACCESS_KEY: String = HADOOP_PREFIX + S3_ACCESS_KEY
   val S3_SECRET_KEY = "fs.s3a.secret.key"
@@ -305,6 +310,9 @@ object GlutenConfig {
   val GLUTEN_SUPPORTED_PYTHON_UDFS = "spark.gluten.supported.python.udfs"
   val GLUTEN_SUPPORTED_SCALA_UDFS = "spark.gluten.supported.scala.udfs"
 
+  val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
+    "spark.gluten.sql.columnar.extended.expressions.transformer"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -358,10 +366,33 @@ object GlutenConfig {
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
+
+    // some configs having default values
+    val keyWithDefault = ImmutableList.of(
+      (SPARK_S3_ACCESS_KEY, ""),
+      (SPARK_S3_SECRET_KEY, ""),
+      (SPARK_S3_ENDPOINT, "localhost:9000"),
+      (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
+      (SPARK_S3_PATH_STYLE_ACCESS, "true"),
+      (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
+      (
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
+      (
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
+      ("spark.hadoop.input.connect.timeout", "180000"),
+      ("spark.hadoop.input.read.timeout", "180000"),
+      ("spark.hadoop.input.write.timeout", "180000"),
+      ("spark.hadoop.dfs.client.log.severity", "INFO")
+    )
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
+
     val keys = ImmutableList.of(
-      // Velox datasource config
+      // datasource config
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
-      // Velox datasource config end
+      // datasource config end
+
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_OFFHEAP_ENABLED
@@ -373,29 +404,25 @@ object GlutenConfig {
         }
       })
 
-    val keyWithDefault = ImmutableList.of(
-      (SPARK_S3_ACCESS_KEY, "minio"),
-      (SPARK_S3_SECRET_KEY, "miniopass"),
-      (SPARK_S3_ENDPOINT, "localhost:9000"),
-      (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
-      (SPARK_S3_PATH_STYLE_ACCESS, "true"),
-      (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
-      (
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
-      (
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString)
-    )
-    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
-    // velox cache and HiveConnector config
     conf
       .filter(_._1.startsWith(backendPrefix))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all S3 configs
+    conf
+      .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
     nativeConfMap
   }
+
+  val ENABLED_GLUTEN =
+    buildConf("spark.gluten.enabled")
+      .internal()
+      .doc("Whether to enable gluten. Default value is true.")
+      .booleanConf
+      .createWithDefault(true)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -795,6 +822,19 @@ object GlutenConfig {
       .intConf
       .createWithDefault(2)
 
+  val COLUMNAR_VELOX_SPILL_STRATEGY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
+      .internal()
+      .doc(
+        "none: Disable spill on Velox backend; " +
+          "threshold: Use spark.gluten.sql.columnar.backend.velox.memoryCapRatio " +
+          "to calculate a memory threshold number for triggering spill; " +
+          "auto: Let Spark memory manager manage Velox's spilling")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValues(Set("none", "threshold", "auto"))
+      .createWithDefault("threshold")
+
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
       .internal()
@@ -864,4 +904,28 @@ object GlutenConfig {
       .internal()
       .longConf
       .createWithDefault(-1L)
+
+  val UT_STATISTIC =
+    buildConf("spark.gluten.sql.ut.statistic")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
+  val EXTENDED_COLUMNAR_PRE_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.pre.rules")
+      .doc("A comma-separated list of classes for the extended columnar pre rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_COLUMNAR_POST_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
+      .doc("A comma-separated list of classes for the extended columnar post rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_EXPRESSION_TRAN_CONF =
+    buildConf(GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF)
+      .doc("A class for the extended expressions transformer.")
+      .stringConf
+      .createWithDefaultString("")
 }

@@ -16,6 +16,13 @@
  */
 package org.apache.spark.sql.hive.execution
 
+import java.io.IOException
+import java.net.URI
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
@@ -34,7 +41,6 @@ import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.util.SerializableJobConf
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.hive.ql.exec.Utilities
@@ -46,11 +52,6 @@ import org.apache.hadoop.io.Writable
 import org.apache.hadoop.mapred.{JobConf, Reporter}
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
-
-import java.io.IOException
-import java.net.URI
-
-import scala.collection.JavaConverters._
 
 /**
  * This file is copied from Spark
@@ -87,6 +88,13 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
         .get("spark.plugins")
         .equals("io.glutenproject.GlutenPlugin")
     ) {
+      val sparkOptions = new mutable.HashMap[String, String]()
+      if (fileSinkConf.compressed) {
+        sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, fileSinkConf.compressCodec)
+      }
+      options.get(GlutenConfig.PARQUET_BLOCK_SIZE).foreach { blockSize =>
+        sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
+      }
       // Only offload parquet write to velox backend.
       new OutputWriterFactory {
         override def getFileExtension(context: TaskAttemptContext): String = {
@@ -114,8 +122,8 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           val allocator = ArrowBufferAllocators.contextInstance()
           try {
             ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-            instanceId =
-              datasourceJniWrapper.nativeInitDatasource(originPath, cSchema.memoryAddress())
+            instanceId = datasourceJniWrapper.nativeInitDatasource(
+              originPath, cSchema.memoryAddress(), sparkOptions.asJava)
           } catch {
             case e: IOException =>
               throw new RuntimeException(e)

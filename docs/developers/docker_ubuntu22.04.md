@@ -49,6 +49,7 @@ cd gluten/
 #vim ~/.m2/settings.xml
 
 # the script download velox & arrow and compile all dependency library automatically
+# To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
 ./dev/buildbundle-veloxbe.sh
 
 ```

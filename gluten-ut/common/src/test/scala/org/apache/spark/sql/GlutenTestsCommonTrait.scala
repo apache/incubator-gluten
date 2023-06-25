@@ -17,32 +17,21 @@
 
 package org.apache.spark.sql
 
-import java.io.File
-import scala.collection.mutable.ArrayBuffer
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
-import io.glutenproject.utils.SystemParameters
-import org.apache.commons.io.FileUtils
+
+import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.expressions._
+
 import org.scalactic.source.Position
 import org.scalatest.{Args, Status, Tag}
-import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
-import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
-import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types._
-import org.apache.spark.unsafe.types.UTF8String
 
 trait GlutenTestsCommonTrait
   extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
 
   override def runTest(testName: String, args: Args): Status = {
     TestStats.suiteTestNumber += 1
+    TestStats.offloadGluten = true
+    TestStats.startCase(testName)
     val status = super.runTest(testName, args)
     if (TestStats.offloadGluten) {
       TestStats.offloadGlutenTestNumber += 1
@@ -51,7 +40,10 @@ trait GlutenTestsCommonTrait
       // you can find the keyword 'Validation failed for' in function doValidate() in log
       // to get the fallback reason
       print("'" + testName + "'" + " NOT use gluten\n")
+      TestStats.addFallBackCase()
     }
+
+    TestStats.endCase(status.succeeds());
     status
   }
 

@@ -43,7 +43,8 @@ public final class GlutenColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     if (!isIntermediateColumnarBatch(batch)) {
-      throw new UnsupportedOperationException("batch is not intermediate Gluten batch");
+      throw new UnsupportedOperationException("Cannot get native batch handle due to " +
+        "input batch is not intermediate Gluten batch");
     }
     IndicatorVector iv = (IndicatorVector) batch.column(0);
     return iv.getNativeHandle();

@@ -182,7 +182,6 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
 
     auto join_storage = std::shared_ptr<StorageJoinFromReadBuffer>(new StorageJoinFromReadBuffer( // NOLINT
         std::move(in),
-        StorageID("default", "test"),
         {"colD"},
         false,
         {},
@@ -192,11 +191,10 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
         {},
         "test",
         true));
-    auto storage_snapshot = std::make_shared<StorageSnapshot>(*join_storage, metadata);
+
     auto left_table = std::make_shared<SourceFromSingleChunk>(left);
     SelectQueryInfo query_info;
-    auto right_table = join_storage->read(
-        right.getNames(), storage_snapshot, query_info, global_context, QueryProcessingStage::Enum::FetchColumns, 8192, 1);
+
     QueryPlan left_plan;
     left_plan.addStep(std::make_unique<ReadFromPreparedSource>(Pipe(left_table)));
 
