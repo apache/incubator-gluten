@@ -286,7 +286,7 @@ void WholeStageResultIterator::updateHdfsTokens() {
   const auto& username = confMap_[kUGIUserName];
   const auto& allTokens = confMap_[kUGITokens];
 
-  if (username.empty())
+  if (username.empty() || allTokens.empty())
     return;
 
   hdfsSetDefautUserName(username.c_str());
