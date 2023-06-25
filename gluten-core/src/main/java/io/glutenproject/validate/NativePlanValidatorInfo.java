@@ -18,19 +18,24 @@
 package io.glutenproject.validate;
 
 import java.util.Vector;
+
 public class NativePlanValidatorInfo {
-    private final boolean isSupported;
-    private Vector<String> fallbackInfo = new Vector<>();
-    NativePlanValidatorInfo(boolean isSupported, String[] fallbackInfo) {
+    private final Vector<String> fallbackInfo = new Vector<>();
+    private final int isSupported;
+    public NativePlanValidatorInfo(int isSupported, String fallbackInfo) {
         this.isSupported = isSupported;
-        for(int i = 0; i < fallbackInfo.length; i++) {
-            this.fallbackInfo.add(fallbackInfo[i]);
+        String[] splitInfo = fallbackInfo.split("@");
+        for(int i = 0; i < splitInfo.length; i++) {
+            this.fallbackInfo.add(splitInfo[i]);
         }
     }
+
     public boolean isSupported(){
-        return isSupported;
+        return isSupported == 1;
     }
-    public Vector<String> getFallbackInfo(){
-        return fallbackInfo;
-    }
+
+   public Vector<String> getFallbackInfo() {
+       return fallbackInfo;
+   }
 }
+
