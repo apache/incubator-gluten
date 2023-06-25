@@ -273,11 +273,8 @@ case class ClickHouseAppendDataExec(
   def genInsertPlan(
       substraitContext: SubstraitContext,
       queryOutput: Seq[Attribute]): DllTransformContext = {
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(queryOutput)
-    val nameList = new java.util.ArrayList[String]()
-    for (attr <- queryOutput) {
-      nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
-    }
+    val typeNodes = ConverterUtils.collectAttributeTypeNodes(queryOutput)
+    val nameList = ConverterUtils.collectAttributeNamesWithExprId(queryOutput)
     val relNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
