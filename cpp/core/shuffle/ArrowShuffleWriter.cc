@@ -604,6 +604,18 @@ arrow::Result<int32_t> ArrowShuffleWriter::evictLargestPartition(int64_t* size) 
   return partitionToEvict;
 }
 
+arrow::Result<std::shared_ptr<arrow::RecordBatch>> ArrowShuffleWriter::createArrowRecordBatchFromBuffer(
+    uint32_t partitionId,
+    bool resetBuffers) {
+  return arrow::Status::NotImplemented(__func__, " not implemented.");
+}
+
+arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> ArrowShuffleWriter::createArrowIpcPayload(
+    const arrow::RecordBatch& rb,
+    bool reuseBuffers) {
+  return arrow::Status::NotImplemented(__func__, " not implemented.");
+}
+
 ArrowShuffleWriter::row_offset_type ArrowShuffleWriter::calculateSplitBatchSize(const arrow::RecordBatch& rb) {
   uint32_t sizePerRow = 0;
   auto numRows = rb.num_rows();

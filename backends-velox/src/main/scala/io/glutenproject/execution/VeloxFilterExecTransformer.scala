@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
 
 
-case class FilterExecTransformer(condition: Expression, child: SparkPlan)
+case class VeloxFilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecBaseTransformer(condition, child) with TransformSupport {
 
   override def doValidateInternal(): Boolean = {
@@ -121,5 +121,5 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   }
 
   override protected def withNewChildInternal(
-      newChild: SparkPlan): FilterExecTransformer = copy(child = newChild)
+      newChild: SparkPlan): VeloxFilterExecTransformer = copy(child = newChild)
 }

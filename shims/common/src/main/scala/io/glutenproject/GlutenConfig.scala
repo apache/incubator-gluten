@@ -118,7 +118,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleWriteSchema: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED)
 
-  def columnarShuffleUseCustomizedCompressionCodec: String = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
+  def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
   def columnarShuffleCodecBackend: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
 
@@ -257,16 +257,18 @@ object GlutenConfig {
   val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
   val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
 
+  val GLUTEN_SHUFFLE_SUPPORTED_CODEC: Set[String] =
+    Set("LZ4", "ZSTD", "SNAPPY") // "SNAPPY" is only valid for CH backend.
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "QAT"
   val GLUTEN_QAT_CODEC_PREFIX = "gluten_qat_"
-  val GLUTEN_QAT_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
+  val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("GZIP")
   // IAA config
   val GLUTEN_IAA_BACKEND_NAME = "IAA"
   val GLUTEN_IAA_CODEC_PREFIX = "gluten_iaa_"
-  val GLUTEN_IAA_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
+  val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("GZIP")
 
   // Backends.
   val GLUTEN_VELOX_BACKEND = "velox"
@@ -653,7 +655,7 @@ object GlutenConfig {
           "If false, the partition buffers will be cached in memory first, " +
           "and the cached buffers will be spilled when reach maximum memory.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffle.writeSchema")
@@ -670,8 +672,9 @@ object GlutenConfig {
           "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("LZ4", "ZSTD", "GZIP"))
-      .createWithDefault("LZ4")
+      .checkValues(
+        GLUTEN_SHUFFLE_SUPPORTED_CODEC ++ GLUTEN_QAT_SUPPORTED_CODEC ++ GLUTEN_IAA_SUPPORTED_CODEC)
+      .createOptional
 
   val COLUMNAR_SHUFFLE_CODEC_BACKEND =
     buildConf(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND)

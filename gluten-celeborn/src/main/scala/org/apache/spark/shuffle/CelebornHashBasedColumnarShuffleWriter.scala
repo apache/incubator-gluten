@@ -62,16 +62,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   private val blockManager = SparkEnv.get.blockManager
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
-  private val customizedCompressionCodec = {
-    val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-    if (GlutenConfig.getConf.columnarShuffleEnableQat) {
-      GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
-    } else if (GlutenConfig.getConf.columnarShuffleEnableIaa) {
-      GlutenConfig.GLUTEN_IAA_CODEC_PREFIX + codec
-    } else {
-      codec
-    }
-  }
+  private val customizedCompressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
 
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold

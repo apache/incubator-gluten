@@ -784,6 +784,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     gluten::jniThrow("Memory pool does not exist or has been closed");
   }
   shuffleWriterOptions.memory_pool = asArrowMemoryPool(allocator);
+  shuffleWriterOptions.ipc_memory_pool = shuffleWriterOptions.memory_pool;
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -828,7 +829,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", localDirs, 1);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
-    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>();
+    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>(preferEvict);
   } else if (partitionWriterType == "celeborn") {
     shuffleWriterOptions.partition_writer_type = "celeborn";
     jclass celebornPartitionPusherClass =
