@@ -216,7 +216,7 @@ cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
 make -j
 
 cd /path_to_gluten
-mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
+mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests -Dcheckstyle.skip
 ```
 Currently to use S3 connector below configurations are required in spark-defaults.conf
 ```
@@ -234,6 +234,13 @@ You can also use instance credentials by setting the following config
 spark.hadoop.fs.s3a.use.instance.credentials true
 ```
 If you are using instance credentials you do not have to set the access key or secret key.
+
+You can also use iam role credentials by setting the following configurations. Instance credentials have higher priority than iam credentials.
+```
+spark.hadoop.fs.s3a.iam.role  xxxx
+spark.hadoop.fs.s3a.iam.role.session.name xxxx
+```
+Note that `spark.hadoop.fs.s3a.iam.role.session.name` is optional.
 
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
