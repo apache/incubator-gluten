@@ -931,6 +931,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test 'EqualNullSafe'") {
+    runQueryAndCompare("select l_linenumber <=> l_orderkey, l_linenumber <=> null from lineitem") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
     spark.sql(
       """

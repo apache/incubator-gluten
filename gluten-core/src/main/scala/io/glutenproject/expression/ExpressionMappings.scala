@@ -47,6 +47,7 @@ object ExpressionMappings {
     Sig[RegExpExtract](REGEXP_EXTRACT),
     Sig[RegExpExtractAll](REGEXP_EXTRACT_ALL),
     Sig[EqualTo](EQUAL),
+    Sig[EqualNullSafe](EQUAL_NULL_SAFE),
     Sig[LessThan](LESS_THAN),
     Sig[LessThanOrEqual](LESS_THAN_OR_EQUAL),
     Sig[GreaterThan](GREATER_THAN),

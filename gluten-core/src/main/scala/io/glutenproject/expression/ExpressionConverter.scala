@@ -517,6 +517,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(locate.start, attributeSeq),
           locate
         )
+      case equal: EqualNullSafe =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genEqualNullSafeTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(equal.left, attributeSeq),
+          replaceWithExpressionTransformer(equal.right, attributeSeq),
+          equal
+        )
       case sha1: Sha1 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genSha1Transformer(
           substraitExprName.get,
