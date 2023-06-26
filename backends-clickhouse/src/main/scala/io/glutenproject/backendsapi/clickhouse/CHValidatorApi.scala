@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
+import io.glutenproject.validate.NativePlanValidatorInfo
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.internal.Logging
@@ -35,6 +36,11 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new CHNativeExpressionEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)
+  }
+
+  override def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidatorInfo = {
+    // not applicable for now but may implement in future
+    return null;
   }
 
   /**
