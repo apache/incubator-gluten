@@ -29,9 +29,15 @@ S3 also provides other methods for accessing, you can also use instance credenti
 ```
 spark.hadoop.fs.s3a.use.instance.credentials true
 ```
+## 1.3 Configuring S3 IAM roles
+You can also use iam role credentials by setting the following configurations. Instance credentials have higher priority than iam credentials.
+```
+spark.hadoop.fs.s3a.iam.role  xxxx
+spark.hadoop.fs.s3a.iam.role.session.name xxxx
+```
+Note that `spark.hadoop.fs.s3a.iam.role.session.name` is optional.
 
-## 1.3 Other authentatication methods are not supported yet
-- [AWS IAM role](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html)
+## 1.4 Other authentatication methods are not supported yet
 - [AWS temporary credential](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html)
 
 # 2 Local Caching support
