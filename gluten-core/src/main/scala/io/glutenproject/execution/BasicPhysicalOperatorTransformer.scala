@@ -44,7 +44,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import java.util
 import scala.collection.JavaConverters._
 
-abstract class FilterExecBaseTransformer(val cond: Expression,
+abstract class FilterExecTransformerBase(val cond: Expression,
                                          val input: SparkPlan) extends UnaryExecNode
   with TransformSupport
   with GlutenPlan
@@ -57,11 +57,13 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
+
   // Split out all the IsNotNulls from condition.
   private val (notNullPreds, otherPreds) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
+
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
   private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
@@ -96,13 +98,9 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
 
-  def doTransform(context: SubstraitContext): TransformContext
-
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
-
-  // override def canEqual(that: Any): Boolean = false
 
   def getRelNode(context: SubstraitContext,
                  condExpr: Expression,
@@ -144,17 +142,8 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
     }
   }
 
-  protected override def doExecute()
-  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
-}
-
-case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecBaseTransformer(condition, child) {
-
   override def doValidateInternal(): Boolean = {
-    if (condition == null) {
+    if (cond == null) {
       // The computing of this Filter is not needed.
       return true
     }
@@ -163,7 +152,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
       getRelNode(
-        substraitContext, condition, child.output, operatorId, null, validation = true)
+        substraitContext, cond, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
         logValidateFailure(
@@ -197,7 +186,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     }
 
     val operatorId = context.nextOperatorId(this.nodeName)
-    if (condition == null && childCtx != null) {
+    if (cond == null && childCtx != null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
@@ -205,12 +194,12 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
 
     val currRel = if (childCtx != null) {
       getRelNode(
-        context, condition, child.output, operatorId, childCtx.root, validation = false)
+        context, cond, child.output, operatorId, childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context, condition, child.output, operatorId,
+      getRelNode(context, cond, child.output, operatorId,
         RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
@@ -226,8 +215,10 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     TransformContext(inputAttributes, output, currRel)
   }
 
-  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
-    copy(child = newChild)
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
+  }
 }
 
 case class ProjectExecTransformer(projectList: Seq[NamedExpression],

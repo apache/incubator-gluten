@@ -24,7 +24,7 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, ColumnarBatchSerializer}
 import io.glutenproject.backendsapi.SparkPlanExecApi
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, FilterExecBaseTransformer, VeloxFilterExecTransformer, GlutenBroadcastHashJoinExecTransformer, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, RowToArrowColumnarExec, RowToColumnarExecBase, ShuffledHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, FilterExecTransformer, FilterExecTransformerBase, GlutenBroadcastHashJoinExecTransformer, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, RowToArrowColumnarExec, RowToColumnarExecBase, ShuffledHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase}
 import io.glutenproject.expression.{AliasTransformer, AliasTransformerBase, ExpressionNames, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sig}
 import org.apache.commons.lang3.ClassUtils
 import org.apache.spark.ShuffleDependency
@@ -87,7 +87,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return the transformer of FilterExec
    */
   override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
-  : FilterExecBaseTransformer = VeloxFilterExecTransformer(condition, child)
+  : FilterExecTransformerBase = FilterExecTransformer(condition, child)
 
   /**
    * Generate HashAggregateExecTransformer.

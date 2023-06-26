@@ -68,7 +68,7 @@ trait SparkPlanExecApi {
    * @return
    *   the transformer of FilterExec
    */
-  def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecBaseTransformer
+  def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecTransformerBase
 
   /**
   * Generate BasicScanTransformer
