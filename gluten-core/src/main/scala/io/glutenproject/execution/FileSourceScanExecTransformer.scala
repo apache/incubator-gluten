@@ -234,6 +234,10 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override val nodeNamePrefix: String = "NativeFile"
 
+  override val nodeName: String = {
+    s"NativeScan $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
+  }
+
   override def doTransform(context: SubstraitContext): TransformContext = {
     val transformCtx = super.doTransform(context)
     if (ConverterUtils.getFileFormat(this) == ReadFileFormat.TextReadFormat) {

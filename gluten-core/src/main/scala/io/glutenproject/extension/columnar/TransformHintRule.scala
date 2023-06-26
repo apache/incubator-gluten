@@ -40,6 +40,7 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.api.python.EvalPythonExecTransformer
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 import scala.util.control.Breaks.{break, breakable}
 
@@ -267,6 +268,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     BackendsApiManager.getSettings.supportSortMergeJoinExec()
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
   val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
+  val enableColumnarHiveTableScan: Boolean = columnarConf.enableColumnarHiveTableScan
   val enableColumnarProject: Boolean = !scanOnly && columnarConf.enableColumnarProject
   val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
   val enableColumnarHashAgg: Boolean = !scanOnly && columnarConf.enableColumnarHashAgg
@@ -346,6 +348,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           // ColumnarInMemoryTableScanExec.scala appears to be out-of-date
           //   and need some tests before being enabled.
           TransformHints.tagNotTransformable(plan)
+        case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+          if (!enableColumnarHiveTableScan) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            TransformHints.tag(plan, HiveTableScanExecTransformer.validate(plan).toTransformHint)
+          }
         case plan: ProjectExec =>
           if (!enableColumnarProject) {
             TransformHints.tagNotTransformable(plan)
@@ -604,10 +612,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.outer, plan.generatorOutput, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-        case plan: EvalPythonExec=>
+        case plan: EvalPythonExec =>
           val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
           TransformHints.tag(plan, transformer.doValidate().toTransformHint)
-
         case _: AQEShuffleReadExec =>
           TransformHints.tagTransformable(plan)
         case plan: TakeOrderedAndProjectExec =>

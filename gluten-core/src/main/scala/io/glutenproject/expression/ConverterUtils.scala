@@ -18,7 +18,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer, HiveTableScanExecTransformer}
+import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.substrait.proto.Type
@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -453,8 +454,8 @@ object ConverterUtils extends Logging {
         }
       case f: HiveTableScanExecTransformer =>
         f.getScan match {
-          case Some(f) =>
-            f.getClass.getSimpleName match {
+          case Some(fileScan) =>
+            fileScan.getClass.getSimpleName match {
               case "TextScan" => ReadFileFormat.TextReadFormat
               case "JsonScan" => ReadFileFormat.JsonReadFormat
               case _ => ReadFileFormat.UnknownFormat
