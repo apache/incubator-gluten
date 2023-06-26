@@ -38,7 +38,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
         }
 
         withTempPath { f =>
-          spark.table("customer").write
+          spark.table("lineitem").write
             .format("velox")
             .option("compression", codec)
             .save(f.getCanonicalPath)
@@ -49,7 +49,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
           val parquetDf = spark.read
             .format("parquet")
             .load(f.getCanonicalPath)
-          checkAnswer(parquetDf, spark.table("customer"))
+          checkAnswer(parquetDf, spark.table("lineitem"))
         }
       }
   }
