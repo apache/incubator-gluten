@@ -224,7 +224,7 @@ arrow::Status PreferEvictPartitionWriter::stop() {
       const auto& writer = partitionWriterInstances_[pid];
       int64_t tempTotalWriteTime = 0;
       TIME_NANO_OR_RAISE(tempTotalWriteTime, writer->writeCachedRecordBatchAndClose());
-      shuffleWriter_->setTotalWriteTime(tempTotalWriteTime);
+      shuffleWriter_->setTotalWriteTime(shuffleWriter_->totalWriteTime() + tempTotalWriteTime);
       shuffleWriter_->setPartitionLengths(pid, writer->partition_length);
       shuffleWriter_->setTotalBytesWritten(shuffleWriter_->totalBytesWritten() + writer->partition_length);
       shuffleWriter_->setTotalBytesEvicted(shuffleWriter_->totalBytesEvicted() + writer->bytes_spilled);
