@@ -24,5 +24,7 @@ done
 
 echo ${GLUTEN_SOURCE}
 
-cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+export CC=${CC:-clang-16}
+export CXX=${CXX:-clang++-16}
+cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
 cmake --build ${GLUTEN_SOURCE}/cpp-ch/build_ch --target build_ch
