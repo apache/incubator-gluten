@@ -290,6 +290,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-17237 remove backticks in a pivot result schema", // [not urgent]
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
         " before using it", // [not urgent]
+      GLUTEN_TEST + "SPARK-19471: AggregationIterator does not initialize the generated" +
+          " result projection before using it", // Modified version for the above test.
       "max_by", // [not urgent]
       "min_by", // [not urgent]
       "aggregation with filter",

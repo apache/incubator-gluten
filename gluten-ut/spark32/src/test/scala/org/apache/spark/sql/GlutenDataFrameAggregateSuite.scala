@@ -18,6 +18,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.WholeStageCodegenExec
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.functions._
@@ -250,7 +251,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     }
   }
 
-  test(GlutenTestConstants + "SPARK-19471: AggregationIterator does not initialize the generated" +
+  test(GLUTEN_TEST + "SPARK-19471: AggregationIterator does not initialize the generated" +
       " result projection before using it") {
     Seq(
       monotonically_increasing_id(), spark_partition_id(),
