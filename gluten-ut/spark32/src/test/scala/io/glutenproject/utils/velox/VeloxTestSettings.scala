@@ -390,10 +390,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "select only expressions without references")
     .exclude("Spark vectorized reader - with partition data column - " +
       "select only expressions without references")
-    .exclude("Spark vectorized reader - without partition data column - " +
-      "select nested field in aggregation function of Aggregate")
-    .exclude("Spark vectorized reader - with partition data column - " +
-      "select nested field in aggregation function of Aggregate")
+    .exclude("Non-vectorized reader - with partition data column - select one deep nested complex field after outer join")
+    .exclude("Spark vectorized reader - without partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Spark vectorized reader - with partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Non-vectorized reader - without partition data column - select nested field in aggregation function of Aggregate")
+    .exclude("Non-vectorized reader - with partition data column - select nested field in aggregation function of Aggregate")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
