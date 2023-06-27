@@ -29,8 +29,6 @@
 
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "operators/c2r/ArrowColumnarToRowConverter.h"
-#include "operators/c2r/ColumnarToRow.h"
 #include "operators/writer/Datasource.h"
 
 #include "velox/common/file/FileSystems.h"
@@ -40,7 +38,6 @@
 #include "velox/dwio/common/DataSink.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/dwio/parquet/writer/Writer.h"
 #include "velox/vector/ComplexVector.h"
 
@@ -60,11 +57,12 @@ class VeloxParquetDatasource final : public Datasource {
   }
 
  private:
+  int64_t maxRowGroupBytes_ = 134217728; // 128MB
+  int64_t maxRowGroupRows_ = 100000000; // 100M
+
   std::string filePath_;
   std::shared_ptr<arrow::Schema> schema_;
-  std::vector<facebook::velox::RowVectorPtr> rowVecs_;
   std::shared_ptr<const facebook::velox::Type> type_;
-  std::shared_ptr<facebook::velox::dwrf::Writer> writer_;
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
   std::unique_ptr<facebook::velox::dwio::common::DataSink> sink_;

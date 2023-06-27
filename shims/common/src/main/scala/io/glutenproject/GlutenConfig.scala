@@ -150,6 +150,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableNativeHyperLogLogAggregateFunction: Boolean =
     conf.getConf(COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED)
 
+  def columnarParquetWriteBlockSize: Long =
+    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_SIZE)
+
+  def columnarParquetWriteBlockRows: Long =
+    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_ROWS)
+
   def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
@@ -238,6 +244,7 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = SPARK_PREFIX + HIVE_EXEC_ORC_COMPRESS
   val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
   val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
+  val PARQUET_BLOCK_ROWS: String = "parquet.block.rows"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -746,6 +753,18 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_PARQUET_WRITE_BLOCK_SIZE =
+    buildConf("spark.gluten.sql.columnar.parquet.write.blockSize")
+      .internal()
+      .longConf
+      .createWithDefault(128 * 1024 * 1024)
+
+  val COLUMNAR_PARQUET_WRITE_BLOCK_ROWS =
+    buildConf("spark.gluten.sql.native.parquet.write.blockRows")
+      .internal()
+      .longConf
+      .createWithDefault(100 * 1000 * 1000)
 
   val COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")

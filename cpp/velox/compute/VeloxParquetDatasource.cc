@@ -71,9 +71,11 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
 
   type_ = velox::importFromArrow(cSchema);
 
-  auto blockSize = 134217728; // 128MB
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
-    blockSize = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
+    maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
+  }
+  if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
+    maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
   auto compressionCodec = arrow::Compression::SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
@@ -101,15 +103,17 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     }
   }
 
-  auto properities =
-      ::parquet::WriterProperties::Builder().max_row_group_length(blockSize)->compression(compressionCodec)->build();
-
+  auto properities = ::parquet::WriterProperties::Builder()
+                         .max_row_group_length(maxRowGroupRows_)
+                         ->compression(compressionCodec)
+                         ->build();
   // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
   std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
   auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
   auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), *(pool_), 2048, properities, queryCtx);
+  parquetWriter_ =
+      std::make_unique<velox::parquet::Writer>(std::move(sink_), *(pool_), maxRowGroupBytes_, properities, queryCtx);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
@@ -131,14 +135,14 @@ void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
 }
 
 void VeloxParquetDatasource::close() {
-  if (parquetWriter_ != nullptr) {
+  if (parquetWriter_) {
     parquetWriter_->close();
   }
 }
 
 void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  if (veloxBatch != nullptr) {
+  if (veloxBatch) {
     parquetWriter_->write(veloxBatch->getFlattenedRowVector());
   } else {
     // convert arrow record batch to velox row vector

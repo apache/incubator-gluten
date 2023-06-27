@@ -37,19 +37,21 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
           case _ => codec
         }
 
-        withTempPath { f =>
-          spark.table("lineitem").write
-            .format("velox")
-            .option("compression", codec)
-            .save(f.getCanonicalPath)
-          val files = f.list()
-          assert(files.nonEmpty, extension)
-          assert(files.exists(_.contains(extension)), extension)
+        TPCHTables.foreach { case (_, df) =>
+          withTempPath { f =>
+            df.write
+              .format("velox")
+              .option("compression", codec)
+              .save(f.getCanonicalPath)
+            val files = f.list()
+            assert(files.nonEmpty, extension)
+            assert(files.exists(_.contains(extension)), extension)
 
-          val parquetDf = spark.read
-            .format("parquet")
-            .load(f.getCanonicalPath)
-          checkAnswer(parquetDf, spark.table("lineitem"))
+            val parquetDf = spark.read
+              .format("parquet")
+              .load(f.getCanonicalPath)
+            checkAnswer(parquetDf, df)
+          }
         }
       }
   }
