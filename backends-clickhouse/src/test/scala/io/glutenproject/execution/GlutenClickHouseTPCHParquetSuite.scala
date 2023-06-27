@@ -1127,4 +1127,20 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
+
+  test("GLUTEN-2028: struct as join key") {
+    val tables = Seq("struct_1", "struct_2")
+    tables.foreach {
+      table =>
+        spark.sql(s"create table $table (info struct<a:int, b:int>) using parquet")
+        spark.sql(s"insert overwrite $table values (named_struct('a', 1, 'b', 2))")
+    }
+    val hints = Seq("BROADCAST(t2)", "SHUFFLE_MERGE(t2), SHUFFLE_HASH(t2)")
+    hints.foreach(
+      hint =>
+        compareResultsAgainstVanillaSpark(
+          s"select /*+ $hint */ t1.info from struct_1 t1 join struct_2 t2 on t1.info = t2.info",
+          true,
+          { _ => }))
+  }
 }

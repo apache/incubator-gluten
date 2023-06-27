@@ -17,8 +17,7 @@
 
 package io.glutenproject.substrait.rel;
 
-import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.expression.ConverterUtils$;
+import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
@@ -30,9 +29,6 @@ import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.SortField;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
 
 import java.util.ArrayList;
 
@@ -137,17 +133,6 @@ public class RelBuilder {
     return new ReadRelNode(types, names, context, filter, iteratorIndex);
   }
 
-  public static ArrayList<String> collectStructFieldNamesDFS(DataType dataType) {
-    ArrayList<String> names = new ArrayList<>();
-    if (dataType instanceof StructType && BackendsApiManager.getSettings().supportStructType()) {
-      for (StructField field : ((StructType) dataType).fields()) {
-        names.add(field.name());
-        ArrayList<String> nestedNames = collectStructFieldNamesDFS(field.dataType());
-        names.addAll(nestedNames);
-      }
-    }
-    return names;
-  }
   public static RelNode makeReadRel(ArrayList<Attribute> attributes,
                                     SubstraitContext context,
                                     Long operatorId) {
@@ -156,21 +141,16 @@ public class RelBuilder {
       // Currently, only for the special handling in join.
       context.registerRelToOperator(operatorId);
     }
-    ArrayList<TypeNode> typeList = new ArrayList<>();
-    ArrayList<String> nameList = new ArrayList<>();
-    ConverterUtils$ converter = ConverterUtils$.MODULE$;
-    for (Attribute attr : attributes) {
-      typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
-      nameList.add(converter.genColumnNameWithExprId(attr));
-      nameList.addAll(collectStructFieldNamesDFS(attr.dataType()));
-    }
+
+    ArrayList<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(attributes);
+    ArrayList<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(attributes);
 
     // The iterator index will be added in the path of LocalFiles.
     Long iteratorIndex = context.nextIteratorIndex();
     context.setIteratorNode(
         iteratorIndex,
         LocalFilesBuilder.makeLocalFiles(
-            converter.ITERATOR_PREFIX().concat(iteratorIndex.toString())));
+            ConverterUtils.ITERATOR_PREFIX().concat(iteratorIndex.toString())));
     return new ReadRelNode(typeList, nameList, context, null, iteratorIndex);
   }
 
