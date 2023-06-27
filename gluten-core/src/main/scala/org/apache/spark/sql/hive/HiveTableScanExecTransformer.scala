@@ -119,48 +119,7 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
         Seq.empty
     }
   }
-
-  private def getFileIndex: InMemoryFileIndex = {
-    val tableMeta = relation.tableMeta
-    val sessionState = session.sessionState
-    val fileStatusCache = FileStatusCache.getOrCreate(session)
-    if (tableMeta.partitionColumnNames.nonEmpty) {
-      val startTime = System.nanoTime()
-      val selectedPartitions = ExternalCatalogUtils.listPartitionsByFilter(
-        sessionState.conf,
-        sessionState.catalog,
-        tableMeta,
-        partitionPruningPred)
-      val partitions = selectedPartitions.map {
-        p =>
-          val path = new Path(p.location)
-          val fs = path.getFileSystem(sessionState.newHadoopConf())
-          PartitionPath(
-            p.toRow(tableMeta.partitionSchema, sessionState.conf.sessionLocalTimeZone),
-            path.makeQualified(fs.getUri, fs.getWorkingDirectory))
-      }
-      val partitionSpec = PartitionSpec(tableMeta.partitionSchema, partitions)
-      val timeNs = System.nanoTime() - startTime
-      new InMemoryFileIndex(
-        session,
-        rootPathsSpecified = partitionSpec.partitions.map(_.path),
-        parameters = Map.empty,
-        userSpecifiedSchema = Some(partitionSpec.partitionColumns),
-        fileStatusCache = fileStatusCache,
-        userSpecifiedPartitionSpec = Some(partitionSpec),
-        metadataOpsTimeNs = Some(timeNs)
-      )
-    } else {
-      new InMemoryFileIndex(
-        session,
-        tableMeta.storage.locationUri.map(new Path(_)).toSeq,
-        parameters = tableMeta.storage.properties,
-        userSpecifiedSchema = None,
-        fileStatusCache = fileStatusCache
-      )
-    }
-  }
-
+  
   private def getHiveTableFileScan: Option[FileScan] = {
     val tableMeta = relation.tableMeta
     val defaultTableSize = session.sessionState.conf.defaultSizeInBytes
