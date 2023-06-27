@@ -24,15 +24,15 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.ReadRelNode
-import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.catalog.{ExternalCatalogUtils, HiveTableRelation}
+import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, DynamicPruningExpression, Expression}
 import org.apache.spark.sql.connector.read.{InputPartition, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, DataSourceStrategy, InMemoryFileIndex}
-import org.apache.spark.sql.execution.datasources.{DataSourceStrategy, FileStatusCache, InMemoryFileIndex, PartitionPath, PartitionSpec}
+
+import org.apache.spark.sql.execution.datasources.CatalogFileIndex
+import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -119,7 +119,7 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
         Seq.empty
     }
   }
-  
+
   private def getHiveTableFileScan: Option[FileScan] = {
     val tableMeta = relation.tableMeta
     val defaultTableSize = session.sessionState.conf.defaultSizeInBytes
