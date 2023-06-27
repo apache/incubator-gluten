@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer}
+import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase, FilterExecTransformer}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -358,8 +358,8 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
           case _: DynamicPruningExpression => true
           case _ => false
         }
-      case FilterExecTransformer(condition, _) =>
-        splitConjunctivePredicates(condition).exists {
+      case transformer: FilterExecTransformerBase =>
+        splitConjunctivePredicates(transformer.cond).exists {
           case _: DynamicPruningExpression => true
           case _ => false
         }
@@ -375,7 +375,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
   object FilterTransformer {
     def unapply(plan: SparkPlan): Option[(Expression, SparkPlan)] = {
       plan match {
-        case transformer: FilterExecBaseTransformer =>
+        case transformer: FilterExecTransformerBase =>
           Some((transformer.cond, transformer.input))
         case _ => None
       }

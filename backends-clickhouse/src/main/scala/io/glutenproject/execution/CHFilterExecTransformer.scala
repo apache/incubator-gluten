@@ -32,7 +32,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecBaseTransformer(condition, child)
+  extends FilterExecTransformerBase(condition, child)
   with TransformSupport {
 
   override def doValidateInternal(): Boolean = {
@@ -136,5 +136,12 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): CHFilterExecTransformer =
+    copy(child = newChild)
+}
+
+case class FilterExecTransformer(condition: Expression, child: SparkPlan)
+  extends FilterExecTransformerBase(condition, child)
+  with TransformSupport {
+  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
     copy(child = newChild)
 }

@@ -169,7 +169,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     //            +- ColumnarExchangeAdaptor hashpartitioning(l_partkey#65L, 32)
     //               +- *(4) HashAggregateTransformer
     //                  +- *(4) ProjectExecTransformer
-    //                     +- *(4) FilterExecTransformer
+    //                     +- *(4) FilterExecTransformerBase
     //                        +- *(4) FileScan parquet
     //
     // There are three `WholeStageTransformer`, two `ColumnarShuffleExchangeExec`

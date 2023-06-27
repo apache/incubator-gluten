@@ -214,7 +214,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       "group by rollup(date, string) order by date, string") { df => {
       val executedPlan = getExecutedPlan(df)
       assert(executedPlan.exists(plan => plan.isInstanceOf[ExpandExecTransformer]))
-      assert(executedPlan.exists(plan => plan.isInstanceOf[VeloxFilterExecTransformer]))
+      assert(executedPlan.exists(plan => plan.isInstanceOf[FilterExecTransformer]))
     }}
 
     // Validation: Union.

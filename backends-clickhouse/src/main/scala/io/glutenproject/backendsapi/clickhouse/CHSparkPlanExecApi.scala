@@ -90,7 +90,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecBaseTransformer = {
+      child: SparkPlan): FilterExecTransformerBase = {
     child match {
       case scan: FileSourceScanExec if scan.relation.location.isInstanceOf[ClickHouseFileIndex] =>
         CHFilterExecTransformer(condition, child)

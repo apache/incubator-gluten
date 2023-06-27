@@ -31,9 +31,8 @@ import io.glutenproject.vectorized.NativePlanEvaluator
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
 
-
-case class VeloxFilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecBaseTransformer(condition, child) with TransformSupport {
+case class FilterExecTransformer(condition: Expression, child: SparkPlan)
+  extends FilterExecTransformerBase(condition, child) with TransformSupport {
 
   override def doValidateInternal(): Boolean = {
     val leftCondition = getLeftCondition
@@ -121,5 +120,5 @@ case class VeloxFilterExecTransformer(condition: Expression, child: SparkPlan)
   }
 
   override protected def withNewChildInternal(
-      newChild: SparkPlan): VeloxFilterExecTransformer = copy(child = newChild)
+      newChild: SparkPlan): FilterExecTransformer = copy(child = newChild)
 }

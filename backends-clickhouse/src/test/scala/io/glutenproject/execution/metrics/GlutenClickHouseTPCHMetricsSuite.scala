@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.metrics
 
-import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformer}
+import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformerBase, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformer}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.vectorized.GeneralInIterator
 
@@ -175,7 +175,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
             assert(s.metrics("outputWaitTime").value == 2)
             assert(s.metrics("outputRows").value == 20000)
             assert(s.metrics("outputBytes").value == 1451663)
-          case f: FilterExecTransformer =>
+          case f: FilterExecTransformerBase =>
             assert(f.metrics("totalTime").value == 3)
             assert(f.metrics("inputWaitTime").value == 14)
             assert(f.metrics("outputWaitTime").value == 1)
