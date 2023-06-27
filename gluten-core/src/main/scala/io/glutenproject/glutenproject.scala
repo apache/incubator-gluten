@@ -53,6 +53,8 @@ package object glutenproject {
     val veloxBranch: String = props.getProperty("velox_branch", unknown)
     val veloxRevision: String = props.getProperty("velox_revision", unknown)
     val veloxRevisionTime: String = props.getProperty("velox_revision_time", unknown)
+    val chBranch: String = props.getProperty("ch_branch", unknown)
+    val chCommit: String = props.getProperty("ch_commit", unknown)
   }
 
   val VERSION: String = BuildInfo.version
@@ -69,4 +71,6 @@ package object glutenproject {
   val VELOX_BRANCH: String = BuildInfo.veloxBranch
   val VELOX_REVISION: String = BuildInfo.veloxRevision
   val VELOX_REVISION_TIME: String = BuildInfo.veloxRevisionTime
+  val CH_BRANCH: String = BuildInfo.chBranch
+  val CH_COMMIT: String = BuildInfo.chCommit
 }

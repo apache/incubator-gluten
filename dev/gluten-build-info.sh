@@ -17,27 +17,37 @@
 # limitations under the License.
 #
 
-VELOX_HOME="$1"
-EXTRA_RESOURCE_DIR="$2"
+GLUTEN_ROOT=$(cd $(dirname -- $0)/..; pwd -P)
+
+BACKEND_TYPE="$1"
+BACKEND_HOME="$2"
+EXTRA_RESOURCE_DIR="$3"
 mkdir -p "$EXTRA_RESOURCE_DIR"
 BUILD_INFO="$EXTRA_RESOURCE_DIR"/gluten-build-info.properties
 
 echo_build_properties() {
-  echo gluten_version="$3"
-  echo java_version="$4"
-  echo scala_version="$5"
-  echo spark_version="$6"
-  echo hadoop_version="$7"
-  echo gcc_version=$(gcc --version | head -n 1)
+  echo gluten_version="$4"
+  echo backend_type="$BACKEND_TYPE"
+  echo java_version="$5"
+  echo scala_version="$6"
+  echo spark_version="$7"
+  echo hadoop_version="$8"
   echo branch=$(git rev-parse --abbrev-ref HEAD)
   echo revision=$(git rev-parse HEAD)
   echo revision_time=$(git show -s --format=%ci HEAD)
   echo date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   echo url=$(git config --get remote.origin.url)
-  if [ -d "$VELOX_HOME" ]; then
-    echo velox_branch=$(git -C $VELOX_HOME rev-parse --abbrev-ref HEAD)
-    echo velox_revision=$(git -C $VELOX_HOME rev-parse HEAD)
-    echo velox_revision_time=$(git -C $VELOX_HOME show -s --format=%ci HEAD)
+
+  if [ "$BACKEND_TYPE" = "velox" ]; then
+      echo gcc_version=$(gcc --version | head -n 1)
+      echo velox_branch=$(git -C $BACKEND_HOME rev-parse --abbrev-ref HEAD)
+      echo velox_revision=$(git -C $BACKEND_HOME rev-parse HEAD)
+      echo velox_revision_time=$(git -C $BACKEND_HOME show -s --format=%ci HEAD)
+  fi
+  if [ "$BACKEND_TYPE" = "ch"  ]; then
+      echo ch_org=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_ORG=).*')
+      echo ch_branch=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_BRANCH=).*')
+      echo ch_commit=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_COMMIT=).*')
   fi
 }
 
