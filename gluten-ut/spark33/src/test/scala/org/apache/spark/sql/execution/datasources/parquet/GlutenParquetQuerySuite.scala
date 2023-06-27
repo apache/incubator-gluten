@@ -52,6 +52,22 @@ class GlutenParquetV1QuerySuite extends ParquetV1QuerySuite with GlutenSQLTestsB
     // test the vectorized reader
     // withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
   }
+
+  import testImplicits._
+
+  test(GlutenTestConstants.GLUTEN_TEST +
+    "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
+    withAllParquetReaders {
+      withTempPath { path =>
+        // Repeated values for dictionary encoding.
+        Seq(Some("A"), Some("A"), None).toDF.repartition(1)
+          .write.parquet(path.getAbsolutePath)
+        val df = spark.read.parquet(path.getAbsolutePath)
+        checkAnswer(stripSparkFilter(df.where("NOT (value <=> 'A')")),
+          Seq(null: String).toDF)
+      }
+    }
+  }
 }
 
 class GlutenParquetV2QuerySuite extends ParquetV2QuerySuite with GlutenSQLTestsBaseTrait {
@@ -65,5 +81,21 @@ class GlutenParquetV2QuerySuite extends ParquetV2QuerySuite with GlutenSQLTestsB
     // Disabled: We don't yet support this case as of now
     // test the vectorized reader
     //    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
+  }
+
+  import testImplicits._
+
+  test(GlutenTestConstants.GLUTEN_TEST +
+    "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
+    withAllParquetReaders {
+      withTempPath { path =>
+        // Repeated values for dictionary encoding.
+        Seq(Some("A"), Some("A"), None).toDF.repartition(1)
+          .write.parquet(path.getAbsolutePath)
+        val df = spark.read.parquet(path.getAbsolutePath)
+        checkAnswer(stripSparkFilter(df.where("NOT (value <=> 'A')")),
+          Seq(null: String).toDF)
+      }
+    }
   }
 }

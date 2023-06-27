@@ -227,7 +227,6 @@ trait SparkPlanExecApi {
       attributeSeq: Seq[Attribute]): ExpressionTransformer =
     new NamedStructTransformerBase(substraitExprName, original, attributeSeq)
 
-  // TODO: Velox may have different implementation
   def genEqualNullSafeTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
