@@ -256,6 +256,23 @@ class GlutenClickHouseHiveTableSuite()
       })
   }
 
+  test("fix bug: https://github.com/oap-project/gluten/issues/2022") {
+    spark.sql(
+      "create table if not exists test_empty_partitions" +
+        "(uid string, mac string, country string) partitioned by (day string) stored as textfile")
+
+    var sql = "select * from test_empty_partitions where day = '2023-01-01';"
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
   test("fix bug: hive text table limit with fallback") {
     val sql =
       s"""

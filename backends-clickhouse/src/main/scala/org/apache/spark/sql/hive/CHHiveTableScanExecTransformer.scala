@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, DynamicPruningExpression, Expression}
 import org.apache.spark.sql.connector.read.{InputPartition, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{DataSourceStrategy, InMemoryFileIndex}
+import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, DataSourceStrategy, InMemoryFileIndex}
 import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -128,11 +128,13 @@ class CHHiveTableScanExecTransformer(
 
   private def getHiveTableFileScan: Option[FileScan] = {
     val tableMeta = relation.tableMeta
-    val fileIndex = new InMemoryFileIndex(
+    val defaultTableSize = session.sessionState.conf.defaultSizeInBytes
+    val catalogFileIndex = new CatalogFileIndex(
       session,
-      Seq.apply(new Path(tableMeta.location)),
-      Map.empty,
-      Option.apply(tableMeta.schema))
+      tableMeta,
+      tableMeta.stats.map(_.sizeInBytes.toLong).getOrElse(defaultTableSize))
+    val fileIndex = catalogFileIndex.filterPartitions(partitionPruningPred)
+
     val planOutput = output.asInstanceOf[Seq[AttributeReference]]
     var hasComplexType = false
     val outputFieldTypes = new ArrayBuffer[StructField]()
