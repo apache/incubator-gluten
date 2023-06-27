@@ -635,7 +635,7 @@ Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowT
 
   auto converter = rowToColumnarConverterHolder.lookup(r2cId);
   auto cb = converter->convert(numRows, inRowLength, address);
-  env->ReleaseLongArrayElements(rowLength, inRowLength, isCopy);
+  env->ReleaseLongArrayElements(rowLength, inRowLength, JNI_ABORT);
   return glutenColumnarBatchHolder.insert(cb);
   JNI_METHOD_END(-1)
 }
@@ -697,7 +697,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
     batches.push_back(batch);
   }
   auto newBatch = CompositeColumnarBatch::create(std::move(batches));
-  env->ReleaseLongArrayElements(handles, handleArray, isCopy);
+  env->ReleaseLongArrayElements(handles, handleArray, JNI_ABORT);
   return glutenColumnarBatchHolder.insert(newBatch);
   JNI_METHOD_END(-1L)
 }
