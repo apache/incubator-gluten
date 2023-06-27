@@ -17,23 +17,23 @@
 
 package org.apache.spark.sql.execution
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, IndicatorVector}
+import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowJniWrapper}
-import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.types._
-
-import scala.collection.JavaConverters._
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
+
+import scala.collection.JavaConverters._
 
 case class VeloxColumnarToRowExec(child: SparkPlan)
   extends ColumnarToRowExecBase(child = child) {
@@ -173,15 +173,15 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
             if (nonGlutenBatch) {
               batch.rowIterator().asScala.map(toUnsafe)
             } else {
-              ArrowColumnarBatches
+              ColumnarBatches
                 .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
                 .rowIterator().asScala.map(toUnsafe)
             }
           } else {
             val beforeConvert = System.currentTimeMillis()
             val offLoadedBatch =
-              ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-            val batchHandle = GlutenColumnarBatches.getNativeHandle(offLoadedBatch)
+              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
+            val batchHandle = ColumnarBatches.getNativeHandle(offLoadedBatch)
 
             if (c2rId == -1) {
               c2rId = jniWrapper.nativeColumnarToRowInit(

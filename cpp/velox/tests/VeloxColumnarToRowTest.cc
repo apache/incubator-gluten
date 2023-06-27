@@ -21,6 +21,7 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
+#include "utils/ArrowStatus.h"
 #include "utils/TestUtils.h"
 #include "velox/type/Timestamp.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -87,7 +88,8 @@ TEST_F(VeloxColumnarToRowTest, timestamp) {
   auto veloxPool = defaultLeafVeloxMemoryPool();
   auto converter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  jniAssertOkOrThrow(converter->write(cb), "Native convert columnar to row: ColumnarToRowConverter write failed");
+  gluten::arrowAssertOkOrThrow(
+      converter->write(cb), "Native convert columnar to row: ColumnarToRowConverter write failed");
 }
 
 TEST_F(VeloxColumnarToRowTest, Int_64) {

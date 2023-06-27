@@ -17,30 +17,29 @@
 
 package org.apache.spark.sql.execution.utils
 
-import scala.collection.JavaConverters.asScalaIteratorConverter
-
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches}
+import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
-
-import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StructType}
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.util.MutablePair
 import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
+
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 object ExecUtil {
 
@@ -48,8 +47,8 @@ object ExecUtil {
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     var info: NativeColumnarToRowInfo = null
     val offloaded =
-      ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-    val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
+      ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
+    val batchHandle = ColumnarBatches.getNativeHandle(offloaded)
     val instanceId = jniWrapper.nativeColumnarToRowInit(
       batchHandle,
       NativeMemoryAllocators.contextInstance().getNativeInstanceId)
@@ -104,9 +103,9 @@ object ExecUtil {
           // Internally, RangePartitioner runs a job on the RDD that samples keys to compute
           // partition bounds. To get accurate samples, we need to copy the mutable keys.
           iter.flatMap(batch => {
-            val rows = if (GlutenColumnarBatches.isIntermediateColumnarBatch(batch)) {
+            val rows = if (ColumnarBatches.isLightBatch(batch)) {
               convertColumnarToRow(batch)
-            } else ArrowColumnarBatches
+            } else ColumnarBatches
               .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
               .rowIterator.asScala
             val projection =
@@ -130,63 +129,29 @@ object ExecUtil {
       case _ => None
     }
 
-    // will remove after arrow is removed
-    def computeArrowAddPartitionId(cb: ColumnarBatch, partitionKeyExtractor: InternalRow => Any):
-    (Int, ColumnarBatch) = {
-      val pidVec = ArrowWritableColumnVector
-        .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
-        .head
-      (0 until cb.numRows).foreach { i =>
-        val row = cb.getRow(i)
-        val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-        pidVec.putInt(i, pid)
-      }
-
-      val newColumns = (pidVec +: (0 until cb.numCols).map(
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-            cb).column)).toArray
-      val offloadCb = ArrowColumnarBatches.ensureOffloaded(
-        ArrowBufferAllocators.contextInstance(),
-        new ColumnarBatch(newColumns, cb.numRows))
-      (0, offloadCb)
-    }
-
     // only used for fallback range partitioning
     def computeAndAddPartitionId(cbIter: Iterator[ColumnarBatch],
                                  partitionKeyExtractor: InternalRow => Any
                                 ): CloseablePairedColumnarBatchIterator = {
-      var batchType: String = null
       CloseablePairedColumnarBatchIterator {
         cbIter
           .filter(cb => cb.numRows != 0 && cb.numCols != 0)
-          .map { cb => if (GlutenColumnarBatches.isIntermediateColumnarBatch(cb)) {
-            if (batchType == null) {
-              batchType = ArrowColumnarBatches.getType(cb)
+          .map { cb =>
+            val offloaded =
+              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), cb)
+            val pidVec = ArrowWritableColumnVector
+              .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
+              .head
+            convertColumnarToRow(offloaded).zipWithIndex.foreach {
+              case (row, i) =>
+                val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
+                pidVec.putInt(i, pid)
             }
-            if (batchType.equals("velox")) {
-              val pidVec = ArrowWritableColumnVector
-                .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
-                .head
-              convertColumnarToRow(cb).zipWithIndex.foreach {
-                case (row, i) =>
-                  val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-                  pidVec.putInt(i, pid)
-              }
-              val pidBatch = new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)
-              val offloadColCb = ArrowColumnarBatches.ensureOffloaded(
-                ArrowBufferAllocators.contextInstance(),
-                pidBatch)
-              val newHandle = ArrowColumnarBatches.addColumn(cb, 0, offloadColCb)
-              (0, GlutenColumnarBatches.create(newHandle))
-            } else {
-              computeArrowAddPartitionId(cb, partitionKeyExtractor)
-            }
-          } else {
-            val loaded = ArrowColumnarBatches.ensureLoaded(
-              ArrowBufferAllocators.contextInstance(), cb)
-            computeArrowAddPartitionId(loaded, partitionKeyExtractor)
-          }
+            val pidBatch = ColumnarBatches.ensureOffloaded(
+              ArrowBufferAllocators.contextInstance(),
+              new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
+            val newHandle = ColumnarBatches.compose(pidBatch, offloaded)
+            (0, ColumnarBatches.create(newHandle))
           }
       }
     }
@@ -232,7 +197,7 @@ object ExecUtil {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              (0, ArrowColumnarBatches.ensureOffloaded(
+              (0, ColumnarBatches.ensureOffloaded(
                 ArrowBufferAllocators.contextInstance(),
                 cb))
             },
@@ -276,7 +241,7 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
     if (cur != null) {
       logDebug("Close appended partition id vector")
       cur match {
-        case (_, cb: ColumnarBatch) => ArrowColumnarBatches.close(cb)
+        case (_, cb: ColumnarBatch) => ColumnarBatches.close(cb)
       }
       cur = null
     }

@@ -31,9 +31,9 @@ import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 
-public class ArrowColumnarBatches {
-
+public class ColumnarBatches {
   private static final Field FIELD_COLUMNS;
 
   static {
@@ -46,7 +46,7 @@ public class ArrowColumnarBatches {
     }
   }
 
-  private ArrowColumnarBatches() {
+  private ColumnarBatches() {
 
   }
 
@@ -64,27 +64,74 @@ public class ArrowColumnarBatches {
     }
   }
 
-  public static void close(ColumnarBatch input) {
-    ColumnarBatchJniWrapper.INSTANCE.close(GlutenColumnarBatches.getNativeHandle(input));
+  /**
+   * Heavy batch: Data is readable from JVM and formatted as Arrow data.
+   */
+  public static boolean isHeavyBatch(ColumnarBatch batch) {
+    if (batch.numCols() == 0) {
+      throw new IllegalArgumentException("Cannot decide if a batch that " +
+          "has no column is Arrow columnar batch or not");
+    }
+    for (int i = 0; i < batch.numCols(); i++) {
+      ColumnVector col = batch.column(i);
+      if (!(col instanceof ArrowWritableColumnVector)) {
+        return false;
+      }
+    }
+    return true;
   }
 
-  public static long addColumn(ColumnarBatch input, int index, ColumnarBatch col) {
-    return ColumnarBatchJniWrapper.INSTANCE.addColumn(
-        GlutenColumnarBatches.getNativeHandle(input), index,
-        GlutenColumnarBatches.getNativeHandle(col));
+  /**
+   * Light batch: Data is not readable from JVM, a long int handle (which is a pointer usually)
+   * is used to bind the batch to a native side implementation.
+   */
+  public static boolean isLightBatch(ColumnarBatch batch) {
+    if (batch.numCols() == 0) {
+      throw new IllegalArgumentException("Cannot decide if a batch that has " +
+          "no column is light columnar batch or not");
+    }
+    ColumnVector col0 = batch.column(0);
+    if (!(col0 instanceof IndicatorVector)) {
+      return false;
+    }
+    for (int i = 1; i < batch.numCols(); i++) {
+      ColumnVector col = batch.column(i);
+      if (!(col instanceof PlaceholderVector)) {
+        return false;
+      }
+    }
+    return true;
   }
 
-  public static long getBytes(ColumnarBatch input) {
-    return ColumnarBatchJniWrapper.INSTANCE.getBytes(GlutenColumnarBatches.getNativeHandle(input));
+  /**
+   * Ensure the input batch is offloaded as native-based columnar batch
+   * (See {@link IndicatorVector} and {@link PlaceholderVector}).
+   */
+  public static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
+    if (ColumnarBatches.isLightBatch(batch)) {
+      return batch;
+    }
+    return offload(allocator, batch);
   }
 
-  public static String getType(ColumnarBatch input) {
-    return ColumnarBatchJniWrapper.INSTANCE.getType(GlutenColumnarBatches.getNativeHandle(input));
+  /**
+   * Ensure the input batch is loaded as Arrow-based Java columnar batch. ABI-based sharing
+   * will take place if loading is required, which means when the input batch is not loaded yet.
+   */
+  public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
+    if (batch.numCols() == 0) {
+      // No need to load batch if no column.
+      return batch;
+    }
+    if (isHeavyBatch(batch)) {
+      return batch;
+    }
+    return load(allocator, batch);
   }
 
-  public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
-    if (!GlutenColumnarBatches.isIntermediateColumnarBatch(input)) {
-      throw new IllegalArgumentException("input is not intermediate Gluten columnar input. " +
+  private static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
+    if (!ColumnarBatches.isLightBatch(input)) {
+      throw new IllegalArgumentException("Input is not light columnar batch. " +
           "Please consider to use vanilla spark's row based input by setting one of the below" +
           " configs: \n" +
           "spark.sql.parquet.enableVectorizedReader=false\n" +
@@ -126,8 +173,8 @@ public class ArrowColumnarBatches {
     }
   }
 
-  public static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
-    if (!isArrowColumnarBatch(input)) {
+  private static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
+    if (!isHeavyBatch(input)) {
       throw new IllegalArgumentException("batch is not Arrow columnar batch");
     }
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
@@ -136,7 +183,7 @@ public class ArrowColumnarBatches {
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),
           cArray.memoryAddress());
-      ColumnarBatch output = GlutenColumnarBatches.create(handle);
+      ColumnarBatch output = ColumnarBatches.create(handle);
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
@@ -171,43 +218,50 @@ public class ArrowColumnarBatches {
     }
   }
 
-  /**
-   * Ensure the input batch is offloaded as native-based columnar batch
-   * (See {@link IndicatorVector} and {@link PlaceholderVector}).
-   */
-  public static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
-    if (GlutenColumnarBatches.isIntermediateColumnarBatch(batch)) {
-      return batch;
-    }
-    return offload(allocator, batch);
+  public static void close(ColumnarBatch input) {
+    ColumnarBatchJniWrapper.INSTANCE.close(ColumnarBatches.getNativeHandle(input));
   }
 
   /**
-   * Ensure the input batch is loaded as Arrow-based Java columnar batch. ABI-based sharing
-   * will take place if loading is required, which means when the input batch is not loaded yet.
+   * Combine multiple columnar batches horizontally, assuming each of them is already offloaded.
+   * Otherwise {@link UnsupportedOperationException} will be thrown.
    */
-  public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
-    if (batch.numCols() == 0) {
-      // No need to load batch if no column.
-      return batch;
-    }
-    if (isArrowColumnarBatch(batch)) {
-      return batch;
-    }
-    return load(allocator, batch);
+  public static long compose(ColumnarBatch... batches) {
+    long[] handles = Arrays.stream(batches).mapToLong(ColumnarBatches::getNativeHandle).toArray();
+    return ColumnarBatchJniWrapper.INSTANCE.compose(handles);
   }
 
-  public static boolean isArrowColumnarBatch(ColumnarBatch batch) {
-    if (batch.numCols() == 0) {
-      throw new IllegalArgumentException("Cannot decide if a batch that " +
-              "has no column is Arrow columnar batch or not");
+  public static long numBytes(ColumnarBatch input) {
+    return ColumnarBatchJniWrapper.INSTANCE.numBytes(ColumnarBatches.getNativeHandle(input));
+  }
+
+  public static String getType(ColumnarBatch input) {
+    return ColumnarBatchJniWrapper.INSTANCE.getType(ColumnarBatches.getNativeHandle(input));
+  }
+
+  public static ColumnarBatch create(long nativeHandle) {
+    final IndicatorVector iv = new IndicatorVector(nativeHandle);
+    int numColumns = Math.toIntExact(iv.getNumColumns());
+    int numRows = Math.toIntExact(iv.getNumRows());
+    if (numColumns == 0) {
+      return new ColumnarBatch(new ColumnVector[0], numRows);
     }
-    for (int i = 0; i < batch.numCols(); i++) {
-      ColumnVector col = batch.column(i);
-      if (!(col instanceof ArrowWritableColumnVector)) {
-        return false;
-      }
+    final ColumnVector[] columnVectors = new ColumnVector[numColumns];
+    columnVectors[0] = iv;
+    long numPlaceholders = numColumns - 1;
+    for (int i = 0; i < numPlaceholders; i++) {
+      final PlaceholderVector pv = PlaceholderVector.INSTANCE;
+      columnVectors[i + 1] = pv;
     }
-    return true;
+    return new ColumnarBatch(columnVectors, numRows);
+  }
+
+  public static long getNativeHandle(ColumnarBatch batch) {
+    if (!isLightBatch(batch)) {
+      throw new UnsupportedOperationException("Cannot get native batch handle due to " +
+          "input batch is not intermediate Gluten batch");
+    }
+    IndicatorVector iv = (IndicatorVector) batch.column(0);
+    return iv.getNativeHandle();
   }
 }

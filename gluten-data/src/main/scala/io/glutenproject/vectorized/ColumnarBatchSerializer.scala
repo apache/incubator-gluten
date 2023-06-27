@@ -20,7 +20,7 @@ package io.glutenproject.vectorized
 import java.io._
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
-import io.glutenproject.columnarbatch.GlutenColumnarBatches
+import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
@@ -122,7 +122,7 @@ private class ColumnarBatchSerializerInstance(schema: StructType,
             this.close()
             throw new EOFException
           }
-          GlutenColumnarBatches.create(batchHandle)
+          ColumnarBatches.create(batchHandle)
         }
         val numRows = batch.numRows()
         logDebug(s"Read ColumnarBatch of ${numRows} rows")

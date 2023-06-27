@@ -32,7 +32,7 @@ class ShuffleWriter {
    */
   virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
 
-  virtual arrow::Status split(ColumnarBatch* cb) = 0;
+  virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb) = 0;
 
   // Cache the partition buffer/builder as compressed record batch. If reset
   // buffers, the partition buffer/builder will be set to nullptr. Two cases for
