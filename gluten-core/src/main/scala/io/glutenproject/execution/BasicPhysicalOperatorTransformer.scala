@@ -181,7 +181,7 @@ abstract class FilterExecTransformerBase(val cond: Expression,
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s"due to native check failure.")
+          s" due to native check failure.")
         return false
       }
       true
@@ -274,7 +274,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s"due to native check failure.")
+          s" due to native check failure.")
         return false
       }
       true
@@ -404,8 +404,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
   override def supportsColumnar: Boolean = true
 
-  var validateLog: Vector[String] = Vector()
-
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map { attrs =>
       val firstAttr = attrs.head
@@ -447,8 +445,8 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   def doValidate(): Boolean = {
     if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
-      validateLog = validateLog :+ "Validation failed for" +
-        " UnionExecTransformer due to schema check failed."
+      this.appendValidateLog("Validation failed for" +
+        " UnionExecTransformer due to schema check failed.")
       return false
     }
     true

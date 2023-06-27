@@ -64,7 +64,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s"due to native check failure.")
+          s" due to native check failure.")
         return false
       }
       true

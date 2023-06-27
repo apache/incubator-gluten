@@ -46,8 +46,6 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   private[sql] lazy val readMetrics =
     SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
-  var validateLog: Vector[String] = Vector()
-
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance
@@ -108,8 +106,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   def doValidate(): Boolean = {
     if (!BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
       outputPartitioning, child)) {
-      validateLog = validateLog :+ "Validation failed for" +
-        " ColumnarShuffleExchangeExec due to schema check failed."
+      this.appendValidateLog("Validation failed for" +
+        " ColumnarShuffleExchangeExec due to schema check failed.")
       return false
     }
     true
