@@ -3,42 +3,31 @@
 
 #include <IO/PeekableReadBuffer.h>
 #include <IO/ReadBuffer.h>
+#include <Common/Exception.h>
 
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int CANNOT_PARSE_NUMBER;
+    extern const int CANNOT_PARSE_DATETIME;
 }
 }
 
 namespace local_engine
 {
 
-bool append_digit(DB::ReadBuffer & buf, auto & x)
-{
-    if (!buf.eof() && isNumericASCII(*buf.position()))
-    {
-        x = x * 10 + (*buf.position() - '0');
-        ++buf.position();
-        return true;
-    }
-    else
-        return false;
-}
-
-void readGlutenDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
+bool readDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
     auto pr = static_cast<DB::PeekableReadBuffer>(buf);
     DB::PeekableReadBufferCheckpoint checkpoint{pr, false};
     bool is_us_style = settings.date_time_input_format == DB::FormatSettings::DateTimeInputFormat::BestEffortUS;
     if (readDateTextWithExcel(date, pr, is_us_style))
-        return;
+        return true;
     else
         pr.rollbackToCheckpoint();
 
-    DB::readDateText(date, pr);
+    return DB::readDateTextFallback<bool>(date, pr);
 }
 
 void readDateTime64Text(
@@ -194,6 +183,14 @@ bool readDatetime64TextWithExcel(
     if (!day)
         day = 1;
 
+    if (!checkDate(year, month, day))
+        throw DB::Exception(
+            DB::ErrorCodes::CANNOT_PARSE_DATETIME,
+            "Cannot read DateTime: unexpected date: {}-{}-{}",
+            year,
+            static_cast<UInt16>(month),
+            static_cast<UInt16>(day));
+
     time_t datetime = time_zone.makeDateTime(year, month, day, hour, minute, second);
     return DB::DecimalUtils::tryGetDecimalFromComponents<DB::DateTime64>(datetime, fractional, scale, datetime64);
 }
@@ -285,6 +282,7 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
     if (!day)
         day = 1;
 
+    // todo 2021-02-29
     date = LocalDate(year, month, day);
     return true;
 }

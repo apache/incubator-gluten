@@ -2,9 +2,46 @@
 
 #include <IO/readFloatText.h>
 
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int CANNOT_PARSE_NUMBER;
+}
+}
 
 namespace local_engine
 {
+
+static String zh_cn_symbol = "¥"; // std::use_facet<std::moneypunct<char>>(std::locale("zh_cn.utf8")).curr_symbol();
+static String en_us_symbol = "$"; // std::use_facet<std::moneypunct<char>>(std::locale("en_US.utf8")).curr_symbol();
+
+
+inline bool checkMoneySymbol(DB::ReadBuffer & buf, String & symbol)
+{
+    auto pr = static_cast<DB::PeekableReadBuffer>(buf);
+    DB::PeekableReadBufferCheckpoint checkpoint{pr, false};
+
+    std::string::iterator it = symbol.begin();
+    while (it != symbol.end())
+    {
+        if (pr.eof() || *pr.position() != *it)
+        {
+            pr.rollbackToCheckpoint();
+            return false;
+        }
+
+        pr.position()++;
+        it++;
+    }
+
+    return true;
+}
+
+inline bool checkMoneySymbol(DB::ReadBuffer & buf)
+{
+    return checkMoneySymbol(buf, zh_cn_symbol) || checkMoneySymbol(buf, en_us_symbol);
+}
 
 inline bool checkNumberComma(DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
@@ -18,7 +55,6 @@ inline bool checkNumberComma(DB::ReadBuffer & buf, bool has_quote, const DB::For
         || (buf.position() + 3 == buf.buffer().end() && isNumericASCII(buf.position()[1]) && isNumericASCII(buf.position()[2])
             && isNumericASCII(buf.position()[3])))
     {
-        ++buf.position();
         return true;
     }
     else
@@ -28,6 +64,7 @@ inline bool checkNumberComma(DB::ReadBuffer & buf, bool has_quote, const DB::For
 template <size_t N, bool before_point = false, typename T>
 static inline bool readUIntTextUpToNSignificantDigits(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
+    bool has_values = false;
     /// In optimistic case we can skip bound checking for first loop.
     if (buf.position() + N <= buf.buffer().end())
     {
@@ -38,10 +75,19 @@ static inline bool readUIntTextUpToNSignificantDigits(T & x, DB::ReadBuffer & bu
                 x *= 10;
                 x += *buf.position() & 0x0F;
                 ++buf.position();
+                has_values = true;
             }
             else if constexpr (before_point) // 10,000,000
             {
-                if (*buf.position() == ',' && !checkNumberComma(buf, has_quote, settings))
+                if (!has_values)
+                    return false;
+
+                if (*buf.position() == ',' && checkNumberComma(buf, has_quote, settings))
+                {
+                    ++buf.position();
+                    continue;
+                }
+                else
                     return true;
             }
             else
@@ -57,10 +103,19 @@ static inline bool readUIntTextUpToNSignificantDigits(T & x, DB::ReadBuffer & bu
                 x *= 10;
                 x += *buf.position() & 0x0F;
                 ++buf.position();
+                has_values = true;
             }
             else if constexpr (before_point) // 10,000,000
             {
-                if (*buf.position() == ',' && !checkNumberComma(buf, has_quote, settings))
+                if (!has_values)
+                    return false;
+
+                if (*buf.position() == ',' && checkNumberComma(buf, has_quote, settings))
+                {
+                    ++buf.position();
+                    continue;
+                }
+                else
                     return true;
             }
             else
@@ -81,7 +136,7 @@ static inline bool readUIntTextUpToNSignificantDigits(T & x, DB::ReadBuffer & bu
 
 
 template <typename T>
-inline bool readGlutenFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quote, const DB::FormatSettings & settings)
+inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quote, const DB::FormatSettings & settings)
 {
     static_assert(std::is_same_v<T, double> || std::is_same_v<T, float>, "Argument for readFloatTextImpl must be float or double");
     static_assert('a' > '.' && 'A' > '.' && '\n' < '.' && '\t' < '.' && '\'' < '.' && '"' < '.', "Layout of char is not like ASCII");
@@ -96,6 +151,9 @@ inline bool readGlutenFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quo
     if (in.eof())
         return false;
 
+    if ((*in.position() < '0' || *in.position() > '9') && *in.position() != '-' && *in.position() != '+' && *in.position() != '.'
+        && !checkMoneySymbol(in))
+        return false;
 
     if (*in.position() == '-')
     {
@@ -224,7 +282,7 @@ inline bool readGlutenFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quo
 
 
 template <typename T>
-bool readGlutenIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
     using UnsignedT = make_unsigned_t<T>;
 
@@ -236,6 +294,7 @@ bool readGlutenIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB
     /// '+' or '-'
     bool has_sign = false;
     bool has_number = false;
+    UInt32 length = 0;
     while (!buf.eof())
     {
         if (*buf.position() == '+')
@@ -267,23 +326,59 @@ bool readGlutenIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB
             has_sign = true;
             ++buf.position();
         }
-        else if (*buf.position() == ',' && !checkNumberComma(buf, has_quote, settings))
+        else if (*buf.position() == ',')
         {
-            /// if 1,00010,  invalidate, fallback
-            break;
+            /// invalidate like 1,00010
+            if (checkNumberComma(buf, has_quote, settings))
+            {
+                ++buf.position();
+                continue;
+            }
+            else
+                break;
         }
         else if (*buf.position() >= '0' && *buf.position() <= '9')
         {
             has_number = true;
-            res *= 10;
-            res += *buf.position() - '0';
+            ++length;
+            if (length >= std::numeric_limits<T>::max_digits10)
+            {
+                if (negative)
+                {
+                    T signed_res = -res;
+                    if (common::mulOverflow<T>(signed_res, 10, signed_res)
+                        || common::subOverflow<T>(signed_res, (*buf.position() - '0'), signed_res))
+                        return false;
+
+                    res = -static_cast<UnsignedT>(signed_res);
+                }
+                else
+                {
+                    T signed_res = res;
+                    if (common::mulOverflow<T>(signed_res, 10, signed_res)
+                        || common::addOverflow<T>(signed_res, (*buf.position() - '0'), signed_res))
+                        return false;
+
+                    res = signed_res;
+                }
+            }
+            else
+            {
+                res *= 10;
+                res += *buf.position() - '0';
+            }
+
             ++buf.position();
+        }
+        else if (!has_number && !has_sign && checkMoneySymbol(buf))
+        {
+            continue;
         }
         else
             break;
     }
 
-    if (has_sign && !has_number)
+    if (!has_number)
         return false;
 
     x = res;

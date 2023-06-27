@@ -214,6 +214,77 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
+  test("read normal csv") {
+    val file_path = csvDataPath + "/normal_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("string_field", StringType, nullable = true),
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("float_field", FloatType, nullable = true),
+        StructField.apply("double_field", DoubleType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true),
+        StructField.apply("byte_field", ByteType, nullable = true),
+        StructField.apply("boolean_field", BooleanType, nullable = true),
+        StructField.apply("decimal_field", DecimalType.apply(10, 2), nullable = true),
+        StructField.apply("date_field", DateType, nullable = true),
+        StructField.apply("timestamp_field", TimestampType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+    options.put("nullValue", "null")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(List(("spark.sql.legacy.timeParserPolicy", "LEGACY")) ++ vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(file_path)
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("read excel csv with whitespace") {
+    val file_path = csvDataPath + "/whitespace_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("float_field", FloatType, nullable = true),
+        StructField.apply("double_field", DoubleType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 1.toLong, 1.toFloat, 1.toDouble, 1.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
   test("read excel export csv base") {
     val schema = StructType.apply(
       Seq(
@@ -238,9 +309,15 @@ class GlutenClickHouseFileFormatSuite
     val csvFileScan = collect(df.queryExecution.executedPlan) {
       case f: FileSourceScanExecTransformer => f
     }
+
     assert(csvFileScan.size == 1)
-    assert(result.length == 14)
+    assert(result.length == 18)
     assert(result.apply(0).getString(6) == null)
+    assert(result.apply(0).getString(6) == null)
+    assert(result.apply(16).getFloat(2) == -100000)
+    assert(result.apply(16).getDouble(3) == -100000)
+    assert(result.apply(16).getInt(4) == -100000)
+    assert(result.apply(16).getLong(5) == -100000)
   }
 
   test("read excel export csv delimiter") {
@@ -389,7 +466,7 @@ class GlutenClickHouseFileFormatSuite
       })
   }
 
-  test("fix: read field value wrong") {
+  test("fix: read date field value wrong") {
     implicit class StringToDate(s: String) {
       def date: Date = Date.valueOf(s)
       def timestamp: Timestamp = Timestamp.valueOf(s)
@@ -479,20 +556,23 @@ class GlutenClickHouseFileFormatSuite
         StructField.apply("b", StringType, nullable = true)
       ))
 
+    val double_path = csvDataPath + "/double_quote.csv"
+    val double_quote_option = new util.HashMap[String, String]()
+    double_quote_option.put("delimiter", ",")
+    double_quote_option.put("quote", "\"")
+
     val df1 = spark.read
-      .option("delimiter", ",")
-      .option("quote", "\"")
+      .options(double_quote_option)
       .schema(schema)
-      .csv(csvDataPath + "/double_quote.csv")
+      .csv(double_path)
       .toDF()
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
       expectedAnswer = spark.read
-        .option("delimiter", ",")
-        .option("quote", "\"")
+        .options(double_quote_option)
         .schema(schema)
-        .csv(csvDataPath + "/double_quote.csv")
+        .csv(double_path)
         .toDF()
         .collect()
     }
@@ -503,19 +583,21 @@ class GlutenClickHouseFileFormatSuite
     }
     assert(csvFileScan.size == 1)
 
+    val single_path = csvDataPath + "/single_quote.csv"
+    val single_quote_option = new util.HashMap[String, String]()
+    single_quote_option.put("delimiter", ",")
+    single_quote_option.put("quote", "\"")
     val df2 = spark.read
-      .option("delimiter", ",")
-      .option("quote", "\'")
+      .options(single_quote_option)
       .schema(schema)
-      .csv(csvDataPath + "/single_quote.csv")
+      .csv(single_path)
       .toDF()
 
     withSQLConf(vanillaSparkConfs(): _*) {
       expectedAnswer = spark.read
-        .option("delimiter", ",")
-        .option("quote", "\'")
+        .options(single_quote_option)
         .schema(schema)
-        .csv(csvDataPath + "/single_quote.csv")
+        .csv(single_path)
         .toDF()
         .collect()
     }
