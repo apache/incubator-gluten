@@ -1109,6 +1109,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-2079: aggregate function with filter") {
+    val sql =
+      """
+        | select 
+        |  count(distinct(a)), count(distinct(b)), count(distinct(c)) 
+        | from 
+        |  values (1, null,2), (2,2,4), (3,2,4) as data(a,b,c)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("GLUTEN-1956: fix error conversion of Float32 in CHColumnToSparkRow") {
     withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
       runQueryAndCompare(

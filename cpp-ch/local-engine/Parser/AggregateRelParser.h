@@ -20,6 +20,7 @@ private:
         DB::DataTypes arg_column_types;
         String function_name;
         bool has_mismatch_nullablity = false;
+        String filter_column_name;
     };
 
     Poco::Logger * logger = &Poco::Logger::get("AggregateRelParser");
