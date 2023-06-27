@@ -21,6 +21,7 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "RegistrationAllFunctions.h"
+#include "RowVectorStream.h"
 #include "config/GlutenConfig.h"
 #include "utils/exception.h"
 #include "velox/common/file/FileSystems.h"
@@ -35,7 +36,6 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "velox/exec/Operator.h"
 
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(SkipRowSortInWindowOp);
@@ -217,6 +217,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     // serde, for spill
     facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
   }
+  velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
