@@ -44,11 +44,11 @@ public class IndicatorVector extends ColumnVector {
   }
 
   public long getNumColumns() {
-    return ColumnarBatchJniWrapper.INSTANCE.getNumColumns(nativeHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.numColumns(nativeHandle);
   }
 
   public long getNumRows() {
-    return ColumnarBatchJniWrapper.INSTANCE.getNumRows(nativeHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.numRows(nativeHandle);
   }
 
   public long refCnt() {

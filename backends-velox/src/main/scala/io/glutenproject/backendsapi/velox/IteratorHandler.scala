@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
@@ -153,7 +153,7 @@ class IteratorHandler extends IteratorApi with Logging {
           // chendi: We need make sure target FieldTypes are exactly the same as src
           val expectedOutputArrowFields = if (batchesToAppend.size > 0) {
             (0 until batchesToAppend(0).numCols).map(i => {
-              ArrowColumnarBatches
+              ColumnarBatches
                 .ensureLoaded(
                   ArrowBufferAllocators.contextInstance(), batchesToAppend(0)).column(i)
                 .asInstanceOf[ArrowWritableColumnVector]

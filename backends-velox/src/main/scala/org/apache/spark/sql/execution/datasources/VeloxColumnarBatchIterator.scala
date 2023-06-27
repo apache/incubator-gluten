@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.columnarbatch.GlutenColumnarBatches
+import io.glutenproject.columnarbatch.ColumnarBatches
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
@@ -58,7 +58,7 @@ class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
   }
 
   override def next(): Long = {
-    GlutenColumnarBatches.getNativeHandle(currentBatch.get)
+    ColumnarBatches.getNativeHandle(currentBatch.get)
   }
 
   override def close(): Unit = {

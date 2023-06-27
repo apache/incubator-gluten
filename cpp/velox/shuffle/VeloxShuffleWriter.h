@@ -97,7 +97,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options);
 
-  arrow::Status split(ColumnarBatch* cb) override;
+  arrow::Status split(std::shared_ptr<ColumnarBatch> cb) override;
 
   arrow::Status stop() override;
 

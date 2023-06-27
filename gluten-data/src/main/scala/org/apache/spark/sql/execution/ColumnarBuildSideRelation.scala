@@ -17,21 +17,19 @@
 
 package org.apache.spark.sql.execution
 
-import scala.collection.JavaConverters.asScalaIteratorConverter
-
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, IndicatorVector}
+import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowUtil
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
-
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowJniWrapper}
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskResources
+
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 case class ColumnarBuildSideRelation(mode: BroadcastMode,
   output: Seq[Attribute],
@@ -79,13 +77,13 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
             // Fallback to ColumnarToRow
             val localOutput = output
             val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-            val arrowBatch = ArrowColumnarBatches
+            val arrowBatch = ColumnarBatches
               .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
             arrowBatch.rowIterator().asScala.map(toUnsafe)
           } else {
             val offloaded =
-              ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-            val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
+              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
+            val batchHandle = ColumnarBatches.getNativeHandle(offloaded)
 
             if (c2rId == -1) {
               c2rId = jniWrapper.nativeColumnarToRowInit(
