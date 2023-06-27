@@ -73,7 +73,7 @@ void ExcelSerialization::deserializeTextCSV(IColumn & column, ReadBuffer & istr,
     }
     else if (typeid_cast<const SerializationString *>(nested_ptr.get()))
     {
-        deserializeGlutenTextCSV(column, istr, settings, escape);
+        deserializeExcelTextCSV(column, istr, settings, escape);
     }
     else
     {

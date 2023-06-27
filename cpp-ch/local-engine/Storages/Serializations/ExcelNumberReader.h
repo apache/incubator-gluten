@@ -136,7 +136,7 @@ static inline bool readUIntTextUpToNSignificantDigits(T & x, DB::ReadBuffer & bu
 
 
 template <typename T>
-inline bool readGlutenFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quote, const DB::FormatSettings & settings)
+inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quote, const DB::FormatSettings & settings)
 {
     static_assert(std::is_same_v<T, double> || std::is_same_v<T, float>, "Argument for readFloatTextImpl must be float or double");
     static_assert('a' > '.' && 'A' > '.' && '\n' < '.' && '\t' < '.' && '\'' < '.' && '"' < '.', "Layout of char is not like ASCII");
@@ -282,7 +282,7 @@ inline bool readGlutenFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quo
 
 
 template <typename T>
-bool readGlutenIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
     using UnsignedT = make_unsigned_t<T>;
 

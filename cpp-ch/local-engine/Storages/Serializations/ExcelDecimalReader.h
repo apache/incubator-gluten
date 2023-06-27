@@ -17,7 +17,7 @@ namespace local_engine
 using namespace DB;
 
 template <typename T>
-bool readGlutenCSVDecimalText(ReadBuffer & buf, T & x, uint32_t precision, uint32_t & scale, const FormatSettings & format_settings)
+bool readExcelCSVDecimalText(ReadBuffer & buf, T & x, uint32_t precision, uint32_t & scale, const FormatSettings & format_settings)
 {
     char maybe_quote = *buf.position();
     bool has_quote = false;
@@ -55,7 +55,7 @@ void deserializeExcelDecimalText(IColumn & column, ReadBuffer & istr, UInt32 pre
 
     T x;
     UInt32 unread_scale = scale;
-    bool result = readGlutenCSVDecimalText(istr, x, precision, unread_scale, formatSettings);
+    bool result = readExcelCSVDecimalText(istr, x, precision, unread_scale, formatSettings);
     if (!result || common::mulOverflow(x.value, DecimalUtils::scaleMultiplier<T>(unread_scale), x.value))
         throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Read error");
     else

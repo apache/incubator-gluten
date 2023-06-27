@@ -87,7 +87,7 @@ bool readDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettin
 
 
 template <typename T>
-inline bool readGlutenIntegerText(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+inline bool readExcelIntegerText(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
     if constexpr (std::is_same_v<decltype(x), bool &>)
     {
@@ -95,20 +95,20 @@ inline bool readGlutenIntegerText(T & x, DB::ReadBuffer & buf, bool has_quote, c
         return true;
     }
     else
-        return readGlutenIntTextImpl(x, buf, has_quote, settings);
+        return readExcelIntTextImpl(x, buf, has_quote, settings);
 }
 
-inline bool readGlutenText(is_floating_point auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+inline bool readExcelText(is_floating_point auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
-    return readGlutenFloatTextFastImpl(x, buf, has_quote, settings);
+    return readExcelFloatTextFastImpl(x, buf, has_quote, settings);
 }
 
-inline bool readGlutenText(is_integer auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
+inline bool readExcelText(is_integer auto & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
-    return readGlutenIntegerText(x, buf, has_quote, settings);
+    return readExcelIntegerText(x, buf, has_quote, settings);
 }
 
-inline bool readGlutenText(LocalDate & x, DB::ReadBuffer & buf, bool /*has_quote*/, const DB::FormatSettings & settings)
+inline bool readExcelText(LocalDate & x, DB::ReadBuffer & buf, bool /*has_quote*/, const DB::FormatSettings & settings)
 {
     return readDateText(x, buf, settings);
 }
@@ -133,7 +133,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
         || (!has_quote && !buf.eof() && (*buf.position() == settings.csv.delimiter || *buf.position() == '\n' || *buf.position() == '\r')))
         return false;
 
-    bool result = readGlutenText(x, buf, has_quote, settings);
+    bool result = readExcelText(x, buf, has_quote, settings);
     if (!result)
         return false;
 

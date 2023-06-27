@@ -38,7 +38,7 @@ inline void appendToStringOrVector(PaddedPODArray<UInt8> & s, ReadBuffer & rb, c
 }
 
 template <typename Vector, bool include_quotes>
-void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value)
+void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value)
 {
     /// Empty string
     if (buf.eof())
@@ -211,9 +211,9 @@ void readGlutenCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings:
     }
 }
 
-void deserializeGlutenTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value)
+void deserializeExcelTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value)
 {
-    glutenRead(column, [&](ColumnString::Chars & data) { readGlutenCSVStringInto(data, istr, settings.csv, escape_value); });
+    excelRead(column, [&](ColumnString::Chars & data) { readExcelCSVStringInto(data, istr, settings.csv, escape_value); });
 }
 
 }
