@@ -22,6 +22,7 @@ import io.glutenproject.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.commons.io.FileUtils

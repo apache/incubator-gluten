@@ -42,6 +42,7 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.api.python.EvalPythonExecTransformer
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -470,23 +471,20 @@ case class TransformPreOverrides(
         LimitTransformer(child, 0L, plan.limit)
       case plan: GenerateExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        var child = replaceWithTransformerPlan(plan.child)
+        val child = replaceWithTransformerPlan(plan.child)
         GenerateExecTransformer(plan.generator, plan.requiredChildOutput,
           plan.outer, plan.generatorOutput, child)
       case plan: EvalPythonExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        var child = replaceWithTransformerPlan(plan.child)
+        val child = replaceWithTransformerPlan(plan.child)
         EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
+      case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)
-        val planTransformer = p.withNewChildren(children)
-        p.getClass.getSimpleName match {
-          case "HiveTableScanExec" =>
-            BackendsApiManager.getSparkPlanExecApiInstance
-              .genHiveTableScanExecTransformer(p).getOrElse(planTransformer)
-          case _ => planTransformer
-        }
+        p.withNewChildren(children)
     }
   }
 

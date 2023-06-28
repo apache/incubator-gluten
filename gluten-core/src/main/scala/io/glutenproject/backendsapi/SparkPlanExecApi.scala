@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -70,13 +71,8 @@ trait SparkPlanExecApi {
    */
   def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecTransformerBase
 
-  /**
-  * Generate BasicScanTransformer
-   * @param child
-   * @return
-   */
-  def genHiveTableScanExecTransformer(child: SparkPlan) : Option[HiveTableScanExecTransformer] =
-    Option.empty
+  def genHiveTableScanExecTransformer(plan: SparkPlan): HiveTableScanExecTransformer =
+    HiveTableScanExecTransformer(plan)
 
   /** Generate HashAggregateExecTransformer. */
   def genHashAggregateExecTransformer(

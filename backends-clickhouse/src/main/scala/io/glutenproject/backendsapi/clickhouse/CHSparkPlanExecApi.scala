@@ -48,7 +48,6 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.ClickHouseAnalysis
-import org.apache.spark.sql.hive.CHHiveTableScanExecTransformer
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -398,19 +397,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       leftOutputSet: AttributeSet,
       rightOutputSet: AttributeSet,
       condition: Option[Expression]): Boolean = {
-    return CHJoinValidateUtil.shouldFallback(JoinType, leftOutputSet, rightOutputSet, condition)
-  }
-
-  /**
-   * Generate an BasicScanExecTransformer to transfrom hive table scan. Currently only for CH
-   * backend.
-   *
-   * @param child
-   * @return
-   */
-  override def genHiveTableScanExecTransformer(
-      child: SparkPlan): Option[HiveTableScanExecTransformer] = {
-    CHHiveTableScanExecTransformer.transform(child)
+    CHJoinValidateUtil.shouldFallback(JoinType, leftOutputSet, rightOutputSet, condition)
   }
 
   /** Generate window function node */

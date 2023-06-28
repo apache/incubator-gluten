@@ -47,6 +47,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarFileScan: Boolean = conf.getConf(COLUMNAR_FILESCAN_ENABLED)
 
+  def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
+
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
 
   def forceToUseHashAgg: Boolean = conf.getConf(COLUMNAR_FORCE_HASHAGG_ENABLED)
@@ -477,6 +479,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.filescan")
       .internal()
       .doc("Enable or disable columnar filescan.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_HIVETABLESCAN_ENABLED =
+    buildConf("spark.gluten.sql.columnar.hivetablescan")
+      .internal()
+      .doc("Enable or disable columnar hivetablescan.")
       .booleanConf
       .createWithDefault(true)
 
