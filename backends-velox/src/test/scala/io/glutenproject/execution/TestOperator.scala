@@ -400,7 +400,8 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("orc scan") {
-    val df = spark.read.format("orc").load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
+    val df = spark.read.format("orc")
+      .load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
     df.createOrReplaceTempView("lineitem_orc")
     runQueryAndCompare(
       "select l_orderkey from lineitem_orc") { df => {
@@ -417,5 +418,14 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(plan.find(_.isInstanceOf[RDDScanExec]).isDefined)
     assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
     assert(plan.find(_.isInstanceOf[RowToArrowColumnarExec]).isDefined)
+  }
+
+  test("equal null safe") {
+    runQueryAndCompare(
+      """
+        |select l_quantity <=> 1000 from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
   }
 }
