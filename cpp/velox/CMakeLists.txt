@@ -76,7 +76,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
   add_velox_dependency(functions::sparksql::window "${VELOX_COMPONENTS_PATH}/functions/sparksql/windows/libvelox_functions_spark_windows.a")
   add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
-  add_velox_dependency(functions::lib::agg "${VELOX_COMPONENTS_PATH}/functions/lib/aggregates/libvelox_functions_aggregates.a")
+
   add_velox_dependency(functions::prestosql::window "${VELOX_COMPONENTS_PATH}/functions/prestosql/window/libvelox_window.a")
   add_velox_dependency(velox::buffer "${VELOX_COMPONENTS_PATH}/buffer/libvelox_buffer.a")
 
