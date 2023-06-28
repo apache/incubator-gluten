@@ -20,6 +20,7 @@ package io.glutenproject.vectorized;
 import com.google.protobuf.Any;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
+import io.glutenproject.validate.NativePlanValidatorInfo;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
@@ -52,6 +53,10 @@ public class NativePlanEvaluator {
   // Used to validate the Substrait plan in native compute engine.
   public boolean doValidate(byte[] subPlan) {
     return jniWrapper.nativeDoValidate(subPlan);
+  }
+
+  public NativePlanValidatorInfo doValidateWithFallBackLog(byte[] subPlan) {
+    return jniWrapper.nativeDoValidateWithFallBackLog(subPlan);
   }
 
   private PlanNode buildNativeConfNode(Map<String, String> confs) {

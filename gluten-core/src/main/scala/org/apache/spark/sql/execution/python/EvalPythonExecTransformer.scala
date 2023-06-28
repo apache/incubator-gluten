@@ -99,8 +99,8 @@ case class EvalPythonExecTransformer(
     /// All udfs should be scalar python udf
     for (udf <- udfs) {
       if (!PythonUDF.isScalarPythonUDF(udf)) {
-        logWarning(
-          s"Validation failed for ${this.getClass.toString} because $udf is not scalar python udf")
+        logInfo(
+          s"Validation failed for ${this.getClass.toString} due to: $udf is not scalar python udf")
         return false
       }
     }
@@ -123,9 +123,8 @@ case class EvalPythonExecTransformer(
         RelBuilder.makeProjectRel(null, expressionNodes, context, operatorId)
       } catch {
         case e: Throwable =>
-          logValidateFailure(
-            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}",
-            e)
+          this.appendValidateLog(
+            s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
           return false
       }
 

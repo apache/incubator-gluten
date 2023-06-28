@@ -50,18 +50,31 @@ object BackendSettings extends BackendSettingsApi {
     // Validate if all types are supported.
     def validateTypes: Boolean = {
       // Collect unsupported types.
-      fields.map(_.dataType).collect {
-        case _: ArrayType =>
-        case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+      val unsupportedDataTypes = fields.map(_.dataType).collect {
+        case _: ByteType => "ByteType"
+        case _: ArrayType => "ArrayType"
+        case mapType: MapType if mapType.keyType.isInstanceOf[StructType] => "StructType as Key in MapType"
         // Parquet scan of nested map with struct as key type is not supported in Velox.
-        case _: ByteType =>
-      }.isEmpty
+      }
+      for (unsupportedDataType <- unsupportedDataTypes) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s" due to: data type $unsupportedDataType. in file schema. ")
+        // scalastyle:on println
+      }
+      unsupportedDataTypes.isEmpty
     }
 
     def validateFilePath: Boolean = {
       // Fallback to vanilla spark when the input path
       // does not contain the partition info.
       if (partTable && !paths.forall(_.contains("="))) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to: input path doesn't contain split info. ")
+        // scalastyle:on println
         return false
       }
       true
@@ -70,9 +83,18 @@ object BackendSettings extends BackendSettingsApi {
     format match {
       case ParquetReadFormat => validateTypes && validateFilePath
       case DwrfReadFormat => true
-      case OrcReadFormat => fields.map(_.dataType).collect {
-        case _: TimestampType =>
-      }.isEmpty
+      case OrcReadFormat =>
+        val unsupportedDataTypes = fields.map(_.dataType).collect {
+          case _: TimestampType => "TimestampType"
+        }
+        for (unsupportedDataType <- unsupportedDataTypes) {
+          // scalastyle:off println
+          println(
+            s"Validation failed for ${this.getClass.toString}" +
+              s" due to: data type $unsupportedDataType. in file schema. ")
+          // scalastyle:on println
+        }
+        unsupportedDataTypes.isEmpty
       case _ => false
     }
   }
