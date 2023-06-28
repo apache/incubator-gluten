@@ -116,7 +116,7 @@ case class GenerateExecTransformer(
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 

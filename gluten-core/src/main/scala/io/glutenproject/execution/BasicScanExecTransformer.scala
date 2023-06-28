@@ -84,7 +84,7 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
       .supportsReadFileFormat(
         fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
       this.appendValidateLog(
-        s"Validation failed for ${this.getClass.toString} due to Not supported: {$fileFormat}")
+        s"Validation failed for ${this.getClass.toString} due to: {$fileFormat}")
       return false
     }
 
@@ -94,7 +94,7 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
@@ -108,7 +108,7 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true

@@ -211,13 +211,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     if (!BackendsApiManager.getSettings.supportExpandExec()) {
       this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {ExpandExec}. ")
+          s" due to: {ExpandExec}. ")
       return false
     }
     if (projections.isEmpty) {
       this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {empty projections in ExpandExec}. ")
+          s" due to: {empty projections in ExpandExec}. ")
       return false
     }
 
@@ -232,7 +232,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
@@ -246,7 +246,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true

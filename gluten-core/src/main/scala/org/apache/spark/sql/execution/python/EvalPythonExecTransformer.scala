@@ -100,7 +100,7 @@ case class EvalPythonExecTransformer(
     for (udf <- udfs) {
       if (!PythonUDF.isScalarPythonUDF(udf)) {
         logInfo(
-          s"Validation failed for ${this.getClass.toString} because $udf is not scalar python udf")
+          s"Validation failed for ${this.getClass.toString} due to: $udf is not scalar python udf")
         return false
       }
     }
@@ -124,7 +124,7 @@ case class EvalPythonExecTransformer(
       } catch {
         case e: Throwable =>
           this.appendValidateLog(
-            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+            s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
           return false
       }
 

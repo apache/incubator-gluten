@@ -156,7 +156,7 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     } catch {
       case e: Throwable =>
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to ${e.getMessage}")
+          s" due to: ${e.getMessage}")
         return false
     }
 
@@ -165,7 +165,7 @@ abstract class FilterExecTransformerBase(val cond: Expression,
       if (!(child.isInstanceOf[DataSourceScanExec] ||
         child.isInstanceOf[DataSourceV2ScanExecBase])) {
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {child is not DataSourceScanExec or DataSourceV2ScanExecBase}")
+          s" due to: {child is not DataSourceScanExec or DataSourceV2ScanExecBase}")
         return false
       }
     }
@@ -181,7 +181,7 @@ abstract class FilterExecTransformerBase(val cond: Expression,
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true
@@ -260,7 +260,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     } catch {
       case e: Throwable =>
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to ${e.getMessage}")
+          s" due to: ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.
@@ -274,7 +274,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true
@@ -446,7 +446,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   def doValidate(): Boolean = {
     if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
       this.appendValidateLog("Validation failed for" +
-        " UnionExecTransformer due to schema check failed.")
+        " UnionExecTransformer due to: schema check failed.")
       return false
     }
     true

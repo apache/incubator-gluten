@@ -134,7 +134,7 @@ abstract class HashAggregateExecBaseTransformer(
       case n: NullType => true
       case other => this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {data type ${dataType}}");
+          s" due to: {data type ${dataType}}");
         false
     }
   }
@@ -149,7 +149,7 @@ abstract class HashAggregateExecBaseTransformer(
       } catch {
         case e: Throwable =>
           this.appendValidateLog(
-            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+            s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
           return false
       }
     }
@@ -170,7 +170,7 @@ abstract class HashAggregateExecBaseTransformer(
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true

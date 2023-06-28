@@ -133,7 +133,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     case _ =>
       // IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
       this.appendValidateLog("Validation failed for" +
-        " ColumnarBroadcastExchangeExec due to only support HashedRelationBroadcastMode.")
+        " ColumnarBroadcastExchangeExec due to: only support HashedRelationBroadcastMode.")
       false
   }
 

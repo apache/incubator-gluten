@@ -248,7 +248,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     if (!BackendsApiManager.getSettings.supportSortExec()) {
       this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {SortExec}. ")
+          s" due to: {SortExec}. ")
       return false
     }
     val substraitContext = new SubstraitContext
@@ -260,7 +260,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
@@ -274,7 +274,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true

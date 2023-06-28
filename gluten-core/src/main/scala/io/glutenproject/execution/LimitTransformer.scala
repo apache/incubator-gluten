@@ -93,7 +93,7 @@ case class LimitTransformer(child: SparkPlan,
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
@@ -107,7 +107,7 @@ case class LimitTransformer(child: SparkPlan,
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true

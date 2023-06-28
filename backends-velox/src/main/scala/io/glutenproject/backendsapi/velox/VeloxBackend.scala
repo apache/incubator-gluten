@@ -60,7 +60,7 @@ object BackendSettings extends BackendSettingsApi {
         // scalastyle:off println
         println(
           s"Validation failed for ${this.getClass.toString}" +
-            s"due to Not supported: data type $unsupportedDataType. in file schema. ")
+            s" due to: data type $unsupportedDataType. in file schema. ")
         // scalastyle:on println
       }
       unsupportedDataTypes.isEmpty
@@ -73,7 +73,7 @@ object BackendSettings extends BackendSettingsApi {
         // scalastyle:off println
         println(
           s"Validation failed for ${this.getClass.toString}" +
-            s"due to Not supported: input path doesn't contain split info. ")
+            s"due to: input path doesn't contain split info. ")
         // scalastyle:on println
         return false
       }
@@ -91,7 +91,7 @@ object BackendSettings extends BackendSettingsApi {
           // scalastyle:off println
           println(
             s"Validation failed for ${this.getClass.toString}" +
-              s"due to Not supported: data type $unsupportedDataType. in file schema. ")
+              s" due to: data type $unsupportedDataType. in file schema. ")
           // scalastyle:on println
         }
         unsupportedDataTypes.isEmpty

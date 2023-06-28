@@ -138,7 +138,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidateWithFal
   jclass infoCls = env->FindClass("Lio/glutenproject/validate/NativePlanValidatorInfo;");
   if (infoCls == nullptr) {
     std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidatorInfo";
-    gluten::jniThrow(errorMessage);
+    throw gluten::GlutenException(errorMessage);
   }
   jmethodID method = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
   try {

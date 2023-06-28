@@ -107,7 +107,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     if (!BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
       outputPartitioning, child)) {
       this.appendValidateLog("Validation failed for" +
-        " ColumnarShuffleExchangeExec due to schema check failed.")
+        " ColumnarShuffleExchangeExec due to: schema check failed.")
       return false
     }
     true

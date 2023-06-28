@@ -258,7 +258,7 @@ case class SortMergeJoinExecTransformer(
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
       this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {Join type ${joinType}}")
+          s" due to: {Join type ${joinType}}")
       return false
     }
     val relNode = try {
@@ -276,7 +276,7 @@ case class SortMergeJoinExecTransformer(
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.
@@ -290,7 +290,7 @@ case class SortMergeJoinExecTransformer(
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true

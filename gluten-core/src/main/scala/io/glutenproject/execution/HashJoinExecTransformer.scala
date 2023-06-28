@@ -228,7 +228,7 @@ trait HashJoinLikeExecTransformer
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
       this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {Join type ${hashJoinType}}")
+          s" due to: {Join type ${hashJoinType}}")
       return false
     }
     val relNode = try {
@@ -246,7 +246,7 @@ trait HashJoinLikeExecTransformer
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.
@@ -260,7 +260,7 @@ trait HashJoinLikeExecTransformer
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true

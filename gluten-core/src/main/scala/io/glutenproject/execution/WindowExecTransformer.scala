@@ -177,7 +177,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
       this.appendValidateLog(
         s"Validation failed for ${this.getClass.toString}" +
-          s"due to Not supported: {windowExpression}. ")
+          s" due to: {windowExpression}. ")
       return false
     }
     val substraitContext = new SubstraitContext
@@ -191,7 +191,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     } catch {
       case e: Throwable =>
         this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
@@ -206,7 +206,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
           this.appendValidateLog(fallbackInfo.get(i))
         }
         this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to native check failure.")
+          s" due to: native check failure.")
         return false
       }
       true
