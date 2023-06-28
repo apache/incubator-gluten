@@ -17,11 +17,13 @@
 
 package org.apache.spark.sql.execution
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, IndicatorVector}
+import scala.collection.JavaConverters._
+
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowJniWrapper}
+import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
+
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -30,7 +32,6 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafePr
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.types._
 
-import scala.collection.JavaConverters._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskResources
@@ -42,53 +43,25 @@ case class VeloxColumnarToRowExec(child: SparkPlan)
 
   override def buildCheck(): Unit = {
     val schema = child.schema
-    child match {
-      // Depending on the input type, VeloxColumnarToRowConverter or ArrowColumnarToRowConverter
-      // will be used. Only for columnar shuffle, ArrowColumnarToRowConverter will be used. The
-      // data type checking should align with the code in ArrowColumnarToRowConverter.cc.
-      case _: ColumnarShuffleExchangeExec =>
-        for (field <- schema.fields) {
-          field.dataType match {
-            case _: BooleanType =>
-            case _: ByteType =>
-            case _: ShortType =>
-            case _: IntegerType =>
-            case _: LongType =>
-            case _: FloatType =>
-            case _: DoubleType =>
-            case _: StringType =>
-            case _: TimestampType =>
-            case _: DateType =>
-            case _: BinaryType =>
-            case _: DecimalType =>
-            case _ =>
-              throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-                  s"VeloxColumnarToRowExec.")
-          }
-        }
-      case _ =>
-        // The below data type checking should align
-        // with the code in VeloxColumnarToRowConverter.cc.
-        for (field <- schema.fields) {
-          field.dataType match {
-            case _: BooleanType =>
-            case _: ByteType =>
-            case _: ShortType =>
-            case _: IntegerType =>
-            case _: LongType =>
-            case _: FloatType =>
-            case _: DoubleType =>
-            case _: StringType =>
-            case _: TimestampType =>
-            case _: DateType =>
-            case _: BinaryType =>
-            case _: DecimalType =>
-            case _ =>
-              throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-                  s"VeloxColumnarToRowExec")
-
-          }
-        }
+    // Depending on the input type, VeloxColumnarToRowConverter.
+    for (field <- schema.fields) {
+      field.dataType match {
+        case _: BooleanType =>
+        case _: ByteType =>
+        case _: ShortType =>
+        case _: IntegerType =>
+        case _: LongType =>
+        case _: FloatType =>
+        case _: DoubleType =>
+        case _: StringType =>
+        case _: TimestampType =>
+        case _: DateType =>
+        case _: BinaryType =>
+        case _: DecimalType =>
+        case _ =>
+          throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
+            s"VeloxColumnarToRowExec.")
+      }
     }
   }
 
@@ -159,30 +132,22 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
           numInputBatches += 1
           numOutputRows += batch.numRows()
 
-          val nonGlutenBatch = batch.numCols() > 0 &&
-            !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
-            !batch.column(0).isInstanceOf[IndicatorVector]
           if (batch.numRows == 0) {
             logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
             Iterator.empty
-          } else if (output.isEmpty || nonGlutenBatch) {
+          } else if (batch.numCols() > 0 &&
+            !GlutenColumnarBatches.isIntermediateColumnarBatch(batch)) {
             // Fallback to ColumnarToRow of vanilla Spark.
             val localOutput = output
-
             val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-            if (nonGlutenBatch) {
-              batch.rowIterator().asScala.map(toUnsafe)
-            } else {
-              ArrowColumnarBatches
-                .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-                .rowIterator().asScala.map(toUnsafe)
-            }
+            batch.rowIterator().asScala.map(toUnsafe)
+          } else if (output.isEmpty) {
+            numInputBatches += 1
+            numOutputRows += batch.numRows()
+            GlutenColumnarBatches.emptyRowIterator(batch).asScala
           } else {
             val beforeConvert = System.currentTimeMillis()
-            val offLoadedBatch =
-              ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-            val batchHandle = GlutenColumnarBatches.getNativeHandle(offLoadedBatch)
-
+            val batchHandle = GlutenColumnarBatches.getNativeHandle(batch)
             if (c2rId == -1) {
               c2rId = jniWrapper.nativeColumnarToRowInit(
                 batchHandle,

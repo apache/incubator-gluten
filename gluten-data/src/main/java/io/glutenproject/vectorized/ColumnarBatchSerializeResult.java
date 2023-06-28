@@ -15,29 +15,24 @@
  * limitations under the License.
  */
 
-package io.glutenproject.columnarbatch;
+package io.glutenproject.vectorized;
 
-import io.glutenproject.init.JniInitialized;
+public class ColumnarBatchSerializeResult {
 
-public class ColumnarBatchJniWrapper extends JniInitialized {
-  public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
+  private long numRows;
 
-  private ColumnarBatchJniWrapper() {
+  private byte[] serialized;
+
+  public ColumnarBatchSerializeResult(long numRows, byte[] serialized) {
+    this.numRows = numRows;
+    this.serialized = serialized;
   }
 
-  public native String getType(long handle);
+  public long getNumRows() {
+    return numRows;
+  }
 
-  public native long getNumColumns(long handle);
-
-  public native long getNumRows(long handle);
-
-  public native long getBytes(long handle);
-
-  public native long addIntColumn(long handle, int index,  String name, int[] colData);
-
-  public native long createWithArrowArray(long cSchema, long cArray);
-
-  public native void exportToArrow(long handle, long cSchema, long cArray);
-
-  public native void close(long handle);
+  public byte[] getSerialized() {
+    return serialized;
+  }
 }

@@ -23,22 +23,23 @@ import java.net.URI
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
+import com.google.common.base.Preconditions
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
+import io.glutenproject.columnarbatch.IndicatorVector
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.parquet.hadoop.util.ContextUtil
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
-import org.apache.spark.sql.execution.datasources.{FakeRow, GlutenParquetFileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
@@ -97,15 +98,11 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            if (batch.column(0).isInstanceOf[IndicatorVector]) {
-              val giv = batch.column(0).asInstanceOf[IndicatorVector]
-              giv.retain()
-              writeQueue.enqueue(batch)
-            } else {
-              val offloaded =
-                ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-              writeQueue.enqueue(offloaded)
-            }
+            Preconditions.checkState(batch.column(0).isInstanceOf[IndicatorVector])
+            val giv = batch.column(0).asInstanceOf[IndicatorVector]
+            giv.retain()
+            writeQueue.enqueue(batch)
+
           }
 
           override def close(): Unit = {

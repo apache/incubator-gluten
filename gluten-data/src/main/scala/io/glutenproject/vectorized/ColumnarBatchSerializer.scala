@@ -80,11 +80,7 @@ private class ColumnarBatchSerializerInstance(schema: StructType,
         handle
       }
 
-      private var vectors: Array[ColumnVector] = _
       private var cb: ColumnarBatch = _
-
-      private var schemaHolderId: Long = 0
-      private var vectorLoader: VectorLoader = _
 
       private var numBatchesTotal: Long = _
       private var numRowsTotal: Long = _

@@ -15,29 +15,28 @@
  * limitations under the License.
  */
 
-package io.glutenproject.columnarbatch;
+#pragma once
 
-import io.glutenproject.init.JniInitialized;
+#include <arrow/c/abi.h>
 
-public class ColumnarBatchJniWrapper extends JniInitialized {
-  public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
+#include "memory/ColumnarBatch.h"
 
-  private ColumnarBatchJniWrapper() {
-  }
+namespace gluten {
 
-  public native String getType(long handle);
+class ColumnarBatchSerializer {
+ public:
+  ColumnarBatchSerializer(std::shared_ptr<arrow::MemoryPool> arrowPool, struct ArrowSchema* cSchema)
+      : arrowPool_(std::move(arrowPool)) {}
 
-  public native long getNumColumns(long handle);
+  virtual ~ColumnarBatchSerializer() = default;
 
-  public native long getNumRows(long handle);
+  virtual std::shared_ptr<arrow::Buffer> serializeColumnarBatches(
+      const std::vector<std::shared_ptr<ColumnarBatch>>& batches) = 0;
 
-  public native long getBytes(long handle);
+  virtual std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) = 0;
 
-  public native long addIntColumn(long handle, int index,  String name, int[] colData);
+ protected:
+  std::shared_ptr<arrow::MemoryPool> arrowPool_;
+};
 
-  public native long createWithArrowArray(long cSchema, long cArray);
-
-  public native void exportToArrow(long handle, long cSchema, long cArray);
-
-  public native void close(long handle);
-}
+} // namespace gluten

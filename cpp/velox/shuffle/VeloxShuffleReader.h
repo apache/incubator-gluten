@@ -15,27 +15,33 @@
  * limitations under the License.
  */
 
-#include <arrow/c/abi.h>
-#include <arrow/c/bridge.h>
+#pragma once
 
-#include "ArrowTypeUtils.h"
-#include "memory/VeloxMemoryPool.h"
-#include "utils/exception.h"
-#include "velox/vector/BaseVector.h"
-#include "velox/vector/arrow/Bridge.h"
-
-using namespace facebook;
+#include "shuffle/reader.h"
+#include "velox/type/Type.h"
+#include "velox/vector/ComplexVector.h"
 
 namespace gluten {
+class VeloxShuffleReader final : public Reader {
+ public:
+  explicit VeloxShuffleReader(
+      std::shared_ptr<arrow::io::InputStream> in,
+      std::shared_ptr<arrow::Schema> schema,
+      ReaderOptions options,
+      std::shared_ptr<arrow::MemoryPool> pool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
-void toArrowSchema(const velox::TypePtr& rowType, struct ArrowSchema* out) {
-  exportToArrow(velox::BaseVector::create(rowType, 0, defaultLeafVeloxMemoryPool().get()), *out);
-}
+  arrow::Result<std::shared_ptr<ColumnarBatch>> next() override;
 
-std::shared_ptr<arrow::Schema> toArrowSchema(const velox::TypePtr& rowType) {
-  ArrowSchema arrowSchema;
-  toArrowSchema(rowType, &arrowSchema);
-  GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
-  return outputSchema;
-}
+  // Visiable for testing
+  static facebook::velox::RowVectorPtr readRowVector(
+      const arrow::RecordBatch& batch,
+      facebook::velox::RowTypePtr rowType,
+      facebook::velox::memory::MemoryPool* pool);
+
+ private:
+  facebook::velox::RowTypePtr rowType_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+};
+
 } // namespace gluten

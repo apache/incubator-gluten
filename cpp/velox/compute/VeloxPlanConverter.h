@@ -17,12 +17,8 @@
 
 #pragma once
 
-// #include <boost/algorithm/string.hpp>
-// #include <boost/lexical_cast.hpp>
-// #include <boost/uuid/uuid_generators.hpp>
-// #include <boost/uuid/uuid_io.hpp>
-// #include <folly/executors/IOThreadPoolExecutor.h>
 #include "compute/ResultIterator.h"
+#include "memory/VeloxMemoryPool.h"
 #include "substrait/plan.pb.h"
 #include "velox/core/PlanNode.h"
 #include "velox/substrait/SubstraitToVeloxPlan.h"
@@ -31,10 +27,7 @@ namespace gluten {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter {
  public:
-  explicit VeloxPlanConverter(
-      std::vector<std::shared_ptr<ResultIterator>>& inputIters,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
-      : inputIters_(inputIters), pool_(pool) {}
+  explicit VeloxPlanConverter(std::vector<std::shared_ptr<ResultIterator>>& inputIters) : inputIters_(inputIters) {}
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
 
@@ -70,13 +63,12 @@ class VeloxPlanConverter {
 
   int planNodeId_ = 0;
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
 
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
-      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(pool_.get());
+      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(defaultLeafVeloxMemoryPool().get());
 };
 
 } // namespace gluten

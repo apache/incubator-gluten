@@ -26,7 +26,6 @@
 #include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
-#include "shuffle/ArrowShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"
 
@@ -73,12 +72,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
 
   auto veloxPool = asAggregateVeloxMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
-
-  // TODO: wait shuffle split velox to velox, then the input ColumnBatch is RowVector, no need pool to convert
-  // https://github.com/oap-project/gluten/issues/1434
-  auto resultPool = defaultLeafVeloxMemoryPool();
-  // auto resultPool = veloxPool->addLeafChild("input_row_vector_pool");
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_, resultPool);
+  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_);
   veloxPlan_ = veloxPlanConverter->toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.
@@ -129,17 +123,19 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
     const ShuffleWriterOptions& options,
     const std::string& batchType) {
-  if (batchType == "velox") {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer,
-        VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
-    return shuffle_writer;
-  } else {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer,
-        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
-    return shuffle_writer;
-  }
+  GLUTEN_ASSIGN_OR_THROW(
+      auto shuffle_writer,
+      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+  return shuffle_writer;
+}
+
+std::shared_ptr<ColumnarBatchSerializer> VeloxBackend::getColumnarBatchSerializer(
+    MemoryAllocator* allocator,
+    struct ArrowSchema* cSchema) {
+  auto arrowPool = asArrowMemoryPool(allocator);
+  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
+  auto ctxVeloxPool = veloxPool->addLeafChild("velox_columnar_batch_serializer");
+  return std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
 }
 
 } // namespace gluten

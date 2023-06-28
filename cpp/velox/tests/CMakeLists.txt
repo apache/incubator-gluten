@@ -41,5 +41,6 @@ endfunction()
 
 # velox test
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
-add_velox_test(velox_converter SOURCES ArrowToVeloxTest.cc VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc ColumnarToRowTest.cc)
+add_velox_test(velox_converter_test SOURCES ArrowToVeloxTest.cc VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc ColumnarToRowTest.cc)
 add_velox_test(orc_test SOURCES OrcTest.cc)
+add_velox_test(velox_operators_test SOURCES VeloxColumnarBatchSerializerTest.cc)

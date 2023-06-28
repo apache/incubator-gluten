@@ -47,7 +47,7 @@
 #ifndef NDEBUG
 #define GLUTEN_DCHECK(expr, errMessage) GLUTEN_CHECK(expr, errMessage)
 #else
-#define GLUTEN_DCHECK(expr, errMessage) GLUTEN_CHECK(true)
+#define GLUTEN_DCHECK(expr, errMessage) GLUTEN_CHECK(true, errMessage)
 #endif
 
 namespace gluten {

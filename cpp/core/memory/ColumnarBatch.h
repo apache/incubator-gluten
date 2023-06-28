@@ -46,8 +46,8 @@ class ColumnarBatch {
   virtual int64_t getBytes() = 0;
 
   // Will change this columnar batch
-  virtual std::shared_ptr<ColumnarBatch> addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) {
-    throw std::runtime_error("Not implement addColumn");
+  virtual std::shared_ptr<ColumnarBatch> addIntColumn(int32_t index, std::string& name, uint8_t* data, int32_t size) {
+    throw std::runtime_error("Not implement addIntColumn");
   }
 
   virtual std::shared_ptr<ArrowArray> exportArrowArray() = 0;

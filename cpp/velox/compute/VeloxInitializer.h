@@ -22,6 +22,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <filesystem>
 
 #include "VeloxColumnarToRowConverter.h"
 #include "velox/common/caching/AsyncDataCache.h"
