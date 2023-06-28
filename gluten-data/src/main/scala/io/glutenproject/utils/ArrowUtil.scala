@@ -17,12 +17,13 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.columnarbatch.ColumnarBatches
 import java.io._
 import java.nio.channels.Channels
 import java.util
 
 import scala.collection.JavaConverters._
+
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
@@ -64,7 +65,7 @@ object ArrowUtil extends Logging {
         val vectors = (0 until columnarBatch.numCols)
           .map(
             i =>
-              ColumnarBatches
+              ArrowColumnarBatches
                 .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
                 .column(i)
                 .asInstanceOf[ArrowWritableColumnVector])

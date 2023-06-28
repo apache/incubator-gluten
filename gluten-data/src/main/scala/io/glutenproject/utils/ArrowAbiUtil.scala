@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.memory.BufferAllocator
@@ -124,7 +124,7 @@ object ArrowAbiUtil {
 
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
                                    cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
-    val loaded = ColumnarBatches.ensureLoaded(allocator, columnarBatch)
+    val loaded = ArrowColumnarBatches.ensureLoaded(allocator, columnarBatch)
     val schema = ArrowUtil.toSchema(loaded)
     val rb = SparkVectorUtil.toArrowRecordBatch(loaded)
     try {

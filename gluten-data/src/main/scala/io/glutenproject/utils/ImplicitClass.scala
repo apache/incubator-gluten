@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.vector.util.VectorBatchAppender
@@ -29,7 +29,7 @@ object ImplicitClass {
   implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
     def retain(): Unit = {
       (0 until cb.numCols).toList.foreach(i =>
-        ColumnarBatches
+        ArrowColumnarBatches
           .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
           .column(i).asInstanceOf[ArrowWritableColumnVector].retain())
     }
@@ -38,11 +38,11 @@ object ImplicitClass {
   def coalesce(targetBatch: ColumnarBatch, batchesToAppend: List[ColumnarBatch]): Unit = {
     (0 until targetBatch.numCols).toList.foreach { i =>
       val targetVector =
-        ColumnarBatches
+        ArrowColumnarBatches
           .ensureLoaded(ArrowBufferAllocators.contextInstance(), targetBatch)
           .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
       val vectorsToAppend = batchesToAppend.map { cb =>
-        ColumnarBatches
+        ArrowColumnarBatches
           .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
           .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
       }

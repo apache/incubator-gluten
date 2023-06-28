@@ -37,7 +37,7 @@ std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray 
       if (!enhancement.UnpackTo(&expression)) {
         std::string errorMessage =
             "Can't Unapck the Any object to Expression Literal when passing the spark conf to velox";
-        throw gluten::GlutenException(errorMessage);
+        gluten::jniThrow(errorMessage);
       }
       if (expression.has_literal()) {
         auto literal = expression.literal();

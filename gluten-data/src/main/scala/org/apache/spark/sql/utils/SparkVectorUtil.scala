@@ -17,8 +17,9 @@
 
 package org.apache.spark.sql.utils
 
-import io.glutenproject.columnarbatch.ColumnarBatches
 import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
+
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.memory.ArrowBuf
@@ -32,7 +33,7 @@ object SparkVectorUtil {
   def toArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
     val numRowsInBatch = columnarBatch.numRows()
     val cols = (0 until columnarBatch.numCols).toList.map(i =>
-      ColumnarBatches
+      ArrowColumnarBatches
         .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
         .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector)
     toArrowRecordBatch(numRowsInBatch, cols)

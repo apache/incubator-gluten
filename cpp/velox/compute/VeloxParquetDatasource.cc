@@ -146,8 +146,7 @@ void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
     parquetWriter_->write(veloxBatch->getFlattenedRowVector());
   } else {
     // convert arrow record batch to velox row vector
-    std::shared_ptr<ArrowSchema> schema = cb->exportArrowSchema();
-    auto rb = arrow::ImportRecordBatch(cb->exportArrowArray().get(), schema.get()).ValueOrDie();
+    auto rb = arrow::ImportRecordBatch(cb->exportArrowArray().get(), cb->exportArrowSchema().get()).ValueOrDie();
     std::vector<velox::VectorPtr> vecs;
 
     for (int colIdx = 0; colIdx < rb->num_columns(); colIdx++) {

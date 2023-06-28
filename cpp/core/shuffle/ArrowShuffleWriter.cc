@@ -237,7 +237,7 @@ arrow::Status ArrowShuffleWriter::setCompressType(arrow::Compression::type compr
   return arrow::Status::OK();
 }
 
-arrow::Status ArrowShuffleWriter::split(std::shared_ptr<ColumnarBatch> batch) {
+arrow::Status ArrowShuffleWriter::split(ColumnarBatch* batch) {
   EVAL_START("split", options_.thread_id)
   ARROW_ASSIGN_OR_RAISE(
       auto rb, arrow::ImportRecordBatch(batch->exportArrowArray().get(), batch->exportArrowSchema().get()));

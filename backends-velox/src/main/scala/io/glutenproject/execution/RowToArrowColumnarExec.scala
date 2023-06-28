@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
-import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
@@ -386,7 +386,7 @@ case class RowToArrowColumnarExec(child: SparkPlan)
               val handle = jniWrapper.nativeConvertRowToColumnar(
                 r2cId, rowLength.toArray,
                 arrowBuf.memoryAddress())
-              ColumnarBatches.create(handle)
+              GlutenColumnarBatches.create(handle)
             } finally {
               arrowBuf.close()
               arrowBuf = null

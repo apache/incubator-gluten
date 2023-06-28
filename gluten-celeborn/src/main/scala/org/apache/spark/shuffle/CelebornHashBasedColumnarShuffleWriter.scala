@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.vectorized._
 import org.apache.celeborn.client.ShuffleClient
@@ -106,7 +106,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val handle = ColumnarBatches.getNativeHandle(cb)
+        val handle = GlutenColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,

@@ -129,15 +129,15 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
     const ShuffleWriterOptions& options,
     const std::string& batchType) {
-  if (batchType == "arrow" || batchType == "arrow_array") {
+  if (batchType == "velox") {
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffle_writer,
-        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+        VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
     return shuffle_writer;
   } else {
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffle_writer,
-        VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
     return shuffle_writer;
   }
 }

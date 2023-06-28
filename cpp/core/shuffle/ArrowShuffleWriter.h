@@ -61,7 +61,7 @@ class ArrowShuffleWriter final : public ShuffleWriter {
    * partition id. The largest partition buffer will be evicted if memory
    * allocation failure occurs.
    */
-  arrow::Status split(std::shared_ptr<ColumnarBatch> cb) override;
+  arrow::Status split(ColumnarBatch* cb) override;
 
   /**
    * For each partition, merge evicted file into shuffle data file and write any
