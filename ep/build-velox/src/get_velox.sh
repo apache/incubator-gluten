@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/zhli1142015/velox.git
+VELOX_BRANCH=optimize_parquet_metadata_read
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
