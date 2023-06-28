@@ -2040,7 +2040,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_set->insertFromBlock(elem_block.getColumnsWithTypeAndName());
             elem_set->finishInsert();
 
-            auto arg = ColumnSet::create(elem_set->getTotalRowCount(), FutureSet(elem_set));
+            auto future_set = std::make_shared<FutureSetFromStorage>(std::move(elem_set));
+            auto arg = ColumnSet::create(elem_set->getTotalRowCount(), std::move(future_set));
             args.emplace_back(&actions_dag->addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 
             const auto * function_node = toFunctionNode(actions_dag, "in", args);
@@ -2631,12 +2632,14 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
     QueryPlanOptimizationSettings optimization_settings{.optimize_plan = false};
     DB::QueryPriorities priorities;
     String query = "query";
+    const Settings & settings = context->getSettingsRef();
     auto query_status = std::make_shared<DB::QueryStatus>(context,
                                                           query,
                                                           context->getClientInfo(),
                                                           priorities.insert(static_cast<int>(context->getSettingsRef().priority)),
                                                           std::move(DB::CurrentThread::getGroup()),
                                                           DB::IAST::QueryKind::Select,
+                                                          settings,
                                                           0);
     auto pipeline_builder = current_query_plan->buildQueryPipeline(
         optimization_settings,
