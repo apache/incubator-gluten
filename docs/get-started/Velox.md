@@ -78,15 +78,15 @@ Gluten cpp module need a required VELOX_HOME parsed by --velox_home and an optio
 ```bash
 ## fetch Arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
-## you could use custom ep location by --arrow_home=custom_path
+## you could use custom ep location by --arrow_home=custom_path, make sure specify --arrow_home in build_arrow.sh too.
 ./get_arrow.sh
 ./build_arrow.sh
 
 ## fetch Velox and compile
 cd /path_to_gluten/ep/build-velox/src/
-## you could use custom ep location by --velox_home=custom_path
+## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
 ./get_velox.sh
-## if you use custom arrow_home, should be specified here by --arrow_home=custom_path
+## make sure specify --arrow_home or --velox_home if you have specified it in get_xxx.sh.
 ./build_velox.sh
 
 ## compile Gluten cpp module
