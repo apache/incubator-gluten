@@ -18,6 +18,7 @@
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
 #include <arrow/filesystem/filesystem.h>
+#include <arrow/io/file.h>
 #include <arrow/io/interfaces.h>
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>

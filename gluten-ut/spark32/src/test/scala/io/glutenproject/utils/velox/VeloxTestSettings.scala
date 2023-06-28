@@ -240,6 +240,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameSessionWindowingSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenDataFramePivotSuite]
+    // substring issue
+    .exclude("pivot with column definition in groupby")
+    // velox int128_t address 16B align issue
+    .exclude("optimized pivot DecimalType")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSameResultSuite]
   // spill not supported yet.

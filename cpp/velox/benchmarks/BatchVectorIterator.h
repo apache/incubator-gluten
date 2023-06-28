@@ -25,7 +25,7 @@ class ParquetBatchVectorIterator final : public ParquetBatchIterator {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }
-    return std::make_shared<gluten::ArrowColumnarBatch>(*iter_++);
+    return convertBatch(std::make_shared<gluten::ArrowColumnarBatch>(*iter_++));
   }
 
  private:
@@ -65,7 +65,7 @@ class OrcBatchVectorIterator final : public OrcBatchIterator {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }
-    return std::make_shared<gluten::ArrowColumnarBatch>(*iter_++);
+    return convertBatch(std::make_shared<gluten::ArrowColumnarBatch>(*iter_++));
   }
 
  private:

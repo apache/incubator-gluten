@@ -85,7 +85,7 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
   // TODO: helper methods
   arrow::Status writeSchemaPayload(arrow::io::OutputStream* os) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, getSchemaPayload(shuffleWriter_->schema()));
+    ARROW_ASSIGN_OR_RAISE(auto payload, getSchemaPayload(shuffleWriter_->writeSchema()));
     int32_t metadataLength = 0; // unused
     RETURN_NOT_OK(
         arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));
@@ -117,6 +117,7 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
   arrow::Status writeEos(arrow::io::OutputStream* os) {
     // write EOS
+    constexpr int32_t kIpcContinuationToken = -1;
     constexpr int32_t kZeroLength = 0;
     RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
     RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));

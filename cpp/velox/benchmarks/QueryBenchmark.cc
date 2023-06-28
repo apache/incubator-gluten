@@ -16,7 +16,6 @@
  */
 
 #include <benchmark/benchmark.h>
-// Because we should include velox Abi.h first, otherwise it will conflicts with arrow abi.h
 #include <compute/VeloxBackend.h>
 
 #include "BenchmarkUtils.h"
@@ -41,10 +40,9 @@ std::shared_ptr<ResultIterator> getResultIterator(
   auto veloxPool = asAggregateVeloxMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild(
       "query_benchmark_result_iterator", facebook::velox::memory::MemoryReclaimer::create());
-  auto resultPool = defaultLeafVeloxMemoryPool();
 
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, resultPool);
+  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter);
   veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.

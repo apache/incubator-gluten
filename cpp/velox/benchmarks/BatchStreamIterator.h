@@ -24,7 +24,7 @@ class ParquetBatchStreamIterator final : public ParquetBatchIterator {
     if (batch == nullptr) {
       return nullptr;
     }
-    return std::make_shared<gluten::ArrowColumnarBatch>(batch);
+    return convertBatch(std::make_shared<gluten::ArrowColumnarBatch>(batch));
   }
 };
 
@@ -49,7 +49,7 @@ class OrcBatchStreamIterator final : public OrcBatchIterator {
     if (batch == nullptr) {
       return nullptr;
     }
-    return std::make_shared<gluten::ArrowColumnarBatch>(batch);
+    return  convertBatch(std::make_shared<gluten::ArrowColumnarBatch>(batch));
   }
 };
 

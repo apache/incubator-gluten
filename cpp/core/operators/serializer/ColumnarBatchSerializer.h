@@ -15,19 +15,28 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+#pragma once
 
-import io.glutenproject.columnarbatch.ColumnarBatches;
-import java.util.Iterator;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
+#include <arrow/c/abi.h>
 
-public class ColumnarBatchInIterator extends GeneralInIterator {
-  public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
-  }
+#include "memory/ColumnarBatch.h"
 
-  public long next() {
-    final ColumnarBatch batch = nextColumnarBatch();
-    return ColumnarBatches.getNativeHandle(batch);
-  }
-}
+namespace gluten {
+
+class ColumnarBatchSerializer {
+ public:
+  ColumnarBatchSerializer(std::shared_ptr<arrow::MemoryPool> arrowPool, struct ArrowSchema* cSchema)
+      : arrowPool_(std::move(arrowPool)) {}
+
+  virtual ~ColumnarBatchSerializer() = default;
+
+  virtual std::shared_ptr<arrow::Buffer> serializeColumnarBatches(
+      const std::vector<std::shared_ptr<ColumnarBatch>>& batches) = 0;
+
+  virtual std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) = 0;
+
+ protected:
+  std::shared_ptr<arrow::MemoryPool> arrowPool_;
+};
+
+} // namespace gluten

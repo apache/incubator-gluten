@@ -17,10 +17,12 @@
 
 package org.apache.spark.sql.execution.utils
 
+
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
+import io.glutenproject.vectorized.{NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
+
+import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -33,22 +35,16 @@ import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{IntegerType, StructType}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.MutablePair
 import org.apache.spark.util.memory.TaskResources
-import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
-
-import scala.collection.JavaConverters.asScalaIteratorConverter
 
 object ExecUtil {
 
   def convertColumnarToRow(batch: ColumnarBatch): Iterator[InternalRow] = {
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     var info: NativeColumnarToRowInfo = null
-    val offloaded =
-      ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
-    val batchHandle = ColumnarBatches.getNativeHandle(offloaded)
+    val batchHandle = ColumnarBatches.getNativeHandle(batch)
     val instanceId = jniWrapper.nativeColumnarToRowInit(
       batchHandle,
       NativeMemoryAllocators.contextInstance().getNativeInstanceId)
@@ -103,11 +99,7 @@ object ExecUtil {
           // Internally, RangePartitioner runs a job on the RDD that samples keys to compute
           // partition bounds. To get accurate samples, we need to copy the mutable keys.
           iter.flatMap(batch => {
-            val rows = if (ColumnarBatches.isLightBatch(batch)) {
-              convertColumnarToRow(batch)
-            } else ColumnarBatches
-              .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-              .rowIterator.asScala
+            val rows = convertColumnarToRow(batch)
             val projection =
               UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
             val mutablePair = new MutablePair[InternalRow, Null]()
@@ -137,20 +129,14 @@ object ExecUtil {
         cbIter
           .filter(cb => cb.numRows != 0 && cb.numCols != 0)
           .map { cb =>
-            val offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), cb)
-            val pidVec = ArrowWritableColumnVector
-              .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
-              .head
-            convertColumnarToRow(offloaded).zipWithIndex.foreach {
+            val data = new Array[Int](cb.numRows())
+            convertColumnarToRow(cb).zipWithIndex.foreach {
               case (row, i) =>
                 val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-                pidVec.putInt(i, pid)
+                data(i) = pid
             }
-            val pidBatch = ColumnarBatches.ensureOffloaded(
-              ArrowBufferAllocators.contextInstance(),
-              new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
-            val newHandle = ColumnarBatches.compose(pidBatch, offloaded)
+            // TODO get int column val newHandle = ColumnarBatches.compose(pidBatch, offloaded);
+            val newHandle = 0
             (0, ColumnarBatches.create(newHandle))
           }
       }
@@ -197,9 +183,7 @@ object ExecUtil {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              (0, ColumnarBatches.ensureOffloaded(
-                ArrowBufferAllocators.contextInstance(),
-                cb))
+              (0, cb)
             },
           isOrderSensitive = isOrderSensitive)
     }

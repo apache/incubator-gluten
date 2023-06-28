@@ -21,11 +21,6 @@ import org.apache.spark.sql.functions._
 
 class GlutenDataFramePivotSuite extends DataFramePivotSuite with GlutenSQLTestsTrait {
 
-  override def testNameBlackList: Seq[String] = Seq(
-    // Replaced with the below test.
-    "pivot with column definition in groupby"
-  )
-
   // This test is ported from vanilla spark with pos value (1-based) changed from 0 to 1 for
   // substring. In vanilla spark, pos=0 has same effectiveness as pos=1. But in velox, pos=0
   // will return an empty string as substring result.
