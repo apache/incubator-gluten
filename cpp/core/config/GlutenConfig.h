@@ -37,7 +37,12 @@ const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
 
 const std::string kParquetBlockSize = "parquet.block.size";
 
+const std::string kParquetBlockRows = "parquet.block.rows";
+
 const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
+
+const std::string kUGIUserName = "spark.gluten.ugi.username";
+const std::string kUGITokens = "spark.gluten.ugi.tokens";
 
 std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
 } // namespace gluten

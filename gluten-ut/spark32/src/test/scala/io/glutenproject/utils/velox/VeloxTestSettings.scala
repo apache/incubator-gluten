@@ -810,6 +810,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-10301 requested schema clipping - requested schema contains physical schema")
     .exclude("SPARK-10301 requested schema clipping - schemas overlap but don't contain each other")
     .exclude("SPARK-10301 requested schema clipping - deeply nested struct")
+    // Rewrite because the filter after datasource is not needed.
+    .exclude(
+      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV2QuerySuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
@@ -826,6 +829,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-10301 requested schema clipping - requested schema contains physical schema")
     .exclude("SPARK-10301 requested schema clipping - schemas overlap but don't contain each other")
     .exclude("SPARK-10301 requested schema clipping - deeply nested struct")
+    // Rewrite because the filter after datasource is not needed.
+    .exclude(
+      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   // requires resource files from Vanilla spark jar
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]

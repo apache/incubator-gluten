@@ -57,7 +57,7 @@ case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
    * @return whether the plan matches the condition
    */
   private def matchCondition(plan: SparkPlan): Boolean =
-    plan.isInstanceOf[FilterExecBaseTransformer] || plan.isInstanceOf[FilterExec] ||
+    plan.isInstanceOf[FilterExecTransformerBase] || plan.isInstanceOf[FilterExec] ||
     plan.isInstanceOf[BaseAggregateExec]
 
   /**

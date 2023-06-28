@@ -23,6 +23,7 @@ include(ExternalProject)
 include(FindPkgConfig)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
+include(FindPackageHandleStandardArgs)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -75,7 +76,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
   add_velox_dependency(functions::sparksql::window "${VELOX_COMPONENTS_PATH}/functions/sparksql/windows/libvelox_functions_spark_windows.a")
   add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
-
+  add_velox_dependency(functions::lib::agg "${VELOX_COMPONENTS_PATH}/functions/lib/aggregates/libvelox_functions_aggregates.a")
   add_velox_dependency(functions::prestosql::window "${VELOX_COMPONENTS_PATH}/functions/prestosql/window/libvelox_window.a")
   add_velox_dependency(velox::buffer "${VELOX_COMPONENTS_PATH}/buffer/libvelox_buffer.a")
 
@@ -163,14 +164,22 @@ macro(find_libhdfs3)
   if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
     set(LIBHDFS3_LIBRARY HDFS::hdfs3)
   else()
+    find_path(libhdfs3_INCLUDE_DIR hdfs/hdfs.h)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-    find_library(LIBHDFS3_LIBRARY NAMES hdfs3 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+    find_library(libhdfs3_LIBRARY NAMES hdfs3)
+    find_package_handle_standard_args(libhdfs3 DEFAULT_MSG
+      libhdfs3_INCLUDE_DIR
+      libhdfs3_LIBRARY
+    )
+    add_library(HDFS::hdfs3 SHARED IMPORTED)
+      set_target_properties(HDFS::hdfs3 PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${libhdfs3_INCLUDE_DIR}"
+      IMPORTED_LOCATION "${libhdfs3_LIBRARY}"
+    )
   endif()
 
-  if (NOT LIBHDFS3_LIBRARY)
+  if (NOT libhdfs3_FOUND)
     message(FATAL_ERROR "LIBHDFS3 Library Not Found")
-  else()
-    message(STATUS "LIBHDFS3 Library Can Be Found in ${LIBHDFS3_LIBRARY}")
   endif()
 endmacro()
 
@@ -278,7 +287,7 @@ endif()
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
   find_libhdfs3()
-  target_link_libraries(velox PUBLIC "${LIBHDFS3_LIBRARY}")
+  target_link_libraries(velox PUBLIC HDFS::hdfs3)
 endif()
 
 if(BUILD_BENCHMARKS)

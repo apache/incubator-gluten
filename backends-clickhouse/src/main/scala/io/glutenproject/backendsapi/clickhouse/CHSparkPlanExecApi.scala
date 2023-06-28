@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHSha1Transformer, CHSha2Transformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
+import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHEqualNullSafeTransformer, CHSha1Transformer, CHSha2Transformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
@@ -48,7 +48,6 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.ClickHouseAnalysis
-import org.apache.spark.sql.hive.CHHiveTableScanExecTransformer
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -90,7 +89,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecBaseTransformer = {
+      child: SparkPlan): FilterExecTransformerBase = {
     child match {
       case scan: FileSourceScanExec if scan.relation.location.isInstanceOf[ClickHouseFileIndex] =>
         CHFilterExecTransformer(condition, child)
@@ -364,13 +363,21 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List(ColumnarToFakeRowStrategy)
 
+  override def genEqualNullSafeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: EqualNullSafe): ExpressionTransformer = {
+    CHEqualNullSafeTransformer(substraitExprName, left, right, original)
+  }
+
   /** Generate an ExpressionTransformer to transform Sha2 expression. */
   override def genSha2Transformer(
       substraitExprName: String,
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: Sha2): ExpressionTransformer = {
-    new CHSha2Transformer(substraitExprName, left, right, original)
+    CHSha2Transformer(substraitExprName, left, right, original)
   }
 
   /** Generate an ExpressionTransformer to transform Sha1 expression. */
@@ -378,7 +385,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       original: Sha1): ExpressionTransformer = {
-    new CHSha1Transformer(substraitExprName, child, original)
+    CHSha1Transformer(substraitExprName, child, original)
   }
 
   /**
@@ -390,19 +397,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       leftOutputSet: AttributeSet,
       rightOutputSet: AttributeSet,
       condition: Option[Expression]): Boolean = {
-    return CHJoinValidateUtil.shouldFallback(JoinType, leftOutputSet, rightOutputSet, condition)
-  }
-
-  /**
-   * Generate an BasicScanExecTransformer to transfrom hive table scan. Currently only for CH
-   * backend.
-   *
-   * @param child
-   * @return
-   */
-  override def genHiveTableScanExecTransformer(
-      child: SparkPlan): Option[HiveTableScanExecTransformer] = {
-    CHHiveTableScanExecTransformer.transform(child)
+    CHJoinValidateUtil.shouldFallback(JoinType, leftOutputSet, rightOutputSet, condition)
   }
 
   /** Generate window function node */

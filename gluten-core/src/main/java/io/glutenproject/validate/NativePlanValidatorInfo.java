@@ -1,4 +1,5 @@
 /*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -14,11 +15,27 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution
+package io.glutenproject.validate;
 
-import org.apache.spark.sql.execution.datasources.v2.FileScan
+import java.util.Vector;
 
-trait HiveTableScanExecTransformer extends BasicScanExecTransformer {
+public class NativePlanValidatorInfo {
+    private final Vector<String> fallbackInfo = new Vector<>();
+    private final int isSupported;
+    public NativePlanValidatorInfo(int isSupported, String fallbackInfo) {
+        this.isSupported = isSupported;
+        String[] splitInfo = fallbackInfo.split("@");
+        for(int i = 0; i < splitInfo.length; i++) {
+            this.fallbackInfo.add(splitInfo[i]);
+        }
+    }
 
-  def getScan: Option[FileScan]
+    public boolean isSupported(){
+        return isSupported == 1;
+    }
+
+   public Vector<String> getFallbackInfo() {
+       return fallbackInfo;
+   }
 }
+

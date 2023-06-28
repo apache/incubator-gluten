@@ -1,0 +1,12 @@
+diff --git a/src/build-tools/mit-krb5.pc.in b/src/build-tools/mit-krb5.pc.in
+index fdc5577..177aedf 100644
+--- a/src/build-tools/mit-krb5.pc.in
++++ b/src/build-tools/mit-krb5.pc.in
+@@ -11,5 +11,5 @@ Name: mit-krb5
+ Description: An implementation of Kerberos network authentication
+ Version: @KRB5_VERSION@
+ Cflags: -I${includedir}
+-Libs: -L${libdir} -lkrb5 -lk5crypto @COM_ERR_LIB@
+-Libs.private: -lkrb5support
++Libs: -L${libdir} -lkrb5 -lk5crypto @COM_ERR_LIB@
++Libs.private: -lkrb5support -lresolv -ldl

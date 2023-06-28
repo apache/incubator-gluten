@@ -37,9 +37,9 @@ trait MetricsApi extends Serializable {
 
   def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
-  def genHiveTableScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
-
   def genBatchScanTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+
+  def genHiveTableScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genHiveTableScanTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 

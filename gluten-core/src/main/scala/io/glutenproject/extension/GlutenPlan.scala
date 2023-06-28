@@ -21,4 +21,9 @@ package io.glutenproject.extension
  * Every Gluten OP should extend this trait.
  */
 trait GlutenPlan {
+  var validateLog: Vector[String] = Vector()
+
+  def appendValidateLog(log: String): Unit = {
+    validateLog = validateLog :+ log
+  }
 }

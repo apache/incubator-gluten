@@ -39,7 +39,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
 project(gluten)
 
-option(BUILD_VELOX_BACKEND, "Build velox backend" OFF)
+option(BUILD_VELOX_BACKEND "Build Velox backend" ON)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" OFF)
@@ -52,11 +52,6 @@ option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
-
-if (NOT BUILD_VELOX_BACKEND)
-  message(STATUS "Not select any backend, build velox backend default")
-  set(BUILD_VELOX_BACKEND ON)
-endif()
 
 if (NOT DEFINED ARROW_HOME)
   set(ARROW_HOME ${CMAKE_SOURCE_DIR}/../ep/build-arrow/build)

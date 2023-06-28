@@ -124,7 +124,7 @@ case class CHHashAggregateExecTransformer(
             nameList.add(colName)
             val (dataType, nullable) =
               getIntermediateAggregateResultType(attr, aggregateExpressions)
-            nameList.addAll(RelBuilder.collectStructFieldNamesDFS(dataType))
+            nameList.addAll(ConverterUtils.collectStructFieldNames(dataType))
             typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
           }
           (aggregateResultAttributes, output)

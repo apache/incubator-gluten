@@ -17,8 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.columnarbatch.ArrowColumnarBatches;
-import io.glutenproject.columnarbatch.GlutenColumnarBatches;
+import io.glutenproject.columnarbatch.ColumnarBatches;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import java.util.Iterator;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -31,7 +30,7 @@ public class ColumnarBatchInIterator extends GeneralInIterator {
   public long next() {
     final ColumnarBatch batch = nextColumnarBatch();
     final ColumnarBatch offloaded =
-        ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
-    return GlutenColumnarBatches.getNativeHandle(offloaded);
+        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+    return ColumnarBatches.getNativeHandle(offloaded);
   }
 }

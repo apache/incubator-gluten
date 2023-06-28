@@ -1,13 +1,13 @@
----
-layout: page
-title: Setup depends via vcpkg
-nav_order: 9
-parent: Developer Overview
----
+# Build Gluten + Velox in Vcpkg Environment
 
-# Setup static build environment via vcpkg
+## Build in Docker
 
-## Setup build depends
+Please install make and docker on your system, then `make`.
+The gluten packages will be placed in `$GLUTEN_REPO/package/target/gluten-velox-bundle-*.jar`.
+
+## Setup build environment manually
+
+### Setup build toolkits
 
 Please install build depends on your system to compile all libraries:
 
@@ -40,7 +40,7 @@ For unsupported linux distro, you can install the following packages from packag
 * openjdk 8
 * maven
 
-## Install depends and setup build environment
+### Build and setup thirdparty depends
 
 Simply run:
 
@@ -48,8 +48,14 @@ Simply run:
 source $GLUTEN_REPO/dev/vcpkg/env.sh
 ```
 
-This script will install all static libraries into the `$GLUTEN_REPO/dev/vcpkg/vcpkg_installed/`
+This script will install all static libraries into the `./vcpkg_installed/`
 directory and set the `$PATH` and `$CMAKE_TOOLCHAIN_FILE`.
 This make build systems to locate the binary tools and libraries.
 It will take about 15~30 minutes to download and build all dependencies from source.
 You can configure [binary cache](https://learn.microsoft.com/en-us/vcpkg/users/binarycaching) to accelerate the next setup.
+
+### Build gluten + velox
+
+``` sh
+$GLUTEN_REPO/dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
+```

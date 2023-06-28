@@ -167,7 +167,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool> {
 
 arrow::Status splitRecordBatch(VeloxShuffleWriter& shuffleWriter, const arrow::RecordBatch& rb) {
   ARROW_ASSIGN_OR_RAISE(auto cb, recordBatch2VeloxColumnarBatch(rb));
-  return shuffleWriter.split(cb.get());
+  return shuffleWriter.split(cb);
 }
 
 TEST_P(VeloxShuffleWriterTest, TestHashPartitioner) {

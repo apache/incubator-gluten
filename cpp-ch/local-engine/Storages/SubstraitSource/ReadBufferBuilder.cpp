@@ -55,7 +55,7 @@ public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;
@@ -80,7 +80,7 @@ public:
     ~HDFSFileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool & set_read_util_position) override
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::string uri_path = "hdfs://" + file_uri.getHost();
@@ -243,7 +243,7 @@ public:
 
     ~S3FileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool) override
     {
         Poco::URI file_uri(file_info.uri_file());
         // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
@@ -433,7 +433,7 @@ public:
     explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, const bool &)
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool)
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;

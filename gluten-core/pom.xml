@@ -210,6 +210,23 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>backends-velox</id>
+      <properties>
+        <backend.type>velox</backend.type>
+        <backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
+      </properties>
+    </profile>
+    <profile>
+      <id>backends-clickhouse</id>
+      <properties>
+        <backend.type>ch</backend.type>
+        <backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>
+      </properties>
+    </profile>
+  </profiles>
+
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
@@ -243,7 +260,8 @@
               <target>
                 <exec executable="bash" osfamily="unix">
                   <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
-                  <arg value="${project.basedir}/../ep/build-velox/build/velox_ep"/>
+                  <arg value="${backend.type}"/>
+                  <arg value="${backend.home}"/>
                   <arg value="${project.build.directory}/extra-resources"/>
                   <arg value="${project.version}"/>
                   <arg value="${java.version}"/>

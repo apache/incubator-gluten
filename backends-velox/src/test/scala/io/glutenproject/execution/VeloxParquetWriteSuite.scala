@@ -37,20 +37,57 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
           case _ => codec
         }
 
-        withTempPath { f =>
-          spark.table("customer").write
-            .format("velox")
-            .option("compression", codec)
-            .save(f.getCanonicalPath)
-          val files = f.list()
-          assert(files.nonEmpty, extension)
-          assert(files.exists(_.contains(extension)), extension)
+        TPCHTables.foreach { case (_, df) =>
+          withTempPath { f =>
+            df.write
+              .format("velox")
+              .option("compression", codec)
+              .save(f.getCanonicalPath)
+            val files = f.list()
+            assert(files.nonEmpty, extension)
+            assert(files.exists(_.contains(extension)), extension)
 
-          val parquetDf = spark.read
-            .format("parquet")
-            .load(f.getCanonicalPath)
-          checkAnswer(parquetDf, spark.table("customer"))
+            val parquetDf = spark.read
+              .format("parquet")
+              .load(f.getCanonicalPath)
+            checkAnswer(parquetDf, df)
+          }
         }
       }
+  }
+
+  test("test ctas") {
+    withTable("velox_ctas") {
+      intercept[UnsupportedOperationException] {
+        spark.range(100).toDF("id")
+          .write
+          .format("velox")
+          .saveAsTable("velox_ctas")
+      }
+    }
+  }
+
+  test("test parquet dynamic partition write") {
+    withTempPath { f =>
+      intercept[UnsupportedOperationException] {
+        spark.range(100).selectExpr("id as c1", "id % 7 as p")
+          .write
+          .format("velox")
+          .partitionBy("p")
+          .save(f.getCanonicalPath)
+      }
+    }
+  }
+
+  test("test parquet bucket write") {
+    withTable("bucket") {
+      intercept[UnsupportedOperationException] {
+        spark.range(100).selectExpr("id as c1", "id % 7 as p")
+          .write
+          .format("velox")
+          .bucketBy(7, "p")
+          .saveAsTable("bucket")
+      }
+    }
   }
 }

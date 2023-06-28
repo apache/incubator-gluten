@@ -21,9 +21,12 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
+import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -43,6 +46,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarBatchScan: Boolean = conf.getConf(COLUMNAR_BATCHSCAN_ENABLED)
 
   def enableColumnarFileScan: Boolean = conf.getConf(COLUMNAR_FILESCAN_ENABLED)
+
+  def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
 
   def enableVanillaColumnarReaders: Boolean = conf.getConf(VANILLA_COLUMNAR_READERS_ENABLED)
 
@@ -149,6 +154,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableNativeHyperLogLogAggregateFunction: Boolean =
     conf.getConf(COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED)
 
+  def columnarParquetWriteBlockSize: Long =
+    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_SIZE)
+
+  def columnarParquetWriteBlockRows: Long =
+    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_ROWS)
+
   def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
@@ -237,6 +248,7 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = SPARK_PREFIX + HIVE_EXEC_ORC_COMPRESS
   val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
   val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
+  val PARQUET_BLOCK_ROWS: String = "parquet.block.rows"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -254,6 +266,10 @@ object GlutenConfig {
   val SPARK_S3_PATH_STYLE_ACCESS: String = HADOOP_PREFIX + S3_PATH_STYLE_ACCESS
   val S3_USE_INSTANCE_CREDENTIALS = "fs.s3a.use.instance.credentials"
   val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = HADOOP_PREFIX + S3_USE_INSTANCE_CREDENTIALS
+  val S3_IAM_ROLE = "fs.s3a.iam.role"
+  val SPARK_S3_IAM: String = HADOOP_PREFIX + S3_IAM_ROLE
+  val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
+  val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
 
   val GLUTEN_SHUFFLE_SUPPORTED_CODEC: Set[String] =
     Set("LZ4", "ZSTD", "SNAPPY") // "SNAPPY" is only valid for CH backend.
@@ -317,6 +333,11 @@ object GlutenConfig {
   val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
     "spark.gluten.sql.columnar.extended.expressions.transformer"
 
+  // Principal of current user
+  val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
+  // Tokens of current user, split by `\0`
+  val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -360,6 +381,14 @@ object GlutenConfig {
       .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    // Pass the latest tokens to native
+    nativeConfMap.put(
+      GLUTEN_UGI_TOKENS,
+      UserGroupInformation.getCurrentUser.getTokens.asScala
+        .map(_.encodeToUrlString)
+        .mkString("\0"))
+    nativeConfMap.put(GLUTEN_UGI_USERNAME, UserGroupInformation.getCurrentUser.getUserName)
+
     // return
     nativeConfMap
   }
@@ -379,6 +408,8 @@ object GlutenConfig {
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
+      (SPARK_S3_IAM, ""),
+      (SPARK_S3_IAM_SESSION_NAME, ""),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
@@ -450,6 +481,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.filescan")
       .internal()
       .doc("Enable or disable columnar filescan.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_HIVETABLESCAN_ENABLED =
+    buildConf("spark.gluten.sql.columnar.hivetablescan")
+      .internal()
+      .doc("Enable or disable columnar hivetablescan.")
       .booleanConf
       .createWithDefault(true)
 
@@ -734,6 +772,18 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_PARQUET_WRITE_BLOCK_SIZE =
+    buildConf("spark.gluten.sql.columnar.parquet.write.blockSize")
+      .internal()
+      .longConf
+      .createWithDefault(128 * 1024 * 1024)
+
+  val COLUMNAR_PARQUET_WRITE_BLOCK_ROWS =
+    buildConf("spark.gluten.sql.native.parquet.write.blockRows")
+      .internal()
+      .longConf
+      .createWithDefault(100 * 1000 * 1000)
+
   val COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")
       .internal()
@@ -875,7 +925,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("INFO")
+      .createWithDefault("DEBUG")
 
   val SOFT_AFFINITY_LOG_LEVEL =
     buildConf("spark.gluten.soft-affinity.logLevel")

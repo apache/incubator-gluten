@@ -1,8 +1,10 @@
 #include "AggregateRelParser.h"
 #include <memory>
+#include <AggregateFunctions/AggregateFunctionIf.h>
+#include <Common/StringUtils/StringUtils.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
-#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
@@ -104,6 +106,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 // projections for function arguments.
 // 1. add literal columns
 // 2. change argument columns' nullabitlity.
+// 3. if the aggregate expression has filter, add a filter column.
 void AggregateRelParser::addPreProjection()
 {
     auto input_header = plan->getCurrentDataStream().header;
@@ -153,6 +156,16 @@ void AggregateRelParser::addPreProjection()
             agg_info.arg_column_names.emplace_back(arg_column_name);
             agg_info.arg_column_types.emplace_back(arg_column_type);
         }
+
+        if (agg_info.measure->has_filter())
+        {
+            // With `If` combinator, the function take one more argument which refers to the condition.
+            const auto * action_node = parseExpression(projection_action, agg_info.measure->filter());
+            agg_info.filter_column_name = action_node->result_name;
+            agg_info.arg_column_names.emplace_back(agg_info.filter_column_name);
+            agg_info.arg_column_types.emplace_back(action_node->result_type);
+            need_projection = true;
+        }
     }
     if (need_projection)
     {
@@ -191,6 +204,12 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
             {
                 throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Only support one argument aggregate function in phase {}", measure.phase());
             }
+            // Add a check here for safty.
+            if (!agg_info.filter_column_name.empty())
+            {
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unspport apply filter in phase {}", measure.phase());
+            }
+
             const auto * agg_function_data = DB::checkAndGetDataType<DB::DataTypeAggregateFunction>(agg_info.arg_column_types[0].get());
             if (!agg_function_data)
             {
@@ -209,7 +228,34 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
                     arg_column_types = {agg_intermediate_result_type};
                 }
             }
+            else
+            {
+                // Special case for handling the intermedidate result from aggregate functions with filter.
+                // It's safe to use AggregateFunctionxxx to parse intermediate result from AggregateFunctionxxxIf,
+                // since they have the same binary representation
+                // reproduce this case by
+                //  select 
+                //    count(a),count(b), count(1), count(distinct(a)), count(distinct(b)) 
+                //  from values (1, null), (2,2) as data(a,b)
+                // with `first_value` enable
+                if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+                {
+                    if (endsWith(agg_function_data->getFunction()->getName(), "If")
+                        && function_name != agg_function_data->getFunction()->getName())
+                    {
+                        auto original_args_types = agg_function_data->getArgumentsDataTypes();
+                        arg_column_types = DataTypes(original_args_types.begin(), std::prev(original_args_types.end()));
+                        auto agg_function = getAggregateFunction(function_name, arg_column_types);
+                        arg_column_types = {agg_function->getStateType()};
+                    }
+                }
+            }
             function_name = function_name + partial_merge_suffix;
+        }
+        else if (!agg_info.filter_column_name.empty())
+        {
+            // Apply `If` aggregate function combinator on the original aggregate function.
+            function_name += "If";
         }
         description.function = getAggregateFunction(function_name, arg_column_types);
         descriptions.emplace_back(description);

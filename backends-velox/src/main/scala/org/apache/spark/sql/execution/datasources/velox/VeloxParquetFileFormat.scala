@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
+import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
@@ -61,13 +61,8 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
     val conf = ContextUtil.getConfiguration(job)
     val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
     conf.set(ParquetOutputFormat.COMPRESSION, parquetOptions.compressionCodecClassName)
-    // pass options to native so that velox can take user-specified conf to write parquet,
-    // i.e., compression and block size.
-    val sparkOptions = new mutable.HashMap[String, String]()
-    sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, parquetOptions.compressionCodecClassName)
-    options.get(GlutenConfig.PARQUET_BLOCK_SIZE).foreach { blockSize =>
-      sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
-    }
+    val nativeConf = VeloxParquetFileFormat.nativeConf(
+      options, parquetOptions.compressionCodecClassName)
 
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
@@ -88,7 +83,7 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         try {
           ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
           instanceId = datasourceJniWrapper.nativeInitDatasource(
-            originPath, cSchema.memoryAddress(), sparkOptions.asJava)
+            originPath, cSchema.memoryAddress(), nativeConf)
         } catch {
           case e: IOException =>
             throw new RuntimeException(e)
@@ -108,7 +103,7 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
               writeQueue.enqueue(batch)
             } else {
               val offloaded =
-                ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
+                ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
               writeQueue.enqueue(offloaded)
             }
           }
@@ -130,4 +125,22 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
   override def supportBatch(sparkSession: SparkSession, dataSchema: StructType): Boolean = true
 
   override def shortName(): String = "velox"
+}
+
+object VeloxParquetFileFormat {
+  def nativeConf(
+      options: Map[String, String],
+      compressionCodec: String): java.util.Map[String, String] = {
+    // pass options to native so that velox can take user-specified conf to write parquet,
+    // i.e., compression, block size, block rows.
+    val sparkOptions = new mutable.HashMap[String, String]()
+    sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, compressionCodec)
+    val blockSize = options.getOrElse(GlutenConfig.PARQUET_BLOCK_SIZE,
+      GlutenConfig.getConf.columnarParquetWriteBlockSize.toString)
+    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
+    val blockRows = options.getOrElse(GlutenConfig.PARQUET_BLOCK_ROWS,
+      GlutenConfig.getConf.columnarParquetWriteBlockRows.toString)
+    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows)
+    sparkOptions.asJava
+  }
 }

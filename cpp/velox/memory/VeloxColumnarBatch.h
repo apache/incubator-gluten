@@ -33,15 +33,14 @@ class VeloxColumnarBatch final : public ColumnarBatch {
     return "velox";
   }
 
-  int64_t getBytes() override;
+  static std::shared_ptr<VeloxColumnarBatch> from(
+      facebook::velox::memory::MemoryPool* pool,
+      std::shared_ptr<ColumnarBatch> cb);
 
-  // TODO https://github.com/oap-project/gluten/issues/1419
-  std::shared_ptr<ColumnarBatch> addColumn(int32_t index, std::shared_ptr<ColumnarBatch> col) override;
+  int64_t numBytes() override;
 
   std::shared_ptr<ArrowSchema> exportArrowSchema() override;
   std::shared_ptr<ArrowArray> exportArrowArray() override;
-
-  void saveToFile(std::shared_ptr<ArrowWriter> writer) override;
 
   facebook::velox::RowVectorPtr getRowVector() const;
   facebook::velox::RowVectorPtr getFlattenedRowVector();
@@ -52,9 +51,5 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   facebook::velox::RowVectorPtr rowVector_ = nullptr;
   facebook::velox::RowVectorPtr flattened_ = nullptr;
 };
-
-facebook::velox::RowVectorPtr convertBatch(
-    std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
-    std::shared_ptr<ColumnarBatch> cb);
 
 } // namespace gluten

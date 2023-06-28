@@ -91,17 +91,6 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare("select * from temp_test_is_null where col1 is null") { _ => }
     checkLengthAndPlan(df, 2)
   }
-  
-  test("velox parquet write") {
-    withTempDir { dir =>
-      val path = dir.toURI.getPath
-      val df = runQueryAndCompare(
-        "select * from lineitem where l_comment is not null " +
-          "and l_orderkey = 1") { _ => }
-
-      df.write.mode("append").format("velox").save(path)
-    }
-  }
 
   test("is_not_null") {
     val df = runQueryAndCompare(
@@ -411,7 +400,8 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("orc scan") {
-    val df = spark.read.format("orc").load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
+    val df = spark.read.format("orc")
+      .load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
     df.createOrReplaceTempView("lineitem_orc")
     runQueryAndCompare(
       "select l_orderkey from lineitem_orc") { df => {
@@ -428,5 +418,14 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(plan.find(_.isInstanceOf[RDDScanExec]).isDefined)
     assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
     assert(plan.find(_.isInstanceOf[RowToArrowColumnarExec]).isDefined)
+  }
+
+  test("equal null safe") {
+    runQueryAndCompare(
+      """
+        |select l_quantity <=> 1000 from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
   }
 }

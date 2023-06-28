@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -68,15 +69,10 @@ trait SparkPlanExecApi {
    * @return
    *   the transformer of FilterExec
    */
-  def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecBaseTransformer
+  def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecTransformerBase
 
-  /**
-  * Generate BasicScanTransformer
-   * @param child
-   * @return
-   */
-  def genHiveTableScanExecTransformer(child: SparkPlan) : Option[HiveTableScanExecTransformer] =
-    Option.empty
+  def genHiveTableScanExecTransformer(plan: SparkPlan): HiveTableScanExecTransformer =
+    HiveTableScanExecTransformer(plan)
 
   /** Generate HashAggregateExecTransformer. */
   def genHashAggregateExecTransformer(
@@ -230,6 +226,14 @@ trait SparkPlanExecApi {
       original: CreateNamedStruct,
       attributeSeq: Seq[Attribute]): ExpressionTransformer =
     new NamedStructTransformerBase(substraitExprName, original, attributeSeq)
+
+  def genEqualNullSafeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: EqualNullSafe): ExpressionTransformer = {
+    new BinaryExpressionTransformer(substraitExprName, left, right, original)
+  }
 
   /**
    * Generate an ExpressionTransformer to transform Sha2 expression. Sha2Transformer is the default

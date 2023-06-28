@@ -31,7 +31,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
 Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
 Under the hood, it will install the following software:
-- Clang 15.0
+- Clang 16.0
 - cmake 3.20 or higher version
 - ninja-build 1.8.2
 
@@ -66,7 +66,7 @@ Otherwise, do:
     ```shell
     export GLUTEN_SOURCE=/path/to/gluten
     export CH_SOURCE_DIR=/path/to/ClickHouse
-    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-15)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-15)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-16)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-16)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
     ```
 
     Next, you need to compile Kyligence/Clickhouse. There are two options:
@@ -74,7 +74,7 @@ Otherwise, do:
 3. (Option 1) Use CLion
 
     - Open ClickHouse repo
-    - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-15 as C Compiler, clang++-15 as C++ Compiler:
+    - Choose File -> Settings -> Build, Execution, Deployment -> Toolchains, and then choose Bundled CMake, clang-16 as C Compiler, clang++-16 as C++ Compiler:
 
         ![ClickHouse-CLion-Toolchains](../image/ClickHouse/CLion-Configuration-1.png)
 
@@ -409,44 +409,65 @@ We can to run a Spark SQL task by gluten on a yarn cluster as following
 #!/bin/bash
 
 # The file contains the sql you want to run
-sql_file=$YOUR_SQL_FILE
+sql_file=/path/to/spark/sql/file
 
-# Your need to setup the env varibale SPARK_HOME
-# export SPARK_HOME=xxx
-my_spark_sql=$SPARK_HOME/bin/spark-sql
+export SPARK_HOME=/path/to/spark/home
+spark_cmd=$SPARK_HOME/bin/spark-sql
 
-# The location of libch.so on local
-ch_lib=$LOCAL_PATH_OF_LIBCH
+# Define the path to libch.so
+ch_lib=/path/to/libch.so
+export LD_PRELOAD=$ch_lib
 
-# The location of gluten jar package on local
-gluten_jar=$LOCAL_PATH_OF_GLUTEN/<gluten-jar>
+# copy gluten jar file to $SPARK_HOME/jar
+gluten_jar=/path/to/gluten/jar/file
+cp $gluten_jar $SPARK_HOME/jar
 
+batchsize=20480
+hdfs_conf=/path/to/hdfs-site.xml
 
-# spark.gluten.sql.columnar.libpath is set to a relative path ./libch.so, since it is dispatched
-# to every worker node's working directory by conf --files.
-# Other configurations are almost the same as setup Spark Thriftserver.
-$my_spark_sql \
+$spark_cmd \
+  --name gluten_on_yarn
   --master yarn \
+  --deploy-mode client \
   --files $ch_lib \
-  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
-  --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
-  --conf spark.databricks.delta.snapshotPartitions=1 \
-  --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
-  --conf spark.databricks.delta.stalenessLimit=3600000 \
-  --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnarToRow=true \
-  --conf spark.gluten.sql.columnar.backend.ch.worker.id=1 \
+  --executor-cores 1 \
+  --num-executors 2 \
+  --executor-memory 10g \
+  --conf spark.default.parallelism=4 \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=7g \
+  --conf spark.driver.maxResultSize=2g \
+  --conf spark.sql.autoBroadcastJoinThreshold=-1 \
+  --conf spark.sql.parquet.columnarReaderBatchSize=${batchsize} \
+  --conf spark.sql.inMemoryColumnarStorage.batchSize=${batchsize} \
+  --conf spark.sql.execution.arrow.maxRecordsPerBatch=${batchsize} \
+  --conf spark.sql.broadcastTimeout=4800 \
+  --conf spark.task.maxFailures=1 \
+  --conf spark.excludeOnFailure.enabled=false \
+  --conf spark.driver.maxResultSize=4g \
+  --conf spark.sql.adaptive.enabled=false \
+  --conf spark.dynamicAllocation.executorIdleTimeout=0s \
+  --conf spark.sql.shuffle.partitions=112 \
+  --conf spark.sql.sources.useV1SourceList=avro \
+  --conf spark.sql.files.maxPartitionBytes=1073741824 \
+  --conf spark.gluten.sql.columnar.columnartorow=true \
   --conf spark.gluten.sql.columnar.loadnative=true \
-  --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
-  --conf spark.gluten.sql.columnar.libpath=./libch.so \
+  --conf spark.gluten.sql.columnar.libpath=$ch_lib \
   --conf spark.gluten.sql.columnar.iterator=true \
+  --conf spark.gluten.sql.columnar.loadarrow=false \
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
-  --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
-  --conf spark.gluten.sql.columnar.union=true \
-  --conf spark.memory.offHeap.enabled=true \
-  --conf spark.memory.offHeap.size=5G \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.libhdfs3_conf=$hdfs_conf \
+  --conf spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level=debug \
+  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
+  --conf spark.executorEnv.LD_PRELOAD=$LD_PRELOAD \
+  --conf spark.hadoop.input.connect.timeout=600000 \
+  --conf spark.hadoop.input.read.timeout=600000 \
+  --conf spark.hadoop.input.write.timeout=600000 \
+  --conf spark.hadoop.dfs.client.log.severity="DEBUG2" \
+  --files $ch_lib \
   -f $sql_file
 ```
 

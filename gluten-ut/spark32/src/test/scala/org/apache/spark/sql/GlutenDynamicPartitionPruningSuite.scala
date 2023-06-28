@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer}
+import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
@@ -370,7 +370,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
   object FilterTransformer {
     def unapply(plan: SparkPlan): Option[(Expression, SparkPlan)] = {
       plan match {
-        case transformer: FilterExecBaseTransformer =>
+        case transformer: FilterExecTransformerBase =>
           Some((transformer.cond, transformer.input))
         case _ => None
       }

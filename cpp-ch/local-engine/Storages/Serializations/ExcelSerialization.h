@@ -1,7 +1,7 @@
 #pragma once
 
-#include <DataTypes/Serializations/SerializationDate32.h>
-#include <DataTypes/Serializations/SerializationNumber.h>
+#include <DataTypes/Serializations/ISerialization.h>
+#include <base/extended_types.h>
 #include <Common/DateLUTImpl.h>
 
 
@@ -21,28 +21,67 @@ using namespace DB;
 class ExcelSerialization final : public DB::ISerialization
 {
 public:
-    explicit ExcelSerialization(const SerializationPtr & nested_, String & escape_) : nested_ptr(nested_), escape(escape_){};
+    explicit ExcelSerialization(const SerializationPtr & nested_, String escape_) : nested_ptr(nested_), escape(escape_){};
 
-    void serializeBinary(const Field & field, WriteBuffer & ostr, const FormatSettings &) const override;
-    void deserializeBinary(Field & field, ReadBuffer & istr, const FormatSettings &) const override;
-    void serializeBinary(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings &) const override;
-    void deserializeBinary(IColumn & column, ReadBuffer & istr, const FormatSettings &) const override;
-    void serializeText(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings &) const override;
-    void deserializeWholeText(IColumn & column, ReadBuffer & istr, const FormatSettings &) const override;
-    void serializeTextEscaped(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings &) const override;
-    void deserializeTextEscaped(IColumn & column, ReadBuffer & istr, const FormatSettings &) const override;
-    void serializeTextQuoted(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings &) const override;
-    void deserializeTextQuoted(IColumn & column, ReadBuffer & istr, const FormatSettings &) const override;
-    void serializeTextJSON(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings &) const override;
-    void deserializeTextJSON(IColumn & column, ReadBuffer & istr, const FormatSettings &) const override;
-    void serializeTextCSV(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings &) const override;
+    void serializeBinary(const Field &, WriteBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void deserializeBinary(Field &, ReadBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void serializeBinary(const IColumn &, size_t, WriteBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void deserializeBinary(IColumn &, ReadBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void serializeText(const IColumn &, size_t, WriteBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void deserializeWholeText(IColumn &, ReadBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void serializeTextEscaped(const IColumn &, size_t, WriteBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void deserializeTextEscaped(IColumn &, ReadBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void serializeTextQuoted(const IColumn &, size_t, WriteBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void deserializeTextQuoted(IColumn &, ReadBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void serializeTextJSON(const IColumn &, size_t, WriteBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void deserializeTextJSON(IColumn &, ReadBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
+    void serializeTextCSV(const IColumn &, size_t, WriteBuffer &, const FormatSettings &) const override
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Not implemented for excel serialization");
+    };
     void deserializeTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const override;
 
 private:
     void deserializeDate32TextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const;
 
     template <typename T>
-        requires is_arithmetic_v<T>
+    requires is_arithmetic_v<T>
     void deserializeNumberTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings &) const;
 
     template <typename T>
@@ -55,6 +94,6 @@ private:
 
 private:
     SerializationPtr nested_ptr;
-    String & escape;
+    String escape;
 };
 }

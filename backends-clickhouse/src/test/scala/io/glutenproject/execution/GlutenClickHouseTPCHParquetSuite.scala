@@ -20,9 +20,10 @@ import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.functions.{col, rand, when}
+import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
 
@@ -930,6 +931,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test 'EqualNullSafe'") {
+    runQueryAndCompare("select l_linenumber <=> l_orderkey, l_linenumber <=> null from lineitem") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
     spark.sql(
       """
@@ -1099,6 +1106,57 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |on t1.l_orderkey = cast(t2.o_orderkey as int)
         |order by t1.l_orderkey, t1.l_partkey, t2.o_custkey
         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-2079: aggregate function with filter") {
+    val sql =
+      """
+        | select 
+        |  count(distinct(a)), count(distinct(b)), count(distinct(c)) 
+        | from 
+        |  values (1, null,2), (2,2,4), (3,2,4) as data(a,b,c)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-1956: fix error conversion of Float32 in CHColumnToSparkRow") {
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
+      runQueryAndCompare(
+        "select struct(1.0f), array(2.0f), map('a', 3.0f) from range(1)"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-2028: struct as join key") {
+    val tables = Seq("struct_1", "struct_2")
+    tables.foreach {
+      table =>
+        spark.sql(s"create table $table (info struct<a:int, b:int>) using parquet")
+        spark.sql(s"insert overwrite $table values (named_struct('a', 1, 'b', 2))")
+    }
+    val hints = Seq("BROADCAST(t2)", "SHUFFLE_MERGE(t2), SHUFFLE_HASH(t2)")
+    hints.foreach(
+      hint =>
+        compareResultsAgainstVanillaSpark(
+          s"select /*+ $hint */ t1.info from struct_1 t1 join struct_2 t2 on t1.info = t2.info",
+          true,
+          { _ => }))
+  }
+
+  test("GLUTEN-2005: Json_tuple return cause data loss") {
+    spark.sql(
+      """
+        | create table test_2005(tuple_data struct<a:string, b:string>, id bigint, json_data string, name string) using parquet;
+        |""".stripMargin
+    )
+    spark.sql(
+      "insert into test_2005 values(struct('a', 'b'), 1, '{\"a\":\"b\", \"c\":\"d\"}', 'gluten')")
+    val sql =
+      """
+        | select tuple_data, json_tuple(json_data, 'a', 'c'), name from test_2005
+        |""".stripMargin
+
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }

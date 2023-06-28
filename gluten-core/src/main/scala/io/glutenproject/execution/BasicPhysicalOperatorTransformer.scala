@@ -44,7 +44,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import java.util
 import scala.collection.JavaConverters._
 
-abstract class FilterExecBaseTransformer(val cond: Expression,
+abstract class FilterExecTransformerBase(val cond: Expression,
                                          val input: SparkPlan) extends UnaryExecNode
   with TransformSupport
   with GlutenPlan
@@ -57,11 +57,13 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
+
   // Split out all the IsNotNulls from condition.
   private val (notNullPreds, otherPreds) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
+
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
   private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
@@ -96,13 +98,9 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
 
-  def doTransform(context: SubstraitContext): TransformContext
-
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
-
-  // override def canEqual(that: Any): Boolean = false
 
   def getRelNode(context: SubstraitContext,
                  condExpr: Expression,
@@ -144,17 +142,8 @@ abstract class FilterExecBaseTransformer(val cond: Expression,
     }
   }
 
-  protected override def doExecute()
-  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
-}
-
-case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecBaseTransformer(condition, child) {
-
   override def doValidateInternal(): Boolean = {
-    if (condition == null) {
+    if (cond == null) {
       // The computing of this Filter is not needed.
       return true
     }
@@ -163,11 +152,11 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
       getRelNode(
-        substraitContext, condition, child.output, operatorId, null, validation = true)
+        substraitContext, cond, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: ${e.getMessage}")
         return false
     }
 
@@ -175,6 +164,8 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
       if (!(child.isInstanceOf[DataSourceScanExec] ||
         child.isInstanceOf[DataSourceV2ScanExecBase])) {
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: {child is not DataSourceScanExec or DataSourceV2ScanExecBase}")
         return false
       }
     }
@@ -182,7 +173,18 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }
@@ -197,7 +199,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     }
 
     val operatorId = context.nextOperatorId(this.nodeName)
-    if (condition == null && childCtx != null) {
+    if (cond == null && childCtx != null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
@@ -205,12 +207,12 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
 
     val currRel = if (childCtx != null) {
       getRelNode(
-        context, condition, child.output, operatorId, childCtx.root, validation = false)
+        context, cond, child.output, operatorId, childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context, condition, child.output, operatorId,
+      getRelNode(context, cond, child.output, operatorId,
         RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
@@ -226,8 +228,10 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     TransformContext(inputAttributes, output, currRel)
   }
 
-  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
-    copy(child = newChild)
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
+  }
 }
 
 case class ProjectExecTransformer(projectList: Seq[NamedExpression],
@@ -255,14 +259,25 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         substraitContext, projectList, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size() ) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }
@@ -429,7 +444,12 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
   def doValidate(): Boolean = {
-    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)
+    if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
+      this.appendValidateLog("Validation failed for" +
+        " UnionExecTransformer due to: schema check failed.")
+      return false
+    }
+    true
   }
 }
 

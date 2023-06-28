@@ -20,8 +20,8 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.execution.RowToColumnConverter
 import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.validate.NativePlanValidatorInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
-
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StructType
@@ -34,6 +34,11 @@ class Validator extends ValidatorApi {
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new NativePlanEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)
+  }
+
+  override def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidatorInfo = {
+    val validator = new NativePlanEvaluator()
+    validator.doValidateWithFallBackLog(plan.toProtobuf.toByteArray)
   }
 
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = true

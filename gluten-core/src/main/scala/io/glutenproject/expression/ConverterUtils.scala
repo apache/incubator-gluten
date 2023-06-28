@@ -17,21 +17,23 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer, HiveTableScanExecTransformer}
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.substrait.proto.Type
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.Locale
+import java.util.{ArrayList => JArrayList, List => JList}
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
@@ -76,12 +78,13 @@ object ConverterUtils extends Logging {
     }
   }
 
+  def normalizeColName(name: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) name else name.toLowerCase(Locale.ROOT)
+  }
+
   def getShortAttributeName(attr: Attribute): String = {
-    val name = if (SQLConf.get.caseSensitiveAnalysis) {
-      attr.name
-    } else {
-      attr.name.toLowerCase(Locale.ROOT)
-    }
+    val name = normalizeColName(attr.name)
     val subIndex = name.indexOf("(")
     if (subIndex != -1) {
       name.substring(0, subIndex)
@@ -90,8 +93,71 @@ object ConverterUtils extends Logging {
     }
   }
 
+  def genColumnNameWithoutExprId(attr: Attribute): String = {
+    getShortAttributeName(attr)
+  }
+
   def genColumnNameWithExprId(attr: Attribute): String = {
-    ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id
+    getShortAttributeName(attr) + "#" + attr.exprId.id
+  }
+
+  def collectAttributeTypeNodes(attributes: JList[Attribute]): JArrayList[TypeNode] = {
+    collectAttributeTypeNodes(attributes.asScala)
+  }
+
+  def collectAttributeTypeNodes(attributes: Seq[Attribute]): JArrayList[TypeNode] = {
+    val typeList = new JArrayList[TypeNode]()
+    attributes.foreach(attr => typeList.add(getTypeNode(attr.dataType, attr.nullable)))
+    typeList
+  }
+
+  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JArrayList[String] = {
+    collectAttributeNamesWithExprId(attributes.asScala)
+  }
+
+  def collectAttributeNamesWithExprId(attributes: Seq[Attribute]): JArrayList[String] = {
+    collectAttributeNamesDFS(attributes)(genColumnNameWithExprId)
+  }
+
+  // TODO: This is used only by `BasicScanExecTransformer`,
+  //  perhaps we can remove this in the future and use `withExprId` version consistently.
+  def collectAttributeNamesWithoutExprId(attributes: Seq[Attribute]): JArrayList[String] = {
+    collectAttributeNamesDFS(attributes)(genColumnNameWithoutExprId)
+  }
+
+  private def collectAttributeNamesDFS(
+    attributes: Seq[Attribute])(f: Attribute => String): JArrayList[String] = {
+    val nameList = new JArrayList[String]()
+    attributes.foreach(
+      attr => {
+        nameList.add(f(attr))
+        if (BackendsApiManager.getSettings.supportStructType()) {
+          attr.dataType match {
+            case struct: StructType =>
+              val nestedNames = collectStructFieldNames(struct)
+              nameList.addAll(nestedNames)
+            case _ =>
+          }
+        }
+      }
+    )
+    nameList
+  }
+
+  def collectStructFieldNames(dataType: DataType): JArrayList[String] = {
+    val nameList = new JArrayList[String]()
+    dataType match {
+      case structType: StructType =>
+        structType.fields.foreach(
+          field => {
+            nameList.add(normalizeColName(field.name))
+            val nestedNames = collectStructFieldNames(field.dataType)
+            nameList.addAll(nestedNames)
+          }
+        )
+      case _ =>
+    }
+    nameList
   }
 
   def isNullable(nullability: Type.Nullability): Boolean = {
@@ -129,7 +195,7 @@ object ConverterUtils extends Logging {
         (DecimalType(precision, scale), isNullable(decimal.getNullability))
       case Type.KindCase.STRUCT =>
         val struct_ = substraitType.getStruct
-        val fields = new java.util.ArrayList[StructField]
+        val fields = new JArrayList[StructField]
         for (typ <- struct_.getTypesList.asScala) {
           val (field, nullable) = parseFromSubstraitType(typ)
           fields.add(StructField("", field, nullable))
@@ -189,8 +255,8 @@ object ConverterUtils extends Logging {
       case a: ArrayType =>
         TypeBuilder.makeList(nullable, getTypeNode(a.elementType, a.containsNull))
       case s: StructType =>
-        val fieldNodes = new java.util.ArrayList[TypeNode]
-        val fieldNames = new java.util.ArrayList[String]
+        val fieldNodes = new JArrayList[TypeNode]
+        val fieldNames = new JArrayList[String]
         for (structField <- s.fields) {
           fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
           fieldNames.add(structField.name)
@@ -201,14 +267,6 @@ object ConverterUtils extends Logging {
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }
-  }
-
-  def getTypeNodeFromAttributes(attributes: Seq[Attribute]): java.util.ArrayList[TypeNode] = {
-    val typeNodes = new java.util.ArrayList[TypeNode]()
-    for (attr <- attributes) {
-      typeNodes.add(getTypeNode(attr.dataType, attr.nullable))
-    }
-    typeNodes
   }
 
   def printBatch(cb: ColumnarBatch): Unit = {
@@ -396,8 +454,8 @@ object ConverterUtils extends Logging {
         }
       case f: HiveTableScanExecTransformer =>
         f.getScan match {
-          case Some(f) =>
-            f.getClass.getSimpleName match {
+          case Some(fileScan) =>
+            fileScan.getClass.getSimpleName match {
               case "TextScan" => ReadFileFormat.TextReadFormat
               case "JsonScan" => ReadFileFormat.JsonReadFormat
               case _ => ReadFileFormat.UnknownFormat

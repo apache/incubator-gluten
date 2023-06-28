@@ -53,6 +53,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
     )
 
+  override def genBatchScanTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new BatchScanMetricsUpdater(metrics)
+
   override def genHiveTableScanTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
@@ -76,9 +79,6 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
     )
-
-  override def genBatchScanTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new BatchScanMetricsUpdater(metrics)
 
   override def genHiveTableScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HiveTableScanMetricsUpdater(metrics)

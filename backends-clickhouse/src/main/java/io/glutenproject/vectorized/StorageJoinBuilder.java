@@ -17,13 +17,8 @@
 
 package io.glutenproject.vectorized;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import scala.collection.JavaConverters;
-
 import io.glutenproject.execution.BroadCastHashJoinContext;
+import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.expression.ConverterUtils$;
 import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.NamedStruct;
@@ -31,6 +26,11 @@ import io.substrait.proto.Type;
 
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import scala.collection.JavaConverters;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class StorageJoinBuilder implements AutoCloseable {
 
@@ -87,12 +87,8 @@ public class StorageJoinBuilder implements AutoCloseable {
     }).collect(Collectors.joining(","));
 
     // create table named struct
-    ArrayList<TypeNode> typeList = new ArrayList<>();
-    ArrayList<String> nameList = new ArrayList<>();
-    for (Attribute attr : output) {
-      typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
-      nameList.add(converter.genColumnNameWithExprId(attr));
-    }
+    ArrayList<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
+    ArrayList<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
     Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
     for (TypeNode typeNode : typeList) {
       structBuilder.addTypes(typeNode.toProtobuf());

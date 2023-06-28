@@ -168,12 +168,13 @@ std::shared_ptr<DB::ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
                 actions_dag = parseArrayJoin(header, expr, result_names, useless, actions_dag, true, false);
             else if (startsWith(function_signature, "posexplode:"))
                 actions_dag = parseArrayJoin(header, expr, result_names, useless, actions_dag, true, true);
+            else if (startsWith(function_signature, "json_tuple:"))
+                actions_dag = parseJsonTuple(header, expr, result_names, actions_dag, true, false);
             else
             {
                 result_names.resize(1);
                 actions_dag = parseFunction(header, expr, result_names[0], useless, actions_dag, true);
             }
-
             for (const auto & result_name : result_names)
             {
                 if (result_name.empty())
@@ -1490,34 +1491,6 @@ void SerializedPlanParser::parseFunctionArguments(
         parsed_args.emplace_back(space_str_node);
         parsed_args.emplace_back(repeat_times_node);
     }
-    else if (function_name == "json_tuple")
-    {
-        function_name = "JSONExtract";
-        const DB::ActionsDAG::Node * json_expr_node = parseFunctionArgument(actions_dag, required_columns, "JSONExtract", args[0]);
-        std::string extract_expr = "Tuple(";
-        for (int i = 1; i < args.size(); i++)
-        {
-            auto arg_value = args[i].value();
-            if (!arg_value.has_literal())
-            {
-                throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The arguments of function {} must be string literal", function_name);
-            }
-            DB::Field f = arg_value.literal().string();
-            std::string s;
-            if (f.tryGet(s))
-            {
-                extract_expr.append(s).append(" Nullable(String)");
-                if (i != args.size() - 1)
-                {
-                    extract_expr.append(",");
-                }
-            }
-        }
-        extract_expr.append(")");
-        const DB::ActionsDAG::Node * extract_expr_node = add_column(std::make_shared<DataTypeString>(), extract_expr);
-        parsed_args.emplace_back(json_expr_node);
-        parsed_args.emplace_back(extract_expr_node);
-    }
     else if (function_name == "mapFromArrays")
     {
         /// Remove nullable for first arg
@@ -1653,6 +1626,77 @@ ActionsDAGPtr SerializedPlanParser::parseArrayJoin(
         actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(input));
 
     parseArrayJoinWithDAG(rel, result_names, required_columns, actions_dag, keep_result, position);
+    return actions_dag;
+}
+
+ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
+    const Block & input,
+    const substrait::Expression & rel,
+    std::vector<String> & result_names,
+    ActionsDAGPtr actions_dag,
+    bool keep_result,
+    bool position)
+{
+    if (!actions_dag)
+    {
+        actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(input));
+    }
+    auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
+    {
+        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
+    };
+    const auto & scalar_function = rel.scalar_function();
+    auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
+    auto function_name = getFunctionName(function_signature, scalar_function);
+    auto args = scalar_function.arguments();
+    if (args.size() < 2)
+    {
+        throw Exception(ErrorCodes::BAD_ARGUMENTS, "The function json_tuple should has at least 2 arguments.");
+    }
+    auto first_arg = args[0].value();
+    const DB::ActionsDAG::Node * json_expr_node = parseExpression(actions_dag, first_arg);
+    std::string extract_expr = "Tuple(";
+    for (int i = 1; i < args.size(); i++)
+    {
+        auto arg_value = args[i].value();
+        if (!arg_value.has_literal())
+        {
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The arguments of function {} must be string literal", function_name);
+        }
+        DB::Field f = arg_value.literal().string();
+        std::string s;
+        if (f.tryGet(s))
+        {
+            extract_expr.append(s).append(" Nullable(String)");
+            if (i != args.size() - 1)
+            {
+                extract_expr.append(",");
+            }
+        }
+    }
+    extract_expr.append(")");
+    const DB::ActionsDAG::Node * extract_expr_node = add_column(std::make_shared<DataTypeString>(), extract_expr);
+    auto json_extract_builder = FunctionFactory::instance().get("JSONExtract", context);
+    auto json_extract_result_name = "JSONExtract(" + json_expr_node->result_name + "," + extract_expr_node->result_name + ")";
+    const ActionsDAG::Node * json_extract_node = &actions_dag->addFunction(json_extract_builder, {json_expr_node, extract_expr_node}, json_extract_result_name);
+    auto tuple_element_builder = FunctionFactory::instance().get("tupleElement", context);
+    auto tuple_index_type = std::make_shared<DataTypeUInt32>();
+    auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
+    {
+        ColumnWithTypeAndName index_col(tuple_index_type->createColumnConst(1, i), tuple_index_type, getUniqueName(std::to_string(i)));
+        const auto * index_node = &actions_dag->addColumn(std::move(index_col));
+        auto result_name = "tupleElement(" + tuple_node->result_name + ", " + index_node->result_name + ")";
+        return &actions_dag->addFunction(tuple_element_builder, {tuple_node, index_node}, result_name);
+    };
+    for (int i = 1; i < args.size(); i ++)
+    {
+        const ActionsDAG::Node * tuple_node = add_tuple_element(json_extract_node, i);
+        if (keep_result)
+        {
+            actions_dag->addOrReplaceInOutputs(*tuple_node);
+            result_names.push_back(tuple_node->result_name);
+        }
+    }
     return actions_dag;
 }
 
@@ -1996,7 +2040,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_set->insertFromBlock(elem_block.getColumnsWithTypeAndName());
             elem_set->finishInsert();
 
-            auto arg = ColumnSet::create(elem_set->getTotalRowCount(), FutureSet(elem_set));
+            auto future_set = std::make_shared<FutureSetFromStorage>(std::move(elem_set));
+            auto arg = ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag->addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 
             const auto * function_node = toFunctionNode(actions_dag, "in", args);
@@ -2587,12 +2632,14 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
     QueryPlanOptimizationSettings optimization_settings{.optimize_plan = false};
     DB::QueryPriorities priorities;
     String query = "query";
+    const Settings & settings = context->getSettingsRef();
     auto query_status = std::make_shared<DB::QueryStatus>(context,
                                                           query,
                                                           context->getClientInfo(),
                                                           priorities.insert(static_cast<int>(context->getSettingsRef().priority)),
                                                           std::move(DB::CurrentThread::getGroup()),
                                                           DB::IAST::QueryKind::Select,
+                                                          settings,
                                                           0);
     auto pipeline_builder = current_query_plan->buildQueryPipeline(
         optimization_settings,
