@@ -17,50 +17,31 @@
 
 package io.glutenproject.memory.alloc;
 
-import org.apache.spark.util.memory.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Vector;
 
-public class MemoryAllocatorManager implements NativeMemoryAllocatorManager {
+public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocatorManager {
 
-  private static Logger LOGGER = LoggerFactory.getLogger(MemoryAllocatorManager.class);
-  private static final List<NativeMemoryAllocator> LEAKED = new Vector<>();
-  private final NativeMemoryAllocator managed;
+  private static Logger LOGGER = LoggerFactory.getLogger(CHNativeMemoryAllocatorManagerImpl.class);
 
-  public MemoryAllocatorManager(NativeMemoryAllocator managed) {
+  private static final List<CHNativeMemoryAllocator> LEAKED = new Vector<>();
+  private final CHNativeMemoryAllocator managed;
+
+  public CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator managed) {
     this.managed = managed;
-  }
-
-  private void close() throws Exception {
-    managed.close();
-  }
-
-  private void softClose() throws Exception {
-    // move to leaked list
-    long leakBytes = managed.getBytesAllocated();
-    long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
-    LOGGER.warn(String.format("Detected leaked native allocator, size: %d, " +
-        "process accumulated leaked size: %d...", leakBytes, accumulated));
-    managed.listener().inactivate();
-    if (TaskResources.DEBUG()) {
-      LEAKED.add(managed);
-    }
   }
 
   @Override
   public void release() throws Exception {
-    if (managed.getBytesAllocated() != 0L) {
-      softClose();
-    } else {
-      close();
-    }
+    managed.close();
+    managed.listener().inactivate();
   }
 
   @Override
-  public NativeMemoryAllocator getManaged() {
+  public CHNativeMemoryAllocator getManaged() {
     return managed;
   }
 

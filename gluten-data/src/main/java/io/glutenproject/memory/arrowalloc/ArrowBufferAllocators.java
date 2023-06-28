@@ -18,7 +18,7 @@
 package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.alloc.Spiller;
+import io.glutenproject.memory.Spiller;
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;

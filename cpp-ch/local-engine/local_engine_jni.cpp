@@ -151,7 +151,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "nextBatch", "()Ljava/nio/ByteBuffer;");
 
     local_engine::ReservationListenerWrapper::reservation_listener_class
-        = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/memory/alloc/ReservationListener;");
+        = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/memory/alloc/CHReservationListener;");
     local_engine::ReservationListenerWrapper::reservation_listener_reserve
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "reserve", "(J)J");
     local_engine::ReservationListenerWrapper::reservation_listener_reserve_or_throw
@@ -1057,12 +1057,12 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_SimpleExpressionEval_nativeNext
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_getDefaultAllocator(JNIEnv * env, jclass)
+JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_getDefaultAllocator(JNIEnv * env, jclass)
 {
     return -1;
 }
 
-JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_createListenableAllocator(JNIEnv * env, jclass, jobject listener)
+JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_createListenableAllocator(JNIEnv * env, jclass, jobject listener)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto listener_wrapper = std::make_shared<local_engine::ReservationListenerWrapper>(env->NewGlobalRef(listener));
@@ -1070,14 +1070,14 @@ JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_createL
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT void Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator(JNIEnv * env, jclass, jlong allocator_id)
+JNIEXPORT void Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_releaseAllocator(JNIEnv * env, jclass, jlong allocator_id)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::releaseAllocator(allocator_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated(JNIEnv * env, jclass, jlong allocator_id)
+JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_bytesAllocated(JNIEnv * env, jclass, jlong allocator_id)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     return local_engine::allocatorMemoryUsage(allocator_id);

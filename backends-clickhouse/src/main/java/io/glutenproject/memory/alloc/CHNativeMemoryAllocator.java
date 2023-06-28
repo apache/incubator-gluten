@@ -19,37 +19,37 @@ package io.glutenproject.memory.alloc;
 
 /**
  * Like {@link io.glutenproject.vectorized.NativePlanEvaluator}, this along with
- * {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory allocations.
+ * {@link CHNativeMemoryAllocators}, as built-in toolkit for managing native memory allocations.
  */
-public class NativeMemoryAllocator {
+public class CHNativeMemoryAllocator {
 
   private final long nativeInstanceId;
-  private final ReservationListener listener;
+  private final CHReservationListener listener;
 
-  public NativeMemoryAllocator(long nativeInstanceId, ReservationListener listener) {
+  public CHNativeMemoryAllocator(long nativeInstanceId, CHReservationListener listener) {
     this.nativeInstanceId = nativeInstanceId;
     this.listener = listener;
   }
 
-  public static NativeMemoryAllocator getDefault() {
+  public static CHNativeMemoryAllocator getDefault() {
     return
-        new NativeMemoryAllocator(
+        new CHNativeMemoryAllocator(
             getDefaultAllocator(),
-            ReservationListener.NOOP);
+            CHReservationListener.NOOP);
   }
 
-  public static NativeMemoryAllocator getDefaultForUT() {
+  public static CHNativeMemoryAllocator getDefaultForUT() {
     return
-        new NativeMemoryAllocator(
-            createListenableAllocator(ReservationListener.NOOP),
-            ReservationListener.NOOP);
+        new CHNativeMemoryAllocator(
+            createListenableAllocator(CHReservationListener.NOOP),
+            CHReservationListener.NOOP);
   }
 
-  public static NativeMemoryAllocator createListenable(ReservationListener listener) {
-    return new NativeMemoryAllocator(createListenableAllocator(listener), listener);
+  public static CHNativeMemoryAllocator createListenable(CHReservationListener listener) {
+    return new CHNativeMemoryAllocator(createListenableAllocator(listener), listener);
   }
 
-  public ReservationListener listener() {
+  public CHReservationListener listener() {
     return listener;
   }
 
@@ -69,7 +69,7 @@ public class NativeMemoryAllocator {
 
   private static native long getDefaultAllocator();
 
-  private static native long createListenableAllocator(ReservationListener listener);
+  private static native long createListenableAllocator(CHReservationListener listener);
 
   private static native void releaseAllocator(long allocatorId);
 

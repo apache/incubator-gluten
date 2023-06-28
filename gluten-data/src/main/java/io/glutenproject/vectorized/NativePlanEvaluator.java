@@ -72,7 +72,7 @@ public class NativePlanEvaluator {
       Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
       throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
-    final long allocId = NativeMemoryAllocators.createSpillable(
+    final long allocId = NativeMemoryAllocators.getDefault().createSpillable(
         (size, trigger) -> {
           ColumnarBatchOutIterator instance = Optional.of(outIterator.get()).orElseThrow(
               () -> new IllegalStateException(

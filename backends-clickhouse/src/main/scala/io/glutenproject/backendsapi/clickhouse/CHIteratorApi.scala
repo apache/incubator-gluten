@@ -285,22 +285,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     else new CloseableCHColumnBatchIterator(iter)
   }
 
-  /**
-   * Generate NativeMemoryAllocatorManager.
-   *
-   * @return
-   */
-  override def genNativeMemoryAllocatorManager(
-      taskMemoryManager: TaskMemoryManager,
-      spiller: Spiller,
-      taskMemoryMetrics: TaskMemoryMetrics): NativeMemoryAllocatorManager = {
-    val rl = new CHManagedReservationListener(
-      new GlutenMemoryConsumer(taskMemoryManager, spiller),
-      taskMemoryMetrics
-    )
-    new CHMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
-  }
-
   /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
   override def genNativeFileScanRDD(
       sparkContext: SparkContext,
