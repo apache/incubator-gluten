@@ -427,4 +427,54 @@ class GlutenClickHouseHiveTableSuite()
       })
   }
 
+  test("text hive table with space/tab delimiter") {
+    val txt_table_name_space_delimiter = "hive_txt_table_space_delimiter"
+    val txt_table_name_tab_delimiter = "hive_txt_table_tab_delimiter"
+    val drop_space_table_sql = "drop table if exists %s".format(txt_table_name_space_delimiter)
+    val drop_tab_table_sql = "drop table if exists %s".format(txt_table_name_tab_delimiter)
+    val create_space_table_sql =
+      "create table if not exists %s (".format(txt_table_name_space_delimiter) +
+        "int_field int," +
+        "string_field string" +
+        ") row format delimited fields terminated by ' ' stored as textfile"
+    val create_tab_table_sql =
+      "create table if not exists %s (".format(txt_table_name_tab_delimiter) +
+        "int_field int," +
+        "string_field string" +
+        ") row format delimited fields terminated by '\t' stored as textfile"
+    spark.sql(drop_space_table_sql)
+    spark.sql(drop_tab_table_sql)
+    spark.sql(create_space_table_sql)
+    spark.sql(create_tab_table_sql)
+    spark.sql("insert into %s values(1, 'ab')".format(txt_table_name_space_delimiter))
+    spark.sql("insert into %s values(1, 'ab')".format(txt_table_name_tab_delimiter))
+    val sql1 =
+      s"""
+         | select * from $txt_table_name_space_delimiter where int_field > 0
+         |""".stripMargin
+    val sql2 =
+      s"""
+         | select * from $txt_table_name_tab_delimiter where int_field > 0
+         |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+    compareResultsAgainstVanillaSpark(
+      sql2,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
 }
