@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.columnarbatch.ColumnarBatches;
+import io.glutenproject.columnarbatch.GlutenColumnarBatches;
 import io.glutenproject.metrics.IMetrics;
 import java.io.IOException;
 import java.util.List;
@@ -53,7 +53,7 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return ColumnarBatches.create(batchHandle);
+    return GlutenColumnarBatches.create(batchHandle);
   }
 
   @Override

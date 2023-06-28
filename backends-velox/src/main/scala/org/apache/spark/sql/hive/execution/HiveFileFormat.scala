@@ -16,39 +16,41 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
+import java.io.IOException
+import java.net.URI
+
+import scala.collection.JavaConverters._
+
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.ArrowAbiUtil
-import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.hadoop.hive.ql.exec.Utilities
-import org.apache.hadoop.hive.ql.io.{HiveFileFormatUtils, HiveOutputFormat}
-import org.apache.hadoop.hive.serde2.Serializer
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption
-import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspectorUtils, StructObjectInspector}
-import org.apache.hadoop.io.Writable
-import org.apache.hadoop.mapred.{JobConf, Reporter}
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-import org.apache.parquet.hadoop.codec.CodecConfig
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SPECULATION_ENABLED
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.datasources.velox.VeloxParquetFileFormat
-import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
+import org.apache.spark.sql.execution.datasources.{FakeRow, FileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
 import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil}
+import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.util.SerializableJobConf
-
-import java.io.IOException
-import java.net.URI
-import scala.collection.JavaConverters._
+import org.apache.arrow.c.ArrowSchema
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.hive.ql.exec.Utilities
+import org.apache.hadoop.hive.ql.io.{HiveFileFormatUtils, HiveOutputFormat}
+import org.apache.hadoop.hive.serde2.Serializer
+import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspectorUtils, StructObjectInspector}
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption
+import org.apache.hadoop.io.Writable
+import org.apache.hadoop.mapred.{JobConf, Reporter}
+import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+import org.apache.parquet.hadoop.codec.CodecConfig
+import org.apache.spark.sql.execution.datasources.velox.VeloxParquetFileFormat
 
 /**
  * This file is copied from Spark
@@ -146,7 +148,7 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
                 writeQueue.enqueue(batch)
               } else {
                 val offloaded =
-                  ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
+                  ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
                 writeQueue.enqueue(offloaded)
               }
             }

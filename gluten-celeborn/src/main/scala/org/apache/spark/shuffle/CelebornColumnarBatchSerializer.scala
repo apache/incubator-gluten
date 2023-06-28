@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle
 
-import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
@@ -157,7 +157,7 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
             this.close()
             throw new EOFException
           }
-          ColumnarBatches.create(batchHandle)
+          GlutenColumnarBatches.create(batchHandle)
         }
         val numRows = batch.numRows()
         logDebug(s"Read ColumnarBatch of ${numRows} rows")

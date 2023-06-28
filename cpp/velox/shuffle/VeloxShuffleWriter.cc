@@ -193,9 +193,8 @@ arrow::Status VeloxShuffleWriter::setCompressType(arrow::Compression::type compr
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
-  // todo pass allocator as one of the shuffle writer options, to avoid using the default pool
-  auto veloxColumnBatch = VeloxColumnarBatch::from(defaultLeafVeloxMemoryPool().get(), cb);
+arrow::Status VeloxShuffleWriter::split(ColumnarBatch* cb) {
+  auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
   if (options_.partitioning_name == "single") {
     auto vp = veloxColumnBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(*vp));

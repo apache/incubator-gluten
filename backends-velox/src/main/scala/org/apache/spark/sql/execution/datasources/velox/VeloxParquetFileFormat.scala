@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
@@ -103,7 +103,7 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
               writeQueue.enqueue(batch)
             } else {
               val offloaded =
-                ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
+                ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
               writeQueue.enqueue(offloaded)
             }
           }
