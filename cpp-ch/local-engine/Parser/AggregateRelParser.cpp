@@ -1,8 +1,10 @@
 #include "AggregateRelParser.h"
 #include <memory>
+#include <AggregateFunctions/AggregateFunctionIf.h>
+#include <Common/StringUtils/StringUtils.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
-#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
@@ -224,6 +226,28 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
                     auto agg_function = getAggregateFunction(function_name, arg_column_types);
                     auto agg_intermediate_result_type = agg_function->getStateType();
                     arg_column_types = {agg_intermediate_result_type};
+                }
+            }
+            else
+            {
+                // Special case for handling the intermedidate result from aggregate functions with filter.
+                // It's safe to use AggregateFunctionxxx to parse intermediate result from AggregateFunctionxxxIf,
+                // since they have the same binary representation
+                // reproduce this case by
+                //  select 
+                //    count(a),count(b), count(1), count(distinct(a)), count(distinct(b)) 
+                //  from values (1, null), (2,2) as data(a,b)
+                // with `first_value` enable
+                if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+                {
+                    if (endsWith(agg_function_data->getFunction()->getName(), "If")
+                        && function_name != agg_function_data->getFunction()->getName())
+                    {
+                        auto original_args_types = agg_function_data->getArgumentsDataTypes();
+                        arg_column_types = DataTypes(original_args_types.begin(), std::prev(original_args_types.end()));
+                        auto agg_function = getAggregateFunction(function_name, arg_column_types);
+                        arg_column_types = {agg_function->getStateType()};
+                    }
                 }
             }
             function_name = function_name + partial_merge_suffix;
