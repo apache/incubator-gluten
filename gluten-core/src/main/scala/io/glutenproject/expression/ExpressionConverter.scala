@@ -535,6 +535,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(sha2.left, attributeSeq),
           replaceWithExpressionTransformer(sha2.right, attributeSeq),
           sha2)
+      case size: Size =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(size.child, attributeSeq),
+          size)
       case namedStruct: CreateNamedStruct =>
         BackendsApiManager.getSparkPlanExecApiInstance
           .genNamedStructTransformer(substraitExprName.get, namedStruct, attributeSeq)
@@ -586,11 +591,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
       // The other expression case must be put before LeafExpression, UnaryExpression,
       // BinaryExpression, TernaryExpression, QuaternaryExpression
-      case size: Size =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
-          substraitExprName.get,
-          replaceWithExpressionTransformer(size.child, attributeSeq),
-          size)
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName.get, l)
       case u: UnaryExpression =>
