@@ -200,7 +200,7 @@ Here are two steps to enable kerberos.
 ```
 The ticket cache file can be found by `klist`.
 
-## 2.5 AWS S3 support
+## 2.4 AWS S3 support
 
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
 A new build option for S3(enable_s3) is added. Below command is used to enable this feature
@@ -211,7 +211,7 @@ cd /path_to_gluten
 
 Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
 
-## 2.6 Celeborn support
+## 2.5 Celeborn support
 
 Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
 
