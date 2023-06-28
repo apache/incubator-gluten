@@ -401,7 +401,6 @@ class GlutenClickHouseHiveTableSuite()
     val sql1 = "select * from " + default_quote_table_name
     val sql2 = "select * from " + allow_double_quote_table_name
     val sql3 = "select * from " + allow_single_quote_table_name
-
     compareResultsAgainstVanillaSpark(
       sql1,
       true,
