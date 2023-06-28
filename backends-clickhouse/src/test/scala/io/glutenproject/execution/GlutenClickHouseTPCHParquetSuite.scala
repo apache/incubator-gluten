@@ -989,6 +989,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-2104: test size function") {
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
+      runQueryAndCompare(
+        "select size(null), size(split(l_shipinstruct, ' ')) from lineitem",
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg without aqe") {
     val sql =
       """
