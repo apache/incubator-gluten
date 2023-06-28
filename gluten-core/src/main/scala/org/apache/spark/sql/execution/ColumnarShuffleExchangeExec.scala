@@ -104,8 +104,13 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   def doValidate(): Boolean = {
-    BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
-      outputPartitioning, child)
+    if (!BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
+      outputPartitioning, child)) {
+      this.appendValidateLog("Validation failed for" +
+        " ColumnarShuffleExchangeExec due to: schema check failed.")
+      return false
+    }
+    true
   }
 
   override def nodeName: String = "ColumnarExchange"

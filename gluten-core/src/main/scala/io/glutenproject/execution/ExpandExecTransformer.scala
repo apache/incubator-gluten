@@ -209,9 +209,15 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
 
   override def doValidateInternal(): Boolean = {
     if (!BackendsApiManager.getSettings.supportExpandExec()) {
+      this.appendValidateLog(
+        s"Validation failed for ${this.getClass.toString}" +
+          s" due to: {ExpandExec}. ")
       return false
     }
     if (projections.isEmpty) {
+      this.appendValidateLog(
+        s"Validation failed for ${this.getClass.toString}" +
+          s" due to: {empty projections in ExpandExec}. ")
       return false
     }
 
@@ -225,14 +231,25 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }

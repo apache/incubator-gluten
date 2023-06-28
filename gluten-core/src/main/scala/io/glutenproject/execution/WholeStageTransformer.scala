@@ -81,8 +81,10 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
     } else {
       logOnLevel(validateFailureLogLevel, msg)
     }
-
   }
+//  def logValidateFailureWithoutThrowable(msg: => String): Unit = {
+//      logOnLevel(validateFailureLogLevel, msg)
+//  }
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.

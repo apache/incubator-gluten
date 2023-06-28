@@ -235,6 +235,32 @@ Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions h
 
 > Velox doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)), so as Gluten. Once ANSI mode is enabled in Spark config, Gluten will fallback to Vanilla Spark.
 
+To identify what can be offloaded in a query and detailed fallback reasons, user can follow below steps to retrieve corresponding logs.
+```
+1) Enable Gluten by proper [configuration](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
+
+2) Disable Spark AQE to trigger plan validation in Gluten
+spark.sql.adaptive.enabled = false
+
+3) Check physical plan 
+sparkSession.sql("your_sql").explain()
+```
+
+With above steps, you will get a physical plan output like:
+```
+== Physical Plan ==
+-Execute InsertIntoHiveTable (7)
+  +- Coalesce (6)
+    +- VeloxColumnarToRowExec (5)
+      +- ^ ProjectExecTransformer (3)
+        +- GlutenRowToArrowColumnar (2)
+          +- Scan hive default.extracted_db_pins (1)
+
+```
+"GlutenRowToArrowColumnar" and "VeloxColumnarToRowExec" indicate there is a fallback and you may find related log with key words "due to" like:
+```
+native validation failed due to: in ProjectRel, Scalar function name not registered: get_struct_field, called with arguments: (ROW<col_0:INTEGER,col_1:BIGINT,col_2:BIGINT>, INTEGER).
+```
 
 # High-Bandwidth Memory (HBM) support
 
