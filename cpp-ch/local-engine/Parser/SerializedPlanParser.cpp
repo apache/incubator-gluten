@@ -2041,7 +2041,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_set->finishInsert();
 
             auto future_set = std::make_shared<FutureSetFromStorage>(std::move(elem_set));
-            auto arg = ColumnSet::create(elem_set->getTotalRowCount(), std::move(future_set));
+            auto arg = ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag->addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 
             const auto * function_node = toFunctionNode(actions_dag, "in", args);
