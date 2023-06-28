@@ -992,7 +992,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   test("GLUTEN-2104: test size function") {
     withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
       runQueryAndCompare(
-        "select size(null), size(split(l_shipinstruct, ' ')) from lineitem",
+        "select size(null), size(split(l_shipinstruct, ' ')) from lineitem"
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
