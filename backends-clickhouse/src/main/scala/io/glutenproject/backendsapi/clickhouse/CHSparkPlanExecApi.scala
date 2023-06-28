@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHEqualNullSafeTransformer, CHSha1Transformer, CHSha2Transformer, CHSizeExpressionTransformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
+import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
@@ -393,6 +393,16 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Size): ExpressionTransformer = {
     CHSizeExpressionTransformer(substraitExprName, child, original)
+  }
+
+  /** Generate an ExpressionTransformer to transform TruncTimestamp expression for CH. */
+  override def genTruncTimestampTransformer(
+      substraitExprName: String,
+      format: ExpressionTransformer,
+      timestamp: ExpressionTransformer,
+      timeZoneId: Option[String],
+      original: TruncTimestamp): ExpressionTransformer = {
+    new CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
   /**

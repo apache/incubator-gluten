@@ -266,6 +266,19 @@ trait SparkPlanExecApi {
     new UnaryExpressionTransformer(substraitExprName, child, original)
   }
 
+  /**
+   * Generate an ExpressionTransformer to transform TruncTimestamp expression.
+   * TruncTimestampTransformer is the default implementation.
+   */
+  def genTruncTimestampTransformer(
+    substraitExprName: String,
+    format: ExpressionTransformer,
+    timestamp: ExpressionTransformer,
+    timeZoneId: Option[String] = None,
+    original: TruncTimestamp): ExpressionTransformer = {
+    new TruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+  }
+
   def genCastWithNewChild(c: Cast): Cast = {
     c
   }

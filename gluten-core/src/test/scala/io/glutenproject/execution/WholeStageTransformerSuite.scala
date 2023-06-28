@@ -19,7 +19,6 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.FallbackUtil
-import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging

@@ -156,6 +156,7 @@ object ExpressionNames {
   final val ADD_MONTHS = "add_months"
   final val DATE_FORMAT = "date_format"
   final val TRUNC = "trunc"
+  final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
 
   // JSON functions
