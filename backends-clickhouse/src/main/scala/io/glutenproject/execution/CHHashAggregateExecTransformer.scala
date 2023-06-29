@@ -363,6 +363,11 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (covar.left.dataType, covar.left.nullable)
               fields = fields :+ (covar.right.dataType, covar.right.nullable)
               (makeStructType(fields), attr.nullable)
+            case corr: PearsonCorrelation =>
+              var fields = Seq[(DataType, Boolean)]()
+              fields = fields :+ (corr.left.dataType, corr.left.nullable)
+              fields = fields :+ (corr.right.dataType, corr.right.nullable)
+              (makeStructType(fields), attr.nullable)
             case expr =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
           }

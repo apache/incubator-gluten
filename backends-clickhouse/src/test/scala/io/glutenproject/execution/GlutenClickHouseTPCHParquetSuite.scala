@@ -1240,8 +1240,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       checkOperatorMatch[CHHashAggregateExecTransformer]
     }
     runQueryAndCompare("""
-                         |select l_orderkey, var_samp(l_quantity) from lineitem
-                         |group by l_orderkey;
+                         |select l_orderkey % 5, var_samp(l_quantity) from lineitem
+                         |group by l_orderkey % 5;
                          |""".stripMargin) {
       checkOperatorMatch[CHHashAggregateExecTransformer]
     }
@@ -1254,8 +1254,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       checkOperatorMatch[CHHashAggregateExecTransformer]
     }
     runQueryAndCompare("""
-                         |select l_orderkey, var_pop(l_quantity) from lineitem
-                         |group by l_orderkey;
+                         |select l_orderkey % 5, var_pop(l_quantity) from lineitem
+                         |group by l_orderkey % 5;
                          |""".stripMargin) {
       checkOperatorMatch[CHHashAggregateExecTransformer]
     }
@@ -1280,5 +1280,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         }
     }
   }
+
 }
 // scalastyle:on line.size.limit
