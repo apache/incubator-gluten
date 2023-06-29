@@ -316,6 +316,8 @@ void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const subst
         {
             const auto & arg0 = measure.measure().arguments(0).value();
             auto arg1 = measure.measure().arguments(1).value();
+            /// The 3rd arg is default value
+            /// when it is set to null, the 1st arg must be nullable
             const auto & arg2 = measure.measure().arguments(2).value();
             const auto & col = header.getByPosition(arg0.selection().direct_reference().struct_field().field());
             const DB::ActionsDAG::Node * node = nullptr;
