@@ -52,7 +52,7 @@ class ArrowShuffleWriter final : public ShuffleWriter {
   static arrow::Result<std::shared_ptr<ArrowShuffleWriter>> create(
       uint32_t numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-      ShuffleWriterOptions options);
+      const ShuffleWriterOptions& options);
 
   typedef uint32_t row_offset_type;
 
@@ -103,7 +103,7 @@ class ArrowShuffleWriter final : public ShuffleWriter {
   ArrowShuffleWriter(
       int32_t numPartitions,
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
-      ShuffleWriterOptions options)
+      const ShuffleWriterOptions& options)
       : ShuffleWriter(numPartitions, partitionWriterCreator, options) {}
 
   arrow::Status init();
@@ -166,7 +166,7 @@ class ArrowShuffleWriter final : public ShuffleWriter {
   arrow::Status allocatePartitionBuffers(int32_t partitionId, int32_t newSize);
 
   // Check whether support AVX512 instructions
-  bool supportAvx512_;
+  bool supportAvx512_{false};
   // partid
   std::vector<int32_t> partitionBufferSize_;
   // partid, value is reducer batch's offset, output rb rownum < 64k
@@ -187,7 +187,7 @@ class ArrowShuffleWriter final : public ShuffleWriter {
 
   // col fixed + binary
   std::vector<int32_t> arrayIdx_;
-  uint16_t fixedWidthColCnt_;
+  uint16_t fixedWidthColCnt_{0};
 
   // col
   std::vector<int32_t> listArrayIdx_;

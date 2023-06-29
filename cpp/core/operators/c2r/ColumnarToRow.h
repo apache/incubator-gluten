@@ -51,14 +51,14 @@ class ColumnarToRowConverter {
   }
 
  protected:
-  bool supportAvx512_;
+  bool supportAvx512_{false};
   std::shared_ptr<arrow::MemoryPool> arrowPool_;
   std::vector<int32_t> bufferCursor_;
   std::shared_ptr<arrow::Buffer> buffer_;
-  int32_t nullBitsetWidthInBytes_;
-  int32_t numCols_;
-  int32_t numRows_;
-  uint8_t* bufferAddress_;
+  int32_t nullBitsetWidthInBytes_{8};
+  int32_t numCols_{0};
+  int32_t numRows_{0};
+  uint8_t* bufferAddress_{nullptr};
   std::vector<int32_t> offsets_;
   std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>> lengths_;
 

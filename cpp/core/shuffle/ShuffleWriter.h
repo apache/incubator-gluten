@@ -134,7 +134,7 @@ class ShuffleWriter {
   ShuffleWriter(
       int32_t numPartitions,
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
-      ShuffleWriterOptions options)
+      const ShuffleWriterOptions& options)
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)) {}
