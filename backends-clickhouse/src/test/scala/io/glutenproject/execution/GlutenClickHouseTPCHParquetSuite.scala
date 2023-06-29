@@ -1127,6 +1127,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
+  
+  test("GLUTEN-1790 count multi cols") {
+    val sql =
+      """
+        | select count(n_regionkey, n_nationkey) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 
   test("GLUTEN-2028: struct as join key") {
     val tables = Seq("struct_1", "struct_2")

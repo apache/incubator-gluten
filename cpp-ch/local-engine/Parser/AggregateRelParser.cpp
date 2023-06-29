@@ -156,6 +156,25 @@ void AggregateRelParser::addPreProjection()
             agg_info.arg_column_names.emplace_back(arg_column_name);
             agg_info.arg_column_types.emplace_back(arg_column_type);
         }
+        //TODO: refactor the function parser later
+        if (agg_info.function_name == "count" && agg_info.arg_column_names.size() > 1)
+        {
+            ActionsDAG::NodeRawConstPtrs colesce_args;
+            for (const auto & col_name : agg_info.arg_column_names)
+            {
+                const auto * node =  projection_action->tryFindInOutputs(col_name);
+                if (!node)
+                {
+                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found {} in action dag", col_name);
+                }
+                colesce_args.emplace_back(&projection_action->findInOutputs(col_name));
+                const auto * colesce_node = buildFunctionNode(projection_action, "coalesce", colesce_args);
+                projection_action->addOrReplaceInOutputs(*colesce_node);
+                agg_info.arg_column_names = {colesce_node->result_name};
+                agg_info.arg_column_types = {colesce_node->result_type};
+            }
+            need_projection = true;
+        }
 
         if (agg_info.measure->has_filter())
         {
