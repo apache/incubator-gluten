@@ -83,8 +83,8 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     if (!BackendsApiManager.getTransformerApiInstance
       .supportsReadFileFormat(
         fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
-      logDebug(
-        s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
+      this.appendValidateLog(
+        s"Validation failed for ${this.getClass.toString} due to: {$fileFormat}")
       return false
     }
 
@@ -92,15 +92,26 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     val relNode = try {
       doTransform(substraitContext).root
     } catch {
-      case e: Exception =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+      case e: Throwable =>
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }

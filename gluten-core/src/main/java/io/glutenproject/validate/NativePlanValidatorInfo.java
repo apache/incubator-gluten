@@ -15,15 +15,27 @@
  * limitations under the License.
  */
 
-package io.glutenproject.extension
+package io.glutenproject.validate;
 
-/**
- * Every Gluten OP should extend this trait.
- */
-trait GlutenPlan {
-  var validateLog: Vector[String] = Vector()
+import java.util.Vector;
 
-  def appendValidateLog(log: String): Unit = {
-    validateLog = validateLog :+ log
-  }
+public class NativePlanValidatorInfo {
+    private final Vector<String> fallbackInfo = new Vector<>();
+    private final int isSupported;
+    public NativePlanValidatorInfo(int isSupported, String fallbackInfo) {
+        this.isSupported = isSupported;
+        String[] splitInfo = fallbackInfo.split("@");
+        for(int i = 0; i < splitInfo.length; i++) {
+            this.fallbackInfo.add(splitInfo[i]);
+        }
+    }
+
+    public boolean isSupported(){
+        return isSupported == 1;
+    }
+
+   public Vector<String> getFallbackInfo() {
+       return fallbackInfo;
+   }
 }
+

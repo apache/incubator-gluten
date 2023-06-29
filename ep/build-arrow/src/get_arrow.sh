@@ -1,10 +1,10 @@
 #!/bin/bash
 
 set -exu
-#setting gluten root path
+
 ARROW_REPO=https://github.com/apache/arrow.git
-#for velox_backend
 ARROW_BRANCH=apache-arrow-12.0.0
+ARROW_HOME=""
 ENABLE_CUSTOM_CODEC=OFF
 
 for arg in "$@"; do
@@ -15,6 +15,10 @@ for arg in "$@"; do
     ;;
   --arrow_branch=*)
     ARROW_BRANCH=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --arrow_home=*)
+    ARROW_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_custom_codec=*)
@@ -30,7 +34,6 @@ done
 
 function checkout_code {
   TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
-  ARROW_SOURCE_DIR="$CURRENT_DIR/../build/arrow_ep"
   if [ -d $ARROW_SOURCE_DIR ]; then
     echo "Arrow source folder $ARROW_SOURCE_DIR already exists..."
     cd $ARROW_SOURCE_DIR
@@ -55,6 +58,11 @@ CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
 )
+
+if [ "$ARROW_HOME" == "" ]; then
+  ARROW_HOME="$CURRENT_DIR/../build"
+fi
+ARROW_SOURCE_DIR="${ARROW_HOME}/arrow_ep"
 
 checkout_code
 

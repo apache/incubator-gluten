@@ -102,8 +102,8 @@ function compile {
 
 function check_commit {
   if [ $ENABLE_EP_CACHE == "ON" ]; then
-    if [ -f ${BUILD_DIR}/velox-commit.cache ]; then
-      CACHED_BUILT_COMMIT="$(cat ${BUILD_DIR}/velox-commit.cache)"
+    if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
+      CACHED_BUILT_COMMIT="$(cat ${VELOX_HOME}/velox-commit.cache)"
       if [ -n "$CACHED_BUILT_COMMIT" ]; then
         if [ "$TARGET_BUILD_COMMIT" = "$CACHED_BUILT_COMMIT" ]; then
           echo "Velox build of commit $TARGET_BUILD_COMMIT was cached."
@@ -117,8 +117,8 @@ function check_commit {
     git clean -dffx :/
   fi
 
-  if [ -f ${BUILD_DIR}/velox-commit.cache ]; then
-    rm -f ${BUILD_DIR}/velox-commit.cache
+  if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
+    rm -f ${VELOX_HOME}/velox-commit.cache
   fi
 }
 
@@ -158,24 +158,20 @@ CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
 )
+
 if [ "$VELOX_HOME" == "" ]; then
   VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
 fi
 
-BUILD_DIR="$CURRENT_DIR/../build"
 echo "Start building Velox..."
 echo "CMAKE Arguments:"
 echo "VELOX_HOME=${VELOX_HOME}"
+echo "ARROW_HOME=${ARROW_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
-if [ ! -d $VELOX_HOME ]; then
-  echo "$VELOX_HOME is not exist!!!"
-  exit 1
-fi
-
-cd $VELOX_HOME
+cd ${VELOX_HOME}
 TARGET_BUILD_COMMIT="$(git rev-parse --verify HEAD)"
 if [ -z "$TARGET_BUILD_COMMIT" ]; then
   echo "Unable to parse Velox commit: $TARGET_BUILD_COMMIT."
@@ -187,4 +183,4 @@ check_commit
 compile
 
 echo "Successfully built Velox from Source."
-echo $TARGET_BUILD_COMMIT >"${BUILD_DIR}/velox-commit.cache"
+echo $TARGET_BUILD_COMMIT >"${VELOX_HOME}/velox-commit.cache"
