@@ -187,11 +187,15 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     s3Config.insert({
         {"hive.s3.aws-access-key", awsAccessKey},
         {"hive.s3.aws-secret-key", awsSecretKey},
-        {"hive.s3.endpoint", awsEndpoint},
-        {"hive.s3.ssl.enabled", sslEnabled},
-        {"hive.s3.path-style-access", pathStyleAccess},
     });
   }
+
+  s3Config.insert({
+      {"hive.s3.endpoint", awsEndpoint},
+      {"hive.s3.ssl.enabled", sslEnabled},
+      {"hive.s3.path-style-access", pathStyleAccess},
+  });
+
   configurationValues.merge(s3Config);
 #endif
 

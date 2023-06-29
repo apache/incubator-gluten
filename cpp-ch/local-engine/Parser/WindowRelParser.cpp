@@ -315,12 +315,27 @@ void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const subst
         if (function_name && (*function_name == "lead" || *function_name == "lag"))
         {
             const auto & arg0 = measure.measure().arguments(0).value();
-            const auto & col = header.getByPosition(arg0.selection().direct_reference().struct_field().field());
-            names.emplace_back(col.name);
-            types.emplace_back(col.type);
-
             auto arg1 = measure.measure().arguments(1).value();
+            /// The 3rd arg is default value
+            /// when it is set to null, the 1st arg must be nullable
+            const auto & arg2 = measure.measure().arguments(2).value();
+            const auto & col = header.getByPosition(arg0.selection().direct_reference().struct_field().field());
             const DB::ActionsDAG::Node * node = nullptr;
+
+            if (arg2.has_literal() && arg2.literal().has_null() && !col.type->isNullable())
+            {
+                node = ActionsDAGUtil::convertNodeType(
+                    actions_dag, &actions_dag->findInOutputs(col.name), makeNullable(col.type)->getName(), col.name);
+                actions_dag->addOrReplaceInOutputs(*node);
+                names.emplace_back(node->result_name);
+                types.emplace_back(node->result_type);
+            }
+            else
+            {
+                names.emplace_back(col.name);
+                types.emplace_back(col.type);
+            }
+
             // lag's offset is negative
             if (*function_name == "lag")
             {
@@ -339,7 +354,6 @@ void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const subst
             names.emplace_back(node->result_name);
             types.emplace_back(node->result_type);
 
-            const auto & arg2 = measure.measure().arguments(2).value();
             if (arg2.has_literal() && !arg2.literal().has_null())
             {
                 node = parseArgument(actions_dag, arg2);

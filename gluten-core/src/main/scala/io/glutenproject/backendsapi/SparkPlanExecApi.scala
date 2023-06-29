@@ -26,6 +26,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, GetStructField, NamedExpression, Sha1, Sha2, Size}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -256,6 +257,13 @@ trait SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Sha1): ExpressionTransformer = {
     new Sha1Transformer(substraitExprName, child, original)
+  }
+
+  def genSizeExpressionTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Size): ExpressionTransformer = {
+    new UnaryExpressionTransformer(substraitExprName, child, original)
   }
 
   def genCastWithNewChild(c: Cast): Cast = {
