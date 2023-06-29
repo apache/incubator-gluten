@@ -143,11 +143,11 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidateWithFal
   jmethodID method = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
   try {
     auto isSupported = planValidator.validate(subPlan);
-    auto logs = planValidator.getValidateLog();
-    std::string concatLog;
-    for (int i = 0; i < logs.size(); i++) {
-      concatLog += logs[i] + "@";
-    }
+    // auto logs = planValidator.getValidateLog();
+    std::string concatLog = "fall";
+    // for (int i = 0; i < logs.size(); i++) {
+    //   concatLog += logs[i] + "@";
+    // }
     return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(concatLog.c_str()));
   } catch (std::invalid_argument& e) {
     LOG(INFO) << "Failed to validate substrait plan because " << e.what();
