@@ -289,9 +289,16 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Array type") {
+    // Validation: BatchScan.
+    runQueryAndCompare("select array from type1") {
+      checkOperatorMatch[BatchScanExecTransformer]}
+
     // Validation: BatchScan Project Aggregate Expand Sort Limit
     runQueryAndCompare("select int, array from type1 " +
-      " group by grouping sets(int, array) sort by array, int limit 1") { _ => }
+      " group by grouping sets(int, array) sort by array, int limit 1") { df => {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+    }}
 
     // Validation: BroadHashJoin, Filter, Project
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
