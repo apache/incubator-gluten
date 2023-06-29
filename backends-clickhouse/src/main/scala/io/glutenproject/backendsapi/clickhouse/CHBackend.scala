@@ -102,14 +102,15 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
     // FIXME: The HashAggregateExec's output is different from backend, cannot use directly.
-    child match {
-      case _: HashAggregateExec =>
-        logInfo(
-          s"Not support shuffleExechangeExec with child of HashAggregateExec, which" +
-            s" has expressions in partitioning")
-        false
-      case _ => true
-    }
+//    child match {
+//      case _: HashAggregateExec =>
+//        logInfo(
+//          s"Not support shuffleExechangeExec with child of HashAggregateExec, which" +
+//            s" has expressions in partitioning")
+//        false
+//      case _ => true
+//    }
+    true
   }
 
   override def supportSortExec(): Boolean = {

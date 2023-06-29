@@ -51,21 +51,6 @@ class CHTransformerApi extends TransformerApi with Logging {
     val substraitContext = new SubstraitContext
     outputPartitioning match {
       case HashPartitioning(exprs, _) =>
-        !(exprs
-          .map(
-            expr => {
-              val node = ExpressionConverter
-                .replaceWithExpressionTransformer(expr, outputAttributes)
-                .doTransform(substraitContext.registeredFunction)
-              if (!node.isInstanceOf[SelectionNode]) {
-                // This is should not happen.
-                logDebug("Expressions are not supported in HashPartitioning.")
-                false
-              } else {
-                true
-              }
-            })
-          .exists(_ == false)) ||
         BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
       case rangePartitoning: RangePartitioning =>
         GlutenConfig.getConf.enableColumnarSort &&
