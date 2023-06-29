@@ -193,7 +193,11 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
 
   virtual ~JniColumnarBatchIterator() {
     JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    try {
+      attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    } catch (...) {
+      std::cout << "Throw attachCurrentThreadAsDaemonOrThrow" << std::endl;
+    }
     env->DeleteGlobalRef(javaSerializedArrowArrayIterator_);
     vm_->DetachCurrentThread();
   }
@@ -316,7 +320,9 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   glutenDatasourceHolder.clear();
 
   JNIEnv* env;
-  vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
+  if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
+    return;
+  }
   env->DeleteGlobalRef(serializableObjBuilderClass);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);

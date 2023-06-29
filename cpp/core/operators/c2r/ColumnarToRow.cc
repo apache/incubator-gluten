@@ -29,9 +29,11 @@ int64_t ColumnarToRowConverter::calculatedFixeSizePerRow(std::shared_ptr<arrow::
     auto type = fields[i]->type();
     if (type->id() == arrow::Decimal128Type::type_id) {
       auto dtype = dynamic_cast<arrow::Decimal128Type*>(type.get());
-      int32_t precision = dtype->precision();
-      if (precision > 18)
-        count++;
+      if (dtype) {
+        int32_t precision = dtype->precision();
+        if (precision > 18)
+          count++;
+      }
     }
   }
 

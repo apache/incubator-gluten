@@ -35,7 +35,7 @@ class RowToColumnarConverter {
 
  protected:
   // Check whether support AVX512 instructions
-  bool supportAvx512_;
+  bool supportAvx512_{false};
 };
 
 } // namespace gluten

@@ -77,7 +77,7 @@ class ResultIterator {
   std::unique_ptr<ColumnarBatchIterator> iter_;
   std::shared_ptr<ColumnarBatch> next_;
   std::shared_ptr<Backend> backend_;
-  int64_t exportNanos_;
+  int64_t exportNanos_{0};
 };
 
 } // namespace gluten

@@ -218,40 +218,42 @@ arrow::Status ArrowColumnarToRowConverter::fillBuffer(
       case arrow::Decimal128Type::type_id: {
         auto outArray = dynamic_cast<arrow::Decimal128Array*>(array.get());
         auto dtype = dynamic_cast<arrow::Decimal128Type*>(outArray->type().get());
+        if (outArray && dtype) {
+          int32_t precision = dtype->precision();
 
-        int32_t precision = dtype->precision();
-
-        for (auto j = rowStart; j < rowStart + batchRows; j++) {
-          const arrow::Decimal128 outValue(outArray->GetValue(j));
-          bool flag = outArray->IsNull(j);
-
-          if (precision <= 18) {
-            if (!flag) {
-              // Get the long value and write the long value
-              // Refer to the int64_t() method of Decimal128
-              int64_t longValue = static_cast<int64_t>(outValue.low_bits());
-              memcpy(bufferAddress + offsets[j] + fieldOffset, &longValue, sizeof(long));
+          for (auto j = rowStart; j < rowStart + batchRows; j++) {
+            // const arrow::Decimal128 outValue(outArray->GetValue(j));
+            const arrow::Decimal128 zeroDecimal128(0);
+            const arrow::Decimal128 outValue = zeroDecimal128 + arrow::Decimal128(outArray->GetValue(j));
+            bool flag = outArray->IsNull(j);
+            if (precision <= 18) {
+              if (!flag) {
+                // Get the long value and write the long value
+                // Refer to the int64_t() method of Decimal128
+                int64_t longValue = static_cast<int64_t>(outValue.low_bits());
+                memcpy(bufferAddress + offsets[j] + fieldOffset, &longValue, sizeof(long));
+              } else {
+                setNullAt(bufferAddress, offsets[j], fieldOffset, colIndex);
+              }
             } else {
-              setNullAt(bufferAddress, offsets[j], fieldOffset, colIndex);
-            }
-          } else {
-            if (flag) {
-              setNullAt(bufferAddress, offsets[j], fieldOffset, colIndex);
-            } else {
-              int32_t size;
-              auto out = toByteArray(outValue, &size);
-              assert(size <= 16);
+              if (flag) {
+                setNullAt(bufferAddress, offsets[j], fieldOffset, colIndex);
+              } else {
+                int32_t size = 0;
+                auto out = toByteArray(outValue, &size);
+                assert(size <= 16);
 
-              // write the variable value
-              memcpy(bufferAddress + bufferCursor[j] + offsets[j], &out[0], size);
-              // write the offset and size
-              int64_t offsetAndSize = ((int64_t)bufferCursor[j] << 32) | size;
-              memcpy(bufferAddress + offsets[j] + fieldOffset, &offsetAndSize, sizeof(int64_t));
-            }
+                // write the variable value
+                memcpy(bufferAddress + bufferCursor[j] + offsets[j], &out[0], size);
+                // write the offset and size
+                int64_t offsetAndSize = ((int64_t)bufferCursor[j] << 32) | size;
+                memcpy(bufferAddress + offsets[j] + fieldOffset, &offsetAndSize, sizeof(int64_t));
+              }
 
-            // Update the cursor of the buffer.
-            int64_t newCursor = bufferCursor[j] + 16;
-            bufferCursor[j] = newCursor;
+              // Update the cursor of the buffer.
+              int64_t newCursor = bufferCursor[j] + 16;
+              bufferCursor[j] = newCursor;
+            }
           }
         }
         break;

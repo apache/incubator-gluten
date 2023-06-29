@@ -80,7 +80,7 @@ bool vectorHasNull(const velox::VectorPtr& vp) {
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     uint32_t numPartitions,
     std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
-    ShuffleWriterOptions options) {
+    const ShuffleWriterOptions& options) {
   std::shared_ptr<VeloxShuffleWriter> res(
       new VeloxShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options)));
   RETURN_NOT_OK(res->init());
@@ -184,6 +184,9 @@ arrow::Status VeloxShuffleWriter::setCompressType(arrow::Compression::type compr
 
 arrow::Status VeloxShuffleWriter::split(ColumnarBatch* cb) {
   auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
+  if (!veloxColumnBatch) {
+    return arrow::Status::Invalid("Can't dynamic cast to VeloxColumnBatch");
+  }
   if (options_.partitioning_name == "single") {
     auto vp = veloxColumnBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(*vp));
@@ -391,16 +394,16 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
               dstPidBase += 1;
             }
 #if 0
-          for (r; r+4<size; r+=4)                              
-          {                                                                                    
+          for (r; r+4<size; r+=4)
+          {
             auto srcOffset = rowOffset2RowId_[r];                                 /*16k*/
             __m128i srcLd = _mm_loadl_epi64((__m128i*)(&rowOffset2RowId_[r]));
             __m128i srcOffset4x = _mm_cvtepu16_epi32(srcLd);
-            
+
             __m256i src4x = _mm256_i32gather_epi64((const long long int*)srcAddr,srcOffset4x,8);
             //_mm256_store_si256((__m256i*)dstPidBase,src4x);
             _mm_stream_si128((__m128i*)dstPidBase,src2x);
-                                                         
+
             _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r]*sizeof(uint64_t)+64], _MM_HINT_T2);
             _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+1]*sizeof(uint64_t)+64], _MM_HINT_T2);
             _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+2]*sizeof(uint64_t)+64], _MM_HINT_T2);
@@ -618,9 +621,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             std::shared_ptr<arrow::Buffer> validityBuffer;
             auto status = allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize));
             ARROW_RETURN_NOT_OK(status);
-            dstAddrs[pid] = const_cast<uint8_t*>(validityBuffer->data());
-            memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
-            partitionBuffers_[col][pid][kValidityBufferIndex] = std::move(validityBuffer);
+            if (validityBuffer) {
+              dstAddrs[pid] = const_cast<uint8_t*>(validityBuffer->data());
+              memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
+              partitionBuffers_[col][pid][kValidityBufferIndex] = std::move(validityBuffer);
+            }
           }
         }
 
@@ -917,11 +922,13 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       switch (arrowColumnTypes_[i]->id()) {
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id:
-          sizeofBinaryOffset = sizeof(arrow::StringType::offset_type);
         case arrow::LargeBinaryType::type_id:
         case arrow::LargeStringType::type_id: {
-          if (sizeofBinaryOffset == -1) {
+          if ((arrowColumnTypes_[i]->id() == arrow::LargeBinaryType::type_id) ||
+              (arrowColumnTypes_[i]->id() == arrow::LargeStringType::type_id)) {
             sizeofBinaryOffset = sizeof(arrow::LargeStringType::offset_type);
+          } else {
+            sizeofBinaryOffset = sizeof(arrow::StringType::offset_type);
           }
 
           std::shared_ptr<arrow::Buffer> offsetBuffer;
@@ -932,25 +939,29 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
               arrow::AllocateResizableBuffer(valueBufSize, options_.memory_pool.get()));
           ARROW_RETURN_NOT_OK(allocateBufferFromPool(offsetBuffer, newSize * sizeofBinaryOffset + 1));
 
-          // set the first offset to 0
-          uint8_t* offsetaddr = offsetBuffer->mutable_data();
-          memset(offsetaddr, 0, 8);
+          if (offsetBuffer) {
+            // set the first offset to 0
+            uint8_t* offsetaddr = offsetBuffer->mutable_data();
+            memset(offsetaddr, 0, 8);
 
-          partitionBinaryAddrs_[binaryIdx][partitionId] =
-              BinaryBuff(value_buffer->mutable_data(), offsetBuffer->mutable_data(), valueBufSize);
+            partitionBinaryAddrs_[binaryIdx][partitionId] =
+                BinaryBuff(value_buffer->mutable_data(), offsetBuffer->mutable_data(), valueBufSize);
 
-          auto index = fixedWidthColumnCount_ + binaryIdx;
-          if (inputHasNull_[index]) {
-            ARROW_RETURN_NOT_OK(allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
-            // initialize all true once allocated
-            memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
-            partitionValidityAddrs_[index][partitionId] = validityBuffer->mutable_data();
-          } else {
-            partitionValidityAddrs_[index][partitionId] = nullptr;
+            auto index = fixedWidthColumnCount_ + binaryIdx;
+            if (inputHasNull_[index]) {
+              ARROW_RETURN_NOT_OK(allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
+              // initialize all true once allocated
+              if (validityBuffer) {
+                memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
+                partitionValidityAddrs_[index][partitionId] = validityBuffer->mutable_data();
+              }
+            } else {
+              partitionValidityAddrs_[index][partitionId] = nullptr;
+            }
+            partitionBuffers_[index][partitionId] = {
+                std::move(validityBuffer), std::move(offsetBuffer), std::move(value_buffer)};
+            binaryIdx++;
           }
-          partitionBuffers_[index][partitionId] = {
-              std::move(validityBuffer), std::move(offsetBuffer), std::move(value_buffer)};
-          binaryIdx++;
           break;
         }
         case arrow::StructType::type_id:
@@ -976,13 +987,17 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             ARROW_RETURN_NOT_OK(
                 allocateBufferFromPool(valueBuffer, newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3)));
           }
-          partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
+          if (valueBuffer) {
+            partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
+          }
 
           if (inputHasNull_[fixedWidthIdx]) {
             ARROW_RETURN_NOT_OK(allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
             // initialize all true once allocated
-            memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
-            partitionValidityAddrs_[fixedWidthIdx][partitionId] = validityBuffer->mutable_data();
+            if (validityBuffer) {
+              memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
+              partitionValidityAddrs_[fixedWidthIdx][partitionId] = validityBuffer->mutable_data();
+            }
           } else {
             partitionValidityAddrs_[fixedWidthIdx][partitionId] = nullptr;
           }
@@ -1044,11 +1059,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       switch (arrowColumnTypes_[i]->id()) {
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id:
-          sizeofBinaryOffset = sizeof(arrow::BinaryType::offset_type);
         case arrow::LargeBinaryType::type_id:
         case arrow::LargeStringType::type_id: {
-          if (sizeofBinaryOffset == -1)
+          if ((arrowColumnTypes_[i]->id() == arrow::LargeBinaryType::type_id) ||
+              (arrowColumnTypes_[i]->id() == arrow::LargeStringType::type_id)) {
             sizeofBinaryOffset = sizeof(arrow::LargeBinaryType::offset_type);
+          } else {
+            sizeofBinaryOffset = sizeof(arrow::BinaryType::offset_type);
+          }
 
           auto buffers = partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][partitionId];
           // validity buffer
@@ -1123,8 +1141,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id)
               buffers[1] = arrow::SliceBuffer(buffers[1], 0, arrow::bit_util::BytesForBits(numRows));
             else
-              buffers[1] =
-                  arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3));
+              buffers[1] = arrow::SliceBuffer(
+                  buffers[1], 0, static_cast<int64_t>(numRows) * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3));
           }
 
           arrays[i] =
