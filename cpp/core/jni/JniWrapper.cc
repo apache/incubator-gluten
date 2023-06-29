@@ -872,8 +872,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   auto backend = gluten::createBackend();
   auto batch = glutenColumnarBatchHolder.lookup(firstBatchHandle);
-  auto shuffleWriter = backend->makeShuffleWriter(
-      numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions));
+  auto shuffleWriter =
+      backend->makeShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions));
   return shuffleWriterHolder.insert(shuffleWriter);
   JNI_METHOD_END(-1L)
 }

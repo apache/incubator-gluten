@@ -49,7 +49,7 @@ class OrcBatchStreamIterator final : public OrcBatchIterator {
     if (batch == nullptr) {
       return nullptr;
     }
-    return  convertBatch(std::make_shared<gluten::ArrowColumnarBatch>(batch));
+    return convertBatch(std::make_shared<gluten::ArrowColumnarBatch>(batch));
   }
 };
 

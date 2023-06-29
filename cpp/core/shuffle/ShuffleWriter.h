@@ -37,7 +37,6 @@ struct ShuffleWriterOptions {
   int32_t num_sub_dirs = kDefaultNumSubDirs;
   int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
-  ;
 
   bool prefer_evict = true;
   bool write_schema = true; // just used in test
