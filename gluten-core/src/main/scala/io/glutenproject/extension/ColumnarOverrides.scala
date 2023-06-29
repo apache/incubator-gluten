@@ -636,7 +636,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
   extends Rule[SparkPlan] {
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  def replaceVithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
+  private def replaceVithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
     case c2r: ColumnarToRowExecBase if isVanillaColumnarReader(c2r.child) =>
       ColumnarToRowExec(c2r.child)
     case c2r: ColumnarToRowExec if isVanillaColumnarReader(c2r.child) =>
@@ -647,7 +647,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
       plan.withNewChildren(plan.children.map(replaceVithVanillaColumnarToRow))
   }
 
-  def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
+  private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
     case _: BatchScanExec | _: FileSourceScanExec | _: InMemoryTableScanExec =>
       !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
     case _ => false
