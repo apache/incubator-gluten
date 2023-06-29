@@ -24,27 +24,10 @@ DB::ActionsDAG::NodeRawConstPtrs BaseAggregateFunctionParser::parseFunctionArgum
     const CommonFunctionInfo & func_info, const String &, DB::ActionsDAGPtr & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs collected_args;
-    const auto & inputs = actions_dag->getInputs();
     for (const auto & arg : func_info.arguments)
     {
         auto arg_value = arg.value();
-        const DB::ActionsDAG::Node * arg_node = nullptr;
-        if (arg_value.has_selection())
-        {
-            auto col_pos = arg_value.selection().direct_reference().struct_field().field();
-            arg_node = inputs[col_pos];
-        }
-        else if (arg_value.has_literal())
-        {
-            const auto * node = parseExpression(actions_dag, arg_value);
-            actions_dag->addOrReplaceInOutputs(*node);
-            arg_node = node;
-        }
-        else
-        {
-            // For aggregate function, the only supported argument type is selection or literal.
-            throw Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported argument type: {}", arg.DebugString());
-        }
+        const DB::ActionsDAG::Node * arg_node = parseExpression(actions_dag, arg_value);
 
         // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
         auto required_output_type = DB::WhichDataType(SerializedPlanParser::parseType(func_info.output_type));
@@ -168,7 +151,6 @@ std::pair<String, DB::DataTypes> BaseAggregateFunctionParser::tryApplyCHCombinat
     }; \
     static const FunctionParserRegister<AggregateFunctionParser##cls_name> register_##cls_name = FunctionParserRegister<AggregateFunctionParser##cls_name>();
 
-REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Count, count, count)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Sum, sum, sum)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Avg, avg, avg)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Min, min, min)
