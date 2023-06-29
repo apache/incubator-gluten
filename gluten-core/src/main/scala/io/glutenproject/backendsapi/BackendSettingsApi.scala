@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
@@ -54,7 +55,10 @@ trait BackendSettingsApi {
   // Whether to fallback aggregate at the same time if its child is fallbacked.
   def fallbackAggregateWithChild(): Boolean = false
 
-  def disableVanillaColumnarReaders(): Boolean = false
+  def disableVanillaColumnarReaders(conf: SparkConf): Boolean =
+    !conf.getBoolean(GlutenConfig.VANILLA_COLUMNAR_READERS_ENABLED.key,
+      GlutenConfig.VANILLA_COLUMNAR_READERS_ENABLED.defaultValue.get)
+
   def recreateJoinExecOnFallback(): Boolean = false
   def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
   /**
