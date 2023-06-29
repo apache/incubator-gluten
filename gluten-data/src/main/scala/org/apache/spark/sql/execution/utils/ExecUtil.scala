@@ -20,7 +20,8 @@ package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
-import io.glutenproject.vectorized.{NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
@@ -35,7 +36,8 @@ import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.types.{IntegerType, StructType}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.MutablePair
 import org.apache.spark.util.memory.TaskResources
 
@@ -129,14 +131,18 @@ object ExecUtil {
         cbIter
           .filter(cb => cb.numRows != 0 && cb.numCols != 0)
           .map { cb =>
-            val data = new Array[Int](cb.numRows())
+            val pidVec = ArrowWritableColumnVector
+              .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
+              .head
             convertColumnarToRow(cb).zipWithIndex.foreach {
               case (row, i) =>
                 val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-                data(i) = pid
+                pidVec.putInt(i, pid)
             }
-            // TODO get int column val newHandle = ColumnarBatches.compose(pidBatch, offloaded);
-            val newHandle = 0
+            val pidBatch = ColumnarBatches.ensureOffloaded(
+              ArrowBufferAllocators.contextInstance(),
+              new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
+            val newHandle = ColumnarBatches.compose(pidBatch, cb)
             (0, ColumnarBatches.create(newHandle))
           }
       }
