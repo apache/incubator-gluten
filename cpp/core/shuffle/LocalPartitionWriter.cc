@@ -298,6 +298,7 @@ arrow::Status PreferCachePartitionWriter::stop() {
   int64_t totalWriteTime = 0;
   int64_t totalBytesEvicted = 0;
   int64_t totalBytesWritten = 0;
+  int64_t lastPayloadCompressTime = 0;
   auto numPartitions = shuffleWriter_->numPartitions();
   auto writeSchema = shuffleWriter_->options().write_schema;
 
@@ -362,7 +363,10 @@ arrow::Status PreferCachePartitionWriter::stop() {
         firstWrite = false;
       }
       // Record rawPartitionLength and flush the last payload.
+      TIME_NANO_START(lastPayloadCompressTime)
       ARROW_ASSIGN_OR_RAISE(auto lastPayload, shuffleWriter_->createArrowIpcPayload(*rb, false));
+      TIME_NANO_END(lastPayloadCompressTime)
+
       shuffleWriter_->setRawPartitionLength(
           pid, shuffleWriter_->rawPartitionLengths()[pid] + lastPayload->raw_body_length);
       int32_t metadataLength = 0; // unused
@@ -392,7 +396,7 @@ arrow::Status PreferCachePartitionWriter::stop() {
 
   TIME_NANO_END(totalWriteTime)
 
-  shuffleWriter_->setTotalWriteTime(totalWriteTime);
+  shuffleWriter_->setTotalWriteTime(totalWriteTime - lastPayloadCompressTime);
   shuffleWriter_->setTotalBytesEvicted(totalBytesEvicted);
   shuffleWriter_->setTotalBytesWritten(totalBytesWritten);
 

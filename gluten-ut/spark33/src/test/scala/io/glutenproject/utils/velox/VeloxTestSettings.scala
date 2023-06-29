@@ -637,6 +637,11 @@ class VeloxTestSettings extends BackendTestSettings {
     // Struct reader does not support implicit schema pruning.
     .exclude("vectorized reader: missing some struct fields")
     .exclude("vectorized reader: missing all struct fields")
+    // TODO: Unsupported Array schema in Parquet.
+    .exclude("vectorized reader: optional array with required elements")
+    .exclude("vectorized reader: required array with required elements")
+    .exclude("vectorized reader: required array with optional elements")
+    .exclude("vectorized reader: required array with legacy format")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
@@ -961,6 +966,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // requires resource files from Vanilla spark jar
     .exclude("SPARK-32908: maximum target error in percentile_approx")
   enableSuite[GlutenCachedTableSuite]
+    // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
+    .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]

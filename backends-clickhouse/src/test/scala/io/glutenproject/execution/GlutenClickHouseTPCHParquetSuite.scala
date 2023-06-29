@@ -677,6 +677,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window lag with null value") {
+    val sql =
+      """
+        |select n_regionkey,
+        | lag(count(distinct n_nationkey), -1) OVER (ORDER BY n_regionkey) as n_lag
+        |from nation
+        |group by n_regionkey
+        |order by n_regionkey, n_lag
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window dense_rank") {
     val sql =
       """
@@ -986,6 +998,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         noFallBack = false) {
         df => getExecutedPlan(df).count(plan => plan.isInstanceOf[ColumnarToRowExec]) == 0
       }
+    }
+  }
+
+  test("GLUTEN-2104: test size function") {
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
+      runQueryAndCompare(
+        "select size(null), size(split(l_shipinstruct, ' ')) from lineitem"
+      )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
 

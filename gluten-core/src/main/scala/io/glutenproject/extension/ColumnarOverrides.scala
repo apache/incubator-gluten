@@ -630,6 +630,39 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
   }
 }
 
+// This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
+// to support vanilla columnar scan.
+case class VanillaColumnarPlanOverrides(session: SparkSession)
+  extends Rule[SparkPlan] {
+  @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+
+  private def replaceVithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
+    case c2r: ColumnarToRowExecBase if isVanillaColumnarReader(c2r.child) =>
+      ColumnarToRowExec(c2r.child)
+    case c2r: ColumnarToRowExec if isVanillaColumnarReader(c2r.child) =>
+      c2r
+    case _ if isVanillaColumnarReader(plan) =>
+      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
+    case _ =>
+      plan.withNewChildren(plan.children.map(replaceVithVanillaColumnarToRow))
+  }
+
+  private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
+    case _: BatchScanExec | _: FileSourceScanExec | _: InMemoryTableScanExec =>
+      !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+    case _ => false
+  }
+
+  def apply(plan: SparkPlan): SparkPlan =
+    if (GlutenConfig.getConf.enableVanillaColumnarReaders) {
+      val newPlan = replaceVithVanillaColumnarToRow(plan)
+      planChangeLogger.logRule(ruleName, plan, newPlan)
+      newPlan
+    } else {
+      plan
+    }
+}
+
 case class ColumnarOverrideRules(session: SparkSession)
   extends ColumnarRule with Logging with LogLevelUtil {
 
@@ -672,7 +705,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
-    List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext)) :::
+    List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext),
+      (s: SparkSession) => VanillaColumnarPlanOverrides(s)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
       SparkUtil.extendedColumnarRules(

@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHEqualNullSafeTransformer, CHSha1Transformer, CHSha2Transformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
+import io.glutenproject.expression.{AggregateFunctionsBuilder, AliasTransformerBase, CHEqualNullSafeTransformer, CHSha1Transformer, CHSha2Transformer, CHSizeExpressionTransformer, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionTransformer, WindowFunctionsBuilder}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
@@ -386,6 +386,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Sha1): ExpressionTransformer = {
     CHSha1Transformer(substraitExprName, child, original)
+  }
+
+  override def genSizeExpressionTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Size): ExpressionTransformer = {
+    CHSizeExpressionTransformer(substraitExprName, child, original)
   }
 
   /**
