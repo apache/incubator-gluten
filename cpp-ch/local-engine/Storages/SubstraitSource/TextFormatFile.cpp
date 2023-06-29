@@ -25,6 +25,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
     {
         res->read_buffer = DB::wrapReadBufferWithCompressionMethod(std::move(res->read_buffer), compression);
     }
+    
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();
     DB::RowInputFormatParams params = {.max_block_size = max_block_size};
