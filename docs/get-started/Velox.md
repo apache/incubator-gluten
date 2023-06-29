@@ -155,51 +155,22 @@ Here are two steps to enable kerberos.
 ```
 The ticket cache file can be found by `klist`.
 
+
 ## AWS S3 support
+
 
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
 A new build option for S3(enable_s3) is added. Below command is used to enable this feature
 ```
-cd /path_to_gluten/ep/build-velox/src/
-./get_velox.sh --enable_s3=ON
-./build_velox.sh --enable_s3=ON
-
-cd /path_to_gluten/cpp
-mkdir build
-cd build
-cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
-make -j
-
 cd /path_to_gluten
-mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests -Dcheckstyle.skip
-```
-Currently to use S3 connector below configurations are required in spark-defaults.conf
-```
-spark.hadoop.fs.s3a.impl           org.apache.hadoop.fs.s3a.S3AFileSystem
-spark.hadoop.fs.s3a.aws.credentials.provider org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
-spark.hadoop.fs.s3a.access.key     xxxx
-spark.hadoop.fs.s3a.secret.key     xxxx
-spark.hadoop.fs.s3a.endpoint https://s3.us-west-1.amazonaws.com
-spark.hadoop.fs.s3a.connection.ssl.enabled true
-spark.hadoop.fs.s3a.path.style.access false
+./dev/buildbundle-veloxbe.sh --enable_s3=ON
 ```
 
-You can also use instance credentials by setting the following config
-```
-spark.hadoop.fs.s3a.use.instance.credentials true
-```
-If you are using instance credentials you do not have to set the access key or secret key.
+Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
 
-You can also use iam role credentials by setting the following configurations. Instance credentials have higher priority than iam credentials.
-```
-spark.hadoop.fs.s3a.iam.role  xxxx
-spark.hadoop.fs.s3a.iam.role.session.name xxxx
-```
-Note that `spark.hadoop.fs.s3a.iam.role.session.name` is optional.
-
-Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
 ## Celeborn support
+
 
 Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
 
