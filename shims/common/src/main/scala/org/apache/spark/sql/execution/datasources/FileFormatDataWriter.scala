@@ -43,6 +43,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 /**
  * Abstract class for writing out data in a single Spark task. Exceptions thrown by the
@@ -362,43 +363,50 @@ class DynamicPartitionDataSingleWriter(
 
   private var partitionColIndice: Array[Int] =
     description.partitionColumns.map(a => description.allColumns.indexOf(a)).toArray
-  override def write(record: InternalRow): Unit = {
-    val blockStripes = GlutenParquetWriterInjects
-      .getInstance()
-      .splitBlockByPartitionAndBucket(record, partitionColIndice, isBucketed)
-    for (blockStripe <- blockStripes) {
-      val headingRow = blockStripe.getHeadingRow
 
-      val nextPartitionValues = if (isPartitioned) Some(getPartitionValues(headingRow)) else None
-      val nextBucketId = if (isBucketed) Some(getBucketId(headingRow)) else None
+  private def beforeWrite(record: InternalRow) : Unit = {
+    val nextPartitionValues = if (isPartitioned) Some(getPartitionValues(record)) else None
+    val nextBucketId = if (isBucketed) Some(getBucketId(record)) else None
 
-      if (currentPartitionValues != nextPartitionValues || currentBucketId != nextBucketId) {
-        // See a new partition or bucket - write to a new partition dir (or a new bucket file).
-        if (isPartitioned && currentPartitionValues != nextPartitionValues) {
-          currentPartitionValues = Some(nextPartitionValues.get.copy())
-          statsTrackers.foreach(_.newPartition(currentPartitionValues.get))
-        }
-        if (isBucketed) {
-          currentBucketId = nextBucketId
-        }
-
-        fileCounter = 0
-        renewCurrentWriter(currentPartitionValues, currentBucketId, closeCurrentWriter = true)
-      } else if (
-        description.maxRecordsPerFile > 0 &&
-        recordsInFile >= description.maxRecordsPerFile
-      ) {
-        renewCurrentWriterIfTooManyRecords(currentPartitionValues, currentBucketId)
+    if (currentPartitionValues != nextPartitionValues || currentBucketId != nextBucketId) {
+      // See a new partition or bucket - write to a new partition dir (or a new bucket file).
+      if (isPartitioned && currentPartitionValues != nextPartitionValues) {
+        currentPartitionValues = Some(nextPartitionValues.get.copy())
+        statsTrackers.foreach(_.newPartition(currentPartitionValues.get))
+      }
+      if (isBucketed) {
+        currentBucketId = nextBucketId
       }
 
-      writeStripe(new FakeRow(blockStripe.getColumnarBatch))
-      blockStripe.release()
+      fileCounter = 0
+      renewCurrentWriter(currentPartitionValues, currentBucketId, closeCurrentWriter = true)
+    } else if (description.maxRecordsPerFile > 0 &&
+      recordsInFile >= description.maxRecordsPerFile) {
+      renewCurrentWriterIfTooManyRecords(currentPartitionValues, currentBucketId)
+    }
+  }
+  override def write(record: InternalRow): Unit = {
+    record match {
+      case fakeRow: FakeRow =>
+        val blockStripes = GlutenParquetWriterInjects
+          .getInstance()
+          .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
+
+        for (blockStripe <- blockStripes.asScala){
+          val headingRow = blockStripe.getHeadingRow
+          beforeWrite(headingRow)
+          writeStripe(new FakeRow(blockStripe.getColumnarBatch))
+        }
+        blockStripes.release()
+      case _ =>
+        beforeWrite(record)
+        writeRecord(record)
     }
   }
 
   protected def writeStripe(record: InternalRow): Unit = {
     currentWriter.write(record)
-    //TODO: stats
+    // TODO: stats
 //    statsTrackers.foreach(_.newRow(currentWriter.path, outputRow))
     recordsInFile += 1
   }

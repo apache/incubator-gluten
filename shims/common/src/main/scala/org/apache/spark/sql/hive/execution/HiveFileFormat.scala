@@ -51,9 +51,7 @@ import scala.util.Try
  * shims-spark33, etc.
  */
 
-/**
- * Offload the parquet write of InsertIntoHiveDirCommand to backend when enable gluten plugin.
- */
+/** Offload the parquet write of InsertIntoHiveDirCommand to backend when enable gluten plugin. */
 class HiveFileFormat(fileSinkConf: FileSinkDesc)
   extends FileFormat
   with DataSourceRegister

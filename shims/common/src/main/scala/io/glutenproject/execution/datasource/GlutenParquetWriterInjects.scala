@@ -19,16 +19,16 @@ package io.glutenproject.execution.datasource
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{BlockStripe, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.{BlockStripe, BlockStripes, FakeRow, OutputWriterFactory}
 import org.apache.spark.sql.types.StructType
 
 trait GlutenParquetWriterInjects {
   def createOutputWriterFactory: OutputWriterFactory
   def inferSchema: Option[StructType]
   def splitBlockByPartitionAndBucket(
-      row: InternalRow,
+      row: FakeRow,
       partitionColIndice: Array[Int],
-      hasBucket: Boolean): List[BlockStripe]
+      hasBucket: Boolean): BlockStripes
 
   def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow]
 }

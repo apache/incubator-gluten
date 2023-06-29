@@ -47,6 +47,7 @@ class CHParquetWriterInjects extends GlutenParquetWriterInjectsBase {
 
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
+            assert(row.isInstanceOf[FakeRow])
             val nextBatch = row.asInstanceOf[FakeRow].batch
 
             if (nextBatch.numRows > 0) {
@@ -73,26 +74,16 @@ class CHParquetWriterInjects extends GlutenParquetWriterInjectsBase {
   }
 
   override def splitBlockByPartitionAndBucket(
-      row: InternalRow,
+      row: FakeRow,
       partitionColIndice: Array[Int],
-      hasBucket: Boolean): List[CHBlockStripe] = {
-    val nextBatch = row.asInstanceOf[FakeRow].batch
+      hasBucket: Boolean): CHBlockStripes = {
+    val nextBatch = row.batch
 
     if (nextBatch.numRows > 0) {
       val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      CHDatasourceJniWrapper
-        .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket)
-        .asScala
-        .map(
-          raw =>
-            new CHBlockStripe(
-              raw.blockAddress,
-              raw.headingRowAddress,
-              raw.headingRowBytes,
-              raw.bucketId,
-              raw.rows,
-              raw.columns))
-        .toList
+      new CHBlockStripes(
+        CHDatasourceJniWrapper
+          .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
     } else throw new IllegalStateException
   }
 }

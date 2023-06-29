@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.row.SparkRowInfo
 import io.glutenproject.vectorized._
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
@@ -51,7 +52,7 @@ object CHExecUtil extends Logging {
     datatype
   }
 
-  def buildRangePartitionSampleRDD(
+  private def buildRangePartitionSampleRDD(
       rdd: RDD[ColumnarBatch],
       rangePartitioning: RangePartitioning,
       outputAttributes: Seq[Attribute]): RDD[MutablePair[InternalRow, Null]] = {
@@ -61,44 +62,51 @@ object CHExecUtil extends Logging {
           iter =>
             iter.flatMap(
               batch => {
-                val jniWrapper = new CHBlockConverterJniWrapper()
                 val blockAddress = CHNativeBlock.fromColumnarBatch(batch).blockAddress()
-                val rowInfo = jniWrapper.convertColumnarToRow(blockAddress)
 
                 // generate rows from a columnar batch
-                val rows = new Iterator[InternalRow] {
-                  var rowId = 0
-                  val row = new UnsafeRow(batch.numCols())
-                  var closed = false
+                val rowItr =
+                  getRowIterFromSparkRowInfo(blockAddress, batch.numCols(), batch.numRows())
 
-                  override def hasNext: Boolean = {
-                    val result = rowId < batch.numRows()
-                    if (!result && !closed) {
-                      jniWrapper.freeMemory(rowInfo.memoryAddress, rowInfo.totalSize)
-                      closed = true
-                    }
-                    result
-                  }
-
-                  override def next: UnsafeRow = {
-                    if (rowId >= batch.numRows()) throw new NoSuchElementException
-
-                    val (offset, length) = (rowInfo.offsets(rowId), rowInfo.lengths(rowId))
-                    row.pointTo(null, rowInfo.memoryAddress + offset, length.toInt)
-                    rowId += 1
-                    row
-                  }
-                }
                 val projection =
                   UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
                 val mutablePair = new MutablePair[InternalRow, Null]()
-                rows.map(row => mutablePair.update(projection(row).copy(), null))
+                rowItr.map(row => mutablePair.update(projection(row).copy(), null))
               })
         }
         sampleRDD
     }
   }
 
+  def getRowIterFromSparkRowInfo(rowInfo: SparkRowInfo, columns: Int, rows: Int) = {
+    new Iterator[InternalRow] {
+      var rowId = 0
+      val row = new UnsafeRow(columns)
+      var closed = false
+
+      override def hasNext: Boolean = {
+        val result = rowId < rows
+        if (!result && !closed) {
+          CHBlockConverterJniWrapper.freeMemory(rowInfo.memoryAddress, rowInfo.totalSize)
+          closed = true
+        }
+        result
+      }
+
+      override def next: UnsafeRow = {
+        if (rowId >= rows) throw new NoSuchElementException
+
+        val (offset, length) = (rowInfo.offsets(rowId), rowInfo.lengths(rowId))
+        row.pointTo(null, rowInfo.memoryAddress + offset, length.toInt)
+        rowId += 1
+        row
+      }
+    }
+  }
+  def getRowIterFromSparkRowInfo(blockAddress: Long, columns: Int, rows: Int) = {
+    val rowInfo = CHBlockConverterJniWrapper.convertColumnarToRow(blockAddress, null)
+    getRowIterFromSparkRowInfo(rowInfo, columns, rows)
+  }
   private def buildPartitionedBlockIterator(
       cbIter: Iterator[ColumnarBatch],
       options: IteratorOptions): CloseablePartitionedBlockIterator = {

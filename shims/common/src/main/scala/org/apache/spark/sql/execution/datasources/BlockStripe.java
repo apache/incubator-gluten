@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources;
 
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -23,34 +24,14 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
  * BlockStripe is used in writing partitioned/bucketed table.
  * BlockStripe is part of block belonging to same partition/bucket
  */
-public class BlockStripe {
-    protected long blockAddress;
-    protected long headingRowAddress;
-    protected int headingRowBytes;
-    protected int bucketId;
-    protected int rows;
-    protected int columns;
+abstract public class BlockStripe {
 
-    public BlockStripe(long blockAddress, long headingRowAddress, int headingRowBytes, int bucketId, int rows, int columns) {
-        this.blockAddress = blockAddress;
-        this.headingRowAddress = headingRowAddress;
-        this.headingRowBytes = headingRowBytes;
-        this.bucketId = bucketId;
-        this.rows = rows;
-        this.columns = columns;
-    }
-
-    public UnsafeRow getHeadingRow() {
-        throw new UnsupportedOperationException("subclass of BlockStripe should implement this");
+    public BlockStripe() {
     }
 
     // get the columnar batch of this block stripe
-    public ColumnarBatch getColumnarBatch() {
-        throw new UnsupportedOperationException("subclass of BlockStripe should implement this");
-    }
+    abstract public ColumnarBatch getColumnarBatch();
 
-    public void release() {
-        throw new UnsupportedOperationException("subclass of BlockStripe should implement this");
-    }
+    abstract public InternalRow getHeadingRow();
 }
 

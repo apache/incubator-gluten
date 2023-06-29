@@ -52,7 +52,6 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     child.execute().mapPartitions {
       rowIterator =>
         val projection = UnsafeProjection.create(localSchema)
-        val cvt = new CHBlockConverterJniWrapper
         if (rowIterator.hasNext) {
           val res = new Iterator[ColumnarBatch] {
             private val byteArrayIterator = rowIterator.map {
@@ -64,7 +63,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
 
             override def hasNext: Boolean = {
               if (last_address != 0) {
-                cvt.freeBlock(last_address)
+                CHBlockConverterJniWrapper.freeBlock(last_address)
                 last_address = 0
               }
               byteArrayIterator.hasNext
@@ -75,7 +74,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
               val slice = byteArrayIterator.take(8192);
               val sparkRowIterator = new SparkRowIterator(slice)
               last_address =
-                cvt.convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes);
+                CHBlockConverterJniWrapper.convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes);
               val block = new CHNativeBlock(last_address)
 
               convertTime += NANOSECONDS.toMillis(System.nanoTime() - start)

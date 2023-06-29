@@ -16,15 +16,18 @@ bool isBitSet(const char * bitmap, int32_t index);
 class CHColumnToSparkRow;
 class SparkRowToCHColumn;
 
+using MaskVector = std::unique_ptr<std::vector<size_t>>;
+
 class SparkRowInfo : public boost::noncopyable
 {
     friend CHColumnToSparkRow;
     friend SparkRowToCHColumn;
 
 public:
-    explicit SparkRowInfo(const DB::Block & block);
+    explicit SparkRowInfo(const DB::Block & block, const MaskVector& masks = nullptr);
     explicit SparkRowInfo(
-        const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size);
+        const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size,
+        const MaskVector& masks = nullptr);
 
     const DB::DataTypes & getDataTypes() const;
 
@@ -49,7 +52,7 @@ public:
 
 private:
     const DB::DataTypes types;
-    int64_t num_rows;
+    size_t num_rows;
     int64_t num_cols;
     int64_t null_bitset_width_in_bytes;
     int64_t total_bytes;
@@ -66,7 +69,7 @@ class CHColumnToSparkRow : private Allocator<false, true>
 // class CHColumnToSparkRow : public DB::Arena
 {
 public:
-    std::unique_ptr<SparkRowInfo> convertCHColumnToSparkRow(const DB::Block & block);
+    std::unique_ptr<SparkRowInfo> convertCHColumnToSparkRow(const DB::Block & block, const MaskVector& masks = nullptr);
     void freeMem(char * address, size_t size);
 };
 

@@ -337,7 +337,6 @@ class GlutenClickHouseHiveTableSuite()
         //        "double_field,short_field,byte_field,bool_field,decimal_field" +
         //        " from tmp_t").format(table_name))
 
-
         // test selected column order different from table schema
 
         // test composite bucket expression

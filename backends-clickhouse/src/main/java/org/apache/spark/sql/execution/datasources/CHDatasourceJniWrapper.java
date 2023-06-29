@@ -17,8 +17,6 @@
 
 package org.apache.spark.sql.execution.datasources;
 
-import java.util.List;
-
 public class CHDatasourceJniWrapper {
 
     public native long nativeInitFileWriterWrapper(String filePath);
@@ -42,11 +40,10 @@ public class CHDatasourceJniWrapper {
      * to the same partition/bucket. Notice the stripe will NOT contain partition columns
      *
      * Since all rows in a stripe share the same partition/bucket, we only need to check the heading row.
-     * So, for each stripe, the native code also returns its first row as a UnsafeRow (we call it headingRow)
+     * So, for each stripe, the native code also returns each stripe's first row's index.
+     * Caller can use these indice to get UnsafeRows from the input block,
      * to help FileFormatDataWriter to aware partition/bucket changes.
      */
-    public static native List<BlockStripe> splitBlockByPartitionAndBucket(
+    public static native BlockStripes splitBlockByPartitionAndBucket(
             long blockAddress, int[] partitionColIndice, boolean hasBucket);
-
-    public static native void releaseStripe(long blockAddress, long headingRowAddress);
 }

@@ -4,21 +4,19 @@
 
 namespace local_engine
 {
-class BlockStripe
+class BlockStripes
 {
 public:
-    long blockAddress;
-    long headingRowAddress;
-    int headingRowBytes;
-    int bucketId;
-    int rows;
-    int columns;
+    int64_t originalBlockAddress;
+    std::vector<int64_t> blockAddresses;
+    std::vector<int32_t> headingRowIndice;
+    int originBlockColNum;
 };
 
 class BlockStripeSplitter
 {
 public:
-    static std::vector<BlockStripe> split(const DB::Block & block, const std::vector<int> partitionColIndice, const bool hasBucket);
+    static BlockStripes split(const DB::Block & block, const std::vector<int> partitionColIndice, const bool hasBucket);
 };
 
 }
