@@ -37,7 +37,7 @@ import org.apache.spark.sql.hive.execution.HiveTableScanExec
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.execution.datasources.v2.text.TextScan
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 
 import scala.collection.JavaConverters
@@ -70,10 +70,6 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
     val inputPaths = scan match {
       case Some(fileScan) => fileScan.fileIndex.inputFiles.toSeq
       case _ => Seq.empty
-      case Some(f) =>
-        f.fileIndex.inputFiles.toSeq
-      case _ =>
-        Seq.empty
     }
     inputPaths
   }
@@ -179,8 +175,8 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
 
   def createDefaultTextOption(): Map[String, String] = {
     var options: Map[String, String] = Map()
-    options += ("field_delimiter" -> HiveTableScanExecTransformer.DEFAULT_FIELD_DELIMITER.toString)
-    options += ("nullValue" -> HiveTableScanExecTransformer.NULL_VALUE.toString)
+    options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
+    options += ("nullValue" -> NULL_VALUE.toString)
     options
   }
 
@@ -191,7 +187,6 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
         && transformCtx.root.isInstanceOf[ReadRelNode]
         && scan.isDefined
         && scan.get.isInstanceOf[GlutenTextBasedScanWrapper]
-        && scan.get.asInstanceOf[GlutenTextBasedScanWrapper].getScan.isInstanceOf[TextScan]
     ) {
       val properties = relation.tableMeta.storage.properties ++ relation.tableMeta.properties
       var options: Map[String, String] = createDefaultTextOption()
