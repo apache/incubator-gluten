@@ -53,7 +53,7 @@ class GlutenTextBasedScanWrapper(
   override def createReaderFactory(): PartitionReaderFactory = scan.createReaderFactory()
 
   override def isSplitable(path: Path): Boolean =
-    super.isSplitable(path) && compressionSplittable(path.toUri.getPath)
+    super.isSplitable(path) && compressionSplittable(path)
 
   def dataSchema: StructType = schema
 
@@ -66,8 +66,8 @@ class GlutenTextBasedScanWrapper(
       }
   }
 
-  def compressionSplittable(path: String): Boolean = {
-    val codec = codecFactory.getCodec(new Path(path))
+  def compressionSplittable(path: Path): Boolean = {
+    val codec = codecFactory.getCodec(path)
     if (codec == null) {
       true
     } else {
