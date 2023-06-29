@@ -546,7 +546,7 @@ class GlutenClickHouseHiveTableSuite()
 
   test("text hive txt table with multiple compressed method") {
     val compressed_txt_table_name = "compressed_hive_txt_test"
-    val compressed_txt_data_path = getClass.getResource("/").getPath + "/text-data-compressed"
+    val compressed_txt_data_path = getClass.getResource("/").getPath + "/text-data/compressed"
     val drop_table_sql = "drop table if exists %s".format(compressed_txt_table_name)
     val create_table_sql =
       "create table if not exists %s (".format(compressed_txt_table_name) +
