@@ -26,6 +26,7 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.commons.io.FileUtils
+import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterAll
 
 import java.io.File
@@ -93,6 +94,7 @@ class GlutenClickHouseHiveTableSuite()
       .set(
         "spark.sql.warehouse.dir",
         getClass.getResource("/").getPath + "unit-tests-working-home/spark-warehouse")
+      .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .setMaster("local[*]")
   }
 
@@ -126,7 +128,6 @@ class GlutenClickHouseHiveTableSuite()
     "array_field_with_null array<int>," +
     "map_field map<int, long>," +
     "map_field_with_null map<int, long>) stored as textfile"
-
   private val json_table_create_sql = "create table if not exists %s (".format(json_table_name) +
     "string_field string," +
     "int_field int," +
@@ -141,7 +142,8 @@ class GlutenClickHouseHiveTableSuite()
     "array_field array<int>," +
     "array_field_with_null array<int>," +
     "map_field map<int,long>," +
-    "map_field_with_null map<int,long>) " +
+    "map_field_with_null map<int,long>, " +
+    "day string) partitioned by(day)" +
     "ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'" +
     "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'" +
     "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
@@ -172,12 +174,21 @@ class GlutenClickHouseHiveTableSuite()
     }
   }
 
-  protected def initializeTable(table_name: String, table_create_sql: String): Unit = {
+  protected def initializeTable(
+      table_name: String,
+      table_create_sql: String,
+      partition: String): Unit = {
     spark.createDataFrame(genTestData()).createOrReplaceTempView("tmp_t")
     val truncate_sql = "truncate table %s".format(table_name)
+    val drop_sql = "drop table if exists %s".format(table_name)
+    spark.sql(drop_sql)
     spark.sql(table_create_sql)
     spark.sql(truncate_sql)
-    spark.sql("insert into %s select * from tmp_t".format(table_name))
+    if (partition != null) {
+      spark.sql("insert into %s select *, %s from tmp_t".format(table_name, partition))
+    } else {
+      spark.sql("insert into %s select * from tmp_t".format(table_name))
+    }
   }
 
   override def beforeAll(): Unit = {
@@ -190,8 +201,8 @@ class GlutenClickHouseHiveTableSuite()
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
-    initializeTable(txt_table_name, txt_table_create_sql)
-    initializeTable(json_table_name, json_table_create_sql)
+    initializeTable(txt_table_name, txt_table_create_sql, null)
+    initializeTable(json_table_name, json_table_create_sql, "2023-06-05")
   }
 
   test("test hive text table") {
@@ -477,4 +488,29 @@ class GlutenClickHouseHiveTableSuite()
       })
   }
 
+  test("test hive table with illegal partition path") {
+    val path = new Path(sparkConf.get("spark.sql.warehouse.dir"))
+    val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
+    val tablePath = path.toUri.getPath + "/" + json_table_name
+    val partitionPath = tablePath + "/" + "_temp_day=2023_06_05kids"
+    val succ = fs.mkdirs(new Path(partitionPath))
+    assert(succ, true)
+    val partitionDataFilePath = partitionPath + "/abc.txt"
+    val createSucc = fs.createNewFile(new Path(partitionDataFilePath))
+    assert(createSucc, true)
+    val sql =
+      s"""
+         | select string_field, day, count(*) from $json_table_name group by string_field, day
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      }
+    )
+  }
 }
