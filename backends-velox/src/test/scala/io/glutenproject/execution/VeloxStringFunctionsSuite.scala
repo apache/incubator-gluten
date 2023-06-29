@@ -295,9 +295,10 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, like($NULL_STR_COL, '%a%') " +
       s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, l_comment " +
+    runQueryAndCompare(s"select l_orderkey, like(l_comment, '%a%') " +
       s"from $LINEITEM_TABLE where l_comment like '%a%' limit $LENGTH") {
-      checkOperatorMatch[ProjectExecTransformer] }
+      checkOperatorMatch[ProjectExecTransformer]
+    }
     runQueryAndCompare(s"select l_orderkey, like(l_comment, ' ') " +
       s"from $LINEITEM_TABLE where l_comment like ''  limit $LENGTH") { _ => }
     runQueryAndCompare(s"select l_orderkey, like($NULL_STR_COL, '%a%') " +
