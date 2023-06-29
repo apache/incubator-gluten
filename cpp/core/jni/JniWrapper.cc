@@ -78,6 +78,9 @@ static jclass veloxColumnarbatchScannerClass;
 static jmethodID veloxColumnarbatchScannerHasNext;
 static jmethodID veloxColumnarbatchScannerNext;
 
+static jclass shuffleReaderMetricsClass;
+static jmethodID shuffleReaderMetricsSetDecompressTime;
+
 jlong defaultMemoryAllocatorId = -1L;
 
 static ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnarToRowConverterHolder;
@@ -322,6 +325,11 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   veloxColumnarbatchScannerNext = getMethodId(env, veloxColumnarbatchScannerClass, "next", "()J");
 
+  shuffleReaderMetricsClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ShuffleReaderMetrics;");
+  shuffleReaderMetricsSetDecompressTime =
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
+
   return jniVersion;
 }
 
@@ -342,6 +350,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(veloxColumnarbatchScannerClass);
+  env->DeleteGlobalRef(shuffleReaderMetricsClass);
 }
 
 JNIEXPORT jlong JNICALL
@@ -1014,10 +1023,15 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_next(JNIEnv* env, jobje
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(JNIEnv* env, jobject, jlong handle) { // NOLINT
+Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(JNIEnv* env, jobject, jlong handle, jobject metrics) { // NOLINT
   JNI_METHOD_START
   auto reader = shuffleReaderHolder.lookup(handle);
   GLUTEN_THROW_NOT_OK(reader->close());
+  env->CallVoidMethod(
+      metrics,
+      shuffleReaderMetricsSetDecompressTime,
+      reader->getDecompressTime());
+  checkException(env);
   shuffleReaderHolder.erase(handle);
   JNI_METHOD_END()
 }

@@ -180,17 +180,19 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    *
    * @return
    */
-  override def createColumnarBatchSerializer(schema: StructType,
-                                             readBatchNumRows: SQLMetric,
-                                             numOutputRows: SQLMetric,
-                                             dataSize: SQLMetric): Serializer = {
+  override def createColumnarBatchSerializer(
+      schema: StructType,
+      metrics: Map[String, SQLMetric]): Serializer = {
+    val readBatchNumRows = metrics("avgReadBatchNumRows")
+    val numOutputRows = metrics("numOutputRows")
+    val decompressTime = metrics("decompressTime")
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor = clazz.getConstructor(classOf[StructType],
         classOf[SQLMetric], classOf[SQLMetric])
       constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
     } else {
-      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows, decompressTime)
     }
   }
 

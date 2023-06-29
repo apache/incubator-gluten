@@ -18,6 +18,7 @@
 #include "reader.h"
 #include "arrow/ipc/reader.h"
 #include "arrow/record_batch.h"
+#include "utils/macros.h"
 
 #include <utility>
 
@@ -59,14 +60,21 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> Reader::next() {
   if (messageToRead == nullptr) {
     return nullptr;
   }
+
+  TIME_NANO_START(decompressTime_)
   GLUTEN_ASSIGN_OR_THROW(
       arrowBatch, arrow::ipc::ReadRecordBatch(*messageToRead, writeSchema_, nullptr, options_.ipc_read_options))
+  TIME_NANO_END(decompressTime_)
   std::shared_ptr<ColumnarBatch> glutenBatch = std::make_shared<ArrowColumnarBatch>(arrowBatch);
   return glutenBatch;
 }
 
 arrow::Status Reader::close() {
   return arrow::Status::OK();
+}
+
+int64_t Reader::getDecompressTime() {
+  return decompressTime_;
 }
 
 } // namespace gluten
