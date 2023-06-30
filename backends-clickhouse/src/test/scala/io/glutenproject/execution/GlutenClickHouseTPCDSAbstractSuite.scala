@@ -90,8 +90,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
 
   // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
   protected val excludedTpcdsQueries: Set[String] = Set(
-    "q14a", // inconsistent results
-    "q14b", // inconsistent results
     "q18", // inconsistent results
     "q49", // inconsistent results
     "q61", // inconsistent results
