@@ -8,38 +8,45 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # Prerequisite
 
-Currently, Gluten+Velox backend is only tested on <b>Ubuntu20.04/Ubuntu22.04/Centos8</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
+Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos8**. Other kinds of OS support are still in progress. The long term goal is to support several
 common OS and conda env deployment.
 
 Gluten builds with Spark3.2.x and Spark3.3.x now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
 
 Velox uses the script `scripts/setup-xxx.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
-So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
+So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, **java 8** is required and the support for java 11/17 is not ready.
 
 ```bash
 ## run as root
 ## install gcc and libraries to build arrow
 apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
 ```
+
 **For x86_64**
+
 ```bash
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 ```
+
 **For aarch64**
+
 ```bash
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-arm64
 export PATH=$JAVA_HOME/bin:$PATH
 ```
+
 **Get gluten**
+
 ```bash
 ## config maven, like proxy in ~/.m2/settings.xml
 
 ## fetch gluten code
 git clone https://github.com/oap-project/gluten.git
 ```
+
 # Build Gluten with Velox Backend
 
 It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
@@ -70,7 +77,7 @@ cd /path_to_gluten
 
 **Build Velox or Arrow separately**
 
-Scripts under `/path_to_gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_arrow.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
+Scripts under `/path_to_gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
 
 Velox can use pre-build arrow/parquet lib from ARROW_HOME parsed by --arrow_home to decrease build time.
 Gluten cpp module need a required VELOX_HOME parsed by --velox_home and an optional ARROW_HOME by --arrow_home, if you specify custom ep location, make sure these variables be passed correctly.
@@ -102,9 +109,10 @@ mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 ```
+
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
-Once building successfully, the Jar file will be generated in the directory: package/target/<gluten-jar> for Spark 3.2.2/Spark 3.3.1.
+Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.2/Spark 3.3.1.
 
 ## HDFS support
 
@@ -113,7 +121,7 @@ Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/t
 ### Build with HDFS support
 To build Gluten with HDFS support, below command is suggested:
 
-```
+```bash
 cd /path_to_gluten
 ./dev/buildbundle-veloxbe.sh --enable_hdfs=ON
 ```
@@ -142,7 +150,8 @@ cp /path/to/hdfs-client.xml hdfs-client.xml
 Here are two steps to enable kerberos.
 
 - Make sure the hdfs-client.xml contains
-```
+
+```xml
 <property>
     <name>hadoop.security.authentication</name>
     <value>kerberos</value>
@@ -150,17 +159,18 @@ Here are two steps to enable kerberos.
 ```
 
 - Specify the environment variable [KRB5CCNAME](https://github.com/apache/hawq/blob/e9d43144f7e947e071bba48871af9da354d177d0/depends/libhdfs3/src/client/FileSystem.cpp#L56) and upload the kerberos ticket cache file
+
 ```
 --conf spark.executorEnv.KRB5CCNAME=krb5cc_0000  --files /tmp/krb5cc_0000
 ```
-The ticket cache file can be found by `klist`.
 
+The ticket cache file can be found by `klist`.
 
 ## AWS S3 support
 
-
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
 A new build option for S3(enable_s3) is added. Below command is used to enable this feature
+
 ```
 cd /path_to_gluten
 ./dev/buildbundle-veloxbe.sh --enable_s3=ON
@@ -168,20 +178,20 @@ cd /path_to_gluten
 
 Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
 
-
 ## Celeborn support
-
 
 Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
 
 First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
 
 Then compile Gluten according to the following statement
+
 ```
 mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
 ```
 
 Currently to use Celeborn following configurations are required in spark-defaults.conf
+
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
 
@@ -207,6 +217,7 @@ Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions h
 > Velox doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)), so as Gluten. Once ANSI mode is enabled in Spark config, Gluten will fallback to Vanilla Spark.
 
 To identify what can be offloaded in a query and detailed fallback reasons, user can follow below steps to retrieve corresponding logs.
+
 ```
 1) Enable Gluten by proper [configuration](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
 
@@ -218,6 +229,7 @@ sparkSession.sql("your_sql").explain()
 ```
 
 With above steps, you will get a physical plan output like:
+
 ```
 == Physical Plan ==
 -Execute InsertIntoHiveTable (7)
@@ -228,7 +240,9 @@ With above steps, you will get a physical plan output like:
           +- Scan hive default.extracted_db_pins (1)
 
 ```
+
 "GlutenRowToArrowColumnar" and "VeloxColumnarToRowExec" indicate there is a fallback and you may find related log with key words "due to" like:
+
 ```
 native validation failed due to: in ProjectRel, Scalar function name not registered: get_struct_field, called with arguments: (ROW<col_0:INTEGER,col_1:BIGINT,col_2:BIGINT>, INTEGER).
 ```
