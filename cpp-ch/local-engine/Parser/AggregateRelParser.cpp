@@ -75,12 +75,11 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         auto arg = measure.measure().arguments(0).value();
         auto function_name = parseFunctionName(measure.measure().function_reference(), {});
         if (!function_name)
-        {
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported aggregate function");
-        }
+
         agg_info.measure = &measure;
         agg_info.function_name = *function_name;
-        aggregates.push_back(agg_info);
+        aggregates.emplace_back(std::move(agg_info));
     }
 
     if (aggregate_rel->groupings_size() == 1)
@@ -88,19 +87,13 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         for (const auto & expr : aggregate_rel->groupings(0).grouping_expressions())
         {
             if (expr.has_selection() && expr.selection().has_direct_reference())
-            {
                 grouping_keys.push_back(input_header.getByPosition(expr.selection().direct_reference().struct_field().field()).name);
-            }
             else
-            {
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "unsupported group expression: {}", expr.DebugString());
-            }
         }
     }
     else if (aggregate_rel->groupings_size() != 0)
-    {
         throw DB::Exception(ErrorCodes::BAD_ARGUMENTS, "Unsupport multible groupings");
-    }
 }
 
 // projections for function arguments.
@@ -134,9 +127,7 @@ void AggregateRelParser::addPreProjection()
                 need_projection = true;
             }
             else
-            {
                 throw Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported aggregate argument: {}", arg_value.DebugString());
-            }
 
             // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
             auto required_output_which_type = WhichDataType(parseType(agg_info.measure->measure().output_type()));
@@ -153,6 +144,7 @@ void AggregateRelParser::addPreProjection()
                 arg_column_type = node->result_type;
                 need_projection = true;
             }
+
             agg_info.arg_column_names.emplace_back(arg_column_name);
             agg_info.arg_column_types.emplace_back(arg_column_type);
         }
@@ -167,6 +159,7 @@ void AggregateRelParser::addPreProjection()
             need_projection = true;
         }
     }
+
     if (need_projection)
     {
         auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), projection_action);
@@ -188,6 +181,7 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         String arg_list_str = boost::algorithm::join(arg_column_names, ",");
         return function_name + "(" + arg_list_str + ")";
     };
+
     for (auto & agg_info : aggregates)
     {
         AggregateDescription description;
@@ -201,14 +195,11 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
         {
             if (agg_info.arg_column_types.size() != 1)
-            {
                 throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Only support one argument aggregate function in phase {}", measure.phase());
-            }
+
             // Add a check here for safty.
             if (!agg_info.filter_column_name.empty())
-            {
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unspport apply filter in phase {}", measure.phase());
-            }
 
             const auto * agg_function_data = DB::checkAndGetDataType<DB::DataTypeAggregateFunction>(agg_info.arg_column_types[0].get());
             if (!agg_function_data)
@@ -234,8 +225,8 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
                 // It's safe to use AggregateFunctionxxx to parse intermediate result from AggregateFunctionxxxIf,
                 // since they have the same binary representation
                 // reproduce this case by
-                //  select 
-                //    count(a),count(b), count(1), count(distinct(a)), count(distinct(b)) 
+                //  select
+                //    count(a),count(b), count(1), count(distinct(a)), count(distinct(b))
                 //  from values (1, null), (2,2) as data(a,b)
                 // with `first_value` enable
                 if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
@@ -331,7 +322,7 @@ void AggregateRelParser::addAggregatingStep()
 // Only be called in final stage.
 void AggregateRelParser::addPostProjection()
 {
-    addPostProjectionForAggregatingResult();   
+    addPostProjectionForAggregatingResult();
     addPostProjectionForTypeMismatch();
 }
 
