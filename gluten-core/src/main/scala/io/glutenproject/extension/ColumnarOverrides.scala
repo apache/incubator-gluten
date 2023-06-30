@@ -752,6 +752,28 @@ case class ColumnarOverrideRules(session: SparkSession)
     fallbacks >= wholeStageFallbackThreshold
   }
 
+  // for non-AQE env
+  def fallbackWholeQuery(plan: SparkPlan): Boolean = {
+    var fallbacks = 0
+    def countFallback(plan: SparkPlan): Unit = {
+      plan match {
+        // Another stage.
+        case _: QueryStageExec =>
+          return
+        case ColumnarToRowExec(p: GlutenPlan) =>
+          logDebug(s"cr2: ${p}")
+          fallbacks = fallbacks + 1
+        // Possible fallback for leaf node.
+        case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
+          fallbacks = fallbacks + 1
+        case _ =>
+      }
+      plan.children.map(p => countFallback(p))
+    }
+    countFallback(plan)
+    fallbacks > 1
+  }
+
   /**
    * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
    * Inserts an transition to columnar formatted data.
@@ -795,6 +817,9 @@ case class ColumnarOverrideRules(session: SparkSession)
     maybe(session, plan) {
       if (isAdaptiveContext && fallbackWholeStage(plan)) {
         logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
+        insertTransitions(originalPlan, false)
+      } else if (!isAdaptiveContext && fallbackWholeQuery(plan)) {
+        logWarning("Fall back to run the query due to unsupported operator!")
         insertTransitions(originalPlan, false)
       } else {
         logOnLevel(
