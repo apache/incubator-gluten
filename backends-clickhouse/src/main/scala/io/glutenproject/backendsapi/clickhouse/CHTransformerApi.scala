@@ -24,6 +24,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -126,9 +127,15 @@ class CHTransformerApi extends TransformerApi with Logging {
     ExpressionDocUtil.supportExpression()
   }
 
-  override def getAggregateOutput(plan: HashAggregateExec): Seq[Attribute] = {
-    CHHashAggregateExecTransformer.getAggregateResultAttributes(
-      plan.groupingExpressions,
-      plan.aggregateExpressions)
+  override def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
+    plan match {
+      case hash: HashAggregateExec =>
+        CHHashAggregateExecTransformer.getAggregateResultAttributes(
+          hash.groupingExpressions,
+          hash.aggregateExpressions)
+      case _ =>
+        plan.output
+    }
+
   }
 }

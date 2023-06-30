@@ -189,7 +189,8 @@ case class TransformPreOverrides(
       case HashPartitioning(exprs, numPartitions) =>
         val (projectExpressions, newExpressionsPosition) = {
           selectExpressions(exprs,
-            BackendsApiManager.getTransformerApiInstance.getAggregateOutput(plan.child.asInstanceOf[HashAggregateExec]))
+            BackendsApiManager.getTransformerApiInstance
+              .getPlanOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
@@ -206,7 +207,8 @@ case class TransformPreOverrides(
         val exprs = orderings.map(ordering => ordering.child)
         val (projectExpressions, newExpressionsPosition) = {
           selectExpressions(exprs,
-            BackendsApiManager.getTransformerApiInstance.getAggregateOutput(plan.child.asInstanceOf[HashAggregateExec]))
+            BackendsApiManager.getTransformerApiInstance
+              .getPlanOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)

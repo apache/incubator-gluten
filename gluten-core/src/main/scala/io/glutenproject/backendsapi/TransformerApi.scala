@@ -65,7 +65,8 @@ trait TransformerApi {
   def getSupportExpressionClassName: util.Set[String] = {
     util.Collections.emptySet()
   }
-  def getAggregateOutput(plan: HashAggregateExec) : Seq[Attribute] = {
+
+  def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
     plan.output
   }
 }
