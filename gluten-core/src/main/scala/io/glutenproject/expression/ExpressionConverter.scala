@@ -396,6 +396,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           u.failOnError,
           u
         )
+      case truncTimestamp: TruncTimestamp =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(truncTimestamp.format, attributeSeq),
+          replaceWithExpressionTransformer(truncTimestamp.timestamp, attributeSeq),
+          truncTimestamp.timeZoneId,
+          truncTimestamp
+        )
       case r: RegExpReplace =>
         new RegExpReplaceTransformer(
           substraitExprName.get,

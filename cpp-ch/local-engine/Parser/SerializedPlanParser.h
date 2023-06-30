@@ -180,6 +180,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"second", "toSecond"},
     {"add_months", "addMonths"},
     {"trunc", ""}, /// dummy mapping
+    {"date_trunc", "dateTrunc"},
+    {"floor_datetime", "dateTrunc"},
 
     // array functions
     {"array", "array"},
