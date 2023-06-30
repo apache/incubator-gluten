@@ -100,62 +100,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
   }
 
-  /** Generate Iterator[ColumnarBatch] for CoalesceBatchesExec. */
-  override def genCoalesceIterator(
-      iter: Iterator[ColumnarBatch],
-      recordsPerBatch: Int,
-      numOutputRows: SQLMetric = null,
-      numInputBatches: SQLMetric = null,
-      numOutputBatches: SQLMetric = null,
-      collectTime: SQLMetric = null,
-      concatTime: SQLMetric = null,
-      avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch] = {
-    val res = if (GlutenConfig.getConf.enableCoalesceBatches) {
-      val operator = new CHCoalesceOperator(recordsPerBatch)
-      new Iterator[ColumnarBatch] {
-        override def hasNext: Boolean = {
-          val beforeNext = System.nanoTime
-          val hasNext = iter.hasNext
-          collectTime += System.nanoTime - beforeNext
-          if (!hasNext) operator.close();
-          hasNext
-        }
-
-        override def next(): ColumnarBatch = {
-          val c = iter.next()
-          numInputBatches += 1
-          val beforeConcat = System.nanoTime
-          operator.mergeBlock(c)
-
-          concatTime += System.nanoTime() - beforeConcat
-          var hasNext = true;
-          while (!operator.isFull && hasNext) {
-            val beforeNext = System.nanoTime
-            hasNext = iter.hasNext
-            if (hasNext) {
-              val cb = iter.next();
-              collectTime += System.nanoTime - beforeNext
-              numInputBatches += 1;
-              val beforeConcat = System.nanoTime
-              operator.mergeBlock(cb)
-              concatTime += System.nanoTime() - beforeConcat
-            }
-          }
-          val res = operator.release().toColumnarBatch
-          numOutputRows += CHNativeBlock.fromColumnarBatch(res).numRows()
-          numOutputBatches += 1
-          res
-        }
-
-        TaskContext.get().addTaskCompletionListener[Unit](_ => operator.close())
-      }
-    } else {
-      iter
-    }
-
-    new CloseableCHColumnBatchIterator(res)
-  }
-
   /**
    * Generate Iterator[ColumnarBatch] for first stage.
    *

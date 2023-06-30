@@ -55,8 +55,6 @@ trait MetricsApi extends Serializable {
 
   def genProjectTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
-  def genCoalesceBatchesMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
-
   def genHashAggregateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genHashAggregateTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater

@@ -140,8 +140,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
-  def enableCoalesceBatches: Boolean = conf.getConf(COLUMNAR_COALESCE_BATCHES_ENABLED)
-
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
   def enableColumnarGenerate: Boolean = conf.getConf(COLUMNAR_GENERATE_ENABLED)
@@ -735,12 +733,6 @@ object GlutenConfig {
       .internal()
       .intConf
       .createWithDefault(4096)
-
-  val COLUMNAR_COALESCE_BATCHES_ENABLED =
-    buildConf("spark.gluten.sql.columnar.coalesce.batches")
-      .internal()
-      .booleanConf
-      .createWithDefault(true)
 
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")

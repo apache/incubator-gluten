@@ -276,5 +276,4 @@ object BackendSettings extends BackendSettingsApi {
 
   override def rescaleDecimalIntegralExpression(): Boolean = true
 
-  override def supportCoalesceBatch(): Boolean = false
 }
