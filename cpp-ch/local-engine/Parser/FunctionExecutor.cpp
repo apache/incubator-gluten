@@ -62,9 +62,8 @@ void FunctionExecutor::parseExtensions()
 
 void FunctionExecutor::parseExpression()
 {
-    std::vector<String> required_columns;
     /// Notice keep_result must be true, because result_node of current function must be output node in actions_dag
-    auto actions_dag = plan_parser.parseFunction(header, expression, result_name, required_columns, nullptr, true);
+    auto actions_dag = plan_parser.parseFunction(header, expression, result_name, nullptr, true);
     // std::cout << "actions_dag:" << std::endl;
     // std::cout << actions_dag->dumpDAG() << std::endl;
 

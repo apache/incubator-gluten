@@ -231,6 +231,29 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
 std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 bool isTypeMatched(const substrait::Type & substrait_type, const DataTypePtr & ch_type);
 
+class SerializedPlanParser;
+
+// Give a condition expression `cond_rel_`, found all columns with nullability that must not containt
+// null after this filter.
+// It's used to remove nullability of the columns for performance reason.
+class NonNullableColumnsResolver
+{
+public:
+    explicit NonNullableColumnsResolver(const DB::Block & header_, SerializedPlanParser & parser_,  const substrait::Expression & cond_rel_);
+    ~NonNullableColumnsResolver() = default;
+    // return column names
+    std::vector<std::string> resolve();
+private:
+    DB::Block header;
+    SerializedPlanParser & parser;
+    const substrait::Expression & cond_rel;
+
+    std::vector<std::string> collected_columns;
+
+    void visit(const substrait::Expression & expr);
+    void visitNonNullable(const substrait::Expression & expr);
+};
+
 class SerializedPlanParser
 {
 private:
@@ -238,6 +261,7 @@ private:
     friend class ASTParser;
     friend class FunctionParser;
     friend class FunctionExecutor;
+    friend class NonNullableColumnsResolver;
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
@@ -249,7 +273,7 @@ public:
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
     // mergetree need create two steps in parse, can't return single step
     DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel, std::vector<IQueryPlanStep *>& steps);
-    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input, std::vector<String>& not_nullable_columns);
+    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static DB::Block parseNameStruct(const substrait::NamedStruct & struct_);
@@ -294,14 +318,12 @@ private:
         const Block & header,
         const substrait::Expression & rel,
         std::string & result_name,
-        std::vector<String> & required_columns,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false);
     DB::ActionsDAGPtr parseArrayJoin(
         const Block & input,
         const substrait::Expression & rel,
         std::vector<String> & result_names,
-        std::vector<String> & required_columns,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
@@ -315,31 +337,26 @@ private:
     const ActionsDAG::Node * parseFunctionWithDAG(
         const substrait::Expression & rel,
         std::string & result_name,
-        std::vector<String> & required_columns,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
         const substrait::Expression & rel,
         std::vector<String> & result_name,
-        std::vector<String> & required_columns,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
     void parseFunctionArguments(
         DB::ActionsDAGPtr & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
-        std::vector<String> & required_columns,
         std::string & function_name,
         const substrait::Expression_ScalarFunction & scalar_function);
     void parseFunctionArgument(
         DB::ActionsDAGPtr & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
-        std::vector<String> & required_columns,
         const std::string & function_name,
         const substrait::FunctionArgument & arg);
     const DB::ActionsDAG::Node * parseFunctionArgument(
         DB::ActionsDAGPtr & actions_dag,
-        std::vector<String> & required_columns,
         const std::string & function_name,
         const substrait::FunctionArgument & arg);
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel);
@@ -388,7 +405,6 @@ private:
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
     std::vector<jobject> input_iters;
-    const substrait::ProjectRel * last_project = nullptr;
     ContextPtr context;
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;

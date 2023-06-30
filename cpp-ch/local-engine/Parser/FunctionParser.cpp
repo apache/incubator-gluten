@@ -33,8 +33,7 @@ String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunct
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
     const substrait::Expression_ScalarFunction & substrait_func,
     const String & ch_func_name,
-    ActionsDAGPtr & actions_dag,
-    std::vector<String> & required_columns) const
+    ActionsDAGPtr & actions_dag) const
 {
     auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
     {
@@ -46,17 +45,16 @@ ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
     const auto & args = substrait_func.arguments();
     parsed_args.reserve(args.size());
     for (const auto & arg : args)
-        plan_parser->parseFunctionArgument(actions_dag, parsed_args, required_columns, ch_func_name, arg);
+        plan_parser->parseFunctionArgument(actions_dag, parsed_args, ch_func_name, arg);
     return parsed_args;
 }
 
 const ActionsDAG::Node * FunctionParser::parse(
     const substrait::Expression_ScalarFunction & substrait_func,
-    ActionsDAGPtr & actions_dag,
-    std::vector<String> & required_columns) const
+    ActionsDAGPtr & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
-    auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag, required_columns);
+    auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
     const auto * func_node = toFunctionNode(actions_dag, ch_func_name, parsed_args);
     return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
 }
