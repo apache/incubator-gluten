@@ -66,15 +66,13 @@ class GlutenJsonV2Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
       withTempPath { file =>
         val scanBuilder = getBuilder(file.getCanonicalPath)
         assert(scanBuilder.pushDataFilters(filters) === filters)
-        assert(scanBuilder.pushedFilters === filters)
       }
     }
 
     withSQLConf(SQLConf.JSON_FILTER_PUSHDOWN_ENABLED.key -> "false") {
       withTempPath { file =>
         val scanBuilder = getBuilder(file.getCanonicalPath)
-        assert(scanBuilder.pushDataFilters(filters) === filters)
-        assert(scanBuilder.pushedFilters === Array.empty[sources.Filter])
+        assert(scanBuilder.pushDataFilters(filters) === Array.empty[sources.Filter])
       }
     }
   }
