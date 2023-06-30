@@ -286,6 +286,10 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("read excel export csv base") {
+    implicit class StringToDate(s: String) {
+      def date: Date = Date.valueOf(s)
+    }
+
     val schema = StructType.apply(
       Seq(
         StructField.apply("c1", DateType, nullable = true),
@@ -311,13 +315,14 @@ class GlutenClickHouseFileFormatSuite
     }
 
     assert(csvFileScan.size == 1)
-    assert(result.length == 18)
+    assert(result.length == 19)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(16).getFloat(2) == -100000)
     assert(result.apply(16).getDouble(3) == -100000)
     assert(result.apply(16).getInt(4) == -100000)
     assert(result.apply(16).getLong(5) == -100000)
+    assert(result.apply(18).getDate(0) == "2023-07-19".date)
   }
 
   test("read excel export csv delimiter") {
