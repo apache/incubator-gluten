@@ -52,9 +52,10 @@ option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
+get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
 
 if (NOT DEFINED ARROW_HOME)
-  set(ARROW_HOME ${CMAKE_SOURCE_DIR}/../ep/build-arrow/build)
+  set(ARROW_HOME ${GLUTEN_HOME}/ep/build-arrow/build)
 endif()
 
 #

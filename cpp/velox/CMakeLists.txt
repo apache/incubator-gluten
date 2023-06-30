@@ -45,7 +45,7 @@ else()
 endif()
 
 if (NOT DEFINED VELOX_HOME)
-  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)
+  set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
 
