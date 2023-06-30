@@ -1199,7 +1199,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocId);
   GLUTEN_DCHECK(allocator != nullptr, "Memory pool does not exist or has been closed");
   auto backend = createBackend();
-  auto serializer = backend->getColumnarBatchSerializer((*allocator).get(), reinterpret_cast<struct ArrowSchema*>(cSchema));
+  auto serializer =
+      backend->getColumnarBatchSerializer((*allocator).get(), reinterpret_cast<struct ArrowSchema*>(cSchema));
   return columnarBatchSerializerHolder.insert(serializer);
   JNI_METHOD_END(-1L)
 }
