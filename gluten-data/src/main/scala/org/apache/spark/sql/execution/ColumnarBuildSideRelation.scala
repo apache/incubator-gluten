@@ -55,7 +55,7 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
             SQLConf.get.sessionLocalTimeZone)
           ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
           val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(cSchema.memoryAddress(),
-            NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+            NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
           cSchema.close()
           handle
         }
@@ -101,7 +101,7 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(cSchema.memoryAddress(),
-        NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+        NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
       cSchema.close()
       handle
     }

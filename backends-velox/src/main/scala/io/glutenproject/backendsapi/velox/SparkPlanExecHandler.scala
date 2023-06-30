@@ -221,7 +221,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
           Iterator((0L, Array[Byte]()))
         } else {
           val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(input.toArray,
-            NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+            NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
           ColumnarBatchSerializerJniWrapper.INSTANCE.closeBatches(input.toArray)
           Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
         }
