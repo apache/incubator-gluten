@@ -17,17 +17,22 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.columnarbatch.ColumnarBatches;
-import java.util.Iterator;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
+public class ColumnarBatchSerializeResult {
 
-public class ColumnarBatchInIterator extends GeneralInIterator {
-  public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
+  private long numRows;
+
+  private byte[] serialized;
+
+  public ColumnarBatchSerializeResult(long numRows, byte[] serialized) {
+    this.numRows = numRows;
+    this.serialized = serialized;
   }
 
-  public long next() {
-    final ColumnarBatch batch = nextColumnarBatch();
-    return ColumnarBatches.getNativeHandle(batch);
+  public long getNumRows() {
+    return numRows;
+  }
+
+  public byte[] getSerialized() {
+    return serialized;
   }
 }

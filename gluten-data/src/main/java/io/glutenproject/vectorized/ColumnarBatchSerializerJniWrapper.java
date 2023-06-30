@@ -17,17 +17,26 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.columnarbatch.ColumnarBatches;
-import java.util.Iterator;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
+import io.glutenproject.init.JniInitialized;
 
-public class ColumnarBatchInIterator extends GeneralInIterator {
-  public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
-  }
+public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
 
-  public long next() {
-    final ColumnarBatch batch = nextColumnarBatch();
-    return ColumnarBatches.getNativeHandle(batch);
-  }
+  public static final ColumnarBatchSerializerJniWrapper INSTANCE =
+      new ColumnarBatchSerializerJniWrapper();
+
+  private ColumnarBatchSerializerJniWrapper()  {}
+
+  public native ColumnarBatchSerializeResult serialize(long[] handles, long allocId);
+
+  // Return the native ColumnarBatchSerializer handle
+  public native long init(long cSchema, long allocId);
+
+  public native long deserialize(long handle, byte[] data);
+
+  public native void close(long handle);
+
+  // Record the exists batch twice
+  public native long insertBatch(long handle);
+
+  public native void closeBatches(long[] handles);
 }

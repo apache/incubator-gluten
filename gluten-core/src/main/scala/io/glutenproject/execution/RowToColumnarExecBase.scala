@@ -31,19 +31,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * Provides a common executor to translate an [[RDD]] of [[InternalRow]] into an [[RDD]] of
  * [[ColumnarBatch]]. This is inserted whenever such a transition is determined to be needed.
  *
- * This is similar to some of the code in ArrowConverters.scala and
- * [[org.apache.spark.sql.execution.arrow.ArrowWriter]]. That code is more specialized
- * to convert [[InternalRow]] to Arrow formatted data, but in the future if we make
- * [[org.apache.spark.sql.execution.vectorized.OffHeapColumnVector]] internally Arrow formatted
- * we may be able to replace much of that code.
- *
- * This is also similar to
- * [[org.apache.spark.sql.execution.vectorized.ColumnVectorUtils.populate()]] and
- * [[org.apache.spark.sql.execution.vectorized.ColumnVectorUtils.toBatch()]] toBatch is only ever
- * called from tests and can probably be removed, but populate is used by both Orc and Parquet
- * to initialize partition and missing columns. There is some chance that we could replace
- * populate with [[RowToColumnConverter]], but the performance requirements are different and it
- * would only be to reduce code.
  */
 abstract class RowToColumnarExecBase(child: SparkPlan) extends RowToColumnarTransition {
 

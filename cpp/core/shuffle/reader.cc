@@ -21,6 +21,8 @@
 
 #include <utility>
 
+#include "ShuffleSchema.h"
+
 namespace gluten {
 
 ReaderOptions ReaderOptions::defaults() {
@@ -32,14 +34,16 @@ Reader::Reader(
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
     std::shared_ptr<arrow::MemoryPool> pool)
-    : pool_(pool), in_(std::move(in)), options_(std::move(options)), schema_(std::move(schema)) {
+    : pool_(pool), in_(std::move(in)), options_(std::move(options)) {
   GLUTEN_ASSIGN_OR_THROW(firstMessage_, arrow::ipc::ReadMessage(in_.get()))
   if (firstMessage_ == nullptr) {
     throw GlutenException("Failed to read message from shuffle.");
   }
   if (firstMessage_->type() == arrow::ipc::MessageType::SCHEMA) {
-    GLUTEN_ASSIGN_OR_THROW(schema_, arrow::ipc::ReadSchema(*firstMessage_, nullptr))
+    GLUTEN_ASSIGN_OR_THROW(writeSchema_, arrow::ipc::ReadSchema(*firstMessage_, nullptr))
     firstMessageConsumed_ = true;
+  } else {
+    writeSchema_ = toWriteSchema(*schema);
   }
 }
 
@@ -56,7 +60,7 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> Reader::next() {
     return nullptr;
   }
   GLUTEN_ASSIGN_OR_THROW(
-      arrowBatch, arrow::ipc::ReadRecordBatch(*messageToRead, schema_, nullptr, options_.ipc_read_options))
+      arrowBatch, arrow::ipc::ReadRecordBatch(*messageToRead, writeSchema_, nullptr, options_.ipc_read_options))
   std::shared_ptr<ColumnarBatch> glutenBatch = std::make_shared<ArrowColumnarBatch>(arrowBatch);
   return glutenBatch;
 }

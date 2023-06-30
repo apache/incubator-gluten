@@ -27,11 +27,15 @@ import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
 import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 public class ColumnarBatches {
   private static final Field FIELD_COLUMNS;
@@ -218,8 +222,33 @@ public class ColumnarBatches {
     }
   }
 
+  public static Iterator<InternalRow> emptyRowIterator(ColumnarBatch batch) {
+    final int maxRows = batch.numRows();
+    return new Iterator<InternalRow>() {
+      int rowId = 0;
+
+      @Override
+      public boolean hasNext() {
+        return rowId < maxRows;
+      }
+
+      @Override
+      public InternalRow next() {
+        if (rowId >= maxRows) {
+          throw new NoSuchElementException();
+        }
+        rowId++;
+        return new UnsafeRow(0);
+      }
+    };
+  }
+
   public static void close(ColumnarBatch input) {
     ColumnarBatchJniWrapper.INSTANCE.close(ColumnarBatches.getNativeHandle(input));
+  }
+
+  public static void close(long handle) {
+    ColumnarBatchJniWrapper.INSTANCE.close(handle);
   }
 
   /**

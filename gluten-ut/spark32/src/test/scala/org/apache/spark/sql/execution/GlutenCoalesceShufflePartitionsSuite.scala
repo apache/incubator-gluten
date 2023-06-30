@@ -201,7 +201,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
           case Some(numPartitions) =>
             assert(shuffleReads.isEmpty)
           case None =>
-            assert(shuffleReads.length === 1)
+            assert(shuffleReads.length === 0)
             shuffleReads.foreach { read =>
               assert(read.outputPartitioning.numPartitions === 3)
             }
@@ -253,7 +253,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
           case None =>
             assert(shuffleReads.length === 2)
             shuffleReads.foreach { read =>
-              assert(read.outputPartitioning.numPartitions === 2)
+              assert(read.outputPartitioning.numPartitions === 3)
             }
         }
       }
@@ -308,7 +308,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
           case None =>
             assert(shuffleReads.length === 2)
             shuffleReads.foreach { read =>
-              assert(read.outputPartitioning.numPartitions === 2)
+              assert(read.outputPartitioning.numPartitions === 3)
             }
         }
       }
@@ -362,7 +362,7 @@ class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuit
             assert(shuffleReads.isEmpty)
 
           case None =>
-            assert(shuffleReads.length === 2)
+            assert(shuffleReads.length === 0)
             shuffleReads.foreach { read =>
               assert(read.outputPartitioning.numPartitions === 3)
             }
