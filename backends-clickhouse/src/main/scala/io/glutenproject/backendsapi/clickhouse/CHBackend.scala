@@ -101,7 +101,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def supportShuffleWithProject(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
-    true
+    child match {
+      case hash: HashAggregateExec =>
+        hash.aggregateExpressions.isEmpty
+      case _ =>
+        true
+    }
   }
 
   override def supportSortExec(): Boolean = {
