@@ -126,9 +126,9 @@ class CHTransformerApi extends TransformerApi with Logging {
     ExpressionDocUtil.supportExpression()
   }
 
-  override def getAggregateOutput(plan: SparkPlan): Seq[Attribute] = {
+  override def getAggregateOutput(plan: HashAggregateExec): Seq[Attribute] = {
     CHHashAggregateExecTransformer.getAggregateResultAttributes(
-      plan.asInstanceOf[HashAggregateExec].groupingExpressions,
-      plan.asInstanceOf[HashAggregateExec].aggregateExpressions)
+      plan.groupingExpressions,
+      plan.aggregateExpressions)
   }
 }

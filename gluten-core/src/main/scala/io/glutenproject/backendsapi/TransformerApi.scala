@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructField
 
@@ -64,7 +65,7 @@ trait TransformerApi {
   def getSupportExpressionClassName: util.Set[String] = {
     util.Collections.emptySet()
   }
-  def getAggregateOutput(plan: SparkPlan) : Seq[Attribute] = {
+  def getAggregateOutput(plan: HashAggregateExec) : Seq[Attribute] = {
     plan.output
   }
 }
