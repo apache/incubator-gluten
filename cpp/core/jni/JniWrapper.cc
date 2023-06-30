@@ -1022,16 +1022,25 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_next(JNIEnv* env, jobje
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_populateMetrics(
     JNIEnv* env,
     jobject,
     jlong handle,
     jobject metrics) { // NOLINT
   JNI_METHOD_START
   auto reader = shuffleReaderHolder.lookup(handle);
-  GLUTEN_THROW_NOT_OK(reader->close());
   env->CallVoidMethod(metrics, shuffleReaderMetricsSetDecompressTime, reader->getDecompressTime());
   checkException(env);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(
+    JNIEnv* env,
+    jobject,
+    jlong handle) { // NOLINT
+  JNI_METHOD_START
+  auto reader = shuffleReaderHolder.lookup(handle);
+  GLUTEN_THROW_NOT_OK(reader->close());
   shuffleReaderHolder.erase(handle);
   JNI_METHOD_END()
 }

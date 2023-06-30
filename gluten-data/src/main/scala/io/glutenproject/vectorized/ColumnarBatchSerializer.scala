@@ -90,8 +90,7 @@ private class ColumnarBatchSerializerInstance(
         // should keep alive before all buffers finish consuming.
         TaskResources.addRecycler(50) {
           close()
-          ShuffleReaderJniWrapper.INSTANCE.close(handle, readerMetrics)
-          decompressTime += readerMetrics.getDecompressTime
+          ShuffleReaderJniWrapper.INSTANCE.close(handle)
         }
         handle
       }
@@ -151,10 +150,14 @@ private class ColumnarBatchSerializerInstance(
 
       override def close(): Unit = {
         if (!isClosed) {
+          // Collect Metrics
+          ShuffleReaderJniWrapper.INSTANCE.populateMetrics(shuffleReaderHandle, readerMetrics)
+          decompressTime += readerMetrics.getDecompressTime
           if (numBatchesTotal > 0) {
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
+
           cSchema.close()
           jniByteInputStream.close()
           if (cb != null) cb.close()
