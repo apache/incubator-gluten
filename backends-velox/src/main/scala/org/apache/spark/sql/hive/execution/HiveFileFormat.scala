@@ -16,7 +16,12 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
+import java.io.IOException
+import java.net.URI
+
+import scala.collection.JavaConverters._
+
+import io.glutenproject.columnarbatch.IndicatorVector
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.ArrowAbiUtil
@@ -49,6 +54,8 @@ import org.apache.spark.util.SerializableJobConf
 import java.io.IOException
 import java.net.URI
 import scala.collection.JavaConverters._
+
+import com.google.common.base.Preconditions
 
 /**
  * This file is copied from Spark
@@ -140,15 +147,10 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           new OutputWriter {
             override def write(row: InternalRow): Unit = {
               val batch = row.asInstanceOf[FakeRow].batch
-              if (batch.column(0).isInstanceOf[IndicatorVector]) {
-                val giv = batch.column(0).asInstanceOf[IndicatorVector]
-                giv.retain()
-                writeQueue.enqueue(batch)
-              } else {
-                val offloaded =
-                  ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-                writeQueue.enqueue(offloaded)
-              }
+              Preconditions.checkState(batch.column(0).isInstanceOf[IndicatorVector])
+              val giv = batch.column(0).asInstanceOf[IndicatorVector]
+              giv.retain()
+              writeQueue.enqueue(batch)
             }
 
             override def close(): Unit = {

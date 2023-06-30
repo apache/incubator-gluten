@@ -21,9 +21,10 @@ package org.apache.spark.sql
  * Why we need a GlutenQueryTest when we already have QueryTest?
  * 1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
-import io.glutenproject.backendsapi.BackendsApiManager
 import org.apache.spark.rpc.GlutenDriverEndpoint
+import org.apache.spark.sql.catalyst.expressions.{Alias, AssertTrue, Attribute}
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Join, LogicalPlan, Project, Sort, Subquery, SubqueryAlias}
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -32,7 +33,6 @@ import org.junit.Assert
 import org.scalatest.Assertions
 
 import java.util.TimeZone
-
 import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe
 
@@ -264,7 +264,6 @@ object GlutenQueryTest extends Assertions {
                                     df: DataFrame,
                                     expectedAnswer: Seq[Row],
                                     checkToRDD: Boolean = true): Option[String] = {
-    val isSorted = df.logicalPlan.collect { case s: logical.Sort => s }.nonEmpty
     if (checkToRDD) {
       val executionId = getNextExecutionId
       SQLExecution.withExecutionId(df.sparkSession, executionId) {
@@ -286,7 +285,8 @@ object GlutenQueryTest extends Assertions {
         return Some(errorMessage)
     }
 
-    sameRows(expectedAnswer, sparkAnswer, isSorted).map { results =>
+    val sortedColIdxes = getOuterSortedColIdxes(df)
+    sameRows(expectedAnswer, sparkAnswer, sortedColIdxes, df.schema.length).map { results =>
       s"""
          |Results do not match for query:
          |Timezone: ${TimeZone.getDefault}
@@ -311,15 +311,37 @@ object GlutenQueryTest extends Assertions {
     newid
   }
 
-  def prepareAnswer(answer: Seq[Row], isSorted: Boolean): Seq[Row] = {
+  def prepareAnswer(answer: Seq[Row]): Seq[Row] = {
     // Converts data to types that we can do equality comparison using Scala collections.
     // For BigDecimal type, the Scala type has a better definition of equality test (similar to
     // Java's java.math.BigDecimal.compareTo).
     // For binary arrays, we convert it to Seq to avoid of calling java.util.Arrays.equals for
     // equality test.
-    val converted: Seq[Row] = answer.map(prepareRow)
-    if (!isSorted) converted.sortBy(_.toString()) else converted
+    answer.map(prepareRow)
   }
+
+  def getOuterSortedColIdxes(df: DataFrame): Seq[Int] = {
+
+    def findOuterSortColExprIds(plan: LogicalPlan): Seq[Long] = {
+      plan match {
+        case s: Sort => s.order.map(_.child match {
+          case a: Attribute => a.exprId.id
+          case _ => -1
+        })
+        case _: Join => Nil
+        case _: Subquery => Nil
+        case _: SubqueryAlias => Nil
+        case _ => plan.children.flatMap(child => findOuterSortColExprIds(child))
+      }
+    }
+
+    val plan = df.queryExecution.optimizedPlan
+    val projectColIds: Seq[Long] = plan.output.map(_.exprId.id)
+    val sortedColIds: Seq[Long] = findOuterSortColExprIds(plan)
+
+    sortedColIds.map(projectColIds.indexOf(_))
+  }
+
 
   // We need to call prepareRow recursively to handle schemas with struct types.
   def prepareRow(row: Row): Row = {
@@ -344,9 +366,8 @@ object GlutenQueryTest extends Assertions {
   }
 
   private def genError(
-                        expectedAnswer: Seq[Row],
-                        sparkAnswer: Seq[Row],
-                        isSorted: Boolean = false): String = {
+                        expected: Seq[Row],
+                        actual: Seq[Row]): String = {
     val getRowType: Option[Row] => String = row =>
       row.map(row =>
         if (row.schema == null) {
@@ -359,12 +380,12 @@ object GlutenQueryTest extends Assertions {
        |== Results ==
        |${
       sideBySide(
-        s"== Correct Answer - ${expectedAnswer.size} ==" +:
-          getRowType(expectedAnswer.headOption) +:
-          prepareAnswer(expectedAnswer, isSorted).map(_.toString()),
-        s"== Gluten Answer - ${sparkAnswer.size} ==" +:
-          getRowType(sparkAnswer.headOption) +:
-          prepareAnswer(sparkAnswer, isSorted).map(_.toString())).mkString("\n")
+        s"== Correct Answer - ${expected.size} ==" +:
+          getRowType(expected.headOption) +:
+          prepareAnswer(expected).map(_.toString()),
+        s"== Gluten Answer - ${actual.size} ==" +:
+          getRowType(actual.headOption) +:
+          prepareAnswer(actual).map(_.toString())).mkString("\n")
     }
     """.stripMargin
   }
@@ -372,8 +393,10 @@ object GlutenQueryTest extends Assertions {
   def includesRows(
                     expectedRows: Seq[Row],
                     sparkAnswer: Seq[Row]): Option[String] = {
-    if (!prepareAnswer(expectedRows, true).toSet.subsetOf(prepareAnswer(sparkAnswer, true).toSet)) {
-      return Some(genError(expectedRows, sparkAnswer, isSorted = true))
+    val expected = prepareAnswer(expectedRows)
+    val actual = prepareAnswer(sparkAnswer)
+    if (!expected.toSet.subsetOf(actual.toSet)) {
+      return Some(genError(expectedRows, sparkAnswer))
     }
     None
   }
@@ -413,9 +436,36 @@ object GlutenQueryTest extends Assertions {
   def sameRows(
                 expectedAnswer: Seq[Row],
                 sparkAnswer: Seq[Row],
-                isSorted: Boolean = false): Option[String] = {
-    if (!compare(prepareAnswer(expectedAnswer, isSorted), prepareAnswer(sparkAnswer, isSorted))) {
-      return Some(genError(expectedAnswer, sparkAnswer, isSorted))
+                sortedColIdxes: Seq[Int],
+                colLength: Int): Option[String] = {
+    val expected = prepareAnswer(expectedAnswer)
+    val actual = prepareAnswer(sparkAnswer)
+
+    // if answer is fully sorted or there are unknown sorted cols, we can just compare the answer
+    if (sortedColIdxes.contains(-1) || sortedColIdxes.length == colLength) {
+      if (!compare(expected, actual)) {
+        return Some(genError(expected, actual))
+      }
+      return None
+    }
+
+    // if answer is not fully sorted, we should sort the answer first, then compare them
+    val sortedExpected = expected.sortBy(_.toString())
+    val sortedActual = actual.sortBy(_.toString())
+    if (!compare(sortedExpected, sortedActual)) {
+      return Some(genError(sortedExpected, sortedActual))
+    }
+
+    // if answer is absolutely not sorted, the compare above is enough
+    if (sortedColIdxes.isEmpty) {
+      return None
+    }
+
+    // if answer is partially sorted, we should compare the sorted part
+    val expectedPart = expected.map(row => sortedColIdxes.map(row.get))
+    val actualPart = actual.map(row => sortedColIdxes.map(row.get))
+    if (!compare(expectedPart, actualPart)) {
+      return Some(genError(expected, actual))
     }
     None
   }

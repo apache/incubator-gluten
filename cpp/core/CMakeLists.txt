@@ -183,9 +183,9 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/ProtobufUtils.cc
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
-        shuffle/reader.cc
-        shuffle/ArrowShuffleWriter.cc
         operators/writer/ArrowWriter.cc
+        shuffle/reader.cc
+        shuffle/ShuffleWriter.cc
         shuffle/Partitioner.cc
         shuffle/FallbackRangePartitioner.cc
         shuffle/HashPartitioner.cc

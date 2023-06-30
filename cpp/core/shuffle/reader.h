@@ -18,9 +18,17 @@
 #pragma once
 
 #include "memory/ColumnarBatch.h"
-#include "type.h"
+
+#include <arrow/ipc/message.h>
+#include <arrow/ipc/options.h>
 
 namespace gluten {
+
+struct ReaderOptions {
+  arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
+
+  static ReaderOptions defaults();
+};
 
 class Reader {
  public:
@@ -30,14 +38,16 @@ class Reader {
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool);
 
-  arrow::Result<std::shared_ptr<ColumnarBatch>> next();
+  virtual ~Reader() = default;
+
+  virtual arrow::Result<std::shared_ptr<ColumnarBatch>> next();
   arrow::Status close();
 
  private:
   std::shared_ptr<arrow::MemoryPool> pool_;
   std::shared_ptr<arrow::io::InputStream> in_;
   ReaderOptions options_;
-  std::shared_ptr<arrow::Schema> schema_;
+  std::shared_ptr<arrow::Schema> writeSchema_;
   std::unique_ptr<arrow::ipc::Message> firstMessage_;
   bool firstMessageConsumed_ = false;
 };

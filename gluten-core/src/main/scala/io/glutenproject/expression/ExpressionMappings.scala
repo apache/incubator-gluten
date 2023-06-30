@@ -150,6 +150,7 @@ object ExpressionMappings {
     Sig[AddMonths](ADD_MONTHS),
     Sig[DateFormatClass](DATE_FORMAT),
     Sig[TruncDate](TRUNC),
+    Sig[TruncTimestamp](DATE_TRUNC),
     Sig[GetTimestamp](GET_TIMESTAMP),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),

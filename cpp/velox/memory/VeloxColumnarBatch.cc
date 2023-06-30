@@ -1,5 +1,6 @@
 #include "VeloxColumnarBatch.h"
 #include "velox/type/Type.h"
+#include "velox/vector/FlatVector.h"
 
 namespace gluten {
 
@@ -20,7 +21,7 @@ RowVectorPtr makeRowVector(
   auto rowType = ROW(std::move(childNames), std::move(childTypes));
   const size_t vectorSize = children.empty() ? 0 : children.front()->size();
 
-  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), vectorSize, children);
+  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), vectorSize, std::move(children));
 }
 } // namespace
 

@@ -65,13 +65,14 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           }
           val noFallBack = queryNum match {
             case i
-                if (i == 10 || i == 16 || i == 28 || i == 35 || i == 45 ||
+                if (i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
                   i == 88 || i == 94) =>
               // Q10 BroadcastHashJoin, ExistenceJoin
               // Q16 ShuffledHashJoin, NOT condition
               // Q28 BroadcastNestedLoopJoin
               // Q35 BroadcastHashJoin, ExistenceJoin
               // Q45 BroadcastHashJoin, ExistenceJoin
+              // Q77 CartesianProduct
               // Q88 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
@@ -92,14 +93,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q14b", // inconsistent results
     "q17", // inconsistent results
     "q18", // inconsistent results
-    "q31", // inconsistent results
     "q49", // inconsistent results
     "q61", // inconsistent results
     "q67", // inconsistent results
-    "q71", // inconsistent results, unstable order
-    "q77", // inconsistent results
     "q78", // inconsistent results
-    "q80", // fatal
     "q83", // decimal error
     "q90" // inconsistent results(decimal)
   )

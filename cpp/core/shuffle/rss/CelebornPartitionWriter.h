@@ -20,8 +20,8 @@
 #include <arrow/io/api.h>
 
 #include "shuffle/rss/RemotePartitionWriter.h"
-#include "shuffle/type.h"
 
+#include "jni/JniCommon.h"
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/utils.h"
 #include "utils/macros.h"
