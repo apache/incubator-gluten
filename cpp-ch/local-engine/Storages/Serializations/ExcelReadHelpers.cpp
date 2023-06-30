@@ -257,7 +257,7 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
         if (num_day_digits != 1 && num_day_digits != 2)
             return false;
 
-        if (num_first_digits == 1)
+        if (num_day_digits == 1)
             readDecimalNumber<1>(day, day_digits);
         else
             readDecimalNumber<2>(day, day_digits);
