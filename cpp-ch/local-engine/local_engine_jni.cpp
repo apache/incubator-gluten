@@ -924,6 +924,7 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 
     jobject block_stripes
         = env->NewObject(block_stripes_class, block_stripes_constructor, bs.originalBlockAddress, addresses, indices, bs.originBlockColNum);
+    return block_stripes;
 
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }

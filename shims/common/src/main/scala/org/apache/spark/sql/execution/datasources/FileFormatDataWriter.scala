@@ -42,8 +42,8 @@ import org.apache.spark.util.{SerializableConfiguration, Utils}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
  * Abstract class for writing out data in a single Spark task. Exceptions thrown by the
@@ -364,7 +364,7 @@ class DynamicPartitionDataSingleWriter(
   private var partitionColIndice: Array[Int] =
     description.partitionColumns.map(a => description.allColumns.indexOf(a)).toArray
 
-  private def beforeWrite(record: InternalRow) : Unit = {
+  private def beforeWrite(record: InternalRow): Unit = {
     val nextPartitionValues = if (isPartitioned) Some(getPartitionValues(record)) else None
     val nextBucketId = if (isBucketed) Some(getBucketId(record)) else None
 
@@ -380,8 +380,10 @@ class DynamicPartitionDataSingleWriter(
 
       fileCounter = 0
       renewCurrentWriter(currentPartitionValues, currentBucketId, closeCurrentWriter = true)
-    } else if (description.maxRecordsPerFile > 0 &&
-      recordsInFile >= description.maxRecordsPerFile) {
+    } else if (
+      description.maxRecordsPerFile > 0 &&
+      recordsInFile >= description.maxRecordsPerFile
+    ) {
       renewCurrentWriterIfTooManyRecords(currentPartitionValues, currentBucketId)
     }
   }
@@ -392,7 +394,7 @@ class DynamicPartitionDataSingleWriter(
           .getInstance()
           .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
 
-        for (blockStripe <- blockStripes.asScala){
+        for (blockStripe <- blockStripes.asScala) {
           val headingRow = blockStripe.getHeadingRow
           beforeWrite(headingRow)
           writeStripe(new FakeRow(blockStripe.getColumnarBatch))

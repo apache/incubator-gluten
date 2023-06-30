@@ -78,7 +78,10 @@ object CHExecUtil extends Logging {
     }
   }
 
-  def getRowIterFromSparkRowInfo(rowInfo: SparkRowInfo, columns: Int, rows: Int) = {
+  def getRowIterFromSparkRowInfo(
+      rowInfo: SparkRowInfo,
+      columns: Int,
+      rows: Int): Iterator[InternalRow] = {
     new Iterator[InternalRow] {
       var rowId = 0
       val row = new UnsafeRow(columns)
@@ -103,7 +106,10 @@ object CHExecUtil extends Logging {
       }
     }
   }
-  def getRowIterFromSparkRowInfo(blockAddress: Long, columns: Int, rows: Int) = {
+  def getRowIterFromSparkRowInfo(
+      blockAddress: Long,
+      columns: Int,
+      rows: Int): Iterator[InternalRow] = {
     val rowInfo = CHBlockConverterJniWrapper.convertColumnarToRow(blockAddress, null)
     getRowIterFromSparkRowInfo(rowInfo, columns, rows)
   }

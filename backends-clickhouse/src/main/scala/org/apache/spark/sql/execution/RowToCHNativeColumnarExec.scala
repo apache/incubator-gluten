@@ -73,8 +73,8 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
               val start = System.nanoTime()
               val slice = byteArrayIterator.take(8192);
               val sparkRowIterator = new SparkRowIterator(slice)
-              last_address =
-                CHBlockConverterJniWrapper.convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes);
+              last_address = CHBlockConverterJniWrapper
+                .convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes);
               val block = new CHNativeBlock(last_address)
 
               convertTime += NANOSECONDS.toMillis(System.nanoTime() - start)

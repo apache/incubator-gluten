@@ -35,6 +35,7 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
             }
         }
     }
+
     //sort split points
     std::sort(splitPoints.begin(), splitPoints.end());
     //dedup split points
@@ -62,4 +63,5 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
         ret.headingRowIndice.push_back(from);
         ret.blockAddresses.push_back(reinterpret_cast<int64_t>(p));
     }
+    return ret;
 }

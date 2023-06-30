@@ -179,7 +179,8 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
             batches.map {
               batch =>
                 val block = CHNativeBlock.fromColumnarBatch(batch)
-                val info = CHBlockConverterJniWrapper.convertColumnarToRow(block.blockAddress(), null)
+                val info =
+                  CHBlockConverterJniWrapper.convertColumnarToRow(block.blockAddress(), null)
                 new Iterator[InternalRow] {
                   var rowId = 0
                   val row = new UnsafeRow(batch.numCols())

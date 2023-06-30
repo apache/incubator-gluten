@@ -81,21 +81,21 @@ class GlutenClickHouseFileFormatSuite
       val filePath = basePath + "/native_parquet_test"
       val format = "parquet"
 
-    val df1 = spark
-      .createDataFrame(genTestData())
-    df1.write
-      .mode("overwrite")
-      .format("parquet")
-      .save(filePath)
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val df1 = spark.createDataFrame(genTestData())
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   // in this case, FakeRowAdaptor only wrap&transfer
@@ -105,20 +105,21 @@ class GlutenClickHouseFileFormatSuite
       val filePath = basePath + "/native_parquet_test"
       val format = "parquet"
 
-    val df1 = spark.read.parquet(tablesPath + "/customer")
-    df1.write
-      .mode("overwrite")
-      .format("parquet")
-      .save(filePath)
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val df1 = spark.read.parquet(tablesPath + "/customer")
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   // in this case, FakeRowAdaptor only wrap&transfer
@@ -142,15 +143,16 @@ class GlutenClickHouseFileFormatSuite
         .format("parquet")
         .save(filePath)
 
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   test("read data from csv file format") {
