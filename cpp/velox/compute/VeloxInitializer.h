@@ -48,7 +48,10 @@ class VeloxInitializer {
   static std::shared_ptr<VeloxInitializer> get();
 
   facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
+
   folly::Executor* FOLLY_NULLABLE getHashBuildExecutor() const;
+
+  folly::Executor* FOLLY_NULLABLE getSpillExecutor() const;
 
   const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
     return memPoolOptions_;
@@ -87,6 +90,7 @@ class VeloxInitializer {
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> hashBuildExecutor_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> spillExecutor_;
 
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;

@@ -139,6 +139,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);
   hashBuildExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(8);
+  spillExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(8);
 
 #ifdef ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
@@ -231,6 +232,10 @@ velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
 
 folly::Executor* FOLLY_NULLABLE VeloxInitializer::getHashBuildExecutor() const {
   return hashBuildExecutor_.get();
+}
+
+folly::Executor* FOLLY_NULLABLE VeloxInitializer::getSpillExecutor() const {
+  return spillExecutor_.get();
 }
 
 void VeloxInitializer::initCache(const std::unordered_map<std::string, std::string>& conf) {
