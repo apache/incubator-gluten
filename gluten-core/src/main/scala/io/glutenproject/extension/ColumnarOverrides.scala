@@ -185,24 +185,11 @@ case class TransformPreOverrides(
       )
       (projectExpressions, expressionPos)
     }
-    def getOutput(plan: SparkPlan) : Seq[Attribute] = {
-      plan match {
-        case hash : HashAggregateExec =>
-          hash.groupingExpressions.map(
-            expr => {
-              ConverterUtils.getAttrFromExpr(expr).toAttribute
-            }) ++ hash.aggregateExpressions.map(
-            expr => {
-              expr.resultAttribute
-            })
-        case other =>
-          other.output
-      }
-    }
     plan.outputPartitioning match {
       case HashPartitioning(exprs, numPartitions) =>
         val (projectExpressions, newExpressionsPosition) = {
-          selectExpressions(exprs, getOutput(plan.child))
+          selectExpressions(exprs,
+            BackendsApiManager.getTransformerApiInstance.getAggregateOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
@@ -218,7 +205,8 @@ case class TransformPreOverrides(
       case RangePartitioning(orderings, numPartitions) =>
         val exprs = orderings.map(ordering => ordering.child)
         val (projectExpressions, newExpressionsPosition) = {
-          selectExpressions(exprs, getOutput(plan.child))
+          selectExpressions(exprs,
+            BackendsApiManager.getTransformerApiInstance.getAggregateOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
