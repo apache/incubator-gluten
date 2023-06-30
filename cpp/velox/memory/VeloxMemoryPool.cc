@@ -16,7 +16,6 @@
  */
 
 #include "VeloxMemoryPool.h"
-#include <sstream>
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
