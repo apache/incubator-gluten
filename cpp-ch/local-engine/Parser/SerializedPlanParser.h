@@ -162,6 +162,21 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"min", "min"},
     {"max", "max"},
     {"collect_list", "groupArray"},
+    {"first", "first_value_respect_nulls"},
+    {"first_ignore_null", "first_value"},
+    {"last_ignore_null", "last_value"},
+    {"last", "last_value_respect_nulls"},
+
+    // window functions
+    {"lead", "lead"},
+    {"lag", "lag"},
+    {"dense_rank", "dense_rank"},
+    {"rank", "rank"},
+    {"row_number", "row_number"},
+    {"ntile", "ntile"},
+    {"percent_rank", "percent_rank"},
+    {"cume_dist", "cume_dist"},
+
     // In Spark, stddev is the alias for stddev_samp.
     {"stddev", "stddev_samp"},
     {"stddev_samp", "stddev_samp"},
