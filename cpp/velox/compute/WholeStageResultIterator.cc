@@ -250,9 +250,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
 
     // Set the max memory of partial aggregation as 3/4 of offheap size.
-    auto maxMemory = (long)(0.75 *
-                            (double)std::stol(getConfigValue(
-                                kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
+    auto maxMemory =
+        (long)(0.75 * (double)std::stol(getConfigValue(kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
     configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
     configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] = std::to_string(90);
     // Spill configs
