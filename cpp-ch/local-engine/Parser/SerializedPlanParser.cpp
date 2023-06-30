@@ -42,6 +42,7 @@
 #include <Operator/PartitionColumnFillingTransform.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/RelParser.h>
+#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
@@ -436,10 +437,15 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
                 throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", data_type->getName());
             }
             auto args_types = tuple_type->getElements();
-            auto agg_function_name = getFunctionName(name_parts[3], {});
             AggregateFunctionProperties properties;
-            auto tmp = AggregateFunctionFactory::instance().get(agg_function_name, args_types, {}, properties);
-            data_type = tmp->getStateType();
+            auto tmp_ctx = DB::Context::createCopy(global_context);
+            SerializedPlanParser tmp_plan_parser(tmp_ctx);
+            auto function_parser = FunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
+            auto agg_function_parser = typeid_cast<BaseAggregateFunctionParser *>(function_parser.get());
+            auto agg_function_name = agg_function_parser->getCHFunctionName(args_types);
+            data_type = AggregateFunctionFactory::instance()
+                            .get(agg_function_name, args_types, function_parser->getDefaultFunctionParameters(), properties)
+                            ->getStateType();
         }
         internal_cols.push_back(ColumnWithTypeAndName(data_type, name));
     }
@@ -867,14 +873,6 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     }
     return query_plan;
 }
-
-AggregateFunctionPtr getAggregateFunction(const std::string & name, DataTypes arg_types)
-{
-    auto & factory = AggregateFunctionFactory::instance();
-    AggregateFunctionProperties properties;
-    return factory.get(name, arg_types, Array{}, properties);
-}
-
 
 NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & header)
 {
