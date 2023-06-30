@@ -682,7 +682,6 @@ class GlutenClickHouseHiveTableSuite()
 
       spark.sql(create_sql)
       spark.sql(insert_sql)
-
       compareResultsAgainstVanillaSpark(select1_sql, true, _ => {})
       compareResultsAgainstVanillaSpark(select2_sql, true, _ => {})
       compareResultsAgainstVanillaSpark(select3_sql, true, _ => {})
@@ -730,5 +729,56 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_4, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_5, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_6, true, _ => {})
+    }
+  }
+
+  test("GLUTEN-: Test data field too much/few") {
+    val test_table_name = "test_table_2001"
+    val drop_table_sql = "drop table if exists %s".format(test_table_name)
+    val test_data_path = getClass.getResource("/").getPath + "/text-data/field_too_much_few"
+    val create_table_sql =
+      "create table if not exists %s (".format(test_table_name) +
+        "a string," +
+        "b string," +
+        "c string) stored as textfile LOCATION \"%s\"".format(test_data_path)
+    spark.sql(drop_table_sql)
+    spark.sql(create_table_sql)
+    val sql = "select * from " + test_table_name
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan =
+          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("GLUTEN-: Test data field type not match") {
+    val test_table_name = "test_table_2001"
+    val drop_table_sql = "drop table if exists %s".format(test_table_name)
+    val test_data_path = getClass.getResource("/").getPath + "/text-data/field_data_type_not_match"
+    val create_table_sql =
+      "create table if not exists %s (".format(test_table_name) +
+        "a int," +
+        "b string," +
+        "c date, " +
+        "d timestamp, " +
+        "e boolean, " +
+        "f double, " +
+        "g float, " +
+        "h bigint, " +
+        "i short) stored as textfile LOCATION \"%s\"".format(test_data_path)
+    spark.sql(drop_table_sql)
+    spark.sql(create_table_sql)
+    val sql = "select * from " + test_table_name
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan =
+          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
   }
 }
