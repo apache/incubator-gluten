@@ -441,7 +441,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Window spill with more than the inMemoryThreshold and spillThreshold",
       "Window spill with more than the inMemoryThreshold but less than the spillThreshold",
       "NaN and -0.0 in window partition keys",
-      "SPARK-21258: complex object in combination with spilling"
+      "SPARK-21258: complex object in combination with spilling",
+      "Gluten - corr, covar_pop, stddev_pop functions in specific window",
+      "corr, covar_pop, stddev_pop functions in specific window",
+      "covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window",
+      "SPARK-13860: " + "corr, covar_pop, stddev_pop functions in specific window " +
+        "LEGACY_STATISTICAL_AGGREGATE off",
+      "SPARK-13860: " + "covar_samp, var_samp (variance), stddev_samp (stddev) " +
+        "functions in specific window LEGACY_STATISTICAL_AGGREGATE off"
     )
 }
 
