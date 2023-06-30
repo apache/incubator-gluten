@@ -88,10 +88,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           sqlNums.map((_, noFallBack._1, noFallBack._2))
         })
 
+  // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
   protected val excludedTpcdsQueries: Set[String] = Set(
     "q14a", // inconsistent results
     "q14b", // inconsistent results
-    "q17", // inconsistent results
     "q18", // inconsistent results
     "q49", // inconsistent results
     "q61", // inconsistent results
