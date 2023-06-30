@@ -204,25 +204,25 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     val countsAndBytes = child
       .executeColumnar()
       .mapPartitions { iter =>
-        val input = new ArrayBuffer[Long]()
+        val input = new ArrayBuffer[ColumnarBatch]()
         // This iter is ClosableColumnarBatch, hasNext will remove it from native batch map,
         // and serialize function append(RowVector) may reserve the buffer,
         // so we can not release the batch before flush to OutputStream
         while (iter.hasNext) {
           val batch = iter.next
           if (batch.numCols() != 0) {
-            val handle = ColumnarBatches.getNativeHandle(batch)
-            val newHandle = ColumnarBatchSerializerJniWrapper.INSTANCE.insertBatch(handle)
-            input += newHandle
+            ColumnarBatches.retain(batch)
+            input += batch
           }
         }
 
         if (input.isEmpty) {
           Iterator((0L, Array[Byte]()))
         } else {
-          val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(input.toArray,
+          val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
+          val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(handleArray,
             NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
-          ColumnarBatchSerializerJniWrapper.INSTANCE.closeBatches(input.toArray)
+          input.foreach(ColumnarBatches.release)
           Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
         }
       }

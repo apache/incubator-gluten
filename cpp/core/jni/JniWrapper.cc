@@ -1078,6 +1078,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
     jlong handler = env->CallLongMethod(iter, veloxColumnarbatchScannerNext);
     auto batch = columnarBatchHolder.lookup(handler);
     datasource->write(batch);
+    // fixme this skips the general Java side batch-closing routine
     columnarBatchHolder.erase(handler);
   }
 
@@ -1223,29 +1224,6 @@ JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_close(JNIEnv* env, jobject, jlong handle) { // NOLINT
   JNI_METHOD_START
   columnarBatchSerializerHolder.erase(handle);
-  JNI_METHOD_END()
-}
-
-JNIEXPORT jlong JNICALL
-Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_insertBatch(JNIEnv* env, jobject, jlong handle) { // NOLINT
-  JNI_METHOD_START
-  auto batch = columnarBatchHolder.lookup(handle);
-  GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
-  return columnarBatchHolder.insert(batch);
-  JNI_METHOD_END(-1L)
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_closeBatches( // NOLINT
-    JNIEnv* env,
-    jobject,
-    jlongArray handles) {
-  JNI_METHOD_START
-  int32_t numBatches = env->GetArrayLength(handles);
-  jlong* batchhandles = env->GetLongArrayElements(handles, JNI_FALSE);
-  for (int32_t i = 0; i < numBatches; i++) {
-    columnarBatchHolder.erase(batchhandles[i]);
-  }
-  env->ReleaseLongArrayElements(handles, batchhandles, JNI_ABORT);
   JNI_METHOD_END()
 }
 
