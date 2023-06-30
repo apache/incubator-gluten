@@ -892,7 +892,7 @@ std::string
 SerializedPlanParser::getFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
     const auto & output_type = function.output_type();
-    auto args = function.arguments();
+    const auto & args = function.arguments();
     auto pos = function_signature.find(':');
     auto function_name = function_signature.substr(0, pos);
     if (!SCALAR_FUNCTIONS.contains(function_name))
@@ -1023,6 +1023,23 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);
         if (function_signature.find("vbin") != std::string::npos)
             ch_function_name = "length";
+    }
+    else if (function_name == "approx_percentile")
+    {
+        /// Spark approx_percentile(col, array(0.5, 0.4, 0.1), 100) => CH quantilesGK(100, 0.5. 0.4, 0.1)(col)
+        /// Spark approx_percentile(col, 0.5, 100) => CH quantileGK(100, 0.5)(col)
+        if (args.size() != 3)
+            throw Exception(
+                ErrorCodes::BAD_ARGUMENTS, "Spark function approx_percentile requires 3 args, function:{}", function.ShortDebugString());
+
+        const auto & percentile_arg = args.at(1).value();
+        if (!percentile_arg.has_literal() || (!percentile_arg.literal().has_list() && !percentile_arg.literal().has_fp64()))
+            throw Exception(
+                ErrorCodes::BAD_ARGUMENTS,
+                "The second arg of spark approx_percentile function is wrong, got: {}",
+                percentile_arg.ShortDebugString());
+
+        ch_function_name = percentile_arg.literal().has_list() ? "quantilesGK" : "quantileGK";
     }
     else
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);

@@ -15,12 +15,14 @@ public:
 private:
     struct AggregateInfo
     {
-        const substrait::AggregateRel::Measure * measure = nullptr;
+        // const substrait::AggregateRel::Measure * measure = nullptr;
+        std::unique_ptr<substrait::AggregateRel::Measure> measure;
         Strings arg_column_names;
         DB::DataTypes arg_column_types;
         String function_name;
         bool has_mismatch_nullablity = false;
         String filter_column_name;
+        Array parameters; /// Parameters of the (parametric) aggregate function.
     };
 
     Poco::Logger * logger = &Poco::Logger::get("AggregateRelParser");

@@ -77,8 +77,47 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         if (!function_name)
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported aggregate function");
 
-        agg_info.measure = &measure;
+        /// Special setup for approx_percentile because:
+        /// Spark approx_percentile(col, array(0.5, 0.4, 0.1), 100) => CH quantilesGK(100, 0.5. 0.4, 0.1)(col)
+        /// Spark approx_percentile(col, 0.5, 100) => CH quantileGK(100, 0.5)(col)
         agg_info.function_name = *function_name;
+        agg_info.measure.reset(measure.New());
+        if (agg_info.function_name == "quantileGK" || agg_info.function_name == "quantilesGK")
+        {
+            const auto & args = measure.measure().arguments();
+            const auto & col_arg = args[0].value();
+            const auto & percentile_arg = args[1].value();
+            const auto & accurary_arg = args[2].value();
+            if (!accurary_arg.has_literal() || !percentile_arg.has_literal())
+                throw Exception(
+                    ErrorCodes::BAD_ARGUMENTS,
+                    "Spark function approx_percentile requires the second and third argument to be literal, but got {} and {}",
+                    percentile_arg.ShortDebugString(),
+                    accurary_arg.ShortDebugString());
+
+            auto accuracy = parseLiteral(accurary_arg.literal());
+            auto percentile = parseLiteral(percentile_arg.literal());
+
+            Array & params = agg_info.parameters;
+            params.emplace_back(std::move(accuracy.second));
+            if (function_name == "quantileGK")
+                params.emplace_back(std::move(percentile.second));
+            else
+            {
+                Array & percentile_array = percentile.second.safeGet<Array>();
+                for (const auto & percentile_field : percentile_array)
+                    params.emplace_back(std::move(percentile_field));
+            }
+
+            /// Remove the second and third column from the substrait arguments.
+            agg_info.measure->CopyFrom(measure);
+            agg_info.measure->mutable_measure()->mutable_arguments()->DeleteSubrange(1, 2);
+        }
+        else
+        {
+            agg_info.measure->CopyFrom(measure);
+        }
+
         aggregates.emplace_back(std::move(agg_info));
     }
 
