@@ -68,7 +68,7 @@ private class ColumnarBatchSerializerInstance(schema: StructType,
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.INSTANCE.make(
           jniByteInputStream, cSchema.memoryAddress(),
-          NativeMemoryAllocators.contextInstance.getNativeInstanceId)
+          NativeMemoryAllocators.getDefault().contextInstance.getNativeInstanceId)
         // Close shuffle reader instance as lately as the end of task processing,
         // since the native reader could hold a reference to memory pool that
         // was used to create all buffers read from shuffle reader. The pool

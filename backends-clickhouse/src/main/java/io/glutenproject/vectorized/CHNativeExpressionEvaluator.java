@@ -19,7 +19,7 @@ package io.glutenproject.vectorized;
 import com.google.protobuf.Any;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.memory.alloc.NativeMemoryAllocators;
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocators;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
@@ -81,7 +81,7 @@ public class CHNativeExpressionEvaluator {
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
       throws RuntimeException, IOException {
-    long allocId = NativeMemoryAllocators.contextInstance().getNativeInstanceId();
+    long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(allocId, getPlanBytesBuf(wsPlan),
             iterList.toArray(new GeneralInIterator[0]));

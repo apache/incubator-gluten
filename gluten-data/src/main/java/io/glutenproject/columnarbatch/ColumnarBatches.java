@@ -285,6 +285,26 @@ public class ColumnarBatches {
     return new ColumnarBatch(columnVectors, numRows);
   }
 
+  public static void retain(ColumnarBatch b) {
+    if (isLightBatch(b)) {
+      IndicatorVector iv = (IndicatorVector) b.column(0);
+      iv.retain();
+      return;
+    }
+    if (isHeavyBatch(b)) {
+      for (int i = 0; i < b.numCols(); i++) {
+        ArrowWritableColumnVector col = ((ArrowWritableColumnVector) b.column(i));
+        col.retain();
+      }
+      return;
+    }
+    throw new IllegalStateException("Unreachable code");
+  }
+
+  public static void release(ColumnarBatch b) {
+    b.close();
+  }
+
   public static long getNativeHandle(ColumnarBatch batch) {
     if (!isLightBatch(batch)) {
       throw new UnsupportedOperationException("Cannot get native batch handle due to " +

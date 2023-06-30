@@ -66,7 +66,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
       val r2cId = try {
           ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
           jniWrapper.init(cSchema.memoryAddress(),
-            NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+            NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
       } finally {
         cSchema.close()
       }

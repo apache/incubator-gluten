@@ -17,7 +17,10 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.backendsapi.BackendsApiManager;
+import io.glutenproject.memory.GlutenMemoryConsumer;
+import io.glutenproject.memory.Spiller;
+import io.glutenproject.memory.TaskMemoryMetrics;
+import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.memory.TaskResources;
 
 /**
@@ -29,44 +32,54 @@ import org.apache.spark.util.memory.TaskResources;
  * ```
  * <p>
  * The ID "allocator_id" can be retrieved from Java API
- * {@link NativeMemoryAllocator#getNativeInstanceId()}.
+ * {@link CHNativeMemoryAllocator#getNativeInstanceId()}.
  * <p>
  * FIXME: to export the native APIs in a standard way
  */
-public abstract class NativeMemoryAllocators {
-  private NativeMemoryAllocators() {
+public abstract class CHNativeMemoryAllocators {
+  private CHNativeMemoryAllocators() {
   }
 
-  private static final NativeMemoryAllocator GLOBAL = NativeMemoryAllocator.getDefault();
+  private static final CHNativeMemoryAllocator GLOBAL = CHNativeMemoryAllocator.getDefault();
 
-  public static NativeMemoryAllocator contextInstance() {
+  private static CHNativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
+      TaskMemoryManager taskMemoryManager,
+      Spiller spiller,
+      TaskMemoryMetrics taskMemoryMetrics) {
+
+    CHManagedCHReservationListener rl = new CHManagedCHReservationListener(
+        new GlutenMemoryConsumer(taskMemoryManager, spiller),
+        taskMemoryMetrics
+    );
+    return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
+  }
+
+  public static CHNativeMemoryAllocator contextInstance() {
     if (!TaskResources.inSparkTask()) {
       return globalInstance();
     }
 
-    final String id = NativeMemoryAllocatorManager.class.toString();
+    final String id = CHNativeMemoryAllocatorManager.class.toString();
     if (!TaskResources.isResourceManagerRegistered(id)) {
-      final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
-          .genNativeMemoryAllocatorManager(
+      final CHNativeMemoryAllocatorManager manager = createNativeMemoryAllocatorManager(
               TaskResources.getSparkMemoryManager(),
               Spiller.NO_OP,
               TaskResources.getSharedMetrics());
       TaskResources.addResourceManager(id, manager);
     }
-    return ((NativeMemoryAllocatorManager) TaskResources.getResourceManager(id)).getManaged();
+    return ((CHNativeMemoryAllocatorManager) TaskResources.getResourceManager(id)).getManaged();
   }
 
-  public static NativeMemoryAllocator contextInstanceForUT() {
-    return NativeMemoryAllocator.getDefaultForUT();
+  public static CHNativeMemoryAllocator contextInstanceForUT() {
+    return CHNativeMemoryAllocator.getDefaultForUT();
   }
 
-  public static NativeMemoryAllocator createSpillable(Spiller spiller) {
+  public static CHNativeMemoryAllocator createSpillable(Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
-      throw new IllegalStateException("Spiller must be used in a Spark task");
+      throw new IllegalStateException("spiller must be used in a Spark task");
     }
 
-    final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
-        .genNativeMemoryAllocatorManager(
+    final CHNativeMemoryAllocatorManager manager = createNativeMemoryAllocatorManager(
             TaskResources.getSparkMemoryManager(),
             spiller,
             TaskResources.getSharedMetrics());
@@ -74,7 +87,7 @@ public abstract class NativeMemoryAllocators {
     return manager.getManaged();
   }
 
-  public static NativeMemoryAllocator globalInstance() {
+  public static CHNativeMemoryAllocator globalInstance() {
     return GLOBAL;
   }
 }
