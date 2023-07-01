@@ -50,8 +50,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx();
 
  private:
-  /// Set the Spark confs to Velox query context.
-  void setConfToQueryContext(const std::shared_ptr<facebook::velox::core::QueryCtx>& queryCtx);
+  /// Get the Spark confs to Velox query context.
+  std::unordered_map<std::string, std::string> getQueryContextConf();
 
 #ifdef ENABLE_HDFS
   /// Set latest tokens to global HiveConnector
