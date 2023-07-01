@@ -7,10 +7,10 @@ macro(add_headers_and_sources_including_cc prefix common_path)
     add_glob(${prefix}_sources ${common_path}/*.cpp ${common_path}/*.c ${common_path}/*.cc ${common_path}/*.h)
 endmacro()
 
-add_headers_and_sources(substait_source .)
+add_headers_and_sources(substrait_source .)
 add_headers_and_sources_including_cc(ch_parquet arrow)
-add_library(substrait_source ${substait_source_sources})
-target_compile_options(substrait_source PUBLIC -fPIC
+add_library(substrait_source ${substrait_source_sources})
+target_compile_options(substrait_source PRIVATE
     -Wno-suggest-destructor-override
     -Wno-inconsistent-missing-destructor-override
 )
