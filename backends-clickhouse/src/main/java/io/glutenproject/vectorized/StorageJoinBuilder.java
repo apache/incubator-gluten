@@ -21,99 +21,105 @@ import io.glutenproject.execution.BroadCastHashJoinContext;
 import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.expression.ConverterUtils$;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.Type;
-
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import scala.collection.JavaConverters;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import scala.collection.JavaConverters;
+
 public class StorageJoinBuilder implements AutoCloseable {
 
-  public static native void nativeCleanBuildHashTable(String hashTableId, long hashTableData);
-  public static native long nativeCloneBuildHashTable(long hashTableData);
+    public static native void nativeCleanBuildHashTable(String hashTableId, long hashTableData);
 
-  private ShuffleInputStream in;
+    public static native long nativeCloneBuildHashTable(long hashTableData);
 
-  private int customizeBufferSize;
+    private ShuffleInputStream in;
 
-  private BroadCastHashJoinContext broadCastContext;
+    private int customizeBufferSize;
 
-  private List<Expression> newBuildKeys;
+    private BroadCastHashJoinContext broadCastContext;
 
-  private List<Attribute> newOutput;
+    private List<Expression> newBuildKeys;
 
-  public StorageJoinBuilder(ShuffleInputStream in,
-                            BroadCastHashJoinContext broadCastContext,
-                            int customizeBufferSize,
-                            List<Attribute> newOutput,
-                            List<Expression> newBuildKeys) {
-    this.in = in;
-    this.broadCastContext = broadCastContext;
-    this.newOutput = newOutput;
-    this.newBuildKeys = newBuildKeys;
-    this.customizeBufferSize = customizeBufferSize;
-  }
+    private List<Attribute> newOutput;
 
-  private native long nativeBuild(String buildHashTableId,
-                                  ShuffleInputStream in,
-                                  int customizeBufferSize,
-                                  String joinKeys,
-                                  String joinType,
-                                  byte[] namedStruct);
-
-  /**
-   * build storage join object
-   */
-  public long build() {
-    ConverterUtils$ converter = ConverterUtils$.MODULE$;
-    String join = converter.convertJoinType(broadCastContext.joinType());
-    List<Expression> keys = null;
-    List<Attribute> output = null;
-    if (newBuildKeys.isEmpty()) {
-      keys = JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
-      output = JavaConverters.<Attribute>seqAsJavaList(broadCastContext.buildSideStructure());
-    } else {
-      keys = newBuildKeys;
-      output = newOutput;
+    public StorageJoinBuilder(
+            ShuffleInputStream in,
+            BroadCastHashJoinContext broadCastContext,
+            int customizeBufferSize,
+            List<Attribute> newOutput,
+            List<Expression> newBuildKeys) {
+        this.in = in;
+        this.broadCastContext = broadCastContext;
+        this.newOutput = newOutput;
+        this.newBuildKeys = newBuildKeys;
+        this.customizeBufferSize = customizeBufferSize;
     }
-    String joinKey = keys.stream().map((Expression key) -> {
-      Attribute attr = converter.getAttrFromExpr(key, false);
-      return converter.genColumnNameWithExprId(attr);
-    }).collect(Collectors.joining(","));
 
-    // create table named struct
-    ArrayList<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
-    ArrayList<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
-    Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-    for (TypeNode typeNode : typeList) {
-      structBuilder.addTypes(typeNode.toProtobuf());
-    }
-    NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
-    nStructBuilder.setStruct(structBuilder.build());
-    for (String name : nameList) {
-      nStructBuilder.addNames(name);
-    }
-    byte[] structure = nStructBuilder.build().toByteArray();
-    return nativeBuild(
-        broadCastContext.buildHashTableId(),
-        in,
-        this.customizeBufferSize,
-        joinKey,
-        join,
-        structure);
-  }
+    private native long nativeBuild(
+            String buildHashTableId,
+            ShuffleInputStream in,
+            int customizeBufferSize,
+            String joinKeys,
+            String joinType,
+            byte[] namedStruct);
 
-  @Override
-  public void close() throws Exception {
-    try {
-      in.close();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+    /** build storage join object */
+    public long build() {
+        ConverterUtils$ converter = ConverterUtils$.MODULE$;
+        String join = converter.convertJoinType(broadCastContext.joinType());
+        List<Expression> keys = null;
+        List<Attribute> output = null;
+        if (newBuildKeys.isEmpty()) {
+            keys = JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
+            output = JavaConverters.<Attribute>seqAsJavaList(broadCastContext.buildSideStructure());
+        } else {
+            keys = newBuildKeys;
+            output = newOutput;
+        }
+        String joinKey =
+                keys.stream()
+                        .map(
+                                (Expression key) -> {
+                                    Attribute attr = converter.getAttrFromExpr(key, false);
+                                    return converter.genColumnNameWithExprId(attr);
+                                })
+                        .collect(Collectors.joining(","));
+
+        // create table named struct
+        ArrayList<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
+        ArrayList<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
+        Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+        for (TypeNode typeNode : typeList) {
+            structBuilder.addTypes(typeNode.toProtobuf());
+        }
+        NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
+        nStructBuilder.setStruct(structBuilder.build());
+        for (String name : nameList) {
+            nStructBuilder.addNames(name);
+        }
+        byte[] structure = nStructBuilder.build().toByteArray();
+        return nativeBuild(
+                broadCastContext.buildHashTableId(),
+                in,
+                this.customizeBufferSize,
+                joinKey,
+                join,
+                structure);
     }
-  }
+
+    @Override
+    public void close() throws Exception {
+        try {
+            in.close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

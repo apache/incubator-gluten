@@ -19,8 +19,6 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
-import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
-import io.glutenproject.memory.alloc._
 import io.glutenproject.metrics.{IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
@@ -31,7 +29,6 @@ import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -117,7 +114,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           val beforeNext = System.nanoTime
           val hasNext = iter.hasNext
           collectTime += System.nanoTime - beforeNext
-          if (!hasNext) operator.close();
+          if (!hasNext) operator.close()
           hasNext
         }
 
@@ -128,14 +125,14 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           operator.mergeBlock(c)
 
           concatTime += System.nanoTime() - beforeConcat
-          var hasNext = true;
+          var hasNext = true
           while (!operator.isFull && hasNext) {
             val beforeNext = System.nanoTime
             hasNext = iter.hasNext
             if (hasNext) {
-              val cb = iter.next();
+              val cb = iter.next()
               collectTime += System.nanoTime - beforeNext
-              numInputBatches += 1;
+              numInputBatches += 1
               val beforeConcat = System.nanoTime
               operator.mergeBlock(cb)
               concatTime += System.nanoTime() - beforeConcat
@@ -166,7 +163,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       outputAttributes: Seq[Attribute],
       context: TaskContext,
       pipelineTime: SQLMetric,
-      updateInputMetrics: (InputMetricsWrapper) => Unit,
+      updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
@@ -262,14 +259,14 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     }
     var closed = false
 
-    def close = {
+    def close(): Unit = {
       closed = true
       buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
       nativeIterator.close()
       // relationHolder.clear()
     }
 
-    TaskContext.get().addTaskCompletionListener[Unit](_ => close)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => close())
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }
 
@@ -303,7 +300,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       i => {
         genFilePartition(i, Seq(inputPartitions(i)), wsCxt)
       })
-    logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
+    logInfo(s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
     new NativeFileScanColumnarRDD(
       sparkContext,
       substraitPlanPartition,

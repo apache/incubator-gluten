@@ -20,31 +20,31 @@ import java.util.List;
 
 public class MetricsStep {
 
-  protected String name;
-  protected String description;
-  protected List<MetricsProcessor> processors;
+    protected String name;
+    protected String description;
+    protected List<MetricsProcessor> processors;
 
-  public String getName() {
-    return name;
-  }
+    public String getName() {
+        return name;
+    }
 
-  public void setName(String name) {
-    this.name = name;
-  }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-  public String getDescription() {
-    return description;
-  }
+    public String getDescription() {
+        return description;
+    }
 
-  public void setDescription(String description) {
-    this.description = description;
-  }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-  public List<MetricsProcessor> getProcessors() {
-    return processors;
-  }
+    public List<MetricsProcessor> getProcessors() {
+        return processors;
+    }
 
-  public void setProcessors(List<MetricsProcessor> processors) {
-    this.processors = processors;
-  }
+    public void setProcessors(List<MetricsProcessor> processors) {
+        this.processors = processors;
+    }
 }

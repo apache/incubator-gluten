@@ -20,17 +20,17 @@ package io.glutenproject.vectorized;
 import java.util.Iterator;
 
 public class IteratorWrapper {
-  private final Iterator<Long> in;
+    private final Iterator<Long> in;
 
-  public IteratorWrapper(Iterator<Long> in) {
-    this.in = in;
-  }
+    public IteratorWrapper(Iterator<Long> in) {
+        this.in = in;
+    }
 
-  public boolean hasNext() {
-    return in.hasNext();
-  }
+    public boolean hasNext() {
+        return in.hasNext();
+    }
 
-  public long next() {
-    return in.next();
-  }
+    public long next() {
+        return in.next();
+    }
 }

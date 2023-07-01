@@ -25,28 +25,29 @@ import java.util.Vector;
 
 public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocatorManager {
 
-  private static Logger LOGGER = LoggerFactory.getLogger(CHNativeMemoryAllocatorManagerImpl.class);
+    private static Logger LOGGER =
+            LoggerFactory.getLogger(CHNativeMemoryAllocatorManagerImpl.class);
 
-  private static final List<CHNativeMemoryAllocator> LEAKED = new Vector<>();
-  private final CHNativeMemoryAllocator managed;
+    private static final List<CHNativeMemoryAllocator> LEAKED = new Vector<>();
+    private final CHNativeMemoryAllocator managed;
 
-  public CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator managed) {
-    this.managed = managed;
-  }
+    public CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator managed) {
+        this.managed = managed;
+    }
 
-  @Override
-  public void release() throws Exception {
-    managed.close();
-    managed.listener().inactivate();
-  }
+    @Override
+    public void release() throws Exception {
+        managed.close();
+        managed.listener().inactivate();
+    }
 
-  @Override
-  public CHNativeMemoryAllocator getManaged() {
-    return managed;
-  }
+    @Override
+    public CHNativeMemoryAllocator getManaged() {
+        return managed;
+    }
 
-  @Override
-  public long priority() {
-    return 0L; // lowest priority
-  }
+    @Override
+    public long priority() {
+        return 0L; // lowest priority
+    }
 }

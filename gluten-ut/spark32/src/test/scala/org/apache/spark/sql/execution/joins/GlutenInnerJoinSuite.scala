@@ -17,15 +17,7 @@
 
 package org.apache.spark.sql.execution.joins
 
-import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
-import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint}
-import org.apache.spark.sql.catalyst.plans.Inner
-import org.apache.spark.sql.execution.{joins, FilterExec, SparkPlan}
-import org.apache.spark.sql.execution.exchange.EnsureRequirements
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenInnerJoinSuite extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
 }

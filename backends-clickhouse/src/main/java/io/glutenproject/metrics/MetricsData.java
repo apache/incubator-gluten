@@ -22,114 +22,117 @@ import java.util.List;
 
 public class MetricsData {
 
-  protected long id;
-  protected String name;
-  protected long time;
-  @JsonProperty("input_wait_time")
-  protected long inputWaitTime;
-  @JsonProperty("output_wait_time")
-  protected long outputWaitTime;
-  protected long inputRows = 0;
-  protected long inputVectors = 0;
-  protected long inputBytes = 0;
-  protected long outputRows = 0;
-  protected long outputVectors = 0;
-  protected long outputBytes = 0;
-  protected List<MetricsStep> steps;
+    protected long id;
+    protected String name;
+    protected long time;
 
-  public long getId() {
-    return id;
-  }
+    @JsonProperty("input_wait_time")
+    protected long inputWaitTime;
 
-  public void setId(long id) {
-    this.id = id;
-  }
+    @JsonProperty("output_wait_time")
+    protected long outputWaitTime;
 
-  public String getName() {
-    return name;
-  }
+    protected long inputRows = 0;
+    protected long inputVectors = 0;
+    protected long inputBytes = 0;
+    protected long outputRows = 0;
+    protected long outputVectors = 0;
+    protected long outputBytes = 0;
+    protected List<MetricsStep> steps;
 
-  public void setName(String name) {
-    this.name = name;
-  }
+    public long getId() {
+        return id;
+    }
 
-  public long getTime() {
-    return time;
-  }
+    public void setId(long id) {
+        this.id = id;
+    }
 
-  public void setTime(long time) {
-    this.time = time;
-  }
+    public String getName() {
+        return name;
+    }
 
-  public List<MetricsStep> getSteps() {
-    return steps;
-  }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-  public void setSteps(List<MetricsStep> steps) {
-    this.steps = steps;
-  }
+    public long getTime() {
+        return time;
+    }
 
-  public long getInputRows() {
-    return inputRows;
-  }
+    public void setTime(long time) {
+        this.time = time;
+    }
 
-  public void setInputRows(long inputRows) {
-    this.inputRows = inputRows;
-  }
+    public List<MetricsStep> getSteps() {
+        return steps;
+    }
 
-  public long getInputVectors() {
-    return inputVectors;
-  }
+    public void setSteps(List<MetricsStep> steps) {
+        this.steps = steps;
+    }
 
-  public void setInputVectors(long inputVectors) {
-    this.inputVectors = inputVectors;
-  }
+    public long getInputRows() {
+        return inputRows;
+    }
 
-  public long getInputBytes() {
-    return inputBytes;
-  }
+    public void setInputRows(long inputRows) {
+        this.inputRows = inputRows;
+    }
 
-  public void setInputBytes(long inputBytes) {
-    this.inputBytes = inputBytes;
-  }
+    public long getInputVectors() {
+        return inputVectors;
+    }
 
-  public long getOutputRows() {
-    return outputRows;
-  }
+    public void setInputVectors(long inputVectors) {
+        this.inputVectors = inputVectors;
+    }
 
-  public void setOutputRows(long outputRows) {
-    this.outputRows = outputRows;
-  }
+    public long getInputBytes() {
+        return inputBytes;
+    }
 
-  public long getOutputVectors() {
-    return outputVectors;
-  }
+    public void setInputBytes(long inputBytes) {
+        this.inputBytes = inputBytes;
+    }
 
-  public void setOutputVectors(long outputVectors) {
-    this.outputVectors = outputVectors;
-  }
+    public long getOutputRows() {
+        return outputRows;
+    }
 
-  public long getOutputBytes() {
-    return outputBytes;
-  }
+    public void setOutputRows(long outputRows) {
+        this.outputRows = outputRows;
+    }
 
-  public void setOutputBytes(long outputBytes) {
-    this.outputBytes = outputBytes;
-  }
+    public long getOutputVectors() {
+        return outputVectors;
+    }
 
-  public long getInputWaitTime() {
-    return inputWaitTime;
-  }
+    public void setOutputVectors(long outputVectors) {
+        this.outputVectors = outputVectors;
+    }
 
-  public void setInputWaitTime(long inputWaitTime) {
-    this.inputWaitTime = inputWaitTime;
-  }
+    public long getOutputBytes() {
+        return outputBytes;
+    }
 
-  public long getOutputWaitTime() {
-    return outputWaitTime;
-  }
+    public void setOutputBytes(long outputBytes) {
+        this.outputBytes = outputBytes;
+    }
 
-  public void setOutputWaitTime(long outputWaitTime) {
-    this.outputWaitTime = outputWaitTime;
-  }
+    public long getInputWaitTime() {
+        return inputWaitTime;
+    }
+
+    public void setInputWaitTime(long inputWaitTime) {
+        this.inputWaitTime = inputWaitTime;
+    }
+
+    public long getOutputWaitTime() {
+        return outputWaitTime;
+    }
+
+    public void setOutputWaitTime(long outputWaitTime) {
+        this.outputWaitTime = outputWaitTime;
+    }
 }

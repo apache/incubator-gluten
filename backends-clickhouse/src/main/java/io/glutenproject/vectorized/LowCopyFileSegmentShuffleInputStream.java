@@ -28,76 +28,77 @@ import java.nio.channels.FileChannel;
 
 public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream {
 
-  private final InputStream in;
-  private final LimitedInputStream limitedInputStream;
-  private final FileChannel channel;
-  private final int bufferSize;
-  private final boolean isCompressed;
+    private final InputStream in;
+    private final LimitedInputStream limitedInputStream;
+    private final FileChannel channel;
+    private final int bufferSize;
+    private final boolean isCompressed;
 
-  private long bytesRead = 0L;
-  private long left;
+    private long bytesRead = 0L;
+    private long left;
 
-  public LowCopyFileSegmentShuffleInputStream(
-      InputStream in,
-      InputStream limitedInputStream,
-      int bufferSize,
-      boolean isCompressed) {
-    // to prevent underlying netty buffer from being collected by GC
-    this.in = in;
-    this.limitedInputStream = (LimitedInputStream) limitedInputStream;
-    this.bufferSize = bufferSize;
-    this.isCompressed = isCompressed;
-    final FileInputStream fin;
-    try {
-      left = ((long) CHShuffleReadStreamFactory.FIELD_LimitedInputStream_left
-          .get(this.limitedInputStream));
-      fin = (FileInputStream) CHShuffleReadStreamFactory.FIELD_FilterInputStream_in
-          .get(this.limitedInputStream);
-    } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+    public LowCopyFileSegmentShuffleInputStream(
+            InputStream in, InputStream limitedInputStream, int bufferSize, boolean isCompressed) {
+        // to prevent underlying netty buffer from being collected by GC
+        this.in = in;
+        this.limitedInputStream = (LimitedInputStream) limitedInputStream;
+        this.bufferSize = bufferSize;
+        this.isCompressed = isCompressed;
+        final FileInputStream fin;
+        try {
+            left =
+                    ((long)
+                            CHShuffleReadStreamFactory.FIELD_LimitedInputStream_left.get(
+                                    this.limitedInputStream));
+            fin =
+                    (FileInputStream)
+                            CHShuffleReadStreamFactory.FIELD_FilterInputStream_in.get(
+                                    this.limitedInputStream);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        channel = fin.getChannel();
     }
-    channel = fin.getChannel();
-  }
 
-  @Override
-  public long read(long destAddress, long maxReadSize) {
-    long bytesToRead = Math.min(left, maxReadSize);
-    int bytesToRead32 = Math.toIntExact(bytesToRead);
-    if (bytesToRead32 == 0) {
-      return 0;
+    @Override
+    public long read(long destAddress, long maxReadSize) {
+        long bytesToRead = Math.min(left, maxReadSize);
+        int bytesToRead32 = Math.toIntExact(bytesToRead);
+        if (bytesToRead32 == 0) {
+            return 0;
+        }
+        ByteBuffer direct = PlatformDependent.directBuffer(destAddress, bytesToRead32);
+        try {
+            // read data from file channel to native address
+            int bytes = channel.read(direct);
+            if (bytes == -1) {
+                return 0;
+            }
+            bytesRead += bytes;
+            left -= bytes;
+            return bytes;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-    ByteBuffer direct = PlatformDependent.directBuffer(destAddress, bytesToRead32);
-    try {
-      // read data from file channel to native address
-      int bytes = channel.read(direct);
-      if (bytes == -1) {
-        return 0;
-      }
-      bytesRead += bytes;
-      left -= bytes;
-      return bytes;
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+
+    @Override
+    public long pos() {
+        return bytesRead;
     }
-  }
 
-  @Override
-  public long pos() {
-    return bytesRead;
-  }
-
-  @Override
-  public boolean isCompressed() {
-    return this.isCompressed;
-  }
-
-  @Override
-  public void close() {
-    try {
-      channel.close();
-      in.close();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @Override
+    public boolean isCompressed() {
+        return this.isCompressed;
     }
-  }
+
+    @Override
+    public void close() {
+        try {
+            channel.close();
+            in.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

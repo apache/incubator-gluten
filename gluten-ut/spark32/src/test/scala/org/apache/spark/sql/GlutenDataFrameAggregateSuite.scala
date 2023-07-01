@@ -102,7 +102,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     checkAnswer(testData2.agg(avg($"a"), mean($"a")), Row(2.0, 2.0))
 
     checkAnswer(
-      testData2.agg(avg($"a"), sumDistinct($"a")), // non-partial and test deprecated version
+      testData2.agg(avg($"a"), sum_distinct($"a")), // non-partial and test deprecated version
       Row(2.0, 6.0) :: Nil)
 
     // [wishlist] does not support decimal

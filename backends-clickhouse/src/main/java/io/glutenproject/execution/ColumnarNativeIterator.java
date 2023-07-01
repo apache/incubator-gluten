@@ -19,37 +19,38 @@ package io.glutenproject.execution;
 
 import io.glutenproject.vectorized.CHColumnVector;
 import io.glutenproject.vectorized.GeneralInIterator;
+
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
 public class ColumnarNativeIterator extends GeneralInIterator implements Iterator<byte[]> {
 
-  public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
-  }
-
-  private static byte[] longtoBytes(long data) {
-    return new byte[]{
-        (byte) ((data >> 56) & 0xff),
-        (byte) ((data >> 48) & 0xff),
-        (byte) ((data >> 40) & 0xff),
-        (byte) ((data >> 32) & 0xff),
-        (byte) ((data >> 24) & 0xff),
-        (byte) ((data >> 16) & 0xff),
-        (byte) ((data >> 8) & 0xff),
-        (byte) ((data >> 0) & 0xff),
-    };
-  }
-
-  @Override
-  public byte[] next() {
-    ColumnarBatch nextBatch = nextColumnarBatch();
-    if (nextBatch.numRows() > 0) {
-      CHColumnVector col = (CHColumnVector) nextBatch.column(0);
-      return longtoBytes(col.getBlockAddress());
-    } else {
-      throw new IllegalStateException();
+    public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
+        super(delegated);
     }
-  }
+
+    private static byte[] longtoBytes(long data) {
+        return new byte[] {
+            (byte) ((data >> 56) & 0xff),
+            (byte) ((data >> 48) & 0xff),
+            (byte) ((data >> 40) & 0xff),
+            (byte) ((data >> 32) & 0xff),
+            (byte) ((data >> 24) & 0xff),
+            (byte) ((data >> 16) & 0xff),
+            (byte) ((data >> 8) & 0xff),
+            (byte) ((data >> 0) & 0xff),
+        };
+    }
+
+    @Override
+    public byte[] next() {
+        ColumnarBatch nextBatch = nextColumnarBatch();
+        if (nextBatch.numRows() > 0) {
+            CHColumnVector col = (CHColumnVector) nextBatch.column(0);
+            return longtoBytes(col.getBlockAddress());
+        } else {
+            throw new IllegalStateException();
+        }
+    }
 }

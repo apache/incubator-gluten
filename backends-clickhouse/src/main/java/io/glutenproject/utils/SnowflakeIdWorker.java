@@ -21,89 +21,92 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig;
 
 /**
- * An object that generates IDs.
- * This is broken into a separate class in case
- * we ever want to support multiple worker threads per process.
- * Refer to twitter-archive Snowflake.
+ * An object that generates IDs. This is broken into a separate class in case we ever want to
+ * support multiple worker threads per process. Refer to twitter-archive Snowflake.
  */
 public class SnowflakeIdWorker {
 
-  //==============================Singleton=====================================
-  private static volatile SnowflakeIdWorker INSTANCE;
-  // ==============================Fields===========================================
-  private final long twepoch = 1640966400L;
-  private final long workerIdBits = 6L;
-  private final long maxWorkerId = -1L ^ (-1L << workerIdBits);
-  private final long sequenceBits = 16L;
-  private final long workerIdShift = sequenceBits;
-  private final long timestampLeftShift = sequenceBits + workerIdBits;
-  private final long sequenceMask = -1L ^ (-1L << sequenceBits);
-  private long workerId;
-  private long sequence = 0L;
-  private long lastTimestamp = -1L;
+    // ==============================Singleton=====================================
+    private static volatile SnowflakeIdWorker INSTANCE;
+    // ==============================Fields===========================================
+    private final long twepoch = 1640966400L;
+    private final long workerIdBits = 6L;
+    private final long maxWorkerId = -1L ^ (-1L << workerIdBits);
+    private final long sequenceBits = 16L;
+    private final long workerIdShift = sequenceBits;
+    private final long timestampLeftShift = sequenceBits + workerIdBits;
+    private final long sequenceMask = -1L ^ (-1L << sequenceBits);
+    private long workerId;
+    private long sequence = 0L;
+    private long lastTimestamp = -1L;
 
-  public SnowflakeIdWorker(long workerId) {
-    if (workerId > maxWorkerId || workerId < 0) {
-      throw new IllegalArgumentException(
-          String.format("worker Id can't be greater than %d or less than 0", maxWorkerId));
-    }
-    this.workerId = workerId;
-  }
-
-  //==============================Constructors=====================================
-
-  public static SnowflakeIdWorker getInstance() {
-    if (INSTANCE == null) {
-      synchronized (SnowflakeIdWorker.class) {
-        if (INSTANCE == null) {
-          if (!SparkEnv.get().conf().contains(ClickHouseConfig.CLICKHOUSE_WORKER_ID())) {
-            throw new IllegalArgumentException("Please set an unique value to " +
-                ClickHouseConfig.CLICKHOUSE_WORKER_ID());
-          }
-          INSTANCE = new SnowflakeIdWorker(
-              SparkEnv.get().conf()
-                  .getLong(ClickHouseConfig.CLICKHOUSE_WORKER_ID(), 0));
+    public SnowflakeIdWorker(long workerId) {
+        if (workerId > maxWorkerId || workerId < 0) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "worker Id can't be greater than %d or less than 0", maxWorkerId));
         }
-      }
-    }
-    return INSTANCE;
-  }
-
-  // ==============================Methods==========================================
-  public synchronized long nextId() {
-    long timestamp = timeGen();
-
-    if (timestamp < lastTimestamp) {
-      throw new RuntimeException(
-          String.format("Clock moved backwards.  Refusing to generate id for %d milliseconds",
-              lastTimestamp - timestamp));
+        this.workerId = workerId;
     }
 
-    if (lastTimestamp == timestamp) {
-      sequence = (sequence + 1) & sequenceMask;
-      if (sequence == 0) {
-        timestamp = tilNextMillis(lastTimestamp);
-      }
-    } else {
-      sequence = 0L;
+    // ==============================Constructors=====================================
+
+    public static SnowflakeIdWorker getInstance() {
+        if (INSTANCE == null) {
+            synchronized (SnowflakeIdWorker.class) {
+                if (INSTANCE == null) {
+                    if (!SparkEnv.get().conf().contains(ClickHouseConfig.CLICKHOUSE_WORKER_ID())) {
+                        throw new IllegalArgumentException(
+                                "Please set an unique value to "
+                                        + ClickHouseConfig.CLICKHOUSE_WORKER_ID());
+                    }
+                    INSTANCE =
+                            new SnowflakeIdWorker(
+                                    SparkEnv.get()
+                                            .conf()
+                                            .getLong(ClickHouseConfig.CLICKHOUSE_WORKER_ID(), 0));
+                }
+            }
+        }
+        return INSTANCE;
     }
 
-    lastTimestamp = timestamp;
+    // ==============================Methods==========================================
+    public synchronized long nextId() {
+        long timestamp = timeGen();
 
-    return ((timestamp - twepoch) << timestampLeftShift) //
-        | (workerId << workerIdShift) //
-        | sequence;
-  }
+        if (timestamp < lastTimestamp) {
+            throw new RuntimeException(
+                    String.format(
+                            "Clock moved backwards.  Refusing to generate id for %d milliseconds",
+                            lastTimestamp - timestamp));
+        }
 
-  protected long tilNextMillis(long lastTimestamp) {
-    long timestamp = timeGen();
-    while (timestamp <= lastTimestamp) {
-      timestamp = timeGen();
+        if (lastTimestamp == timestamp) {
+            sequence = (sequence + 1) & sequenceMask;
+            if (sequence == 0) {
+                timestamp = tilNextMillis(lastTimestamp);
+            }
+        } else {
+            sequence = 0L;
+        }
+
+        lastTimestamp = timestamp;
+
+        return ((timestamp - twepoch) << timestampLeftShift) //
+                | (workerId << workerIdShift) //
+                | sequence;
     }
-    return timestamp;
-  }
 
-  protected long timeGen() {
-    return System.currentTimeMillis() / 1000L;
-  }
+    protected long tilNextMillis(long lastTimestamp) {
+        long timestamp = timeGen();
+        while (timestamp <= lastTimestamp) {
+            timestamp = timeGen();
+        }
+        return timestamp;
+    }
+
+    protected long timeGen() {
+        return System.currentTimeMillis() / 1000L;
+    }
 }

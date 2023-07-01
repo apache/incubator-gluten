@@ -161,7 +161,6 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
             case _ =>
               ExpressionBuilder.makeSelection(selectionMaps(i)(j))
           }
-          
           porjectExprNodes.add(projectExprNode)
         }
         projectSetExprNodes.add(porjectExprNodes)

@@ -20,33 +20,33 @@ package io.glutenproject.vectorized;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 public class CHBlockWriterJniWrapper {
-  private long instance = 0;
+    private long instance = 0;
 
-  private native long nativeCreateInstance();
+    private native long nativeCreateInstance();
 
-  private native void nativeWrite(long instance, long block);
+    private native void nativeWrite(long instance, long block);
 
-  private native int nativeResultSize(long instance);
+    private native int nativeResultSize(long instance);
 
-  private native void nativeCollect(long instance, byte[] data);
+    private native void nativeCollect(long instance, byte[] data);
 
-  private native void nativeClose(long instance);
+    private native void nativeClose(long instance);
 
-  public void write(ColumnarBatch columnarBatch) {
-    if (instance == 0) {
-      instance = nativeCreateInstance();
+    public void write(ColumnarBatch columnarBatch) {
+        if (instance == 0) {
+            instance = nativeCreateInstance();
+        }
+        nativeWrite(instance, CHNativeBlock.fromColumnarBatch(columnarBatch).blockAddress());
     }
-    nativeWrite(instance, CHNativeBlock.fromColumnarBatch(columnarBatch).blockAddress());
-  }
 
-  public byte[] collectAsByteArray() {
-    if (instance == 0L) {
-      return new byte[0];
+    public byte[] collectAsByteArray() {
+        if (instance == 0L) {
+            return new byte[0];
+        }
+        byte[] result = new byte[nativeResultSize(instance)];
+        nativeCollect(instance, result);
+        nativeClose(instance);
+        instance = 0;
+        return result;
     }
-    byte[] result = new byte[nativeResultSize(instance)];
-    nativeCollect(instance, result);
-    nativeClose(instance);
-    instance = 0;
-    return result;
-  }
 }

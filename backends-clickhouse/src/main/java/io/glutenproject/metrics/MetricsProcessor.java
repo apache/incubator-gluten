@@ -20,80 +20,86 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class MetricsProcessor {
 
-  protected String name;
-  protected long time;
-  @JsonProperty("input_rows")
-  protected long inputRows = 0;
-  protected long inputVectors = 0;
-  @JsonProperty("input_bytes")
-  protected long inputBytes = 0;
-  @JsonProperty("output_rows")
-  protected long outputRows = 0;
-  protected long outputVectors = 0;
-  @JsonProperty("output_bytes")
-  protected long outputBytes = 0;
+    protected String name;
+    protected long time;
 
-  public String getName() {
-    return name;
-  }
+    @JsonProperty("input_rows")
+    protected long inputRows = 0;
 
-  public void setName(String name) {
-    this.name = name;
-  }
+    protected long inputVectors = 0;
 
-  public long getTime() {
-    return time;
-  }
+    @JsonProperty("input_bytes")
+    protected long inputBytes = 0;
 
-  public void setTime(long time) {
-    this.time = time;
-  }
+    @JsonProperty("output_rows")
+    protected long outputRows = 0;
 
-  public long getInputRows() {
-    return inputRows;
-  }
+    protected long outputVectors = 0;
 
-  public void setInputRows(long inputRows) {
-    this.inputRows = inputRows;
-  }
+    @JsonProperty("output_bytes")
+    protected long outputBytes = 0;
 
-  public long getInputVectors() {
-    return inputVectors;
-  }
+    public String getName() {
+        return name;
+    }
 
-  public void setInputVectors(long inputVectors) {
-    this.inputVectors = inputVectors;
-  }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-  public long getInputBytes() {
-    return inputBytes;
-  }
+    public long getTime() {
+        return time;
+    }
 
-  public void setInputBytes(long inputBytes) {
-    this.inputBytes = inputBytes;
-  }
+    public void setTime(long time) {
+        this.time = time;
+    }
 
-  public long getOutputRows() {
-    return outputRows;
-  }
+    public long getInputRows() {
+        return inputRows;
+    }
 
-  public void setOutputRows(long outputRows) {
-    this.outputRows = outputRows;
-  }
+    public void setInputRows(long inputRows) {
+        this.inputRows = inputRows;
+    }
 
-  public long getOutputVectors() {
-    return outputVectors;
-  }
+    public long getInputVectors() {
+        return inputVectors;
+    }
 
-  public void setOutputVectors(long outputVectors) {
-    this.outputVectors = outputVectors;
-  }
+    public void setInputVectors(long inputVectors) {
+        this.inputVectors = inputVectors;
+    }
 
-  public long getOutputBytes() {
-    return outputBytes;
-  }
+    public long getInputBytes() {
+        return inputBytes;
+    }
 
-  public void setOutputBytes(long outputBytes) {
-    this.outputBytes = outputBytes;
-  }
+    public void setInputBytes(long inputBytes) {
+        this.inputBytes = inputBytes;
+    }
+
+    public long getOutputRows() {
+        return outputRows;
+    }
+
+    public void setOutputRows(long outputRows) {
+        this.outputRows = outputRows;
+    }
+
+    public long getOutputVectors() {
+        return outputVectors;
+    }
+
+    public void setOutputVectors(long outputVectors) {
+        this.outputVectors = outputVectors;
+    }
+
+    public long getOutputBytes() {
+        return outputBytes;
+    }
+
+    public void setOutputBytes(long outputBytes) {
+        this.outputBytes = outputBytes;
+    }
 }

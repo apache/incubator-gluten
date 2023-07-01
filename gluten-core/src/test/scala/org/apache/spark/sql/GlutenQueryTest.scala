@@ -22,9 +22,9 @@ package org.apache.spark.sql
  * 1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
 import org.apache.spark.rpc.GlutenDriverEndpoint
-import org.apache.spark.sql.catalyst.expressions.{Alias, AssertTrue, Attribute}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Join, LogicalPlan, Project, Sort, Subquery, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Join, LogicalPlan, Sort, Subquery, SubqueryAlias}
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -477,7 +477,8 @@ object GlutenQueryTest extends Assertions {
    * @param expectedAnswer the expected result in a[[Row]].
    * @param absTol the absolute tolerance between actual and expected answers.
    */
-  protected def checkAggregatesWithTol(actualAnswer: Row, expectedAnswer: Row, absTol: Double) = {
+  protected def checkAggregatesWithTol(
+    actualAnswer: Row, expectedAnswer: Row, absTol: Double): Unit = {
     require(actualAnswer.length == expectedAnswer.length,
       s"actual answer length ${actualAnswer.length} != " +
         s"expected answer length ${expectedAnswer.length}")
@@ -494,7 +495,7 @@ object GlutenQueryTest extends Assertions {
   }
 
   def checkAnswer(df: DataFrame, expectedAnswer: java.util.List[Row]): Unit = {
-    getErrorMessageInCheckAnswer(df, expectedAnswer.asScala.toSeq) match {
+    getErrorMessageInCheckAnswer(df, expectedAnswer.asScala) match {
       case Some(errorMessage) => Assert.fail(errorMessage)
       case None =>
     }

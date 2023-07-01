@@ -24,18 +24,15 @@ import java.util.List;
 
 public class OperatorMetrics implements IOperatorMetrics {
 
-  public List<MetricsData> metricsList;
-  public JoinParams joinParams;
-  public AggregationParams aggParams;
+    public List<MetricsData> metricsList;
+    public JoinParams joinParams;
+    public AggregationParams aggParams;
 
-  /**
-   * Create an instance for operator metrics.
-   */
-  public OperatorMetrics(List<MetricsData> metricsList,
-                         JoinParams joinParams,
-                         AggregationParams aggParams) {
-    this.metricsList = metricsList;
-    this.aggParams = aggParams;
-    this.joinParams = joinParams;
-  }
+    /** Create an instance for operator metrics. */
+    public OperatorMetrics(
+            List<MetricsData> metricsList, JoinParams joinParams, AggregationParams aggParams) {
+        this.metricsList = metricsList;
+        this.aggParams = aggParams;
+        this.joinParams = joinParams;
+    }
 }

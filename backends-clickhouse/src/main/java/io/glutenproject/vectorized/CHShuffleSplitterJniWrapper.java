@@ -20,48 +20,47 @@ package io.glutenproject.vectorized;
 import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
-  public CHShuffleSplitterJniWrapper() {
-  }
+    public CHShuffleSplitterJniWrapper() {}
 
-  public long make(
-      NativePartitioning part,
-      int shuffleId,
-      long mapId,
-      int bufferSize,
-      String codec,
-      String dataFile,
-      String localDirs,
-      int subDirsPerLocalDir) {
-    return nativeMake(
-        part.getShortName(),
-        part.getNumPartitions(),
-        part.getExprList(),
-        part.getRequiredFields(),
-        shuffleId,
-        mapId,
-        bufferSize,
-        codec,
-        dataFile,
-        localDirs,
-        subDirsPerLocalDir);
-  }
+    public long make(
+            NativePartitioning part,
+            int shuffleId,
+            long mapId,
+            int bufferSize,
+            String codec,
+            String dataFile,
+            String localDirs,
+            int subDirsPerLocalDir) {
+        return nativeMake(
+                part.getShortName(),
+                part.getNumPartitions(),
+                part.getExprList(),
+                part.getRequiredFields(),
+                shuffleId,
+                mapId,
+                bufferSize,
+                codec,
+                dataFile,
+                localDirs,
+                subDirsPerLocalDir);
+    }
 
-  public native long nativeMake(
-      String shortName,
-      int numPartitions,
-      byte[] exprList,
-      byte[] exprIndexList,
-      int shuffleId,
-      long mapId,
-      int bufferSize,
-      String codec,
-      String dataFile,
-      String localDirs,
-      int subDirsPerLocalDir);
+    public native long nativeMake(
+            String shortName,
+            int numPartitions,
+            byte[] exprList,
+            byte[] exprIndexList,
+            int shuffleId,
+            long mapId,
+            int bufferSize,
+            String codec,
+            String dataFile,
+            String localDirs,
+            int subDirsPerLocalDir);
 
-  public native void split(long splitterId, int numRows, long block);
+    public native void split(long splitterId, int numRows, long block);
 
-  public native SplitResult stop(long splitterId) throws IOException;
+    public native SplitResult stop(long splitterId) throws IOException;
 
-  public native void close(long splitterId);
+    public native void close(long splitterId);
 }

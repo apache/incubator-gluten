@@ -17,49 +17,49 @@
 
 package io.glutenproject.vectorized;
 
-import java.util.Iterator;
+import io.glutenproject.execution.ColumnarNativeIterator;
+import io.glutenproject.substrait.plan.PlanNode;
 
 import io.substrait.proto.Plan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.glutenproject.execution.ColumnarNativeIterator;
-import io.glutenproject.substrait.plan.PlanNode;
+import java.util.Iterator;
 
 public class SimpleExpressionEval implements AutoCloseable, Iterator<Long> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SimpleExpressionEval.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleExpressionEval.class);
 
-  private final Long instance;
+    private final Long instance;
 
-  public SimpleExpressionEval(ColumnarNativeIterator blockStream,
-                              PlanNode planNode) {
-    Plan plan = planNode.toProtobuf();
-    LOG.debug("SimpleExpressionEval exec plan: " + plan.toString());
-    byte[] planData = plan.toByteArray();
-    instance = createNativeInstance(blockStream, planData);
-  }
+    public SimpleExpressionEval(ColumnarNativeIterator blockStream, PlanNode planNode) {
+        Plan plan = planNode.toProtobuf();
+        LOG.debug("SimpleExpressionEval exec plan: " + plan.toString());
+        byte[] planData = plan.toByteArray();
+        instance = createNativeInstance(blockStream, planData);
+    }
 
-  private static native long createNativeInstance(ColumnarNativeIterator blockStream, byte[] plan);
+    private static native long createNativeInstance(
+            ColumnarNativeIterator blockStream, byte[] plan);
 
-  private static native void nativeClose(long instance);
+    private static native void nativeClose(long instance);
 
-  private static native boolean nativeHasNext(long instance);
+    private static native boolean nativeHasNext(long instance);
 
-  private static native long nativeNext(long instance);
+    private static native long nativeNext(long instance);
 
-  @Override
-  public boolean hasNext() {
-    return nativeHasNext(instance);
-  }
+    @Override
+    public boolean hasNext() {
+        return nativeHasNext(instance);
+    }
 
-  @Override
-  public Long next() {
-    return nativeNext(instance);
-  }
+    @Override
+    public Long next() {
+        return nativeNext(instance);
+    }
 
-  @Override
-  public void close() throws Exception {
-    nativeClose(instance);
-  }
+    @Override
+    public void close() throws Exception {
+        nativeClose(instance);
+    }
 }

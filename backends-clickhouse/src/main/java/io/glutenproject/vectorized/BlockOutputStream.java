@@ -17,93 +17,93 @@
 
 package io.glutenproject.vectorized;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.OutputStream;
-
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 import org.apache.spark.storage.CHShuffleWriteStreamFactory;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.OutputStream;
+
 public class BlockOutputStream implements Closeable {
-  private final long instance;
-  private final OutputStream outputStream;
+    private final long instance;
+    private final OutputStream outputStream;
 
-  private final byte[] buffer;
+    private final byte[] buffer;
 
-  private final int bufferSize;
+    private final int bufferSize;
 
-  private final String defaultCompressionCodec;
+    private final String defaultCompressionCodec;
 
-  private SQLMetric dataSize;
+    private SQLMetric dataSize;
 
-  private boolean isClosed = false;
+    private boolean isClosed = false;
 
-  public BlockOutputStream(
-      OutputStream outputStream,
-      byte[] buffer,
-      SQLMetric dataSize,
-      boolean compressionEnable,
-      String defaultCompressionCodec,
-      int bufferSize
-      ) {
-    OutputStream unwrapOutputStream =
-        CHShuffleWriteStreamFactory
-            .unwrapSparkCompressionOutputStream(outputStream, compressionEnable);
-    if (unwrapOutputStream != null) {
-      this.outputStream = unwrapOutputStream;
-    } else {
-      this.outputStream = outputStream;
-      compressionEnable = false;
+    public BlockOutputStream(
+            OutputStream outputStream,
+            byte[] buffer,
+            SQLMetric dataSize,
+            boolean compressionEnable,
+            String defaultCompressionCodec,
+            int bufferSize) {
+        OutputStream unwrapOutputStream =
+                CHShuffleWriteStreamFactory.unwrapSparkCompressionOutputStream(
+                        outputStream, compressionEnable);
+        if (unwrapOutputStream != null) {
+            this.outputStream = unwrapOutputStream;
+        } else {
+            this.outputStream = outputStream;
+            compressionEnable = false;
+        }
+        this.defaultCompressionCodec = defaultCompressionCodec;
+        this.buffer = buffer;
+        this.bufferSize = bufferSize;
+        this.instance =
+                nativeCreate(
+                        this.outputStream,
+                        this.buffer,
+                        this.defaultCompressionCodec,
+                        compressionEnable,
+                        this.bufferSize);
+        this.dataSize = dataSize;
     }
-    this.defaultCompressionCodec = defaultCompressionCodec;
-    this.buffer = buffer;
-    this.bufferSize = bufferSize;
-    this.instance =
-        nativeCreate(this.outputStream,
-            this.buffer,
-            this.defaultCompressionCodec,
-            compressionEnable,
-            this.bufferSize);
-    this.dataSize = dataSize;
-  }
 
-  private native long nativeCreate(
-      OutputStream outputStream,
-      byte[] buffer,
-      String defaultCompressionCodec,
-      boolean compressionEnable,
-      int bufferSize);
+    private native long nativeCreate(
+            OutputStream outputStream,
+            byte[] buffer,
+            String defaultCompressionCodec,
+            boolean compressionEnable,
+            int bufferSize);
 
-  private native long nativeClose(long instance);
+    private native long nativeClose(long instance);
 
-  private native void nativeWrite(long instance, long block);
+    private native void nativeWrite(long instance, long block);
 
-  private native void nativeFlush(long instance);
+    private native void nativeFlush(long instance);
 
-  public void write(ColumnarBatch cb) {
-    CHNativeBlock block = CHNativeBlock.fromColumnarBatch(cb);
-    dataSize.add(block.totalBytes());
-    nativeWrite(instance, block.blockAddress());
-  }
-
-  public void flush() throws IOException {
-    nativeFlush(instance);
-    this.outputStream.flush();
-  }
-
-  @Override
-  public void close() throws IOException {
-    if (!isClosed) {
-      nativeClose(instance);
-      this.outputStream.flush();
-      this.outputStream.close();
-      isClosed = true;
+    public void write(ColumnarBatch cb) {
+        CHNativeBlock block = CHNativeBlock.fromColumnarBatch(cb);
+        dataSize.add(block.totalBytes());
+        nativeWrite(instance, block.blockAddress());
     }
-  }
 
-  @Override
-  protected void finalize() throws Throwable {
-    close();
-  }
+    public void flush() throws IOException {
+        nativeFlush(instance);
+        this.outputStream.flush();
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (!isClosed) {
+            nativeClose(instance);
+            this.outputStream.flush();
+            this.outputStream.close();
+            isClosed = true;
+        }
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        close();
+    }
 }

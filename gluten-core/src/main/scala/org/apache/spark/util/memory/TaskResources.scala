@@ -24,10 +24,9 @@ import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.memory.TaskResources.inSparkTask
 import org.apache.spark.util.{TaskCompletionListener, TaskFailureListener}
-import shaded.parquet.it.unimi.dsi.fastutil.longs.LongComparators
 
 import java.util
-import java.util.{Collections, Comparator, UUID}
+import java.util.{Collections, UUID}
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.JavaConverters._
 

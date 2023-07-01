@@ -85,6 +85,6 @@ class ContextInitializer extends ContextApi {
   }
 
   override def shutdown(): Unit = {
-    /// TODO shutdown implementation in velox to release resources
+    // TODO shutdown implementation in velox to release resources
   }
 }

@@ -61,7 +61,9 @@ case class EvalPythonExecTransformer(
       iter: Iterator[InternalRow],
       schema: StructType,
       context: TaskContext): Iterator[InternalRow] = {
+    // scalastyle:off throwerror
     throw new NotImplementedError("EvalPythonExecTransformer doesn't support evaluate")
+    // scalastyle:on throwerror
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
@@ -96,7 +98,7 @@ case class EvalPythonExecTransformer(
   override def supportsColumnar: Boolean = true
 
   override def doValidateInternal(): Boolean = {
-    /// All udfs should be scalar python udf
+    // All udfs should be scalar python udf
     for (udf <- udfs) {
       if (!PythonUDF.isScalarPythonUDF(udf)) {
         logInfo(

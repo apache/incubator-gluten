@@ -291,8 +291,8 @@ trait SparkPlanExecApi {
   }
 
   /**
-    * Define backend specfic expression mappings.
-    */
+   * Define backend specfic expression mappings.
+   */
   def extraExpressionMappings: Seq[Sig] = Seq.empty
 
   /**

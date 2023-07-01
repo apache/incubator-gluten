@@ -17,7 +17,6 @@
 
 package org.apache.spark.rdd
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}

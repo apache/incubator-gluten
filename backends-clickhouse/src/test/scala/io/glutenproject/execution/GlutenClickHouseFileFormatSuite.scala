@@ -25,8 +25,6 @@ import org.apache.spark.sql.types.{StructField, _}
 import java.sql.{Date, Timestamp}
 import java.util
 
-import scala.language.implicitConversions
-
 case class AllDataTypesWithNonPrimitiveType(
     string_field: String,
     int_field: java.lang.Integer,
@@ -440,8 +438,9 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("csv \\r") {
+    // scalastyle:off nonascii
     val csv_files = Seq("csv_r.csv", "中文.csv")
-
+    // scalastyle:on nonascii
     csv_files.foreach(
       file => {
         val csv_path = csvDataPath + "/" + file
@@ -792,6 +791,7 @@ class GlutenClickHouseFileFormatSuite
     (0 to 299).map {
       i =>
         if (i % 100 == 1) {
+          // scalastyle:off nonascii
           AllDataTypesWithNonPrimitiveType(
             "测试中文",
             null,
@@ -803,6 +803,7 @@ class GlutenClickHouseFileFormatSuite
             null,
             null,
             null)
+          // scalastyle:on nonascii
         } else if (i % 25 == 0) {
           if (i % 50 == 0) {
             AllDataTypesWithNonPrimitiveType(

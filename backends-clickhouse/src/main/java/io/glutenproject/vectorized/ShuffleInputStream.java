@@ -18,21 +18,18 @@ package io.glutenproject.vectorized;
 
 public interface ShuffleInputStream {
 
-  /**
-   * Read fixed size of data into an offheap address.
-   * @return the read bytes; 0 if end of stream.
-   */
-  long read(long destAddress, long maxReadSize);
+    /**
+     * Read fixed size of data into an offheap address.
+     *
+     * @return the read bytes; 0 if end of stream.
+     */
+    long read(long destAddress, long maxReadSize);
 
-  boolean isCompressed();
+    boolean isCompressed();
 
-  /**
-   * Position of this stream.
-   */
-  long pos();
+    /** Position of this stream. */
+    long pos();
 
-  /**
-   * Close and reclaim the resources.
-   */
-  void close();
+    /** Close and reclaim the resources. */
+    void close();
 }

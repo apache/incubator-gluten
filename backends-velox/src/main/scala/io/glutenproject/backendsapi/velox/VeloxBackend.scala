@@ -18,7 +18,6 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-import io.glutenproject.backendsapi.velox.IteratorHandler
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
@@ -254,7 +253,7 @@ object BackendSettings extends BackendSettingsApi {
         false
     }
   }
-  
+
   override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
     // Count(1) is a special case to handle. Do not fallback it and its children in the first place.
     !(isCount1(plan) || isSum1(plan))

@@ -17,9 +17,9 @@
 
 package io.glutenproject.execution;
 
-import java.util.Iterator;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Iterator;
 
 public class SparkRowIterator implements Iterator<byte[]> {
     private final scala.collection.Iterator<byte[]> delegated;

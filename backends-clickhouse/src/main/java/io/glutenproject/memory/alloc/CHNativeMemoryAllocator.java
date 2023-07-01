@@ -18,60 +18,55 @@
 package io.glutenproject.memory.alloc;
 
 /**
- * Like {@link io.glutenproject.vectorized.NativePlanEvaluator}, this along with
- * {@link CHNativeMemoryAllocators}, as built-in toolkit for managing native memory allocations.
+ * Like {@link io.glutenproject.vectorized.NativePlanEvaluator}, this along with {@link
+ * CHNativeMemoryAllocators}, as built-in toolkit for managing native memory allocations.
  */
 public class CHNativeMemoryAllocator {
 
-  private final long nativeInstanceId;
-  private final CHReservationListener listener;
+    private final long nativeInstanceId;
+    private final CHReservationListener listener;
 
-  public CHNativeMemoryAllocator(long nativeInstanceId, CHReservationListener listener) {
-    this.nativeInstanceId = nativeInstanceId;
-    this.listener = listener;
-  }
+    public CHNativeMemoryAllocator(long nativeInstanceId, CHReservationListener listener) {
+        this.nativeInstanceId = nativeInstanceId;
+        this.listener = listener;
+    }
 
-  public static CHNativeMemoryAllocator getDefault() {
-    return
-        new CHNativeMemoryAllocator(
-            getDefaultAllocator(),
-            CHReservationListener.NOOP);
-  }
+    public static CHNativeMemoryAllocator getDefault() {
+        return new CHNativeMemoryAllocator(getDefaultAllocator(), CHReservationListener.NOOP);
+    }
 
-  public static CHNativeMemoryAllocator getDefaultForUT() {
-    return
-        new CHNativeMemoryAllocator(
-            createListenableAllocator(CHReservationListener.NOOP),
-            CHReservationListener.NOOP);
-  }
+    public static CHNativeMemoryAllocator getDefaultForUT() {
+        return new CHNativeMemoryAllocator(
+                createListenableAllocator(CHReservationListener.NOOP), CHReservationListener.NOOP);
+    }
 
-  public static CHNativeMemoryAllocator createListenable(CHReservationListener listener) {
-    return new CHNativeMemoryAllocator(createListenableAllocator(listener), listener);
-  }
+    public static CHNativeMemoryAllocator createListenable(CHReservationListener listener) {
+        return new CHNativeMemoryAllocator(createListenableAllocator(listener), listener);
+    }
 
-  public CHReservationListener listener() {
-    return listener;
-  }
+    public CHReservationListener listener() {
+        return listener;
+    }
 
-  public long getNativeInstanceId() {
-    return this.nativeInstanceId;
-  }
+    public long getNativeInstanceId() {
+        return this.nativeInstanceId;
+    }
 
-  public long getBytesAllocated() {
-    if (this.nativeInstanceId == -1L) return 0;
-    return bytesAllocated(this.nativeInstanceId);
-  }
+    public long getBytesAllocated() {
+        if (this.nativeInstanceId == -1L) return 0;
+        return bytesAllocated(this.nativeInstanceId);
+    }
 
-  public void close() {
-    if (this.nativeInstanceId == -1L) return;
-    releaseAllocator(this.nativeInstanceId);
-  }
+    public void close() {
+        if (this.nativeInstanceId == -1L) return;
+        releaseAllocator(this.nativeInstanceId);
+    }
 
-  private static native long getDefaultAllocator();
+    private static native long getDefaultAllocator();
 
-  private static native long createListenableAllocator(CHReservationListener listener);
+    private static native long createListenableAllocator(CHReservationListener listener);
 
-  private static native void releaseAllocator(long allocatorId);
+    private static native void releaseAllocator(long allocatorId);
 
-  private static native long bytesAllocated(long allocatorId);
+    private static native long bytesAllocated(long allocatorId);
 }

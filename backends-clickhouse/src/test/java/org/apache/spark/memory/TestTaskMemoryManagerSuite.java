@@ -17,104 +17,99 @@
 
 package org.apache.spark.memory;
 
+import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.Spiller;
+import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
+
+import org.apache.spark.SparkConf;
+import org.apache.spark.internal.config.package$;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.TaskMemoryMetrics;
-import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
-import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
-import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
-
-import org.apache.spark.SparkConf;
-import org.apache.spark.internal.config.package$;
-
 public class TestTaskMemoryManagerSuite {
-  static {
-    // for skip loading lib in NativeMemoryAllocator
-    System.setProperty("spark.sql.testkey", "true");
-  }
-
-  protected TaskMemoryManager taskMemoryManager;
-  protected CHManagedCHReservationListener listener;
-  protected CHNativeMemoryAllocatorManagerImpl manager;
-
-  @Before
-  public void initMemoryManager() {
-    final SparkConf conf = new SparkConf()
-        .set(package$.MODULE$.MEMORY_OFFHEAP_ENABLED(), true)
-        .set(package$.MODULE$.MEMORY_OFFHEAP_SIZE(), 1000L);
-    taskMemoryManager = new TaskMemoryManager(
-        new UnifiedMemoryManager(
-            conf,
-            1000L,
-            500L,
-            1),
-        0);
-
-    listener = new CHManagedCHReservationListener(
-        new GlutenMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
-        new TaskMemoryMetrics()
-    );
-
-    manager = new CHNativeMemoryAllocatorManagerImpl(
-        new CHNativeMemoryAllocator(-1L, listener));
-  }
-
-  @After
-  public void destroyMemoryManager() {
-    taskMemoryManager = null;
-    listener = null;
-    manager = null;
-  }
-
-  @Test
-  public void testCHNativeMemoryManager() {
-    listener.reserveOrThrow(100L);
-    Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
-
-    listener.unreserve(100L);
-    Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
-  }
-
-  @Test
-  public void testMemoryFreeLessThanMalloc() {
-    listener.reserveOrThrow(100L);
-    Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
-
-    listener.unreserve(200L);
-    Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
-  }
-
-  @Test
-  public void testMemoryLeak() {
-    listener.reserveOrThrow(100L);
-    Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
-
-    listener.unreserve(100L);
-    Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
-
-    listener.reserveOrThrow(100L);
-    Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
-
-    listener.reserveOrThrow(100L);
-    Assert.assertEquals(200L, taskMemoryManager.getMemoryConsumptionForThisTask());
-
-    try {
-      manager.release();
-    } catch (Exception e) {
-      Assert.assertTrue(e instanceof UnsupportedOperationException);
+    static {
+        // for skip loading lib in NativeMemoryAllocator
+        System.setProperty("spark.sql.testkey", "true");
     }
-  }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void testAcquireLessMemory() {
-    listener.reserveOrThrow(100L);
-    Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
+    protected TaskMemoryManager taskMemoryManager;
+    protected CHManagedCHReservationListener listener;
+    protected CHNativeMemoryAllocatorManagerImpl manager;
 
-    listener.reserveOrThrow(1000L);
-  }
+    @Before
+    public void initMemoryManager() {
+        final SparkConf conf =
+                new SparkConf()
+                        .set(package$.MODULE$.MEMORY_OFFHEAP_ENABLED(), true)
+                        .set(package$.MODULE$.MEMORY_OFFHEAP_SIZE(), 1000L);
+        taskMemoryManager =
+                new TaskMemoryManager(new UnifiedMemoryManager(conf, 1000L, 500L, 1), 0);
+
+        listener =
+                new CHManagedCHReservationListener(
+                        new GlutenMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
+                        new TaskMemoryMetrics());
+
+        manager =
+                new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));
+    }
+
+    @After
+    public void destroyMemoryManager() {
+        taskMemoryManager = null;
+        listener = null;
+        manager = null;
+    }
+
+    @Test
+    public void testCHNativeMemoryManager() {
+        listener.reserveOrThrow(100L);
+        Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
+
+        listener.unreserve(100L);
+        Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
+    }
+
+    @Test
+    public void testMemoryFreeLessThanMalloc() {
+        listener.reserveOrThrow(100L);
+        Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
+
+        listener.unreserve(200L);
+        Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
+    }
+
+    @Test
+    public void testMemoryLeak() {
+        listener.reserveOrThrow(100L);
+        Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
+
+        listener.unreserve(100L);
+        Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
+
+        listener.reserveOrThrow(100L);
+        Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
+
+        listener.reserveOrThrow(100L);
+        Assert.assertEquals(200L, taskMemoryManager.getMemoryConsumptionForThisTask());
+
+        try {
+            manager.release();
+        } catch (Exception e) {
+            Assert.assertTrue(e instanceof UnsupportedOperationException);
+        }
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testAcquireLessMemory() {
+        listener.reserveOrThrow(100L);
+        Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
+
+        listener.reserveOrThrow(1000L);
+    }
 }

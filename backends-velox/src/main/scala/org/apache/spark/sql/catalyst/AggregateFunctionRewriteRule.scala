@@ -23,7 +23,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.types._
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
 
 case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {

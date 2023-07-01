@@ -19,7 +19,7 @@ package org.apache.spark.sql.hive.execution
 import java.io.IOException
 import java.net.URI
 import scala.collection.JavaConverters._
-import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
+import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.ArrowAbiUtil

@@ -14,15 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
-package org.apache.spark.sql.catalyst.expressions
+import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 
-import org.apache.spark.sql.GlutenTestsTrait
-
-class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTrait {
-
-  override def testNameBlackList: Seq[String] = super.testNameBlackList ++ Seq(
-    "bin"
-  )
-
+object DeltaLogAdapter {
+  def snapshot(deltaLog: DeltaLog): Snapshot = deltaLog.snapshot
 }

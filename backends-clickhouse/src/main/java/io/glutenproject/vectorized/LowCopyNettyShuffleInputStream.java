@@ -25,55 +25,52 @@ import java.nio.ByteBuffer;
 
 public class LowCopyNettyShuffleInputStream implements ShuffleInputStream {
 
-  private final InputStream in;
-  private final int bufferSize;
-  private final boolean isCompressed;
+    private final InputStream in;
+    private final int bufferSize;
+    private final boolean isCompressed;
 
-  private ByteBuf byteBuf;
-  private int readBytesCount = 0;
+    private ByteBuf byteBuf;
+    private int readBytesCount = 0;
 
-  public LowCopyNettyShuffleInputStream(
-      InputStream in,
-      ByteBuf byteBuf,
-      int bufferSize,
-      boolean isCompressed) {
-    // to prevent underlying netty buffer from being collected by GC
-    this.in = in;
-    this.byteBuf = byteBuf;
-    this.bufferSize = bufferSize;
-    this.isCompressed = isCompressed;
-  }
-
-  @Override
-  public long read(long destAddress, long maxReadSize) {
-    long bytesToRead = Math.min(maxReadSize, this.byteBuf.readableBytes());
-    int bytesToRead32 = Math.toIntExact(bytesToRead);
-    if (bytesToRead32 == 0) {
-      return 0;
+    public LowCopyNettyShuffleInputStream(
+            InputStream in, ByteBuf byteBuf, int bufferSize, boolean isCompressed) {
+        // to prevent underlying netty buffer from being collected by GC
+        this.in = in;
+        this.byteBuf = byteBuf;
+        this.bufferSize = bufferSize;
+        this.isCompressed = isCompressed;
     }
-    ByteBuffer direct = PlatformDependent.directBuffer(destAddress, bytesToRead32);
-    // read data directly from ByteBuf to native address
-    this.byteBuf.readBytes(direct);
-    readBytesCount += direct.position();
-    return direct.position();
-  }
 
-  @Override
-  public long pos() {
-    return readBytesCount;
-  }
-
-  @Override
-  public boolean isCompressed() {
-    return this.isCompressed;
-  }
-
-  @Override
-  public void close() {
-    try {
-      in.close();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @Override
+    public long read(long destAddress, long maxReadSize) {
+        long bytesToRead = Math.min(maxReadSize, this.byteBuf.readableBytes());
+        int bytesToRead32 = Math.toIntExact(bytesToRead);
+        if (bytesToRead32 == 0) {
+            return 0;
+        }
+        ByteBuffer direct = PlatformDependent.directBuffer(destAddress, bytesToRead32);
+        // read data directly from ByteBuf to native address
+        this.byteBuf.readBytes(direct);
+        readBytesCount += direct.position();
+        return direct.position();
     }
-  }
+
+    @Override
+    public long pos() {
+        return readBytesCount;
+    }
+
+    @Override
+    public boolean isCompressed() {
+        return this.isCompressed;
+    }
+
+    @Override
+    public void close() {
+        try {
+            in.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

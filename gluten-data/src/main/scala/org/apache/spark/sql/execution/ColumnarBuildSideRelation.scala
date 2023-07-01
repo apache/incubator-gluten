@@ -43,44 +43,42 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    try {
-      new Iterator[ColumnarBatch] {
-        var batchId = 0
-        var closed = false
-        private var finalBatch = -1L
-        val serializeHandle: Long = {
-          val allocator = ArrowBufferAllocators.contextInstance()
-          val cSchema = ArrowSchema.allocateNew(allocator)
-          val arrowSchema = SparkArrowUtil.toArrowSchema(StructType.fromAttributes(output),
-            SQLConf.get.sessionLocalTimeZone)
-          ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-          val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(cSchema.memoryAddress(),
-            NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
-          cSchema.close()
-          handle
-        }
+    new Iterator[ColumnarBatch] {
+      var batchId = 0
+      var closed = false
+      private var finalBatch = -1L
+      val serializeHandle: Long = {
+        val allocator = ArrowBufferAllocators.contextInstance()
+        val cSchema = ArrowSchema.allocateNew(allocator)
+        val arrowSchema = SparkArrowUtil.toArrowSchema(StructType.fromAttributes(output),
+          SQLConf.get.sessionLocalTimeZone)
+        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+        val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(cSchema.memoryAddress(),
+          NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+        cSchema.close()
+        handle
+      }
 
-        override def hasNext: Boolean = {
-          val has = batchId < batches.length
-          if (!has && !closed) {
-            ColumnarBatches.close(finalBatch)
-            TaskResources.addRecycler(50) {
-              ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
-            }
-            closed = true
+      override def hasNext: Boolean = {
+        val has = batchId < batches.length
+        if (!has && !closed) {
+          ColumnarBatches.close(finalBatch)
+          TaskResources.addRecycler(50) {
+            ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
           }
-          has
+          closed = true
         }
+        has
+      }
 
-        override def next: ColumnarBatch = {
-          val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.deserialize(
-            serializeHandle, batches(batchId))
-          if (batchId == batches.length - 1) {
-            finalBatch = handle
-          }
-          batchId += 1
-          ColumnarBatches.create(handle)
+      override def next: ColumnarBatch = {
+        val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.deserialize(
+          serializeHandle, batches(batchId))
+        if (batchId == batches.length - 1) {
+          finalBatch = handle
         }
+        batchId += 1
+        ColumnarBatches.create(handle)
       }
     }
   }

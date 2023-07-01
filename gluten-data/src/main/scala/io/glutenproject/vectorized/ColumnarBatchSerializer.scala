@@ -26,14 +26,13 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.VectorLoader
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskResources
 
 class ColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,

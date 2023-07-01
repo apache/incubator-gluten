@@ -22,51 +22,46 @@ import org.apache.spark.storage.CHShuffleReadStreamFactory;
 import java.io.InputStream;
 
 public class CHStreamReader implements AutoCloseable {
-  private final ShuffleInputStream inputStream;
-  private long nativeShuffleReader;
-  private boolean compressed;
-  private int bufferSize;
+    private final ShuffleInputStream inputStream;
+    private long nativeShuffleReader;
+    private boolean compressed;
+    private int bufferSize;
 
-  public CHStreamReader(
-      InputStream inputStream,
-      int bufferSize) {
-    this(inputStream, false, false, bufferSize);
-  }
+    public CHStreamReader(InputStream inputStream, int bufferSize) {
+        this(inputStream, false, false, bufferSize);
+    }
 
-  public CHStreamReader(
-      InputStream inputStream,
-      boolean forceCompress,
-      boolean isCustomizedShuffleCodec,
-      int bufferSize) {
-    this.bufferSize = bufferSize;
-    this.inputStream =
-        CHShuffleReadStreamFactory
-            .create(inputStream, forceCompress, isCustomizedShuffleCodec, bufferSize);
-    this.compressed = this.inputStream.isCompressed();
-    nativeShuffleReader =
-        createNativeShuffleReader(this.inputStream, this.compressed, this.bufferSize);
-  }
+    public CHStreamReader(
+            InputStream inputStream,
+            boolean forceCompress,
+            boolean isCustomizedShuffleCodec,
+            int bufferSize) {
+        this.bufferSize = bufferSize;
+        this.inputStream =
+                CHShuffleReadStreamFactory.create(
+                        inputStream, forceCompress, isCustomizedShuffleCodec, bufferSize);
+        this.compressed = this.inputStream.isCompressed();
+        nativeShuffleReader =
+                createNativeShuffleReader(this.inputStream, this.compressed, this.bufferSize);
+    }
 
-  private static native long createNativeShuffleReader(
-      ShuffleInputStream inputStream,
-      boolean compressed,
-      int bufferSize);
+    private static native long createNativeShuffleReader(
+            ShuffleInputStream inputStream, boolean compressed, int bufferSize);
 
-  private native long nativeNext(long nativeShuffleReader);
+    private native long nativeNext(long nativeShuffleReader);
 
-  public CHNativeBlock next() {
-    long block = nativeNext(nativeShuffleReader);
-    return new CHNativeBlock(block);
-  }
+    public CHNativeBlock next() {
+        long block = nativeNext(nativeShuffleReader);
+        return new CHNativeBlock(block);
+    }
 
-  private native void nativeClose(long shuffleReader);
+    private native void nativeClose(long shuffleReader);
 
-  @Override
-  public void close() throws Exception {
-    // close input stream and release buffer
-    this.inputStream.close();
-    nativeClose(nativeShuffleReader);
-    nativeShuffleReader = 0L;
-  }
-
+    @Override
+    public void close() throws Exception {
+        // close input stream and release buffer
+        this.inputStream.close();
+        nativeClose(nativeShuffleReader);
+        nativeShuffleReader = 0L;
+    }
 }
