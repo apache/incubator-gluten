@@ -16,7 +16,6 @@ target_compile_options(substrait_source PUBLIC -fPIC
     -Wno-extra-semi-stmt
     -Wno-extra-semi
     -Wno-pessimizing-move
-    -Wno-unreachable-code-break
     -Wno-suggest-destructor-override
     -Wno-inconsistent-missing-destructor-override
 )
