@@ -58,7 +58,7 @@ namespace local_engine
 {
 uint64_t ArrowInputFile::getLength() const
 {
-    ORC_ASSIGN_OR_THROW(int64_t size, file->GetSize());
+    ORC_ASSIGN_OR_THROW(int64_t size, file->GetSize())
     return static_cast<uint64_t>(size);
 }
 
@@ -69,7 +69,7 @@ uint64_t ArrowInputFile::getNaturalReadSize() const
 
 void ArrowInputFile::read(void * buf, uint64_t length, uint64_t offset)
 {
-    ORC_ASSIGN_OR_THROW(int64_t bytes_read, file->ReadAt(offset, length, buf));
+    ORC_ASSIGN_OR_THROW(int64_t bytes_read, file->ReadAt(offset, length, buf))
 
     if (static_cast<uint64_t>(bytes_read) != length)
     {
@@ -87,7 +87,7 @@ arrow::Status innerCreateOrcReader(std::shared_ptr<arrow::io::RandomAccessFile> 
 {
     std::unique_ptr<ArrowInputFile> io_wrapper(new ArrowInputFile(file_));
     orc::ReaderOptions options;
-    ORC_CATCH_NOT_OK(*orc_reader = orc::createReader(std::move(io_wrapper), options));
+    ORC_CATCH_NOT_OK(*orc_reader = orc::createReader(std::move(io_wrapper), options))
 
     return arrow::Status::OK();
 }

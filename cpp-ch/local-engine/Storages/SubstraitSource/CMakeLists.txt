@@ -13,8 +13,6 @@ add_library(substrait_source ${substait_source_sources})
 target_compile_options(substrait_source PUBLIC -fPIC
     -Wno-shorten-64-to-32
     -Wno-shadow-field-in-constructor
-    -Wno-extra-semi-stmt
-    -Wno-extra-semi
     -Wno-suggest-destructor-override
     -Wno-inconsistent-missing-destructor-override
 )
