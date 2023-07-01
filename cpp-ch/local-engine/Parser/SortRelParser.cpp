@@ -24,7 +24,6 @@ SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, st
     size_t limit = parseLimit(rel_stack_);
     const auto & sort_rel = rel.sort();
     auto sort_descr = parseSortDescription(sort_rel.sorts(), query_plan->getCurrentDataStream().header);
-    const auto & settings = getContext()->getSettingsRef();
     auto sorting_step = std::make_unique<DB::SortingStep>(
         query_plan->getCurrentDataStream(), sort_descr, limit, SortingStep::Settings(*getContext()), false);
     sorting_step->setStepDescription("Sorting step");

@@ -220,7 +220,6 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool nul
 {
     std::string ch_function_name;
     UInt32 precision = decimal.precision();
-    UInt32 scale = decimal.scale();
 
     if (precision <= DataTypeDecimal32::maxPrecision())
         ch_function_name = "toDecimal32";
@@ -891,7 +890,6 @@ NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & hea
 std::string
 SerializedPlanParser::getFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
-    const auto & output_type = function.output_type();
     auto args = function.arguments();
     auto pos = function_signature.find(':');
     auto function_name = function_signature.substr(0, pos);

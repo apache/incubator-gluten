@@ -35,12 +35,6 @@ ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
     const String & ch_func_name,
     ActionsDAGPtr & actions_dag) const
 {
-    auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
-    {
-        return &actions_dag->addColumn(
-            ColumnWithTypeAndName(type->createColumnConst(1, field), type, plan_parser->getUniqueName(toString(field))));
-    };
-
     ActionsDAG::NodeRawConstPtrs parsed_args;
     const auto & args = substrait_func.arguments();
     parsed_args.reserve(args.size());

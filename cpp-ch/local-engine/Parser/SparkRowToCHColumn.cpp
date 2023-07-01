@@ -35,7 +35,7 @@ jmethodID SparkRowToCHColumn::spark_row_iterator_nextBatch = nullptr;
 ALWAYS_INLINE static void writeRowToColumns(std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
 {
     auto num_fields = columns.size();
-    const auto & field_types = spark_row_reader.getFieldTypes();
+
     for (size_t i = 0; i < num_fields; i++)
     {
         if (spark_row_reader.supportRawData(i))
@@ -178,7 +178,7 @@ Field VariableLengthDataReader::readArray(const char * buffer, [[maybe_unused]] 
     const auto * array_type = typeid_cast<const DataTypeArray *>(type_without_nullable.get());
     const auto & nested_type = array_type->getNestedType();
     const auto elem_size = BackingDataLengthCalculator::getArrayElementSize(nested_type);
-    const auto len_values = roundNumberOfBytesToNearestWord(elem_size * num_elems);
+
     Array array;
     array.reserve(num_elems);
 

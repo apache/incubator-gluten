@@ -220,7 +220,6 @@ void WindowRelParser::parseBoundType(
     }
     else if (bound.has_current_row())
     {
-        const auto & current_row = bound.current_row();
         bound_type = DB::WindowFrame::BoundaryType::Current;
         offset = 0;
         preceding_direction = is_begin_or_end;
