@@ -18,7 +18,6 @@ target_compile_options(substrait_source PUBLIC -fPIC
     -Wno-pessimizing-move
     -Wno-unreachable-code-break
     -Wno-inconsistent-missing-override
-    -Wno-shadow-uncaptured-local
     -Wno-suggest-destructor-override
     -Wno-inconsistent-missing-destructor-override
 )
