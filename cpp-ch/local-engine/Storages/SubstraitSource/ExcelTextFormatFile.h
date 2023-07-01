@@ -40,7 +40,7 @@ public:
         DB::Names & input_field_names_,
         String escape_);
 
-    String getName() const { return "ExcelRowInputFormat"; }
+    String getName() const override { return "ExcelRowInputFormat"; }
 
 private:
     String escape;
