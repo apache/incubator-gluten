@@ -764,7 +764,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_conv
     for (int i = 0; i < num_columns; i++)
     {
         auto * name = static_cast<jstring>(env->GetObjectArrayElement(names, i));
-        c_names.emplace_back(std::move(jstring2string(env, name)));
+        c_names.emplace_back(jstring2string(env, name));
 
         auto * type = static_cast<jbyteArray>(env->GetObjectArrayElement(types, i));
         auto type_length = env->GetArrayLength(type);

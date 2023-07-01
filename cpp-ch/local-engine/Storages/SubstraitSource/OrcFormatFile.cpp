@@ -158,7 +158,7 @@ OrcFormatFile::OrcFormatFile(
 FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & header)
 {
     auto file_format = std::make_shared<FormatFile::InputFormat>();
-    file_format->read_buffer = std::move(read_buffer_builder->build(file_info));
+    file_format->read_buffer = read_buffer_builder->build(file_info);
 
     std::vector<StripeInformation> stripes;
     [[maybe_unused]] UInt64 total_stripes = 0;

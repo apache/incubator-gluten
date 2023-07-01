@@ -104,7 +104,7 @@ static void writeVariableLengthNonNullableValue(
     const std::vector<int64_t> & offsets,
     std::vector<int64_t> & buffer_cursor)
 {
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
     VariableLengthDataWriter writer(col.type, buffer_address, offsets, buffer_cursor);
@@ -137,7 +137,7 @@ static void writeVariableLengthNonNullableValue(
         Field field;
         for (size_t i = 0; i < static_cast<size_t>(num_rows); i++)
         {
-            field = std::move((*col.column)[i]);
+            field = (*col.column)[i];
             int64_t offset_and_size = writer.write(i, field, 0);
             memcpy(buffer_address + offsets[i] + field_offset, &offset_and_size, 8);
         }
@@ -156,7 +156,7 @@ static void writeVariableLengthNullableValue(
     const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
     const auto & null_map = nullable_column->getNullMapData();
     const auto & nested_column = nullable_column->getNestedColumn();
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
     VariableLengthDataWriter writer(col.type, buffer_address, offsets, buffer_cursor);
@@ -193,7 +193,7 @@ static void writeVariableLengthNullableValue(
                 bitSet(buffer_address + offsets[i], col_index);
             else
             {
-                field = std::move(nested_column[i]);
+                field = nested_column[i];
                 int64_t offset_and_size = writer.write(i, field, 0);
                 memcpy(buffer_address + offsets[i] + field_offset, &offset_and_size, 8);
             }
@@ -211,7 +211,7 @@ static void writeValue(
     const std::vector<int64_t> & offsets,
     std::vector<int64_t> & buffer_cursor)
 {
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const auto is_nullable = isColumnNullable(*col.column);
     if (BackingDataLengthCalculator::isFixedLengthDataType(type_without_nullable))
     {

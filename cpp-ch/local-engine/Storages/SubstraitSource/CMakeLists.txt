@@ -15,7 +15,6 @@ target_compile_options(substrait_source PUBLIC -fPIC
     -Wno-shadow-field-in-constructor
     -Wno-extra-semi-stmt
     -Wno-extra-semi
-    -Wno-pessimizing-move
     -Wno-suggest-destructor-override
     -Wno-inconsistent-missing-destructor-override
 )

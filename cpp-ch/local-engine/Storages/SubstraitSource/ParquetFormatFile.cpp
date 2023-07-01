@@ -36,7 +36,7 @@ ParquetFormatFile::ParquetFormatFile(
 FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = std::move(read_buffer_builder->build(file_info));
+    res->read_buffer = read_buffer_builder->build(file_info);
 
     std::vector<RowGroupInfomation> required_row_groups;
     [[maybe_unused]] int total_row_groups = 0;

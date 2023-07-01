@@ -303,7 +303,7 @@ std::shared_ptr<substrait::Type> SerializedPlanBuilder::buildType(const DB::Data
     else
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
 
-    return std::move(res);
+    return res;
 }
 
 void SerializedPlanBuilder::buildType(const DB::DataTypePtr & ch_type, String & substrait_type)

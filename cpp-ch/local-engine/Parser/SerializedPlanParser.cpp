@@ -444,7 +444,7 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
         internal_cols.push_back(ColumnWithTypeAndName(data_type, name));
     }
     Block res(std::move(internal_cols));
-    return std::move(res);
+    return res;
 }
 
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
@@ -559,7 +559,7 @@ DataTypePtr SerializedPlanParser::parseType(const substrait::Type & substrait_ty
             if (names)
                 field_names.push_back(names->front());
 
-            ch_field_types[i] = std::move(parseType(substrait_type.struct_().types()[i], names));
+            ch_field_types[i] = parseType(substrait_type.struct_().types()[i], names);
         }
         if (!field_names.empty())
             ch_type = std::make_shared<DataTypeTuple>(ch_field_types, field_names);
@@ -598,7 +598,7 @@ DataTypePtr SerializedPlanParser::parseType(const substrait::Type & substrait_ty
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support type {}", substrait_type.DebugString());
 
     /// TODO(taiyang-li): consider Time/IntervalYear/IntervalDay/TimestampTZ/UUID/VarChar/FixedBinary/UserDefined
-    return std::move(ch_type);
+    return ch_type;
 }
 
 DB::DataTypePtr SerializedPlanParser::parseType(const std::string & type)
@@ -865,7 +865,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     {
         metrics = {std::make_shared<RelMetric>(String(magic_enum::enum_name(rel.rel_type_case())), metrics, steps)};
     }
-    return std::move(query_plan);
+    return query_plan;
 }
 
 AggregateFunctionPtr getAggregateFunction(const std::string & name, DataTypes arg_types)
@@ -1866,7 +1866,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
         }
         case substrait::Expression_Literal::kNull: {
             type = parseType(literal.null());
-            field = std::move(Field{});
+            field = Field{};
             break;
         }
         default: {
@@ -1987,7 +1987,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_column->reserve(options_len);
             for (size_t i = 0; i < options_len; ++i)
             {
-                auto type_and_field = std::move(parseLiteral(options[i].literal()));
+                auto type_and_field = parseLiteral(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);
                 if (!elem_type->equals(*option_type))
                     throw Exception(
@@ -2056,7 +2056,7 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     if (!ok)
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
-    auto res = std::move(parse(std::move(plan_ptr)));
+    auto res = parse(std::move(plan_ptr));
 
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     if (logger->debug())
@@ -2064,7 +2064,7 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
         auto out = PlanUtil::explainPlan(*res);
         LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
     }
-    return std::move(res);
+    return res;
 }
 
 QueryPlanPtr SerializedPlanParser::parseJson(const std::string & json_plan)
@@ -2509,7 +2509,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             DataTypePtr elem_type = wrapNullableType(nullable, elem_type_and_field.first);
             for (size_t i = 0; i < options_len; ++i)
             {
-                auto type_and_field = std::move(SerializedPlanParser::parseLiteral(options[i].literal()));
+                auto type_and_field = SerializedPlanParser::parseLiteral(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);
                 if (!elem_type->equals(*option_type))
                     throw Exception(
@@ -2609,7 +2609,7 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
                                                           query,
                                                           context->getClientInfo(),
                                                           priorities.insert(static_cast<int>(context->getSettingsRef().priority)),
-                                                          std::move(DB::CurrentThread::getGroup()),
+                                                          DB::CurrentThread::getGroup(),
                                                           DB::IAST::QueryKind::Select,
                                                           settings,
                                                           0);

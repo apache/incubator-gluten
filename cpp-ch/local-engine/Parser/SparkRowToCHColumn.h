@@ -41,10 +41,10 @@ struct SparkRowToCHColumnHelper
         for (size_t i = 0; i < names.size(); ++i)
         {
             data_types[i] = parseType(types[i]);
-            columns[i] = std::move(ColumnWithTypeAndName(data_types[i], names[i]));
+            columns[i] = ColumnWithTypeAndName(data_types[i], names[i]);
         }
 
-        header = std::move(Block(columns));
+        header = Block(columns);
         resetMutableColumns();
     }
 
@@ -53,7 +53,7 @@ struct SparkRowToCHColumnHelper
     void resetMutableColumns()
     {
         rows = 0;
-        mutable_columns = std::move(header.mutateColumns());
+        mutable_columns = header.mutateColumns();
     }
 
     static DataTypePtr parseType(const string & type)
@@ -62,7 +62,7 @@ struct SparkRowToCHColumnHelper
         auto ok = substrait_type->ParseFromString(type);
         if (!ok)
             throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Type from string failed");
-        return std::move(SerializedPlanParser::parseType(*substrait_type));
+        return SerializedPlanParser::parseType(*substrait_type);
     }
 };
 
@@ -313,14 +313,14 @@ public:
         const auto & fixed_length_data_reader = fixed_length_data_readers[ordinal];
         const auto & variable_length_data_reader = variable_length_data_readers[ordinal];
         if (fixed_length_data_reader)
-            return std::move(fixed_length_data_reader->unsafeRead(getFieldOffset(ordinal)));
+            return fixed_length_data_reader->unsafeRead(getFieldOffset(ordinal));
         else if (variable_length_data_reader)
         {
             int64_t offset_and_size = 0;
             memcpy(&offset_and_size, buffer + bit_set_width_in_bytes + ordinal * 8, 8);
             const int64_t offset = BackingDataLengthCalculator::extractOffset(offset_and_size);
             const int64_t size = BackingDataLengthCalculator::extractSize(offset_and_size);
-            return std::move(variable_length_data_reader->readUnalignedBytes(buffer + offset, size));
+            return variable_length_data_reader->readUnalignedBytes(buffer + offset, size);
         }
         else
             throw Exception(
@@ -332,20 +332,20 @@ public:
         assertIndexIsValid(ordinal);
 
         if (isNullAt(ordinal))
-            return std::move(Null{});
+            return Null{};
 
         const auto & fixed_length_data_reader = fixed_length_data_readers[ordinal];
         const auto & variable_length_data_reader = variable_length_data_readers[ordinal];
 
         if (fixed_length_data_reader)
-            return std::move(fixed_length_data_reader->read(getFieldOffset(ordinal)));
+            return fixed_length_data_reader->read(getFieldOffset(ordinal));
         else if (variable_length_data_reader)
         {
             int64_t offset_and_size = 0;
             memcpy(&offset_and_size, buffer + bit_set_width_in_bytes + ordinal * 8, 8);
             const int64_t offset = BackingDataLengthCalculator::extractOffset(offset_and_size);
             const int64_t size = BackingDataLengthCalculator::extractSize(offset_and_size);
-            return std::move(variable_length_data_reader->read(buffer + offset, size));
+            return variable_length_data_reader->read(buffer + offset, size);
         }
         else
             throw Exception(ErrorCodes::UNKNOWN_TYPE, "SparkRowReader::getField doesn't support type {}", field_types[ordinal]->getName());

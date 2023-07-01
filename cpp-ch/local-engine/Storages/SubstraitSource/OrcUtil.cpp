@@ -87,7 +87,7 @@ arrow::Status innerCreateOrcReader(std::shared_ptr<arrow::io::RandomAccessFile> 
 {
     std::unique_ptr<ArrowInputFile> io_wrapper(new ArrowInputFile(file_));
     orc::ReaderOptions options;
-    ORC_CATCH_NOT_OK(*orc_reader = std::move(orc::createReader(std::move(io_wrapper), options)));
+    ORC_CATCH_NOT_OK(*orc_reader = orc::createReader(std::move(io_wrapper), options));
 
     return arrow::Status::OK();
 }
