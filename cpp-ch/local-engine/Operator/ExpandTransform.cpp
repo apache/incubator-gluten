@@ -113,7 +113,7 @@ void ExpandTransform::work()
                 {
                     // Add constant column: gid, gpos, etc.
                     auto col = type->createColumnConst(rows, field);
-                    cols.push_back(std::move(col->convertToFullColumnIfConst()));
+                    cols.push_back(col->convertToFullColumnIfConst());
                 }
             }
         }

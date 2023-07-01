@@ -13,7 +13,7 @@ JsonFormatFile::JsonFormatFile(DB::ContextPtr context_, const substrait::ReadRel
 FormatFile::InputFormatPtr JsonFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = std::move(read_buffer_builder->build(file_info, true));
+    res->read_buffer = read_buffer_builder->build(file_info, true);
 
     Poco::URI file_uri(file_info.uri_file());
     DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");

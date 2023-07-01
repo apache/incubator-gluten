@@ -63,7 +63,7 @@ WindowRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & re
     for (auto & it : window_descriptions)
     {
         auto & win = it.second;
-        ;
+        
         auto window_step = std::make_unique<DB::WindowStep>(current_plan->getCurrentDataStream(), win, win.window_functions);
         window_step->setStepDescription("Window step for window '" + win.window_name + "'");
         steps.emplace_back(window_step.get());
@@ -180,7 +180,7 @@ WindowRelParser::parseWindowFrameType(const std::string & function_name, const s
 }
 
 void WindowRelParser::parseBoundType(
-    const std::string & function_name,
+    const std::string & ,
     const substrait::Expression::WindowFunction::Bound & bound,
     bool is_begin_or_end,
     DB::WindowFrame::BoundaryType & bound_type,
@@ -220,7 +220,6 @@ void WindowRelParser::parseBoundType(
     }
     else if (bound.has_current_row())
     {
-        const auto & current_row = bound.current_row();
         bound_type = DB::WindowFrame::BoundaryType::Current;
         offset = 0;
         preceding_direction = is_begin_or_end;
@@ -262,7 +261,7 @@ DB::SortDescription WindowRelParser::parsePartitionBy(const google::protobuf::Re
 }
 
 WindowFunctionDescription WindowRelParser::parseWindowFunctionDescription(
-    const substrait::WindowRel & win_rel,
+    const substrait::WindowRel & ,
     const substrait::Expression::WindowFunction & window_function,
     const DB::Names & arg_names,
     const DB::DataTypes & arg_types)

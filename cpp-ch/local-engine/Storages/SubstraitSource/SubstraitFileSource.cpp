@@ -107,7 +107,6 @@ DB::Chunk SubstraitFileSource::generate()
         /// try to read from next file
         file_reader.reset();
     }
-    return {};
 }
 
 bool SubstraitFileSource::tryPrepareReader()

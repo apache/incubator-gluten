@@ -220,7 +220,6 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool nul
 {
     std::string ch_function_name;
     UInt32 precision = decimal.precision();
-    UInt32 scale = decimal.scale();
 
     if (precision <= DataTypeDecimal32::maxPrecision())
         ch_function_name = "toDecimal32";
@@ -445,7 +444,7 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
         internal_cols.push_back(ColumnWithTypeAndName(data_type, name));
     }
     Block res(std::move(internal_cols));
-    return std::move(res);
+    return res;
 }
 
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
@@ -555,12 +554,12 @@ DataTypePtr SerializedPlanParser::parseType(const substrait::Type & substrait_ty
     {
         DataTypes ch_field_types(substrait_type.struct_().types().size());
         Strings field_names;
-        for (size_t i = 0; i < ch_field_types.size(); ++i)
+        for (int i = 0; i < static_cast<int>(ch_field_types.size()); ++i)
         {
             if (names)
                 field_names.push_back(names->front());
 
-            ch_field_types[i] = std::move(parseType(substrait_type.struct_().types()[i], names));
+            ch_field_types[i] = parseType(substrait_type.struct_().types()[i], names);
         }
         if (!field_names.empty())
             ch_type = std::make_shared<DataTypeTuple>(ch_field_types, field_names);
@@ -599,7 +598,7 @@ DataTypePtr SerializedPlanParser::parseType(const substrait::Type & substrait_ty
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support type {}", substrait_type.DebugString());
 
     /// TODO(taiyang-li): consider Time/IntervalYear/IntervalDay/TimestampTZ/UUID/VarChar/FixedBinary/UserDefined
-    return std::move(ch_type);
+    return ch_type;
 }
 
 DB::DataTypePtr SerializedPlanParser::parseType(const std::string & type)
@@ -649,7 +648,7 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
             ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
             NamesWithAliases aliases;
             auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
-            for (size_t i = 0; i < cols.getNames().size(); i++)
+            for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             {
                 aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
             }
@@ -866,7 +865,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     {
         metrics = {std::make_shared<RelMetric>(String(magic_enum::enum_name(rel.rel_type_case())), metrics, steps)};
     }
-    return std::move(query_plan);
+    return query_plan;
 }
 
 AggregateFunctionPtr getAggregateFunction(const std::string & name, DataTypes arg_types)
@@ -891,7 +890,6 @@ NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & hea
 std::string
 SerializedPlanParser::getFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
-    const auto & output_type = function.output_type();
     auto args = function.arguments();
     auto pos = function_signature.find(':');
     auto function_name = function_signature.substr(0, pos);
@@ -1325,7 +1323,7 @@ void SerializedPlanParser::parseFunctionArguments(
     std::string & function_name,
     const substrait::Expression_ScalarFunction & scalar_function)
 {
-    auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
+    auto add_column = [&actions_dag, this](const DataTypePtr & type, const Field & field) -> auto
     {
         return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     };
@@ -1357,7 +1355,7 @@ void SerializedPlanParser::parseFunctionArguments(
         {
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be i32");
         }
-        UInt32 field_index = field.get<Int32>() + 1;
+        Int64 field_index = field.get<Int32>() + 1;
         const auto * index_node = add_column(std::make_shared<DB::DataTypeUInt32>(), field_index);
         parsed_args.emplace_back(index_node);
     }
@@ -1611,7 +1609,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
     std::vector<String> & result_names,
     ActionsDAGPtr actions_dag,
     bool keep_result,
-    bool position)
+    bool)
 {
     if (!actions_dag)
     {
@@ -1789,7 +1787,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
             std::tie(common_type, std::ignore) = parseLiteral(values[0]);
             size_t list_len = values.size();
             Array array(list_len);
-            for (size_t i = 0; i < list_len; ++i)
+            for (int i = 0; i < static_cast<int>(list_len); ++i)
             {
                 auto type_and_field = parseLiteral(values[i]);
                 common_type = getLeastSupertype(DataTypes{common_type, type_and_field.first});
@@ -1868,7 +1866,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
         }
         case substrait::Expression_Literal::kNull: {
             type = parseType(literal.null());
-            field = std::move(Field{});
+            field = Field{};
             break;
         }
         default: {
@@ -1972,8 +1970,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             args.emplace_back(parseExpression(actions_dag, rel.singular_or_list().value()));
 
             bool nullable = false;
-            size_t options_len = options.size();
-            for (size_t i = 0; i < options_len; ++i)
+            int options_len = static_cast<int>(options.size());
+            for (int i = 0; i < options_len; ++i)
             {
                 if (!options[i].has_literal())
                     throw Exception(ErrorCodes::BAD_ARGUMENTS, "in expression values must be the literal!");
@@ -1987,9 +1985,9 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 
             MutableColumnPtr elem_column = elem_type->createColumn();
             elem_column->reserve(options_len);
-            for (size_t i = 0; i < options_len; ++i)
+            for (int i = 0; i < options_len; ++i)
             {
-                auto type_and_field = std::move(parseLiteral(options[i].literal()));
+                auto type_and_field = parseLiteral(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);
                 if (!elem_type->equals(*option_type))
                     throw Exception(
@@ -2051,14 +2049,14 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     /// Parsing may fail when the number of recursive layers is large.
     /// Here, set a limit large enough to avoid this problem.
     /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), plan.size());
+    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), static_cast<int>(plan.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
     if (!ok)
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
-    auto res = std::move(parse(std::move(plan_ptr)));
+    auto res = parse(std::move(plan_ptr));
 
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     if (logger->debug())
@@ -2066,7 +2064,7 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
         auto out = PlanUtil::explainPlan(*res);
         LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
     }
-    return std::move(res);
+    return res;
 }
 
 QueryPlanPtr SerializedPlanParser::parseJson(const std::string & json_plan)
@@ -2499,7 +2497,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             size_t options_len = options.size();
             args.reserve(options_len);
 
-            for (size_t i = 0; i < options_len; ++i)
+            for (int i = 0; i < static_cast<int>(options_len); ++i)
             {
                 if (!options[i].has_literal())
                     throw Exception(ErrorCodes::BAD_ARGUMENTS, "in expression values must be the literal!");
@@ -2509,9 +2507,9 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
 
             auto elem_type_and_field = SerializedPlanParser::parseLiteral(options[0].literal());
             DataTypePtr elem_type = wrapNullableType(nullable, elem_type_and_field.first);
-            for (size_t i = 0; i < options_len; ++i)
+            for (int i = 0; i < static_cast<int>(options_len); ++i)
             {
-                auto type_and_field = std::move(SerializedPlanParser::parseLiteral(options[i].literal()));
+                auto type_and_field = SerializedPlanParser::parseLiteral(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);
                 if (!elem_type->equals(*option_type))
                     throw Exception(
@@ -2611,7 +2609,7 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
                                                           query,
                                                           context->getClientInfo(),
                                                           priorities.insert(static_cast<int>(context->getSettingsRef().priority)),
-                                                          std::move(DB::CurrentThread::getGroup()),
+                                                          DB::CurrentThread::getGroup(),
                                                           DB::IAST::QueryKind::Select,
                                                           settings,
                                                           0);

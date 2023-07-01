@@ -27,7 +27,7 @@ AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_)
     : RelParser(plan_paser_)
 {}
 
-DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
+DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & )
 {
     setup(std::move(query_plan), rel);
     LOG_TRACE(logger, "original header is: {}", plan->getCurrentDataStream().header.dumpStructure());

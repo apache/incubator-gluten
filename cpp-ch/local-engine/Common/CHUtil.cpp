@@ -713,7 +713,6 @@ void BackendFinalizerUtil::finalizeGlobally()
 
     auto & global_context = SerializedPlanParser::global_context;
     auto & shared_context = SerializedPlanParser::shared_context;
-    auto * logger = BackendInitializerUtil::logger;
     if (global_context)
     {
         global_context->shutdown();

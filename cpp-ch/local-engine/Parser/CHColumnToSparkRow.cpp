@@ -31,7 +31,7 @@ namespace local_engine
 {
 using namespace DB;
 
-int64_t calculateBitSetWidthInBytes(int32_t num_fields)
+int64_t calculateBitSetWidthInBytes(int64_t num_fields)
 {
     return ((num_fields + 63) / 64) * 8;
 }
@@ -48,7 +48,7 @@ int64_t roundNumberOfBytesToNearestWord(int64_t num_bytes)
 }
 
 
-void bitSet(char * bitmap, int32_t index)
+void bitSet(char * bitmap, size_t index)
 {
     int64_t mask = 1L << (index & 0x3f); // mod 64 and shift
     int64_t word_offset = (index >> 6) * 8;
@@ -58,7 +58,7 @@ void bitSet(char * bitmap, int32_t index)
     memcpy(bitmap + word_offset, &value, sizeof(int64_t));
 }
 
-ALWAYS_INLINE bool isBitSet(const char * bitmap, int32_t index)
+ALWAYS_INLINE bool isBitSet(const char * bitmap, size_t index)
 {
     assert(index >= 0);
     int64_t mask = 1 << (index & 63);
@@ -104,7 +104,7 @@ static void writeVariableLengthNonNullableValue(
     const std::vector<int64_t> & offsets,
     std::vector<int64_t> & buffer_cursor)
 {
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
     VariableLengthDataWriter writer(col.type, buffer_address, offsets, buffer_cursor);
@@ -137,7 +137,7 @@ static void writeVariableLengthNonNullableValue(
         Field field;
         for (size_t i = 0; i < static_cast<size_t>(num_rows); i++)
         {
-            field = std::move((*col.column)[i]);
+            field = (*col.column)[i];
             int64_t offset_and_size = writer.write(i, field, 0);
             memcpy(buffer_address + offsets[i] + field_offset, &offset_and_size, 8);
         }
@@ -156,7 +156,7 @@ static void writeVariableLengthNullableValue(
     const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
     const auto & null_map = nullable_column->getNullMapData();
     const auto & nested_column = nullable_column->getNestedColumn();
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
     VariableLengthDataWriter writer(col.type, buffer_address, offsets, buffer_cursor);
@@ -193,7 +193,7 @@ static void writeVariableLengthNullableValue(
                 bitSet(buffer_address + offsets[i], col_index);
             else
             {
-                field = std::move(nested_column[i]);
+                field = nested_column[i];
                 int64_t offset_and_size = writer.write(i, field, 0);
                 memcpy(buffer_address + offsets[i] + field_offset, &offset_and_size, 8);
             }
@@ -211,7 +211,7 @@ static void writeValue(
     const std::vector<int64_t> & offsets,
     std::vector<int64_t> & buffer_cursor)
 {
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const auto is_nullable = isColumnNullable(*col.column);
     if (BackingDataLengthCalculator::isFixedLengthDataType(type_without_nullable))
     {
@@ -232,8 +232,8 @@ static void writeValue(
 }
 
 SparkRowInfo::SparkRowInfo(
-    const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size)
-    : types(types)
+    const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & dataTypes, const size_t & col_size, const size_t & row_size)
+    : types(dataTypes)
     , num_rows(row_size)
     , num_cols(col_size)
     , null_bitset_width_in_bytes(calculateBitSetWidthInBytes(num_cols))

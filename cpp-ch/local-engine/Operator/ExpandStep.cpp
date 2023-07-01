@@ -36,7 +36,7 @@ ExpandStep::ExpandStep(const DB::DataStream & input_stream_, const ExpandField &
     output_header = getOutputStream().header;
 }
 
-DB::Block ExpandStep::buildOutputHeader(const DB::Block & input_header, const ExpandField & project_set_exprs_)
+DB::Block ExpandStep::buildOutputHeader(const DB::Block & , const ExpandField & project_set_exprs_)
 {
     DB::ColumnsWithTypeAndName cols;
     const auto & types = project_set_exprs_.getTypes();

@@ -19,7 +19,7 @@ class ExcelTextFormatFile : public FormatFile
 public:
     explicit ExcelTextFormatFile(
         DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-        : FormatFile(context_, file_info_, read_buffer_builder_){};
+        : FormatFile(context_, file_info_, read_buffer_builder_){}
 
     ~ExcelTextFormatFile() override = default;
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
@@ -40,7 +40,7 @@ public:
         DB::Names & input_field_names_,
         String escape_);
 
-    String getName() const { return "ExcelRowInputFormat"; }
+    String getName() const override { return "ExcelRowInputFormat"; }
 
 private:
     String escape;

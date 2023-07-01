@@ -472,7 +472,7 @@ class ASTParser
 {
 public:
     explicit ASTParser(const ContextPtr & _context, std::unordered_map<std::string, std::string> & _function_mapping)
-        : context(_context), function_mapping(_function_mapping){};
+        : context(_context), function_mapping(_function_mapping){}
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
