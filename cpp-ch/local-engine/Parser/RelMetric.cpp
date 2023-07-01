@@ -47,7 +47,7 @@ RelMetricTimes RelMetric::getTotalTime() const
     return timeMetrics;
 }
 
-void RelMetric::serialize(Writer<StringBuffer> & writer, bool summary) const
+void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
 {
     writer.StartObject();
     writer.Key("id");

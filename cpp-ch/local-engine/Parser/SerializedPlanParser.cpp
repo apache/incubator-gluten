@@ -1611,7 +1611,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
     std::vector<String> & result_names,
     ActionsDAGPtr actions_dag,
     bool keep_result,
-    bool position)
+    bool)
 {
     if (!actions_dag)
     {

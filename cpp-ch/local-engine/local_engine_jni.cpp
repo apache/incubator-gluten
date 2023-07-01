@@ -849,7 +849,7 @@ JNIEXPORT void Java_io_glutenproject_vectorized_CHBlockWriterJniWrapper_nativeCl
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitFileWriterWrapper(
-    JNIEnv * env, jobject obj, jstring file_uri_)
+    JNIEnv * env, jobject , jstring file_uri_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto file_uri = jstring2string(env, file_uri_);
@@ -859,7 +859,7 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
 }
 
 JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_write(
-    JNIEnv * env, jobject obj, jlong instanceId, jlong block_address)
+    JNIEnv * env, jobject , jlong instanceId, jlong block_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
@@ -1057,7 +1057,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_SimpleExpressionEval_nativeNext
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_getDefaultAllocator(JNIEnv * env, jclass)
+JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_getDefaultAllocator(JNIEnv * , jclass)
 {
     return -1;
 }

@@ -19,7 +19,6 @@ target_compile_options(substrait_source PUBLIC -fPIC
     -Wno-extra-semi
     -Wno-unused-result
     -Wno-unreachable-code-return
-    -Wno-unused-parameter
     -Wno-unreachable-code
     -Wno-pessimizing-move
     -Wno-unreachable-code-break

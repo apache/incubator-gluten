@@ -180,7 +180,7 @@ WindowRelParser::parseWindowFrameType(const std::string & function_name, const s
 }
 
 void WindowRelParser::parseBoundType(
-    const std::string & function_name,
+    const std::string & ,
     const substrait::Expression::WindowFunction::Bound & bound,
     bool is_begin_or_end,
     DB::WindowFrame::BoundaryType & bound_type,
@@ -262,7 +262,7 @@ DB::SortDescription WindowRelParser::parsePartitionBy(const google::protobuf::Re
 }
 
 WindowFunctionDescription WindowRelParser::parseWindowFunctionDescription(
-    const substrait::WindowRel & win_rel,
+    const substrait::WindowRel & ,
     const substrait::Expression::WindowFunction & window_function,
     const DB::Names & arg_names,
     const DB::DataTypes & arg_types)

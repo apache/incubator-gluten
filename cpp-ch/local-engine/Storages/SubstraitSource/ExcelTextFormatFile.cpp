@@ -173,7 +173,7 @@ bool ExcelTextFormatReader::readField(
     const DB::DataTypePtr & type,
     const DB::SerializationPtr & serialization,
     bool is_last_file_column,
-    const String & column_name)
+    const String & )
 {
     preSkipNullValue();
     PeekableReadBufferCheckpoint checkpoint{*buf, false};
