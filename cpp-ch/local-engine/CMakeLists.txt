@@ -71,7 +71,7 @@ add_library(gluten_clickhouse_backend_libs
         ${jni_sources})
 
 target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
-        substait_source                         # compile options from substait_source  
+        substrait_source                         # compile options from substrait_source
         clickhouse_aggregate_functions
         clickhouse_functions
         gluten_spark_functions

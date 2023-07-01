@@ -9,8 +9,8 @@ endmacro()
 
 add_headers_and_sources(substait_source .)
 add_headers_and_sources_including_cc(ch_parquet arrow)
-add_library(substait_source ${substait_source_sources})
-target_compile_options(substait_source PUBLIC -fPIC
+add_library(substrait_source ${substait_source_sources})
+target_compile_options(substrait_source PUBLIC -fPIC
     -Wno-shorten-64-to-32
     -Wno-shadow-field-in-constructor
     -Wno-return-type
@@ -33,7 +33,7 @@ target_compile_options(substait_source PUBLIC -fPIC
     -Wno-inconsistent-missing-destructor-override
 )
 
-target_link_libraries(substait_source PUBLIC
+target_link_libraries(substrait_source PUBLIC
     boost::headers_only
     ch_contrib::protobuf
     clickhouse_common_io
@@ -41,7 +41,7 @@ target_link_libraries(substait_source PUBLIC
     substrait
 )
 
-target_include_directories(substait_source SYSTEM BEFORE PUBLIC 
+target_include_directories(substrait_source SYSTEM BEFORE PUBLIC
     ${ARROW_INCLUDE_DIR}
     ${CMAKE_BINARY_DIR}/contrib/arrow-cmake/cpp/src
     ${ClickHouse_SOURCE_DIR}/contrib/arrow-cmake/cpp/src
