@@ -20,7 +20,6 @@ target_compile_options(substrait_source PUBLIC -fPIC
     -Wno-unreachable-code-break
     -Wno-inconsistent-missing-override
     -Wno-shadow-uncaptured-local
-    -Wno-unused-member-function
     -Wno-deprecated-this-capture
     -Wno-suggest-destructor-override
     -Wno-inconsistent-missing-destructor-override
