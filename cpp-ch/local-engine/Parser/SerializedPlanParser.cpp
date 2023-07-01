@@ -554,7 +554,7 @@ DataTypePtr SerializedPlanParser::parseType(const substrait::Type & substrait_ty
     {
         DataTypes ch_field_types(substrait_type.struct_().types().size());
         Strings field_names;
-        for (size_t i = 0; i < ch_field_types.size(); ++i)
+        for (int i = 0; i < static_cast<int>(ch_field_types.size()); ++i)
         {
             if (names)
                 field_names.push_back(names->front());
@@ -648,7 +648,7 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
             ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
             NamesWithAliases aliases;
             auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
-            for (size_t i = 0; i < cols.getNames().size(); i++)
+            for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             {
                 aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
             }
@@ -1323,7 +1323,7 @@ void SerializedPlanParser::parseFunctionArguments(
     std::string & function_name,
     const substrait::Expression_ScalarFunction & scalar_function)
 {
-    auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
+    auto add_column = [&actions_dag, this](const DataTypePtr & type, const Field & field) -> auto
     {
         return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     };
@@ -1355,7 +1355,7 @@ void SerializedPlanParser::parseFunctionArguments(
         {
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be i32");
         }
-        UInt32 field_index = field.get<Int32>() + 1;
+        Int64 field_index = field.get<Int32>() + 1;
         const auto * index_node = add_column(std::make_shared<DB::DataTypeUInt32>(), field_index);
         parsed_args.emplace_back(index_node);
     }
@@ -1787,7 +1787,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
             std::tie(common_type, std::ignore) = parseLiteral(values[0]);
             size_t list_len = values.size();
             Array array(list_len);
-            for (size_t i = 0; i < list_len; ++i)
+            for (int i = 0; i < static_cast<int>(list_len); ++i)
             {
                 auto type_and_field = parseLiteral(values[i]);
                 common_type = getLeastSupertype(DataTypes{common_type, type_and_field.first});
@@ -1970,8 +1970,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             args.emplace_back(parseExpression(actions_dag, rel.singular_or_list().value()));
 
             bool nullable = false;
-            size_t options_len = options.size();
-            for (size_t i = 0; i < options_len; ++i)
+            int options_len = static_cast<int>(options.size());
+            for (int i = 0; i < options_len; ++i)
             {
                 if (!options[i].has_literal())
                     throw Exception(ErrorCodes::BAD_ARGUMENTS, "in expression values must be the literal!");
@@ -1985,7 +1985,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 
             MutableColumnPtr elem_column = elem_type->createColumn();
             elem_column->reserve(options_len);
-            for (size_t i = 0; i < options_len; ++i)
+            for (int i = 0; i < options_len; ++i)
             {
                 auto type_and_field = parseLiteral(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);
@@ -2049,7 +2049,7 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     /// Parsing may fail when the number of recursive layers is large.
     /// Here, set a limit large enough to avoid this problem.
     /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), plan.size());
+    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), static_cast<int>(plan.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
@@ -2497,7 +2497,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             size_t options_len = options.size();
             args.reserve(options_len);
 
-            for (size_t i = 0; i < options_len; ++i)
+            for (int i = 0; i < static_cast<int>(options_len); ++i)
             {
                 if (!options[i].has_literal())
                     throw Exception(ErrorCodes::BAD_ARGUMENTS, "in expression values must be the literal!");
@@ -2507,7 +2507,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
 
             auto elem_type_and_field = SerializedPlanParser::parseLiteral(options[0].literal());
             DataTypePtr elem_type = wrapNullableType(nullable, elem_type_and_field.first);
-            for (size_t i = 0; i < options_len; ++i)
+            for (int i = 0; i < static_cast<int>(options_len); ++i)
             {
                 auto type_and_field = SerializedPlanParser::parseLiteral(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);

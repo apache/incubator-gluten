@@ -371,7 +371,7 @@ private:
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
             context->getRemoteHostFilter(),
-            context->getGlobalContext()->getSettingsRef().s3_max_redirects,
+            static_cast<unsigned>(context->getGlobalContext()->getSettingsRef().s3_max_redirects),
             false,
             false,
             nullptr,

@@ -68,7 +68,8 @@ std::unique_ptr<Block> SparkRowToCHColumn::convertSparkRowInfoToCHColumn(const S
         SparkRowReader row_reader(types);
         for (int64_t i = 0; i < num_rows; i++)
         {
-            row_reader.pointTo(spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i], spark_row_info.getLengths()[i]);
+            row_reader.pointTo(spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i],
+                               static_cast<int32_t>(spark_row_info.getLengths()[i]));
             writeRowToColumns(mutable_columns, row_reader);
         }
         block->setColumns(std::move(mutable_columns));
