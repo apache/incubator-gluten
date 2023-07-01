@@ -232,8 +232,8 @@ static void writeValue(
 }
 
 SparkRowInfo::SparkRowInfo(
-    const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size)
-    : types(types)
+    const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & dataTypes, const size_t & col_size, const size_t & row_size)
+    : types(dataTypes)
     , num_rows(row_size)
     , num_cols(col_size)
     , null_bitset_width_in_bytes(calculateBitSetWidthInBytes(num_cols))
