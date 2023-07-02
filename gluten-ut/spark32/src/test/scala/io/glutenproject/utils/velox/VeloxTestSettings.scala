@@ -36,6 +36,9 @@ import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExi
 import org.apache.spark.sql.extension.{GlutenCustomerExpressionTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, GlutenBucketedWriteWithoutHiveSupportSuite, GlutenCreateTableAsSelectSuite, GlutenDDLSourceLoadSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE, GlutenExternalCommandRunnerSuite, GlutenFilteredScanSuite, GlutenFiltersSuite, GlutenInsertSuite, GlutenPartitionedWriteSuite, GlutenPathOptionSuite, GlutenPrunedScanSuite, GlutenResolvedDataSourceSuite, GlutenSaveLoadSuite, GlutenTableScanSuite}
 
+// Some settings' line length exceeds 100
+// scalastyle:off line.size.limit
+
 class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenSessionExtensionSuite]
@@ -1147,3 +1150,4 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStatisticsCollectionSuite]
   enableSuite[FallbackStrategiesSuite]
 }
+// scalastyle:on line.size.limit

@@ -19,7 +19,7 @@ package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.{BackendTestSettings, SystemParameters}
+import io.glutenproject.utils.SystemParameters
 import java.io.File
 import java.net.URI
 import java.util.Locale
@@ -393,7 +393,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "union.sql",
     "using-join.sql",
     // result match, but the order is not right
-    // "window.sql", 
+    // "window.sql",
     "udf-union.sql",
     "udf-window.sql"
   )
