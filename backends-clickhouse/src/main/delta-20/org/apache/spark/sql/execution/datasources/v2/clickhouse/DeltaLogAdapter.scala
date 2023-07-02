@@ -14,29 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
-package io.glutenproject.memory.alloc;
+import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 
-public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocatorManager {
-  private final CHNativeMemoryAllocator managed;
-
-  public CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator managed) {
-    this.managed = managed;
-  }
-
-  @Override
-  public void release() {
-    managed.close();
-    managed.listener().inactivate();
-  }
-
-  @Override
-  public CHNativeMemoryAllocator getManaged() {
-    return managed;
-  }
-
-  @Override
-  public long priority() {
-    return 0L; // lowest priority
-  }
+object DeltaLogAdapter {
+  def snapshot(deltaLog: DeltaLog): Snapshot = deltaLog.snapshot
 }

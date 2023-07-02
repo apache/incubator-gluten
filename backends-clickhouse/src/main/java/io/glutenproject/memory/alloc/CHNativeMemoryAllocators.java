@@ -20,37 +20,32 @@ package io.glutenproject.memory.alloc;
 import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.Spiller;
 import io.glutenproject.memory.TaskMemoryMetrics;
+
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.memory.TaskResources;
 
 /**
- * Built-in toolkit for managing native memory allocations. To use the facility, one should
- * import Gluten's C++ library then create the c++ instance using following example code:
- * <p>
- * ```c++
- * auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
- * ```
- * <p>
- * The ID "allocator_id" can be retrieved from Java API
- * {@link CHNativeMemoryAllocator#getNativeInstanceId()}.
- * <p>
- * FIXME: to export the native APIs in a standard way
+ * Built-in toolkit for managing native memory allocations. To use the facility, one should import
+ * Gluten's C++ library then create the c++ instance using following example code:
+ *
+ * <p>```c++ auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id); ```
+ *
+ * <p>The ID "allocator_id" can be retrieved from Java API {@link
+ * CHNativeMemoryAllocator#getNativeInstanceId()}.
+ *
+ * <p>FIXME: to export the native APIs in a standard way
  */
 public abstract class CHNativeMemoryAllocators {
-  private CHNativeMemoryAllocators() {
-  }
+  private CHNativeMemoryAllocators() {}
 
   private static final CHNativeMemoryAllocator GLOBAL = CHNativeMemoryAllocator.getDefault();
 
   private static CHNativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
-      TaskMemoryManager taskMemoryManager,
-      Spiller spiller,
-      TaskMemoryMetrics taskMemoryMetrics) {
+      TaskMemoryManager taskMemoryManager, Spiller spiller, TaskMemoryMetrics taskMemoryMetrics) {
 
-    CHManagedCHReservationListener rl = new CHManagedCHReservationListener(
-        new GlutenMemoryConsumer(taskMemoryManager, spiller),
-        taskMemoryMetrics
-    );
+    CHManagedCHReservationListener rl =
+        new CHManagedCHReservationListener(
+            new GlutenMemoryConsumer(taskMemoryManager, spiller), taskMemoryMetrics);
     return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
   }
 
@@ -61,7 +56,8 @@ public abstract class CHNativeMemoryAllocators {
 
     final String id = CHNativeMemoryAllocatorManager.class.toString();
     if (!TaskResources.isResourceManagerRegistered(id)) {
-      final CHNativeMemoryAllocatorManager manager = createNativeMemoryAllocatorManager(
+      final CHNativeMemoryAllocatorManager manager =
+          createNativeMemoryAllocatorManager(
               TaskResources.getSparkMemoryManager(),
               Spiller.NO_OP,
               TaskResources.getSharedMetrics());
@@ -79,10 +75,9 @@ public abstract class CHNativeMemoryAllocators {
       throw new IllegalStateException("spiller must be used in a Spark task");
     }
 
-    final CHNativeMemoryAllocatorManager manager = createNativeMemoryAllocatorManager(
-            TaskResources.getSparkMemoryManager(),
-            spiller,
-            TaskResources.getSharedMetrics());
+    final CHNativeMemoryAllocatorManager manager =
+        createNativeMemoryAllocatorManager(
+            TaskResources.getSparkMemoryManager(), spiller, TaskResources.getSharedMetrics());
     TaskResources.addAnonymousResourceManager(manager);
     return manager.getManaged();
   }
