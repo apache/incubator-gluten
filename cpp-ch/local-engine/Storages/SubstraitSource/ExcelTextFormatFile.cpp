@@ -183,7 +183,7 @@ bool ExcelTextFormatReader::readField(
     if (isEndOfLine())
     {
         column.insertDefault();
-        return;
+        return false;
     }
 
     preSkipNullValue();
