@@ -88,7 +88,7 @@ arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> 
   for (auto i = 0; i < numRows_; ++i) {
     auto rowSize = fast_->serialize(i, (char*)(bufferAddress_ + offset));
     offset += rowSize;
-   }
+  }
   return arrow::Status::OK();
 }
 
