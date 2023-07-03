@@ -336,6 +336,7 @@ private:
 
     template <SubstraitFunction F>
     static std::string getFunctionName(const std::string & function_sig, const F & function);
+
     DB::ActionsDAGPtr parseFunction(
         const Block & header,
         const substrait::Expression & rel,

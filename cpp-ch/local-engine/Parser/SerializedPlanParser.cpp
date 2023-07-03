@@ -260,6 +260,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
     assert(rel.has_local_files());
     assert(rel.local_files().items().size() == 1);
     assert(rel.has_base_schema());
+
     auto iter = rel.local_files().items().at(0).uri_file();
     auto pos = iter.find(':');
     auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
