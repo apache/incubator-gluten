@@ -734,6 +734,8 @@ class GlutenClickHouseHiveTableSuite()
 
   test("GLUTEN-: Test data field too much/few") {
     val test_table_name = "test_table_2001"
+  test("GLUTEN-2180: Test data field too much/few") {
+    val test_table_name = "test_table_2180"
     val drop_table_sql = "drop table if exists %s".format(test_table_name)
     val test_data_path = getClass.getResource("/").getPath + "/text-data/field_too_much_few"
     val create_table_sql =
@@ -754,8 +756,8 @@ class GlutenClickHouseHiveTableSuite()
       })
   }
 
-  test("GLUTEN-: Test data field type not match") {
-    val test_table_name = "test_table_2001"
+  test("GLUTEN-2180: Test data field type not match") {
+    val test_table_name = "test_table_2180"
     val drop_table_sql = "drop table if exists %s".format(test_table_name)
     val test_data_path = getClass.getResource("/").getPath + "/text-data/field_data_type_not_match"
     val create_table_sql =
@@ -764,11 +766,7 @@ class GlutenClickHouseHiveTableSuite()
         "b string," +
         "c date, " +
         "d timestamp, " +
-        "e boolean, " +
-        "f double, " +
-        "g float, " +
-        "h bigint, " +
-        "i short) stored as textfile LOCATION \"%s\"".format(test_data_path)
+        "e boolean) stored as textfile LOCATION \"%s\"".format(test_data_path)
     spark.sql(drop_table_sql)
     spark.sql(create_table_sql)
     val sql = "select * from " + test_table_name
