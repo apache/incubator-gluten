@@ -471,6 +471,61 @@ class GlutenClickHouseFileFormatSuite
       })
   }
 
+  test("header size not equal csv first lines") {
+    // In Csv file ,there is five field schema of header
+    val schemaLessThanCsvHeader = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true),
+        StructField.apply("c2", IntegerType, nullable = true),
+        StructField.apply("c3", IntegerType, nullable = true),
+        StructField.apply("c4", IntegerType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("header", "true")
+      .schema(schemaLessThanCsvHeader)
+      .csv(csvDataPath + "/header.csv")
+      .toDF()
+
+    df.createTempView("test_schema_header_less_than_csv_header")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        |select * from test_schema_header_less_than_csv_header
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+
+    val schemaMoreThanCsvHeader = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true),
+        StructField.apply("c2", IntegerType, nullable = true),
+        StructField.apply("c3", IntegerType, nullable = true),
+        StructField.apply("c4", IntegerType, nullable = true),
+        StructField.apply("c5", IntegerType, nullable = true),
+        StructField.apply("c6", IntegerType, nullable = true)
+      ))
+
+    val df2 = spark.read
+      .option("delimiter", ",")
+      .option("header", "true")
+      .schema(schemaMoreThanCsvHeader)
+      .csv(csvDataPath + "/header.csv")
+      .toDF()
+
+    df2.createTempView("test_schema_header_More_than_csv_header")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        |select * from test_schema_header_More_than_csv_header
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
   test("fix: read date field value wrong") {
     implicit class StringToDate(s: String) {
       def date: Date = Date.valueOf(s)

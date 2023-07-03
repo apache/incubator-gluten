@@ -53,13 +53,15 @@ public:
 
     std::vector<String> readNames() override;
     std::vector<String> readTypes() override;
+    void skipFieldDelimiter() override;
     void skipRowEndDelimiter() override;
     bool readField(DB::IColumn & column, const DB::DataTypePtr & type, const DB::SerializationPtr & serialization, bool is_last_file_column, const String & column_name) override;
 
 private:
     void preSkipNullValue();
+    bool isEndOfLine();
     static void skipEndOfLine(DB::ReadBuffer & in);
-    static void skipWhitespacesAndTabs(DB::ReadBuffer & in);
+    static void skipWhitespacesAndTabs(DB::ReadBuffer & in, const bool & allow_whitespace_or_tab_as_delimiter);
 
 
     std::vector<String> input_field_names;
