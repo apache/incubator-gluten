@@ -3,6 +3,7 @@
 #include <memory>
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/HiveTextRowInputFormat.h>
+#include <Poco/URI.h>
 
 namespace local_engine
 {
@@ -16,8 +17,15 @@ TextFormatFile::TextFormatFile(
 FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = std::move(read_buffer_builder->build(file_info, true));
+    res->read_buffer = read_buffer_builder->build(file_info, true);
 
+    Poco::URI file_uri(file_info.uri_file());
+    DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
+    if (compression != DB::CompressionMethod::None)
+    {
+        res->read_buffer = DB::wrapReadBufferWithCompressionMethod(std::move(res->read_buffer), compression);
+    }
+    
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();
     DB::RowInputFormatParams params = {.max_block_size = max_block_size};

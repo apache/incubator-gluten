@@ -139,12 +139,12 @@ public:
         size_t hdfs_file_size = hdfs_file_info->mSize;
 
         /// initial_pos maybe in the middle of a row, so we need to find the next row start position.
-        auto get_next_line_pos = [&](hdfsFS fs, hdfsFile fin, size_t initial_pos, size_t file_size) -> size_t
+        auto get_next_line_pos = [&](hdfsFS hdfsFs, hdfsFile file, size_t initial_pos, size_t file_size) -> size_t
         {
             if (initial_pos == 0 || initial_pos == file_size)
                 return initial_pos;
 
-            int seek_ret = hdfsSeek(fs, fin, initial_pos);
+            int seek_ret = hdfsSeek(hdfsFs, file, initial_pos);
             if (seek_ret < 0)
                 throw DB::Exception(DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE, "Fail to seek HDFS file: {}, error: {}", file_path, std::string(hdfsGetLastError()));
 
@@ -153,7 +153,7 @@ public:
 
             auto do_read = [&]() -> int
             {
-                auto n = hdfsRead(fs, fin, buf, buf_size);
+                auto n = hdfsRead(hdfsFs, file, buf, buf_size);
                 if (n < 0)
                     throw DB::Exception(
                         DB::ErrorCodes::CANNOT_READ_FROM_FILE_DESCRIPTOR,
@@ -165,7 +165,7 @@ public:
             };
 
             auto pos = initial_pos;
-            while (1)
+            while (true)
             {
                 auto n = do_read();
 
@@ -371,7 +371,7 @@ private:
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
             context->getRemoteHostFilter(),
-            context->getGlobalContext()->getSettingsRef().s3_max_redirects,
+            static_cast<unsigned>(context->getGlobalContext()->getSettingsRef().s3_max_redirects),
             false,
             false,
             nullptr,
@@ -433,7 +433,7 @@ public:
     explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool)
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBuffer> read_buffer;

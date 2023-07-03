@@ -513,4 +513,56 @@ class GlutenClickHouseHiveTableSuite()
       }
     )
   }
+
+  test("test hive compressed txt table") {
+    val txt_compressed_table_name = "hive_compressed_txt_test"
+    val drop_table_sql = "drop table if exists %s".format(txt_compressed_table_name)
+    val create_table_sql =
+      "create table if not exists %s (".format(txt_compressed_table_name) +
+        "id bigint," +
+        "name string," +
+        "sex string) stored as textfile"
+    spark.sql(drop_table_sql)
+    spark.sql(create_table_sql)
+    spark.sql("SET hive.exec.compress.output=true")
+    spark.sql("SET mapred.output.compress=true")
+    spark.sql("SET mapred.output.compression.codec=org.apache.hadoop.io.compress.DefaultCodec")
+    val insert_sql =
+      s"""
+         | insert into $txt_compressed_table_name values(1, "a", "b")
+         |""".stripMargin
+    spark.sql(insert_sql)
+
+    val sql = "select * from " + txt_compressed_table_name
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan =
+          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("text hive txt table with multiple compressed method") {
+    val compressed_txt_table_name = "compressed_hive_txt_test"
+    val compressed_txt_data_path = getClass.getResource("/").getPath + "/text-data/compressed"
+    val drop_table_sql = "drop table if exists %s".format(compressed_txt_table_name)
+    val create_table_sql =
+      "create table if not exists %s (".format(compressed_txt_table_name) +
+        "id bigint," +
+        "name string," +
+        "sex string) stored as textfile LOCATION \"%s\"".format(compressed_txt_data_path)
+    spark.sql(drop_table_sql)
+    spark.sql(create_table_sql)
+    val sql = "select * from " + compressed_txt_table_name
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan =
+          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+        assert(txtFileScan.size == 1)
+      })
+  }
 }

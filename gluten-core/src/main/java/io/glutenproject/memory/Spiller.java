@@ -15,23 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.memory;
 
-import io.glutenproject.init.JniInitialized;
+import org.apache.spark.memory.MemoryConsumer;
 
-public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
+public interface Spiller {
+  Spiller NO_OP = new Spiller() {
+    @Override
+    public long spill(long size, MemoryConsumer trigger) {
+      return 0L;
+    }
+  };
 
-  public static final ColumnarBatchSerializerJniWrapper INSTANCE =
-      new ColumnarBatchSerializerJniWrapper();
-
-  private ColumnarBatchSerializerJniWrapper()  {}
-
-  public native ColumnarBatchSerializeResult serialize(long[] handles, long allocId);
-
-  // Return the native ColumnarBatchSerializer handle
-  public native long init(long cSchema, long allocId);
-
-  public native long deserialize(long handle, byte[] data);
-
-  public native void close(long handle);
+  long spill(long size, MemoryConsumer trigger);
 }

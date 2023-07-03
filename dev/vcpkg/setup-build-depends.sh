@@ -32,7 +32,7 @@ install_centos_7() {
     yum -y install epel-release centos-release-scl
     yum -y install \
         wget curl tar zip unzip which \
-        cmake3 ninja-build perl-IPC-Cmd autoconf libtool \
+        cmake3 ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         devtoolset-9 \
         bison \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
@@ -79,7 +79,7 @@ install_centos_7() {
 install_centos_8() {
     yum -y install \
         wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
@@ -90,7 +90,7 @@ install_centos_8() {
 install_ubuntu_20.04() {
     apt-get -y install \
         wget curl tar zip unzip git \
-        build-essential ccache cmake ninja-build pkg-config autoconf libtool \
+        build-essential ccache cmake ninja-build pkg-config autoconf autoconf-archive libtool \
         flex bison \
         openjdk-8-jdk maven
 }
@@ -101,7 +101,7 @@ install_alinux_3() {
     yum -y groupinstall "Development Tools"
     yum -y install \
         wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         libstdc++-static flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 }

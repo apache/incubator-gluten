@@ -27,7 +27,7 @@ import scala.collection.JavaConverters._
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
-import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
+import io.glutenproject.memory.{GlutenMemoryConsumer, Spiller, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
@@ -226,22 +226,6 @@ class IteratorHandler extends IteratorApi with Logging {
     new CloseableColumnBatchIterator(resIter, Some(pipelineTime))
   }
   // scalastyle:on argcount
-
-  /**
-   * Generate NativeMemoryAllocatorManager.
-   *
-   * @return
-   */
-  override def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
-                                               spiller: Spiller,
-                                               taskMemoryMetrics: TaskMemoryMetrics
-                                              ): NativeMemoryAllocatorManager = {
-    val rl = new ManagedReservationListener(
-      new GlutenMemoryConsumer(taskMemoryManager, spiller),
-      taskMemoryMetrics
-    )
-    new MemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
-  }
 
   /**
    * Generate Native FileScanRDD, currently only for ClickHouse Backend.

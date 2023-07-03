@@ -91,4 +91,9 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
 
     !includedUnsupportedPlans.contains(true)
   }
+
+  /** Validate whether the compression method support splittable at clickhouse backend. */
+  override def doCompressionSplittableValidate(compressionMethod: String): Boolean = {
+    false
+  }
 }

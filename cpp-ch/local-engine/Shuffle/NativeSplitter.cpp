@@ -65,7 +65,6 @@ void NativeSplitter::split(DB::Block & block)
         }
     }
 
-    bool has_active_sender = false;
     for (size_t i = 0; i < options.partition_nums; ++i)
     {
         if (partition_buffer[i]->size() >= options.buffer_size)

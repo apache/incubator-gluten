@@ -71,9 +71,7 @@ object CHExpressionUtil {
     VAR_SAMP -> new ValidatorUtil(new DefaultBlackList),
     VAR_POP -> new ValidatorUtil(new DefaultBlackList),
     BLOOM_FILTER_AGG -> new ValidatorUtil(new DefaultBlackList),
-    CORR -> new ValidatorUtil(new DefaultBlackList),
-    FIRST -> new ValidatorUtil(new DefaultBlackList),
-    LAST -> new ValidatorUtil(new DefaultBlackList)
+    CORR -> new ValidatorUtil(new DefaultBlackList)
   )
 
   final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, ValidatorUtil] = Map(

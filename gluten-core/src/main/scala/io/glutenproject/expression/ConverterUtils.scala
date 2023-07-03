@@ -31,9 +31,13 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import java.util.Locale
 import java.util.{ArrayList => JArrayList, List => JList}
+
+import org.apache.spark.sql.execution.datasources.GlutenTextBasedScanWrapper
+import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
+import org.apache.spark.sql.execution.datasources.v2.text.TextScan
+
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
@@ -455,12 +459,16 @@ object ConverterUtils extends Logging {
       case f: HiveTableScanExecTransformer =>
         f.getScan match {
           case Some(fileScan) =>
-            fileScan.getClass.getSimpleName match {
-              case "TextScan" => ReadFileFormat.TextReadFormat
-              case "JsonScan" => ReadFileFormat.JsonReadFormat
-              case _ => ReadFileFormat.UnknownFormat
+            fileScan match {
+              case scanWrapper: GlutenTextBasedScanWrapper =>
+                scanWrapper.getScan match {
+                  case _: JsonScan => ReadFileFormat.JsonReadFormat
+                  case _: TextScan => ReadFileFormat.TextReadFormat
+                  case _ => ReadFileFormat.UnknownFormat
+                }
+              case _ =>
+                ReadFileFormat.UnknownFormat
             }
-          case _ => ReadFileFormat.UnknownFormat
         }
       case _ => ReadFileFormat.UnknownFormat
     }

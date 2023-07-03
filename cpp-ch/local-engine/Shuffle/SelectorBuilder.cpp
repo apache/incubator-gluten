@@ -115,7 +115,7 @@ PartitionInfo RangeSelectorBuilder::build(DB::Block & block)
 
 void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
 {
-    for (size_t i = 0; i < orderings->size(); ++i)
+    for (uint32_t i = 0; i < orderings->size(); ++i)
     {
         auto ordering = orderings->get(i).extract<Poco::JSON::Object::Ptr>();
         auto col_pos = ordering->get("column_ref").convert<DB::Int32>();
@@ -143,7 +143,7 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
 void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
 {
     DB::ColumnsWithTypeAndName columns;
-    for (size_t i = 0; i < sort_field_types.size(); ++i)
+    for (uint32_t i = 0; i < sort_field_types.size(); ++i)
     {
         auto & type_info = sort_field_types[i];
         auto inner_col = type_info.inner_type->createColumn();
@@ -154,7 +154,7 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
             col = ColumnNullable::create(std::move(col), DB::ColumnUInt8::create(0, 0));
             data_type = std::make_shared<DB::DataTypeNullable>(data_type);
         }
-        for (size_t r = 0; r < range_bounds->size(); ++r)
+        for (uint32_t r = 0; r < range_bounds->size(); ++r)
         {
             auto row = range_bounds->get(r).extract<Poco::JSON::Array::Ptr>();
             auto field_info = row->get(i).extract<Poco::JSON::Object::Ptr>();

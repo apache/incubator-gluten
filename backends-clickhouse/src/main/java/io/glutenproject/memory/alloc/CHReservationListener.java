@@ -17,15 +17,38 @@
 
 package io.glutenproject.memory.alloc;
 
-import org.apache.spark.memory.MemoryConsumer;
-
-public interface Spiller {
-  Spiller NO_OP = new Spiller() {
+public interface CHReservationListener {
+  CHReservationListener NOOP = new CHReservationListener() {
     @Override
-    public long spill(long size, MemoryConsumer trigger) {
+    public void reserveOrThrow(long size) {}
+
+    @Override
+    public long reserve(long size) {
+      return 0L;
+    }
+
+    @Override
+    public long unreserve(long size) {
+      return 0L;
+    }
+
+    @Override
+    public void inactivate() {
+    }
+
+    @Override
+    public long currentMemory() {
       return 0L;
     }
   };
 
-  long spill(long size, MemoryConsumer trigger);
+  long reserve(long size);
+
+  void reserveOrThrow(long size);
+
+  long unreserve(long size);
+
+  void inactivate();
+
+  long currentMemory();
 }

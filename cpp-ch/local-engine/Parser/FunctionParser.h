@@ -26,8 +26,7 @@ public:
     /// Output: actions_dag, required_columns, and result_node
     virtual const DB::ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag,
-        std::vector<String> & required_columns) const;
+        DB::ActionsDAGPtr & actions_dag) const;
 
 protected:
     virtual String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
@@ -35,8 +34,7 @@ protected:
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
         const String & ch_func_name,
-        DB::ActionsDAGPtr & actions_dag,
-        std::vector<String> & required_columns) const;
+        DB::ActionsDAGPtr & actions_dag) const;
 
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const substrait::Expression_ScalarFunction & substrait_func,

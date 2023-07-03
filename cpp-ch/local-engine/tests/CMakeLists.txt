@@ -37,6 +37,8 @@ if (ENABLE_TESTS)
     target_include_directories(unit_tests_local_engine PRIVATE
         ${GTEST_INCLUDE_DIRS}/include
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
+    # no-unreachable-code for GTEST_SKIP
+    target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
     target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs _gtest_all clickhouse_parsers loggers)
 else()
     include_directories(benchmark_local_engine SYSTEM PUBLIC

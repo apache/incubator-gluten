@@ -155,7 +155,7 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
             if (c2rId == -1) {
               c2rId = jniWrapper.nativeColumnarToRowInit(
                 batchHandle,
-                NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+                NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
             }
             val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
 

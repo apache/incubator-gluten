@@ -19,7 +19,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
+import io.glutenproject.memory.Spiller
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -122,7 +123,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
             blockManager.subDirsPerLocalDir,
             localDirs,
             preferSpill,
-            NativeMemoryAllocators.createSpillable(
+            NativeMemoryAllocators.getDefault().createSpillable(
               new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
                   if (nativeShuffleWriter == -1L) {

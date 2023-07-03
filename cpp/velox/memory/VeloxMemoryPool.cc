@@ -63,7 +63,7 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
           VELOX_CHECK(succeed)
           reservationCB(allocBytes, preAlloc);
         },
-        256);
+        minSizeClass);
   }
 
   int64_t freeNonContiguous(velox::memory::Allocation& allocation) override {
@@ -129,9 +129,10 @@ class VeloxMemoryPool : public velox::memory::MemoryPoolImpl {
       const std::string& name,
       Kind kind,
       velox::memory::MemoryManager* manager,
+      std::unique_ptr<velox::memory::MemoryReclaimer> reclaimer = nullptr,
       DestructionCallback destructionCb = nullptr,
       const Options& options = Options{})
-      : velox::memory::MemoryPoolImpl(manager, name, kind, parent, destructionCb, options) {}
+      : velox::memory::MemoryPoolImpl(manager, name, kind, parent, std::move(reclaimer), destructionCb, options) {}
 
   void setAllocatorShared(std::shared_ptr<velox::memory::MemoryAllocator> sharedAlloc) {
     setAllocator(sharedAlloc.get());
@@ -144,14 +145,19 @@ class VeloxMemoryPool : public velox::memory::MemoryPoolImpl {
       const std::string& name,
       Kind kind,
       bool threadSafe,
-      std::shared_ptr<velox::memory::MemoryReclaimer> reclaimer) override {
+      std::unique_ptr<velox::memory::MemoryReclaimer> reclaimer) override {
     const std::shared_ptr<VeloxMemoryPool>& child = std::make_shared<VeloxMemoryPool>(
         parent,
         name,
         kind,
         getDefaultVeloxMemoryManager(),
+        std::move(reclaimer),
         nullptr,
-        Options{.alignment = alignment_, .threadSafe = threadSafe, .checkUsageLeak = checkUsageLeak_});
+        Options{
+            .alignment = alignment_,
+            .trackUsage = trackUsage_,
+            .threadSafe = threadSafe,
+            .checkUsageLeak = checkUsageLeak_});
     if (sharedAlloc_) {
       child->setAllocatorShared(sharedAlloc_);
     }
@@ -166,7 +172,13 @@ static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
   static auto options = gluten::VeloxInitializer::get()->getMemoryPoolOptions();
   int64_t spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
   static std::shared_ptr<VeloxMemoryPool> defaultPoolRoot = std::make_shared<VeloxMemoryPool>(
-      nullptr, "root", velox::memory::MemoryPool::Kind::kAggregate, getDefaultVeloxMemoryManager(), nullptr, options);
+      nullptr,
+      "root",
+      velox::memory::MemoryPool::Kind::kAggregate,
+      getDefaultVeloxMemoryManager(),
+      facebook::velox::memory::MemoryReclaimer::create(),
+      nullptr,
+      options);
   defaultPoolRoot->setHighUsageCallback(
       [=](velox::memory::MemoryPool& pool) { return pool.reservedBytes() >= spillThreshold; });
   return defaultPoolRoot;

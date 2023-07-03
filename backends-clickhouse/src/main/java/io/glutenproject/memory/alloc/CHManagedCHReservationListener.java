@@ -25,10 +25,10 @@ import org.slf4j.LoggerFactory;
 import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 
-public class CHManagedReservationListener implements ReservationListener {
+public class CHManagedCHReservationListener implements CHReservationListener {
 
   private static final Logger LOG =
-      LoggerFactory.getLogger(CHManagedReservationListener.class);
+      LoggerFactory.getLogger(CHManagedCHReservationListener.class);
 
   private GlutenMemoryConsumer consumer;
   private TaskMemoryMetrics metrics;
@@ -36,8 +36,8 @@ public class CHManagedReservationListener implements ReservationListener {
 
   private final AtomicLong currentMemory = new AtomicLong(0L);
 
-  public CHManagedReservationListener(GlutenMemoryConsumer consumer,
-                                      TaskMemoryMetrics metrics) {
+  public CHManagedCHReservationListener(GlutenMemoryConsumer consumer,
+                                        TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }

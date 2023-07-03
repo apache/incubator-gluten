@@ -47,20 +47,20 @@ RelMetricTimes RelMetric::getTotalTime() const
     return timeMetrics;
 }
 
-void RelMetric::serialize(Writer<StringBuffer> & writer, bool summary) const
+void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
 {
     writer.StartObject();
     writer.Key("id");
-    writer.Uint(id);
+    writer.Uint64(id);
     writer.Key("name");
     writer.String(name.c_str());
     RelMetricTimes timeMetrics = getTotalTime();
     writer.Key("time");
-    writer.Uint(timeMetrics.time);
+    writer.Uint64(timeMetrics.time);
     writer.Key("input_wait_time");
-    writer.Uint(timeMetrics.input_wait_elapsed_us);
+    writer.Uint64(timeMetrics.input_wait_elapsed_us);
     writer.Key("output_wait_time");
-    writer.Uint(timeMetrics.output_wait_elapsed_us);
+    writer.Uint64(timeMetrics.output_wait_elapsed_us);
     if (!steps.empty())
     {
         writer.Key("steps");
@@ -80,15 +80,15 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool summary) const
                 writer.Key("name");
                 writer.String(processor->getName().c_str());
                 writer.Key("time");
-                writer.Uint(processor->getElapsedUs());
+                writer.Uint64(processor->getElapsedUs());
                 writer.Key("output_rows");
-                writer.Uint(processor->getProcessorDataStats().output_rows);
+                writer.Uint64(processor->getProcessorDataStats().output_rows);
                 writer.Key("output_bytes");
-                writer.Uint(processor->getProcessorDataStats().output_bytes);
+                writer.Uint64(processor->getProcessorDataStats().output_bytes);
                 writer.Key("input_rows");
-                writer.Uint(processor->getProcessorDataStats().input_rows);
+                writer.Uint64(processor->getProcessorDataStats().input_rows);
                 writer.Key("input_bytes");
-                writer.Uint(processor->getProcessorDataStats().input_bytes);
+                writer.Uint64(processor->getProcessorDataStats().input_bytes);
                 writer.EndObject();
             }
             writer.EndArray();
