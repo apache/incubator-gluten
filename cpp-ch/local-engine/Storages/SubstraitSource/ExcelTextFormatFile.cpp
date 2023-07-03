@@ -64,6 +64,11 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     format_settings.csv.skip_first_lines = file_info.text().header();
     format_settings.csv.null_representation = file_info.text().null_value();
 
+    if (delimiter == "\t" || delimiter == " ")
+    {
+        format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
+    }
+
     if (format_settings.csv.null_representation.empty())
         format_settings.csv.empty_as_default = true;
     else
@@ -175,13 +180,19 @@ bool ExcelTextFormatReader::readField(
     bool is_last_file_column,
     const String & )
 {
+    if (isEndOfLine())
+    {
+        column.insertDefault();
+        return false;
+    }
+
     preSkipNullValue();
     PeekableReadBufferCheckpoint checkpoint{*buf, false};
     size_t column_size = column.size();
     try
     {
         if (format_settings.csv.trim_whitespaces || isFloat(removeNullable(type))) [[unlikely]]
-            skipWhitespacesAndTabs(*buf);
+            skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
 
         const bool at_delimiter = !buf->eof() && *buf->position() == format_settings.csv.delimiter;
         const bool at_last_column_line_end = is_last_file_column && (buf->eof() || *buf->position() == '\n' || *buf->position() == '\r');
@@ -252,9 +263,23 @@ void ExcelTextFormatReader::preSkipNullValue()
     }
 }
 
+void ExcelTextFormatReader::skipFieldDelimiter()
+{
+    skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
+
+    if (!isEndOfLine())
+        assertChar(format_settings.csv.delimiter, *buf);
+}
+
+bool ExcelTextFormatReader::isEndOfLine()
+{
+    return buf->eof() || *buf->position() == '\r' || *buf->position() == '\n';
+}
+
+
 void ExcelTextFormatReader::skipRowEndDelimiter()
 {
-    skipWhitespacesAndTabs(*buf);
+    skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
 
     if (buf->eof())
         return;
@@ -263,11 +288,11 @@ void ExcelTextFormatReader::skipRowEndDelimiter()
     if (*buf->position() == format_settings.csv.delimiter)
         ++buf->position();
 
-    skipWhitespacesAndTabs(*buf);
+    skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
     if (buf->eof())
         return;
 
-    if (*buf->position() != '\r' && *buf->position() != '\n')
+    if (!isEndOfLine())
     {
         // remove unused chars
         skipField();
@@ -292,15 +317,19 @@ void ExcelTextFormatReader::skipEndOfLine(DB::ReadBuffer & in)
         ++in.position();
         if (!in.eof() && *in.position() == '\n')
             ++in.position();
+        /// Different with CH master:
         /// removed \r check
     }
     else if (!in.eof())
         throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Expected end of line");
 }
 
-
-inline void ExcelTextFormatReader::skipWhitespacesAndTabs(DB::ReadBuffer & in)
+inline void ExcelTextFormatReader::skipWhitespacesAndTabs(ReadBuffer & in, const bool & allow_whitespace_or_tab_as_delimiter)
 {
+    if (allow_whitespace_or_tab_as_delimiter)
+    {
+        return;
+    }
     /// Skip `whitespace` symbols allowed in CSV.
     while (!in.eof() && (*in.position() == ' ' || *in.position() == '\t'))
         ++in.position();
