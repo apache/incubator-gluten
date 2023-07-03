@@ -252,6 +252,10 @@ object GlutenConfig {
   val SPARK_S3_PATH_STYLE_ACCESS: String = HADOOP_PREFIX + S3_PATH_STYLE_ACCESS
   val S3_USE_INSTANCE_CREDENTIALS = "fs.s3a.use.instance.credentials"
   val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = HADOOP_PREFIX + S3_USE_INSTANCE_CREDENTIALS
+  val S3_IAM_ROLE = "fs.s3a.iam.role"
+  val SPARK_S3_IAM: String = HADOOP_PREFIX + S3_IAM_ROLE
+  val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
+  val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
@@ -375,6 +379,8 @@ object GlutenConfig {
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
+      (SPARK_S3_IAM, ""),
+      (SPARK_S3_IAM_SESSION_NAME, ""),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),

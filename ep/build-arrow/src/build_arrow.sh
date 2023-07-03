@@ -39,7 +39,7 @@ CURRENT_DIR=$(
   pwd
 )
 if [ "$ARROW_HOME" == "" ]; then
-  ARROW_HOME="$CURRENT_DIR/../build/"
+  ARROW_HOME="$CURRENT_DIR/../build"
 fi
 
 ARROW_SOURCE_DIR="${ARROW_HOME}/arrow_ep"

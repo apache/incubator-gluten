@@ -4,6 +4,7 @@ set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=branch-1.0
+VELOX_HOME=""
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
@@ -23,6 +24,10 @@ for arg in "$@"; do
     ;;
   --velox_branch=*)
     VELOX_BRANCH=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --velox_home=*)
+    VELOX_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --build_protobuf=*)
@@ -136,8 +141,12 @@ CURRENT_DIR=$(
   pwd
 )
 
+if [ "$VELOX_HOME" == "" ]; then
+  VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
+fi
+VELOX_SOURCE_DIR="${VELOX_HOME}"
+
 # checkout code
-VELOX_SOURCE_DIR="$CURRENT_DIR/../build/velox_ep"
 TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
 if [ -d $VELOX_SOURCE_DIR ]; then
   echo "Velox source folder $VELOX_SOURCE_DIR already exists..."

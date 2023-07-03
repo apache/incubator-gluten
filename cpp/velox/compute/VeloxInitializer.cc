@@ -153,6 +153,8 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   std::string sslEnabled = conf.at("spark.hadoop.fs.s3a.connection.ssl.enabled");
   std::string pathStyleAccess = conf.at("spark.hadoop.fs.s3a.path.style.access");
   std::string useInstanceCredentials = conf.at("spark.hadoop.fs.s3a.use.instance.credentials");
+  std::string iamRole = conf.at("spark.hadoop.fs.s3a.iam.role");
+  std::string iamRoleSessionName = conf.at("spark.hadoop.fs.s3a.iam.role.session.name");
 
   const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
   if (envAwsAccessKey != nullptr) {
@@ -172,15 +174,28 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     s3Config.insert({
         {"hive.s3.use-instance-credentials", useInstanceCredentials},
     });
+  } else if (!iamRole.empty()) {
+    s3Config.insert({
+        {"hive.s3.iam-role", iamRole},
+    });
+    if (!iamRoleSessionName.empty()) {
+      s3Config.insert({
+          {"hive.s3.iam-role-session-name", iamRoleSessionName},
+      });
+    }
   } else {
     s3Config.insert({
         {"hive.s3.aws-access-key", awsAccessKey},
         {"hive.s3.aws-secret-key", awsSecretKey},
-        {"hive.s3.endpoint", awsEndpoint},
-        {"hive.s3.ssl.enabled", sslEnabled},
-        {"hive.s3.path-style-access", pathStyleAccess},
     });
   }
+
+  s3Config.insert({
+      {"hive.s3.endpoint", awsEndpoint},
+      {"hive.s3.ssl.enabled", sslEnabled},
+      {"hive.s3.path-style-access", pathStyleAccess},
+  });
+
   configurationValues.merge(s3Config);
 #endif
 
