@@ -232,6 +232,7 @@ object ExpressionNames {
   final val NTILE = "ntile"
   final val LEAD = "lead"
   final val LAG = "lag"
+  final val NTH_VALUE = "nth_value"
 
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"

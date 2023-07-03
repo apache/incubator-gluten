@@ -209,6 +209,15 @@ class TestOperator extends WholeStageTransformerSuite {
     runQueryAndCompare(
       "select cume_dist() over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+    
+    runQueryAndCompare(
+      "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+          df => {
+            assert(getExecutedPlan(df).count(plan => {
+              plan.isInstanceOf[WindowExecTransformer]
+            }) > 0)
+          }}
 
     runQueryAndCompare(
       "select sum(l_partkey + 1) over" +

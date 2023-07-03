@@ -239,7 +239,8 @@ object ExpressionMappings {
     Sig[PercentRank](PERCENT_RANK),
     Sig[NTile](NTILE),
     Sig[Lead](LEAD),
-    Sig[Lag](LAG)
+    Sig[Lag](LAG),
+    Sig[NthValue](NTH_VALUE)
   )
 
   def expressionsMap: Map[Class[_], String] =
