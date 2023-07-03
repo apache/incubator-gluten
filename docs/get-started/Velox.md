@@ -60,9 +60,9 @@ cd /path_to_gluten
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
 ./dev/buildbundle-veloxbe.sh
 
-## When you have successfully compiled once and changed some codes then compile again.
-## you may use following command to skip the arrow, velox and protobuf build
-# ./dev/buildbundle-veloxbe.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
+## After a complete build, if you need to re-build the project and only some gluten code is changed,
+## you can use the following command to skip building arrow, velox and protobuf.
+# ./dev/buildbundle-veloxbe.sh --skip_build_ep=ON --build_protobuf=OFF
 ```
 
 **For aarch64 build:**

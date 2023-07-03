@@ -19,6 +19,7 @@ ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_EP_CACHE=OFF
+SKIP_BUILD_EP=OFF
 ARROW_ENABLE_CUSTOM_CODEC=OFF
 ENABLE_VCPKG=OFF
 
@@ -71,6 +72,10 @@ do
         ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --skip_build_ep=*)
+        SKIP_BUILD_EP=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
         --enable_vcpkg=*)
         ENABLE_VCPKG=("${arg#*=}")
         shift # Remove argument name from processing
@@ -89,16 +94,20 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
 fi
 
 ##install arrow
-cd $GLUTEN_DIR/ep/build-arrow/src
-./get_arrow.sh --enable_custom_codec=$ARROW_ENABLE_CUSTOM_CODEC
-./build_arrow.sh --build_type=$BUILD_TYPE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
-                         --enable_ep_cache=$ENABLE_EP_CACHE
+if [ "$SKIP_BUILD_EP" != "ON" ]; then
+    cd $GLUTEN_DIR/ep/build-arrow/src
+    ./get_arrow.sh --enable_custom_codec=$ARROW_ENABLE_CUSTOM_CODEC
+    ./build_arrow.sh --build_type=$BUILD_TYPE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
+                             --enable_ep_cache=$ENABLE_EP_CACHE
+fi
 
 ##install velox
-cd $GLUTEN_DIR/ep/build-velox/src
-./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3
-./build_velox.sh --enable_s3=$ENABLE_S3 --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-               --enable_ep_cache=$ENABLE_EP_CACHE --build_benchmarks=$BUILD_BENCHMARKS
+if [ "$SKIP_BUILD_EP" != "ON" ]; then
+    cd $GLUTEN_DIR/ep/build-velox/src
+    ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3
+    ./build_velox.sh --enable_s3=$ENABLE_S3 --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+                   --enable_ep_cache=$ENABLE_EP_CACHE --build_benchmarks=$BUILD_BENCHMARKS
+fi
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
