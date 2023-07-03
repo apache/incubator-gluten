@@ -40,8 +40,7 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
 
   @volatile var driverEndpointRef: RpcEndpointRef = null
 
-  val executorEndpoint: RpcEndpointRef =
-    rpcEnv.setupEndpoint(GlutenRpcConstants.GLUTEN_EXECUTOR_ENDPOINT_NAME, this)
+  rpcEnv.setupEndpoint(GlutenRpcConstants.GLUTEN_EXECUTOR_ENDPOINT_NAME, this)
 
   override def onStart(): Unit = {
     rpcEnv
