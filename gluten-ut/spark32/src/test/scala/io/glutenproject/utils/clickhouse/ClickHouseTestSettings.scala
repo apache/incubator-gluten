@@ -318,7 +318,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "array size function",
       "map size function - legacy",
       "map size function",
-      "map_entries"
+      "map_entries",
+      "misc md5 function",
+      "misc sha1 function",
+      "misc sha2 function",
+      "misc crc32 function"
     )
 
   enableSuite[GlutenDateFunctionsSuite]

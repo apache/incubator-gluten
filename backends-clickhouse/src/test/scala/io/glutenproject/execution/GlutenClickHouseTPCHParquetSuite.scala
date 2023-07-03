@@ -1223,4 +1223,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-2095: test cast(string as binary)") {
+    runQueryAndCompare(
+      "select cast(n_nationkey as binary), cast(n_comment as binary) from nation"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
 }
