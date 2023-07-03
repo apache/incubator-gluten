@@ -1,4 +1,5 @@
 #pragma once
+
 #include <map>
 #include <optional>
 #include <unordered_map>
@@ -12,6 +13,7 @@
 #include <base/types.h>
 #include <google/protobuf/repeated_field.h>
 #include <substrait/plan.pb.h>
+
 namespace local_engine
 {
 /// parse a single substrait relation
@@ -43,7 +45,17 @@ protected:
     // Get function signature name.
     std::optional<String> parseSignatureFunctionName(UInt32 function_ref);
     // Get coresponding function name in ClickHouse.
-    std::optional<String> parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function);
+
+    template <SubstraitFunction F>
+    std::optional<String> parseFunctionName(UInt32 function_ref, const F & function)
+    {
+        const auto & function_mapping = getFunctionMapping();
+        auto it = function_mapping.find(std::to_string(function_ref));
+        if (it == function_mapping.end())
+            return {};
+
+        return plan_parser->getFunctionName(it->second, function);
+    }
 
     const DB::ActionsDAG::Node * parseArgument(ActionsDAGPtr action_dag, const substrait::Expression & rel)
     {
@@ -64,11 +76,11 @@ protected:
         return plan_parser->toFunctionNode(action_dag, function, args);
     }
 
-    DB::AggregateFunctionPtr getAggregateFunction(const std::string & name, DB::DataTypes arg_types)
+    DB::AggregateFunctionPtr getAggregateFunction(const std::string & name, DB::DataTypes arg_types, const DB::Array & parameters = {})
     {
         auto & factory = DB::AggregateFunctionFactory::instance();
         DB::AggregateFunctionProperties properties;
-        return factory.get(name, arg_types, DB::Array{}, properties);
+        return factory.get(name, arg_types, parameters, properties);
     }
 
 private:

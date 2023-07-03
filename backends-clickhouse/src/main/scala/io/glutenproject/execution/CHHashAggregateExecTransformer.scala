@@ -363,6 +363,10 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (covar.left.dataType, covar.left.nullable)
               fields = fields :+ (covar.right.dataType, covar.right.nullable)
               (makeStructType(fields), attr.nullable)
+            case approxPercentile: ApproximatePercentile =>
+              var fields = Seq[(DataType, Boolean)]()
+              fields = fields :+ (approxPercentile.child.dataType, approxPercentile.child.nullable)
+              (makeStructType(fields), attr.nullable)
             case expr =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
           }

@@ -269,6 +269,10 @@ private:
     void visitNonNullable(const substrait::Expression & expr);
 };
 
+template <typename T>
+concept SubstraitFunction = std::same_as<T, substrait::Expression_ScalarFunction> || std::same_as<T, substrait::Expression_WindowFunction>
+    || std::same_as<T, substrait::AggregateFunction>;
+
 class SerializedPlanParser
 {
 private:
@@ -279,6 +283,7 @@ private:
     friend class NonNullableColumnsResolver;
 
 public:
+
     explicit SerializedPlanParser(const ContextPtr & context);
     DB::QueryPlanPtr parse(const std::string & plan);
     DB::QueryPlanPtr parseJson(const std::string & json_plan);
@@ -328,7 +333,9 @@ private:
         std::vector<IQueryPlanStep *>& steps);
 
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
-    static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+
+    template <SubstraitFunction F>
+    static std::string getFunctionName(const std::string & function_sig, const F & function);
     DB::ActionsDAGPtr parseFunction(
         const Block & header,
         const substrait::Expression & rel,
