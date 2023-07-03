@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import org.apache.spark.{SparkException, broadcast}
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.rdd.RDD
@@ -127,14 +127,12 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
   }
 
-  def doValidate(): Boolean = mode match {
+  override def doValidateInternal(): ValidationResult = mode match {
     case _: HashedRelationBroadcastMode =>
-      true
+      ok()
     case _ =>
       // IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
-      this.appendValidateLog("Validation failed for" +
-        " ColumnarBroadcastExchangeExec due to: only support HashedRelationBroadcastMode.")
-      false
+      notOk("only support HashedRelationBroadcastMode")
   }
 
   override def doPrepare(): Unit = {

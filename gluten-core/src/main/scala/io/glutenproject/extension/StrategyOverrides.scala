@@ -162,13 +162,14 @@ case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
     }
   }
 
-  def tagNotTransformable(plan: LogicalPlan): LogicalPlan = {
-    plan.setTagValue(TAG, TRANSFORM_UNSUPPORTED())
+  def tagNotTransformable(plan: LogicalPlan, reason: String): LogicalPlan = {
+    plan.setTagValue(TAG, TRANSFORM_UNSUPPORTED(Some(reason)))
     plan
   }
 
-  def tagNotTransformableRecursive(plan: LogicalPlan): LogicalPlan = {
-    tagNotTransformable(plan.withNewChildren(plan.children.map(tagNotTransformableRecursive)))
+  def tagNotTransformableRecursive(plan: LogicalPlan, reason: String): LogicalPlan = {
+    tagNotTransformable(plan.withNewChildren(plan.children.map(
+      tagNotTransformableRecursive(_, reason))), reason)
   }
 
   def existLeftOuterJoin(plan: LogicalPlan): Boolean = {
@@ -183,7 +184,7 @@ case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
     // Ignore forceShuffledHashJoin if exist multi continuous joins
     if (GlutenConfig.getConf.enableLogicalJoinOptimize &&
       existsMultiJoins(plan) && existLeftOuterJoin(plan)) {
-      tagNotTransformableRecursive(plan)
+      tagNotTransformableRecursive(plan, "exist multi continuous joins")
     }
     plan match {
       // If the build side of BHJ is already decided by AQE, we need to keep the build side.

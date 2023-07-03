@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -39,7 +41,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
                                        child: SparkPlan,
                                        shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
                                        projectOutputAttributes: Seq[Attribute])
-  extends ShuffleExchangeLike with GlutenPlan{
+  extends ShuffleExchangeLike with GlutenPlan {
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
@@ -100,14 +102,12 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
-  def doValidate(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
       outputPartitioning, child)) {
-      this.appendValidateLog("Validation failed for" +
-        " ColumnarShuffleExchangeExec due to: schema check failed.")
-      return false
+      return notOk("schema check failed")
     }
-    true
+    ok()
   }
 
   override def nodeName: String = "ColumnarExchange"

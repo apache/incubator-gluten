@@ -19,12 +19,11 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode}
@@ -33,7 +32,6 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -43,6 +41,7 @@ import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
+import scala.collection.JavaConverters._
 
 case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                                  partitionSpec: Seq[Expression],
@@ -173,45 +172,26 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     }
   }
 
-  override def doValidateInternal(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
-      this.appendValidateLog(
-        s"Validation failed for ${this.getClass.toString}" +
-          s" due to: {windowExpression}. ")
-      return false
+      return notOk(s"unsupport window expression ${windowExpression.mkString(", ")}")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
-    val relNode = try {
-      getRelNode(
-        substraitContext,
-        windowExpression, partitionSpec,
-        orderSpec, child.output, operatorId, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
+    val relNode = getRelNode(
+      substraitContext,
+      windowExpression, partitionSpec,
+      orderSpec, child.output, operatorId, null, validation = true)
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext,
         Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 

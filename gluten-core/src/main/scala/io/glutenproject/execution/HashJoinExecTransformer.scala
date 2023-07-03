@@ -22,7 +22,7 @@ import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
@@ -100,7 +100,7 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
 trait HashJoinLikeExecTransformer
-  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin with GlutenPlan {
+  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin {
 
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
@@ -222,50 +222,36 @@ trait HashJoinLikeExecTransformer
       this
   }
 
-  override def doValidateInternal(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
-      this.appendValidateLog(
-        s"Validation failed for ${this.getClass.toString}" +
-          s" due to: {Join type ${hashJoinType}}")
-      return false
+      return notOk(s"does not support join type: $hashJoinType, substrait: $substraitJoinType")
     }
-    val relNode = try {
-      JoinUtils.createJoinRel(
-        streamedKeyExprs,
-        buildKeyExprs,
-        condition,
-        substraitJoinType,
-        exchangeTable,
-        joinType,
-        genJoinParametersBuilder(),
-        null, null, streamedPlan.output,
-        buildPlan.output,
-        substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
+    val relNode = JoinUtils.createJoinRel(
+      streamedKeyExprs,
+      buildKeyExprs,
+      condition,
+      substraitJoinType,
+      exchangeTable,
+      joinType,
+      genJoinParametersBuilder(),
+      null, null, streamedPlan.output,
+      buildPlan.output,
+      substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
       if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
+        val fallbackInfo = validateInfo.getFallbackInfo.asScala
+          .mkString("native check failure:", ", ", "")
+        return notOk(fallbackInfo)
       }
-      true
+      ok()
     } else {
-      true
+      ok()
     }
   }
 

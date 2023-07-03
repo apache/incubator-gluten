@@ -41,7 +41,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import java.util.ArrayList
 import com.google.protobuf.Any
 import com.google.common.collect.Lists
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
@@ -53,7 +53,7 @@ case class GenerateExecTransformer(
   generatorOutput: Seq[Attribute],
   child: SparkPlan)
   extends UnaryExecNode
-  with TransformSupport with GlutenPlan {
+  with TransformSupport {
 
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
 
@@ -88,9 +88,9 @@ case class GenerateExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
-  override def doValidateInternal(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     if (BackendsApiManager.veloxBackend) {
-      return false
+      return notOk("Velox backend does not support")
     }
 
     val context = new SubstraitContext
@@ -111,20 +111,17 @@ case class GenerateExecTransformer(
       }
     }
 
-    val relNode = try {
-      getRelNode(context, operatorId, child.output, null, generatorNode, childOutputNodes, true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
-
+    val relNode = getRelNode(context, operatorId, child.output, null, generatorNode,
+      childOutputNodes, true)
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if (BackendsApiManager.getValidatorApiInstance.doValidate(planNode)) {
+        ok()
+      } else {
+        notOk("substrait plan node validate failure")
+      }
     } else {
-      true
+      ok()
     }
   }
 

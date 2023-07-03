@@ -23,7 +23,7 @@ import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -39,7 +39,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class LimitTransformer(child: SparkPlan,
                             offset: Long,
                             count: Long)
-    extends UnaryExecNode with TransformSupport with GlutenPlan {
+    extends UnaryExecNode with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -85,34 +85,17 @@ case class LimitTransformer(child: SparkPlan,
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
 
-  override def doValidateInternal(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
-    val relNode = try {
-      getRelNode(context, operatorId, offset, count, child.output, null, true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
-
+    val relNode = getRelNode(context, operatorId, offset, count, child.output, null, true)
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 
