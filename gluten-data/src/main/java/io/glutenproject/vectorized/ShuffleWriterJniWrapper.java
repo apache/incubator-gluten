@@ -32,21 +32,22 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
    * @param part contains the partitioning parameter needed by native splitter
    * @param bufferSize size of native buffers held by each partition writer
    * @param codec compression codec
+   * @param codecBackend HW backend for offloading compression
    * @param dataFile acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
    * @param localDirs configured local directories where Spark can write files
-   * @param preferEvict
+   * @param preferEvict if true, write the partition buffer to disk once it is full
    * @param memoryPoolId
    * @return native shuffle writer instance id if created successfully.
    */
   public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
-                   int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
-                   String localDirs, boolean preferEvict, long memoryPoolId, boolean writeSchema,
-                   long handle, long taskAttemptId) {
-      return nativeMake(part.getShortName(), part.getNumPartitions(),
-          offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
-          subDirsPerLocalDir, localDirs, preferEvict, memoryPoolId,
-          writeSchema, handle, taskAttemptId, 0, null, "local");
+                   String codecBackend, int batchCompressThreshold, String dataFile,
+                   int subDirsPerLocalDir, String localDirs, boolean preferEvict, long memoryPoolId,
+                   boolean writeSchema, long handle, long taskAttemptId) {
+    return nativeMake(part.getShortName(), part.getNumPartitions(),
+        offheapPerTask, bufferSize, codec, codecBackend, batchCompressThreshold, dataFile,
+        subDirsPerLocalDir, localDirs, preferEvict, memoryPoolId,
+        writeSchema, handle, taskAttemptId, 0, null, "local");
   }
 
   /**
@@ -63,17 +64,17 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
                          int pushBufferMaxSize, Object pusher,
                          long memoryPoolId, long handle,
                          long taskAttemptId, String partitionWriterType) {
-      return nativeMake(part.getShortName(), part.getNumPartitions(),
-          offheapPerTask, bufferSize, codec, batchCompressThreshold, null,
-          0, null, true, memoryPoolId,
-          false, handle, taskAttemptId, pushBufferMaxSize, pusher, partitionWriterType);
+    return nativeMake(part.getShortName(), part.getNumPartitions(),
+        offheapPerTask, bufferSize, codec, null, batchCompressThreshold, null,
+        0, null, true, memoryPoolId,
+        false, handle, taskAttemptId, pushBufferMaxSize, pusher, partitionWriterType);
   }
 
   public native long nativeMake(String shortName, int numPartitions,
                                 long offheapPerTask, int bufferSize,
-                                String codec, int batchCompressThreshold, String dataFile,
-                                int subDirsPerLocalDir, String localDirs, boolean preferEvict,
-                                long memoryPoolId, boolean writeSchema,
+                                String codec, String codecBackend, int batchCompressThreshold,
+                                String dataFile, int subDirsPerLocalDir, String localDirs,
+                                boolean preferEvict, long memoryPoolId, boolean writeSchema,
                                 long handle, long taskAttemptId, int pushBufferMaxSize,
                                 Object pusher, String partitionWriterType);
 
@@ -82,7 +83,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
    *
    * @param shuffleWriterId shuffle writer instance id
    * @param size expected size to Evict (in bytes)
-   * @param callBySelf whether the caller is the shuffle shuffle writer itself, true
+   * @param callBySelf whether the caller is the shuffle writer itself, true
    * when running out of off-heap memory due to allocations from
    * the evaluator itself
    * @return actual spilled size
@@ -92,8 +93,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
-   * split according to the first column as partition id. During splitting, the data in native
-   * buffers will be write to disk when the buffers are full.
+   * split according to the first column as partition id.
    *
    * @param shuffleWriterId shuffle writer instance id
    * @param numRows Rows per batch

@@ -765,7 +765,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jint numPartitions,
     jlong offheapPerTask,
     jint bufferSize,
-    jstring compressionTypeJstr,
+    jstring codecJstr,
+    jstring codecBackendJstr,
     jint batchCompressThreshold,
     jstring dataFileJstr,
     jint numSubDirs,
@@ -794,11 +795,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
   shuffleWriterOptions.offheap_per_task = offheapPerTask;
 
-  if (compressionTypeJstr != NULL) {
-    auto compressionTypeResult = getCompressionType(env, compressionTypeJstr);
-    if (compressionTypeResult.status().ok()) {
-      shuffleWriterOptions.compression_type = compressionTypeResult.MoveValueUnsafe();
-    }
+  if (codecJstr != NULL) {
+    shuffleWriterOptions.compression_type = getCompressionType(env, codecJstr, codecBackendJstr);
   }
 
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);

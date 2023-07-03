@@ -228,9 +228,10 @@ endif()
 
 if(ENABLE_QAT)
   include(BuildQATzip)
-  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qat/qat_util.cc)
-  target_link_libraries(gluten PUBLIC qatzip::qatzip)
+  include(BuildQATZSTD)
+  target_sources(gluten PRIVATE utils/qat/QatCodec.cc)
+  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR} ${QATZSTD_INCLUDE_DIR})
+  target_link_libraries(gluten PUBLIC qatzip::qatzip qatzstd::qatzstd)
 endif()
 
 if(ENABLE_IAA)

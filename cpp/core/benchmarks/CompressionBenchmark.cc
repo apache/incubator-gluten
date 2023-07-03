@@ -62,8 +62,10 @@ namespace gluten {
 #define ALIGNMENT 2 * 1024 * 1024
 
 const int32_t kQatGzip = 0;
-const int32_t kQplGzip = 1;
-const int32_t kLZ4 = 2;
+const int32_t kQatZstd = 1;
+const int32_t kQplGzip = 2;
+const int32_t kLZ4 = 3;
+const int32_t kZstd = 4;
 
 class MyMemoryPool final : public arrow::MemoryPool {
  public:
@@ -123,13 +125,13 @@ class MyMemoryPool final : public arrow::MemoryPool {
 
 class BenchmarkCompression {
  public:
-  explicit BenchmarkCompression(const std::string& fileName, uint32_t splitBufferSize) {
-    getRecordBatchReader(fileName, splitBufferSize);
+  explicit BenchmarkCompression(const std::string& fileName, uint32_t compressBufferSize) {
+    getRecordBatchReader(fileName, compressBufferSize);
   }
 
   virtual std::string name() const = 0;
 
-  void getRecordBatchReader(const std::string& inputFile, uint32_t splitBufferSize) {
+  void getRecordBatchReader(const std::string& inputFile, uint32_t compressBufferSize) {
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
 
@@ -139,7 +141,7 @@ class BenchmarkCompression {
 
     GLUTEN_ASSIGN_OR_THROW(file_, fs->OpenInputFile(fileName));
 
-    properties_.set_batch_size(splitBufferSize);
+    properties_.set_batch_size(compressBufferSize);
     properties_.set_pre_buffer(false);
     properties_.set_use_threads(false);
 
@@ -164,17 +166,27 @@ class BenchmarkCompression {
     setCpu(state.range(2) + state.thread_index());
     auto ipcWriteOptions = arrow::ipc::IpcWriteOptions::Defaults();
     ipcWriteOptions.use_threads = false;
-    auto splitBufferSize = (uint32_t)state.range(1);
+    auto compressBufferSize = (uint32_t)state.range(1);
     auto compressionType = state.range(0);
     switch (compressionType) {
       case gluten::kLZ4: {
         GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::LZ4_FRAME));
         break;
       }
+      case gluten::kZstd: {
+        GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::ZSTD));
+        break;
+      }
 #ifdef GLUTEN_ENABLE_QAT
       case gluten::kQatGzip: {
-        qat::EnsureQatCodecRegistered("gzip");
+        qat::ensureQatCodecRegistered("gzip");
         GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::CUSTOM));
+        break;
+      }
+      case gluten::kQatZstd: {
+        qat::ensureQatCodecRegistered("zstd");
+        GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::CUSTOM));
+        std::cout << "load qatzstd" << std::endl;
         break;
       }
 #endif
@@ -195,12 +207,22 @@ class BenchmarkCompression {
     int64_t numBatches = 0;
     int64_t numRows = 0;
     int64_t compressTime = 0;
+    int64_t decompressTime = 0;
     int64_t uncompressedSize = 0;
     int64_t compressedSize = 0;
 
     auto startTime = std::chrono::steady_clock::now();
 
-    doCompress(elapseRead, numBatches, numRows, compressTime, uncompressedSize, compressedSize, ipcWriteOptions, state);
+    doCompress(
+        elapseRead,
+        numBatches,
+        numRows,
+        compressTime,
+        decompressTime,
+        uncompressedSize,
+        compressedSize,
+        ipcWriteOptions,
+        state);
     auto endTime = std::chrono::steady_clock::now();
     auto totalTime = (endTime - startTime).count();
     std::cout << "Thread " << state.thread_index() << " took " << (1.0 * totalTime / 1e9) << "s" << std::endl;
@@ -218,13 +240,16 @@ class BenchmarkCompression {
         benchmark::Counter(numRows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["batch_buffer_size"] =
-        benchmark::Counter(splitBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        benchmark::Counter(compressBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] =
         benchmark::Counter(elapseRead, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["compress_time"] =
         benchmark::Counter(compressTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+
+    state.counters["decompress_time"] =
+        benchmark::Counter(decompressTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["total_time"] =
         benchmark::Counter(totalTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
@@ -261,10 +286,34 @@ class BenchmarkCompression {
       int64_t& numBatches,
       int64_t& numRows,
       int64_t& compressTime,
+      int64_t& decompressTime,
       int64_t& uncompressedSize,
       int64_t& compressedSize,
       arrow::ipc::IpcWriteOptions& ipcWriteOptions,
       benchmark::State& state) {}
+
+  void decompress(
+      const arrow::ipc::IpcWriteOptions& ipcWriteOptions,
+      const std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>& payloads,
+      const std::vector<std::vector<int64_t>>& uncompressedBufferSize,
+      int64_t& decompressTime) {
+    TIME_NANO_START(decompressTime);
+    auto codec = ipcWriteOptions.codec;
+    for (auto i = 0; i < payloads.size(); ++i) {
+      auto& buffers = payloads[i]->body_buffers;
+      for (auto j = 0; j < buffers.size(); ++j) {
+        auto outputSize = uncompressedBufferSize[i][j];
+        if (buffers[j] && outputSize >= 0) {
+          GLUTEN_ASSIGN_OR_THROW(auto out, arrow::AllocateResizableBuffer(outputSize, ipcWriteOptions.memory_pool));
+          // Exclude the first 8-byte buffer metadata.
+          GLUTEN_ASSIGN_OR_THROW(
+              auto len,
+              codec->Decompress(buffers[j]->size() - 8, buffers[j]->data() + 8, outputSize, out->mutable_data()));
+        }
+      }
+    }
+    TIME_NANO_END(decompressTime);
+  }
 
  protected:
   std::shared_ptr<arrow::io::RandomAccessFile> file_;
@@ -276,8 +325,8 @@ class BenchmarkCompression {
 
 class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression {
  public:
-  explicit BenchmarkCompressionCacheScanBenchmark(const std::string& filename, uint32_t splitBufferSize)
-      : BenchmarkCompression(filename, splitBufferSize) {}
+  explicit BenchmarkCompressionCacheScanBenchmark(const std::string& filename, uint32_t compressBufferSize)
+      : BenchmarkCompression(filename, compressBufferSize) {}
 
   std::string name() const override {
     return "CacheScan";
@@ -289,6 +338,7 @@ class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression
       int64_t& numBatches,
       int64_t& numRows,
       int64_t& compressTime,
+      int64_t& decompressTime,
       int64_t& uncompressedSize,
       int64_t& compressedSize,
       arrow::ipc::IpcWriteOptions& ipcWriteOptions,
@@ -314,13 +364,24 @@ class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression
 
     std::cout << "parquet parse done elapsed time " << elapseRead / 1e6 << " ms " << std::endl;
     std::cout << "batches = " << numBatches << " rows = " << numRows << std::endl;
+
+    std::vector<std::shared_ptr<arrow::ipc::IpcPayload>> payloads(batches.size());
+    std::vector<std::vector<int64_t>> uncompressedBufferSize(batches.size());
+
     for (auto _ : state) {
       auto it = batches.begin();
-      auto processedBatches = 0;
+      auto pos = 0;
       while (it != batches.end()) {
         recordBatch = *it++;
         for (auto i = 0; i < recordBatch->num_columns(); ++i) {
           recordBatch->column(i)->data()->buffers[0] = nullptr;
+          for (auto& buffer : recordBatch->column(i)->data()->buffers) {
+            if (buffer) {
+              uncompressedBufferSize[pos].push_back(buffer->size());
+            } else {
+              uncompressedBufferSize[pos].push_back(-1);
+            }
+          }
         }
         auto payload = std::make_shared<arrow::ipc::IpcPayload>();
 
@@ -328,17 +389,20 @@ class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression
             compressTime, arrow::ipc::GetRecordBatchPayload(*recordBatch, ipcWriteOptions, payload.get()));
         uncompressedSize += payload->raw_body_length;
         compressedSize += payload->body_length;
-        std::cout << "Compressed " << processedBatches++ << " batches" << std::endl;
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
+        payloads[pos] = std::move(payload);
+        pos++;
       }
+
+      decompress(ipcWriteOptions, payloads, uncompressedBufferSize, decompressTime);
     }
   }
 };
 
 class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompression {
  public:
-  explicit BenchmarkCompressionIterateScanBenchmark(const std::string& filename, uint32_t splitBufferSize)
-      : BenchmarkCompression(filename, splitBufferSize) {}
+  explicit BenchmarkCompressionIterateScanBenchmark(const std::string& filename, uint32_t compressBufferSize)
+      : BenchmarkCompression(filename, compressBufferSize) {}
 
   std::string name() const override {
     return "IterateScan";
@@ -350,6 +414,7 @@ class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompressi
       int64_t& numBatches,
       int64_t& numRows,
       int64_t& compressTime,
+      int64_t& decompressTime,
       int64_t& uncompressedSize,
       int64_t& compressedSize,
       arrow::ipc::IpcWriteOptions& ipcWriteOptions,
@@ -364,11 +429,22 @@ class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompressi
     for (auto _ : state) {
       GLUTEN_THROW_NOT_OK(parquetReader->GetRecordBatchReader(rowGroupIndices_, columnIndices_, &recordBatchReader));
       TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
+      std::vector<std::shared_ptr<arrow::ipc::IpcPayload>> payloads;
+      std::vector<std::vector<int64_t>> uncompressedBufferSize;
       while (recordBatch) {
         numBatches += 1;
+        uncompressedBufferSize.resize(numBatches);
+
         numRows += recordBatch->num_rows();
         for (auto i = 0; i < recordBatch->num_columns(); ++i) {
           recordBatch->column(i)->data()->buffers[0] = nullptr;
+          for (auto& buffer : recordBatch->column(i)->data()->buffers) {
+            if (buffer) {
+              uncompressedBufferSize.back().push_back(buffer->size());
+            } else {
+              uncompressedBufferSize.back().push_back(-1);
+            }
+          }
         }
         auto payload = std::make_shared<arrow::ipc::IpcPayload>();
 
@@ -376,9 +452,11 @@ class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompressi
             compressTime, arrow::ipc::GetRecordBatchPayload(*recordBatch, ipcWriteOptions, payload.get()));
         uncompressedSize += payload->raw_body_length;
         compressedSize += payload->body_length;
-        //        std::cout << "Compressed " << num_batches << " batches" << std::endl;
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
+        payloads.push_back(std::move(payload));
       }
+
+      decompress(ipcWriteOptions, payloads, uncompressedBufferSize, decompressTime);
     }
   }
 };
@@ -391,7 +469,7 @@ int main(int argc, char** argv) {
   uint32_t cpuOffset = 0;
   std::string datafile;
   auto codec = gluten::kLZ4;
-  uint32_t splitBufferSize = 8192;
+  uint32_t compressBufferSize = 4096;
 
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--iterations") == 0) {
@@ -403,13 +481,17 @@ int main(int argc, char** argv) {
     } else if (strcmp(argv[i], "--qat-gzip") == 0) {
       std::cout << "QAT gzip is used as codec" << std::endl;
       codec = gluten::kQatGzip;
+    } else if (strcmp(argv[i], "--qat-zstd") == 0) {
+      std::cout << "QAT zstd is used as codec" << std::endl;
+      codec = gluten::kQatZstd;
     } else if (strcmp(argv[i], "--qpl-gzip") == 0) {
       std::cout << "QPL gzip is used as codec" << std::endl;
       codec = gluten::kQplGzip;
-    } else if (strcmp(argv[i], "--busy") == 0) {
-      GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("QZ_POLLING_MODE", "BUSY"));
+    } else if (strcmp(argv[i], "--zstd") == 0) {
+      std::cout << "CPU zstd is used as codec" << std::endl;
+      codec = gluten::kZstd;
     } else if (strcmp(argv[i], "--buffer-size") == 0) {
-      splitBufferSize = atol(argv[i + 1]);
+      compressBufferSize = atol(argv[i + 1]);
     } else if (strcmp(argv[i], "--cpu-offset") == 0) {
       cpuOffset = atol(argv[i + 1]);
     }
@@ -418,14 +500,14 @@ int main(int argc, char** argv) {
   std::cout << "threads = " << threads << std::endl;
   std::cout << "datafile = " << datafile << std::endl;
 
-  gluten::BenchmarkCompressionIterateScanBenchmark bmIterateScan(datafile, splitBufferSize);
-  gluten::BenchmarkCompressionCacheScanBenchmark bmCacheScan(datafile, splitBufferSize);
+  gluten::BenchmarkCompressionIterateScanBenchmark bmIterateScan(datafile, compressBufferSize);
+  gluten::BenchmarkCompressionCacheScanBenchmark bmCacheScan(datafile, compressBufferSize);
 
   benchmark::RegisterBenchmark(bmIterateScan.name().c_str(), bmIterateScan)
       ->Iterations(iterations)
       ->Args({
           codec,
-          splitBufferSize,
+          compressBufferSize,
           cpuOffset,
       })
       ->Threads(threads)
@@ -437,7 +519,8 @@ int main(int argc, char** argv) {
       ->Iterations(iterations)
       ->Args({
           codec,
-          splitBufferSize,
+          compressBufferSize,
+          cpuOffset,
       })
       ->Threads(threads)
       ->ReportAggregatesOnly(false)

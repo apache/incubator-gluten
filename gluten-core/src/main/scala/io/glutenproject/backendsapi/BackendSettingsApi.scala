@@ -85,4 +85,6 @@ trait BackendSettingsApi {
   def getBackendConfigPrefix: String
 
   def rescaleDecimalIntegralExpression(): Boolean = false
+
+  def shuffleSupportedCodec(): Set[String]
 }

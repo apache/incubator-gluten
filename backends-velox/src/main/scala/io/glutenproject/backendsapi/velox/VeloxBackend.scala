@@ -42,6 +42,8 @@ class VeloxBackend extends Backend {
 }
 
 object BackendSettings extends BackendSettingsApi {
+
+  val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
   override def supportFileFormatRead(format: ReadFileFormat,
                                      fields: Array[StructField],
                                      partTable: Boolean,
@@ -275,4 +277,5 @@ object BackendSettings extends BackendSettingsApi {
 
   override def rescaleDecimalIntegralExpression(): Boolean = true
 
+  override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 }

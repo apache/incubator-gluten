@@ -66,7 +66,7 @@ class ContextInitializer extends ContextApi {
       .loadAndCreateLink("libparquet.so.1200.0.0", "libparquet.so.1200", false)
       .commit()
     if (conf.get(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
-      .toUpperCase(Locale.ROOT) == GlutenConfig.GLUTEN_QAT_BACKEND_NAME) {
+      .toLowerCase(Locale.ROOT) == GlutenConfig.GLUTEN_QAT_BACKEND_NAME) {
       loader.newTransaction()
         .loadAndCreateLink("libqatzip.so.3.0.1", "libqatzip.so.3", false)
         .commit()
