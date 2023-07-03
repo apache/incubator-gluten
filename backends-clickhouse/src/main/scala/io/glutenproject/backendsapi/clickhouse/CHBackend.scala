@@ -103,6 +103,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       child: SparkPlan): Boolean = {
     child match {
       case hash: HashAggregateExec =>
+        // support project when aggregation only has grouping keys, for tpcds q14a,b
         hash.aggregateExpressions.isEmpty
       case _ =>
         true
