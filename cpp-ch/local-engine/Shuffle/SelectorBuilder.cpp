@@ -3,6 +3,7 @@
 #include <mutex>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Base64Decoder.h>
@@ -19,7 +20,6 @@ namespace ErrorCodes
     extern const int LOGICAL_ERROR;
 }
 }
-
 namespace local_engine
 {
 PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
@@ -131,7 +131,7 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
         sort_descriptions.emplace_back(ch_col_sort_descr);
 
         auto type_name = ordering->get("data_type").convert<std::string>();
-        auto type = SerializedPlanParser::parseType(type_name);
+        auto type = TypeParser::getCHTypeByName(type_name);
         SortFieldTypeInfo info;
         info.inner_type = type;
         info.is_nullable = ordering->get("is_nullable").convert<bool>();
