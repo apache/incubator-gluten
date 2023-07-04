@@ -1355,7 +1355,7 @@ void SerializedPlanParser::parseFunctionArguments(
         {
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be i32");
         }
-        Int64 field_index = field.get<Int32>() + 1;
+        Int32 field_index = static_cast<Int32>(field.get<Int32>() + 1);
         const auto * index_node = add_column(std::make_shared<DB::DataTypeUInt32>(), field_index);
         parsed_args.emplace_back(index_node);
     }
@@ -1378,29 +1378,6 @@ void SerializedPlanParser::parseFunctionArguments(
         }
         parsed_args.emplace_back(arg_node);
         parseFunctionArgument(actions_dag, parsed_args, function_name, args[1]);
-    }
-    else if (function_name == "arrayElement")
-    {
-        // arrayElement. in spark, the array element index must a be positive value. But in CH, a array element index
-        // could be positive or negative and have different effects. So we make a cast here.
-        // In clickhosue, map element are also accessed by arrayElement, not make the cast.
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        auto element_type = parsed_args.back()->result_type;
-        const auto * first_arg_type = element_type.get();
-        if (first_arg_type->isNullable())
-        {
-            first_arg_type = typeid_cast<const DB::DataTypeNullable *>(first_arg_type)->getNestedType().get();
-        }
-        const auto * index_node = parseFunctionArgument(actions_dag, function_name, args[1]);
-        WhichDataType which(first_arg_type);
-        if (which.isArray())
-        {
-            DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
-            index_node = ActionsDAGUtil::convertNodeType(actions_dag, index_node, target_type.getName());
-            parsed_args.emplace_back(index_node);
-        }
-        else
-            parsed_args.push_back(index_node);
     }
     else if (function_name == "repeat")
     {
