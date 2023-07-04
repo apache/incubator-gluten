@@ -375,6 +375,23 @@ trait SparkPlanExecApi {
             WindowExecTransformer.getFrameBound(frame.lower),
             frame.frameType.sql)
           windowExpressionNodes.add(windowFunctionNode)
+        case wf@NthValue(input, offset: Literal, _) =>
+            val frame = wExpression.windowSpec
+              .frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              input,
+              attributeSeq = originalInputAttributes).doTransform(args))
+            childrenNodeList.add(new LiteralTransformer(offset).doTransform(args))
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, wf).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
+              frame.upper.sql,
+              frame.lower.sql,
+              frame.frameType.sql)
+            windowExpressionNodes.add(windowFunctionNode)
         case _ =>
           throw new UnsupportedOperationException("unsupported window function type: " +
             wExpression.windowFunction)

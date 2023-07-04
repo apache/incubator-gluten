@@ -23,7 +23,7 @@ import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -168,11 +168,11 @@ object BackendSettings extends BackendSettingsApi {
           case _ =>
         }
         windowExpression.windowFunction match {
+          // 'ignoreNulls=true' is not supported in Velox for 'NthValue'.
           case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-               _: PercentRank =>
+               _: PercentRank | _@NthValue(_, _, false) =>
           case _ =>
             allSupported = false
-            break
         }})
     }
     allSupported
