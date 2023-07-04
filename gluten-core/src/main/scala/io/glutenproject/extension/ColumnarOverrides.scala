@@ -50,8 +50,6 @@ case class TransformPreOverrides(
   isTopParentExchange: Boolean,
   isAdaptiveContext: Boolean) extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
-  val coalesceBatches = columnarConf.enableCoalesceBatches &&
-    BackendsApiManager.getSettings.supportCoalesceBatch()
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   val isAdaptiveContextOrTopParentExchange = isTopParentExchange || isAdaptiveContext
@@ -346,14 +344,14 @@ case class TransformPreOverrides(
                 if (projectChild.supportsColumnar) {
                   ColumnarShuffleUtil.genColumnarShuffleExchange(
                     plan, projectChild, isAdaptiveContextOrTopParentExchange,
-                    projectChild.output.drop(1), coalesceBatches)
+                    projectChild.output.drop(1))
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
                 ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
                   isAdaptiveContextOrTopParentExchange = isAdaptiveContextOrTopParentExchange,
-                  null, coalesceBatches)
+                  null)
             }
           } else if (BackendsApiManager.getSettings.supportShuffleWithProject(plan
             .outputPartitioning, plan.child)) {
@@ -366,8 +364,7 @@ case class TransformPreOverrides(
                 // the new projections columns are appended at the end.
                 ColumnarShuffleUtil.genColumnarShuffleExchange(
                   newPlan, newChild, isAdaptiveContextOrTopParentExchange,
-                  newChild.output.dropRight(projectColumnNumber),
-                  coalesceBatches)
+                  newChild.output.dropRight(projectColumnNumber))
               } else {
                 // It's the case that partitioning expressions could be offloaded into native.
                 plan.withNewChildren(Seq(child))
@@ -375,13 +372,11 @@ case class TransformPreOverrides(
             }
             else {
               ColumnarShuffleUtil.genColumnarShuffleExchange(
-                plan, child, isAdaptiveContextOrTopParentExchange,
-                null, coalesceBatches)
+                plan, child, isAdaptiveContextOrTopParentExchange, null)
             }
           } else {
             ColumnarShuffleUtil.genColumnarShuffleExchange(
-              plan, child, isAdaptiveContextOrTopParentExchange,
-              null, coalesceBatches)
+              plan, child, isAdaptiveContextOrTopParentExchange, null)
           }
         } else {
           plan.withNewChildren(Seq(child))
@@ -431,26 +426,18 @@ case class TransformPreOverrides(
             isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
       case plan: AQEShuffleReadExec if
           BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
-        def generateShuffleRead(child: SparkPlan): SparkPlan = {
-          if (coalesceBatches) {
-            CoalesceBatchesExec(child)
-          } else {
-            child
-          }
-        }
         plan.child match {
           case _: ColumnarShuffleExchangeExec =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            generateShuffleRead(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
           case ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            generateShuffleRead(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
           case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
             reused match {
               case ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec) =>
                 logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-                generateShuffleRead(
-                  ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+                ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
               case _ =>
                 plan
             }
@@ -605,8 +592,6 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: BroadcastQueryStageExec) =>
       replaceWithTransformerPlan(child)
-    case ColumnarToRowExec(child: CoalesceBatchesExec) =>
-      plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
     case plan: ColumnarToRowExec =>
       transformColumnarToRowExec(plan)
     case r: SparkPlan

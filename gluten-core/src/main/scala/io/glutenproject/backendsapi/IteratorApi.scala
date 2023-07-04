@@ -43,20 +43,6 @@ trait IteratorApi {
                        wsCxt: WholestageTransformContext): BaseGlutenPartition
 
   /**
-   * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
-   *
-   * @return
-   */
-  def genCoalesceIterator(iter: Iterator[ColumnarBatch],
-                          recordsPerBatch: Int,
-                          numOutputRows: SQLMetric = null,
-                          numInputBatches: SQLMetric = null,
-                          numOutputBatches: SQLMetric = null,
-                          collectTime: SQLMetric = null,
-                          concatTime: SQLMetric = null,
-                          avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch]
-
-  /**
    * Generate closeable ColumnBatch iterator.
    *
    * @return

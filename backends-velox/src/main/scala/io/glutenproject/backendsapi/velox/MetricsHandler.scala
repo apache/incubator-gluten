@@ -160,18 +160,6 @@ class MetricsHandler extends MetricsApi with Logging{
   override def genProjectTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new ProjectMetricsUpdater(metrics)
 
-  override def genCoalesceBatchesMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "collectTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext, "totaltime to collect batch"),
-      "concatTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext, "totaltime to coalesce batch"),
-      "avgCoalescedNumRows" -> SQLMetrics
-        .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
-
   override def genHashAggregateTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(

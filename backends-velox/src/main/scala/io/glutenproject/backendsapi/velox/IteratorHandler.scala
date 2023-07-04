@@ -86,31 +86,6 @@ class IteratorHandler extends IteratorApi with Logging {
   }
 
   /**
-   * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
-   *
-   * @param iter
-   * @param recordsPerBatch
-   * @param numOutputRows
-   * @param numInputBatches
-   * @param numOutputBatches
-   * @param collectTime
-   * @param concatTime
-   * @param avgCoalescedNumRows
-   * @return
-   */
-  override def genCoalesceIterator(iter: Iterator[ColumnarBatch],
-                                   recordsPerBatch: Int,
-                                   numOutputRows: SQLMetric = null,
-                                   numInputBatches: SQLMetric = null,
-                                   numOutputBatches: SQLMetric = null,
-                                   collectTime: SQLMetric = null,
-                                   concatTime: SQLMetric = null,
-                                   avgCoalescedNumRows: SQLMetric = null)
-  : Iterator[ColumnarBatch] = {
-    throw new UnsupportedOperationException("Velox backend does not support coalesce batch")
-  }
-
-  /**
    * Generate closeable ColumnBatch iterator.
    *
    * @param iter
