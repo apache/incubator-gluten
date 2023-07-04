@@ -18,29 +18,29 @@
 package io.glutenproject.memory.alloc;
 
 public interface CHReservationListener {
-  CHReservationListener NOOP = new CHReservationListener() {
-    @Override
-    public void reserveOrThrow(long size) {}
+  CHReservationListener NOOP =
+      new CHReservationListener() {
+        @Override
+        public void reserveOrThrow(long size) {}
 
-    @Override
-    public long reserve(long size) {
-      return 0L;
-    }
+        @Override
+        public long reserve(long size) {
+          return 0L;
+        }
 
-    @Override
-    public long unreserve(long size) {
-      return 0L;
-    }
+        @Override
+        public long unreserve(long size) {
+          return 0L;
+        }
 
-    @Override
-    public void inactivate() {
-    }
+        @Override
+        public void inactivate() {}
 
-    @Override
-    public long currentMemory() {
-      return 0L;
-    }
-  };
+        @Override
+        public long currentMemory() {
+          return 0L;
+        }
+      };
 
   long reserve(long size);
 

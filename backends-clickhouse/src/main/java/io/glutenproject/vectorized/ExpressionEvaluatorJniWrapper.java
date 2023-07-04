@@ -18,26 +18,19 @@
 package io.glutenproject.vectorized;
 
 /**
- * This class is implemented in JNI. This provides the Java interface to invoke
- * functions in JNI. This file is used to generated the .h files required for
- * jni. Avoid all external dependencies in this file.
+ * This class is implemented in JNI. This provides the Java interface to invoke functions in JNI.
+ * This file is used to generated the .h files required for jni. Avoid all external dependencies in
+ * this file.
  */
 public class ExpressionEvaluatorJniWrapper {
 
-  /**
-   * Wrapper for native API.
-   */
-  public ExpressionEvaluatorJniWrapper() {
-  }
+  /** Wrapper for native API. */
+  public ExpressionEvaluatorJniWrapper() {}
 
-  /**
-   * Call initNative to initialize native computing.
-   */
+  /** Call initNative to initialize native computing. */
   native void nativeInitNative(byte[] confAsPlan);
 
-  /**
-   * Call finalizeNative to finalize native computing.
-   */
+  /** Call finalizeNative to finalize native computing. */
   native void nativeFinalizeNative();
 
   /**
@@ -55,13 +48,9 @@ public class ExpressionEvaluatorJniWrapper {
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long allocatorId,
-      byte[] wsPlan,
-      GeneralInIterator[] batchItr) throws RuntimeException;
+      long allocatorId, byte[] wsPlan, GeneralInIterator[] batchItr) throws RuntimeException;
 
-  /**
-   * Create a native compute kernel and return a row iterator.
-   */
+  /** Create a native compute kernel and return a row iterator. */
   native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
 
   /**

@@ -66,7 +66,7 @@ object CHExecUtil extends Logging {
                 val rowInfo = jniWrapper.convertColumnarToRow(blockAddress)
 
                 // generate rows from a columnar batch
-                val rows = new Iterator[InternalRow] {
+                val rows: Iterator[InternalRow] = new Iterator[InternalRow] {
                   var rowId = 0
                   val row = new UnsafeRow(batch.numCols())
                   var closed = false
@@ -139,7 +139,7 @@ object CHExecUtil extends Logging {
     }
     val outputFields = if (output != null) {
       output.map {
-        case a: Attribute =>
+        a: Attribute =>
           BindReferences
             .bindReference(a, childOutput)
             .asInstanceOf[BoundReference]
@@ -183,7 +183,7 @@ object CHExecUtil extends Logging {
     // scalastyle:on argcount
     lazy val requiredFields = if (projectOutputAttributes != null) {
       val outputFields = projectOutputAttributes.map {
-        case a: Attribute =>
+        a: Attribute =>
           BindReferences
             .bindReference(a, childOutputAttributes)
             .asInstanceOf[BoundReference]
@@ -214,13 +214,14 @@ object CHExecUtil extends Logging {
           case (ord, i) =>
             ord.copy(child = BoundReference(i, ord.dataType, ord.nullable))
         }
-        implicit val ordering = new LazilyGeneratedOrdering(orderingAttributes)
+        implicit val ordering: LazilyGeneratedOrdering =
+          new LazilyGeneratedOrdering(orderingAttributes)
         val generator = new RangePartitionerBoundsGenerator(
           numPartitions,
           rddForSampling,
           sortingExpressions,
           childOutputAttributes)
-        val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
+        val orderingAndRangeBounds = generator.getRangeBoundsJsonString
         val attributePos = if (projectOutputAttributes != null) {
           projectOutputAttributes.map(
             attr =>

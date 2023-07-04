@@ -22,7 +22,6 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRow, GlutenParquetFileFormat, OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 
@@ -59,8 +58,8 @@ class CHParquetFileFormat
           context: TaskAttemptContext): OutputWriter = {
 
         val originPath = path
-        val datasourceJniWrapper = new CHDatasourceJniWrapper();
-        val instance = datasourceJniWrapper.nativeInitFileWriterWrapper(path);
+        val datasourceJniWrapper = new CHDatasourceJniWrapper()
+        val instance = datasourceJniWrapper.nativeInitFileWriterWrapper(path)
 
         new OutputWriter {
           override def write(row: InternalRow): Unit = {

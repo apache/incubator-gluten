@@ -21,6 +21,9 @@ import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.execution.{ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 
+// Some sqls' line length exceeds 100
+// scalastyle:off line.size.limit
+
 class GlutenClickHouseTPCHParquetAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -227,22 +230,22 @@ class GlutenClickHouseTPCHParquetAQESuite
     val sql =
       """
         |SELECT *
-        |	FROM (
-        |		SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
-        |		FROM (
-        |			SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
-        |			FROM orders
-        |			GROUP BY o_orderstatus
-        |		) t1
-        |			INNER JOIN (
-        |				SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |    FROM (
+        |        SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |        FROM (
+        |            SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
+        |            FROM orders
+        |            GROUP BY o_orderstatus
+        |        ) t1
+        |            INNER JOIN (
+        |                SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
         |                FROM orders
         |                GROUP BY o_orderstatus
-        |			) t4
-        |			ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
-        |	) t5
-        |		INNER JOIN (
-        |			SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |            ) t4
+        |            ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
+        |   ) t5
+        |        INNER JOIN (
+        |            SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
         |            FROM (
         |                SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
         |                FROM orders
@@ -255,7 +258,7 @@ class GlutenClickHouseTPCHParquetAQESuite
         |                ) t9
         |                ON t8.O_ORDERSTATUS = t9.O_ORDERSTATUS
         |            ) t12
-        |		ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
+        |        ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { df => })
   }
@@ -328,3 +331,4 @@ class GlutenClickHouseTPCHParquetAQESuite
     )
   }
 }
+// scalastyle:off line.size.limit

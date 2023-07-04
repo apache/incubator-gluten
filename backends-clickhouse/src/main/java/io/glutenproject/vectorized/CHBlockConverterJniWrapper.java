@@ -29,8 +29,8 @@ public class CHBlockConverterJniWrapper {
   public native void freeMemory(long address, long size);
 
   // for spark row -> ch columnar
-  public native long convertSparkRowsToCHColumn(SparkRowIterator iter, String[] names,
-    byte[][] types);
+  public native long convertSparkRowsToCHColumn(
+      SparkRowIterator iter, String[] names, byte[][] types);
 
   // for spark row -> ch columnar
   public native void freeBlock(long blockAddress);

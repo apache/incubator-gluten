@@ -29,7 +29,7 @@ import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseLog, DeltaLogAdapter}
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -162,7 +162,7 @@ case class CreateClickHouseTableCommand(
       // Note that someone may have dropped and recreated the table in a separate location in the
       // meantime... Unfortunately we can't do anything there at the moment, because Hive sucks.
       logInfo(s"Table is path-based table: $tableByPath. Update catalog with mode: $operation")
-      updateCatalog(sparkSession, tableWithLocation, deltaLog.snapshot, txn)
+      updateCatalog(sparkSession, tableWithLocation, DeltaLogAdapter.snapshot(deltaLog), txn)
 
       result
     }
@@ -170,7 +170,7 @@ case class CreateClickHouseTableCommand(
 
   private def getProvidedMetadata(table: CatalogTable, schemaString: String): Metadata = {
     Metadata(
-      format = Format(table.properties.get("engine").get),
+      format = Format(table.properties("engine")),
       description = table.comment.orNull,
       schemaString = schemaString,
       partitionColumns = table.partitionColumnNames,

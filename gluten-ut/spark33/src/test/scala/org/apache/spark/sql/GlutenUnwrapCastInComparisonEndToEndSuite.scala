@@ -52,7 +52,7 @@ class GlutenUnwrapCastInComparisonEndToEndSuite extends UnwrapCastInComparisonEn
 //      checkAnswer(df.where(s"c3 >= double('nan')").select("c1"), Row(2))
 //      checkAnswer(df.where(s"c3 == double('nan')").select("c1"), Row(2))
 //      checkAnswer(df.where(s"c3 <=> double('nan')").select("c1"), Row(2))
-//      checkAnswer(df.where(s"c3 != double('nan')").select("c1"), Row(1) :: Row(3) :: Row(4) :: Nil)
+//    checkAnswer(df.where(s"c3 != double('nan')").select("c1"), Row(1) :: Row(3) :: Row(4) :: Nil)
 //      checkAnswer(df.where(s"c3 <= double('nan')").select("c1"),
 //        Row(1) :: Row(2) :: Row(3) :: Row(4) :: Nil)
 //      checkAnswer(df.where(s"c3 < double('nan')").select("c1"), Row(1) :: Row(3) :: Row(4) :: Nil)
