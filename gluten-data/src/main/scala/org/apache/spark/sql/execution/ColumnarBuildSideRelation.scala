@@ -35,7 +35,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.TaskResources
 
 case class ColumnarBuildSideRelation(mode: BroadcastMode,
                                    output: Seq[Attribute],

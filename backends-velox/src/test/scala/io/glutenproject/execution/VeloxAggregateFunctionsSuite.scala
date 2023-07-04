@@ -326,7 +326,8 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
     }
     runQueryAndCompare(
       s"""
-         |select first(l_linenumber), first(l_linenumber, true), count(distinct l_partkey) from lineitem
+         |select first(l_linenumber), first(l_linenumber, true), count(distinct l_partkey)
+         |from lineitem
          |""".stripMargin) { df => {
       assert(getExecutedPlan(df).count(plan => {
         plan.isInstanceOf[HashAggregateExecTransformer]
@@ -344,14 +345,16 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
     }
     runQueryAndCompare(
       s"""
-         |select last_value(l_linenumber), last_value(l_linenumber, true) from lineitem
+         |select last_value(l_linenumber), last_value(l_linenumber, true)
+         |from lineitem
          |group by l_orderkey;
          |""".stripMargin) {
       checkOperatorMatch[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
-         |select last(l_linenumber), last(l_linenumber, true), count(distinct l_partkey) from lineitem
+         |select last(l_linenumber), last(l_linenumber, true), count(distinct l_partkey)
+         |from lineitem
          |""".stripMargin) { df => {
       assert(getExecutedPlan(df).count(plan => {
         plan.isInstanceOf[HashAggregateExecTransformer]

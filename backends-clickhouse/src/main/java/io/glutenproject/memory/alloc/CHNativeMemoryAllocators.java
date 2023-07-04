@@ -22,7 +22,7 @@ import io.glutenproject.memory.Spiller;
 import io.glutenproject.memory.TaskMemoryMetrics;
 
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.memory.TaskResources;
+import org.apache.spark.util.TaskResources;
 
 /**
  * Built-in toolkit for managing native memory allocations. To use the facility, one should import
@@ -55,15 +55,15 @@ public abstract class CHNativeMemoryAllocators {
     }
 
     final String id = CHNativeMemoryAllocatorManager.class.toString();
-    if (!TaskResources.isResourceManagerRegistered(id)) {
+    if (!TaskResources.isResourceRegistered(id)) {
       final CHNativeMemoryAllocatorManager manager =
           createNativeMemoryAllocatorManager(
-              TaskResources.getSparkMemoryManager(),
+              TaskResources.getLocalTaskContext().taskMemoryManager(),
               Spiller.NO_OP,
               TaskResources.getSharedMetrics());
-      TaskResources.addResourceManager(id, manager);
+      TaskResources.addResource(id, manager);
     }
-    return ((CHNativeMemoryAllocatorManager) TaskResources.getResourceManager(id)).getManaged();
+    return ((CHNativeMemoryAllocatorManager) TaskResources.getResource(id)).getManaged();
   }
 
   public static CHNativeMemoryAllocator contextInstanceForUT() {
@@ -77,8 +77,10 @@ public abstract class CHNativeMemoryAllocators {
 
     final CHNativeMemoryAllocatorManager manager =
         createNativeMemoryAllocatorManager(
-            TaskResources.getSparkMemoryManager(), spiller, TaskResources.getSharedMetrics());
-    TaskResources.addAnonymousResourceManager(manager);
+            TaskResources.getLocalTaskContext().taskMemoryManager(),
+            spiller,
+            TaskResources.getSharedMetrics());
+    TaskResources.addAnonymousResource(manager);
     return manager.getManaged();
   }
 

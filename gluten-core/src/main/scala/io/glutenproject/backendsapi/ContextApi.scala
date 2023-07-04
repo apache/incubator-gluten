@@ -18,6 +18,7 @@
 package io.glutenproject.backendsapi
 
 import org.apache.spark.SparkConf
+import org.apache.spark.util.TaskResource
 
 import java.util
 
@@ -25,6 +26,8 @@ trait ContextApi {
   def initialize(conf: SparkConf): Unit = {}
 
   def shutdown(): Unit = {}
+
+  def taskResourceFactories(): Seq[() => TaskResource] = Seq()
 
   /**
    * Should call by driver.

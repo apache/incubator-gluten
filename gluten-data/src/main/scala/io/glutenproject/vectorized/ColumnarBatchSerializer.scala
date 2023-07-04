@@ -32,11 +32,11 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.memory.TaskResources
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorLoader
+import org.apache.spark.util.TaskResources
 
 import java.io._
 import java.nio.ByteBuffer

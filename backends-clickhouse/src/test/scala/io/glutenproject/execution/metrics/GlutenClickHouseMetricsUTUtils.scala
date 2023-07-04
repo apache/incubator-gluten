@@ -107,7 +107,7 @@ object GlutenClickHouseMetricsUTUtils {
     val wholeStageTransformerUpdater = MetricsUtil.updateTransformerMetrics(
       wholeStageTransformerUpdaterTree,
       relMap,
-      new java.lang.Long(relMap.size() - 1),
+      java.lang.Long.valueOf(relMap.size() - 1),
       wholestageTransformContext.substraitContext.registeredJoinParams,
       wholestageTransformContext.substraitContext.registeredAggregationParams
     )

@@ -17,6 +17,7 @@ object Constants {
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
     .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
+    .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "true")
 
   val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
@@ -31,6 +32,7 @@ object Constants {
     .set("spark.dynamicAllocation.enabled", "false")
     .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
+    .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "true")
     .set("spark.celeborn.push.data.timeout", "600s")
     .set("spark.celeborn.push.limit.inFlight.timeout", "1200s")
 

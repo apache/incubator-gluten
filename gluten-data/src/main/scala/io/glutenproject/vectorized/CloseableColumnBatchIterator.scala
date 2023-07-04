@@ -23,7 +23,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.TaskResources
 
 /**
  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
