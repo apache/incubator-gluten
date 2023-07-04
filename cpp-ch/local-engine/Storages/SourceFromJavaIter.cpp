@@ -40,8 +40,7 @@ DB::Chunk SourceFromJavaIter::generate()
             size_t rows = data->rows();
             if (original_header.columns())
             {
-                result.setColumns(data->mutateColumns(), rows);
-                convertNullable(result);
+                buildChunk(data, result);
                 auto info = std::make_shared<DB::AggregatedChunkInfo>();
                 info->is_overflows = data->info.is_overflows;
                 info->bucket_num = data->info.bucket_num;
@@ -73,19 +72,50 @@ Int64 SourceFromJavaIter::byteArrayToLong(JNIEnv * env, jbyteArray arr)
     delete[] c_arr;
     return result;
 }
-void SourceFromJavaIter::convertNullable(DB::Chunk & chunk)
+void SourceFromJavaIter::buildChunk(DB::Block * block, DB::Chunk & chunk)
 {
+    // the header of block may be different with the header of output, please refer to GLUTEN-2198 for more details.
     auto output = this->getOutputs().front().getHeader();
-    auto rows = chunk.getNumRows();
-    auto columns = chunk.detachColumns();
+    auto rows = block->rows();
+    auto columns = block->getColumns();
+    DB::Columns out_columns = DB::Columns(columns.size());
     for (size_t i = 0; i < columns.size(); ++i)
     {
-        DB::WhichDataType which(columns.at(i)->getDataType());
+        auto pos = i;
+        try
+        {
+            pos = block->getPositionByName(output.getByPosition(i).name);
+        } catch (DB::Exception e) {
+            pos = getPositionByNameForUnion(block, output.getByPosition(i).name);
+        }
+
+        DB::WhichDataType which(columns.at(pos)->getDataType());
         if (output.getByPosition(i).type->isNullable() && !which.isNullable() && !which.isAggregateFunction())
         {
-            columns[i] = DB::makeNullable(columns.at(i));
+            out_columns[i] = DB::makeNullable(columns.at(pos));
+        }
+        else
+        {
+            out_columns[i] = columns.at(pos);
         }
     }
-    chunk.setColumns(columns, rows);
+    chunk.setColumns(out_columns, rows);
+}
+
+int SourceFromJavaIter::getPositionByNameForUnion(DB::Block * header, std::string & output_name)
+{
+    // For union, the column names are different between inputs, for example day#53 vs day#75
+    std::string output_prefix = output_name.substr(0, output_name.find('#'));
+    int i = 0;
+    for (auto name : header->getNames())
+    {
+        std::string header_prefix = name.substr(0, name.find('#'));
+        if (header_prefix == output_prefix)
+        {
+            return i;
+        }
+        i++;
+    }
+    throw DB::Exception::createRuntime(DB::ErrorCodes::LOGICAL_ERROR, "SourceFromJavaIter::getPositionByNameForUnion failed. header:" + header->dumpStructure() + " output column:" + output_name);
 }
 }

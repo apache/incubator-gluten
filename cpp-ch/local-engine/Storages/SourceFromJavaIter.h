@@ -20,7 +20,8 @@ public:
 
 private:
     DB::Chunk generate() override;
-    void convertNullable(DB::Chunk & chunk);
+    void buildChunk(DB::Block * block, DB::Chunk & chunk);
+    int getPositionByNameForUnion(DB::Block * header, std::string & output_name);
 
     jobject java_iter;
     DB::Block original_header;
