@@ -50,7 +50,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     // and create a new one with Gluten enabled.
     spark.stop()
     spark = null
-    
+
     val sparkBuilder = SparkSession.builder()
       .master("local-cluster[2,1,1024]")
       .appName("Gluten-UT")

@@ -18,8 +18,6 @@
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
-import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions._
 
 class ClickHouseTestSettings extends BackendTestSettings {
 }

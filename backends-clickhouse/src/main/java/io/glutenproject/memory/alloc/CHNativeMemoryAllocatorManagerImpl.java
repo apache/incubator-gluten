@@ -17,17 +17,7 @@
 
 package io.glutenproject.memory.alloc;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.Vector;
-
 public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocatorManager {
-
-  private static Logger LOGGER = LoggerFactory.getLogger(CHNativeMemoryAllocatorManagerImpl.class);
-
-  private static final List<CHNativeMemoryAllocator> LEAKED = new Vector<>();
   private final CHNativeMemoryAllocator managed;
 
   public CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator managed) {
@@ -35,7 +25,7 @@ public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocat
   }
 
   @Override
-  public void release() throws Exception {
+  public void release() {
     managed.close();
     managed.listener().inactivate();
   }

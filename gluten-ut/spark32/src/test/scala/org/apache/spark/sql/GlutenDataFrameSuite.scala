@@ -29,7 +29,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.TestData2
 import org.apache.spark.sql.types.StringType
 
-import scala.language.implicitConversions
 import scala.util.Random
 
 class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
@@ -305,9 +304,10 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
       assert(find(df.queryExecution.executedPlan)(
         _.isInstanceOf[ProjectExecTransformer]).isDefined)
     }
-
+    // scalastyle:off nonascii
     Seq(" 123", "123 ", " 123 ", "\u2000123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C")
         .toDF("col1").createOrReplaceTempView("t1")
+    // scalastyle:on nonascii
     val expectedIntResult = Row(123) :: Row(123) ::
         Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Nil
     var df = spark.sql("select cast(col1 as int) from t1")
@@ -324,8 +324,10 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
     df = spark.sql("select cast(col1 as double) from t1")
     checkResult(df, expectedFloatResult)
 
+    // scalastyle:off nonascii
     val rawData = Seq(" abc", "abc ", " abc ", "\u2000abc\n\n\n",
       "abc\r\r\r", "abc\f\f\f", "abc\u000C")
+    // scalastyle:on nonascii
     rawData.toDF("col1").createOrReplaceTempView("t1")
     val expectedBinaryResult = rawData.map(d => Row(d.getBytes())).seq
     df = spark.sql("select cast(col1 as binary) from t1")

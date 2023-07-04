@@ -35,16 +35,16 @@ class GlutenParquetRebaseDatetimeV1Suite extends ParquetRebaseDatetimeV1Suite
   }
 
   private def inReadConfToOptions(
-                                   conf: String,
-                                   mode: LegacyBehaviorPolicy.Value): Map[String, String] = conf match {
+    conf: String,
+    mode: LegacyBehaviorPolicy.Value): Map[String, String] = conf match {
     case SQLConf.PARQUET_INT96_REBASE_MODE_IN_READ.key =>
       Map(ParquetOptions.INT96_REBASE_MODE -> mode.toString)
     case _ => Map(ParquetOptions.DATETIME_REBASE_MODE -> mode.toString)
   }
 
   private def runInMode(
-                         conf: String,
-                         modes: Seq[LegacyBehaviorPolicy.Value])(f: Map[String, String] => Unit): Unit = {
+    conf: String,
+    modes: Seq[LegacyBehaviorPolicy.Value])(f: Map[String, String] => Unit): Unit = {
     modes.foreach { mode =>
       withSQLConf(conf -> mode.toString) { f(Map.empty) }
     }

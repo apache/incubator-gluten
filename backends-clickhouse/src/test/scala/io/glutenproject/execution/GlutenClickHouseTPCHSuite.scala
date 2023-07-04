@@ -21,6 +21,9 @@ import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.types.{DecimalType, StructType}
 
+// Some sqls' line length exceeds 100
+// scalastyle:off line.size.limit
+
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
@@ -462,3 +465,4 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).isNullAt(3))
   }
 }
+// scalastyle:off line.size.limit
