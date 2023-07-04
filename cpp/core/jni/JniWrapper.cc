@@ -75,6 +75,9 @@ static jclass veloxColumnarbatchScannerClass;
 static jmethodID veloxColumnarbatchScannerHasNext;
 static jmethodID veloxColumnarbatchScannerNext;
 
+static jclass shuffleReaderMetricsClass;
+static jmethodID shuffleReaderMetricsSetDecompressTime;
+
 static ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnarToRowConverterHolder;
 
 static ConcurrentMap<std::shared_ptr<RowToColumnarConverter>> rowToColumnarConverterHolder;
@@ -315,6 +318,11 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   veloxColumnarbatchScannerNext = getMethodId(env, veloxColumnarbatchScannerClass, "next", "()J");
 
+  shuffleReaderMetricsClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ShuffleReaderMetrics;");
+  shuffleReaderMetricsSetDecompressTime =
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
+
   return jniVersion;
 }
 
@@ -335,6 +343,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(veloxColumnarbatchScannerClass);
+  env->DeleteGlobalRef(shuffleReaderMetricsClass);
 }
 
 JNIEXPORT jlong JNICALL
@@ -1008,8 +1017,22 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_next(JNIEnv* env, jobje
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(JNIEnv* env, jobject, jlong handle) { // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_populateMetrics(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jobject metrics) { // NOLINT
+  JNI_METHOD_START
+  auto reader = shuffleReaderHolder.lookup(handle);
+  env->CallVoidMethod(metrics, shuffleReaderMetricsSetDecompressTime, reader->getDecompressTime());
+  checkException(env);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(
+    JNIEnv* env,
+    jobject,
+    jlong handle) { // NOLINT
   JNI_METHOD_START
   auto reader = shuffleReaderHolder.lookup(handle);
   GLUTEN_THROW_NOT_OK(reader->close());
