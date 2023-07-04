@@ -11,19 +11,26 @@ namespace ErrorCodes
 }
 namespace local_engine
 {
-OutputFormatFile::OutputFormatFile(DB::ContextPtr context_, const std::string & file_uri_, WriteBufferBuilderPtr write_buffer_builder_)
-    : context(context_), file_uri(file_uri_), write_buffer_builder(write_buffer_builder_)
+OutputFormatFile::OutputFormatFile(
+    DB::ContextPtr context_,
+    const std::string & file_uri_,
+    WriteBufferBuilderPtr write_buffer_builder_,
+    std::vector<std::string> & preferred_column_names_)
+    : context(context_), file_uri(file_uri_), write_buffer_builder(write_buffer_builder_), preferred_column_names(preferred_column_names_)
 {
 }
 
 OutputFormatFilePtr OutputFormatFileUtil::createFile(
-    DB::ContextPtr context, local_engine::WriteBufferBuilderPtr write_buffer_builder, const std::string & file_uri)
+    DB::ContextPtr context,
+    local_engine::WriteBufferBuilderPtr write_buffer_builder,
+    const std::string & file_uri,
+    std::vector<std::string> & preferred_column_names,
+    const std::string & format_hint)
 {
 #if USE_PARQUET
-    //TODO: can we support parquet file with suffix like .parquet1?
-    if (boost::to_lower_copy(file_uri).ends_with(".parquet"))
+    if (boost::to_lower_copy(file_uri).ends_with(".parquet") || "parquet" == format_hint)
     {
-        return std::make_shared<ParquetOutputFormatFile>(context, file_uri, write_buffer_builder);
+        return std::make_shared<ParquetOutputFormatFile>(context, file_uri, write_buffer_builder, preferred_column_names);
     }
 #endif
 

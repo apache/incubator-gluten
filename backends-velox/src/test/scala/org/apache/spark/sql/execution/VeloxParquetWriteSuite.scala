@@ -14,11 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.WholeStageTransformerSuite
-
-import org.apache.spark.sql.functions.lit
+package io.glutenproject.execution
 
 class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
@@ -31,88 +28,98 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   }
 
   test("test write parquet with compression codec") {
-    // compression codec details see `VeloxParquetDatasource.cc`
-    Seq("snappy", "gzip", "zstd", "none", "uncompressed")
-      .foreach {
-        codec =>
-          val extension = codec match {
-            case "none" | "uncompressed" => ""
-            case "gzip" => "gz"
-            case _ => codec
-          }
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+      // compression codec details see `VeloxParquetDatasource.cc`
+      Seq("snappy", "gzip", "zstd", "none", "uncompressed")
+        .foreach {
+          codec =>
+            val extension = codec match {
+              case "none" | "uncompressed" => ""
+              case "gzip" => "gz"
+              case _ => codec
+            }
 
-          TPCHTables.foreach {
-            case (_, df) =>
-              withTempPath {
-                f =>
-                  df.write
-                    .format("velox")
-                    .option("compression", codec)
-                    .save(f.getCanonicalPath)
-                  val files = f.list()
-                  assert(files.nonEmpty, extension)
-                  assert(files.exists(_.contains(extension)), extension)
+            TPCHTables.foreach {
+              case (_, df) =>
+                withTempPath {
+                  f =>
+                    df.write
+                      .format("velox")
+                      .option("compression", codec)
+                      .save(f.getCanonicalPath)
+                    val files = f.list()
+                    assert(files.nonEmpty, extension)
+                    assert(files.exists(_.contains(extension)), extension)
 
-                  val parquetDf = spark.read
-                    .format("parquet")
-                    .load(f.getCanonicalPath)
-                  assert(df.schema.equals(parquetDf.schema))
-                  checkAnswer(parquetDf, df)
-              }
-          }
-      }
+                    val parquetDf = spark.read
+                      .format("parquet")
+                      .load(f.getCanonicalPath)
+                    assert(df.schema.equals(parquetDf.schema))
+                    checkAnswer(parquetDf, df)
+                }
+            }
+        }
+    }
   }
 
   test("test ctas") {
-    withTable("velox_ctas") {
-      intercept[UnsupportedOperationException] {
-        spark
-          .range(100)
-          .toDF("id")
-          .write
-          .format("velox")
-          .saveAsTable("velox_ctas")
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+      withTable("velox_ctas") {
+        intercept[UnsupportedOperationException] {
+          spark
+            .range(100)
+            .toDF("id")
+            .write
+            .format("velox")
+            .saveAsTable("velox_ctas")
+        }
       }
     }
   }
 
   test("test parquet dynamic partition write") {
-    withTempPath {
-      f =>
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+      withTempPath {
+        f =>
+          intercept[UnsupportedOperationException] {
+            spark
+              .range(100)
+              .selectExpr("id as c1", "id % 7 as p")
+              .write
+              .format("velox")
+              .partitionBy("p")
+              .save(f.getCanonicalPath)
+          }
+      }
+    }
+  }
+
+  test("test parquet bucket write") {
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+      withTable("bucket") {
         intercept[UnsupportedOperationException] {
           spark
             .range(100)
             .selectExpr("id as c1", "id % 7 as p")
             .write
             .format("velox")
-            .partitionBy("p")
-            .save(f.getCanonicalPath)
+            .bucketBy(7, "p")
+            .saveAsTable("bucket")
         }
-    }
-  }
-
-  test("test parquet bucket write") {
-    withTable("bucket") {
-      intercept[UnsupportedOperationException] {
-        spark
-          .range(100)
-          .selectExpr("id as c1", "id % 7 as p")
-          .write
-          .format("velox")
-          .bucketBy(7, "p")
-          .saveAsTable("bucket")
       }
     }
   }
 
   test("parquet write with empty dataframe") {
-    withTempPath {
-      f =>
-        val df = spark.emptyDataFrame.select(lit(1).as("i"))
-        df.write.format("velox").save(f.getCanonicalPath)
-        val res = spark.read.parquet(f.getCanonicalPath)
-        checkAnswer(res, Nil)
-        assert(res.schema.asNullable == df.schema.asNullable)
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+      withTempPath {
+        f =>
+          val df = spark.emptyDataFrame.select(lit(1).as("i"))
+          df.write.format("velox").save(f.getCanonicalPath)
+          val res = spark.read.parquet(f.getCanonicalPath)
+          checkAnswer(res, Nil)
+          assert(res.schema.asNullable == df.schema.asNullable)
+      }
     }
   }
 }

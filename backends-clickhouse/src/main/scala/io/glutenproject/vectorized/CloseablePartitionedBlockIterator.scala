@@ -50,13 +50,8 @@ class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatc
 
   private def closeCurrentBatch(): Unit = {
     if (cb != null) {
-      if (cb.numCols() > 0) {
-        val col = cb.column(0).asInstanceOf[CHColumnVector]
-        val block = new CHNativeBlock(col.getBlockAddress)
-        block.close();
-      }
-      cb.close()
-      cb = null;
+      CHNativeBlock.closeFromColumnarBatch(cb)
+      cb = null
     }
   }
 }

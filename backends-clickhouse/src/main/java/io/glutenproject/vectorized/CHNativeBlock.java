@@ -77,6 +77,17 @@ public class CHNativeBlock {
     }
   }
 
+  public static void closeFromColumnarBatch(ColumnarBatch cb) {
+    if (cb != null) {
+      if (cb.numCols() > 0) {
+        CHColumnVector col = (CHColumnVector) cb.column(0);
+        CHNativeBlock block = new CHNativeBlock(col.getBlockAddress());
+        block.close();
+      }
+      cb.close();
+    }
+  }
+
   public ColumnarBatch toColumnarBatch() {
     ColumnVector[] vectors = new ColumnVector[numColumns()];
     for (int i = 0; i < numColumns(); i++) {

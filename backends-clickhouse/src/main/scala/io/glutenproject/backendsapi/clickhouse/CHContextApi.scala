@@ -19,12 +19,14 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
 import io.glutenproject.execution.CHBroadcastBuildSideCache
+import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.UDFMappings
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc.GlutenDriverEndpoint
+import org.apache.spark.sql.execution.datasources.v1.CHParquetWriterInjects
 
 import org.apache.commons.lang3.StringUtils
 
@@ -56,6 +58,9 @@ class CHContextApi extends ContextApi with Logging {
 
     val initKernel = new CHNativeExpressionEvaluator()
     initKernel.initNative(conf)
+
+    // inject backend-specific implementations to override spark classes
+    GlutenParquetWriterInjects.setInstance(new CHParquetWriterInjects())
   }
 
   override def shutdown(): Unit = {

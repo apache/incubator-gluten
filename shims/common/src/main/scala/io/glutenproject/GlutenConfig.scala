@@ -36,8 +36,6 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
-  def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
-
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
@@ -241,13 +239,15 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
   def getInputRowMaxBlockSize: Long =
     conf.getConfString("spark.gluten.sql.input.row.max.block.size", "8192").toLong
+
+  def enableNativeParquetWriter: Boolean = conf.getConf(NATIVE_PARQUET_WRITER_ENABLED)
 }
 
 object GlutenConfig {
   import SQLConf._
+
   var GLUTEN_ENABLE_BY_DEFAULT = true
   val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
-
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
 
@@ -348,6 +348,16 @@ object GlutenConfig {
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
   var ins: GlutenConfig = _
+  private var current_backend_prefix = ""
+
+  def isCurrentBackendVelox: Boolean = {
+    return current_backend_prefix != null && current_backend_prefix.endsWith(GLUTEN_VELOX_BACKEND)
+  }
+
+  def isCurrentBackendCH: Boolean = {
+    return current_backend_prefix != null && current_backend_prefix.endsWith(
+      GLUTEN_CLICKHOUSE_BACKEND)
+  }
 
   def getConf: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
@@ -408,6 +418,9 @@ object GlutenConfig {
   def getNativeBackendConf(
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
+
+    current_backend_prefix = backendPrefix
+
     val nativeConfMap = new util.HashMap[String, String]()
 
     // some configs having default values
@@ -1008,6 +1021,13 @@ object GlutenConfig {
       .internal()
       .longConf
       .createWithDefault(-1L)
+
+  val NATIVE_PARQUET_WRITER_ENABLED =
+    buildConf("spark.gluten.sql.native.parquet.writer.enabled")
+      .internal()
+      .doc("This is config to specify whether to enable the native columnar parquet writer")
+      .booleanConf
+      .createWithDefault(false)
 
   val UT_STATISTIC =
     buildConf("spark.gluten.sql.ut.statistic")

@@ -9,6 +9,8 @@
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/ColumnsNumber.h>
+#include <DataTypes/DataTypeDateTime64.h>
+#include <DataTypes/DataTypeDecimalBase.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
@@ -22,6 +24,8 @@
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
 #include <Common/typeid_cast.h>
+#include "DataTypes/DataTypesDecimal.h"
+#include "IO/readDecimalText.h"
 
 namespace DB
 {
@@ -277,34 +281,88 @@ DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataType
 DB::Field FileReaderWrapper::buildFieldFromString(const String & str_value, DB::DataTypePtr type)
 {
     using FieldBuilder = std::function<DB::Field(DB::ReadBuffer &, const String &)>;
-    static std::map<int, FieldBuilder> field_builders
-        = {{magic_enum::enum_integer(DB::TypeIndex::Int8), BUILD_INT_FIELD(Int8)},
-           {magic_enum::enum_integer(DB::TypeIndex::Int16), BUILD_INT_FIELD(Int16)},
-           {magic_enum::enum_integer(DB::TypeIndex::Int32), BUILD_INT_FIELD(Int32)},
-           {magic_enum::enum_integer(DB::TypeIndex::Int64), BUILD_INT_FIELD(Int64)},
-           {magic_enum::enum_integer(DB::TypeIndex::Float32), BUILD_FP_FIELD(DB::Float32)},
-           {magic_enum::enum_integer(DB::TypeIndex::Float64), BUILD_FP_FIELD(DB::Float64)},
-           {magic_enum::enum_integer(DB::TypeIndex::String), [](DB::ReadBuffer &, const String & val) { return DB::Field(val); }},
-           {magic_enum::enum_integer(DB::TypeIndex::Date),
+    static std::map<std::string, FieldBuilder> field_builders
+        = {{"Int8", BUILD_INT_FIELD(Int8)},
+           {"Int16", BUILD_INT_FIELD(Int16)},
+           {"Int32", BUILD_INT_FIELD(Int32)},
+           {"Int64", BUILD_INT_FIELD(Int64)},
+           {"Float32", BUILD_FP_FIELD(DB::Float32)},
+           {"Float64", BUILD_FP_FIELD(DB::Float64)},
+           {"String", [](DB::ReadBuffer &, const String & val) { return DB::Field(val); }},
+           {"Date",
             [](DB::ReadBuffer & in, const String &)
             {
                 DayNum value;
                 readDateText(value, in);
                 return DB::Field(value);
             }},
-           {magic_enum::enum_integer(DB::TypeIndex::Date32),
+           {"Date32",
             [](DB::ReadBuffer & in, const String &)
             {
                 ExtendedDayNum value;
                 readDateText(value, in);
                 return DB::Field(value.toUnderType());
-            }}};
+            }},
+           {"Bool",
+            [](DB::ReadBuffer & in, const String &)
+            {
+                bool value;
+                readBoolTextWord(value, in, true);
+                return DB::Field(value);
+            }},
+           {"DateTime64(6)",
+            [](DB::ReadBuffer &, const String & s)
+            {
+                std::string decoded; // s: "2023-07-12 05%3A05%3A33.798" (spark encoded it) => decoded: "2023-07-12 05:05:33.798"
+                Poco::URI::decode(s, decoded);
+
+                std::string to_read;
+                if (decoded.length() > 23) // we see cases when spark mistakely? encode the URI twice, so we need to decode twice
+                    Poco::URI::decode(decoded, to_read);
+                else
+                    to_read = decoded;
+
+                DB::ReadBufferFromString read_buffer(to_read);
+                DB::DateTime64 value;
+                DB::readDateTime64Text(value, 6, read_buffer);
+                return DB::Field(value);
+            }}
+
+        };
 
     auto nested_type = DB::removeNullable(type);
     DB::ReadBufferFromString read_buffer(str_value);
-    auto it = field_builders.find(magic_enum::enum_integer(nested_type->getTypeId()));
+    auto it = field_builders.find(nested_type->getName());
     if (it == field_builders.end())
-        throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported data type {}", type->getFamilyName());
+    {
+        DB::WhichDataType which(nested_type->getTypeId());
+        if (which.isDecimal32())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal32> &>(*nested_type);
+            DB::Decimal32 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal32>(value, dataTypeDecimal.getScale());
+        }
+        else if (which.isDecimal64())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal64> &>(*nested_type);
+            DB::Decimal64 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal64>(value, dataTypeDecimal.getScale());
+        }
+        else if (which.isDecimal128())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal128> &>(*nested_type);
+            DB::Decimal128 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal128>(value, dataTypeDecimal.getScale());
+        }
+        else if (which.isDecimal256())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal256> &>(*nested_type);
+            DB::Decimal256 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal256>(value, dataTypeDecimal.getScale());
+        }
+
+        throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported data type {}", nested_type->getName());
+    }
     return it->second(read_buffer, str_value);
 }
 
