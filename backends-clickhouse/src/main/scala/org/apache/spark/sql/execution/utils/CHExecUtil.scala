@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition, _}
 import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -101,7 +101,8 @@ object CHExecUtil extends Logging {
 
   private def buildPartitionedBlockIterator(
       cbIter: Iterator[ColumnarBatch],
-      options: IteratorOptions): CloseablePartitionedBlockIterator = {
+      options: IteratorOptions,
+      records_written_metric: SQLMetric): CloseablePartitionedBlockIterator = {
     val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
       val splitIterator = new BlockSplitIterator(
         cbIter
@@ -114,8 +115,12 @@ object CHExecUtil extends Logging {
         options
       )
       override def hasNext: Boolean = splitIterator.hasNext
-      override def next(): Product2[Int, ColumnarBatch] =
-        (splitIterator.nextPartitionId(), splitIterator.next());
+      override def next(): Product2[Int, ColumnarBatch] = {
+        val nextBatch = splitIterator.next()
+        // need add rows before shuffle write, one block will convert to one row
+        records_written_metric.add(nextBatch.numRows() - 1)
+        (splitIterator.nextPartitionId(), nextBatch)
+      };
       override def close(): Unit = splitIterator.close();
     }
     new CloseablePartitionedBlockIterator(iter)
@@ -257,7 +262,10 @@ object CHExecUtil extends Logging {
         val options = buildPartitioningOptions(nativePartitioning)
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) => {
-            buildPartitionedBlockIterator(cbIter, options)
+            buildPartitionedBlockIterator(
+              cbIter,
+              options,
+              writeMetrics(SQLShuffleWriteMetricsReporter.SHUFFLE_RECORDS_WRITTEN))
           },
           isOrderSensitive = isOrderSensitive
         )

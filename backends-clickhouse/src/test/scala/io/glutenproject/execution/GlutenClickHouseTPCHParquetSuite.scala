@@ -336,6 +336,28 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(21, noFallBack = false) { df => }
   }
 
+  test("lag") {
+    withSQLConf(
+      ("spark.sql.shuffle.partitions", "1"),
+      ("spark.sql.adaptive.enabled", "true")
+    ) {
+      compareResultsAgainstVanillaSpark(
+        """
+          |select
+          |    l_shipdate_grp l_shipdate,
+          |    (lead(count(distinct l_suppkey), -1) over (order by l_shipdate_grp)) cc
+          |from 
+          |    (select l_suppkey, EXTRACT(year from `l_shipdate`)  l_shipdate_grp from lineitem) t
+          |group by l_shipdate_grp
+          |order by l_shipdate_grp desc
+          |limit 20
+          |""".stripMargin,
+        compareResult = true,
+        _ => {}
+      )
+    }
+  }
+
   test("test 'function pmod'") {
     val df = runQueryAndCompare(
       "select pmod(-10, id+10) from range(10)"
