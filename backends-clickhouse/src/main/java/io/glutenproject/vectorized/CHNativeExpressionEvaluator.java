@@ -30,6 +30,7 @@ import com.google.protobuf.Any;
 import io.substrait.proto.Plan;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.internal.SQLConf;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -86,7 +87,15 @@ public class CHNativeExpressionEvaluator {
     long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
-            allocId, getPlanBytesBuf(wsPlan), iterList.toArray(new GeneralInIterator[0]));
+            allocId,
+            getPlanBytesBuf(wsPlan),
+            iterList.toArray(new GeneralInIterator[0]),
+            buildNativeConfNode(
+                    GlutenConfig.getNativeBackendConf(
+                        BackendsApiManager.getSettings().getBackendConfigPrefix(),
+                        SQLConf.get().getAllConfs()))
+                .toProtobuf()
+                .toByteArray());
     return createOutIterator(handle, outAttrs);
   }
 
@@ -96,7 +105,15 @@ public class CHNativeExpressionEvaluator {
       throws RuntimeException, IOException {
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
-            allocId, wsPlan, iterList.toArray(new GeneralInIterator[0]));
+            allocId,
+            wsPlan,
+            iterList.toArray(new GeneralInIterator[0]),
+            buildNativeConfNode(
+                    GlutenConfig.getNativeBackendConf(
+                        BackendsApiManager.getSettings().getBackendConfigPrefix(),
+                        SQLConf.get().getAllConfs()))
+                .toProtobuf()
+                .toByteArray());
     return createOutIterator(handle, outAttrs);
   }
 

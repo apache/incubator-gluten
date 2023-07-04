@@ -97,6 +97,9 @@ public:
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(std::string * plan);
 
+    static void updateConfig(DB::ContextMutablePtr , std::string *);
+
+
    // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
@@ -127,13 +130,13 @@ private:
     friend class JNIUtils;
 
     static void initConfig(std::string * plan);
-    static void initConfig();
     static void initLoggers();
     static void initEnvs();
     static void initSettings();
     static void initContexts();
     static void registerAllFactories();
-    static void applyConfigAndSettings();
+    static void applyGlobalConfigAndSettings();
+    static void applyConfig(DB::ContextMutablePtr);
     static void initCompiledExpressionCache();
 
     static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
