@@ -509,9 +509,9 @@ void BackendInitializerUtil::initConfig(std::string * plan)
             // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
             config->setString(key.substr(SPARK_HADOOP_PREFIX.length()), value);
         }
-
     }
 }
+
 
 void BackendInitializerUtil::initLoggers()
 {
@@ -620,11 +620,16 @@ void BackendInitializerUtil::initContexts()
     }
 }
 
-void BackendInitializerUtil::applyConfigAndSettings()
+void BackendInitializerUtil::applyGlobalConfigAndSettings()
 {
     auto & global_context = SerializedPlanParser::global_context;
     global_context->setConfig(config);
     global_context->setSettings(settings);
+}
+
+void BackendInitializerUtil::applyConfig(DB::ContextMutablePtr context)
+{
+    context->setConfig(config);
 }
 
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
@@ -674,6 +679,7 @@ void BackendInitializerUtil::initCompiledExpressionCache()
 void BackendInitializerUtil::init(std::string * plan)
 {
     initConfig(plan);
+
     initLoggers();
 
     initEnvs();
@@ -685,7 +691,7 @@ void BackendInitializerUtil::init(std::string * plan)
     initContexts();
     LOG_INFO(logger, "Init shared context and global context.");
 
-    applyConfigAndSettings();
+    applyGlobalConfigAndSettings();
     LOG_INFO(logger, "Apply configuration and setting for global context.");
 
     std::call_once(
@@ -706,6 +712,15 @@ void BackendInitializerUtil::init(std::string * plan)
                 0, // We don't need any threads one all the parts will be loaded
                 active_parts_loading_threads);
         });
+}
+
+std::mutex update_config_mutex;
+
+void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::string * plan)
+{
+    std::lock_guard<std::mutex> guard(update_config_mutex);
+    initConfig(plan);
+    applyConfig(context);
 }
 
 void BackendFinalizerUtil::finalizeGlobally()
