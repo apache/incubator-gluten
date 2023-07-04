@@ -73,8 +73,6 @@ public class CHBlockStripes extends BlockStripes {
 
     @Override
     public void release() {
-        if (sparkRowInfo != null)
-            CHBlockConverterJniWrapper.freeMemory(sparkRowInfo.memoryAddress, sparkRowInfo.totalSize);
         for (long address : blockAddresses) {
             CHBlockConverterJniWrapper.freeBlock(address);
         }

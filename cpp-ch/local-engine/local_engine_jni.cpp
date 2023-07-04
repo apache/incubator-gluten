@@ -754,7 +754,7 @@ Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow
         jint size = env->GetArrayLength(masks);
         jboolean isCp = JNI_FALSE;
         jint * values = env->GetIntArrayElements(masks, &isCp);
-        mask = std::make_unique<std::vector<size_t>>(size);
+        mask = std::make_unique<std::vector<size_t>>();
         for (int j = 0; j < size; j++)
         {
             mask->push_back(values[j]);
@@ -763,11 +763,7 @@ Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow
     }
     spark_row_info = converter.convertCHColumnToSparkRow(*block, mask);
 
-    auto * offsets_arr = env->NewLongArray(spark_row_info->getNumRows());
-    const auto * offsets_src = reinterpret_cast<const jlong *>(spark_row_info->getOffsets().data());
-    env->SetLongArrayRegion(offsets_arr, 0, spark_row_info->getNumRows(), offsets_src);
-    auto * lengths_arr = env->NewLongArray(spark_row_info->getNumRows());
-    const auto * lengths_src = reinterpret_cast<const jlong *>(spark_row_info->getLengths().data());
+    auto * offsets_arr = env->NewLongArray(spark_row_info->getNumRows()); const auto * offsets_src = reinterpret_cast<const jlong *>(spark_row_info->getOffsets().data()); env->SetLongArrayRegion(offsets_arr, 0, spark_row_info->getNumRows(), offsets_src); auto * lengths_arr = env->NewLongArray(spark_row_info->getNumRows()); const auto * lengths_src = reinterpret_cast<const jlong *>(spark_row_info->getLengths().data());
     env->SetLongArrayRegion(lengths_arr, 0, spark_row_info->getNumRows(), lengths_src);
     int64_t address = reinterpret_cast<int64_t>(spark_row_info->getBufferAddress());
     int64_t column_number = reinterpret_cast<int64_t>(spark_row_info->getNumCols());

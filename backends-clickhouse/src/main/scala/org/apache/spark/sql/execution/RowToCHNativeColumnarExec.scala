@@ -45,7 +45,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = this.schema
-    val fieldNames = output.map(ConverterUtils.genColumnNameWithExprId(_)).toArray
+    val fieldNames = output.map(ConverterUtils.genColumnNameWithExprId).toArray
     val fieldTypes = output
       .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable).toProtobuf.toByteArray)
       .toArray

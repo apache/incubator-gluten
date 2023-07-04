@@ -58,7 +58,10 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
     {
         size_t from = i == 0 ? 0 : splitPoints.at(i - 1);
         size_t to = splitPoints.at(i);
-        DB::Block * p = new DB::Block(outputBlock.cloneWithCutColumns(from, to - from));
+        const DB::Block & cutColumns = outputBlock.cloneWithCutColumns(from, to - from);
+        DB::Block * p = new DB::Block(cutColumns);
+        //TODO: what if it's single partition? do we need to clone? double release?
+        // test cases: 1. 100 rows, 100 partitions 2. 100 rows, 1 partition 3. 0 rows
 
         ret.headingRowIndice.push_back(from);
         ret.blockAddresses.push_back(reinterpret_cast<int64_t>(p));

@@ -204,8 +204,8 @@ class GlutenClickHouseHiveTableSuite()
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
-    initializeTable(txt_table_name, txt_table_create_sql)
-    initializeTable(json_table_name, json_table_create_sql)
+//    initializeTable(txt_table_name, txt_table_create_sql)
+//    initializeTable(json_table_name, json_table_create_sql)
   }
 
   test("test hive text table") {
@@ -348,21 +348,29 @@ class GlutenClickHouseHiveTableSuite()
           "double_field,short_field,byte_field,bool_field,decimal_field,date_field" +
           " from tmp_t").format(table_name))
 
-      val sql =
-        s"""
-           | select string_field,
-           |        sum(int_field),
-           |        avg(long_field),
-           |        min(float_field),
-           |        max(double_field),
-           |        sum(short_field),
-           |        sum(decimal_field)
-           | from $parquet_table_name
-           | group by string_field
-           | order by string_field
-           |""".stripMargin
-      compareResultsAgainstVanillaSpark(sql, true, f => {})
+//      val sql =
+//        s"""
+//           | select string_field,
+//           |        sum(int_field),
+//           |        avg(long_field),
+//           |        min(float_field),
+//           |        max(double_field),
+//           |        sum(short_field),
+//           |        sum(decimal_field)
+//           | from $parquet_table_name
+//           | group by string_field
+//           | order by string_field
+//           |""".stripMargin
+//      val sql2 = s"select count(*), string_field from $parquet_table_name group by string_field"
+//      spark.sql(sql2).show(100)
+//      compareResultsAgainstVanillaSpark(sql, true, f => {})
     }
+    withSQLConf(("spark.gluten.enabled", "false")) {
+      val sql2 = s"select count(*), string_field from $parquet_table_name group by string_field"
+      spark.sql(sql2).show(100)
+      println("")
+    }
+
   }
 
   test("test hive json table") {

@@ -394,7 +394,9 @@ class DynamicPartitionDataSingleWriter(
           .getInstance()
           .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
 
-        for (blockStripe <- blockStripes.asScala) {
+        val iter = blockStripes.iterator();
+        while (iter.hasNext) {
+          val blockStripe = iter.next()
           val headingRow = blockStripe.getHeadingRow
           beforeWrite(headingRow)
           writeStripe(new FakeRow(blockStripe.getColumnarBatch))

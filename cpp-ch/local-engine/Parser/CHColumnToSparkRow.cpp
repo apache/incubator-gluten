@@ -293,7 +293,7 @@ SparkRowInfo::SparkRowInfo(
                     {
                         size_t row_idx = masks == nullptr ? i : masks->at(i);
                         if (!null_map[row_idx])
-                            lengths[row_idx] += roundNumberOfBytesToNearestWord(nested_column.getDataAt(row_idx).size);
+                            lengths[i] += roundNumberOfBytesToNearestWord(nested_column.getDataAt(row_idx).size);
                     }
                 }
                 else
@@ -301,7 +301,7 @@ SparkRowInfo::SparkRowInfo(
                     for (size_t i = 0; i < num_rows; ++i)
                     {
                         size_t row_idx = masks == nullptr ? i : masks->at(i);
-                        lengths[row_idx] += roundNumberOfBytesToNearestWord(col.column->getDataAt(row_idx).size);
+                        lengths[i] += roundNumberOfBytesToNearestWord(col.column->getDataAt(row_idx).size);
                     }
                 }
             }
@@ -312,7 +312,7 @@ SparkRowInfo::SparkRowInfo(
                 {
                     size_t row_idx = masks == nullptr ? i : masks->at(i);
                     const auto field = (*col.column)[row_idx];
-                    lengths[row_idx] += calculator.calculate(field);
+                    lengths[i] += calculator.calculate(field);
                 }
             }
         }
