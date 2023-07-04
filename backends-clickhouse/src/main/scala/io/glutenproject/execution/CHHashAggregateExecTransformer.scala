@@ -190,7 +190,8 @@ case class CHHashAggregateExecTransformer(
     val groupingList = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(
       expr => {
-        // Rollback 'child.output' to 'output' as child's output may be different with output. See GLUTEN-2198.
+        // Rollback 'child.output' to 'output' as child's output may be different with output.
+        // See GLUTEN-2198.
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(expr, output)
           .doTransform(args)
