@@ -349,7 +349,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
           |select
           |    l_shipdate_grp l_shipdate,
           |    (lead(count(distinct l_suppkey), -1) over (order by l_shipdate_grp)) cc
-          |from 
+          |from
           |    (select l_suppkey, EXTRACT(year from `l_shipdate`)  l_shipdate_grp from lineitem) t
           |group by l_shipdate_grp
           |order by l_shipdate_grp desc
