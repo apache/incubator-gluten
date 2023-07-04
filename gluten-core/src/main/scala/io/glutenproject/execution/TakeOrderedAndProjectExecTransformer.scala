@@ -69,6 +69,7 @@ case class TakeOrderedAndProjectExecTransformer(limit: Int,
       sparkContext.parallelize(Seq.empty, 1)
     } else {
       // The child should have been replaced by ColumnarCollapseTransformStages.
+//      val localSort = childRDDPartsNum == 1
       val limitExecPlan = child match {
         case wholeStage: WholeStageTransformer =>
           // remove this WholeStageTransformer, put the new sort, limit and project
@@ -82,19 +83,16 @@ case class TakeOrderedAndProjectExecTransformer(limit: Int,
       }
       val transformStageCounter: AtomicInteger =
         ColumnarCollapseTransformStages.transformStageCounter
-      val finalLimitPlan = if (childRDDPartsNum == 1) {
-          limitExecPlan
-      } else {
-        val sortStagePlan = WholeStageTransformer(limitExecPlan)(
-          transformStageCounter.incrementAndGet())
-        val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
-        val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(
-          shuffleExec, sortStagePlan, isAdaptiveContextOrTopParentExchange,
-          shuffleExec.child.output)
-        val globalSortExecPlan = SortExecTransformer(sortOrder, false,
-          new ColumnarInputAdapter(transformedShuffleExec))
-        LimitTransformer(globalSortExecPlan, 0, limit)
-      }
+
+      val sortStagePlan = WholeStageTransformer(limitExecPlan)(
+        transformStageCounter.incrementAndGet())
+      val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
+      val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(
+        shuffleExec, sortStagePlan, isAdaptiveContextOrTopParentExchange,
+        shuffleExec.child.output)
+      val globalSortExecPlan = SortExecTransformer(sortOrder, false,
+        new ColumnarInputAdapter(transformedShuffleExec))
+      val finalLimitPlan = LimitTransformer(globalSortExecPlan, 0, limit)
 
       val projectPlan = if (projectList != child.output) {
         ProjectExecTransformer(projectList, finalLimitPlan)
