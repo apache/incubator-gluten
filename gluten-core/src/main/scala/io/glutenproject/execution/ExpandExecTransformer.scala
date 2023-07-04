@@ -208,7 +208,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     }
   }
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportExpandExec()) {
       return notOk("backend does not support expand")
     }

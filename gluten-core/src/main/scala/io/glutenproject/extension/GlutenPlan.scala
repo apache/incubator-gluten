@@ -36,14 +36,14 @@ object ValidationResult {
 }
 
 /**
- * Every Gluten OP should extend this trait.
+ * Every Gluten Operator should extend this trait.
  */
 trait GlutenPlan extends SparkPlan with LogLevelUtil {
 
   private lazy val validateFailureLogLevel = glutenConf.validateFailureLogLevel
   private lazy val printStackOnValidateFailure = glutenConf.printStackOnValidateFailure
 
-  def glutenConf: GlutenConfig = GlutenConfig.getConf
+  protected def glutenConf: GlutenConfig = GlutenConfig.getConf
 
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
@@ -54,13 +54,13 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
       val res = doValidateInternal()
       if (!res.validated) {
         TestStats.addFallBackClassName(this.getClass.toString)
-
         // the reason must be set if failed to validate
         assert(res.reason.isDefined)
       }
       res
     } catch {
       case e: Throwable =>
+        TestStats.addFallBackClassName(this.getClass.toString)
         logValidateFailure(s"Validation failed with exception for plan: $nodeName, due to:", e)
         notOk(e.getMessage)
     } finally {
@@ -68,10 +68,10 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
     }
   }
 
-  def doValidateInternal(): ValidationResult =
+  protected def doValidateInternal(): ValidationResult =
     ValidationResult.notOk(s"$nodeName does not override doValidateInternal")
 
-  def logValidateFailure(msg: => String, e: Throwable): Unit = {
+  protected def logValidateFailure(msg: => String, e: Throwable): Unit = {
     if (printStackOnValidateFailure) {
       logOnLevel(validateFailureLogLevel, msg, e)
     } else {

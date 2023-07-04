@@ -46,10 +46,11 @@ case class GlutenFallbackReporter(
     plan.foreach {
       case _: GlutenPlan => // ignore
       case plan: SparkPlan =>
-        TransformHints.getHint(plan) match {
-          case TRANSFORM_UNSUPPORTED(reason) =>
+        // some SparkPlan do not have hint, e.g., `ColumnarAQEShuffleRead`
+        TransformHints.getHintOption(plan) match {
+          case Some(TRANSFORM_UNSUPPORTED(reason)) =>
             logOnLevel(validateFailureLogLevel,
-              s"Validation failed for plan: ${plan.nodeName}, due to: $reason.")
+              s"Validation failed for plan: ${plan.nodeName}, due to: ${reason.getOrElse("")}.")
           case _ =>
         }
     }

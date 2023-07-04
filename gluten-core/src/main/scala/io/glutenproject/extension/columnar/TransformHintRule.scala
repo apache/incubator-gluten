@@ -111,6 +111,10 @@ object TransformHints {
     }
     plan.getTagValue(TAG).getOrElse(throw new IllegalStateException())
   }
+
+  def getHintOption(plan: SparkPlan): Option[TransformHint] = {
+    plan.getTagValue(TAG)
+  }
 }
 
 // Holds rules which have higher privilege to tag (not) transformable before AddTransformHintRule.

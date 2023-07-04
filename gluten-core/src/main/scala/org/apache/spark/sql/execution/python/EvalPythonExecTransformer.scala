@@ -92,7 +92,7 @@ case class EvalPythonExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     // All udfs should be scalar python udf
     for (udf <- udfs) {
       if (!PythonUDF.isScalarPythonUDF(udf)) {

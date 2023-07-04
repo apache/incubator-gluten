@@ -136,7 +136,7 @@ abstract class HashAggregateExecBaseTransformer(
     }
   }
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val aggParams = new AggregationParams

@@ -244,7 +244,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     }
   }
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
       return notOk("backend does not sort")
     }

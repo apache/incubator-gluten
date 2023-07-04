@@ -127,7 +127,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
   }
 
-  override def doValidateInternal(): ValidationResult = mode match {
+  override protected def doValidateInternal(): ValidationResult = mode match {
     case _: HashedRelationBroadcastMode =>
       ok()
     case _ =>

@@ -102,7 +102,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
       outputPartitioning, child)) {
       return notOk("schema check failed")

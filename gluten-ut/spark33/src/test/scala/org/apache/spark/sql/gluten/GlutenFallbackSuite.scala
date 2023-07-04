@@ -35,7 +35,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
       }
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.contains(
         "Validation failed for plan: Scan parquet default.t, " +
-          "due to: Some(columnar FileScan is not enabled in FileSourceScanExec)")))
+          "due to: columnar FileScan is not enabled in FileSourceScanExec")))
     }
   }
 }

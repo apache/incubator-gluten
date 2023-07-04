@@ -141,7 +141,7 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     }
   }
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (cond == null) {
       // The computing of this Filter is not needed.
       return ok()
@@ -229,7 +229,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId(this.nodeName)

@@ -19,11 +19,12 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode}
@@ -32,6 +33,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,13 +43,12 @@ import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
-import scala.collection.JavaConverters._
 
 case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                                  partitionSpec: Seq[Expression],
                                  orderSpec: Seq[SortOrder],
                                  child: SparkPlan)
-    extends WindowExecBase with TransformSupport with GlutenPlan {
+    extends WindowExecBase with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -172,7 +173,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     }
   }
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
       return notOk(s"unsupport window expression ${windowExpression.mkString(", ")}")
     }

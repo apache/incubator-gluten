@@ -88,7 +88,7 @@ case class GenerateExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (BackendsApiManager.veloxBackend) {
       return notOk("Velox backend does not support")
     }

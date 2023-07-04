@@ -47,7 +47,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     scan match {
       case parquetScan: ParquetScan if parquetScan.options.containsKey(mergeSchemaOptionKey) &&
         parquetScan.options.get(mergeSchemaOptionKey) == "true" =>

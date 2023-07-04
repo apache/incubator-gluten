@@ -78,7 +78,7 @@ trait BasicScanExecTransformer extends TransformSupport {
     )
   }
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
     if (!BackendsApiManager.getTransformerApiInstance
       .supportsReadFileFormat(
