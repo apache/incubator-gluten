@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.extension.GlutenPlan
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
@@ -453,6 +453,32 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80, '??') " +
         s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test slice function") {
+    val sql =
+      """
+        |select slice(arr, 1, 5), slice(arr, 1, 100), slice(arr, -2, 5), slice(arr, 1, n_nationkey),
+        |slice(null, 1, 2), slice(arr, null, 2), slice(arr, 1, null)
+        |from (select split(n_comment, ' ') as arr, n_nationkey from nation) t
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test slice function with start is zero") {
+    val ex = intercept[SparkException] {
+      spark
+        .sql("select slice(split(n_comment, ' '), n_regionkey, 5) from nation")
+        .collect()
+    }
+    assert(ex.getMessage.contains("Array indices are 1-based"))
+
+    val ex1 = intercept[SparkException] {
+      spark
+        .sql("select slice(split(n_comment, ' '), 0, 5) from nation")
+        .collect()
+    }
+    assert(ex1.getMessage.contains("Array indices are 1-based"))
   }
 
   test("test 'function regexp_extract_all'") {
