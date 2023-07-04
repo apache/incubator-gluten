@@ -100,6 +100,7 @@ object ExpressionNames {
   final val ACOSH = "acosh"
   final val ASINH = "asinh"
   final val ATANH = "atanh"
+  final val BIN = "bin"
   final val CEIL = "ceil"
   final val FLOOR = "floor"
   final val EXP = "exp"

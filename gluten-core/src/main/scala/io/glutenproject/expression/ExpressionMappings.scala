@@ -85,6 +85,7 @@ object ExpressionMappings {
     Sig[StringSpace](SPACE),
     // SparkSQL Math functions
     Sig[Abs](ABS),
+    Sig[Bin](BIN),
     Sig[Ceil](CEIL),
     Sig[Floor](FLOOR),
     Sig[Exp](EXP),
