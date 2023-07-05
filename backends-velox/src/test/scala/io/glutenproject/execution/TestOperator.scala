@@ -245,7 +245,9 @@ class TestOperator extends WholeStageTransformerSuite {
 
   test("bin function") {
     val df = runQueryAndCompare("SELECT bin(l_orderkey) " +
-      "from lineitem limit 1") { _ => }
+      "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
     checkLengthAndPlan(df, 1)
   }
 
