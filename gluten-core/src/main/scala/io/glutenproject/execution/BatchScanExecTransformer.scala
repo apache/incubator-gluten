@@ -20,6 +20,7 @@ package io.glutenproject.execution
 import java.util.Objects
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -46,13 +47,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     scan match {
       case parquetScan: ParquetScan if parquetScan.options.containsKey(mergeSchemaOptionKey) &&
         parquetScan.options.get(mergeSchemaOptionKey) == "true" =>
-        logValidateFailure(s"Validation failed for ${this.getClass.toString} due to: ",
-          new UnsupportedOperationException(s"$mergeSchemaOptionKey is not supported."))
-        return false
+        return notOk(s"option $mergeSchemaOptionKey is not supported")
       case _ =>
     }
     super.doValidateInternal()

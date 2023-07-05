@@ -50,10 +50,11 @@ case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPl
           case Some(exchange@BroadcastExchangeExec(mode, child)) =>
             val isTransformable = if (!columnarConf.enableColumnarBroadcastExchange ||
               !columnarConf.enableColumnarBroadcastJoin) {
-              false
+              ValidationResult.notOk("columnar broadcast exchange is disabled or " +
+                "columnar broadcast join is disabled")
             } else {
               if (TransformHints.isAlreadyTagged(bhj) && TransformHints.isNotTransformable(bhj)) {
-                false
+                ValidationResult.notOk("broadcast join is already tagged as not transformable")
               } else {
                 val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
                   .genBroadcastHashJoinExecTransformer(
@@ -66,18 +67,16 @@ case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPl
                     bhj.right,
                     bhj.isNullAwareAntiJoin)
                 val isBhjTransformable = bhjTransformer.doValidate()
-                val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
-                val isExchangeTransformable = exchangeTransformer.doValidate()
-                isBhjTransformable && isExchangeTransformable
+                if (isBhjTransformable.validated) {
+                  val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
+                  exchangeTransformer.doValidate()
+                } else {
+                  isBhjTransformable
+                }
               }
             }
-            if (!isTransformable) {
-              logInfo(
-                s"Validation failed for ${this.getClass.toString}" +
-                  s" due to: FallbackBroadcastExchange.")
-              TransformHints.tagNotTransformable(bhj)
-              TransformHints.tagNotTransformable(exchange)
-            }
+            TransformHints.tagNotTransformable(bhj, isTransformable)
+            TransformHints.tagNotTransformable(exchange, isTransformable)
           case _ =>
           // Skip. This might be the case that the exchange was already
           // executed in earlier stage

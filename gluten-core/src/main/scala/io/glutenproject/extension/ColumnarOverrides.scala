@@ -76,8 +76,8 @@ case class TransformPreOverrides(
       Seq(Alias(hashExpression, "hash_partition_key")()) ++ child.output, child)
     AddTransformHintRule().apply(project)
     TransformHints.getHint(project) match {
-      case TRANSFORM_SUPPORTED() => replaceWithTransformerPlan(project)
-      case TRANSFORM_UNSUPPORTED() => project
+      case _: TRANSFORM_SUPPORTED => replaceWithTransformerPlan(project)
+      case _: TRANSFORM_UNSUPPORTED => project
     }
   }
 
@@ -141,7 +141,7 @@ case class TransformPreOverrides(
             reuseSubquery)
           newScan match {
             case ts: TransformSupport =>
-              if (ts.doValidate()) {
+              if (ts.doValidate().validated) {
                 ts
               } else {
                 replaceWithTransformerPlan(plan.child)
@@ -158,6 +158,7 @@ case class TransformPreOverrides(
     BackendsApiManager.getSparkPlanExecApiInstance
       .genFilterExecTransformer(plan.condition, newChild)
   }
+
   /**
    * If there are expressions (not field reference) in the partitioning's children, add a projection
    * before shuffle exchange and make a new partitioning with the old expressions replaced by the
@@ -229,9 +230,9 @@ case class TransformPreOverrides(
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
-      case TRANSFORM_SUPPORTED() =>
+      case _: TRANSFORM_SUPPORTED =>
       // supported, break
-      case TRANSFORM_UNSUPPORTED() =>
+      case _: TRANSFORM_UNSUPPORTED =>
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {
           case shj: ShuffledHashJoinExec =>
@@ -512,13 +513,14 @@ case class TransformPreOverrides(
         plan.dataFilters,
         plan.tableIdentifier,
         plan.disableBucketedScan)
-      if (transformer.doValidate()) {
+      val validationResult = transformer.doValidate()
+      if (validationResult.validated) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         transformer
       } else {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
         val newSource = plan.copy(partitionFilters = newPartitionFilters)
-        TransformHints.tagNotTransformable(newSource)
+        TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
         newSource
       }
     case plan: BatchScanExec =>
@@ -532,13 +534,14 @@ case class TransformPreOverrides(
       }
       val transformer = new BatchScanExecTransformer(plan.output,
         plan.scan, newPartitionFilters)
-      if (transformer.doValidate()) {
+      val validationResult = transformer.doValidate()
+      if (validationResult.validated) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         transformer
       } else {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
         val newSource = plan.copy(runtimeFilters = newPartitionFilters)
-        TransformHints.tagNotTransformable(newSource)
+        TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
         newSource
       }
     case other =>
@@ -683,6 +686,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       (_: SparkSession) => TransformPreOverrides(
         this.isTopParentExchange,
         this.isAdaptiveContext),
+      (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
       (_: SparkSession) => RemoveTransformHintRule(),
       (_: SparkSession) => GlutenRemoveRedundantSorts) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
