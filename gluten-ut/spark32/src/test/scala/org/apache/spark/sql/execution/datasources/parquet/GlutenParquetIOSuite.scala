@@ -33,7 +33,7 @@ class GlutenParquetIOSuite extends ParquetIOSuite with GlutenSQLTestsBaseTrait {
     spark.read.parquet(testFile(name))
   }
   
-  // The exception doesn't exist after removing the copy action in VeloxColumnarToRow.
+  // The exception doesn't exist after removing the copy action in VeloxColumnarToRow native.
   ignore(GlutenTestConstants.GLUTEN_TEST +
     "SPARK-35640: int as long should throw schema incompatible error") {
     val data = (1 to 4).map(i => Tuple1(i))
