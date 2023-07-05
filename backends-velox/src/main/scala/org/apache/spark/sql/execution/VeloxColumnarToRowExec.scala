@@ -31,7 +31,6 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.types._
-
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -62,6 +61,9 @@ case class VeloxColumnarToRowExec(child: SparkPlan)
         case _: DateType =>
         case _: BinaryType =>
         case _: DecimalType =>
+        case _: ArrayType =>
+        case _: MapType =>
+        case _: StructType =>
         case _ =>
           throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
             s"VeloxColumnarToRowExec.")
