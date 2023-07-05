@@ -288,6 +288,14 @@ trait SparkPlanExecApi {
     new HashExpressionTransformerBase(substraitExprName, exps, original)
   }
 
+  def genUnixTimestampTransformer(substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: ToUnixTimestamp): ExpressionTransformer = {
+   ToUnixTimestampTransformer(substraitExprName, timeExp, format,
+     original.timeZoneId, original.failOnError, original)
+  }
+
   /**
    * Define backend specfic expression mappings.
    */
