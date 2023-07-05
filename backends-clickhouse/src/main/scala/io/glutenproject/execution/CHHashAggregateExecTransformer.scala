@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.expression._
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
@@ -75,6 +76,14 @@ case class CHHashAggregateExecTransformer(
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
   protected val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
+
+  override protected def doValidateInternal(): ValidationResult = if (
+    groupingExpressions.isEmpty && aggregateExpressions.isEmpty
+  ) {
+    notOk("Does not support hash aggregate without grouping and aggregate expressions.")
+  } else {
+    super.doValidateInternal()
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
