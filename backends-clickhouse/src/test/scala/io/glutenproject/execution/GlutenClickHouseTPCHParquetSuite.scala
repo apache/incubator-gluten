@@ -1232,5 +1232,54 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       "select cast(n_nationkey as binary), cast(n_comment as binary) from nation"
     )(checkOperatorMatch[ProjectExecTransformer])
   }
+
+  test("var_samp") {
+    runQueryAndCompare("""
+                         |select var_samp(l_quantity) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |select l_orderkey % 5, var_samp(l_quantity) from lineitem
+                         |group by l_orderkey % 5;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
+  test("var_pop") {
+    runQueryAndCompare("""
+                         |select var_pop(l_quantity) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |select l_orderkey % 5, var_pop(l_quantity) from lineitem
+                         |group by l_orderkey % 5;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
+  test("corr") {
+    runQueryAndCompare("""
+                         |select corr(l_partkey, l_suppkey) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+
+    runQueryAndCompare(
+      "select corr(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[CHHashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
 }
 // scalastyle:on line.size.limit
