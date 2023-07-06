@@ -20,7 +20,7 @@ import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding, NullPropagation}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.functions.{col, rand, when}
 import org.apache.spark.sql.internal.SQLConf
@@ -462,23 +462,31 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |slice(null, 1, 2), slice(arr, null, 2), slice(arr, 1, null)
         |from (select split(n_comment, ' ') as arr, n_nationkey from nation) t
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 
-  test("test slice function with start is zero") {
-    val ex = intercept[SparkException] {
-      spark
-        .sql("select slice(split(n_comment, ' '), n_regionkey, 5) from nation")
-        .collect()
-    }
-    assert(ex.getMessage.contains("Array indices are 1-based"))
+  test("test slice function with unexpected arguments") {
+    def checkException(sql: String, expectedErrMsg: String): Unit = {
+      val errMsg = intercept[SparkException] {
+        spark.sql(sql).collect()
+      }.getMessage
 
-    val ex1 = intercept[SparkException] {
-      spark
-        .sql("select slice(split(n_comment, ' '), 0, 5) from nation")
-        .collect()
+      if (errMsg == null) {
+        fail(s"Expected null error message, but `$errMsg` found")
+      } else if (!errMsg.contains("")) {
+        fail(s"Expected error message is `$expectedErrMsg`, but `$errMsg` found")
+      }
     }
-    assert(ex1.getMessage.contains("Array indices are 1-based"))
+
+    checkException(
+      "select slice(split(n_comment, ' '), n_regionkey, 5) from nation",
+      "Unexpected value for start")
+    checkException(
+      "select slice(split(n_comment, ' '), 1, -5) from nation",
+      "Unexpected value for length")
   }
 
   test("test 'function regexp_extract_all'") {
