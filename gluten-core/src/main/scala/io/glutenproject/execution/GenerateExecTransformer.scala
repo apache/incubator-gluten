@@ -89,7 +89,7 @@ case class GenerateExecTransformer(
   override def supportsColumnar: Boolean = true
 
   override def doValidateInternal(): Boolean = {
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
+    if (BackendsApiManager.veloxBackend) {
       return false
     }
 
@@ -115,8 +115,8 @@ case class GenerateExecTransformer(
       getRelNode(context, operatorId, child.output, null, generatorNode, childOutputNodes, true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 

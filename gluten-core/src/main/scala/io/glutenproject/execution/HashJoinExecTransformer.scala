@@ -226,6 +226,9 @@ trait HashJoinLikeExecTransformer
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
+      this.appendValidateLog(
+        s"Validation failed for ${this.getClass.toString}" +
+          s" due to: {Join type ${hashJoinType}}")
       return false
     }
     val relNode = try {
@@ -242,14 +245,25 @@ trait HashJoinLikeExecTransformer
         substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }

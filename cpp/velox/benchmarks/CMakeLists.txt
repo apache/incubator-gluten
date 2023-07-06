@@ -20,7 +20,7 @@ find_arrow_lib(${PARQUET_LIB_NAME})
 function(add_velox_benchmark BM_EXEC BM_FILE)
   add_executable(${BM_EXEC} ${BM_FILE} BenchmarkUtils.cc)
   target_include_directories(${BM_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
-  target_link_libraries(${BM_EXEC} gflags Arrow::parquet velox benchmark::benchmark)
+  target_link_libraries(${BM_EXEC} gflags Arrow::parquet velox benchmark::benchmark simdjson)
 endfunction()
 
 # Query benchmark
@@ -34,3 +34,4 @@ add_velox_benchmark(columnar_to_row_benchmark ColumnarToRowBenchmark.cc)
 add_velox_benchmark(parquet_write_benchmark ParquetWriteBenchmark.cc)
 
 add_velox_benchmark(shuffle_split_benchmark ShuffleSplitBenchmark.cc)
+

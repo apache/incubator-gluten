@@ -19,6 +19,8 @@ package io.glutenproject.utils
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.test.TestStats
+
 import java.util
 
 import scala.reflect.ClassTag
@@ -147,6 +149,12 @@ object BackendTestSettings {
   }
 
   def shouldRun(suiteName: String, testName: String): Boolean = {
-    instance.shouldRun(suiteName, testName: String)
+    val v = instance.shouldRun(suiteName, testName: String)
+
+    if (!v) {
+      TestStats.addIgnoreCaseName(testName)
+    }
+
+    v
   }
 }

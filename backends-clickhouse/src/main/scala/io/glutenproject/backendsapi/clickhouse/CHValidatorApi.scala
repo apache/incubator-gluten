@@ -19,22 +19,24 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
+import io.glutenproject.validate.NativePlanValidatorInfo
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
-import org.apache.commons.lang3.exception.ExceptionUtils
-
 class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new CHNativeExpressionEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)
+  }
+
+  override def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidatorInfo = {
+    // not applicable for now but may implement in future
+    null
   }
 
   /**
@@ -84,5 +86,10 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
     }
 
     !includedUnsupportedPlans.contains(true)
+  }
+
+  /** Validate whether the compression method support splittable at clickhouse backend. */
+  override def doCompressionSplittableValidate(compressionMethod: String): Boolean = {
+    false
   }
 }

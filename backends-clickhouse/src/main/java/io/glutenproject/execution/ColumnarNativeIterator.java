@@ -19,6 +19,7 @@ package io.glutenproject.execution;
 
 import io.glutenproject.vectorized.CHColumnVector;
 import io.glutenproject.vectorized.GeneralInIterator;
+
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
@@ -30,15 +31,15 @@ public class ColumnarNativeIterator extends GeneralInIterator implements Iterato
   }
 
   private static byte[] longtoBytes(long data) {
-    return new byte[]{
-        (byte) ((data >> 56) & 0xff),
-        (byte) ((data >> 48) & 0xff),
-        (byte) ((data >> 40) & 0xff),
-        (byte) ((data >> 32) & 0xff),
-        (byte) ((data >> 24) & 0xff),
-        (byte) ((data >> 16) & 0xff),
-        (byte) ((data >> 8) & 0xff),
-        (byte) ((data >> 0) & 0xff),
+    return new byte[] {
+      (byte) ((data >> 56) & 0xff),
+      (byte) ((data >> 48) & 0xff),
+      (byte) ((data >> 40) & 0xff),
+      (byte) ((data >> 32) & 0xff),
+      (byte) ((data >> 24) & 0xff),
+      (byte) ((data >> 16) & 0xff),
+      (byte) ((data >> 8) & 0xff),
+      (byte) ((data >> 0) & 0xff),
     };
   }
 

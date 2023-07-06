@@ -77,8 +77,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       .setIfMissing("spark.sql.files.maxPartitionBytes", "1G")
       .setIfMissing("spark.sql.files.openCostInBytes", "1073741824")
 
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (BackendsApiManager.chBackend) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.enable.native.validation", "false")
@@ -231,8 +230,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
   }
 
   override def afterAll(): Unit = {
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (BackendsApiManager.chBackend) {
       val libPath = spark.conf.get(
         GlutenConfig.GLUTEN_LIB_PATH,
         SystemParameters

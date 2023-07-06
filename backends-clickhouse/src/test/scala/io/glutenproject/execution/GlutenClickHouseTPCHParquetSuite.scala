@@ -20,11 +20,15 @@ import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.functions.{col, rand, when}
+import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
+
+// Some sqls' line length exceeds 100
+// scalastyle:off line.size.limit
 
 class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -676,6 +680,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window lag with null value") {
+    val sql =
+      """
+        |select n_regionkey,
+        | lag(count(distinct n_nationkey), -1) OVER (ORDER BY n_regionkey) as n_lag
+        |from nation
+        |group by n_regionkey
+        |order by n_regionkey, n_lag
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window dense_rank") {
     val sql =
       """
@@ -687,26 +703,60 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  test("window first value") {
+  test("window first value with nulls") {
     val sql =
       """
-        |select n_regionkey, n_nationkey,
-        | first_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
-        |from nation
-        |order by n_regionkey, n_nationkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  test("window last value") {
+  test("window first value ignore nulls") {
     val sql =
       """
-        |select n_regionkey, n_nationkey,
-        | last_value(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey)
-        |from nation
-        |order by n_regionkey, n_nationkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey, true) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window last value with nulls") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   last_value(n_nationkey) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window last value ignore nulls") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   last_value(n_nationkey, true) over (partition by n_regionkey order by n_nationkey)
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from  nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("group with rollup") {
@@ -930,6 +980,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test 'EqualNullSafe'") {
+    runQueryAndCompare("select l_linenumber <=> l_orderkey, l_linenumber <=> null from lineitem") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
     spark.sql(
       """
@@ -982,26 +1038,34 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-2104: test size function") {
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
+      runQueryAndCompare(
+        "select size(null), size(split(l_shipinstruct, ' ')) from lineitem"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg without aqe") {
     val sql =
       """
         |SELECT *
-        |	FROM (
-        |		SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
-        |		FROM (
-        |			SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
-        |			FROM orders
-        |			GROUP BY o_orderstatus
-        |		) t1
-        |			INNER JOIN (
-        |				SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |    FROM (
+        |      SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |      FROM (
+        |         SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
+        |         FROM orders
+        |         GROUP BY o_orderstatus
+        |      ) t1
+        |         INNER JOIN (
+        |            SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
         |                FROM orders
         |                GROUP BY o_orderstatus
-        |			) t4
-        |			ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
-        |	) t5
-        |		INNER JOIN (
-        |			SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |         ) t4
+        |         ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
+        |    ) t5
+        |      INNER JOIN (
+        |         SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
         |            FROM (
         |                SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
         |                FROM orders
@@ -1014,7 +1078,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |                ) t9
         |                ON t8.O_ORDERSTATUS = t9.O_ORDERSTATUS
         |            ) t12
-        |		ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
+        |      ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { df => })
   }
@@ -1101,4 +1165,121 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-2079: aggregate function with filter") {
+    val sql =
+      """
+        | select
+        |  count(distinct(a)), count(distinct(b)), count(distinct(c))
+        | from
+        |  values (1, null,2), (2,2,4), (3,2,4) as data(a,b,c)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-1956: fix error conversion of Float32 in CHColumnToSparkRow") {
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
+      runQueryAndCompare(
+        "select struct(1.0f), array(2.0f), map('a', 3.0f) from range(1)"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-2028: struct as join key") {
+    val tables = Seq("struct_1", "struct_2")
+    tables.foreach {
+      table =>
+        spark.sql(s"create table $table (info struct<a:int, b:int>) using parquet")
+        spark.sql(s"insert overwrite $table values (named_struct('a', 1, 'b', 2))")
+    }
+    val hints = Seq("BROADCAST(t2)", "SHUFFLE_MERGE(t2), SHUFFLE_HASH(t2)")
+    hints.foreach(
+      hint =>
+        compareResultsAgainstVanillaSpark(
+          s"select /*+ $hint */ t1.info from struct_1 t1 join struct_2 t2 on t1.info = t2.info",
+          true,
+          { _ => }))
+  }
+
+  test("GLUTEN-2005: Json_tuple return cause data loss") {
+    spark.sql(
+      """
+        | create table test_2005(tuple_data struct<a:string, b:string>, id bigint, json_data string, name string) using parquet;
+        |""".stripMargin
+    )
+    spark.sql(
+      "insert into test_2005 values(struct('a', 'b'), 1, '{\"a\":\"b\", \"c\":\"d\"}', 'gluten')")
+    val sql =
+      """
+        | select tuple_data, json_tuple(json_data, 'a', 'c'), name from test_2005
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-2060 null count") {
+    val sql =
+      """
+        |select
+        | count(a),count(b), count(1), count(distinct(a)), count(distinct(b))
+        |from
+        | values (1, null), (2,2) as data(a,b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-2095: test cast(string as binary)") {
+    runQueryAndCompare(
+      "select cast(n_nationkey as binary), cast(n_comment as binary) from nation"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("var_samp") {
+    runQueryAndCompare("""
+                         |select var_samp(l_quantity) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |select l_orderkey % 5, var_samp(l_quantity) from lineitem
+                         |group by l_orderkey % 5;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
+  test("var_pop") {
+    runQueryAndCompare("""
+                         |select var_pop(l_quantity) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |select l_orderkey % 5, var_pop(l_quantity) from lineitem
+                         |group by l_orderkey % 5;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
+  test("corr") {
+    runQueryAndCompare("""
+                         |select corr(l_partkey, l_suppkey) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[CHHashAggregateExecTransformer]
+    }
+
+    runQueryAndCompare(
+      "select corr(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[CHHashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
 }
+// scalastyle:on line.size.limit

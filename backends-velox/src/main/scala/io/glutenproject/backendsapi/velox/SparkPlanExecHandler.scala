@@ -17,45 +17,42 @@
 
 package io.glutenproject.backendsapi.velox
 
+import scala.collection.mutable.ArrayBuffer
+
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.execution.ColumnarRules.LoadBeforeColumnarToRow
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.ArrowUtil
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, ColumnarBatchSerializer}
 import io.glutenproject.backendsapi.SparkPlanExecApi
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, FilterExecBaseTransformer, FilterExecTransformer, GlutenBroadcastHashJoinExecTransformer, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, RowToArrowColumnarExec, RowToColumnarExecBase, ShuffledHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, FilterExecTransformer, FilterExecTransformerBase, GlutenBroadcastHashJoinExecTransformer, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, RowToColumnarExecBase, ShuffledHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase}
 import io.glutenproject.expression.{AliasTransformer, AliasTransformerBase, ExpressionNames, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sig}
+import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.execution._
+import io.glutenproject.execution.ColumnarRules.LoadBeforeColumnarToRow
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
 import org.apache.commons.lang3.ClassUtils
-import org.apache.spark.ShuffleDependency
+
+import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.utils.ShuffleUtil
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.{SparkPlan, VeloxColumnarToRowExec}
 import org.apache.spark.sql.catalyst.AggregateFunctionRewriteRule
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, GetStructField, Literal, NamedExpression, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.types.{ArrayType, BinaryType, DecimalType, DoubleType, FloatType, MapType, StringType, StructType, UserDefinedType}
-import org.apache.spark.sql.execution.datasources.GlutenColumnarRules.NativeWritePostRule
-import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.utils.ExecUtil
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
+import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
 import org.apache.spark.sql.execution.datasources.ColumnarToFakeRowStrategy
+import org.apache.spark.sql.execution.datasources.GlutenColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
-import org.apache.spark.sql.execution.ColumnarBuildSideRelation
-import org.apache.spark.sql.Strategy
-import org.apache.spark.SparkException
-
-import scala.collection.mutable.ArrayBuffer
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.utils.ExecUtil
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class SparkPlanExecHandler extends SparkPlanExecApi {
 
@@ -77,7 +74,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return
    */
   override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase =
-    RowToArrowColumnarExec(child)
+    RowToVeloxColumnarExec(child)
 
   /**
    * Generate FilterExecTransformer.
@@ -87,7 +84,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return the transformer of FilterExec
    */
   override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
-  : FilterExecBaseTransformer = FilterExecTransformer(condition, child)
+  : FilterExecTransformerBase = FilterExecTransformer(condition, child)
 
   /**
    * Generate HashAggregateExecTransformer.
@@ -183,17 +180,19 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    *
    * @return
    */
-  override def createColumnarBatchSerializer(schema: StructType,
-                                             readBatchNumRows: SQLMetric,
-                                             numOutputRows: SQLMetric,
-                                             dataSize: SQLMetric): Serializer = {
+  override def createColumnarBatchSerializer(
+      schema: StructType,
+      metrics: Map[String, SQLMetric]): Serializer = {
+    val readBatchNumRows = metrics("avgReadBatchNumRows")
+    val numOutputRows = metrics("numOutputRows")
+    val decompressTime = metrics("decompressTime")
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor = clazz.getConstructor(classOf[StructType],
         classOf[SQLMetric], classOf[SQLMetric])
       constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
     } else {
-      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows, decompressTime)
     }
   }
 
@@ -207,30 +206,31 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     val countsAndBytes = child
       .executeColumnar()
       .mapPartitions { iter =>
-        var _numRows: Long = 0
-        val _input = new ArrayBuffer[ColumnarBatch]()
-
-        try {
-          while (iter.hasNext) {
-            val batch = iter.next
-            val acb = ArrowColumnarBatches
-              .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-            (0 until acb.numCols).foreach(i => {
-              acb.column(i).asInstanceOf[ArrowWritableColumnVector].retain()
-            })
-            _numRows += acb.numRows
-            _input += acb
+        val input = new ArrayBuffer[ColumnarBatch]()
+        // This iter is ClosableColumnarBatch, hasNext will remove it from native batch map,
+        // and serialize function append(RowVector) may reserve the buffer,
+        // so we can not release the batch before flush to OutputStream
+        while (iter.hasNext) {
+          val batch = iter.next
+          if (batch.numCols() != 0) {
+            ColumnarBatches.retain(batch)
+            input += batch
           }
+        }
 
-          val bytes = ArrowUtil.convertToNetty(_input.toArray)
-          Iterator((_numRows, bytes))
-        } finally {
-          _input.foreach(_.close)
+        if (input.isEmpty) {
+          Iterator((0L, Array[Byte]()))
+        } else {
+          val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
+          val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(handleArray,
+            NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+          input.foreach(ColumnarBatches.release)
+          Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
         }
       }
       .collect
 
-    val batches = countsAndBytes.map(_._2)
+    val batches = countsAndBytes.filter(_._1 != 0).map(_._2)
     val rawSize = batches.map(_.length).sum
     if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
       throw new SparkException(

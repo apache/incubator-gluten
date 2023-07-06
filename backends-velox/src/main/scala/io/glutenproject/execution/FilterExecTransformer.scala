@@ -31,9 +31,8 @@ import io.glutenproject.vectorized.NativePlanEvaluator
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
 
-
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecBaseTransformer(condition, child) with TransformSupport {
+  extends FilterExecTransformerBase(condition, child) with TransformSupport {
 
   override def doValidateInternal(): Boolean = {
     val leftCondition = getLeftCondition
@@ -50,15 +49,25 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         substraitContext, leftCondition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val validator = new NativePlanEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      val validateInfo = validator.doValidateWithFallBackLog(planNode.toProtobuf.toByteArray)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }

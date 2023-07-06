@@ -19,6 +19,7 @@ package io.glutenproject.expression
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.test.TestStats
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
@@ -278,6 +279,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       return HiveSimpleUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
     }
 
+    TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
     val substraitExprName = ExpressionMappings.expressionsMap.get(expr.getClass)
     if (substraitExprName.isEmpty) {
@@ -292,6 +294,15 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     expr match {
+      case extendedExpr
+        if ExpressionMappings.expressionExtensionTransformer
+          .extensionExpressionsMapping.contains(extendedExpr.getClass) =>
+        // Use extended expression transformer to replace custom expression first
+        ExpressionMappings.expressionExtensionTransformer
+          .replaceWithExtensionExpressionTransformer(
+            substraitExprName.get,
+            extendedExpr,
+            attributeSeq)
       case c: CreateArray =>
         val children =
           c.children.map(child => replaceWithExpressionTransformer(child, attributeSeq))
@@ -384,6 +395,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           u.timeZoneId,
           u.failOnError,
           u
+        )
+      case truncTimestamp: TruncTimestamp =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(truncTimestamp.format, attributeSeq),
+          replaceWithExpressionTransformer(truncTimestamp.timestamp, attributeSeq),
+          truncTimestamp.timeZoneId,
+          truncTimestamp
         )
       case r: RegExpReplace =>
         new RegExpReplaceTransformer(
@@ -506,6 +525,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(locate.start, attributeSeq),
           locate
         )
+      case equal: EqualNullSafe =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genEqualNullSafeTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(equal.left, attributeSeq),
+          replaceWithExpressionTransformer(equal.right, attributeSeq),
+          equal
+        )
       case sha1: Sha1 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genSha1Transformer(
           substraitExprName.get,
@@ -517,6 +543,62 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(sha2.left, attributeSeq),
           replaceWithExpressionTransformer(sha2.right, attributeSeq),
           sha2)
+      case size: Size =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(size.child, attributeSeq),
+          size)
+      case namedStruct: CreateNamedStruct =>
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genNamedStructTransformer(substraitExprName.get, namedStruct, attributeSeq)
+      case elementAt: ElementAt =>
+        new BinaryArgumentsCollectionOperationTransformer(
+          substraitExprName.get,
+          left = replaceWithExpressionTransformer(elementAt.left, attributeSeq),
+          right = replaceWithExpressionTransformer(elementAt.right, attributeSeq),
+          elementAt
+        )
+      case arrayContains: ArrayContains =>
+        new BinaryArgumentsCollectionOperationTransformer(
+          substraitExprName.get,
+          left = replaceWithExpressionTransformer(arrayContains.left, attributeSeq),
+          right = replaceWithExpressionTransformer(arrayContains.right, attributeSeq),
+          arrayContains
+        )
+      case arrayMax: ArrayMax =>
+        new UnaryArgumentCollectionOperationTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(arrayMax.child, attributeSeq),
+          arrayMax)
+      case arrayMin: ArrayMin =>
+        new UnaryArgumentCollectionOperationTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(arrayMin.child, attributeSeq),
+          arrayMin)
+      case mapKeys: MapKeys =>
+        new UnaryArgumentCollectionOperationTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(mapKeys.child, attributeSeq),
+          mapKeys)
+      case mapValues: MapValues =>
+        new UnaryArgumentCollectionOperationTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(mapValues.child, attributeSeq),
+          mapValues)
+      case seq: Sequence =>
+        new SequenceTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(seq.start, attributeSeq),
+          replaceWithExpressionTransformer(seq.stop, attributeSeq),
+          seq.stepOpt.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          seq
+        )
+      case j: JsonTuple =>
+        val children = j.children.map(child =>
+          replaceWithExpressionTransformer(child, attributeSeq))
+        JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
+      // The other expression case must be put before LeafExpression, UnaryExpression,
+      // BinaryExpression, TernaryExpression, QuaternaryExpression
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName.get, l)
       case u: UnaryExpression =>
@@ -566,55 +648,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(q.fourth, attributeSeq),
           q
         )
-      case namedStruct: CreateNamedStruct =>
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genNamedStructTransformer(substraitExprName.get, namedStruct, attributeSeq)
-      case element_at: ElementAt =>
-        new BinaryArgumentsCollectionOperationTransformer(
-          substraitExprName.get,
-          left = replaceWithExpressionTransformer(element_at.left, attributeSeq),
-          right = replaceWithExpressionTransformer(element_at.right, attributeSeq),
-          element_at
-        )
-      case arrayContains: ArrayContains =>
-        new BinaryArgumentsCollectionOperationTransformer(
-          substraitExprName.get,
-          left = replaceWithExpressionTransformer(arrayContains.left, attributeSeq),
-          right = replaceWithExpressionTransformer(arrayContains.right, attributeSeq),
-          arrayContains
-        )
-      case arrayMax: ArrayMax =>
-        new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName.get,
-          replaceWithExpressionTransformer(arrayMax.child, attributeSeq),
-          arrayMax)
-      case arrayMin: ArrayMin =>
-        new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName.get,
-          replaceWithExpressionTransformer(arrayMin.child, attributeSeq),
-          arrayMin)
-      case mapKeys: MapKeys =>
-        new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName.get,
-          replaceWithExpressionTransformer(mapKeys.child, attributeSeq),
-          mapKeys)
-      case mapValues: MapValues =>
-        new UnaryArgumentCollectionOperationTransformer(
-          substraitExprName.get,
-          replaceWithExpressionTransformer(mapValues.child, attributeSeq),
-          mapValues)
-      case seq: Sequence =>
-        new SequenceTransformer(
-          substraitExprName.get,
-          replaceWithExpressionTransformer(seq.start, attributeSeq),
-          replaceWithExpressionTransformer(seq.stop, attributeSeq),
-          seq.stepOpt.map(replaceWithExpressionTransformer(_, attributeSeq)),
-          seq
-        )
-      case j : JsonTuple =>
-        val children = j.children.map(child =>
-          replaceWithExpressionTransformer(child, attributeSeq))
-        new JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
       case expr =>
         logWarning(s"${expr.getClass} or $expr is not currently supported.")
         throw new UnsupportedOperationException(

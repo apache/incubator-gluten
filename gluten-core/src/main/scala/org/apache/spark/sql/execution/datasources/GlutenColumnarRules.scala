@@ -26,14 +26,10 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.command.{DataWritingCommand, DataWritingCommandExec}
+import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec}
 import org.apache.spark.sql.hive.execution.InsertIntoHiveDirCommand
-import org.apache.spark.sql.types.{DataType, Decimal}
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy {
   override def apply(plan: LogicalPlan): Seq[SparkPlan] =
@@ -87,10 +83,26 @@ object GlutenColumnarRules {
 
   // TODO: support Insert clause
 
+  // TODO: support ctas in Spark3.4, see https://github.com/apache/spark/pull/39220
+  // TODO: support dynamic partition and bucket write
+  //  1. pull out `Empty2Null` and required ordering to `WriteFilesExec`, see Spark3.4 `V1Writes`
+  //  2. support detect partition value, partition path, bucket value, bucket path at native side,
+  //     see `BaseDynamicPartitionDataWriter`
   def isGlutenInsertInto(cmd: DataWritingCommand): Boolean = {
     cmd match {
-      case command: InsertIntoHadoopFsRelationCommand =>
-        command.fileFormat.isInstanceOf[GlutenParquetFileFormat]
+      case command: CreateDataSourceTableAsSelectCommand =>
+        if (command.table.provider.contains("velox")) {
+          throw new UnsupportedOperationException(
+            "Velox file format does not support create table as select.")
+        }
+        false
+      case command: InsertIntoHadoopFsRelationCommand
+          if command.fileFormat.isInstanceOf[GlutenParquetFileFormat] =>
+        if (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty) {
+          throw new UnsupportedOperationException(
+            "Velox file format does not support dynamic partition write and bucket write.")
+        }
+        true
       case command: InsertIntoHiveDirCommand =>
         command.storage.outputFormat.get.equals(
           "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")

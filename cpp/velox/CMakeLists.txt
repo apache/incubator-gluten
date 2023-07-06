@@ -23,13 +23,14 @@ include(ExternalProject)
 include(FindPkgConfig)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
+include(FindPackageHandleStandardArgs)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
 endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes -Wno-class-memaccess")
 
 set(SYSTEM_LIB_PATH "/usr/lib" CACHE PATH "System Lib dir")
 set(SYSTEM_LIB64_PATH "/usr/lib64" CACHE PATH "System Lib64 dir")
@@ -44,7 +45,7 @@ else()
 endif()
 
 if (NOT DEFINED VELOX_HOME)
-  set(VELOX_HOME ${CMAKE_SOURCE_DIR}/../ep/build-velox/build/velox_ep)
+  set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
 
@@ -73,10 +74,11 @@ endfunction()
 macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
   add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
-  add_velox_dependency(functions::sparksql::window "${VELOX_COMPONENTS_PATH}/functions/sparksql/windows/libvelox_functions_spark_windows.a")
+  add_velox_dependency(functions::window::sparksql "${VELOX_COMPONENTS_PATH}/functions/sparksql/window/libvelox_functions_spark_window.a")
   add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
-
+  add_velox_dependency(functions::lib::agg "${VELOX_COMPONENTS_PATH}/functions/lib/aggregates/libvelox_functions_aggregates.a")
   add_velox_dependency(functions::prestosql::window "${VELOX_COMPONENTS_PATH}/functions/prestosql/window/libvelox_window.a")
+  add_velox_dependency(functions::lib::window "${VELOX_COMPONENTS_PATH}/functions/lib/window/libvelox_functions_window.a")
   add_velox_dependency(velox::buffer "${VELOX_COMPONENTS_PATH}/buffer/libvelox_buffer.a")
 
   add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
@@ -91,9 +93,11 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
   add_velox_dependency(parse::expression "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_expression.a")
   add_velox_dependency(vector::arrow::bridge "${VELOX_COMPONENTS_PATH}/vector/arrow/libvelox_arrow_bridge.a")
+  add_velox_dependency(row "${VELOX_COMPONENTS_PATH}/row/libvelox_row_fast.a")
 
   add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
+  add_velox_dependency(connector::hive_parition "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_partition_function.a")
   if(ENABLE_HDFS)
     add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
   endif()
@@ -163,14 +167,22 @@ macro(find_libhdfs3)
   if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
     set(LIBHDFS3_LIBRARY HDFS::hdfs3)
   else()
+    find_path(libhdfs3_INCLUDE_DIR hdfs/hdfs.h)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-    find_library(LIBHDFS3_LIBRARY NAMES hdfs3 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+    find_library(libhdfs3_LIBRARY NAMES hdfs3)
+    find_package_handle_standard_args(libhdfs3 DEFAULT_MSG
+      libhdfs3_INCLUDE_DIR
+      libhdfs3_LIBRARY
+    )
+    add_library(HDFS::hdfs3 SHARED IMPORTED)
+      set_target_properties(HDFS::hdfs3 PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${libhdfs3_INCLUDE_DIR}"
+      IMPORTED_LOCATION "${libhdfs3_LIBRARY}"
+    )
   endif()
 
-  if (NOT LIBHDFS3_LIBRARY)
+  if (NOT libhdfs3_FOUND)
     message(FATAL_ERROR "LIBHDFS3 Library Not Found")
-  else()
-    message(STATUS "LIBHDFS3 Library Can Be Found in ${LIBHDFS3_LIBRARY}")
   endif()
 endmacro()
 
@@ -199,6 +211,7 @@ endmacro()
 set(VELOX_SRCS
     shuffle/VeloxShuffleWriter.cc
     jni/VeloxJniWrapper.cc
+    shuffle/VeloxShuffleReader.cc
     compute/VeloxBackend.cc
     compute/VeloxInitializer.cc
     compute/WholeStageResultIterator.cc
@@ -211,6 +224,7 @@ set(VELOX_SRCS
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
     utils/VeloxArrowUtils.cc
+    operators/serializer/VeloxColumnarBatchSerializer.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
@@ -257,6 +271,13 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
+find_package(simdjson REQUIRED)
+if(TARGET simdjson::simdjson AND NOT TARGET simdjson)
+  add_library(simdjson INTERFACE)
+  target_link_libraries(simdjson INTERFACE simdjson::simdjson)
+endif()
+target_link_libraries(velox PUBLIC simdjson)
+
 if(ENABLE_GLUTEN_VCPKG)
   find_package(Thrift CONFIG)
 else()
@@ -278,7 +299,7 @@ endif()
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
   find_libhdfs3()
-  target_link_libraries(velox PUBLIC "${LIBHDFS3_LIBRARY}")
+  target_link_libraries(velox PUBLIC HDFS::hdfs3)
 endif()
 
 if(BUILD_BENCHMARKS)

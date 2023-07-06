@@ -17,7 +17,6 @@
 package io.glutenproject.utils
 
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
-import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
@@ -26,8 +25,6 @@ import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression}
 
 import com.google.common.collect.Lists
-
-import java.util
 
 object PlanNodesUtil {
 
@@ -41,12 +38,8 @@ object PlanNodesUtil {
       ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
     context.setIteratorNode(iteratorIndex, inputIter)
 
-    val typeList = new util.ArrayList[TypeNode]()
-    val nameList = new util.ArrayList[String]()
-    for (attr <- output) {
-      typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-    }
+    val typeList = ConverterUtils.collectAttributeTypeNodes(output)
+    val nameList = ConverterUtils.collectAttributeNamesWithExprId(output)
     val readRel =
       RelBuilder.makeReadRel(typeList, nameList, null, iteratorIndex, context, operatorId)
 

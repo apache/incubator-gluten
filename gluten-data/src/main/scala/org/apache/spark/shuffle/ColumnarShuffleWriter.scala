@@ -18,8 +18,9 @@
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.GlutenColumnarBatches
-import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
+import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.memory.Spiller
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -59,16 +60,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
-  private val customizedCompressionCodec = {
-    val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-    if (GlutenConfig.getConf.columnarShuffleEnableQat) {
-      GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
-    } else if (GlutenConfig.getConf.columnarShuffleEnableIaa) {
-      GlutenConfig.GLUTEN_IAA_CODEC_PREFIX + codec
-    } else {
-      codec
-    }
-  }
+  private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
 
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
@@ -79,7 +71,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
 
   private val jniWrapper = new ShuffleWriterJniWrapper
 
-  private var nativeShuffleWriter: Long = 0
+  private var nativeShuffleWriter: Long = -1L
 
   private var splitResult: SplitResult = _
 
@@ -119,25 +111,25 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val handle = GlutenColumnarBatches.getNativeHandle(cb)
-        if (nativeShuffleWriter == 0) {
+        val handle = ColumnarBatches.getNativeHandle(cb)
+        if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
             availableOffHeapPerTask(),
             nativeBufferSize,
-            customizedCompressionCodec,
+            compressionCodec,
             batchCompressThreshold,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
             preferSpill,
-            NativeMemoryAllocators.createSpillable(
+            NativeMemoryAllocators.getDefault().createSpillable(
               new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
-                  if (nativeShuffleWriter == 0) {
+                  if (nativeShuffleWriter == -1L) {
                     throw new IllegalStateException(
-                      "Fatal: spill() called before a shuffle shuffle writer " +
-                      "evaluator is created. This behavior should be optimized by moving memory " +
+                      "Fatal: spill() called before a shuffle writer " +
+                      "is created. This behavior should be optimized by moving memory " +
                       "allocations from make() to split()")
                   }
                   logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
@@ -163,7 +155,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
     }
 
     val startTime = System.nanoTime()
-    if (nativeShuffleWriter != 0) {
+    if (nativeShuffleWriter != -1L) {
       splitResult = jniWrapper.stop(nativeShuffleWriter)
     }
 
@@ -219,9 +211,9 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
         None
       }
     } finally {
-      if (nativeShuffleWriter != 0) {
+      if (nativeShuffleWriter != -1L) {
         closeShuffleWriter()
-        nativeShuffleWriter = 0
+        nativeShuffleWriter = -1L
       }
     }
   }

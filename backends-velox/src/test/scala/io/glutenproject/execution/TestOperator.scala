@@ -91,17 +91,6 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare("select * from temp_test_is_null where col1 is null") { _ => }
     checkLengthAndPlan(df, 2)
   }
-  
-  test("velox parquet write") {
-    withTempDir { dir =>
-      val path = dir.toURI.getPath
-      val df = runQueryAndCompare(
-        "select * from lineitem where l_comment is not null " +
-          "and l_orderkey = 1") { _ => }
-
-      df.write.mode("append").format("velox").save(path)
-    }
-  }
 
   test("is_not_null") {
     val df = runQueryAndCompare(
@@ -220,6 +209,15 @@ class TestOperator extends WholeStageTransformerSuite {
     runQueryAndCompare(
       "select cume_dist() over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+    
+    runQueryAndCompare(
+      "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+          df => {
+            assert(getExecutedPlan(df).count(plan => {
+              plan.isInstanceOf[WindowExecTransformer]
+            }) > 0)
+          }}
 
     runQueryAndCompare(
       "select sum(l_partkey + 1) over" +
@@ -411,7 +409,8 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("orc scan") {
-    val df = spark.read.format("orc").load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
+    val df = spark.read.format("orc")
+      .load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
     df.createOrReplaceTempView("lineitem_orc")
     runQueryAndCompare(
       "select l_orderkey from lineitem_orc") { df => {
@@ -427,6 +426,15 @@ class TestOperator extends WholeStageTransformerSuite {
     val plan = df.queryExecution.executedPlan
     assert(plan.find(_.isInstanceOf[RDDScanExec]).isDefined)
     assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
-    assert(plan.find(_.isInstanceOf[RowToArrowColumnarExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[RowToVeloxColumnarExec]).isDefined)
+  }
+
+  test("equal null safe") {
+    runQueryAndCompare(
+      """
+        |select l_quantity <=> 1000 from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
   }
 }

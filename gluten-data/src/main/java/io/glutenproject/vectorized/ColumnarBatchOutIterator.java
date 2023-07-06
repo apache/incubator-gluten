@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.columnarbatch.GlutenColumnarBatches;
+import io.glutenproject.columnarbatch.ColumnarBatches;
 import io.glutenproject.metrics.IMetrics;
 import java.io.IOException;
 import java.util.List;
@@ -36,6 +36,8 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
 
   private native long nativeNext(long nativeHandle);
 
+  private native long nativeSpill(long nativeHandle, long size);
+
   private native void nativeClose(long nativeHandle);
 
   private native IMetrics nativeFetchMetrics(long nativeHandle);
@@ -51,12 +53,16 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return GlutenColumnarBatches.create(batchHandle);
+    return ColumnarBatches.create(batchHandle);
   }
 
   @Override
   public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
     return nativeFetchMetrics(handle);
+  }
+
+  public long spill(long size) {
+    return nativeSpill(handle, size);
   }
 
   @Override

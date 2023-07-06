@@ -16,41 +16,43 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import io.glutenproject.columnarbatch.{ArrowColumnarBatches, IndicatorVector}
+import java.io.IOException
+import java.net.URI
+import scala.collection.JavaConverters._
+import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.ArrowAbiUtil
-
+import org.apache.arrow.c.ArrowSchema
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.hive.ql.exec.Utilities
+import org.apache.hadoop.hive.ql.io.{HiveFileFormatUtils, HiveOutputFormat}
+import org.apache.hadoop.hive.serde2.Serializer
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption
+import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspectorUtils, StructObjectInspector}
+import org.apache.hadoop.io.Writable
+import org.apache.hadoop.mapred.{JobConf, Reporter}
+import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SPECULATION_ENABLED
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.datasources.{FakeRow, FileFormat, OutputWriter, OutputWriterFactory, VeloxWriteQueue}
-import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil}
+import org.apache.spark.sql.execution.datasources.velox.VeloxParquetFileFormat
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
+import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.util.SerializableJobConf
 
-import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.hadoop.hive.ql.exec.Utilities
-import org.apache.hadoop.hive.ql.io.{HiveFileFormatUtils, HiveOutputFormat}
-import org.apache.hadoop.hive.serde2.Serializer
-import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspectorUtils, StructObjectInspector}
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption
-import org.apache.hadoop.io.Writable
-import org.apache.hadoop.mapred.{JobConf, Reporter}
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-import org.apache.parquet.hadoop.codec.CodecConfig
-
 import java.io.IOException
 import java.net.URI
-
 import scala.collection.JavaConverters._
+import com.google.common.base.Preconditions
 
 /**
  * This file is copied from Spark
@@ -87,6 +89,14 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
         .get("spark.plugins")
         .equals("io.glutenproject.GlutenPlugin")
     ) {
+      val compressionCodec = if (fileSinkConf.compressed) {
+        fileSinkConf.compressCodec
+      } else {
+        "none"
+      }
+      val nativeConf = VeloxParquetFileFormat.nativeConf(
+        options, compressionCodec)
+
       // Only offload parquet write to velox backend.
       new OutputWriterFactory {
         override def getFileExtension(context: TaskAttemptContext): String = {
@@ -114,8 +124,8 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           val allocator = ArrowBufferAllocators.contextInstance()
           try {
             ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-            instanceId =
-              datasourceJniWrapper.nativeInitDatasource(originPath, cSchema.memoryAddress())
+            instanceId = datasourceJniWrapper.nativeInitDatasource(
+              originPath, cSchema.memoryAddress(), nativeConf)
           } catch {
             case e: IOException =>
               throw new RuntimeException(e)
@@ -134,15 +144,9 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           new OutputWriter {
             override def write(row: InternalRow): Unit = {
               val batch = row.asInstanceOf[FakeRow].batch
-              if (batch.column(0).isInstanceOf[IndicatorVector]) {
-                val giv = batch.column(0).asInstanceOf[IndicatorVector]
-                giv.retain()
-                writeQueue.enqueue(batch)
-              } else {
-                val offloaded =
-                  ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-                writeQueue.enqueue(offloaded)
-              }
+              Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
+              ColumnarBatches.retain(batch)
+              writeQueue.enqueue(batch)
             }
 
             override def close(): Unit = {

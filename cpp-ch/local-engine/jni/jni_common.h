@@ -60,7 +60,7 @@ jboolean safeCallBooleanMethod(JNIEnv * env, jobject obj, jmethodID method_id, A
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     auto ret = env->CallBooleanMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
     return ret;
 }
 
@@ -69,7 +69,7 @@ jlong safeCallLongMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args...
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     auto ret = env->CallLongMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
     return ret;
 }
 
@@ -78,7 +78,7 @@ jint safeCallIntMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... a
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     auto ret = env->CallIntMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
     return ret;
 }
 
@@ -87,7 +87,7 @@ void safeCallVoidMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... 
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     env->CallVoidMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
 }
 
 template <typename... Args>
@@ -95,7 +95,7 @@ jlong safeCallStaticLongMethod(JNIEnv * env, jclass clazz, jmethodID method_id, 
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     auto ret = env->CallStaticLongMethod(clazz, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
     return ret;
 }
 }

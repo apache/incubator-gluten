@@ -151,6 +151,37 @@
     </dependency>
   </dependencies>
 
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>net.alchim31.maven</groupId>
+          <artifactId>scala-maven-plugin</artifactId>
+          <configuration>
+            <displayCmd>true</displayCmd>
+            <jvmArgs>
+              <jvmArg>-Xss128m</jvmArg>
+            </jvmArgs>
+            <args>
+              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+              <arg>-Ywarn-unused:imports</arg>
+              <arg>-Xfatal-warnings</arg>
+              <arg>-deprecation</arg>
+            </args>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+          <configuration>
+            <configLocation>${project.basedir}/../../scalastyle-config.xml</configLocation>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+  </build>
+
   <profiles>
     <profile>
       <id>spark-3.2</id>

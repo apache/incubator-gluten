@@ -32,10 +32,9 @@ import java.io.File
 import java.util
 
 import scala.io.Source
-import scala.language.postfixOps
 
 abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
-  private var _spark: SparkSession = null
+  private var _spark: SparkSession = _
 
   override protected def spark: SparkSession = _spark
   override protected val backend: String = "ch"
@@ -65,17 +64,18 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           }
           val noFallBack = queryNum match {
             case i
-                if (i == 10 || i == 16 || i == 28 || i == 35 || i == 45 ||
-                  i == 88 || i == 94) =>
+                if i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
+                  i == 88 || i == 94 =>
               // Q10 BroadcastHashJoin, ExistenceJoin
               // Q16 ShuffledHashJoin, NOT condition
               // Q28 BroadcastNestedLoopJoin
               // Q35 BroadcastHashJoin, ExistenceJoin
               // Q45 BroadcastHashJoin, ExistenceJoin
+              // Q77 CartesianProduct
               // Q88 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
-            case j if (j == 38 || j == 87) =>
+            case j if j == 38 || j == 87 =>
               // Q38 and Q87 : Hash shuffle is not supported for expression in some case
               if (isAqe) {
                 (true, true)
@@ -87,19 +87,15 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           sqlNums.map((_, noFallBack._1, noFallBack._2))
         })
 
+  // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
   protected val excludedTpcdsQueries: Set[String] = Set(
     "q14a", // inconsistent results
     "q14b", // inconsistent results
-    "q17", // inconsistent results
     "q18", // inconsistent results
-    "q31", // inconsistent results
     "q49", // inconsistent results
     "q61", // inconsistent results
     "q67", // inconsistent results
-    "q71", // inconsistent results, unstable order
-    "q77", // inconsistent results
     "q78", // inconsistent results
-    "q80", // fatal
     "q83", // decimal error
     "q90" // inconsistent results(decimal)
   )
@@ -158,7 +154,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 24)
+    assert(result.length == 24)
   }
 
   override protected def sparkConf: SparkConf = {

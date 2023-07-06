@@ -42,7 +42,7 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 
-set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../gluten-core/src/main/resources/substrait/proto)
+set(proto_directory ${GLUTEN_HOME}/gluten-core/src/main/resources/substrait/proto)
 set(substrait_proto_directory ${proto_directory}/substrait)
 message(STATUS "Set Proto Directory in ${proto_directory}")
 
@@ -183,9 +183,9 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/ProtobufUtils.cc
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
-        shuffle/reader.cc
-        shuffle/ArrowShuffleWriter.cc
         operators/writer/ArrowWriter.cc
+        shuffle/reader.cc
+        shuffle/ShuffleWriter.cc
         shuffle/Partitioner.cc
         shuffle/FallbackRangePartitioner.cc
         shuffle/HashPartitioner.cc
@@ -194,8 +194,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/PartitionWriterCreator.cc
         shuffle/LocalPartitionWriter.cc
         shuffle/rss/RemotePartitionWriter.cc
-        shuffle/rss/CelebornPartitionWriter.cc
-        )
+        shuffle/rss/CelebornPartitionWriter.cc memory/ColumnarBatch.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})

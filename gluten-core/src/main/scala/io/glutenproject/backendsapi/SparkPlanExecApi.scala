@@ -26,6 +26,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, GetStructField, NamedExpression, Sha1, Sha2, Size}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -35,6 +36,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -68,15 +70,10 @@ trait SparkPlanExecApi {
    * @return
    *   the transformer of FilterExec
    */
-  def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecBaseTransformer
+  def genFilterExecTransformer(condition: Expression, child: SparkPlan): FilterExecTransformerBase
 
-  /**
-  * Generate BasicScanTransformer
-   * @param child
-   * @return
-   */
-  def genHiveTableScanExecTransformer(child: SparkPlan) : Option[HiveTableScanExecTransformer] =
-    Option.empty
+  def genHiveTableScanExecTransformer(plan: SparkPlan): HiveTableScanExecTransformer =
+    HiveTableScanExecTransformer(plan)
 
   /** Generate HashAggregateExecTransformer. */
   def genHashAggregateExecTransformer(
@@ -160,9 +157,7 @@ trait SparkPlanExecApi {
    */
   def createColumnarBatchSerializer(
       schema: StructType,
-      readBatchNumRows: SQLMetric,
-      numOutputRows: SQLMetric,
-      dataSize: SQLMetric): Serializer
+      metrics: Map[String, SQLMetric]): Serializer
 
   /** Create broadcast relation for BroadcastExchangeExec */
   def createBroadcastRelation(
@@ -231,6 +226,14 @@ trait SparkPlanExecApi {
       attributeSeq: Seq[Attribute]): ExpressionTransformer =
     new NamedStructTransformerBase(substraitExprName, original, attributeSeq)
 
+  def genEqualNullSafeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: EqualNullSafe): ExpressionTransformer = {
+    new BinaryExpressionTransformer(substraitExprName, left, right, original)
+  }
+
   /**
    * Generate an ExpressionTransformer to transform Sha2 expression. Sha2Transformer is the default
    * implementation.
@@ -254,6 +257,26 @@ trait SparkPlanExecApi {
     new Sha1Transformer(substraitExprName, child, original)
   }
 
+  def genSizeExpressionTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Size): ExpressionTransformer = {
+    new UnaryExpressionTransformer(substraitExprName, child, original)
+  }
+
+  /**
+   * Generate an ExpressionTransformer to transform TruncTimestamp expression.
+   * TruncTimestampTransformer is the default implementation.
+   */
+  def genTruncTimestampTransformer(
+    substraitExprName: String,
+    format: ExpressionTransformer,
+    timestamp: ExpressionTransformer,
+    timeZoneId: Option[String] = None,
+    original: TruncTimestamp): ExpressionTransformer = {
+    new TruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+  }
+
   def genCastWithNewChild(c: Cast): Cast = {
     c
   }
@@ -269,6 +292,15 @@ trait SparkPlanExecApi {
     * Define backend specfic expression mappings.
     */
   def extraExpressionMappings: Seq[Sig] = Seq.empty
+
+  /**
+   * Define whether the join operator is fallback because of
+   * the join operator is not supported by backend
+   */
+  def joinFallback(JoinType: JoinType,
+                   leftOutputSet: AttributeSet,
+                   right: AttributeSet,
+                   condition: Option[Expression]): Boolean = false
 
   /**
    * default function to generate window function node
@@ -343,6 +375,23 @@ trait SparkPlanExecApi {
             WindowExecTransformer.getFrameBound(frame.lower),
             frame.frameType.sql)
           windowExpressionNodes.add(windowFunctionNode)
+        case wf@NthValue(input, offset: Literal, _) =>
+            val frame = wExpression.windowSpec
+              .frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            childrenNodeList.add(ExpressionConverter.replaceWithExpressionTransformer(
+              input,
+              attributeSeq = originalInputAttributes).doTransform(args))
+            childrenNodeList.add(new LiteralTransformer(offset).doTransform(args))
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, wf).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
+              frame.upper.sql,
+              frame.lower.sql,
+              frame.frameType.sql)
+            windowExpressionNodes.add(windowFunctionNode)
         case _ =>
           throw new UnsupportedOperationException("unsupported window function type: " +
             wExpression.windowFunction)

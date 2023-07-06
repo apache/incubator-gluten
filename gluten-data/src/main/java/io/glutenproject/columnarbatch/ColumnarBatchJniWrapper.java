@@ -27,13 +27,13 @@ public class ColumnarBatchJniWrapper extends JniInitialized {
 
   public native String getType(long handle);
 
-  public native long getNumColumns(long handle);
+  public native long numColumns(long handle);
 
-  public native long getNumRows(long handle);
+  public native long numRows(long handle);
 
-  public native long getBytes(long handle);
+  public native long numBytes(long handle);
 
-  public native long addColumn(long handle, int index, long colHandle);
+  public native long compose(long[] handles);
 
   public native long createWithArrowArray(long cSchema, long cArray);
 

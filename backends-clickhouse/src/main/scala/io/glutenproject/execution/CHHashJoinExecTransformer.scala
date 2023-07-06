@@ -23,8 +23,6 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.SparkPlan
 
-import io.substrait.proto.JoinRel
-
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -49,10 +47,8 @@ case class CHShuffledHashJoinExecTransformer(
     copy(left = newLeft, right = newRight)
 
   override def doValidateInternal(): Boolean = {
-    var shouldFallback = false
-    if (substraitJoinType != JoinRel.JoinType.JOIN_TYPE_INNER) {
-      shouldFallback = CHJoinValidateUtil.doValidate(condition)
-    }
+    val shouldFallback =
+      CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
     if (shouldFallback) {
       return false
     }
@@ -88,11 +84,9 @@ case class CHBroadcastHashJoinExecTransformer(
 
    */
   override def doValidateInternal(): Boolean = {
-    var shouldFallback = false
-    if (substraitJoinType != JoinRel.JoinType.JOIN_TYPE_INNER) {
-      shouldFallback = CHJoinValidateUtil.doValidate(condition)
-    }
-    if (isNullAwareAntiJoin == true) {
+    var shouldFallback =
+      CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
+    if (isNullAwareAntiJoin) {
       shouldFallback = true
     }
     if (shouldFallback) {

@@ -54,17 +54,13 @@ public class NativeMetrics implements IMetrics {
     }
   }
 
-  /**
-   * Deserialize metrics json string to MetricsData
-   */
+  /** Deserialize metrics json string to MetricsData */
   public static List<MetricsData> deserializeMetricsJson(String metricsJson) {
     if (metricsJson != null && !metricsJson.isEmpty()) {
       ObjectMapper mapper = new ObjectMapper();
       try {
         List<MetricsData> metricsDataList =
-            mapper.readValue(
-                metricsJson,
-                new TypeReference<List<MetricsData>>() { });
+            mapper.readValue(metricsJson, new TypeReference<List<MetricsData>>() {});
         Collections.reverse(metricsDataList);
         return metricsDataList;
       } catch (Exception e) {

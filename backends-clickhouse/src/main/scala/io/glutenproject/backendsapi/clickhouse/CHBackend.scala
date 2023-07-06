@@ -105,6 +105,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     GlutenConfig.getConf.enableColumnarSort
   }
 
+  override def supportSortMergeJoinExec(): Boolean = {
+    false
+  }
+
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     var allSupported = true
     breakable {
@@ -117,6 +121,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
                 _: DenseRank =>
               allSupported = allSupported && true
             case _ =>
+              logDebug(s"Not support window function: ${wExpression.getClass}")
               allSupported = false
               break
           }
@@ -128,8 +133,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def supportStructType(): Boolean = true
 
   override def supportExpandExec(): Boolean = true
-
-  override def disableVanillaColumnarReaders(): Boolean = true
 
   override def excludeScanExecFromCollapsedStage(): Boolean =
     SQLConf.get

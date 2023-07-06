@@ -26,191 +26,213 @@
 
 namespace local_engine
 {
-static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
-    {"is_not_null", "isNotNull"},
-    {"is_null", "isNull"},
-    {"gte", "greaterOrEquals"},
-    {"gt", "greater"},
-    {"lte", "lessOrEquals"},
-    {"lt", "less"},
-    {"equal", "equals"},
 
-    {"and", "and"},
-    {"or", "or"},
-    {"not", "not"},
-    {"xor", "xor"},
+static const std::map<std::string, std::string> SCALAR_FUNCTIONS
+    = {{"is_not_null", "isNotNull"},
+       {"is_null", "isNull"},
+       {"gte", "greaterOrEquals"},
+       {"gt", "greater"},
+       {"lte", "lessOrEquals"},
+       {"lt", "less"},
+       {"equal", "equals"},
 
-    {"extract", ""},
-    {"cast", "CAST"},
-    {"alias", "alias"},
+       {"and", "and"},
+       {"or", "or"},
+       {"not", "not"},
+       {"xor", "xor"},
 
-    /// datetime functions
-    {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
-    {"quarter", "toQuarter"},
-    {"to_unix_timestamp", "toUnixTimestamp"},
-    {"unix_timestamp", "toUnixTimestamp"},
-    {"date_format", "formatDateTimeInJodaSyntax"},
+       {"extract", ""},
+       {"cast", "CAST"},
+       {"alias", "alias"},
 
-    /// arithmetic functions
-    {"subtract", "minus"},
-    {"multiply", "multiply"},
-    {"add", "plus"},
-    {"divide", "divide"},
-    {"modulus", "modulo"},
-    {"pmod", "pmod"},
-    {"abs", "abs"},
-    {"ceil", "ceil"},
-    {"floor", "floor"},
-    {"round", "round"},
-    {"bround", "roundBankers"},
-    {"exp", "exp"},
-    {"power", "power"},
-    {"cos", "cos"},
-    {"cosh", "cosh"},
-    {"sin", "sin"},
-    {"sinh", "sinh"},
-    {"tan", "tan"},
-    {"tanh", "tanh"},
-    {"acos", "acos"},
-    {"asin", "asin"},
-    {"atan", "atan"},
-    {"atan2", "atan2"},
-    {"asinh", "asinh"},
-    {"acosh", "acosh"},
-    {"atanh", "atanh"},
-    {"bitwise_not", "bitNot"},
-    {"bitwise_and", "bitAnd"},
-    {"bitwise_or", "bitOr"},
-    {"bitwise_xor", "bitXor"},
-    {"sqrt", "sqrt"},
-    {"cbrt", "cbrt"},
-    {"degrees", "degrees"},
-    {"e", "e"},
-    {"pi", "pi"},
-    {"hex", "hex"},
-    {"unhex", "unhex"},
-    {"hypot", "hypot"},
-    {"sign", "sign"},
-    {"log10", "log10"},
-    {"log1p", "log1p"},
-    {"log2", "log2"},
-    {"log", "log"},
-    {"radians", "radians"},
-    {"greatest", "greatest"},
-    {"least", "least"},
-    {"shiftleft", "bitShiftLeft"},
-    {"shiftright", "bitShiftRight"},
-    {"check_overflow", "check_overflow"},
-    {"factorial", "factorial"},
-    {"rand", "randCanonical"},
-    {"isnan", "isNaN"},
+       /// datetime functions
+       {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
+       {"quarter", "toQuarter"},
+       {"to_unix_timestamp", "toUnixTimestamp"},
+       {"unix_timestamp", "toUnixTimestamp"},
+       {"date_format", "formatDateTimeInJodaSyntax"},
 
-    /// string functions
-    {"like", "like"},
-    {"not_like", "notLike"},
-    {"starts_with", "startsWith"},
-    {"ends_with", "endsWith"},
-    {"contains", "countSubstrings"},
-    {"substring", "substring"},
-    {"lower", "lower"},
-    {"upper", "upper"},
-    {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
-    {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
-    {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
-    {"concat", "concat"},
-    {"strpos", "position"},
-    {"char_length",
-     "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
-    {"replace", "replaceAll"},
-    {"regexp_replace", "replaceRegexpAll"},
-    {"regexp_extract", "regexpExtract"},
-    {"regexp_extract_all", "regexpExtractAllSpark"},
-    {"chr", "char"},
-    {"rlike", "match"},
-    {"ascii", "ascii"},
-    {"split", "splitByRegexp"},
-    {"concat_ws", "concat_ws"},
-    {"base64", "base64Encode"},
-    {"unbase64", "base64Decode"},
-    {"lpad", "leftPadUTF8"},
-    {"rpad", "rightPadUTF8"},
-    {"reverse", "reverseUTF8"},
-    {"md5", "MD5"},
-    {"translate", "translateUTF8"},
-    {"repeat", "repeat"},
-    {"position", "positionUTF8Spark"},
-    {"locate", "positionUTF8Spark"},
-    {"space", "space"},
+       /// arithmetic functions
+       {"subtract", "minus"},
+       {"multiply", "multiply"},
+       {"add", "plus"},
+       {"divide", "divide"},
+       {"modulus", "modulo"},
+       {"pmod", "pmod"},
+       {"abs", "abs"},
+       {"ceil", "ceil"},
+       {"floor", "floor"},
+       {"round", "round"},
+       {"bround", "roundBankers"},
+       {"exp", "exp"},
+       {"power", "power"},
+       {"cos", "cos"},
+       {"cosh", "cosh"},
+       {"sin", "sin"},
+       {"sinh", "sinh"},
+       {"tan", "tan"},
+       {"tanh", "tanh"},
+       {"acos", "acos"},
+       {"asin", "asin"},
+       {"atan", "atan"},
+       {"atan2", "atan2"},
+       {"asinh", "asinh"},
+       {"acosh", "acosh"},
+       {"atanh", "atanh"},
+       {"bitwise_not", "bitNot"},
+       {"bitwise_and", "bitAnd"},
+       {"bitwise_or", "bitOr"},
+       {"bitwise_xor", "bitXor"},
+       {"sqrt", "sqrt"},
+       {"cbrt", "cbrt"},
+       {"degrees", "degrees"},
+       {"e", "e"},
+       {"pi", "pi"},
+       {"hex", "hex"},
+       {"unhex", "unhex"},
+       {"hypot", "hypot"},
+       {"sign", "sign"},
+       {"log10", "log10"},
+       {"log1p", "log1p"},
+       {"log2", "log2"},
+       {"log", "log"},
+       {"radians", "radians"},
+       {"greatest", "greatest"},
+       {"least", "least"},
+       {"shiftleft", "bitShiftLeft"},
+       {"shiftright", "bitShiftRight"},
+       {"check_overflow", "checkDecimalOverflowSpark"},
+       {"factorial", "factorial"},
+       {"rand", "randCanonical"},
+       {"isnan", "isNaN"},
 
-    /// hash functions
-    {"murmur3hash", "murmurHashSpark3_32"},
-    {"xxhash64", "xxHashSpark64"},
-    {"sha1", "SHA1"},
-    {"sha2", ""}, /// dummpy mapping
-    {"crc32", "CRC32"},
+       /// string functions
+       {"like", "like"},
+       {"not_like", "notLike"},
+       {"starts_with", "startsWith"},
+       {"ends_with", "endsWith"},
+       {"contains", "countSubstrings"},
+       {"substring", "substring"},
+       {"lower", "lower"},
+       {"upper", "upper"},
+       {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
+       {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
+       {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
+       {"concat", "concat"},
+       {"strpos", "position"},
+       {"char_length",
+        "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
+       {"replace", "replaceAll"},
+       {"regexp_replace", "replaceRegexpAll"},
+       {"regexp_extract", "regexpExtract"},
+       {"regexp_extract_all", "regexpExtractAllSpark"},
+       {"chr", "char"},
+       {"rlike", "match"},
+       {"ascii", "ascii"},
+       {"split", "splitByRegexp"},
+       {"concat_ws", "concat_ws"},
+       {"base64", "base64Encode"},
+       {"unbase64", "base64Decode"},
+       {"lpad", "leftPadUTF8"},
+       {"rpad", "rightPadUTF8"},
+       {"reverse", "reverseUTF8"},
+       {"md5", "MD5"},
+       {"translate", "translateUTF8"},
+       {"repeat", "repeat"},
+       {"position", "positionUTF8Spark"},
+       {"locate", "positionUTF8Spark"},
+       {"space", "space"},
 
-    // in functions
-    {"in", "in"},
+       /// hash functions
+       {"murmur3hash", "murmurHashSpark3_32"},
+       {"xxhash64", "xxHashSpark64"},
+       {"sha1", "SHA1"},
+       {"sha2", ""}, /// dummpy mapping
+       {"crc32", "CRC32"},
 
-    // null related functions
-    {"coalesce", "coalesce"},
+       // in functions
+       {"in", "in"},
 
-    // aggregate functions
-    {"count", "count"},
-    {"avg", "avg"},
-    {"sum", "sum"},
-    {"min", "min"},
-    {"max", "max"},
-    {"collect_list", "groupArray"},
-    // In Spark, stddev is the alias for stddev_samp.
-    {"stddev", "stddev_samp"},
-    {"stddev_samp", "stddev_samp"},
-    {"stddev_pop", "stddev_pop"},
-    {"bit_and", "groupBitAnd"},
-    {"bit_or", "groupBitOr"},
-    {"bit_xor", "groupBitXor"},
-    {"covar_pop", "covarPop"},
-    {"covar_samp", "covarSamp"},
+       // null related functions
+       {"coalesce", "coalesce"},
 
-    // date or datetime functions
-    {"from_unixtime", "fromUnixTimestampInJodaSyntax"},
-    {"date_add", "addDays"},
-    {"date_sub", "subtractDays"},
-    {"datediff", "dateDiff"},
-    {"second", "toSecond"},
-    {"add_months", "addMonths"},
-    {"trunc", ""}, /// dummy mapping
+       // aggregate functions
+       {"count", "count"},
+       {"avg", "avg"},
+       {"sum", "sum"},
+       {"min", "min"},
+       {"max", "max"},
+       {"collect_list", "groupArray"},
+       {"first", "first_value_respect_nulls"},
+       {"first_ignore_null", "first_value"},
+       {"last_ignore_null", "last_value"},
+       {"last", "last_value_respect_nulls"},
 
-    // array functions
-    {"array", "array"},
-    {"size", "length"},
-    {"get_array_item", "arrayElement"},
-    {"element_at", "arrayElement"},
-    {"array_contains", "has"},
-    {"range", "range"}, /// dummy mapping
+       // window functions
+       {"lead", "lead"},
+       {"lag", "lag"},
+       {"dense_rank", "dense_rank"},
+       {"rank", "rank"},
+       {"row_number", "row_number"},
+       {"ntile", "ntile"},
+       {"percent_rank", "percent_rank"},
+       {"cume_dist", "cume_dist"},
 
-    // map functions
-    {"map", "map"},
-    {"get_map_value", "arrayElement"},
-    {"map_keys", "mapKeys"},
-    {"map_values", "mapValues"},
-    {"map_from_arrays", "mapFromArrays"},
+       // In Spark, stddev is the alias for stddev_samp.
+       {"stddev", "stddev_samp"},
+       {"stddev_samp", "stddev_samp"},
+       {"stddev_pop", "stddev_pop"},
+       {"bit_and", "groupBitAnd"},
+       {"bit_or", "groupBitOr"},
+       {"bit_xor", "groupBitXor"},
+       {"covar_pop", "covarPop"},
+       {"covar_samp", "covarSamp"},
+       {"var_samp", "varSamp"},
+       {"var_pop", "varPop"},
+       {"corr", "corr"},
 
-    // tuple functions
-    {"get_struct_field", "tupleElement"},
-    {"named_struct", "tuple"},
+       // date or datetime functions
+       {"from_unixtime", "fromUnixTimestampInJodaSyntax"},
+       {"date_add", "addDays"},
+       {"date_sub", "subtractDays"},
+       {"datediff", "dateDiff"},
+       {"second", "toSecond"},
+       {"add_months", "addMonths"},
+       {"trunc", ""}, /// dummy mapping
+       {"date_trunc", "dateTrunc"},
+       {"floor_datetime", "dateTrunc"},
 
-    // table-valued generator function
-    {"explode", "arrayJoin"},
-    {"posexplode", "arrayJoin"},
+       // array functions
+       {"array", "array"},
+       {"size", "length"},
+       {"get_array_item", "arrayElement"},
+       {"element_at", "arrayElement"},
+       {"array_contains", "has"},
+       {"range", "range"}, /// dummy mapping
 
-    // json functions
-    {"get_json_object", "get_json_object"},
-    {"to_json", "toJSONString"},
-    {"from_json", "JSONExtract"},
-    {"json_tuple", "json_tuple"},
-    {"json_array_length", "JSONArrayLength"},
-};
+       // map functions
+       {"map", "map"},
+       {"get_map_value", "arrayElement"},
+       {"map_keys", "mapKeys"},
+       {"map_values", "mapValues"},
+       {"map_from_arrays", "mapFromArrays"},
+
+       // tuple functions
+       {"get_struct_field", "tupleElement"},
+       {"named_struct", "tuple"},
+
+       // table-valued generator function
+       {"explode", "arrayJoin"},
+       {"posexplode", "arrayJoin"},
+
+       // json functions
+       {"get_json_object", "get_json_object"},
+       {"to_json", "toJSONString"},
+       {"from_json", "JSONExtract"},
+       {"json_tuple", "json_tuple"},
+       {"json_array_length", "JSONArrayLength"},
+       {"make_decimal", "makeDecimalSpark"},
+       {"unscaled_value", "unscaleValueSpark"}};
 
 static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
 
@@ -227,6 +249,29 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
 std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 bool isTypeMatched(const substrait::Type & substrait_type, const DataTypePtr & ch_type);
 
+class SerializedPlanParser;
+
+// Give a condition expression `cond_rel_`, found all columns with nullability that must not containt
+// null after this filter.
+// It's used to remove nullability of the columns for performance reason.
+class NonNullableColumnsResolver
+{
+public:
+    explicit NonNullableColumnsResolver(const DB::Block & header_, SerializedPlanParser & parser_,  const substrait::Expression & cond_rel_);
+    ~NonNullableColumnsResolver() = default;
+    // return column names
+    std::vector<std::string> resolve();
+private:
+    DB::Block header;
+    SerializedPlanParser & parser;
+    const substrait::Expression & cond_rel;
+
+    std::vector<std::string> collected_columns;
+
+    void visit(const substrait::Expression & expr);
+    void visitNonNullable(const substrait::Expression & expr);
+};
+
 class SerializedPlanParser
 {
 private:
@@ -234,6 +279,7 @@ private:
     friend class ASTParser;
     friend class FunctionParser;
     friend class FunctionExecutor;
+    friend class NonNullableColumnsResolver;
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
@@ -245,7 +291,7 @@ public:
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
     // mergetree need create two steps in parse, can't return single step
     DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel, std::vector<IQueryPlanStep *>& steps);
-    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input, std::vector<String>& not_nullable_columns);
+    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static DB::Block parseNameStruct(const substrait::NamedStruct & struct_);
@@ -290,45 +336,45 @@ private:
         const Block & header,
         const substrait::Expression & rel,
         std::string & result_name,
-        std::vector<String> & required_columns,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false);
     DB::ActionsDAGPtr parseArrayJoin(
         const Block & input,
         const substrait::Expression & rel,
         std::vector<String> & result_names,
-        std::vector<String> & required_columns,
+        DB::ActionsDAGPtr actions_dag = nullptr,
+        bool keep_result = false,
+        bool position = false);
+    DB::ActionsDAGPtr parseJsonTuple(
+        const Block & input,
+        const substrait::Expression & rel,
+        std::vector<String> & result_names,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
     const ActionsDAG::Node * parseFunctionWithDAG(
         const substrait::Expression & rel,
         std::string & result_name,
-        std::vector<String> & required_columns,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
         const substrait::Expression & rel,
         std::vector<String> & result_name,
-        std::vector<String> & required_columns,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
     void parseFunctionArguments(
         DB::ActionsDAGPtr & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
-        std::vector<String> & required_columns,
         std::string & function_name,
         const substrait::Expression_ScalarFunction & scalar_function);
     void parseFunctionArgument(
         DB::ActionsDAGPtr & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
-        std::vector<String> & required_columns,
         const std::string & function_name,
         const substrait::FunctionArgument & arg);
     const DB::ActionsDAG::Node * parseFunctionArgument(
         DB::ActionsDAGPtr & actions_dag,
-        std::vector<String> & required_columns,
         const std::string & function_name,
         const substrait::FunctionArgument & arg);
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel);
@@ -377,7 +423,6 @@ private:
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
     std::vector<jobject> input_iters;
-    const substrait::ProjectRel * last_project = nullptr;
     ContextPtr context;
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;
@@ -430,7 +475,7 @@ class ASTParser
 {
 public:
     explicit ASTParser(const ContextPtr & _context, std::unordered_map<std::string, std::string> & _function_mapping)
-        : context(_context), function_mapping(_function_mapping){};
+        : context(_context), function_mapping(_function_mapping){}
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);

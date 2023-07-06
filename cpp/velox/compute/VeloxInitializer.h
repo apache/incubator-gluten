@@ -22,6 +22,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <filesystem>
 
 #include "VeloxColumnarToRowConverter.h"
 #include "velox/common/caching/AsyncDataCache.h"
@@ -47,7 +48,7 @@ class VeloxInitializer {
 
   static std::shared_ptr<VeloxInitializer> get();
 
-  facebook::velox::memory::MemoryAllocator* getAsyncDataCache();
+  facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
 
   const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
     return memPoolOptions_;
@@ -65,6 +66,8 @@ class VeloxInitializer {
   void init(const std::unordered_map<std::string, std::string>& conf);
   void initCache(const std::unordered_map<std::string, std::string>& conf);
   void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
+
+  void printConf(const std::unordered_map<std::string, std::string>& conf);
 
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";

@@ -31,7 +31,7 @@ namespace local_engine
 {
 using namespace DB;
 
-int64_t calculateBitSetWidthInBytes(int32_t num_fields)
+int64_t calculateBitSetWidthInBytes(int64_t num_fields)
 {
     return ((num_fields + 63) / 64) * 8;
 }
@@ -48,7 +48,7 @@ int64_t roundNumberOfBytesToNearestWord(int64_t num_bytes)
 }
 
 
-void bitSet(char * bitmap, int32_t index)
+void bitSet(char * bitmap, size_t index)
 {
     int64_t mask = 1L << (index & 0x3f); // mod 64 and shift
     int64_t word_offset = (index >> 6) * 8;
@@ -58,7 +58,7 @@ void bitSet(char * bitmap, int32_t index)
     memcpy(bitmap + word_offset, &value, sizeof(int64_t));
 }
 
-ALWAYS_INLINE bool isBitSet(const char * bitmap, int32_t index)
+ALWAYS_INLINE bool isBitSet(const char * bitmap, size_t index)
 {
     assert(index >= 0);
     int64_t mask = 1 << (index & 63);
@@ -104,7 +104,7 @@ static void writeVariableLengthNonNullableValue(
     const std::vector<int64_t> & offsets,
     std::vector<int64_t> & buffer_cursor)
 {
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
     VariableLengthDataWriter writer(col.type, buffer_address, offsets, buffer_cursor);
@@ -137,7 +137,7 @@ static void writeVariableLengthNonNullableValue(
         Field field;
         for (size_t i = 0; i < static_cast<size_t>(num_rows); i++)
         {
-            field = std::move((*col.column)[i]);
+            field = (*col.column)[i];
             int64_t offset_and_size = writer.write(i, field, 0);
             memcpy(buffer_address + offsets[i] + field_offset, &offset_and_size, 8);
         }
@@ -156,7 +156,7 @@ static void writeVariableLengthNullableValue(
     const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
     const auto & null_map = nullable_column->getNullMapData();
     const auto & nested_column = nullable_column->getNestedColumn();
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
     VariableLengthDataWriter writer(col.type, buffer_address, offsets, buffer_cursor);
@@ -193,7 +193,7 @@ static void writeVariableLengthNullableValue(
                 bitSet(buffer_address + offsets[i], col_index);
             else
             {
-                field = std::move(nested_column[i]);
+                field = nested_column[i];
                 int64_t offset_and_size = writer.write(i, field, 0);
                 memcpy(buffer_address + offsets[i] + field_offset, &offset_and_size, 8);
             }
@@ -211,7 +211,7 @@ static void writeValue(
     const std::vector<int64_t> & offsets,
     std::vector<int64_t> & buffer_cursor)
 {
-    const auto type_without_nullable{std::move(removeNullable(col.type))};
+    const auto type_without_nullable{removeNullable(col.type)};
     const auto is_nullable = isColumnNullable(*col.column);
     if (BackingDataLengthCalculator::isFixedLengthDataType(type_without_nullable))
     {
@@ -232,8 +232,8 @@ static void writeValue(
 }
 
 SparkRowInfo::SparkRowInfo(
-    const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size)
-    : types(types)
+    const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & dataTypes, const size_t & col_size, const size_t & row_size)
+    : types(dataTypes)
     , num_rows(row_size)
     , num_cols(col_size)
     , null_bitset_width_in_bytes(calculateBitSetWidthInBytes(num_cols))
@@ -377,83 +377,13 @@ std::unique_ptr<SparkRowInfo> CHColumnToSparkRow::convertCHColumnToSparkRow(cons
 {
     if (!block.columns())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "A block with empty columns");
-
-    auto block_col = block.getByPosition(0);
-    DB::ColumnPtr nested_col = block_col.column;
-    if (const auto * const_col = checkAndGetColumn<DB::ColumnConst>(nested_col.get()))
-    {
-        nested_col = const_col->getDataColumnPtr();
-    }
-    if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
-        nested_col = nullable_col->getNestedColumnPtr();
-    }
-
-    auto checkAndGetTupleDataTypes = [](const DB::ColumnPtr & column) -> DB::DataTypes
-    {
-        DB::DataTypes data_types;
-        if (column->getDataType() != DB::TypeIndex::Tuple)
-        {
-            return data_types;
-        }
-        const auto * tuple_col = checkAndGetColumn<DB::ColumnTuple>(column.get());
-        const size_t col_size = tuple_col->tupleSize();
-        for (size_t i = 0; i < col_size; i++)
-        {
-            DB::DataTypePtr field_type;
-            const auto & field_col = tuple_col->getColumn(i);
-            if (field_col.isNullable())
-            {
-                const auto & field_nested_col = assert_cast<const ColumnNullable &>(field_col).getNestedColumn();
-                if (field_nested_col.getDataType() != DB::TypeIndex::String)
-                {
-                    data_types.clear();
-                    return data_types;
-                }
-                else
-                {
-                    DataTypePtr string_type = std::make_shared<DB::DataTypeString>();
-                    field_type = std::make_shared<DB::DataTypeNullable>(string_type);
-                }
-            }
-            else if (field_col.getDataType() == DB::TypeIndex::String)
-            {
-                field_type = std::make_shared<DB::DataTypeString>();
-            }
-            else
-            {
-                data_types.clear();
-                return data_types;
-            }
-            data_types.emplace_back(field_type);
-        }
-        return data_types;
-    };
-
-    std::unique_ptr<SparkRowInfo> spark_row_info;
-    DB::ColumnsWithTypeAndName columns;
-    auto data_types = checkAndGetTupleDataTypes(nested_col);
-    if (data_types.size() > 0)
-    {
-        const auto * tuple_col = checkAndGetColumn<DB::ColumnTuple>(nested_col.get());
-        for (size_t i = 0; i < tuple_col->tupleSize(); i++)
-        {
-            DB::ColumnWithTypeAndName col_type_name(tuple_col->getColumnPtr(i), data_types[i], "c" + std::to_string(i));
-            columns.emplace_back(col_type_name);
-        }
-        spark_row_info = std::make_unique<SparkRowInfo>(columns, data_types, tuple_col->tupleSize(), block.rows());
-    }
-    else
-    {
-        spark_row_info = std::make_unique<SparkRowInfo>(block);
-        columns = block.getColumnsWithTypeAndName();
-    }
+    std::unique_ptr<SparkRowInfo> spark_row_info = std::make_unique<SparkRowInfo>(block);
     spark_row_info->setBufferAddress(reinterpret_cast<char *>(alloc(spark_row_info->getTotalBytes(), 64)));
     // spark_row_info->setBufferAddress(alignedAlloc(spark_row_info->getTotalBytes(), 64));
     memset(spark_row_info->getBufferAddress(), 0, spark_row_info->getTotalBytes());
     for (auto col_idx = 0; col_idx < spark_row_info->getNumCols(); col_idx++)
     {
-        const auto & col = columns[col_idx];
+        const auto & col = block.getByPosition(col_idx);
         int64_t field_offset = spark_row_info->getFieldOffset(col_idx);
 
         ColumnWithTypeAndName col_not_const{col.column->convertToFullColumnIfConst(), col.type, col.name};
@@ -680,10 +610,20 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
             if (elem.isNull())
                 bitSet(buffer_address + offset + start + 8, i);
             else
-                //                 writer.write(elem, buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
-                writer.unsafeWrite(
-                    reinterpret_cast<const char *>(&elem.get<char>()),
-                    buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+            {
+                if (writer.getWhichDataType().isFloat32())
+                {
+                    // We can not use get<char>() directly here to process Float32 field,
+                    // because it will get 8 byte data, but Float32 is 4 byte, which will cause error conversion.
+                    auto v = static_cast<Float32>(elem.get<Float32>());
+                    writer.unsafeWrite(reinterpret_cast<const char *>(&v),
+                        buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+                }
+                else
+                    writer.unsafeWrite(
+                        reinterpret_cast<const char *>(&elem.get<char>()),
+                        buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+            }
         }
     }
     else
@@ -784,9 +724,19 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
         if (BackingDataLengthCalculator::isFixedLengthDataType(removeNullable(field_type)))
         {
             FixedLengthDataWriter writer(field_type);
-            // writer.write(field_value, buffer_address + offset + start + len_null_bitmap + i * 8);
-            writer.unsafeWrite(
-                reinterpret_cast<const char *>(&field_value.get<char>()), buffer_address + offset + start + len_null_bitmap + i * 8);
+            if (writer.getWhichDataType().isFloat32())
+            {
+                // We can not use get<char>() directly here to process Float32 field,
+                // because it will get 8 byte data, but Float32 is 4 byte, which will cause error conversion.
+                auto v = static_cast<Float32>(field_value.get<Float32>());
+                writer.unsafeWrite(
+                    reinterpret_cast<const char *>(&v),
+                    buffer_address + offset + start + len_null_bitmap + i * 8);
+            }
+            else
+                writer.unsafeWrite(
+                    reinterpret_cast<const char *>(&field_value.get<char>()),
+                    buffer_address + offset + start + len_null_bitmap + i * 8);
         }
         else
         {

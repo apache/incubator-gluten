@@ -138,7 +138,7 @@ void ShuffleSplitter::mergePartitionFiles()
 {
     DB::WriteBufferFromFile data_write_buffer = DB::WriteBufferFromFile(options.data_file);
     std::string buffer;
-    int buffer_size = options.io_buffer_size;
+    size_t buffer_size = options.io_buffer_size;
     buffer.reserve(buffer_size);
     for (size_t i = 0; i < options.partition_nums; ++i)
     {

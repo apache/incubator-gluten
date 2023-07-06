@@ -18,6 +18,7 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.metrics.IMetrics;
+
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -29,7 +30,7 @@ import java.util.List;
 public class BatchIterator extends GeneralOutIterator {
   private final long handle;
 
-  public BatchIterator(long handle, List<Attribute> outAttrs) throws IOException {
+  public BatchIterator(long handle, List<Attribute> outAttrs) {
     super(outAttrs);
     this.handle = handle;
   }
@@ -56,8 +57,9 @@ public class BatchIterator extends GeneralOutIterator {
     int cols = nativeBlock.numColumns();
     ColumnVector[] columnVectors = new ColumnVector[cols];
     for (int i = 0; i < cols; i++) {
-      columnVectors[i] = new CHColumnVector(CHExecUtil.inferSparkDataType(
-          nativeBlock.getTypeByPosition(i)), block, i);
+      columnVectors[i] =
+          new CHColumnVector(
+              CHExecUtil.inferSparkDataType(nativeBlock.getTypeByPosition(i)), block, i);
     }
     return new ColumnarBatch(columnVectors, nativeBlock.numRows());
   }

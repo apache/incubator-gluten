@@ -21,7 +21,7 @@
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
-#include "velox/functions/sparksql/windows/Register.h"
+#include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
 
 using namespace facebook;
 
@@ -43,9 +43,9 @@ void registerAllFunctions() {
   velox::functions::sparksql::registerFunctions("");
   // registerCustomFunctions();
   velox::aggregate::prestosql::registerAllAggregateFunctions();
-  velox::functions::sparksql::aggregates::registerAggregateFunctions("");
+  velox::functions::aggregate::sparksql::registerAggregateFunctions("");
   velox::window::prestosql::registerAllWindowFunctions();
-  velox::functions::sparksql::windows::registerWindowFunctions("");
+  velox::functions::window::sparksql::registerWindowFunctions("");
 }
 
 } // namespace gluten

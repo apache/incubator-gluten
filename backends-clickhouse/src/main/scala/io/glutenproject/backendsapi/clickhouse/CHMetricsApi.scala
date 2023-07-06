@@ -53,6 +53,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
     )
 
+  override def genBatchScanTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new BatchScanMetricsUpdater(metrics)
+
   override def genHiveTableScanTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
@@ -76,9 +79,6 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
     )
-
-  override def genBatchScanTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new BatchScanMetricsUpdater(metrics)
 
   override def genHiveTableScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HiveTableScanMetricsUpdater(metrics)
@@ -141,21 +141,6 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genProjectTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new ProjectMetricsUpdater(metrics)
-
-  override def genCoalesceBatchesMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "collectTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "total time to collect batch"),
-      "concatTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "total time to coalesce batch"),
-      "avgCoalescedNumRows" -> SQLMetrics
-        .createAverageMetric(sparkContext, "avg coalesced batch num rows")
-    )
 
   override def genHashAggregateTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =

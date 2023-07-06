@@ -32,7 +32,6 @@
 #include "config/GlutenConfig.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
-#include "velox/core/Context.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
@@ -45,7 +44,7 @@ namespace gluten {
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
 
-  auto veloxPool = asWrappedVeloxAggregateMemoryPool(gluten::defaultMemoryAllocator().get());
+  auto veloxPool = asAggregateVeloxMemoryPool(gluten::defaultMemoryAllocator().get());
   pool_ = veloxPool->addLeafChild("velox_parquet_write");
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
@@ -71,38 +70,48 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
 
   type_ = velox::importFromArrow(cSchema);
 
-  auto blockSize = 1024;
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
-    blockSize = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
+    maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
   }
-  auto compressionCodec = arrow::Compression::UNCOMPRESSED;
+  if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
+    maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
+  }
+  auto compressionCodec = arrow::Compression::SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
-    // spark support uncompressed snappy, gzip, lzo, brotli, lz4, zstd.
+    // spark support none, uncompressed, snappy, gzip, lzo, brotli, lz4, zstd.
     if (boost::iequals(compressionCodecStr, "snappy")) {
       compressionCodec = arrow::Compression::SNAPPY;
     } else if (boost::iequals(compressionCodecStr, "gzip")) {
       compressionCodec = arrow::Compression::GZIP;
     } else if (boost::iequals(compressionCodecStr, "lzo")) {
-      compressionCodec = arrow::Compression::LZO;
+      // arrow does not support write parquet using lzo
+      // https://issues.apache.org/jira/browse/ARROW-12430
+      throw GlutenException("Gluten does not support write parquet using lzo.");
     } else if (boost::iequals(compressionCodecStr, "brotli")) {
+      // please make sure `brotli` is enabled when compiling
       compressionCodec = arrow::Compression::BROTLI;
     } else if (boost::iequals(compressionCodecStr, "lz4")) {
       compressionCodec = arrow::Compression::LZ4;
     } else if (boost::iequals(compressionCodecStr, "zstd")) {
       compressionCodec = arrow::Compression::ZSTD;
+    } else if (boost::iequals(compressionCodecStr, "uncompressed")) {
+      compressionCodec = arrow::Compression::UNCOMPRESSED;
+    } else if (boost::iequals(compressionCodecStr, "none")) {
+      compressionCodec = arrow::Compression::UNCOMPRESSED;
     }
   }
 
-  auto properities =
-      ::parquet::WriterProperties::Builder().write_batch_size(blockSize)->compression(compressionCodec)->build();
-
+  auto properities = ::parquet::WriterProperties::Builder()
+                         .max_row_group_length(maxRowGroupRows_)
+                         ->compression(compressionCodec)
+                         ->build();
   // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
   std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
-  auto queryCtxConfig = std::make_shared<velox::core::MemConfig>(configData);
-  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, queryCtxConfig);
+  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, configData);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), *(pool_), 2048, properities, queryCtx);
+  parquetWriter_ =
+      std::make_unique<velox::parquet::Writer>(std::move(sink_), *(pool_), maxRowGroupBytes_, properities, queryCtx);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
@@ -124,36 +133,15 @@ void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
 }
 
 void VeloxParquetDatasource::close() {
-  if (parquetWriter_ != nullptr) {
+  if (parquetWriter_) {
     parquetWriter_->close();
   }
 }
 
 void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  if (veloxBatch != nullptr) {
-    parquetWriter_->write(veloxBatch->getFlattenedRowVector());
-  } else {
-    // convert arrow record batch to velox row vector
-    auto rb = arrow::ImportRecordBatch(cb->exportArrowArray().get(), cb->exportArrowSchema().get()).ValueOrDie();
-    std::vector<velox::VectorPtr> vecs;
-
-    for (int colIdx = 0; colIdx < rb->num_columns(); colIdx++) {
-      auto array = rb->column(colIdx);
-      ArrowArray cArray{};
-      ArrowSchema cSchema{};
-      arrow::Status status = arrow::ExportArray(*array, &cArray, &cSchema);
-      if (!status.ok()) {
-        throw std::runtime_error("Failed to export from Arrow record batch");
-      }
-
-      velox::VectorPtr vec = velox::importFromArrowAsOwner(cSchema, cArray, pool_.get());
-      vecs.push_back(vec);
-    }
-
-    auto rowVec = std::make_shared<velox::RowVector>(pool_.get(), type_, nullptr, rb->num_rows(), vecs, 0);
-    parquetWriter_->write(rowVec);
-  }
+  VELOX_DCHECK(veloxBatch != nullptr, "Write batch should be VeloxColumnarBatch");
+  parquetWriter_->write(veloxBatch->getFlattenedRowVector());
 }
 
 } // namespace gluten

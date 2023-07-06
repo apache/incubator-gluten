@@ -179,6 +179,14 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
+        <configuration>
+          <args>
+            <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+            <arg>-Ywarn-unused:imports</arg>
+            <arg>-Xfatal-warnings</arg>
+            <arg>-deprecation</arg>
+          </args>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -190,9 +198,9 @@
         <configuration>
           <finalName>${jar.assembly.name.prefix}-${project.version}-spark-${sparkbundle.version}
           </finalName>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
+          <descriptors>
+            <descriptor>src/main/resources/gluten-source-exclude-sparkshims.xml</descriptor>
+          </descriptors>
         </configuration>
         <executions>
           <execution>
@@ -207,6 +215,9 @@
       <plugin>
         <groupId>org.scalastyle</groupId>
         <artifactId>scalastyle-maven-plugin</artifactId>
+        <configuration>
+          <configLocation>${project.basedir}/../scalastyle-config.xml</configLocation>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>com.diffplug.spotless</groupId>

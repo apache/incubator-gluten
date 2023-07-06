@@ -21,9 +21,12 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
+import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -33,6 +36,8 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
+  def enableGluten: Boolean = conf.getConf(ENABLED_GLUTEN)
+
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
@@ -41,6 +46,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarBatchScan: Boolean = conf.getConf(COLUMNAR_BATCHSCAN_ENABLED)
 
   def enableColumnarFileScan: Boolean = conf.getConf(COLUMNAR_FILESCAN_ENABLED)
+
+  def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
+
+  def enableVanillaColumnarReaders: Boolean = conf.getConf(VANILLA_COLUMNAR_READERS_ENABLED)
 
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
 
@@ -116,7 +125,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleWriteSchema: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED)
 
-  def columnarShuffleUseCustomizedCompressionCodec: String = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
+  def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
   def columnarShuffleCodecBackend: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
 
@@ -131,8 +140,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
-  def enableCoalesceBatches: Boolean = conf.getConf(COLUMNAR_COALESCE_BATCHES_ENABLED)
-
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
   def enableColumnarGenerate: Boolean = conf.getConf(COLUMNAR_GENERATE_ENABLED)
@@ -144,6 +151,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableNativeHyperLogLogAggregateFunction: Boolean =
     conf.getConf(COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED)
+
+  def columnarParquetWriteBlockSize: Long =
+    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_SIZE)
+
+  def columnarParquetWriteBlockRows: Long =
+    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_ROWS)
 
   def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
@@ -186,6 +199,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
+  def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -195,12 +210,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
 
   // A comma-separated list of classes for the extended columnar pre rules
-  def extendedColumnarPreRules: String =
-    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.pre.rules", "")
+  def extendedColumnarPreRules: String = conf.getConf(EXTENDED_COLUMNAR_PRE_RULES)
 
   // A comma-separated list of classes for the extended columnar post rules
-  def extendedColumnarPostRules: String =
-    conf.getConfString("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
+  def extendedColumnarPostRules: String = conf.getConf(EXTENDED_COLUMNAR_POST_RULES)
+
+  def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
   def printStackOnValidateFailure: Boolean =
     conf.getConf(VALIDATE_FAILURE_PRINT_STACK_ENABLED)
@@ -231,10 +246,12 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = SPARK_PREFIX + HIVE_EXEC_ORC_COMPRESS
   val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
   val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
+  val PARQUET_BLOCK_ROWS: String = "parquet.block.rows"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
   // S3 config
+  val S3A_PREFIX = "fs.s3a."
   val S3_ACCESS_KEY = "fs.s3a.access.key"
   val SPARK_S3_ACCESS_KEY: String = HADOOP_PREFIX + S3_ACCESS_KEY
   val S3_SECRET_KEY = "fs.s3a.secret.key"
@@ -247,17 +264,23 @@ object GlutenConfig {
   val SPARK_S3_PATH_STYLE_ACCESS: String = HADOOP_PREFIX + S3_PATH_STYLE_ACCESS
   val S3_USE_INSTANCE_CREDENTIALS = "fs.s3a.use.instance.credentials"
   val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = HADOOP_PREFIX + S3_USE_INSTANCE_CREDENTIALS
+  val S3_IAM_ROLE = "fs.s3a.iam.role"
+  val SPARK_S3_IAM: String = HADOOP_PREFIX + S3_IAM_ROLE
+  val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
+  val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
 
+  val GLUTEN_SHUFFLE_SUPPORTED_CODEC: Set[String] =
+    Set("LZ4", "ZSTD", "SNAPPY") // "SNAPPY" is only valid for CH backend.
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "QAT"
   val GLUTEN_QAT_CODEC_PREFIX = "gluten_qat_"
-  val GLUTEN_QAT_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
+  val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("GZIP")
   // IAA config
   val GLUTEN_IAA_BACKEND_NAME = "IAA"
   val GLUTEN_IAA_CODEC_PREFIX = "gluten_iaa_"
-  val GLUTEN_IAA_SUPPORTED_CODEC: Seq[String] = "GZIP" :: Nil
+  val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("GZIP")
 
   // Backends.
   val GLUTEN_VELOX_BACKEND = "velox"
@@ -305,6 +328,14 @@ object GlutenConfig {
   val GLUTEN_SUPPORTED_PYTHON_UDFS = "spark.gluten.supported.python.udfs"
   val GLUTEN_SUPPORTED_SCALA_UDFS = "spark.gluten.supported.scala.udfs"
 
+  val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
+    "spark.gluten.sql.columnar.extended.expressions.transformer"
+
+  // Principal of current user
+  val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
+  // Tokens of current user, split by `\0`
+  val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -348,6 +379,14 @@ object GlutenConfig {
       .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    // Pass the latest tokens to native
+    nativeConfMap.put(
+      GLUTEN_UGI_TOKENS,
+      UserGroupInformation.getCurrentUser.getTokens.asScala
+        .map(_.encodeToUrlString)
+        .mkString("\u0000"))
+    nativeConfMap.put(GLUTEN_UGI_USERNAME, UserGroupInformation.getCurrentUser.getUserName)
+
     // return
     nativeConfMap
   }
@@ -358,10 +397,35 @@ object GlutenConfig {
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
+
+    // some configs having default values
+    val keyWithDefault = ImmutableList.of(
+      (SPARK_S3_ACCESS_KEY, ""),
+      (SPARK_S3_SECRET_KEY, ""),
+      (SPARK_S3_ENDPOINT, "localhost:9000"),
+      (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
+      (SPARK_S3_PATH_STYLE_ACCESS, "true"),
+      (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
+      (SPARK_S3_IAM, ""),
+      (SPARK_S3_IAM_SESSION_NAME, ""),
+      (
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
+      (
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
+        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
+      ("spark.hadoop.input.connect.timeout", "180000"),
+      ("spark.hadoop.input.read.timeout", "180000"),
+      ("spark.hadoop.input.write.timeout", "180000"),
+      ("spark.hadoop.dfs.client.log.severity", "INFO")
+    )
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
+
     val keys = ImmutableList.of(
-      // Velox datasource config
+      // datasource config
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
-      // Velox datasource config end
+      // datasource config end
+
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_OFFHEAP_ENABLED
@@ -373,29 +437,25 @@ object GlutenConfig {
         }
       })
 
-    val keyWithDefault = ImmutableList.of(
-      (SPARK_S3_ACCESS_KEY, "minio"),
-      (SPARK_S3_SECRET_KEY, "miniopass"),
-      (SPARK_S3_ENDPOINT, "localhost:9000"),
-      (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
-      (SPARK_S3_PATH_STYLE_ACCESS, "true"),
-      (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
-      (
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
-      (
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString)
-    )
-    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
-    // velox cache and HiveConnector config
     conf
       .filter(_._1.startsWith(backendPrefix))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all S3 configs
+    conf
+      .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
     nativeConfMap
   }
+
+  val ENABLED_GLUTEN =
+    buildConf("spark.gluten.enabled")
+      .internal()
+      .doc("Whether to enable gluten. Default value is true.")
+      .booleanConf
+      .createWithDefault(true)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -419,6 +479,20 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.filescan")
       .internal()
       .doc("Enable or disable columnar filescan.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_HIVETABLESCAN_ENABLED =
+    buildConf("spark.gluten.sql.columnar.hivetablescan")
+      .internal()
+      .doc("Enable or disable columnar hivetablescan.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val VANILLA_COLUMNAR_READERS_ENABLED =
+    buildConf("spark.gluten.sql.columnar.vanillaReaders")
+      .internal()
+      .doc("Enable or disable columnar vanilla scan.")
       .booleanConf
       .createWithDefault(true)
 
@@ -620,7 +694,7 @@ object GlutenConfig {
           "If false, the partition buffers will be cached in memory first, " +
           "and the cached buffers will be spilled when reach maximum memory.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffle.writeSchema")
@@ -637,8 +711,9 @@ object GlutenConfig {
           "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("LZ4", "ZSTD", "GZIP"))
-      .createWithDefault("LZ4")
+      .checkValues(
+        GLUTEN_SHUFFLE_SUPPORTED_CODEC ++ GLUTEN_QAT_SUPPORTED_CODEC ++ GLUTEN_IAA_SUPPORTED_CODEC)
+      .createOptional
 
   val COLUMNAR_SHUFFLE_CODEC_BACKEND =
     buildConf(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND)
@@ -658,12 +733,6 @@ object GlutenConfig {
       .internal()
       .intConf
       .createWithDefault(4096)
-
-  val COLUMNAR_COALESCE_BATCHES_ENABLED =
-    buildConf("spark.gluten.sql.columnar.coalesce.batches")
-      .internal()
-      .booleanConf
-      .createWithDefault(true)
 
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")
@@ -694,6 +763,18 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_PARQUET_WRITE_BLOCK_SIZE =
+    buildConf("spark.gluten.sql.columnar.parquet.write.blockSize")
+      .internal()
+      .longConf
+      .createWithDefault(128 * 1024 * 1024)
+
+  val COLUMNAR_PARQUET_WRITE_BLOCK_ROWS =
+    buildConf("spark.gluten.sql.native.parquet.write.blockRows")
+      .internal()
+      .longConf
+      .createWithDefault(100 * 1000 * 1000)
 
   val COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")
@@ -795,6 +876,19 @@ object GlutenConfig {
       .intConf
       .createWithDefault(2)
 
+  val COLUMNAR_VELOX_SPILL_STRATEGY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
+      .internal()
+      .doc(
+        "none: Disable spill on Velox backend; " +
+          "threshold: Use spark.gluten.sql.columnar.backend.velox.memoryCapRatio " +
+          "to calculate a memory threshold number for triggering spill; " +
+          "auto: Let Spark memory manager manage Velox's spilling")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValues(Set("none", "threshold", "auto"))
+      .createWithDefault("threshold")
+
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
       .internal()
@@ -823,7 +917,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("INFO")
+      .createWithDefault("DEBUG")
 
   val SOFT_AFFINITY_LOG_LEVEL =
     buildConf("spark.gluten.soft-affinity.logLevel")
@@ -864,4 +958,28 @@ object GlutenConfig {
       .internal()
       .longConf
       .createWithDefault(-1L)
+
+  val UT_STATISTIC =
+    buildConf("spark.gluten.sql.ut.statistic")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
+  val EXTENDED_COLUMNAR_PRE_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.pre.rules")
+      .doc("A comma-separated list of classes for the extended columnar pre rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_COLUMNAR_POST_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
+      .doc("A comma-separated list of classes for the extended columnar post rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_EXPRESSION_TRAN_CONF =
+    buildConf(GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF)
+      .doc("A class for the extended expressions transformer.")
+      .stringConf
+      .createWithDefaultString("")
 }

@@ -30,11 +30,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InSubqueryExec
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
+
+  // The key of merge schema option in Parquet reader.
+  protected val mergeSchemaOptionKey = "mergeschema"
 
   def filterExprs(): Seq[Expression]
 
@@ -79,9 +81,9 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
   override def doValidateInternal(): Boolean = {
     val fileFormat = ConverterUtils.getFileFormat(this)
     if (!BackendsApiManager.getTransformerApiInstance
-        .supportsReadFileFormat(fileFormat, schema.fields)) {
-      logDebug(
-        s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
+      .supportsReadFileFormat(fileFormat, schema.fields)) {
+      this.appendValidateLog(
+        s"Validation failed for ${this.getClass.toString} due to: {$fileFormat}")
       return false
     }
 
@@ -89,66 +91,37 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     val relNode = try {
       doTransform(substraitContext).root
     } catch {
-      case e: Exception =>
-        logValidateFailure(
-          s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+      case e: Throwable =>
+        this.appendValidateLog(
+          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
         return false
     }
 
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }
   }
 
-  private def normalizeColName(name: String): String = {
-    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
-    if (caseSensitive) name else name.toLowerCase()
-  }
-
-  private def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
-    val nameList = new java.util.ArrayList[String]()
-    attributes.foreach(
-      attr => {
-        nameList.add(normalizeColName(attr.name))
-        if (BackendsApiManager.getSettings.supportStructType()) {
-          attr.dataType match {
-            case struct: StructType =>
-              val nestedNames = collectDataTypeNamesDFS(struct)
-              nameList.addAll(nestedNames)
-            case _ =>
-          }
-        }
-      }
-    )
-    nameList
-  }
-
-  private def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
-    val nameList = new java.util.ArrayList[String]()
-    dataType match {
-      case structType: StructType =>
-        structType.fields.foreach(
-          field => {
-            nameList.add(normalizeColName(field.name))
-            val nestedNames = collectDataTypeNamesDFS(field.dataType)
-            nameList.addAll(nestedNames)
-          }
-        )
-      case _ =>
-    }
-    nameList
-  }
-
   override def doTransform(context: SubstraitContext): TransformContext = {
     val output = outputAttributes()
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
+    val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
+    val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val partitionSchemas = getPartitionSchemas
-    val nameList = new java.util.ArrayList[String]()
     val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
-    nameList.addAll(collectAttributesNamesDFS(output))
     for (attr <- output) {
       if (partitionSchemas.exists(_.name.equals(attr.name))) {
         columnTypeNodes.add(new ColumnTypeNode(1))

@@ -12,14 +12,14 @@ ENABLE_QAT=OFF
 ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
-NPROC=$(nproc --ignore=2)
 ARROW_HOME=
 VELOX_HOME=
+NPROC=$(nproc --ignore=2)
 
 for arg in "$@"; do
   case $arg in
   --arrow_home=*)
-    ARROW_home=("${arg#*=}")
+    ARROW_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --velox_home=*)
@@ -77,7 +77,8 @@ CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
 )
-#gluten cpp will find arrow lib from ARROW_HOME
+
+#gluten cpp will find arrow/parquet lib from ARROW_HOME
 if [ "$ARROW_HOME" == "" ]; then
   ARROW_HOME="$CURRENT_DIR/../ep/build-arrow/build"
 fi

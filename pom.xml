@@ -71,7 +71,7 @@
     <junit.version>4.13.1</junit.version>
 
     <substrait.version>0.5.0</substrait.version>
-    <guava.version>31.1-jre</guava.version>
+    <guava.version>32.0.1-jre</guava.version>
     <protobuf.version>3.16.3</protobuf.version>
     <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
     <!--spotless-->
@@ -659,6 +659,11 @@
           <version>3.0.1</version>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>3.1.0</version>
+        </plugin>
+        <plugin>
           <artifactId>maven-shade-plugin</artifactId>
           <version>3.4.1</version>
           <configuration>
@@ -675,19 +680,18 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
           <configuration>
-            <!--            <java>-->
-            <!--              <googleJavaFormat>-->
-            <!--                <version>1.7</version>-->
-            <!--                <style>AOSP</style>-->
-            <!--              </googleJavaFormat>-->
+            <java>
+              <googleJavaFormat>
+                <version>1.7</version>
+              </googleJavaFormat>
 
-            <!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
-            <!--              <importOrder>-->
-            <!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
-            <!--              </importOrder>-->
+              <!-- \# refers to the static imports -->
+              <importOrder>
+                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>
+              </importOrder>
 
-            <!--              <removeUnusedImports />-->
-            <!--            </java>-->
+              <removeUnusedImports />
+            </java>
             <scala>
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>

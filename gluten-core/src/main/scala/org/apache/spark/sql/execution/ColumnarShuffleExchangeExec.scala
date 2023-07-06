@@ -96,16 +96,18 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema,
-      longMetric("avgReadBatchNumRows"),
-      longMetric("numOutputRows"),
-      longMetric("dataSize"))
+    .createColumnarBatchSerializer(schema, metrics)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   def doValidate(): Boolean = {
-    BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
-      outputPartitioning, child)
+    if (!BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
+      outputPartitioning, child)) {
+      this.appendValidateLog("Validation failed for" +
+        " ColumnarShuffleExchangeExec due to: schema check failed.")
+      return false
+    }
+    true
   }
 
   override def nodeName: String = "ColumnarExchange"

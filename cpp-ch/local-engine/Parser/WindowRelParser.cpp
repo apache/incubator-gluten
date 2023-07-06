@@ -63,7 +63,7 @@ WindowRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & re
     for (auto & it : window_descriptions)
     {
         auto & win = it.second;
-        ;
+        
         auto window_step = std::make_unique<DB::WindowStep>(current_plan->getCurrentDataStream(), win, win.window_functions);
         window_step->setStepDescription("Window step for window '" + win.window_name + "'");
         steps.emplace_back(window_step.get());
@@ -180,7 +180,7 @@ WindowRelParser::parseWindowFrameType(const std::string & function_name, const s
 }
 
 void WindowRelParser::parseBoundType(
-    const std::string & function_name,
+    const std::string & ,
     const substrait::Expression::WindowFunction::Bound & bound,
     bool is_begin_or_end,
     DB::WindowFrame::BoundaryType & bound_type,
@@ -220,7 +220,6 @@ void WindowRelParser::parseBoundType(
     }
     else if (bound.has_current_row())
     {
-        const auto & current_row = bound.current_row();
         bound_type = DB::WindowFrame::BoundaryType::Current;
         offset = 0;
         preceding_direction = is_begin_or_end;
@@ -262,7 +261,7 @@ DB::SortDescription WindowRelParser::parsePartitionBy(const google::protobuf::Re
 }
 
 WindowFunctionDescription WindowRelParser::parseWindowFunctionDescription(
-    const substrait::WindowRel & win_rel,
+    const substrait::WindowRel & ,
     const substrait::Expression::WindowFunction & window_function,
     const DB::Names & arg_names,
     const DB::DataTypes & arg_types)
@@ -272,10 +271,9 @@ WindowFunctionDescription WindowRelParser::parseWindowFunctionDescription(
     description.column_name = window_function.column_name();
     description.function_node = nullptr;
 
-    auto function_name = parseSignatureFunctionName(window_function.function_reference());
+    auto function_name = parseFunctionName(window_function.function_reference(), {});
     if (!function_name)
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Not found function for reference: {}", window_function.function_reference());
-
     DB::AggregateFunctionProperties agg_function_props;
     // Special transform for lead/lag
     if (*function_name == "lead" || *function_name == "lag")
@@ -315,12 +313,27 @@ void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const subst
         if (function_name && (*function_name == "lead" || *function_name == "lag"))
         {
             const auto & arg0 = measure.measure().arguments(0).value();
-            const auto & col = header.getByPosition(arg0.selection().direct_reference().struct_field().field());
-            names.emplace_back(col.name);
-            types.emplace_back(col.type);
-
             auto arg1 = measure.measure().arguments(1).value();
+            /// The 3rd arg is default value
+            /// when it is set to null, the 1st arg must be nullable
+            const auto & arg2 = measure.measure().arguments(2).value();
+            const auto & col = header.getByPosition(arg0.selection().direct_reference().struct_field().field());
             const DB::ActionsDAG::Node * node = nullptr;
+
+            if (arg2.has_literal() && arg2.literal().has_null() && !col.type->isNullable())
+            {
+                node = ActionsDAGUtil::convertNodeType(
+                    actions_dag, &actions_dag->findInOutputs(col.name), makeNullable(col.type)->getName(), col.name);
+                actions_dag->addOrReplaceInOutputs(*node);
+                names.emplace_back(node->result_name);
+                types.emplace_back(node->result_type);
+            }
+            else
+            {
+                names.emplace_back(col.name);
+                types.emplace_back(col.type);
+            }
+
             // lag's offset is negative
             if (*function_name == "lag")
             {
@@ -339,7 +352,6 @@ void WindowRelParser::tryAddProjectionBeforeWindow(QueryPlan & plan, const subst
             names.emplace_back(node->result_name);
             types.emplace_back(node->result_type);
 
-            const auto & arg2 = measure.measure().arguments(2).value();
             if (arg2.has_literal() && !arg2.literal().has_null())
             {
                 node = parseArgument(actions_dag, arg2);

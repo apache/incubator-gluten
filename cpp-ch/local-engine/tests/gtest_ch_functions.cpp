@@ -62,8 +62,8 @@ TEST(TestFunction, In)
     set->setHeader(col1_set_block.getColumnsWithTypeAndName());
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
-
-    auto arg = ColumnSet::create(set->getTotalRowCount(), FutureSet(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
+    auto arg = ColumnSet::create(1, future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -104,8 +104,8 @@ TEST(TestFunction, NotIn1)
     set->setHeader(col1_set_block.getColumnsWithTypeAndName());
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
-
-    auto arg = ColumnSet::create(set->getTotalRowCount(), FutureSet(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
+    auto arg = ColumnSet::create(1,future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -145,8 +145,8 @@ TEST(TestFunction, NotIn2)
     set->setHeader(col1_set_block.getColumnsWithTypeAndName());
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
-
-    auto arg = ColumnSet::create(set->getTotalRowCount(), FutureSet(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
+    auto arg = ColumnSet::create(1,future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};

@@ -57,6 +57,7 @@ object ExpressionNames {
   final val REGEXP_EXTRACT = "regexp_extract"
   final val REGEXP_EXTRACT_ALL = "regexp_extract_all"
   final val EQUAL = "equal"
+  final val EQUAL_NULL_SAFE = "equal_null_safe"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"
   final val GREATER_THAN = "gt"
@@ -155,6 +156,7 @@ object ExpressionNames {
   final val ADD_MONTHS = "add_months"
   final val DATE_FORMAT = "date_format"
   final val TRUNC = "trunc"
+  final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
 
   // JSON functions
@@ -230,6 +232,7 @@ object ExpressionNames {
   final val NTILE = "ntile"
   final val LEAD = "lead"
   final val LAG = "lag"
+  final val NTH_VALUE = "nth_value"
 
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"

@@ -38,10 +38,7 @@ public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream 
   private long left;
 
   public LowCopyFileSegmentShuffleInputStream(
-      InputStream in,
-      InputStream limitedInputStream,
-      int bufferSize,
-      boolean isCompressed) {
+      InputStream in, InputStream limitedInputStream, int bufferSize, boolean isCompressed) {
     // to prevent underlying netty buffer from being collected by GC
     this.in = in;
     this.limitedInputStream = (LimitedInputStream) limitedInputStream;
@@ -49,10 +46,13 @@ public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream 
     this.isCompressed = isCompressed;
     final FileInputStream fin;
     try {
-      left = ((long) CHShuffleReadStreamFactory.FIELD_LimitedInputStream_left
-          .get(this.limitedInputStream));
-      fin = (FileInputStream) CHShuffleReadStreamFactory.FIELD_FilterInputStream_in
-          .get(this.limitedInputStream);
+      left =
+          ((long)
+              CHShuffleReadStreamFactory.FIELD_LimitedInputStream_left.get(
+                  this.limitedInputStream));
+      fin =
+          (FileInputStream)
+              CHShuffleReadStreamFactory.FIELD_FilterInputStream_in.get(this.limitedInputStream);
     } catch (IllegalAccessException e) {
       throw new RuntimeException(e);
     }

@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle
 
-import io.glutenproject.columnarbatch.GlutenColumnarBatches
+import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
@@ -71,7 +71,7 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.INSTANCE.make(
           jniByteInputStream, cSchema.memoryAddress(),
-          NativeMemoryAllocators.contextInstance.getNativeInstanceId)
+          NativeMemoryAllocators.getDefault().contextInstance.getNativeInstanceId)
         // Close shuffle reader instance as lately as the end of task processing,
         // since the native reader could hold a reference to memory pool that
         // was used to create all buffers read from shuffle reader. The pool
@@ -157,7 +157,7 @@ private class CelebornColumnarBatchSerializerInstance(schema: StructType,
             this.close()
             throw new EOFException
           }
-          GlutenColumnarBatches.create(batchHandle)
+          ColumnarBatches.create(batchHandle)
         }
         val numRows = batch.numRows()
         logDebug(s"Read ColumnarBatch of ${numRows} rows")

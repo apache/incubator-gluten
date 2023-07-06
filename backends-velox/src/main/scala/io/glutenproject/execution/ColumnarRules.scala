@@ -17,14 +17,19 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
@@ -41,7 +46,7 @@ case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
     child.executeColumnar().mapPartitions {
       itr =>
         BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(itr.map {
-          cb => ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
+          cb => ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
         })
     }
   }
@@ -63,7 +68,15 @@ object ColumnarRules {
         c2r // AdaptiveSparkPlanExec.scala:536
       case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
-      case ColumnarToRowExec(child) => ColumnarToRowExec(LoadArrowData(child))
+      case c2r @ ColumnarToRowExec(child) =>
+        child match {
+          case _: BatchScanExec | _: FileSourceScanExec | _: InMemoryTableScanExec
+              if GlutenConfig.getConf.enableVanillaColumnarReaders &&
+                !child.isInstanceOf[GlutenPlan] =>
+            c2r
+          case _ =>
+            ColumnarToRowExec(LoadArrowData(child))
+        }
     }
   }
 }

@@ -17,15 +17,8 @@
 
 package io.glutenproject.init;
 
-import com.google.protobuf.Any;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.substrait.expression.ExpressionBuilder;
-import io.glutenproject.substrait.expression.StringMapNode;
-import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
-import io.glutenproject.substrait.extensions.ExtensionBuilder;
-import io.glutenproject.substrait.plan.PlanBuilder;
-import io.glutenproject.substrait.plan.PlanNode;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.memory.TaskResourceManager;
 import org.apache.spark.util.memory.TaskResources;
@@ -38,16 +31,8 @@ public abstract class JniInitialized {
     String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
     Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(
         prefix, SQLConf.get().getAllConfs());
-    InitializerJniWrapper.initialize(buildNativeConfNode(nativeConfMap).toProtobuf().toByteArray());
+    InitializerJniWrapper.initialize(JniUtils.toNativeConf(nativeConfMap));
   }
-
-  private static PlanNode buildNativeConfNode(Map<String, String> confs) {
-    StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
-    AdvancedExtensionNode extensionNode = ExtensionBuilder
-        .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
-    return PlanBuilder.makePlan(extensionNode);
-  }
-
 
   protected JniInitialized() {
     if (!TaskResources.inSparkTask()) {

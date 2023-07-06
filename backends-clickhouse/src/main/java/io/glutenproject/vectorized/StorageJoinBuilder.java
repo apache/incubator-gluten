@@ -17,24 +17,26 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.execution.BroadCastHashJoinContext;
+import io.glutenproject.expression.ConverterUtils;
+import io.glutenproject.expression.ConverterUtils$;
+import io.glutenproject.substrait.type.TypeNode;
+
+import io.substrait.proto.NamedStruct;
+import io.substrait.proto.Type;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.catalyst.expressions.Expression;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import scala.collection.JavaConverters;
 
-import io.glutenproject.execution.BroadCastHashJoinContext;
-import io.glutenproject.expression.ConverterUtils$;
-import io.glutenproject.substrait.type.TypeNode;
-import io.substrait.proto.NamedStruct;
-import io.substrait.proto.Type;
-
-import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.catalyst.expressions.Expression;
-
 public class StorageJoinBuilder implements AutoCloseable {
 
   public static native void nativeCleanBuildHashTable(String hashTableId, long hashTableData);
+
   public static native long nativeCloneBuildHashTable(long hashTableData);
 
   private ShuffleInputStream in;
@@ -47,11 +49,12 @@ public class StorageJoinBuilder implements AutoCloseable {
 
   private List<Attribute> newOutput;
 
-  public StorageJoinBuilder(ShuffleInputStream in,
-                            BroadCastHashJoinContext broadCastContext,
-                            int customizeBufferSize,
-                            List<Attribute> newOutput,
-                            List<Expression> newBuildKeys) {
+  public StorageJoinBuilder(
+      ShuffleInputStream in,
+      BroadCastHashJoinContext broadCastContext,
+      int customizeBufferSize,
+      List<Attribute> newOutput,
+      List<Expression> newBuildKeys) {
     this.in = in;
     this.broadCastContext = broadCastContext;
     this.newOutput = newOutput;
@@ -59,16 +62,15 @@ public class StorageJoinBuilder implements AutoCloseable {
     this.customizeBufferSize = customizeBufferSize;
   }
 
-  private native long nativeBuild(String buildHashTableId,
-                                  ShuffleInputStream in,
-                                  int customizeBufferSize,
-                                  String joinKeys,
-                                  String joinType,
-                                  byte[] namedStruct);
+  private native long nativeBuild(
+      String buildHashTableId,
+      ShuffleInputStream in,
+      int customizeBufferSize,
+      String joinKeys,
+      String joinType,
+      byte[] namedStruct);
 
-  /**
-   * build storage join object
-   */
+  /** build storage join object */
   public long build() {
     ConverterUtils$ converter = ConverterUtils$.MODULE$;
     String join = converter.convertJoinType(broadCastContext.joinType());
@@ -81,18 +83,18 @@ public class StorageJoinBuilder implements AutoCloseable {
       keys = newBuildKeys;
       output = newOutput;
     }
-    String joinKey = keys.stream().map((Expression key) -> {
-      Attribute attr = converter.getAttrFromExpr(key, false);
-      return converter.genColumnNameWithExprId(attr);
-    }).collect(Collectors.joining(","));
+    String joinKey =
+        keys.stream()
+            .map(
+                (Expression key) -> {
+                  Attribute attr = converter.getAttrFromExpr(key, false);
+                  return converter.genColumnNameWithExprId(attr);
+                })
+            .collect(Collectors.joining(","));
 
     // create table named struct
-    ArrayList<TypeNode> typeList = new ArrayList<>();
-    ArrayList<String> nameList = new ArrayList<>();
-    for (Attribute attr : output) {
-      typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
-      nameList.add(converter.genColumnNameWithExprId(attr));
-    }
+    ArrayList<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
+    ArrayList<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
     Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
     for (TypeNode typeNode : typeList) {
       structBuilder.addTypes(typeNode.toProtobuf());

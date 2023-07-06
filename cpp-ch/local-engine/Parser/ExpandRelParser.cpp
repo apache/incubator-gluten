@@ -33,7 +33,7 @@ void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
 }
 
 DB::QueryPlanPtr
-ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     const auto & expand_rel = rel.expand();
     const auto & header = query_plan->getCurrentDataStream().header;

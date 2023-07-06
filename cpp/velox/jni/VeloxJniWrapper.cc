@@ -50,11 +50,11 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
     return JNI_ERR;
   }
+
   // logging
   google::InitGoogleLogging("gluten");
   FLAGS_logtostderr = true;
   gluten::getJniErrorsState()->initialize(env);
-
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -103,7 +103,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrap
 
   // A query context used for function validation.
   velox::core::QueryCtx queryCtx;
-  auto pool = gluten::getDefaultVeloxLeafMemoryPool().get();
+  auto pool = gluten::defaultLeafVeloxMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
@@ -115,6 +115,47 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrap
     return false;
   }
   JNI_METHOD_END(false)
+}
+
+JNIEXPORT jobject JNICALL
+Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidateWithFallBackLog( // NOLINT
+    JNIEnv* env,
+    jobject obj,
+    jbyteArray planArray) {
+  JNI_METHOD_START
+  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planSize = env->GetArrayLength(planArray);
+  ::substrait::Plan subPlan;
+  gluten::parseProtobuf(planData, planSize, &subPlan);
+
+  // A query context used for function validation.
+  velox::core::QueryCtx queryCtx;
+  auto pool = gluten::defaultLeafVeloxMemoryPool().get();
+  // An execution context used for function validation.
+  velox::core::ExecCtx execCtx(pool, &queryCtx);
+
+  velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
+  jclass infoCls = env->FindClass("Lio/glutenproject/validate/NativePlanValidatorInfo;");
+  if (infoCls == nullptr) {
+    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidatorInfo";
+    throw gluten::GlutenException(errorMessage);
+  }
+  jmethodID method = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
+  try {
+    auto isSupported = planValidator.validate(subPlan);
+    auto logs = planValidator.getValidateLog();
+    std::string concatLog;
+    for (int i = 0; i < logs.size(); i++) {
+      concatLog += logs[i] + "@";
+    }
+    return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(concatLog.c_str()));
+  } catch (std::invalid_argument& e) {
+    LOG(INFO) << "Failed to validate substrait plan because " << e.what();
+    // return false;
+    auto isSupported = false;
+    return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(""));
+  }
+  JNI_METHOD_END(nullptr)
 }
 
 #ifdef __cplusplus

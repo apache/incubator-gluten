@@ -132,7 +132,10 @@ abstract class HashAggregateExecBaseTransformer(
       case d: DecimalType => true
       case a: ArrayType => true
       case n: NullType => true
-      case other => logInfo(s"Type ${dataType} not support"); false
+      case other => this.appendValidateLog(
+        s"Validation failed for ${this.getClass.toString}" +
+          s" due to: {data type ${dataType}}");
+        false
     }
   }
 
@@ -145,8 +148,8 @@ abstract class HashAggregateExecBaseTransformer(
         getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
       } catch {
         case e: Throwable =>
-          logValidateFailure(
-            s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}", e)
+          this.appendValidateLog(
+            s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
           return false
       }
     }
@@ -159,7 +162,18 @@ abstract class HashAggregateExecBaseTransformer(
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      val validateInfo = BackendsApiManager.getValidatorApiInstance
+        .doValidateWithFallBackLog(planNode)
+      if (!validateInfo.isSupported) {
+        val fallbackInfo = validateInfo.getFallbackInfo()
+        for (i <- 0 until fallbackInfo.size()) {
+          this.appendValidateLog(fallbackInfo.get(i))
+        }
+        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
+          s" due to: native check failure.")
+        return false
+      }
+      true
     } else {
       true
     }

@@ -1,0 +1,133 @@
+#include "ExcelSerialization.h"
+#include <Columns/ColumnsNumber.h>
+#include <DataTypes/DataTypesDecimal.h>
+#include <DataTypes/Serializations/SerializationDate32.h>
+#include <DataTypes/Serializations/SerializationDateTime64.h>
+#include <DataTypes/Serializations/SerializationDecimal.h>
+#include <DataTypes/Serializations/SerializationNumber.h>
+#include <DataTypes/Serializations/SerializationString.h>
+#include "ExcelReadHelpers.h"
+#include "ExcelStringReader.h"
+
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int INCORRECT_DATA;
+}
+}
+
+namespace local_engine
+{
+
+void ExcelSerialization::deserializeTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const
+{
+    if (typeid_cast<const DB::SerializationDate32 *>(nested_ptr.get()))
+    {
+        deserializeDate32TextCSV(column, istr, settings);
+    }
+    else if (const auto * datetime64 = typeid_cast<const DB::SerializationDateTime64 *>(nested_ptr.get()))
+    {
+        deserializeDatetimeTextCSV<DB::SerializationDateTime64::ColumnType>(
+            column, istr, settings, datetime64->getTimeZone(), DateLUT::instance("UTC"));
+    }
+    else if (typeid_cast<const SerializationNumber<DB::UInt8> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::UInt8>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::UInt16> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::UInt16>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::UInt32> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::UInt32>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::UInt64> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::UInt64>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::Int8> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::Int8>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::Int16> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::Int16>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::Int32> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::Int32>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::Int64> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::Int64>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::Float32> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::Float32>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationNumber<DB::Float64> *>(nested_ptr.get()))
+    {
+        deserializeNumberTextCSV<DB::Float64>(column, istr, settings);
+    }
+    else if (typeid_cast<const SerializationString *>(nested_ptr.get()))
+    {
+        deserializeExcelTextCSV(column, istr, settings, escape);
+    }
+    else
+    {
+        nested_ptr->deserializeTextCSV(column, istr, settings);
+    }
+}
+
+template <typename T>
+requires is_arithmetic_v<T>
+void ExcelSerialization::deserializeNumberTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const
+{
+    T x;
+    bool result = local_engine::readCSV(x, istr, settings);
+
+    if (result)
+        assert_cast<ColumnVector<T> &>(column).getData().push_back(x);
+    else
+        throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Read error");
+}
+
+void ExcelSerialization::deserializeDate32TextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const
+{
+    LocalDate value;
+    bool result = local_engine::readCSV(value, istr, settings);
+
+    if (result)
+        assert_cast<ColumnInt32 &>(column).getData().push_back(value.getExtenedDayNum());
+    else
+        throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Read error");
+}
+
+template <typename ColumnType>
+void ExcelSerialization::deserializeDatetimeTextCSV(
+    IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const DateLUTImpl & time_zone, const DateLUTImpl & utc_time_zone)
+    const
+{
+    DateTime64 x = 0;
+
+    if (istr.eof())
+        throwReadAfterEOF();
+
+    char maybe_quote = *istr.position();
+    bool quote = false;
+    if (maybe_quote == '\'' || maybe_quote == '\"')
+    {
+        quote = true;
+        ++istr.position();
+    }
+
+    local_engine::readDateTime64Text(x, istr, settings, time_zone, utc_time_zone, quote);
+
+    if (maybe_quote == '\'' || maybe_quote == '\"')
+        assertChar(maybe_quote, istr);
+
+    assert_cast<ColumnType &>(column).getData().push_back(x);
+}
+}

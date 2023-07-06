@@ -83,8 +83,52 @@ Exception occurs when Velox TableScan is used to read files with unsupported com
 | Parquet     | Y    | N    | Y    | Y      | N   | N   | Y    |
 | DWRF        | Y    | Y    | Y    | Y      | Y   | Y   | N    |
 
-### Describe() method in DataFrame can not work (wrong result)
-The df.describe() method can not work in Gluten with spark 3.2 and spark 3.3, which is a bug in vanilla spark. Already fixed in vanilla spark 3.3 [here](https://github.com/apache/spark/pull/40914). And we will keep this issue in spark3.2 and 3.3. And it will be fixed after upgrading the spark version to 3.4.
 
-### Parquet Write supported configurations.
-Currently, parquet write only support spark.sql.parquet.compression.codec and parquet.block.size two configurations. Other configurations will not take effect. 
+### Parquet Write
+
+#### Offload hive file format to velox (offload)
+
+We implemented the insert into command by overriding HiveFileFormat in Vanilla spark. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/developers/NewToGluten.md). It should be noted that if the user also modifies the HiveFileFormat, the user's changes may be overwritten.
+
+### Velox Parquet Write
+
+#### Configuration (incompatible behavior)
+
+Parquet write only support three configs, other will not take effect.
+
+- compression code:
+  - sql conf: `spark.sql.parquet.compression.codec`
+  - option: `compression.codec`
+- block size
+  - sql conf: `spark.gluten.sql.columnar.parquet.write.blockSize`
+  - option: `parquet.block.size`
+- block rows
+  - sql conf: `spark.gluten.sql.native.parquet.write.blockRows`
+  - option: `parquet.block.rows`
+
+#### Write a partitioned or bucketed table (exception)
+
+Velox does not support dynamic partition write and bucket write, e.g.,
+
+```scala
+spark.range(100).selectExpr("id as c1", "id % 7 as p")
+  .write
+  .format("velox")
+  .partitionBy("p")
+  .save(f.getCanonicalPath)
+```
+
+#### CTAS (exception)
+
+Velox does not create table as select, e.g.,
+
+```scala
+spark.range(100).toDF("id")
+  .write
+  .format("velox")
+  .saveAsTable("velox_ctas")
+```
+
+### Spill
+
+`OutOfMemoryExcetpion` may still be triggered within current implementation of spill-to-disk feature, when shuffle partitions is set to a large number. When this case happens, please try reduce the partition number to get rid of the OOM.

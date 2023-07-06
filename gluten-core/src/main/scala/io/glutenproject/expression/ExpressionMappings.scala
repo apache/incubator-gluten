@@ -18,6 +18,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ExpressionNames._
+import io.glutenproject.extension.ExpressionExtensionTrait
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -46,6 +47,7 @@ object ExpressionMappings {
     Sig[RegExpExtract](REGEXP_EXTRACT),
     Sig[RegExpExtractAll](REGEXP_EXTRACT_ALL),
     Sig[EqualTo](EQUAL),
+    Sig[EqualNullSafe](EQUAL_NULL_SAFE),
     Sig[LessThan](LESS_THAN),
     Sig[LessThanOrEqual](LESS_THAN_OR_EQUAL),
     Sig[GreaterThan](GREATER_THAN),
@@ -148,6 +150,7 @@ object ExpressionMappings {
     Sig[AddMonths](ADD_MONTHS),
     Sig[DateFormatClass](DATE_FORMAT),
     Sig[TruncDate](TRUNC),
+    Sig[TruncTimestamp](DATE_TRUNC),
     Sig[GetTimestamp](GET_TIMESTAMP),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
@@ -236,14 +239,20 @@ object ExpressionMappings {
     Sig[PercentRank](PERCENT_RANK),
     Sig[NTile](NTILE),
     Sig[Lead](LEAD),
-    Sig[Lag](LAG)
+    Sig[Lag](LAG),
+    Sig[NthValue](NTH_VALUE)
   )
 
-  lazy val expressionsMap: Map[Class[_], String] = {
+  def expressionsMap: Map[Class[_], String] =
+    defaultExpressionsMap ++
+      expressionExtensionTransformer.extensionExpressionsMapping
+
+  private lazy val defaultExpressionsMap: Map[Class[_], String] = {
     (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++
       BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)
       .map(s => (s.expClass, s.name))
       .toMap[Class[_], String]
   }
 
+  var expressionExtensionTransformer: ExpressionExtensionTrait = _
 }

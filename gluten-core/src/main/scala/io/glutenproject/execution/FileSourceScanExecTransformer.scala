@@ -21,18 +21,24 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import scala.collection.mutable.HashMap
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.metrics.MetricsUpdater
-
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.ReadRelNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, ScalarSubquery, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.datasources.v2.text.TextScan
+import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLExecution, ScalarSubquery, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
+
+import scala.collection.JavaConverters
 
 class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
                                     output: Seq[Attribute],
@@ -117,11 +123,18 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override def doValidateInternal(): Boolean = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
-    if (!bucketedScan) {
-      super.doValidateInternal()
-    } else {
-      false
+    if (bucketedScan) {
+      logValidateFailure(s"Validation failed for ${this.getClass.toString} due to: ",
+        new UnsupportedOperationException("bucketed scan is not supported"))
+      return false
     }
+    if (relation.options.exists(option =>
+      option._1 == mergeSchemaOptionKey && option._2 == "true")) {
+      logValidateFailure(s"Validation failed for ${this.getClass.toString} due to: ",
+        new UnsupportedOperationException(s"$mergeSchemaOptionKey is not supported."))
+      return false
+    }
+    super.doValidateInternal()
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -220,6 +233,32 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   override val nodeNamePrefix: String = "NativeFile"
+
+  override val nodeName: String = {
+    s"NativeScan $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
+  }
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val transformCtx = super.doTransform(context)
+    if (ConverterUtils.getFileFormat(this) == ReadFileFormat.TextReadFormat) {
+      var options: Map[String, String] = Map()
+      relation.options.foreach {
+        case ("delimiter", v) => options += ("field_delimiter" -> v)
+        case ("quote", v) => options += ("quote" -> v)
+        case ("header", v) =>
+          val cnt = if (v == "true") 1 else 0
+          options += ("header" -> cnt.toString)
+        case ("escape", v) => options += ("escape" -> v)
+        case ("nullvalue", v) => options += ("nullValue" -> v)
+        case (_, _) =>
+      }
+
+      val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
+      readRelNode.setDataSchema(relation.dataSchema)
+      readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
+    }
+    transformCtx
+  }
 }
 
 object FileSourceScanExecTransformer {

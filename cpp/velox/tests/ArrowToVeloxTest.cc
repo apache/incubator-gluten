@@ -17,6 +17,7 @@
 
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
+#include "utils/ArrowStatus.h"
 #include "utils/TestUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -39,16 +40,16 @@ velox::VectorPtr recordBatch2RowVector(const RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   ASSERT_NOT_OK(ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::getDefaultVeloxLeafMemoryPool().get());
+  return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
 }
 
 void checkBatchEqual(std::shared_ptr<RecordBatch> inputBatch, bool checkMetadata = true) {
   velox::VectorPtr vp = recordBatch2RowVector(*inputBatch);
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  velox::exportToArrow(vp, arrowArray, getDefaultVeloxLeafMemoryPool().get());
+  velox::exportToArrow(vp, arrowArray, defaultLeafVeloxMemoryPool().get());
   velox::exportToArrow(vp, arrowSchema);
-  auto in = gluten::jniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
+  auto in = gluten::arrowGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
   ASSERT_TRUE(in->Equals(*inputBatch, checkMetadata)) << in->ToString() << inputBatch->ToString();
 }
 
@@ -119,10 +120,10 @@ TEST_F(ArrowToVeloxTest, decimalV2A) {
 
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  velox::exportToArrow(row, arrowArray, getDefaultVeloxLeafMemoryPool().get());
+  velox::exportToArrow(row, arrowArray, defaultLeafVeloxMemoryPool().get());
   velox::exportToArrow(row, arrowSchema);
 
-  auto in = gluten::jniGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
+  auto in = gluten::arrowGetOrThrow(ImportRecordBatch(&arrowArray, &arrowSchema));
   EXPECT_TRUE(in->Equals(*inputBatch));
   ArrowArrayRelease(&arrowArray);
 }
@@ -136,7 +137,7 @@ TEST_F(ArrowToVeloxTest, timestampV2A) {
   });
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
-  velox::exportToArrow(row, arrowArray, getDefaultVeloxLeafMemoryPool().get());
+  velox::exportToArrow(row, arrowArray, defaultLeafVeloxMemoryPool().get());
   velox::exportToArrow(row, arrowSchema);
   ArrowArrayRelease(&arrowArray);
 }

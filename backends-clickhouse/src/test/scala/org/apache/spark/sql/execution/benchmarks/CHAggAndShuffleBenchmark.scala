@@ -92,7 +92,6 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
       .setIfMissing("spark.executor.memory", memorySize)
       .setIfMissing("spark.sql.files.maxPartitionBytes", "1G")
       .setIfMissing("spark.sql.files.openCostInBytes", "1073741824")
-      .setIfMissing("spark.gluten.sql.columnar.coalesce.batches", "false")
       .setIfMissing("spark.shuffle.manager", "sort")
       .setIfMissing("spark.io.compression.codec", "SNAPPY")
 
@@ -169,7 +168,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
     //            +- ColumnarExchangeAdaptor hashpartitioning(l_partkey#65L, 32)
     //               +- *(4) HashAggregateTransformer
     //                  +- *(4) ProjectExecTransformer
-    //                     +- *(4) FilterExecTransformer
+    //                     +- *(4) FilterExecTransformerBase
     //                        +- *(4) FileScan parquet
     //
     // There are three `WholeStageTransformer`, two `ColumnarShuffleExchangeExec`

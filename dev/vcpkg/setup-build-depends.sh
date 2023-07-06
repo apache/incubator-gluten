@@ -4,28 +4,35 @@ set -e
 
 ## Install functions begin
 
+function semver {
+    echo "$@" | awk -F. '{ printf("%d%03d%03d", $1,$2,$3); }'
+}
+
 install_centos_any_maven() {
     if [ -z "$(which mvn)" ]; then
-        maven_install_dir=/opt/maven-3.6.3
-        if [ -d /opt/maven-3.6.3 ]; then
+        maven_version=3.9.2
+        maven_install_dir=/opt/maven-$maven_version
+        if [ -d /opt/maven-$maven_version ]; then
             echo "Failed to install maven: ${maven_install_dir} is exists" >&2
             exit 1
         fi
 
         cd /tmp
-        wget https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
-        tar -xvf apache-maven-3.6.3-bin.tar.gz
-        rm apache-maven-3.6.3-bin.tar.gz
-        mv apache-maven-3.6.3 "${maven_install_dir}"
+        wget https://downloads.apache.org/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
+        tar -xvf apache-maven-$maven_version-bin.tar.gz
+        rm apache-maven-$maven_version-bin.tar.gz
+        mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi
 }
 
 install_centos_7() {
+    export PATH=/usr/local/bin:$PATH
+
     yum -y install epel-release centos-release-scl
     yum -y install \
         wget curl tar zip unzip which \
-        cmake3 ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake3 ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         devtoolset-9 \
         bison \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
@@ -51,13 +58,28 @@ install_centos_7() {
         rm -rf /tmp/flex
     fi
 
+    # automake>=1.14
+    installed_automake_version="$(aclocal --version | sed -En "1s/^.* ([1-9\.]*)$/\1/p")"
+    if [ "$(semver "$installed_automake_version")" -lt "$(semver 1.14)" ]; then
+        mkdir -p /tmp/automake
+        wget -O - http://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz | tar -x --xz -C /tmp/automake --strip-components=1
+        cd /tmp/automake
+        ./configure
+        make install -j
+        cd
+        rm -rf /tmp/automake
+
+        # Fix aclocal search path
+        echo /usr/share/aclocal > /usr/local/share/aclocal/dirlist
+    fi
+
     install_centos_any_maven
 }
 
 install_centos_8() {
     yum -y install \
         wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
@@ -68,7 +90,7 @@ install_centos_8() {
 install_ubuntu_20.04() {
     apt-get -y install \
         wget curl tar zip unzip git \
-        build-essential ccache cmake ninja-build pkg-config autoconf libtool \
+        build-essential ccache cmake ninja-build pkg-config autoconf autoconf-archive libtool \
         flex bison \
         openjdk-8-jdk maven
 }
@@ -79,7 +101,7 @@ install_alinux_3() {
     yum -y groupinstall "Development Tools"
     yum -y install \
         wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         libstdc++-static flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 }

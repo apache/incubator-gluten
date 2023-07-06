@@ -68,12 +68,7 @@ object CHExpressionUtil {
   final val STRING_TYPE = "string"
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, ValidatorUtil] = Map(
-    VAR_SAMP -> new ValidatorUtil(new DefaultBlackList),
-    VAR_POP -> new ValidatorUtil(new DefaultBlackList),
-    BLOOM_FILTER_AGG -> new ValidatorUtil(new DefaultBlackList),
-    CORR -> new ValidatorUtil(new DefaultBlackList),
-    FIRST -> new ValidatorUtil(new DefaultBlackList),
-    LAST -> new ValidatorUtil(new DefaultBlackList)
+    BLOOM_FILTER_AGG -> new ValidatorUtil(new DefaultBlackList)
   )
 
   final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, ValidatorUtil] = Map(
@@ -81,8 +76,11 @@ object CHExpressionUtil {
     TO_UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
     UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
     MIGHT_CONTAIN -> new ValidatorUtil(new DefaultBlackList),
-    MAKE_DECIMAL -> new ValidatorUtil(new DefaultBlackList),
-    UNSCALED_VALUE -> new ValidatorUtil(new DefaultBlackList),
-    GET_JSON_OBJECT -> new ValidatorUtil(new GetJsonObjectValidator)
+    GET_JSON_OBJECT -> new ValidatorUtil(new GetJsonObjectValidator),
+    ARRAY_MAX -> new ValidatorUtil(new DefaultBlackList),
+    ARRAY_MIN -> new ValidatorUtil(new DefaultBlackList),
+    SLICE -> new ValidatorUtil(new DefaultBlackList),
+    ARRAYS_OVERLAP -> new ValidatorUtil(new DefaultBlackList),
+    SORT_ARRAY -> new ValidatorUtil(new DefaultBlackList)
   )
 }

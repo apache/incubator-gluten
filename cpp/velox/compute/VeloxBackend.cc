@@ -26,7 +26,6 @@
 #include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
-#include "shuffle/ArrowShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "velox/common/file/FileSystems.h"
 
@@ -71,13 +70,9 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
     inputIters_ = std::move(inputs);
   }
 
-  auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
-  auto ctxPool = veloxPool->addAggregateChild("result_iterator");
-  // TODO: wait shuffle split velox to velox, then the input ColumnBatch is RowVector, no need pool to convert
-  // https://github.com/oap-project/gluten/issues/1434
-  auto resultPool = getDefaultVeloxLeafMemoryPool();
-  // auto resultPool = veloxPool->addLeafChild("input_row_vector_pool");
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_, resultPool);
+  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
+  auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
+  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_);
   veloxPlan_ = veloxPlanConverter->toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.
@@ -91,11 +86,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        ctxPool, resultPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
+        ctxPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        ctxPool, resultPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
+        ctxPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
@@ -104,9 +99,9 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
     MemoryAllocator* allocator,
     std::shared_ptr<ColumnarBatch> cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  if (veloxBatch != nullptr) {
-    auto arrowPool = asWrappedArrowMemoryPool(allocator);
-    auto veloxPool = asWrappedVeloxAggregateMemoryPool(allocator);
+  if (veloxBatch) {
+    auto arrowPool = asArrowMemoryPool(allocator);
+    auto veloxPool = asAggregateVeloxMemoryPool(allocator);
     auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
     return std::make_shared<VeloxColumnarToRowConverter>(arrowPool, ctxVeloxPool);
   } else {
@@ -118,7 +113,7 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
     MemoryAllocator* allocator,
     struct ArrowSchema* cSchema) {
   // TODO: wait to fix task memory pool
-  auto veloxPool = getDefaultVeloxLeafMemoryPool();
+  auto veloxPool = defaultLeafVeloxMemoryPool();
   // AsWrappedVeloxAggregateMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
@@ -126,19 +121,20 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
 std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     int numPartitions,
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-    const ShuffleWriterOptions& options,
-    const std::string& batchType) {
-  if (batchType == "velox") {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer,
-        VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
-    return shuffle_writer;
-  } else {
-    GLUTEN_ASSIGN_OR_THROW(
-        auto shuffle_writer,
-        ArrowShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
-    return shuffle_writer;
-  }
+    const ShuffleWriterOptions& options) {
+  GLUTEN_ASSIGN_OR_THROW(
+      auto shuffle_writer,
+      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+  return shuffle_writer;
+}
+
+std::shared_ptr<ColumnarBatchSerializer> VeloxBackend::getColumnarBatchSerializer(
+    MemoryAllocator* allocator,
+    struct ArrowSchema* cSchema) {
+  auto arrowPool = asArrowMemoryPool(allocator);
+  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
+  auto ctxVeloxPool = veloxPool->addLeafChild("velox_columnar_batch_serializer");
+  return std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
 }
 
 } // namespace gluten

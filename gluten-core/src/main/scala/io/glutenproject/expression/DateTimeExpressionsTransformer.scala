@@ -18,14 +18,12 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, StringLiteralNode}
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-import org.apache.spark.internal.Logging
-import io.glutenproject.substrait.expression.StringLiteralNode
 
 /**
  * The extract trait for 'GetDateField' from Date
@@ -71,8 +69,7 @@ class DateDiffTransformer(substraitExprName: String, endDate: ExpressionTransfor
       original.endDate.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
-    val expressionNodes = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    val expressionNodes = if (BackendsApiManager.chBackend) {
       // In CH backend, datediff params are ('day', startDate, endDate).
       Lists.newArrayList(
         ExpressionBuilder.makeStringLiteral("day"), startDateNode, endDateNode)
@@ -164,6 +161,40 @@ class UnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTra
     val transformer = ToUnixTimestampTransformer(substraitExprName, timeExp, format,
       timeZoneId, failOnError, toUnixTimestamp)
     transformer.doTransform(args)
+  }
+}
+
+class TruncTimestampTransformer(
+  substraitExprName: String,
+  format: ExpressionTransformer,
+  timestamp: ExpressionTransformer,
+  timeZoneId: Option[String] = None,
+  original: TruncTimestamp)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val timestampNode = timestamp.doTransform(args)
+    val formatNode = format.doTransform(args)
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val dataTypes = if (timeZoneId != None) {
+      Seq(original.format.dataType, original.timestamp.dataType, StringType)
+    } else {
+      Seq(original.format.dataType, original.timestamp.dataType)
+    }
+
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    expressionNodes.add(formatNode)
+    expressionNodes.add(timestampNode)
+    if (timeZoneId != None) {
+      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
+    }
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 

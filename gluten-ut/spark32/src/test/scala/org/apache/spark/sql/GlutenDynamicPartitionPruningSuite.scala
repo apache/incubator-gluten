@@ -17,16 +17,16 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer}
+import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
+import org.apache.spark.sql.catalyst.plans.ExistenceJoin
+import org.apache.spark.sql.connector.catalog.InMemoryTableCatalog
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
-import org.apache.spark.sql.catalyst.plans.ExistenceJoin
-import org.apache.spark.sql.connector.catalog.InMemoryTableCatalog
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.execution.streaming.{MemoryStream, StreamingQueryWrapper}
 import org.apache.spark.sql.functions.col
@@ -101,11 +101,11 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
       // search dynamic pruning predicates on the executed plan
       val plan = query.asInstanceOf[StreamingQueryWrapper].streamingQuery.lastExecution.executedPlan
       val ret = plan.find {
-        case s: FileSourceScanExec => s.partitionFilters.exists {
+        case s: FileSourceScanExecTransformer => s.partitionFilters.exists {
           case _: DynamicPruningExpression => true
           case _ => false
         }
-        case s: FileSourceScanExecTransformer => s.partitionFilters.exists {
+        case s: FileSourceScanExec => s.partitionFilters.exists {
           case _: DynamicPruningExpression => true
           case _ => false
         }
@@ -263,16 +263,16 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
 
   private def collectDynamicPruningExpressions(plan: SparkPlan): Seq[Expression] = {
     flatMap(plan) {
-      case s: FileSourceScanExec => s.partitionFilters.collect {
-        case d: DynamicPruningExpression => d.child
-      }
       case s: FileSourceScanExecTransformer => s.partitionFilters.collect {
         case d: DynamicPruningExpression => d.child
       }
-      case s: BatchScanExec => s.runtimeFilters.collect {
+      case s: FileSourceScanExec => s.partitionFilters.collect {
         case d: DynamicPruningExpression => d.child
       }
       case s: BatchScanExecTransformer => s.runtimeFilters.collect {
+        case d: DynamicPruningExpression => d.child
+      }
+      case s: BatchScanExec => s.runtimeFilters.collect {
         case d: DynamicPruningExpression => d.child
       }
       case _ => Nil
@@ -358,11 +358,6 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
           case _: DynamicPruningExpression => true
           case _ => false
         }
-      case FilterExecTransformer(condition, _) =>
-        splitConjunctivePredicates(condition).exists {
-          case _: DynamicPruningExpression => true
-          case _ => false
-        }
       case FilterTransformer(condition, _) =>
         splitConjunctivePredicates(condition).exists {
           case _: DynamicPruningExpression => true
@@ -375,7 +370,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
   object FilterTransformer {
     def unapply(plan: SparkPlan): Option[(Expression, SparkPlan)] = {
       plan match {
-        case transformer: FilterExecBaseTransformer =>
+        case transformer: FilterExecTransformerBase =>
           Some((transformer.cond, transformer.input))
         case _ => None
       }
@@ -504,14 +499,14 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPr
         def getFactScan(plan: SparkPlan): SparkPlan = {
           val scanOption =
             find(plan) {
-              case s: FileSourceScanExec =>
-                s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
               case s: FileSourceScanExecTransformer =>
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
-              case s: BatchScanExec =>
+              case s: FileSourceScanExec =>
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
+              case s: BatchScanExecTransformer =>
                 // we use f1 col for v2 tables due to schema pruning
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
-              case s: BatchScanExecTransformer =>
+              case s: BatchScanExec =>
                 // we use f1 col for v2 tables due to schema pruning
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
               case _ => false

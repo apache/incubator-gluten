@@ -62,8 +62,7 @@ case class StringLocateTransformer(
   original: StringLocate) extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (BackendsApiManager.chBackend) {
 
       val substrNode = substrExpr.doTransform(args)
       val strNode = strExpr.doTransform(args)

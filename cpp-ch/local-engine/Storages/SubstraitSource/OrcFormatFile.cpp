@@ -158,7 +158,7 @@ OrcFormatFile::OrcFormatFile(
 FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & header)
 {
     auto file_format = std::make_shared<FormatFile::InputFormat>();
-    file_format->read_buffer = std::move(read_buffer_builder->build(file_info));
+    file_format->read_buffer = read_buffer_builder->build(file_info);
 
     std::vector<StripeInformation> stripes;
     [[maybe_unused]] UInt64 total_stripes = 0;
@@ -179,7 +179,7 @@ FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & he
     std::vector<int> total_stripe_indices(total_stripes);
     std::iota(total_stripe_indices.begin(), total_stripe_indices.end(), 0);
 
-    std::vector<int> required_stripe_indices(stripes.size());
+    std::vector<UInt64> required_stripe_indices(stripes.size());
     for (size_t i = 0; i < stripes.size(); ++i)
         required_stripe_indices[i] = stripes[i].index;
 

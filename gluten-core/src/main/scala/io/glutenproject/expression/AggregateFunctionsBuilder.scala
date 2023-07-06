@@ -27,25 +27,13 @@ object AggregateFunctionsBuilder {
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    var substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
-    if (substraitAggFuncName.isEmpty) {
-      throw new UnsupportedOperationException(
-        s"Could not find valid a substrait mapping name for $aggregateFunc.")
-    }
+    var substraitAggFuncName = getSubstraitFunctionName(aggregateFunc)
 
     // Check whether each backend supports this aggregate function.
     if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(
       substraitAggFuncName.get, aggregateFunc)) {
       throw new UnsupportedOperationException(
         s"Aggregate function not supported for $aggregateFunc.")
-    }
-
-    aggregateFunc match {
-      case first @ First(_, ignoreNull) =>
-        if (ignoreNull) substraitAggFuncName = Some(ExpressionNames.FIRST_IGNORE_NULL)
-      case last @ Last(_, ignoreNulls) =>
-        if (ignoreNulls) substraitAggFuncName = Some(ExpressionNames.LAST_IGNORE_NULL)
-      case _ =>
     }
 
     val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
@@ -56,5 +44,29 @@ object AggregateFunctionsBuilder {
         substraitAggFuncName.get,
         inputTypes,
         FunctionConfig.REQ))
+  }
+
+  def getSubstraitFunctionName(aggregateFunc: AggregateFunction): Option[String] = {
+    val substraitAggFuncName = aggregateFunc match {
+      case first @ First(_, ignoreNull) =>
+        if (ignoreNull) {
+          Some(ExpressionNames.FIRST_IGNORE_NULL)
+        } else {
+          Some(ExpressionNames.FIRST)
+        }
+      case last @ Last(_, ignoreNulls) =>
+        if (ignoreNulls) {
+          Some(ExpressionNames.LAST_IGNORE_NULL)
+        } else {
+          Some(ExpressionNames.LAST)
+        }
+      case _ =>
+        ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+    }
+    if (substraitAggFuncName.isEmpty) {
+      throw new UnsupportedOperationException(
+        s"Could not find valid a substrait mapping name for $aggregateFunc.")
+    }
+    substraitAggFuncName
   }
 }

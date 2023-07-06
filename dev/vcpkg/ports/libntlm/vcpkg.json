@@ -1,0 +1,8 @@
+{
+  "name": "libntlm",
+  "version": "1.5",
+  "homepage": "https://gitlab.com/gsasl/libntlm/",
+  "description": "Simon Josefsson's NTLM authentication library",
+  "dependencies": [ ],
+  "default-features": []
+}

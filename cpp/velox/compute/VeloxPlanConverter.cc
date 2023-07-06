@@ -130,9 +130,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
     veloxTypeList.push_back(velox::substrait::toVeloxType(subType->type));
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto vectorStream = std::make_shared<RowVectorStream>(pool_, std::move(inputIters_[iterIdx]), outputType);
-  auto valuesNode =
-      std::make_shared<velox::core::ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
+  auto vectorStream = std::make_shared<RowVectorStream>(std::move(inputIters_[iterIdx]), outputType);
+  auto valuesNode = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
   subVeloxPlanConverter_->insertInputNode(iterIdx, valuesNode, planNodeId_);
 }
 

@@ -23,7 +23,7 @@ import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -49,20 +49,62 @@ object BackendSettings extends BackendSettingsApi {
     // Validate if all types are supported.
     def validateTypes: Boolean = {
       // Collect unsupported types.
-      fields.map(_.dataType).collect {
-        case _: ByteType =>
-        case _: ArrayType =>
-        case _: MapType =>
-        case _: StructType =>
-      }.isEmpty
+      val unsupportedDataTypes = fields.map(_.dataType).collect {
+        case _: ByteType => "ByteType"
+        // Parquet scan of nested array with struct/array as element type is not supported in Velox.
+        case arrayType: ArrayType if arrayType.elementType.isInstanceOf[StructType] =>
+          "StructType as element type in ArrayType"
+        case arrayType: ArrayType if arrayType.elementType.isInstanceOf[ArrayType] =>
+          "ArrayType as element type in ArrayType"
+        // Parquet scan of nested map with struct as key type,
+        // or array type as value type is not supported in Velox.
+        case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+          "StructType as Key type in MapType"
+        case mapType: MapType if mapType.valueType.isInstanceOf[ArrayType] =>
+          "ArrayType as Value type in MapType"
+      }
+      for (unsupportedDataType <- unsupportedDataTypes) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s" due to: data type $unsupportedDataType. in file schema. ")
+        // scalastyle:on println
+      }
+      unsupportedDataTypes.isEmpty
     }
 
+<<<<<<< HEAD
+=======
+    def validateFilePath: Boolean = {
+      // Fallback to vanilla spark when the input path
+      // does not contain the partition info.
+      if (partTable && !paths.forall(_.contains("="))) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s"due to: input path doesn't contain split info. ")
+        // scalastyle:on println
+        return false
+      }
+      true
+    }
+
+>>>>>>> upstream/main
     format match {
       case ParquetReadFormat => validateTypes
       case DwrfReadFormat => true
-      case OrcReadFormat => fields.map(_.dataType).collect {
-        case _: TimestampType =>
-      }.isEmpty
+      case OrcReadFormat =>
+        val unsupportedDataTypes = fields.map(_.dataType).collect {
+          case _: TimestampType => "TimestampType"
+        }
+        for (unsupportedDataType <- unsupportedDataTypes) {
+          // scalastyle:off println
+          println(
+            s"Validation failed for ${this.getClass.toString}" +
+              s" due to: data type $unsupportedDataType. in file schema. ")
+          // scalastyle:on println
+        }
+        unsupportedDataTypes.isEmpty
       case _ => false
     }
   }
@@ -70,6 +112,10 @@ object BackendSettings extends BackendSettingsApi {
   override def supportExpandExec(): Boolean = true
 
   override def supportSortExec(): Boolean = true
+
+  override def supportSortMergeJoinExec(): Boolean = {
+    GlutenConfig.getConf.enableColumnarSortMergeJoin
+  }
 
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     var allSupported = true
@@ -124,11 +170,11 @@ object BackendSettings extends BackendSettingsApi {
           case _ =>
         }
         windowExpression.windowFunction match {
+          // 'ignoreNulls=true' is not supported in Velox for 'NthValue'.
           case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-               _: PercentRank =>
+               _: PercentRank | _@NthValue(_, _, false) =>
           case _ =>
             allSupported = false
-            break
         }})
     }
     allSupported
@@ -176,8 +222,6 @@ object BackendSettings extends BackendSettingsApi {
         }
       }
   }
-
-  override def disableVanillaColumnarReaders(): Boolean = true
 
   /**
    * Check whether plan is Count(1).
@@ -233,4 +277,5 @@ object BackendSettings extends BackendSettingsApi {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
 
   override def rescaleDecimalIntegralExpression(): Boolean = true
+
 }

@@ -112,20 +112,19 @@ case class CHHashAggregateExecTransformer(
       val nameList = new util.ArrayList[String]()
       val (inputAttrs, outputAttrs) =
         if (!modes.contains(Partial)) {
+          var resultAttrIndex = 0
           for (attr <- aggregateResultAttributes) {
-            val colName = if (aggregateAttributes.contains(attr)) {
-              // for aggregate func
-              ConverterUtils.genColumnNameWithExprId(attr) +
-                "#Partial#" + ConverterUtils.getShortAttributeName(attr)
-            } else {
-              // for group by cols
-              ConverterUtils.genColumnNameWithExprId(attr)
-            }
+            val colName = getIntermediateAggregateResultColumnName(
+              resultAttrIndex,
+              aggregateResultAttributes,
+              groupingExpressions,
+              aggregateExpressions)
             nameList.add(colName)
             val (dataType, nullable) =
               getIntermediateAggregateResultType(attr, aggregateExpressions)
-            nameList.addAll(RelBuilder.collectStructFieldNamesDFS(dataType))
+            nameList.addAll(ConverterUtils.collectStructFieldNames(dataType))
             typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
+            resultAttrIndex += 1
           }
           (aggregateResultAttributes, output)
         } else {
@@ -298,6 +297,23 @@ case class CHHashAggregateExecTransformer(
 
   def numShufflePartitions: Option[Int] = Some(0)
 
+  // aggResultAttributes is groupkeys ++ aggregate expressions
+  def getIntermediateAggregateResultColumnName(
+      columnIndex: Int,
+      aggResultAttributes: Seq[Attribute],
+      groupingExprs: Seq[NamedExpression],
+      aggExpressions: Seq[AggregateExpression]): String = {
+    val resultAttr = aggResultAttributes(columnIndex)
+    if (columnIndex < groupingExprs.length) {
+      ConverterUtils.genColumnNameWithExprId(resultAttr)
+    } else {
+      val aggExpr = aggExpressions(columnIndex - groupingExprs.length)
+      var aggFunctionName =
+        AggregateFunctionsBuilder.getSubstraitFunctionName(aggExpr.aggregateFunction).get
+      ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
+    }
+  }
+
   def getIntermediateAggregateResultType(
       attr: Attribute,
       inputAggregateExpressions: Seq[AggregateExpression]): (DataType, Boolean) = {
@@ -346,6 +362,11 @@ case class CHHashAggregateExecTransformer(
               var fields = Seq[(DataType, Boolean)]()
               fields = fields :+ (covar.left.dataType, covar.left.nullable)
               fields = fields :+ (covar.right.dataType, covar.right.nullable)
+              (makeStructType(fields), attr.nullable)
+            case corr: PearsonCorrelation =>
+              var fields = Seq[(DataType, Boolean)]()
+              fields = fields :+ (corr.left.dataType, corr.left.nullable)
+              fields = fields :+ (corr.right.dataType, corr.right.nullable)
               (makeStructType(fields), attr.nullable)
             case expr =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)

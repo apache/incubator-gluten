@@ -90,7 +90,7 @@ case class TakeOrderedAndProjectExecTransformer(limit: Int,
         val shuffleExec = ShuffleExchangeExec(SinglePartition, sortStagePlan)
         val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(
           shuffleExec, sortStagePlan, isAdaptiveContextOrTopParentExchange,
-          shuffleExec.child.output, enableCoalesceBatches = false)
+          shuffleExec.child.output)
         val globalSortExecPlan = SortExecTransformer(sortOrder, false,
           new ColumnarInputAdapter(transformedShuffleExec))
         LimitTransformer(globalSortExecPlan, 0, limit)

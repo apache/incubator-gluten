@@ -30,10 +30,7 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
   private byte[] buffer = null;
 
-  public OnHeapCopyShuffleInputStream(
-      InputStream in,
-      int bufferSize,
-      boolean isCompressed) {
+  public OnHeapCopyShuffleInputStream(InputStream in, int bufferSize, boolean isCompressed) {
     this.in = in;
     this.bufferSize = bufferSize;
     this.isCompressed = isCompressed;

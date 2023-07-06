@@ -78,10 +78,7 @@ class LikeTransformer(
 
     // CH backend does not support escapeChar, so skip it here.
     val expressionNodes =
-      if (
-        BackendsApiManager.getBackendName
-          .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-      ) {
+      if (BackendsApiManager.chBackend) {
         Lists.newArrayList(leftNode, rightNode)
       } else {
         Lists.newArrayList(leftNode, rightNode, escapeCharNode)

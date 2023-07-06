@@ -160,18 +160,6 @@ class MetricsHandler extends MetricsApi with Logging{
   override def genProjectTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new ProjectMetricsUpdater(metrics)
 
-  override def genCoalesceBatchesMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "collectTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext, "totaltime to collect batch"),
-      "concatTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext, "totaltime to coalesce batch"),
-      "avgCoalescedNumRows" -> SQLMetrics
-        .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
-
   override def genHashAggregateTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
@@ -252,6 +240,7 @@ class MetricsHandler extends MetricsApi with Logging{
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
       "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
+      "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_decompress"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),

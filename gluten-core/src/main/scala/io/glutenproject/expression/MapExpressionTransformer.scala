@@ -62,14 +62,12 @@ class GetMapValueTransformer(substraitExprName: String, child: ExpressionTransfo
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // ClickHouse backend doesn't support fail on error
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND) && failOnError) {
+    if (BackendsApiManager.chBackend && failOnError) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
     // Velox backend always fails on error
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_VELOX_BACKEND) && !failOnError) {
+    if (BackendsApiManager.veloxBackend && !failOnError) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 

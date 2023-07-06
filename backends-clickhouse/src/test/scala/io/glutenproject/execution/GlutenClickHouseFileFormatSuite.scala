@@ -18,14 +18,12 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{functions, DataFrame, Row}
-import org.apache.spark.sql.execution.{FileSourceScanExec, LocalTableScanExec}
+import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
-import org.apache.spark.sql.types.{StringType, StructType}
+import org.apache.spark.sql.types.{StructField, _}
 
-import java.util.Date
-
-import scala.language.implicitConversions
+import java.sql.{Date, Timestamp}
+import java.util
 
 case class AllDataTypesWithNonPrimitiveType(
     string_field: String,
@@ -59,7 +57,8 @@ class GlutenClickHouseFileFormatSuite
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  protected val orcDataPath = rootPath + "orc-data"
+  protected val orcDataPath: String = rootPath + "orc-data"
+  protected val csvDataPath: String = rootPath + "csv-data"
 
   override protected def createTPCHNullableTables(): Unit = {}
 
@@ -68,6 +67,10 @@ class GlutenClickHouseFileFormatSuite
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "true")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.date_time_input_format",
+        "best_effort_us")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization", "true")
   }
 
   // in this case, FakeRowAdaptor does R2C
@@ -156,9 +159,12 @@ class GlutenClickHouseFileFormatSuite
       csvFileFormat,
       sql,
       df => {
-        assert(df.queryExecution.executedPlan.isInstanceOf[FileSourceScanExec])
-      },
-      false)
+        val csvFileScan = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(csvFileScan.size == 1)
+      }
+    )
   }
 
   test("read data from csv file format with filter") {
@@ -176,11 +182,10 @@ class GlutenClickHouseFileFormatSuite
       sql,
       df => {
         val csvFileScan = collect(df.queryExecution.executedPlan) {
-          case f: FileSourceScanExec if f.relation.fileFormat.isInstanceOf[CSVFileFormat] => f
+          case f: FileSourceScanExecTransformer => f
         }
         assert(csvFileScan.size == 1)
-      },
-      false
+      }
     )
   }
 
@@ -189,7 +194,7 @@ class GlutenClickHouseFileFormatSuite
     val csvFileFormat = "csv"
     val sql =
       s"""
-         | select _c7, sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
+         | select _c7, count(_c0), sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
          | from $csvFileFormat.`$filePath`
          | group by _c7
          |""".stripMargin
@@ -199,12 +204,568 @@ class GlutenClickHouseFileFormatSuite
       sql,
       df => {
         val csvFileScan = collect(df.queryExecution.executedPlan) {
-          case f: FileSourceScanExec if f.relation.fileFormat.isInstanceOf[CSVFileFormat] => f
+          case f: FileSourceScanExecTransformer => f
         }
         assert(csvFileScan.size == 1)
       },
-      false
+      noFallBack = false
     )
+  }
+
+  test("read normal csv") {
+    val file_path = csvDataPath + "/normal_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("string_field", StringType, nullable = true),
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("float_field", FloatType, nullable = true),
+        StructField.apply("double_field", DoubleType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true),
+        StructField.apply("byte_field", ByteType, nullable = true),
+        StructField.apply("boolean_field", BooleanType, nullable = true),
+        StructField.apply("decimal_field", DecimalType.apply(10, 2), nullable = true),
+        StructField.apply("date_field", DateType, nullable = true),
+        StructField.apply("timestamp_field", TimestampType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+    options.put("nullValue", "null")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(List(("spark.sql.legacy.timeParserPolicy", "LEGACY")) ++ vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(file_path)
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("read excel csv with whitespace") {
+    val file_path = csvDataPath + "/whitespace_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("float_field", FloatType, nullable = true),
+        StructField.apply("double_field", DoubleType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 1.toLong, 1.toFloat, 1.toDouble, 1.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("read excel export csv base") {
+    implicit class StringToDate(s: String) {
+      def date: Date = Date.valueOf(s)
+    }
+
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", DateType, nullable = true),
+        StructField.apply("c2", TimestampType, nullable = true),
+        StructField.apply("c3", FloatType, nullable = true),
+        StructField.apply("c4", DoubleType, nullable = true),
+        StructField.apply("c5", IntegerType, nullable = true),
+        StructField.apply("c6", LongType, nullable = true),
+        StructField.apply("c7", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("quote", "\"")
+      .option("nullValue", "null")
+      .schema(schema)
+      .csv(csvDataPath + "/excel_data_base.csv")
+      .toDF()
+
+    val result = df.collect()
+    val csvFileScan = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+
+    assert(csvFileScan.size == 1)
+    assert(result.length == 19)
+    assert(result.apply(0).getString(6) == null)
+    assert(result.apply(0).getString(6) == null)
+    assert(result.apply(16).getFloat(2) == -100000)
+    assert(result.apply(16).getDouble(3) == -100000)
+    assert(result.apply(16).getInt(4) == -100000)
+    assert(result.apply(16).getLong(5) == -100000)
+    assert(result.apply(18).getDate(0) == "2023-07-19".date)
+  }
+
+  test("read excel export csv delimiter") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("a", DateType, nullable = true),
+        StructField.apply("b", TimestampType, nullable = true),
+        StructField.apply("c", FloatType, nullable = true),
+        StructField.apply("d", DoubleType, nullable = true),
+        StructField.apply("e", IntegerType, nullable = true),
+        StructField.apply("f", LongType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", "|")
+      .schema(schema)
+      .csv(csvDataPath + "/excel_data_delimiter.csv")
+      .toDF()
+
+    val csvFileScan = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(csvFileScan.size == 1)
+    assert(df.collect().length == 12)
+  }
+
+  test("expected_end_of_line") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true),
+        StructField.apply("c2", StringType, nullable = true),
+        StructField.apply("c3", StringType, nullable = true),
+        StructField.apply("c4", StringType, nullable = true),
+        StructField.apply("c5", StringType, nullable = true),
+        StructField.apply("c6", StringType, nullable = true),
+        StructField.apply("c7", StringType, nullable = true),
+        StructField.apply("c8", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("header", "false")
+      .option("quote", "\"")
+      .schema(schema)
+      .csv(csvDataPath + "/expected_end_of_line.csv")
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("header", "false")
+        .option("quote", "\"")
+        .schema(schema)
+        .csv(csvDataPath + "/expected_end_of_line.csv")
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("csv pruning") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", StringType, nullable = true),
+        StructField.apply("c2", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("quote", "\"")
+      .schema(schema)
+      .csv(csvDataPath + "/double_quote.csv")
+      .toDF()
+
+    df.createTempView("pruning")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        |select
+        |          c2
+        |        from
+        |          pruning
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
+  test("csv count(*)") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", StringType, nullable = true),
+        StructField.apply("c2", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("quote", "\"")
+      .schema(schema)
+      .csv(csvDataPath + "/double_quote.csv")
+      .toDF()
+
+    df.createTempView("countallt")
+    compareResultsAgainstVanillaSpark(
+      """
+        |select
+        |          count(*)
+        |        from
+        |          countallt
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
+  test("csv \\r") {
+    // scalastyle:off nonascii
+    val csv_files = Seq("csv_r.csv", "中文.csv")
+    // scalastyle:on nonascii
+    csv_files.foreach(
+      file => {
+        val csv_path = csvDataPath + "/" + file
+        val schema = StructType.apply(
+          Seq(
+            StructField.apply("c1", StringType, nullable = true)
+          ))
+
+        val df = spark.read
+          .option("delimiter", ",")
+          .option("header", "false")
+          .schema(schema)
+          .csv(csv_path)
+          .toDF()
+
+        var expectedAnswer: Seq[Row] = null
+        withSQLConf(vanillaSparkConfs(): _*) {
+          expectedAnswer = spark.read
+            .option("delimiter", ",")
+            .option("header", "false")
+            .schema(schema)
+            .csv(csv_path)
+            .toDF()
+            .collect()
+        }
+        checkAnswer(df, expectedAnswer)
+      })
+  }
+
+  test("header size not equal csv first lines") {
+    // In Csv file ,there is five field schema of header
+    val schemaLessThanCsvHeader = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true),
+        StructField.apply("c2", IntegerType, nullable = true),
+        StructField.apply("c3", IntegerType, nullable = true),
+        StructField.apply("c4", IntegerType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("header", "true")
+      .schema(schemaLessThanCsvHeader)
+      .csv(csvDataPath + "/header.csv")
+      .toDF()
+
+    df.createTempView("test_schema_header_less_than_csv_header")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        |select * from test_schema_header_less_than_csv_header
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+
+    val schemaMoreThanCsvHeader = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true),
+        StructField.apply("c2", IntegerType, nullable = true),
+        StructField.apply("c3", IntegerType, nullable = true),
+        StructField.apply("c4", IntegerType, nullable = true),
+        StructField.apply("c5", IntegerType, nullable = true),
+        StructField.apply("c6", IntegerType, nullable = true)
+      ))
+
+    val df2 = spark.read
+      .option("delimiter", ",")
+      .option("header", "true")
+      .schema(schemaMoreThanCsvHeader)
+      .csv(csvDataPath + "/header.csv")
+      .toDF()
+
+    df2.createTempView("test_schema_header_More_than_csv_header")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        |select * from test_schema_header_More_than_csv_header
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
+  test("fix: read date field value wrong") {
+    implicit class StringToDate(s: String) {
+      def date: Date = Date.valueOf(s)
+      def timestamp: Timestamp = Timestamp.valueOf(s)
+    }
+
+    val csv_path = csvDataPath + "/field_value_wrong.csv"
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("a", DateType, nullable = true),
+        StructField.apply("b", TimestampType, nullable = true)
+      ))
+
+    val data = new util.ArrayList[Row]()
+    data.add(Row("2023-06-16".date, "2023-06-16 18:00:05".timestamp))
+
+    spark
+      .createDataFrame(data, schema)
+      .write
+      .mode("overwrite")
+      .format("csv")
+      .options(options)
+      .save(csv_path)
+
+    spark.read
+      .options(options)
+      .schema(schema)
+      .csv(csv_path)
+      .toDF()
+      .createTempView("field_read_wrong")
+
+    compareResultsAgainstVanillaSpark(
+      "select * from field_read_wrong",
+      compareResult = true,
+      _ => {})
+  }
+
+  test("cannot_parse_input") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", StringType, nullable = true),
+        StructField.apply("c2", StringType, nullable = true),
+        StructField.apply("c3", StringType, nullable = true),
+        StructField.apply("c4", StringType, nullable = true),
+        StructField.apply("c5", StringType, nullable = true),
+        StructField.apply("c6", StringType, nullable = true),
+        StructField.apply("c7", StringType, nullable = true),
+        StructField.apply("c8", StringType, nullable = true),
+        StructField.apply("c9", StringType, nullable = true),
+        StructField.apply("c10", StringType, nullable = true),
+        StructField.apply("c11", DoubleType, nullable = true),
+        StructField.apply("c12", DoubleType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("header", "false")
+      .schema(schema)
+      .csv(csvDataPath + "/cannot_parse_input.csv")
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("header", "false")
+        .schema(schema)
+        .csv(csvDataPath + "/cannot_parse_input.csv")
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
+
+    val csvFileScan = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(csvFileScan.size == 1)
+  }
+
+  test("test read excel quote") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("a", StringType, nullable = true),
+        StructField.apply("b", StringType, nullable = true)
+      ))
+
+    val double_path = csvDataPath + "/double_quote.csv"
+    val double_quote_option = new util.HashMap[String, String]()
+    double_quote_option.put("delimiter", ",")
+    double_quote_option.put("quote", "\"")
+
+    val df1 = spark.read
+      .options(double_quote_option)
+      .schema(schema)
+      .csv(double_path)
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .options(double_quote_option)
+        .schema(schema)
+        .csv(double_path)
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df1, expectedAnswer)
+
+    var csvFileScan = collect(df1.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(csvFileScan.size == 1)
+
+    val single_path = csvDataPath + "/single_quote.csv"
+    val single_quote_option = new util.HashMap[String, String]()
+    single_quote_option.put("delimiter", ",")
+    single_quote_option.put("quote", "\"")
+    val df2 = spark.read
+      .options(single_quote_option)
+      .schema(schema)
+      .csv(single_path)
+      .toDF()
+
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .options(single_quote_option)
+        .schema(schema)
+        .csv(single_path)
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df2, expectedAnswer)
+
+    csvFileScan = collect(df2.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(csvFileScan.size == 1)
+  }
+
+  test("test read excel with header") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("a", StringType, nullable = true),
+        StructField.apply("b", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ";")
+      .option("quote", "")
+      .option("header", "true")
+      .schema(schema)
+      .csv(csvDataPath + "/with_header.csv")
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ";")
+        .option("quote", "")
+        .option("header", "true")
+        .schema(schema)
+        .csv(csvDataPath + "/with_header.csv")
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
+
+    val csvFileScan = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(csvFileScan.size == 1)
+  }
+
+  test("test read excel with escape with quote") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("a", StringType, nullable = true),
+        StructField.apply("b", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("escape", "\\")
+      .option("quote", "\'")
+      .schema(schema)
+      .csv(csvDataPath + "/escape_quote.csv")
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("quote", "\'")
+        .option("escape", "\\")
+        .schema(schema)
+        .csv(csvDataPath + "/escape_quote.csv")
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
+
+    val csvFileScan = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(csvFileScan.size == 1)
+  }
+
+  test("test read excel with escape without quote") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("a", StringType, nullable = true),
+        StructField.apply("b", StringType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("escape", "\\")
+      .schema(schema)
+      .csv(csvDataPath + "/escape_without_quote.csv")
+      .toDF()
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("escape", "\\")
+        .schema(schema)
+        .csv(csvDataPath + "/escape_without_quote.csv")
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
+
+    val csvFileScan = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(csvFileScan.size == 1)
   }
 
   test("read data from csv file format with table") {
@@ -225,7 +786,7 @@ class GlutenClickHouseFileFormatSuite
     spark.createDataFrame(genTestData()).createOrReplaceTempView(tableName)
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val csvFileScan = collect(df.queryExecution.executedPlan) {
           case l: LocalTableScanExec => l
@@ -256,7 +817,7 @@ class GlutenClickHouseFileFormatSuite
          | select *
          | from $orcFileFormat.`$filePath`
          |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, df => {}, false)
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {}, noFallBack = false)
   }
 
   def testFileFormatBase(
@@ -271,8 +832,13 @@ class GlutenClickHouseFileFormatSuite
       .write
       .mode("overwrite")
       .format(fileFormat)
+      .option("quote", "\"")
       .save(filePath)
-    compareResultsAgainstVanillaSpark(sql, true, customCheck, noFallBack)
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      customCheck,
+      noFallBack = noFallBack)
   }
 
   /** Generate test data for primitive type */
@@ -280,6 +846,7 @@ class GlutenClickHouseFileFormatSuite
     (0 to 299).map {
       i =>
         if (i % 100 == 1) {
+          // scalastyle:off nonascii
           AllDataTypesWithNonPrimitiveType(
             "测试中文",
             null,
@@ -291,6 +858,7 @@ class GlutenClickHouseFileFormatSuite
             null,
             null,
             null)
+          // scalastyle:on nonascii
         } else if (i % 25 == 0) {
           if (i % 50 == 0) {
             AllDataTypesWithNonPrimitiveType(
@@ -334,7 +902,7 @@ class GlutenClickHouseFileFormatSuite
     val schema = new StructType()
       .add("a", StringType)
 
-    val fileName = basePath + "/parquet_test_" + new Date().getTime + "_empty.parquet"
+    val fileName = basePath + "/parquet_test_" + System.currentTimeMillis() + "_empty.parquet"
 
     spark.createDataFrame(data, schema).toDF().write.parquet(fileName)
     fileName

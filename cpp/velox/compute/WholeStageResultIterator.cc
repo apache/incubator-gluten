@@ -9,6 +9,10 @@
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 
+#ifdef ENABLE_HDFS
+#include <hdfs/hdfs.h>
+#endif
+
 using namespace facebook;
 
 namespace gluten {
@@ -16,7 +20,9 @@ namespace gluten {
 namespace {
 // Velox configs
 const std::string kHiveConnectorId = "test-hive";
-const std::string kSpillEnabled = "spark.gluten.sql.columnar.backend.velox.spillEnabled";
+
+// memory
+const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -48,19 +54,29 @@ const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 
 } // namespace
 
+WholeStageResultIterator::WholeStageResultIterator(
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
+    const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
+    const std::unordered_map<std::string, std::string>& confMap)
+    : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+#ifdef ENABLE_HDFS
+  updateHdfsTokens();
+#endif
+  spillStrategy_ = getConfigValue(kSpillStrategy, "threshold");
+  getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
+}
+
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
-      std::make_shared<velox::core::MemConfig>(),
+      getQueryContextConf(),
       connectorConfigs,
       gluten::VeloxInitializer::get()->getAsyncDataCache(),
       pool_,
       nullptr,
       "");
-  // Set customized confs to query context.
-  setConfToQueryContext(ctx);
   return ctx;
 }
 
@@ -77,7 +93,18 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   if (numRows == 0) {
     return nullptr;
   }
+  for (auto& child : vector->children()) {
+    child->loadedVector();
+  }
+
   return std::make_shared<VeloxColumnarBatch>(vector);
+}
+
+int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
+  if (spillStrategy_ == "auto") {
+    return pool_->reclaim(size);
+  }
+  return 0;
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(
@@ -209,7 +236,7 @@ std::string WholeStageResultIterator::getConfigValue(
   return got->second;
 }
 
-void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox::core::QueryCtx>& queryCtx) {
+std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryContextConf() {
   std::unordered_map<std::string, std::string> configs = {};
   // Find batch size from Spark confs. If found, set the preferred and max batch size.
   configs[velox::core::QueryConfig::kPreferredOutputBatchRows] = getConfigValue(kSparkBatchSize, "4096");
@@ -218,7 +245,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
     // To align with Spark's behavior, set casting to int to be truncating.
-    configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
+    configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
     configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
 
@@ -226,9 +253,13 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
     auto maxMemory =
         (long)(0.75 * (double)std::stol(getConfigValue(kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
     configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
-
+    configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] = std::to_string(90);
     // Spill configs
-    configs[velox::core::QueryConfig::kSpillEnabled] = getConfigValue(kSpillEnabled, "true");
+    if (spillStrategy_ == "none") {
+      configs[velox::core::QueryConfig::kSpillEnabled] = "false";
+    } else {
+      configs[velox::core::QueryConfig::kSpillEnabled] = "true";
+    }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] = getConfigValue(kAggregationSpillEnabled, "true");
     configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(kJoinSpillEnabled, "true");
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(kOrderBySpillEnabled, "true");
@@ -249,8 +280,24 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
   }
-  queryCtx->setConfigOverridesUnsafe(std::move(configs));
+  return configs;
 }
+
+#ifdef ENABLE_HDFS
+void WholeStageResultIterator::updateHdfsTokens() {
+  const auto& username = confMap_[kUGIUserName];
+  const auto& allTokens = confMap_[kUGITokens];
+
+  if (username.empty() || allTokens.empty())
+    return;
+
+  hdfsSetDefautUserName(username.c_str());
+  std::vector<folly::StringPiece> tokens;
+  folly::split('\0', allTokens, tokens);
+  for (auto& token : tokens)
+    hdfsSetTokenForDefaultUser(token.data());
+}
+#endif
 
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
@@ -260,7 +307,6 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
 
 WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
-    std::shared_ptr<velox::memory::MemoryPool> resultLeafPool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& scanNodeIds,
     const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
@@ -268,7 +314,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, resultLeafPool, planNode, confMap),
+    : WholeStageResultIterator(pool, planNode, confMap),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -310,7 +356,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
-  task_ = std::make_shared<velox::exec::Task>(
+  task_ = velox::exec::Task::create(
       fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
       std::move(planFragment),
       0,
@@ -379,18 +425,17 @@ WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::st
 
 WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
-    std::shared_ptr<velox::memory::MemoryPool> resultLeafPool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, resultLeafPool, planNode, confMap), streamIds_(streamIds) {
+    : WholeStageResultIterator(pool, planNode, confMap), streamIds_(streamIds) {
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
-  task_ = std::make_shared<velox::exec::Task>(
+  task_ = velox::exec::Task::create(
       fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
       std::move(planFragment),
       0,

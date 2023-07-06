@@ -10,6 +10,7 @@ set(VCPKG_C_FLAGS "${VCPKG_C_FLAGS} -fcommon")
 vcpkg_extract_source_archive_ex(
     OUT_SOURCE_PATH SOURCE_PATH
     ARCHIVE "${ARCHIVE}"
+    PATCHES fix-pkgconfig.patch
 )
 
 vcpkg_configure_make(

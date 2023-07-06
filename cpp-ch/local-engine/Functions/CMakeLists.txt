@@ -9,6 +9,7 @@ list (APPEND PRIVATE_LIBS
         Poco::Util
         Poco::Net
         Poco::JSON
+        ch_contrib::cctz
         ch_contrib::fmt
         ch_contrib::pdqsort
         ch_contrib::miniselect

@@ -19,8 +19,6 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
-import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
-import io.glutenproject.memory.alloc._
 import io.glutenproject.metrics.{IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
@@ -31,7 +29,6 @@ import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -42,6 +39,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
@@ -71,7 +69,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             val lengths = new java.util.ArrayList[java.lang.Long]()
             f.files.foreach {
               file =>
-                paths.add(file.filePath)
+                paths.add(new URI(file.filePath).toASCIIString)
                 starts.add(java.lang.Long.valueOf(file.start))
                 lengths.add(java.lang.Long.valueOf(file.length))
             }
@@ -97,62 +95,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       )
     }
     GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
-  }
-
-  /** Generate Iterator[ColumnarBatch] for CoalesceBatchesExec. */
-  override def genCoalesceIterator(
-      iter: Iterator[ColumnarBatch],
-      recordsPerBatch: Int,
-      numOutputRows: SQLMetric = null,
-      numInputBatches: SQLMetric = null,
-      numOutputBatches: SQLMetric = null,
-      collectTime: SQLMetric = null,
-      concatTime: SQLMetric = null,
-      avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch] = {
-    val res = if (GlutenConfig.getConf.enableCoalesceBatches) {
-      val operator = new CHCoalesceOperator(recordsPerBatch)
-      new Iterator[ColumnarBatch] {
-        override def hasNext: Boolean = {
-          val beforeNext = System.nanoTime
-          val hasNext = iter.hasNext
-          collectTime += System.nanoTime - beforeNext
-          if (!hasNext) operator.close();
-          hasNext
-        }
-
-        override def next(): ColumnarBatch = {
-          val c = iter.next()
-          numInputBatches += 1
-          val beforeConcat = System.nanoTime
-          operator.mergeBlock(c)
-
-          concatTime += System.nanoTime() - beforeConcat
-          var hasNext = true;
-          while (!operator.isFull && hasNext) {
-            val beforeNext = System.nanoTime
-            hasNext = iter.hasNext
-            if (hasNext) {
-              val cb = iter.next();
-              collectTime += System.nanoTime - beforeNext
-              numInputBatches += 1;
-              val beforeConcat = System.nanoTime
-              operator.mergeBlock(cb)
-              concatTime += System.nanoTime() - beforeConcat
-            }
-          }
-          val res = operator.release().toColumnarBatch
-          numOutputRows += CHNativeBlock.fromColumnarBatch(res).numRows()
-          numOutputBatches += 1
-          res
-        }
-
-        TaskContext.get().addTaskCompletionListener[Unit](_ => operator.close())
-      }
-    } else {
-      iter
-    }
-
-    new CloseableCHColumnBatchIterator(res)
   }
 
   /**
@@ -282,22 +224,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
     else new CloseableCHColumnBatchIterator(iter)
-  }
-
-  /**
-   * Generate NativeMemoryAllocatorManager.
-   *
-   * @return
-   */
-  override def genNativeMemoryAllocatorManager(
-      taskMemoryManager: TaskMemoryManager,
-      spiller: Spiller,
-      taskMemoryMetrics: TaskMemoryMetrics): NativeMemoryAllocatorManager = {
-    val rl = new CHManagedReservationListener(
-      new GlutenMemoryConsumer(taskMemoryManager, spiller),
-      taskMemoryMetrics
-    )
-    new CHMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
   }
 
   /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
