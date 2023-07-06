@@ -204,13 +204,13 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status initIpcWriteOptions();
 
-  arrow::Status initPartitions(const facebook::velox::RowVector& rv);
+  arrow::Status initPartitions();
 
-  arrow::Status initColumnTypes(const facebook::velox::RowVector& rv);
+  arrow::Status initColumnTypes(const facebook::velox::RowVector& rv, bool removePid);
 
   arrow::Status splitRowVector(const facebook::velox::RowVector& rv);
 
-  arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
+  arrow::Status initFromRowVector(const facebook::velox::RowVector& rv, bool removePid);
 
   arrow::Status createPartition2Row(uint32_t rowNum);
 

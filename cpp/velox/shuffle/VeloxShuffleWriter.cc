@@ -247,7 +247,7 @@ arrow::Status VeloxShuffleWriter::initIpcWriteOptions() {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::initPartitions(const velox::RowVector& rv) {
+arrow::Status VeloxShuffleWriter::initPartitions() {
   auto simpleColumnCount = simpleColumnIndices_.size();
 
   partitionValidityAddrs_.resize(simpleColumnCount);
@@ -378,7 +378,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
     auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
     VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
     auto& rv = *veloxColumnBatch->getFlattenedRowVector();
-    RETURN_NOT_OK(initFromRowVector(rv));
+    RETURN_NOT_OK(initFromRowVector(rv, false));
     std::vector<std::shared_ptr<arrow::Buffer>> buffers;
     std::vector<VectorPtr> complexChildren;
     for (auto& child : rv.children()) {
@@ -406,18 +406,21 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
     auto rvBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[1]);
-    RETURN_NOT_OK(doSplit(*(rvBatch->getFlattenedRowVector())));
+    auto& rv = *rvBatch->getFlattenedRowVector();
+    RETURN_NOT_OK(initFromRowVector(rv, false));
+    RETURN_NOT_OK(doSplit(rv));
   } else {
     auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
     VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
     auto& rv = *veloxColumnBatch->getFlattenedRowVector();
-    RETURN_NOT_OK(initFromRowVector(rv));
     if (partitioner_->hasPid()) {
+      RETURN_NOT_OK(initFromRowVector(rv, true));
       auto pidArr = getFirstColumn(rv);
       RETURN_NOT_OK(partitioner_->compute(pidArr, rv.size(), row2Partition_, partition2RowCount_));
       auto strippedRv = getStrippedRowVector(rv);
       RETURN_NOT_OK(doSplit(*strippedRv));
     } else {
+      RETURN_NOT_OK(initFromRowVector(rv, false));
       RETURN_NOT_OK(partitioner_->compute(nullptr, rv.size(), row2Partition_, partition2RowCount_));
       RETURN_NOT_OK(doSplit(rv));
     }
@@ -898,11 +901,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     return arrow::Status::OK();
   }
 
-  arrow::Status VeloxShuffleWriter::initColumnTypes(const velox::RowVector& rv) {
+  arrow::Status VeloxShuffleWriter::initColumnTypes(const velox::RowVector& rv, bool removePid) {
     schema_ = toArrowSchema(rv.type());
 
     // remove the first column
-    if (partitioner_->hasPid()) {
+    if (removePid) {
       ARROW_ASSIGN_OR_RAISE(schema_, schema_->RemoveField(0));
       // skip the first column
       for (size_t i = 1; i < rv.childrenSize(); ++i) {
@@ -959,10 +962,10 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     return arrow::Status::OK();
   }
 
-  arrow::Status VeloxShuffleWriter::initFromRowVector(const velox::RowVector& rv) {
+  arrow::Status VeloxShuffleWriter::initFromRowVector(const velox::RowVector& rv, bool removePid) {
     if (veloxColumnTypes_.empty()) {
-      RETURN_NOT_OK(initColumnTypes(rv));
-      RETURN_NOT_OK(initPartitions(rv));
+      RETURN_NOT_OK(initColumnTypes(rv, removePid));
+      RETURN_NOT_OK(initPartitions());
     }
     return arrow::Status::OK();
   }
