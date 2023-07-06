@@ -42,5 +42,7 @@ private:
     void addPostProjectionForTypeMismatch();
 
     void buildAggregateDescriptions(AggregateDescriptions & descriptions);
+
+    void handleEmptyAggregates();
 };
 }

@@ -31,6 +31,12 @@ DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const su
 {
     setup(std::move(query_plan), rel);
     LOG_TRACE(logger, "original header is: {}", plan->getCurrentDataStream().header.dumpStructure());
+    if (rel.aggregate().measures().empty() && (rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty()))
+    {
+        LOG_TRACE(&Poco::Logger::get("AggregateRelParser"), "Empty aggregate step");
+        handleEmptyAggregates();
+        return std::move(plan);
+    }
     addPreProjection();
     LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentDataStream().header.dumpStructure());
     if (has_final_stage)
@@ -413,6 +419,79 @@ void AggregateRelParser::addPostProjectionForTypeMismatch()
             plan->addStep(std::move(convert_step));
         }
     }
+}
+
+/// issue-2221. Special case， more like for count(1)
+/// A tricky way to avoid fallback to spark, since convert column batch to row batch is expensive.
+void AggregateRelParser::handleEmptyAggregates()
+{
+    ActionsDAGPtr projection_action = std::make_shared<ActionsDAG>(plan->getCurrentDataStream().header.getColumnsWithTypeAndName());
+    auto i32_ty = std::make_shared<DataTypeInt32>();
+    const auto & count_col = projection_action->addColumn(ColumnWithTypeAndName(i32_ty->createColumnConst(1, 1), i32_ty, getUniqueName("1")));
+    projection_action->addOrReplaceInOutputs(count_col);
+
+    AggregateDescription description;
+    String agg_func_name = "count";
+    description.argument_names = {count_col.result_name};
+    DB::DataTypes argument_types = {count_col.result_type};
+    String arg_list_str = boost::algorithm::join(description.argument_names, ",");
+    description.column_name = agg_func_name + "(" + arg_list_str + ")";
+    description.function = getAggregateFunction(agg_func_name, argument_types);
+    
+    auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), projection_action);
+    projection_step->setStepDescription("Projection before aggregate");
+    steps.emplace_back(projection_step.get());
+    plan->addStep(std::move(projection_step));
+
+    auto settings = getContext()->getSettingsRef();
+    Aggregator::Params params(
+        grouping_keys,
+        {description},
+        false,
+        settings.max_rows_to_group_by,
+        settings.group_by_overflow_mode,
+        settings.group_by_two_level_threshold,
+        settings.group_by_two_level_threshold_bytes,
+        settings.max_bytes_before_external_group_by,
+        settings.empty_result_for_aggregation_by_empty_set,
+        getContext()->getTempDataOnDisk(),
+        settings.max_threads,
+        settings.min_free_disk_space_for_temporary_data,
+        true,
+        3,
+        settings.max_block_size,
+        false,
+        false);
+    auto aggregating_step = std::make_unique<AggregatingStep>(
+        plan->getCurrentDataStream(),
+        params,
+        GroupingSetsParamsList(),
+        true,
+        settings.max_block_size,
+        settings.aggregation_in_order_max_block_bytes,
+        1,
+        1,
+        false,
+        false,
+        SortDescription(),
+        SortDescription(),
+        false,
+        false,
+        false);
+    
+    steps.emplace_back(aggregating_step.get());
+    plan->addStep(std::move(aggregating_step));
+
+    // count(1) result is u64, but spark doesn't support u64, so we need to convert it to i64
+    auto current_cols = plan->getCurrentDataStream().header.getColumnsWithTypeAndName();
+    auto target_cols = current_cols;
+    target_cols[0].type = std::make_shared<DataTypeInt64>();
+    target_cols[0].column = target_cols[0].type->createColumn();
+    ActionsDAGPtr convert_action = ActionsDAG::makeConvertingActions(current_cols, target_cols, DB::ActionsDAG::MatchColumnsMode::Position);
+    QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentDataStream(), convert_action);
+    convert_step->setStepDescription("Post-projection For Type Mismatch");
+    steps.emplace_back(convert_step.get());
+    plan->addStep(std::move(convert_step));
 }
 
 void registerAggregateParser(RelParserFactory & factory)
