@@ -66,14 +66,6 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
 
   override def getPartitionSchemas: StructType = relation.tableMeta.partitionSchema
 
-  override def getInputFilePaths: Seq[String] = {
-    val inputPaths = scan match {
-      case Some(fileScan) => fileScan.fileIndex.inputFiles.toSeq
-      case _ => Seq.empty
-    }
-    inputPaths
-  }
-
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     Seq.empty
   }

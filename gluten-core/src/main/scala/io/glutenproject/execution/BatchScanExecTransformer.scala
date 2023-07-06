@@ -69,11 +69,6 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     case _ => new StructType()
   }
 
-  override def getInputFilePaths: Seq[String] = scan match {
-    case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
-    case _ => Seq.empty
-  }
-
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

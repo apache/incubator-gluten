@@ -48,8 +48,6 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
 
   def getPartitionSchemas: StructType
 
-  def getInputFilePaths: Seq[String]
-
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("outputRows")
     val numOutputVectors = longMetric("outputVectors")
