@@ -80,9 +80,7 @@ class CHTransformerApi extends TransformerApi with Logging {
    * @return
    *   true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(
-      fileFormat: ReadFileFormat,
-      fields: Array[StructField]): Boolean =
+  def supportsReadFileFormat(fileFormat: ReadFileFormat, fields: Array[StructField]): Boolean =
     BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
