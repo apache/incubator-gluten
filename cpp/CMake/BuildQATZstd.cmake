@@ -48,15 +48,17 @@ macro(build_qatzstd)
 
   add_library(qatzstd::qatzstd STATIC IMPORTED)
 
-  if(ZSTD_USE_BUNDLED)
-    add_dependencies(qatzstd_ep qatzstd_zstd_ep)
-  endif()
+  # The include directory must exist before it is referenced by a target.
+  file(MAKE_DIRECTORY "${QATZSTD_INCLUDE_DIR}")
+
   set(QATZSTD_INCLUDE_DIRS
       "${QATZSTD_INCLUDE_DIR}"
       "${ZSTD_INCLUDE_DIR}")
 
-  # The include directory must exist before it is referenced by a target.
-  file(MAKE_DIRECTORY "${QATZSTD_INCLUDE_DIR}")
+  set(QATZSTD_LINK_LIBRARIES
+      "${ZSTD_LIBRARY}"
+      "${USDM_DRV_LIBRARY}"
+      "${QAT_S_LIBRARY}")
 
   set_target_properties(qatzstd::qatzstd
       PROPERTIES IMPORTED_LOCATION
@@ -64,9 +66,16 @@ macro(build_qatzstd)
       INTERFACE_INCLUDE_DIRECTORIES
       "${QATZSTD_INCLUDE_DIRS}"
       INTERFACE_LINK_LIBRARIES
-      "${ZSTD_STATIC_LIB}")
+      "${QATZSTD_LINK_LIBRARIES}")
 
   add_dependencies(qatzstd::qatzstd qatzstd_ep)
 endmacro()
 
+find_library(USDM_DRV_LIBRARY REQUIRED NAMES usdm_drv_s PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(QAT_S_LIBRARY REQUIRED NAMES qat_s PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+
+message(STATUS "Found usdm_drv: ${USDM_DRV_LIBRARY}")
+message(STATUS "Found qat_s: ${QAT_S_LIBRARY}")
+
 build_qatzstd()
+
