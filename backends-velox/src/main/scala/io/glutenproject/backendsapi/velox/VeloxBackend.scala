@@ -73,23 +73,6 @@ object BackendSettings extends BackendSettingsApi {
       unsupportedDataTypes.isEmpty
     }
 
-<<<<<<< HEAD
-=======
-    def validateFilePath: Boolean = {
-      // Fallback to vanilla spark when the input path
-      // does not contain the partition info.
-      if (partTable && !paths.forall(_.contains("="))) {
-        // scalastyle:off println
-        println(
-          s"Validation failed for ${this.getClass.toString}" +
-            s"due to: input path doesn't contain split info. ")
-        // scalastyle:on println
-        return false
-      }
-      true
-    }
-
->>>>>>> upstream/main
     format match {
       case ParquetReadFormat => validateTypes
       case DwrfReadFormat => true
