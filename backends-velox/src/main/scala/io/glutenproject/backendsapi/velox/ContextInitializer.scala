@@ -65,12 +65,6 @@ class ContextInitializer extends ContextApi {
       .loadAndCreateLink("libarrow.so.1200.0.0", "libarrow.so.1200", false)
       .loadAndCreateLink("libparquet.so.1200.0.0", "libparquet.so.1200", false)
       .commit()
-    if (conf.get(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
-      .toLowerCase(Locale.ROOT) == GlutenConfig.GLUTEN_QAT_BACKEND_NAME) {
-      loader.newTransaction()
-        .loadAndCreateLink("libqatzip.so.3.0.1", "libqatzip.so.3", false)
-        .commit()
-    }
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
     System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")

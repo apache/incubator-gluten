@@ -18,58 +18,42 @@
 # ZSTD_HOME environmental variable is used to check for Zstd headers and static library
 
 # ZSTD_INCLUDE_DIR: directory containing headers
-# ZSTD_LIBRARY: path to libzstd
 # ZSTD_STATIC_LIB: path to libzstd.a
 # ZSTD_FOUND: whether zstd has been found
 
-if( NOT "$ENV{ZSTD_HOME}" STREQUAL "")
-    file (TO_CMAKE_PATH "${ZSTD_HOME}" _zstd_path)
-endif()
+if (NOT "$ENV{ZSTD_HOME}" STREQUAL "")
+  file(TO_CMAKE_PATH "${ZSTD_HOME}" _zstd_path)
+  message(STATUS "ZSTD_HOME: ${_zstd_path}")
 
-message (STATUS "ZSTD_HOME: ${_zstd_path}")
+  find_path(ZSTD_INCLUDE_DIR zstd.h HINTS
+      ${_zstd_path}
+      PATH_SUFFIXES "include")
 
-find_path (ZSTD_INCLUDE_DIR zstd.h HINTS
-        ${_zstd_path}
-        PATH_SUFFIXES "include")
+  find_library(ZSTD_STATIC_LIB NAMES ${CMAKE_STATIC_LIBRARY_PREFIX}zstd${CMAKE_STATIC_LIBRARY_SUFFIX} HINTS
+      ${_zstd_path}
+      PATH_SUFFIXES "lib")
 
-find_library (ZSTD_LIBRARY NAMES zstd HINTS
-        ${_zstd_path}
-        PATH_SUFFIXES "lib")
+  if (ZSTD_INCLUDE_DIR AND ZSTD_STATIC_LIB)
+    set(ZSTD_FOUND TRUE)
+    set(ZSTD_HEADER_NAME zstd.h)
+    set(ZSTD_HEADER ${ZSTD_INCLUDE_DIR}/${ZSTD_HEADER_NAME})
+  else ()
+    set(ZSTD_FOUND FALSE)
+  endif ()
 
-find_library (ZSTD_STATIC_LIB NAMES ${CMAKE_STATIC_LIBRARY_PREFIX}zstd${CMAKE_STATIC_LIBRARY_SUFFIX} HINTS
-        ${_zstd_path}
-        PATH_SUFFIXES "lib")
+  if (ZSTD_FOUND)
+    message(STATUS "Found the zstd header: ${ZSTD_HEADER}")
+    message(STATUS "Found the zstd static library: ${ZSTD_STATIC_LIB}")
+  else ()
+    message(FATAL_ERROR ZSTD_ERR_MSG "Could not find zstd. Looked in ${_zstd_path}.")
+  endif ()
 
-if (ZSTD_INCLUDE_DIR AND ZSTD_LIBRARY)
-    set (ZSTD_FOUND TRUE)
-    set (ZSTD_HEADER_NAME zstd.h)
-    set (ZSTD_HEADER ${ZSTD_INCLUDE_DIR}/${ZSTD_HEADER_NAME})
-else ()
-    set (ZSTD_FOUND FALSE)
+  set(ZSTD_USE_BUNDLED FALSE)
+else()
+  include(BuildZstd)
+  set(ZSTD_USE_BUNDLED TRUE)
 endif ()
 
-if (ZSTD_FOUND)
-    message (STATUS "Found the zstd header: ${ZSTD_HEADER}")
-    message (STATUS "Found the zstd library: ${ZSTD_LIBRARY}")
-    if (ZSTD_STATIC_LIB)
-        message (STATUS "Found the zstd static library: ${ZSTD_STATIC_LIB}")
-    endif ()
-else()
-    if (_ZSTD_path)
-        set (ZSTD_ERR_MSG "Could not find zstd. Looked in ${_zstd_path}.")
-    else ()
-        set (ZSTD_ERR_MSG "Could not find zstd in system search paths.")
-    endif()
-
-    if (ZSTD_FIND_REQUIRED)
-        message (FATAL_ERROR "${ZSTD_ERR_MSG}")
-    else ()
-        message (STATUS "${ZSTD_ERR_MSG}")
-    endif ()
-endif()
-
-mark_as_advanced (
-        ZSTD_INCLUDE_DIR
-        ZSTD_STATIC_LIB
-        ZSTD_LIBRARY
-)
+mark_as_advanced(
+    ZSTD_INCLUDE_DIR
+    ZSTD_STATIC_LIB)
