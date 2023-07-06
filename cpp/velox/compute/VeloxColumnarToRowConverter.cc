@@ -55,8 +55,8 @@ arrow::Status VeloxColumnarToRowConverter::init() {
   if (veloxBuffers_ == nullptr) {
     // First allocate memory
     veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(totalMemorySize, veloxPool_.get());
-  } 
-  
+  }
+
   if (veloxBuffers_->capacity() < totalMemorySize) {
     velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, totalMemorySize);
   }

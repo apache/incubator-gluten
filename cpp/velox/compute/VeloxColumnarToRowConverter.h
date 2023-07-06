@@ -22,9 +22,9 @@
 
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
 #include "operators/c2r/ColumnarToRow.h"
+#include "velox/buffer/Buffer.h"
 #include "velox/row/UnsafeRowFast.h"
 #include "velox/vector/ComplexVector.h"
-#include "velox/buffer/Buffer.h"
 
 namespace gluten {
 
