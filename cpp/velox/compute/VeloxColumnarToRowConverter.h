@@ -38,8 +38,6 @@ class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb) override;
 
  private:
-  void resumeVeloxVector();
-
   arrow::Status init();
 
   facebook::velox::RowVectorPtr rv_;
