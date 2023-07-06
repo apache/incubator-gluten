@@ -42,40 +42,26 @@ arrow::Status VeloxColumnarToRowConverter::init() {
 
   fast_ = std::make_unique<velox::row::UnsafeRowFast>(rv_);
 
-  // Initialize the offsets_ , lengths_, buffer_cursor_
-  lengths_.clear();
-  offsets_.clear();
-  lengths_.resize(numRows_, 0);
-  offsets_.resize(numRows_, 0);
-
   size_t totalMemorySize = 0;
   if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rv_->type()))) {
     totalMemorySize += fixedRowSize.value() * numRows_;
 
-    for (auto i = 0; i < numRows_; ++i) {
-      lengths_[i] = fixedRowSize.value();
-    }
-
   } else {
     for (auto i = 0; i < numRows_; ++i) {
-      auto rowSize = fast_->rowSize(i);
-      totalMemorySize += rowSize;
-      lengths_[i] = rowSize;
+      totalMemorySize += fast_->rowSize(i);
     }
   }
 
-  for (auto rowIdx = 1; rowIdx < numRows_; rowIdx++) {
-    offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
-  }
-
-  if (buffer_ == nullptr) {
+  if (veloxBuffers_ == nullptr) {
     // First allocate memory
-    ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(totalMemorySize * 1.2, arrowPool_.get()));
-  } else if (buffer_->capacity() < totalMemorySize) {
-    ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(totalMemorySize * 1.2, arrowPool_.get()));
+    veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(totalMemorySize, veloxPool_.get());
+  } 
+  
+  if (veloxBuffers_->capacity() < totalMemorySize) {
+    velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, totalMemorySize);
   }
 
-  bufferAddress_ = buffer_->mutable_data();
+  bufferAddress_ = veloxBuffers_->asMutable<uint8_t>();
   memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
   return arrow::Status::OK();
 }
@@ -84,11 +70,23 @@ arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> 
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   rv_ = veloxBatch->getFlattenedRowVector();
   RETURN_NOT_OK(init());
+
+  // Initialize the offsets_ , lengths_
+  lengths_.clear();
+  offsets_.clear();
+  lengths_.resize(numRows_, 0);
+  offsets_.resize(numRows_, 0);
+
   size_t offset = 0;
-  for (auto i = 0; i < numRows_; ++i) {
-    auto rowSize = fast_->serialize(i, (char*)(bufferAddress_ + offset));
+  for (auto rowIdx = 0; rowIdx < numRows_; ++rowIdx) {
+    auto rowSize = fast_->serialize(rowIdx, (char*)(bufferAddress_ + offset));
+    lengths_[rowIdx] = rowSize;
+    if (rowIdx > 0) {
+      offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
+    }
     offset += rowSize;
   }
+
   return arrow::Status::OK();
 }
 

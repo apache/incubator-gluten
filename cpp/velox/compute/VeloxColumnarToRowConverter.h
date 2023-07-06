@@ -24,6 +24,7 @@
 #include "operators/c2r/ColumnarToRow.h"
 #include "velox/row/UnsafeRowFast.h"
 #include "velox/vector/ComplexVector.h"
+#include "velox/buffer/Buffer.h"
 
 namespace gluten {
 
@@ -44,8 +45,7 @@ class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
   facebook::velox::RowVectorPtr rv_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::shared_ptr<facebook::velox::row::UnsafeRowFast> fast_;
-  std::vector<facebook::velox::VectorPtr> vecs_;
-  std::shared_ptr<arrow::Schema> schema_;
+  facebook::velox::BufferPtr veloxBuffers_;
 };
 
 } // namespace gluten
