@@ -42,8 +42,14 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
   test("missing cases - from boolean") {
     (DataTypeTestUtils.numericTypeWithoutDecimal + BooleanType).foreach {
       t =>
-        checkEvaluation(cast(true, t), 1)
-        checkEvaluation(cast(false, t), 0)
+        t match {
+          case BooleanType =>
+            checkEvaluation(cast(cast(true, BooleanType), t), true)
+            checkEvaluation(cast(cast(false, BooleanType), t), false)
+          case _ =>
+            checkEvaluation(cast(cast(true, BooleanType), t), 1)
+            checkEvaluation(cast(cast(false, BooleanType), t), 0)
+        }
     }
   }
 
