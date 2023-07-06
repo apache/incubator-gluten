@@ -402,12 +402,18 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     new CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
-  override def genUnixTimestampTransformer(substraitExprName: String,
+  override def genUnixTimestampTransformer(
+      substraitExprName: String,
       timeExp: ExpressionTransformer,
       format: ExpressionTransformer,
       original: ToUnixTimestamp): ExpressionTransformer = {
-    CHToUnixTimestampTransformer(substraitExprName, timeExp, format,
-      original.timeZoneId, original.failOnError, original)
+    CHToUnixTimestampTransformer(
+      substraitExprName,
+      timeExp,
+      format,
+      original.timeZoneId,
+      original.failOnError,
+      original)
   }
 
   /**
