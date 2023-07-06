@@ -18,6 +18,9 @@
 include(ExternalProject)
 
 macro(build_qatzstd)
+  # Find ZSTD
+  include(FindZstd)
+
   message(STATUS "Building QAT-ZSTD from source")
   set(QATZSTD_SOURCE_URL
       "https://github.com/marin-ma/QAT-ZSTD-Plugin.git")
@@ -30,7 +33,7 @@ macro(build_qatzstd)
   set(QATZSTD_INCLUDE_DIR "${QATZSTD_SOURCE_DIR}/src")
   set(QATZSTD_STATIC_LIB_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}${QATZSTD_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(QATZSTD_STATIC_LIB_TARGETS "${QATZSTD_SOURCE_DIR}/src/${QATZSTD_STATIC_LIB_NAME}")
-  set(QATZSTD_MAKE_ARGS "ENABLE_USDM_DRV=1")
+  set(QATZSTD_MAKE_ARGS "ENABLE_USDM_DRV=1 ZSTDLIB=${ZSTD_INCLUDE_DIR}")
 
   ExternalProject_Add(qatzstd_ep
       PREFIX ${QATZSTD_PREFIX}
@@ -45,8 +48,6 @@ macro(build_qatzstd)
 
   add_library(qatzstd::qatzstd STATIC IMPORTED)
 
-  # Find ZSTD
-  include(FindZstd)
   if(ZSTD_USE_BUNDLED)
     add_dependencies(qatzstd_ep qatzstd_zstd_ep)
   endif()
