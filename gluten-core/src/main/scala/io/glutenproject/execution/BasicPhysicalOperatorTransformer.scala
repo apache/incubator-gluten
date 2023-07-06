@@ -22,7 +22,7 @@ import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
@@ -47,7 +47,6 @@ import scala.collection.JavaConverters._
 abstract class FilterExecTransformerBase(val cond: Expression,
                                          val input: SparkPlan) extends UnaryExecNode
   with TransformSupport
-  with GlutenPlan
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -142,31 +141,21 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     }
   }
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (cond == null) {
       // The computing of this Filter is not needed.
-      return true
+      return ok()
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode = try {
-      getRelNode(
-        substraitContext, cond, child.output, operatorId, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: ${e.getMessage}")
-        return false
-    }
-
+    val relNode = getRelNode(
+      substraitContext, cond, child.output, operatorId, null, validation = true)
     // For now arrow backend only support scan + filter pattern
     if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
       if (!(child.isInstanceOf[DataSourceScanExec] ||
         child.isInstanceOf[DataSourceV2ScanExecBase])) {
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: {child is not DataSourceScanExec or DataSourceV2ScanExecBase}")
-        return false
+        return notOk("child is not DataSourceScanExec or DataSourceV2ScanExecBase")
       }
     }
 
@@ -175,18 +164,9 @@ abstract class FilterExecTransformerBase(val cond: Expression,
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 
@@ -237,7 +217,6 @@ abstract class FilterExecTransformerBase(val cond: Expression,
 case class ProjectExecTransformer(projectList: Seq[NamedExpression],
                                   child: SparkPlan) extends UnaryExecNode
   with TransformSupport
-  with GlutenPlan
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -250,36 +229,20 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
-    val relNode = try {
-      getRelNode(
-        substraitContext, projectList, child.output, operatorId, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: ${e.getMessage}")
-        return false
-    }
+    val relNode = getRelNode(
+      substraitContext, projectList, child.output, operatorId, null, validation = true)
     // Then, validate the generated plan in native engine.
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size() ) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 
@@ -443,13 +406,11 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  def doValidate(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
-      this.appendValidateLog("Validation failed for" +
-        " UnionExecTransformer due to: schema check failed.")
-      return false
+      return notOk(s"schema check failed, $schema")
     }
-    true
+    ok()
   }
 }
 
@@ -559,7 +520,8 @@ object FilterHandler {
               .transformDynamicPruningExpr(
                 batchScan.runtimeFilters,
                 reuseSubquery))
-            TransformHints.tagNotTransformable(newSource)
+            TransformHints.tagNotTransformable(newSource,
+              "The scan in BatchScanExec is not a FileScan")
             newSource
           }
       }

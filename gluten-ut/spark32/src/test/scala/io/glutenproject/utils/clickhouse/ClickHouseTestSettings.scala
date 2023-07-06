@@ -294,7 +294,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "min_by", // [not urgent]
       "aggregation with filter",
       // replaceSortAggWithHashAgg is not turned on for CH backend.
-      GLUTEN_TEST + "use gluten hash agg to replace vanilla spark sort agg"
+      GLUTEN_TEST + "use gluten hash agg to replace vanilla spark sort agg",
+      "zero average",
+      "zero stddev"
     )
     .excludeByPrefix(
       "SPARK-22951", // [not urgent] dropDuplicates
@@ -451,5 +453,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-13860: " + "covar_samp, var_samp (variance), stddev_samp (stddev) " +
         "functions in specific window LEGACY_STATISTICAL_AGGREGATE off"
     )
+
+  enableSuite[GlutenDataFrameRangeSuite]
+    .includeByPrefix("SPARK-21041")
 }
 

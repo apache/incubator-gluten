@@ -434,6 +434,8 @@ object ConverterUtils extends Logging {
         "Semi"
       case LeftAnti =>
         "Anti"
+      case other =>
+        throw new UnsupportedOperationException(s"Unsupported join type: $other")
     }
   }
 
@@ -469,6 +471,7 @@ object ConverterUtils extends Logging {
               case _ =>
                 ReadFileFormat.UnknownFormat
             }
+          case _ => ReadFileFormat.UnknownFormat
         }
       case _ => ReadFileFormat.UnknownFormat
     }

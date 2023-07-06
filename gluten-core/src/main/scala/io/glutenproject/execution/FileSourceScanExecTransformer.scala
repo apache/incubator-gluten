@@ -22,6 +22,7 @@ import scala.collection.mutable.HashMap
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -119,18 +120,14 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     this
   }
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
     if (bucketedScan) {
-      logValidateFailure(s"Validation failed for ${this.getClass.toString} due to: ",
-        new UnsupportedOperationException("bucketed scan is not supported"))
-      return false
+      throw new UnsupportedOperationException("bucketed scan is not supported")
     }
     if (relation.options.exists(option =>
       option._1 == mergeSchemaOptionKey && option._2 == "true")) {
-      logValidateFailure(s"Validation failed for ${this.getClass.toString} due to: ",
-        new UnsupportedOperationException(s"$mergeSchemaOptionKey is not supported."))
-      return false
+      throw new UnsupportedOperationException(s"option $mergeSchemaOptionKey is not supported.")
     }
     super.doValidateInternal()
   }

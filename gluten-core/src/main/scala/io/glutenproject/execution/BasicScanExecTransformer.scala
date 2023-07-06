@@ -21,7 +21,7 @@ import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.InSubqueryExec
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
+trait BasicScanExecTransformer extends TransformSupport {
 
   // The key of merge schema option in Parquet reader.
   protected val mergeSchemaOptionKey = "mergeschema"
@@ -76,41 +76,22 @@ trait BasicScanExecTransformer extends TransformSupport with GlutenPlan {
     )
   }
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
     if (!BackendsApiManager.getTransformerApiInstance
       .supportsReadFileFormat(fileFormat, schema.fields)) {
-      this.appendValidateLog(
-        s"Validation failed for ${this.getClass.toString} due to: {$fileFormat}")
-      return false
+      return notOk(s"does not support fileFormat: $fileFormat")
     }
 
     val substraitContext = new SubstraitContext
-    val relNode = try {
-      doTransform(substraitContext).root
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
-
+    val relNode = doTransform(substraitContext).root
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 

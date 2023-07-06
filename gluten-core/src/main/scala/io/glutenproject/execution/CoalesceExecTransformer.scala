@@ -17,7 +17,6 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 import org.apache.spark.{Partition, SparkContext, TaskContext}
@@ -29,7 +28,7 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
-  extends UnaryExecNode with TransformSupport with GlutenPlan {
+  extends UnaryExecNode with TransformSupport {
 
   override def supportsColumnar: Boolean = true
 
@@ -53,8 +52,6 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     case _ =>
       this
   }
-
-  override def doValidateInternal(): Boolean = false
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")

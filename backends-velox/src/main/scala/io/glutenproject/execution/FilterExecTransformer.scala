@@ -23,6 +23,7 @@ import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
@@ -34,42 +35,26 @@ import org.apache.spark.sql.execution.SparkPlan
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) with TransformSupport {
 
-  override def doValidateInternal(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     val leftCondition = getLeftCondition
     if (leftCondition == null) {
       // All the filters can be pushed down and the computing of this Filter
       // is not needed.
-      return true
+      return ok()
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode = try {
-      getRelNode(
-        substraitContext, leftCondition, child.output, operatorId, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
+    val relNode = getRelNode(
+      substraitContext, leftCondition, child.output, operatorId, null, validation = true)
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val validator = new NativePlanEvaluator()
       val validateInfo = validator.doValidateWithFallBackLog(planNode.toProtobuf.toByteArray)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 

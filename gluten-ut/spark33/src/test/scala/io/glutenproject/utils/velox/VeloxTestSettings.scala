@@ -22,19 +22,19 @@ import org.apache.spark.sql.catalyst.expressions.{GlutenAnsiCastSuiteWithAnsiMod
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuite, GlutenDataSourceV2Suite, GlutenDeleteFromTableSuite, GlutenFileDataSourceV2FallBackSuite, GlutenKeyGroupedPartitioningSuite, GlutenLocalScanSuite, GlutenMetadataColumnSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
-import org.apache.spark.sql.execution.{FallbackStrategiesSuite, GlutenBroadcastExchangeSuite, GlutenCoalesceShufflePartitionsSuite, GlutenExchangeSuite, GlutenReplaceHashWithSortAggSuite, GlutenReuseExchangeAndSubquerySuite, GlutenSQLWindowFunctionSuite, GlutenSameResultSuite, GlutenSortSuite, GlutenTakeOrderedAndProjectSuite}
-import org.apache.spark.sql.execution.datasources.{GlutenBucketingUtilsSuite, GlutenCSVReadSchemaSuite, GlutenDataSourceStrategySuite, GlutenDataSourceSuite, GlutenFileFormatWriterSuite, GlutenFileIndexSuite, GlutenFileMetadataStructSuite, GlutenFileSourceStrategySuite, GlutenHadoopFileLinesReaderSuite, GlutenHeaderCSVReadSchemaSuite, GlutenJsonReadSchemaSuite, GlutenMergedOrcReadSchemaSuite, GlutenMergedParquetReadSchemaSuite, GlutenOrcCodecSuite, GlutenOrcReadSchemaSuite, GlutenOrcV1AggregatePushDownSuite, GlutenOrcV2AggregatePushDownSuite, GlutenParquetCodecSuite, GlutenParquetReadSchemaSuite, GlutenParquetV1AggregatePushDownSuite, GlutenParquetV2AggregatePushDownSuite, GlutenPathFilterStrategySuite, GlutenPathFilterSuite, GlutenPruneFileSourcePartitionsSuite, GlutenVectorizedOrcReadSchemaSuite, GlutenVectorizedParquetReadSchemaSuite}
+import org.apache.spark.sql.execution.{FallbackStrategiesSuite, GlutenBroadcastExchangeSuite, GlutenCoalesceShufflePartitionsSuite, GlutenExchangeSuite, GlutenReuseExchangeAndSubquerySuite, GlutenSQLWindowFunctionSuite, GlutenSameResultSuite, GlutenSortSuite, GlutenTakeOrderedAndProjectSuite}
+import org.apache.spark.sql.execution.datasources.{GlutenBucketingUtilsSuite, GlutenCSVReadSchemaSuite, GlutenDataSourceStrategySuite, GlutenDataSourceSuite, GlutenFileFormatWriterSuite, GlutenFileIndexSuite, GlutenFileSourceStrategySuite, GlutenHadoopFileLinesReaderSuite, GlutenHeaderCSVReadSchemaSuite, GlutenJsonReadSchemaSuite, GlutenMergedOrcReadSchemaSuite, GlutenMergedParquetReadSchemaSuite, GlutenOrcCodecSuite, GlutenOrcReadSchemaSuite, GlutenParquetCodecSuite, GlutenParquetReadSchemaSuite, GlutenParquetV1AggregatePushDownSuite, GlutenPathFilterStrategySuite, GlutenPathFilterSuite, GlutenPruneFileSourcePartitionsSuite, GlutenVectorizedOrcReadSchemaSuite, GlutenVectorizedParquetReadSchemaSuite}
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
 import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
 import org.apache.spark.sql.execution.datasources.exchange.GlutenValidateRequirementsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonV1Suite, GlutenJsonV2Suite}
 import org.apache.spark.sql.execution.datasources.orc.{GlutenOrcColumnarBatchReaderSuite, GlutenOrcFilterSuite, GlutenOrcPartitionDiscoverySuite, GlutenOrcSourceSuite, GlutenOrcV1FilterSuite, GlutenOrcV1PartitionDiscoverySuite, GlutenOrcV1QuerySuite, GlutenOrcV1SchemaPruningSuite, GlutenOrcV2QuerySuite, GlutenOrcV2SchemaPruningSuite}
-import org.apache.spark.sql.execution.datasources.parquet.{GlutenParquetColumnIndexSuite, GlutenParquetCompressionCodecPrecedenceSuite, GlutenParquetDeltaEncodingInteger, GlutenParquetDeltaEncodingLong, GlutenParquetDeltaLengthByteArrayEncodingSuite, GlutenParquetEncodingSuite, GlutenParquetFieldIdIOSuite, GlutenParquetFileFormatV1Suite, GlutenParquetFileFormatV2Suite, GlutenParquetIOSuite, GlutenParquetInteroperabilitySuite, GlutenParquetProtobufCompatibilitySuite, GlutenParquetRebaseDatetimeV1Suite, GlutenParquetRebaseDatetimeV2Suite, GlutenParquetSchemaInferenceSuite, GlutenParquetSchemaSuite, GlutenParquetThriftCompatibilitySuite, GlutenParquetV1FilterSuite, GlutenParquetV1PartitionDiscoverySuite, GlutenParquetV1QuerySuite, GlutenParquetV1SchemaPruningSuite, GlutenParquetV2FilterSuite, GlutenParquetV2PartitionDiscoverySuite, GlutenParquetV2QuerySuite, GlutenParquetV2SchemaPruningSuite, GlutenParquetVectorizedSuite}
+import org.apache.spark.sql.execution.datasources.parquet.{GlutenParquetColumnIndexSuite, GlutenParquetCompressionCodecPrecedenceSuite, GlutenParquetDeltaEncodingInteger, GlutenParquetDeltaEncodingLong, GlutenParquetDeltaLengthByteArrayEncodingSuite, GlutenParquetEncodingSuite, GlutenParquetFileFormatV1Suite, GlutenParquetFileFormatV2Suite, GlutenParquetIOSuite, GlutenParquetInteroperabilitySuite, GlutenParquetProtobufCompatibilitySuite, GlutenParquetRebaseDatetimeV1Suite, GlutenParquetRebaseDatetimeV2Suite, GlutenParquetSchemaInferenceSuite, GlutenParquetSchemaSuite, GlutenParquetThriftCompatibilitySuite, GlutenParquetV1FilterSuite, GlutenParquetV1PartitionDiscoverySuite, GlutenParquetV1QuerySuite, GlutenParquetV1SchemaPruningSuite, GlutenParquetV2FilterSuite, GlutenParquetV2PartitionDiscoverySuite, GlutenParquetV2QuerySuite, GlutenParquetV2SchemaPruningSuite}
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
-import org.apache.spark.sql.extension.{CustomerColumnarPreRules, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
+import org.apache.spark.sql.extension.{GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, GlutenBucketedWriteWithoutHiveSupportSuite, GlutenCreateTableAsSelectSuite, GlutenDDLSourceLoadSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE, GlutenExternalCommandRunnerSuite, GlutenFilteredScanSuite, GlutenFiltersSuite, GlutenInsertSuite, GlutenPartitionedWriteSuite, GlutenPathOptionSuite, GlutenPrunedScanSuite, GlutenResolvedDataSourceSuite, GlutenSaveLoadSuite, GlutenTableScanSuite}
 import org.apache.spark.sql.{GlutenApproxCountDistinctForIntervalsQuerySuite, GlutenApproximatePercentileQuerySuite, GlutenBloomFilterAggregateQuerySuite, GlutenCTEHintSuite, GlutenCTEInlineSuiteAEOff, GlutenCTEInlineSuiteAEOn, GlutenCachedTableSuite, GlutenColumnExpressionSuite, GlutenConfigBehaviorSuite, GlutenCountMinSketchAggQuerySuite, GlutenCsvFunctionsSuite, GlutenDSV2CharVarcharTestSuite, GlutenDSV2SQLInsertTestSuite, GlutenDataFrameAggregateSuite, GlutenDataFrameAsOfJoinSuite, GlutenDataFrameComplexTypeSuite, GlutenDataFrameFunctionsSuite, GlutenDataFrameHintSuite, GlutenDataFrameImplicitsSuite, GlutenDataFrameJoinSuite, GlutenDataFrameNaFunctionsSuite, GlutenDataFramePivotSuite, GlutenDataFrameRangeSuite, GlutenDataFrameSelfJoinSuite, GlutenDataFrameSessionWindowingSuite, GlutenDataFrameSetOperationsSuite, GlutenDataFrameStatSuite, GlutenDataFrameSuite, GlutenDataFrameTimeWindowingSuite, GlutenDataFrameTungstenSuite, GlutenDataFrameWindowFramesSuite, GlutenDataFrameWriterV2Suite, GlutenDatasetAggregatorSuite, GlutenDatasetCacheSuite, GlutenDatasetOptimizationSuite, GlutenDatasetPrimitiveSuite, GlutenDatasetSerializerRegistratorSuite, GlutenDatasetSuite, GlutenDateFunctionsSuite, GlutenDeprecatedAPISuite, GlutenDynamicPartitionPruningV1SuiteAEOff, GlutenDynamicPartitionPruningV1SuiteAEOn, GlutenDynamicPartitionPruningV2SuiteAEOff, GlutenDynamicPartitionPruningV2SuiteAEOn, GlutenExpressionsSchemaSuite, GlutenExtraStrategiesSuite, GlutenFileBasedDataSourceSuite, GlutenFileScanSuite, GlutenFileSourceCharVarcharTestSuite, GlutenFileSourceSQLInsertTestSuite, GlutenGeneratorFunctionSuite, GlutenInjectRuntimeFilterSuite, GlutenIntervalFunctionsSuite, GlutenJoinSuite, GlutenJsonFunctionsSuite, GlutenMathFunctionsSuite, GlutenMetadataCacheSuite, GlutenMiscFunctionsSuite, GlutenNestedDataSourceV1Suite, GlutenNestedDataSourceV2Suite, GlutenProcessingTimeSuite, GlutenProductAggSuite, GlutenReplaceNullWithFalseInPredicateEndToEndSuite, GlutenSQLQuerySuite, GlutenSQLQueryTestSuite, GlutenScalaReflectionRelationSuite, GlutenSerializationSuite, GlutenStatisticsCollectionSuite, GlutenStringFunctionsSuite, GlutenSubquerySuite, GlutenTypedImperativeAggregateSuite, GlutenUnwrapCastInComparisonEndToEndSuite, GlutenXPathFunctionsSuite}
 
@@ -88,7 +88,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+//    .exclude("Fast fail for cast string type to decimal type in ansi mode")
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
@@ -98,7 +98,6 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
   enableSuite[GlutenTryCastSuite]
     .exclude(
       // array/map/struct not supported yet.
@@ -109,7 +108,6 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
       "% (Remainder)" // Velox will throw exception when right is zero, need fallback
@@ -119,77 +117,42 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("cast from float")
-    .exclude("cast from double")
-    .exclude("from decimal")
-    .exclude("cast string to date #2")
-    .exclude("casting to fixed-precision decimals")
-    .exclude("cast from date")
+    // User defined type.
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
-    .exclude("Fast fail for cast string type to decimal type")
-    .exclude("missing cases - from boolean")
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("Map Concat")
     .exclude("Shuffle")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
-    .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
-    .exclude("DayOfYear")
-    .exclude("Year")
-    .exclude("Quarter")
-    .exclude("Month")
-    .exclude("Day / DayOfMonth")
-    .exclude("DayOfWeek")
-    .exclude("extract the seconds part with fraction from timestamps")
+    .exclude("TIMESTAMP_MICROS")
   enableSuite[GlutenDecimalExpressionSuite]
-    .exclude("MakeDecimal")
   enableSuite[GlutenHashExpressionsSuite]
-    .exclude("SPARK-30633: xxHash with different type seeds")
   enableSuite[GlutenIntervalExpressionsSuite]
-    .exclude("seconds")
-    .exclude("ANSI: extract days, hours, minutes and seconds")
   enableSuite[GlutenJsonFunctionsSuite]
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
   enableSuite[GlutenLiteralExpressionSuite]
     .exclude("default")
-    .exclude("decimal")
     // FIXME(yma11): ObjectType is not covered in RowEncoder/Serializer in vanilla spark
     .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("cos")
-    .exclude("cosh")
-    .exclude("toDegrees")
-    .exclude("toRadians")
-    .exclude("cbrt")
-    .exclude("exp")
-    .exclude("log10")
-    .exclude("log2")
-    .exclude("pow")
-    .exclude("atan2")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
     .exclude("SparkPartitionID")
   enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
-    .exclude("BinaryComparison: lessThan")
-    .exclude("BinaryComparison: LessThanOrEqual")
-    .exclude("BinaryComparison: GreaterThan")
-    .exclude("BinaryComparison: GreaterThanOrEqual")
-    .exclude("SPARK-32764: compare special double/float values")
   enableSuite[GlutenRandomSuite]
     .exclude("random")
     .exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("Substring")
-    .exclude("string for ascii")
-    .exclude("replace")
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
       "gluten",

@@ -20,6 +20,7 @@ package org.apache.spark.sql.hive
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{BasicScanExecTransformer, TransformContext}
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
@@ -229,15 +230,19 @@ object HiveTableScanExecTransformer {
     plan.isInstanceOf[HiveTableScanExec]
   }
 
-  def validate(plan: SparkPlan): Boolean = {
+  def validate(plan: SparkPlan): ValidationResult = {
     plan match {
       case hiveTableScan: HiveTableScanExec =>
         val hiveTableScanTransformer = new HiveTableScanExecTransformer(
           hiveTableScan.requestedAttributes,
           hiveTableScan.relation,
           hiveTableScan.partitionPruningPred)(hiveTableScan.session)
-        hiveTableScanTransformer.scan.isDefined && hiveTableScanTransformer.doValidate()
-      case _ => false
+          if (hiveTableScanTransformer.scan.isDefined) {
+            hiveTableScanTransformer.doValidate()
+          } else {
+            ValidationResult.notOk("Hive scan is not defined")
+          }
+      case _ => ValidationResult.notOk("Is not a Hive scan")
     }
   }
 

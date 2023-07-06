@@ -220,6 +220,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def printStackOnValidateFailure: Boolean =
     conf.getConf(VALIDATE_FAILURE_PRINT_STACK_ENABLED)
 
+  def enableFallbackReport: Boolean = conf.getConf(FALLBACK_REPORTER_ENABLED)
+
   def debug: Boolean = conf.getConf(DEBUG_LEVEL_ENABLED)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
@@ -917,7 +919,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("DEBUG")
+      .createWithDefault("INFO")
 
   val SOFT_AFFINITY_LOG_LEVEL =
     buildConf("spark.gluten.soft-affinity.logLevel")
@@ -982,4 +984,10 @@ object GlutenConfig {
       .doc("A class for the extended expressions transformer.")
       .stringConf
       .createWithDefaultString("")
+
+  val FALLBACK_REPORTER_ENABLED =
+    buildConf("spark.gluten.sql.columnar.fallbackReporter")
+      .doc("When true, enable fallback reporter rule to print fallback reason")
+      .booleanConf
+      .createWithDefault(true)
 }

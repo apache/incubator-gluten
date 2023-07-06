@@ -26,7 +26,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -47,7 +47,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
                                global: Boolean,
                                child: SparkPlan,
                                testSpillFrequency: Int = 0)
-  extends UnaryExecNode with TransformSupport with GlutenPlan {
+  extends UnaryExecNode with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -244,42 +244,23 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     }
   }
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
-      this.appendValidateLog(
-        s"Validation failed for ${this.getClass.toString}" +
-          s" due to: {SortExec}. ")
-      return false
+      return notOk("backend does not sort")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
-    val relNode = try {
-      getRelNode(
-        substraitContext, sortOrder, child.output, operatorId, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
+    val relNode = getRelNode(
+      substraitContext, sortOrder, child.output, operatorId, null, validation = true)
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 
