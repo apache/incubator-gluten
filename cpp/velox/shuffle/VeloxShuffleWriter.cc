@@ -374,10 +374,11 @@ std::shared_ptr<arrow::Buffer> VeloxShuffleWriter::generateComplexTypeBuffers(ve
 }
 
 arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
-  auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-  auto& rv = *veloxColumnBatch->getFlattenedRowVector();
-  RETURN_NOT_OK(initFromRowVector(rv));
   if (options_.partitioning_name == "single") {
+    auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+    VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
+    auto& rv = *veloxColumnBatch->getFlattenedRowVector();
+    RETURN_NOT_OK(initFromRowVector(rv));
     std::vector<std::shared_ptr<arrow::Buffer>> buffers;
     std::vector<VectorPtr> complexChildren;
     for (auto& child : rv.children()) {
@@ -396,7 +397,21 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
 
     auto rb = makeRecordBatch(rv.size(), buffers, writeSchema(), pool_.get());
     RETURN_NOT_OK(cacheRecordBatch(0, *rb, false));
+  } else if (options_.partitioning_name == "range") {
+    auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
+    VELOX_DCHECK_NOT_NULL(compositeBatch);
+    auto batches = compositeBatch->getBatches();
+    VELOX_DCHECK_EQ(batches.size(), 2);
+    auto pidBatch = VeloxColumnarBatch::from(defaultLeafVeloxMemoryPool().get(), batches[0]);
+    auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
+    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
+    auto rvBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[1]);
+    RETURN_NOT_OK(doSplit(*(rvBatch->getFlattenedRowVector())));
   } else {
+    auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+    VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
+    auto& rv = *veloxColumnBatch->getFlattenedRowVector();
+    RETURN_NOT_OK(initFromRowVector(rv));
     if (partitioner_->hasPid()) {
       auto pidArr = getFirstColumn(rv);
       RETURN_NOT_OK(partitioner_->compute(pidArr, rv.size(), row2Partition_, partition2RowCount_));
