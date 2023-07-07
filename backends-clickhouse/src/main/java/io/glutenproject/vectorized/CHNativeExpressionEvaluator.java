@@ -16,6 +16,7 @@
  */
 package io.glutenproject.vectorized;
 
+import com.google.protobuf.Any;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocators;
@@ -25,20 +26,17 @@ import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.extensions.ExtensionBuilder;
 import io.glutenproject.substrait.plan.PlanBuilder;
 import io.glutenproject.substrait.plan.PlanNode;
-
-import com.google.protobuf.Any;
 import io.substrait.proto.Plan;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+import scala.Tuple2;
+import scala.collection.JavaConverters;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import scala.Tuple2;
-import scala.collection.JavaConverters;
 
 public class CHNativeExpressionEvaluator {
   private final ExpressionEvaluatorJniWrapper jniWrapper;
@@ -73,8 +71,8 @@ public class CHNativeExpressionEvaluator {
 
   private PlanNode buildNativeConfNode(Map<String, String> confs) {
     StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
-    AdvancedExtensionNode extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
+    AdvancedExtensionNode extensionNode = ExtensionBuilder
+        .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
     return PlanBuilder.makePlan(extensionNode);
   }
 
@@ -85,18 +83,19 @@ public class CHNativeExpressionEvaluator {
       throws RuntimeException, IOException {
     long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
-        jniWrapper.nativeCreateKernelWithIterator(
-            allocId, getPlanBytesBuf(wsPlan), iterList.toArray(new GeneralInIterator[0]));
+        jniWrapper.nativeCreateKernelWithIterator(allocId, getPlanBytesBuf(wsPlan),
+            iterList.toArray(new GeneralInIterator[0]));
     return createOutIterator(handle, outAttrs);
   }
 
   // Only for UT.
   public GeneralOutIterator createKernelWithBatchIterator(
-      long allocId, byte[] wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
+      long allocId,
+      byte[] wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
       throws RuntimeException, IOException {
     long handle =
-        jniWrapper.nativeCreateKernelWithIterator(
-            allocId, wsPlan, iterList.toArray(new GeneralInIterator[0]));
+        jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan,
+            iterList.toArray(new GeneralInIterator[0]));
     return createOutIterator(handle, outAttrs);
   }
 
@@ -104,8 +103,8 @@ public class CHNativeExpressionEvaluator {
     return planNode.toByteArray();
   }
 
-  private GeneralOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs)
-      throws IOException {
+  private GeneralOutIterator createOutIterator(
+      long nativeHandle, List<Attribute> outAttrs) throws IOException {
     return new BatchIterator(nativeHandle, outAttrs);
   }
 }

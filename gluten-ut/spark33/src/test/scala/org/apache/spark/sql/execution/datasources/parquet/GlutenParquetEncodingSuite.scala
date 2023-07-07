@@ -16,7 +16,10 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
+import scala.collection.JavaConverters._
+import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.test.SharedSparkSession
 
 // TODO: this needs a lot more testing but it's currently not easy to test with the parquet
 // writer abstractions. Revisit.

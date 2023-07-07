@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFile
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 object ScanMergeTreePartsUtils extends Logging {
 
@@ -70,7 +70,7 @@ object ScanMergeTreePartsUtils extends Logging {
         AddFileTags.partsInfoToAddFile(
           clickHouseTableV2.catalogTable.get.identifier.database.get,
           clickHouseTableV2.catalogTable.get.identifier.table,
-          clickHouseTableV2.snapshot.metadata.configuration("engine"),
+          clickHouseTableV2.snapshot.metadata.configuration.get("engine").get,
           clickHouseTableV2.deltaLog.dataPath.toString + "/" + dir._1,
           "",
           dir._1,
@@ -85,7 +85,7 @@ object ScanMergeTreePartsUtils extends Logging {
           dir._4,
           dir._5,
           dir._3,
-          dataChange = true
+          true
         )
       })
     if (finalActions.nonEmpty) {

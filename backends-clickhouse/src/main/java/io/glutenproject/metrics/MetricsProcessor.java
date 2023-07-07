@@ -22,20 +22,14 @@ public class MetricsProcessor {
 
   protected String name;
   protected long time;
-
   @JsonProperty("input_rows")
   protected long inputRows = 0;
-
   protected long inputVectors = 0;
-
   @JsonProperty("input_bytes")
   protected long inputBytes = 0;
-
   @JsonProperty("output_rows")
   protected long outputRows = 0;
-
   protected long outputVectors = 0;
-
   @JsonProperty("output_bytes")
   protected long outputBytes = 0;
 

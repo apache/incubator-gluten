@@ -17,14 +17,14 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.execution.ColumnarNativeIterator;
-import io.glutenproject.substrait.plan.PlanNode;
+import java.util.Iterator;
 
 import io.substrait.proto.Plan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
+import io.glutenproject.execution.ColumnarNativeIterator;
+import io.glutenproject.substrait.plan.PlanNode;
 
 public class SimpleExpressionEval implements AutoCloseable, Iterator<Long> {
 
@@ -32,11 +32,10 @@ public class SimpleExpressionEval implements AutoCloseable, Iterator<Long> {
 
   private final Long instance;
 
-  public SimpleExpressionEval(ColumnarNativeIterator blockStream, PlanNode planNode) {
+  public SimpleExpressionEval(ColumnarNativeIterator blockStream,
+                              PlanNode planNode) {
     Plan plan = planNode.toProtobuf();
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(String.format("SimpleExpressionEval exec plan: %s", plan.toString()));
-    }
+    LOG.debug("SimpleExpressionEval exec plan: " + plan.toString());
     byte[] planData = plan.toByteArray();
     instance = createNativeInstance(blockStream, planData);
   }

@@ -24,6 +24,8 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.SparkPlan
 
+import io.substrait.proto.JoinRel
+
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -84,7 +86,9 @@ case class CHBroadcastHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
-
+    if (isNullAwareAntiJoin == true) {
+      shouldFallback = true
+    }
     if (shouldFallback) {
       return notOk("ch join validate fail")
     }

@@ -19,7 +19,9 @@ package io.glutenproject.memory.alloc;
 
 import org.apache.spark.util.memory.TaskResourceManager;
 
-/** Resource manager implementation that manages a {@link CHNativeMemoryAllocator}. */
+/**
+ * Resource manager implementation that manages a {@link CHNativeMemoryAllocator}.
+ */
 public interface CHNativeMemoryAllocatorManager extends TaskResourceManager {
   CHNativeMemoryAllocator getManaged();
 }

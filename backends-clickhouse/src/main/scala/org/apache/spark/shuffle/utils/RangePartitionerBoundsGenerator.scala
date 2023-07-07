@@ -26,7 +26,7 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.RangePartitioner
 import org.apache.spark.rdd.{PartitionPruningRDD, RDD}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression, SortOrder, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.RangePartitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
@@ -35,7 +35,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 
 import java.util
+import java.util.Base64
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -56,7 +58,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     val samplePointsPerPartitionHint: Int = 20
 ) {
 
-  private def getRangeBounds: Array[K] = {
+  def getRangeBounds(): Array[K] = {
     if (partitions <= 1) {
       Array.empty
     } else {
@@ -125,10 +127,10 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
       .replaceWithExpressionTransformer(ordering.child, attributes)
       .doTransform(funcs)
     val pb = projExprNode.toProtobuf
-    if (!pb.hasSelection) {
+    if (!pb.hasSelection()) {
       throw new IllegalArgumentException(s"A sorting field should be an attribute")
     } else {
-      pb.getSelection.getDirectReference.getStructField.getField()
+      pb.getSelection().getDirectReference().getStructField.getField()
     }
   }
 
@@ -211,7 +213,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   }
 
   private def buildRangeBoundsJson(jsonMapper: ObjectMapper, arrayNode: ArrayNode): Unit = {
-    val bounds = getRangeBounds
+    val bounds = getRangeBounds()
     bounds.foreach {
       bound =>
         val row = bound.asInstanceOf[UnsafeRow]
@@ -220,14 +222,14 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   }
 
   // Make a json structure that can be passed to native engine
-  def getRangeBoundsJsonString: String = {
+  def getRangeBoundsJsonString(): String = {
     val context = new SubstraitContext()
     val mapper = new ObjectMapper
     val rootNode = mapper.createObjectNode
     val orderingArray = rootNode.putArray("ordering")
     buildOrderingJson(context, ordering, inputAttributes, mapper, orderingArray)
     val boundArray = rootNode.putArray("range_bounds")
-    buildRangeBoundsJson(mapper, boundArray)
+    buildRangeBoundsJson(mapper, boundArray);
     mapper.writeValueAsString(rootNode)
   }
 }

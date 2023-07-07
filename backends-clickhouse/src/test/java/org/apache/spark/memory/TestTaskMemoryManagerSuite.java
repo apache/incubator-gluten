@@ -17,19 +17,20 @@
 
 package org.apache.spark.memory;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.Spiller;
-import io.glutenproject.memory.TaskMemoryMetrics;
-import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
-import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
-import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
-
-import org.apache.spark.SparkConf;
-import org.apache.spark.internal.config.package$;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import io.glutenproject.memory.GlutenMemoryConsumer;
+import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
+
+import org.apache.spark.SparkConf;
+import org.apache.spark.internal.config.package$;
 
 public class TestTaskMemoryManagerSuite {
   static {
@@ -43,17 +44,24 @@ public class TestTaskMemoryManagerSuite {
 
   @Before
   public void initMemoryManager() {
-    final SparkConf conf =
-        new SparkConf()
-            .set(package$.MODULE$.MEMORY_OFFHEAP_ENABLED(), true)
-            .set(package$.MODULE$.MEMORY_OFFHEAP_SIZE(), 1000L);
-    taskMemoryManager = new TaskMemoryManager(new UnifiedMemoryManager(conf, 1000L, 500L, 1), 0);
+    final SparkConf conf = new SparkConf()
+        .set(package$.MODULE$.MEMORY_OFFHEAP_ENABLED(), true)
+        .set(package$.MODULE$.MEMORY_OFFHEAP_SIZE(), 1000L);
+    taskMemoryManager = new TaskMemoryManager(
+        new UnifiedMemoryManager(
+            conf,
+            1000L,
+            500L,
+            1),
+        0);
 
-    listener =
-        new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer(taskMemoryManager, Spiller.NO_OP), new TaskMemoryMetrics());
+    listener = new CHManagedCHReservationListener(
+        new GlutenMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
+        new TaskMemoryMetrics()
+    );
 
-    manager = new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));
+    manager = new CHNativeMemoryAllocatorManagerImpl(
+        new CHNativeMemoryAllocator(-1L, listener));
   }
 
   @After

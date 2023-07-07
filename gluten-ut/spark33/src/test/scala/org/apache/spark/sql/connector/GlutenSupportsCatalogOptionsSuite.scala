@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.connector
 
+import scala.language.implicitConversions
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenSupportsCatalogOptionsSuite extends SupportsCatalogOptionsSuite

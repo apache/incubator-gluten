@@ -17,13 +17,13 @@
 
 package io.glutenproject.vectorized;
 
-import org.apache.spark.sql.execution.metric.SQLMetric;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
-import org.apache.spark.storage.CHShuffleWriteStreamFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+
+import org.apache.spark.sql.execution.metric.SQLMetric;
+import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.apache.spark.storage.CHShuffleWriteStreamFactory;
 
 public class BlockOutputStream implements Closeable {
   private final long instance;
@@ -45,10 +45,11 @@ public class BlockOutputStream implements Closeable {
       SQLMetric dataSize,
       boolean compressionEnable,
       String defaultCompressionCodec,
-      int bufferSize) {
+      int bufferSize
+      ) {
     OutputStream unwrapOutputStream =
-        CHShuffleWriteStreamFactory.unwrapSparkCompressionOutputStream(
-            outputStream, compressionEnable);
+        CHShuffleWriteStreamFactory
+            .unwrapSparkCompressionOutputStream(outputStream, compressionEnable);
     if (unwrapOutputStream != null) {
       this.outputStream = unwrapOutputStream;
     } else {
@@ -59,8 +60,7 @@ public class BlockOutputStream implements Closeable {
     this.buffer = buffer;
     this.bufferSize = bufferSize;
     this.instance =
-        nativeCreate(
-            this.outputStream,
+        nativeCreate(this.outputStream,
             this.buffer,
             this.defaultCompressionCodec,
             compressionEnable,
@@ -104,7 +104,6 @@ public class BlockOutputStream implements Closeable {
 
   @Override
   protected void finalize() throws Throwable {
-    // FIXME: finalize
     close();
   }
 }

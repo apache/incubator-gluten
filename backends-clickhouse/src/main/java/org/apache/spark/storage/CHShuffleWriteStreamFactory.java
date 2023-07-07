@@ -19,6 +19,7 @@ package org.apache.spark.storage;
 import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
 import com.ning.compress.lzf.LZFOutputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xerial.snappy.SnappyOutputStream;
@@ -29,7 +30,8 @@ import java.lang.reflect.Field;
 
 public final class CHShuffleWriteStreamFactory {
 
-  private static final Logger LOG = LoggerFactory.getLogger(CHShuffleWriteStreamFactory.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(CHShuffleReadStreamFactory.class);
 
   public static final Field FIELD_SnappyOutputStream_out;
   public static final Field FIELD_LZ4BlockOutputStream_out;
@@ -50,21 +52,27 @@ public final class CHShuffleWriteStreamFactory {
       FIELD_ZstdOutputStreamNoFinalizer_out =
           ZstdOutputStreamNoFinalizer.class.getSuperclass().getDeclaredField("out");
       FIELD_ZstdOutputStreamNoFinalizer_out.setAccessible(true);
-      FIELD_LZFOutputStream_out = LZFOutputStream.class.getSuperclass().getDeclaredField("out");
+      FIELD_LZFOutputStream_out =
+          LZFOutputStream.class.getSuperclass().getDeclaredField("out");
       FIELD_LZFOutputStream_out.setAccessible(true);
     } catch (NoSuchFieldException e) {
+      LOG.error("Can not get the field of the class: ", e);
       throw new RuntimeException(e);
     }
   }
 
-  /** Unwrap Spark compression output stream. */
+  /**
+   * Unwrap Spark compression output stream.
+   */
   public static OutputStream unwrapSparkCompressionOutputStream(
-      OutputStream os, boolean isCustomizedShuffleCodec) {
+      OutputStream os,
+      boolean isCustomizedShuffleCodec) {
     if (!isCustomizedShuffleCodec) return os;
     OutputStream out = null;
     try {
       if (os instanceof BufferedOutputStream) {
-        final OutputStream cos = (OutputStream) FIELD_BufferedOutputStream_out.get(os);
+        final OutputStream cos =
+            (OutputStream) FIELD_BufferedOutputStream_out.get(os);
         if (cos instanceof ZstdOutputStreamNoFinalizer) {
           out = (OutputStream) FIELD_ZstdOutputStreamNoFinalizer_out.get(cos);
         }

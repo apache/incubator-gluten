@@ -17,6 +17,8 @@
 
 package io.glutenproject.utils
 
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 
 object SystemParameters {
 

@@ -18,8 +18,8 @@
 package io.glutenproject.memory.alloc;
 
 /**
- * Like {@link io.glutenproject.vectorized.NativePlanEvaluator}, this along with {@link
- * CHNativeMemoryAllocators}, as built-in toolkit for managing native memory allocations.
+ * Like {@link io.glutenproject.vectorized.NativePlanEvaluator}, this along with
+ * {@link CHNativeMemoryAllocators}, as built-in toolkit for managing native memory allocations.
  */
 public class CHNativeMemoryAllocator {
 
@@ -32,12 +32,17 @@ public class CHNativeMemoryAllocator {
   }
 
   public static CHNativeMemoryAllocator getDefault() {
-    return new CHNativeMemoryAllocator(getDefaultAllocator(), CHReservationListener.NOOP);
+    return
+        new CHNativeMemoryAllocator(
+            getDefaultAllocator(),
+            CHReservationListener.NOOP);
   }
 
   public static CHNativeMemoryAllocator getDefaultForUT() {
-    return new CHNativeMemoryAllocator(
-        createListenableAllocator(CHReservationListener.NOOP), CHReservationListener.NOOP);
+    return
+        new CHNativeMemoryAllocator(
+            createListenableAllocator(CHReservationListener.NOOP),
+            CHReservationListener.NOOP);
   }
 
   public static CHNativeMemoryAllocator createListenable(CHReservationListener listener) {

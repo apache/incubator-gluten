@@ -23,12 +23,14 @@ import org.apache.spark.unsafe.types.UTF8String;
 import java.nio.ByteBuffer;
 
 /**
- * because spark33 add new function abstract method 'putBooleans(int, byte)' in
- * 'WritableColumnVector' And function getByteBuffer()
+ * because spark33 add new function abstract method 'putBooleans(int, byte)'
+ * in 'WritableColumnVector'
+ * And function getByteBuffer()
  */
 public class WritableColumnVectorShim extends WritableColumnVector {
   /**
-   * Sets up the common state and also handles creating the child columns if this is a nested type.
+   * Sets up the common state and also handles creating the child columns if this is a nested
+   * type.
    *
    * @param capacity
    * @param type
@@ -43,25 +45,39 @@ public class WritableColumnVectorShim extends WritableColumnVector {
   }
 
   @Override
-  protected void reserveInternal(int capacity) {}
+  protected void reserveInternal(int capacity) {
+
+  }
 
   @Override
-  public void putNotNull(int rowId) {}
+  public void putNotNull(int rowId) {
+
+  }
 
   @Override
-  public void putNull(int rowId) {}
+  public void putNull(int rowId) {
+
+  }
 
   @Override
-  public void putNulls(int rowId, int count) {}
+  public void putNulls(int rowId, int count) {
+
+  }
 
   @Override
-  public void putNotNulls(int rowId, int count) {}
+  public void putNotNulls(int rowId, int count) {
+
+  }
 
   @Override
-  public void putBoolean(int rowId, boolean value) {}
+  public void putBoolean(int rowId, boolean value) {
+
+  }
 
   @Override
-  public void putBooleans(int rowId, int count, boolean value) {}
+  public void putBooleans(int rowId, int count, boolean value) {
+
+  }
 
   @Override
   public void putBooleans(int rowId, byte src) {
@@ -69,88 +85,144 @@ public class WritableColumnVectorShim extends WritableColumnVector {
   }
 
   @Override
-  public void putByte(int rowId, byte value) {}
+  public void putByte(int rowId, byte value) {
+
+  }
 
   @Override
-  public void putBytes(int rowId, int count, byte value) {}
+  public void putBytes(int rowId, int count, byte value) {
+
+  }
 
   @Override
-  public void putBytes(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putBytes(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putShort(int rowId, short value) {}
+  public void putShort(int rowId, short value) {
+
+  }
 
   @Override
-  public void putShorts(int rowId, int count, short value) {}
+  public void putShorts(int rowId, int count, short value) {
+
+  }
 
   @Override
-  public void putShorts(int rowId, int count, short[] src, int srcIndex) {}
+  public void putShorts(int rowId, int count, short[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putShorts(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putShorts(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putInt(int rowId, int value) {}
+  public void putInt(int rowId, int value) {
+
+  }
 
   @Override
-  public void putInts(int rowId, int count, int value) {}
+  public void putInts(int rowId, int count, int value) {
+
+  }
 
   @Override
-  public void putInts(int rowId, int count, int[] src, int srcIndex) {}
+  public void putInts(int rowId, int count, int[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putInts(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putInts(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putIntsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putIntsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putLong(int rowId, long value) {}
+  public void putLong(int rowId, long value) {
+
+  }
 
   @Override
-  public void putLongs(int rowId, int count, long value) {}
+  public void putLongs(int rowId, int count, long value) {
+
+  }
 
   @Override
-  public void putLongs(int rowId, int count, long[] src, int srcIndex) {}
+  public void putLongs(int rowId, int count, long[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putLongs(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putLongs(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putLongsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putLongsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putFloat(int rowId, float value) {}
+  public void putFloat(int rowId, float value) {
+
+  }
 
   @Override
-  public void putFloats(int rowId, int count, float value) {}
+  public void putFloats(int rowId, int count, float value) {
+
+  }
 
   @Override
-  public void putFloats(int rowId, int count, float[] src, int srcIndex) {}
+  public void putFloats(int rowId, int count, float[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putFloats(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putFloats(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putDouble(int rowId, double value) {}
+  public void putDouble(int rowId, double value) {
+
+  }
 
   @Override
-  public void putDoubles(int rowId, int count, double value) {}
+  public void putDoubles(int rowId, int count, double value) {
+
+  }
 
   @Override
-  public void putDoubles(int rowId, int count, double[] src, int srcIndex) {}
+  public void putDoubles(int rowId, int count, double[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putDoubles(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putDoubles(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
+
+  }
 
   @Override
-  public void putArray(int rowId, int offset, int length) {}
+  public void putArray(int rowId, int offset, int length) {
+
+  }
 
   @Override
   public int putByteArray(int rowId, byte[] value, int offset, int count) {

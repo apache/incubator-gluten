@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
+import io.glutenproject.vectorized.StorageJoinBuilder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -213,7 +214,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.length == 8)
+    assert(result.size == 8)
   }
 
   protected def createTPCHNullableTables(): Unit = {
@@ -367,7 +368,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.length == 8)
+    assert(result.size == 8)
   }
 
   protected def createTPCHParquetTables(parquetTablePath: String): Unit = {
@@ -493,7 +494,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.length == 8)
+    assert(result.size == 8)
   }
 
   override protected def sparkConf: SparkConf = {

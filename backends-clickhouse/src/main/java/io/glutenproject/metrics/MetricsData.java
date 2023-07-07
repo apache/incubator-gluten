@@ -25,13 +25,10 @@ public class MetricsData {
   protected long id;
   protected String name;
   protected long time;
-
   @JsonProperty("input_wait_time")
   protected long inputWaitTime;
-
   @JsonProperty("output_wait_time")
   protected long outputWaitTime;
-
   protected long inputRows = 0;
   protected long inputVectors = 0;
   protected long inputBytes = 0;

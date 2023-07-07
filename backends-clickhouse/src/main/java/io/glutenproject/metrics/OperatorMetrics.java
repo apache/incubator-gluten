@@ -28,9 +28,12 @@ public class OperatorMetrics implements IOperatorMetrics {
   public JoinParams joinParams;
   public AggregationParams aggParams;
 
-  /** Create an instance for operator metrics. */
-  public OperatorMetrics(
-      List<MetricsData> metricsList, JoinParams joinParams, AggregationParams aggParams) {
+  /**
+   * Create an instance for operator metrics.
+   */
+  public OperatorMetrics(List<MetricsData> metricsList,
+                         JoinParams joinParams,
+                         AggregationParams aggParams) {
     this.metricsList = metricsList;
     this.aggParams = aggParams;
     this.joinParams = joinParams;

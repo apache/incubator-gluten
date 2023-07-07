@@ -18,6 +18,7 @@
 package org.apache.spark.sql
 
 class GlutenComplexTypesSuite extends ComplexTypesSuite with GlutenSQLTestsTrait {
+  import testImplicits._
 
   override def beforeAll(): Unit = {
     super.beforeAll()

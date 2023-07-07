@@ -27,9 +27,6 @@ import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
 class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val resourcePath: String =
@@ -1067,22 +1064,22 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val sql =
       """
         |SELECT *
-        |    FROM (
-        |      SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
-        |      FROM (
-        |         SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
-        |         FROM orders
-        |         GROUP BY o_orderstatus
-        |      ) t1
-        |         INNER JOIN (
-        |            SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |	FROM (
+        |		SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |		FROM (
+        |			SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
+        |			FROM orders
+        |			GROUP BY o_orderstatus
+        |		) t1
+        |			INNER JOIN (
+        |				SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
         |                FROM orders
         |                GROUP BY o_orderstatus
-        |         ) t4
-        |         ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
-        |    ) t5
-        |      INNER JOIN (
-        |         SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |			) t4
+        |			ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
+        |	) t5
+        |		INNER JOIN (
+        |			SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
         |            FROM (
         |                SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
         |                FROM orders
@@ -1095,7 +1092,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |                ) t9
         |                ON t8.O_ORDERSTATUS = t9.O_ORDERSTATUS
         |            ) t12
-        |      ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
+        |		ON t5.O_ORDERSTATUS = t12.O_ORDERSTATUS
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { df => })
   }
@@ -1186,9 +1183,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   test("GLUTEN-2079: aggregate function with filter") {
     val sql =
       """
-        | select
-        |  count(distinct(a)), count(distinct(b)), count(distinct(c))
-        | from
+        | select 
+        |  count(distinct(a)), count(distinct(b)), count(distinct(c)) 
+        | from 
         |  values (1, null,2), (2,2,4), (3,2,4) as data(a,b,c)
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
@@ -1237,7 +1234,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val sql =
       """
         |select
-        | count(a),count(b), count(1), count(distinct(a)), count(distinct(b))
+        | count(a),count(b), count(1), count(distinct(a)), count(distinct(b)) 
         |from
         | values (1, null), (2,2) as data(a,b)
         |""".stripMargin
@@ -1299,4 +1296,3 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
 }
-// scalastyle:on line.size.limit

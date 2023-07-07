@@ -27,7 +27,9 @@ public class CHStreamReader implements AutoCloseable {
   private boolean compressed;
   private int bufferSize;
 
-  public CHStreamReader(InputStream inputStream, int bufferSize) {
+  public CHStreamReader(
+      InputStream inputStream,
+      int bufferSize) {
     this(inputStream, false, false, bufferSize);
   }
 
@@ -38,15 +40,17 @@ public class CHStreamReader implements AutoCloseable {
       int bufferSize) {
     this.bufferSize = bufferSize;
     this.inputStream =
-        CHShuffleReadStreamFactory.create(
-            inputStream, forceCompress, isCustomizedShuffleCodec, bufferSize);
+        CHShuffleReadStreamFactory
+            .create(inputStream, forceCompress, isCustomizedShuffleCodec, bufferSize);
     this.compressed = this.inputStream.isCompressed();
     nativeShuffleReader =
         createNativeShuffleReader(this.inputStream, this.compressed, this.bufferSize);
   }
 
   private static native long createNativeShuffleReader(
-      ShuffleInputStream inputStream, boolean compressed, int bufferSize);
+      ShuffleInputStream inputStream,
+      boolean compressed,
+      int bufferSize);
 
   private native long nativeNext(long nativeShuffleReader);
 
@@ -64,4 +68,5 @@ public class CHStreamReader implements AutoCloseable {
     nativeClose(nativeShuffleReader);
     nativeShuffleReader = 0L;
   }
+
 }

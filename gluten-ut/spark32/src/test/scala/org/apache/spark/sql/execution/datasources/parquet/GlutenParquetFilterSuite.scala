@@ -448,7 +448,7 @@ class GlutenParquetV2FilterSuite extends GltuenParquetFilterSuite with GlutenSQL
    * test nested cases.
    */
   private def withNestedParquetDataFrame[T <: Product : ClassTag : TypeTag](data: Seq[T])
-    (runTest: (DataFrame, String, Any => Any) => Unit): Unit =
+                                                                           (runTest: (DataFrame, String, Any => Any) => Unit): Unit =
     withNestedParquetDataFrame(spark.createDataFrame(data))(runTest)
 
   private def withNestedParquetDataFrame(inputDF: DataFrame)

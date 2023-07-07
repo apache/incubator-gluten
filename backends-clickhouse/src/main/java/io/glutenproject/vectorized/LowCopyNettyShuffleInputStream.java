@@ -33,7 +33,10 @@ public class LowCopyNettyShuffleInputStream implements ShuffleInputStream {
   private int readBytesCount = 0;
 
   public LowCopyNettyShuffleInputStream(
-      InputStream in, ByteBuf byteBuf, int bufferSize, boolean isCompressed) {
+      InputStream in,
+      ByteBuf byteBuf,
+      int bufferSize,
+      boolean isCompressed) {
     // to prevent underlying netty buffer from being collected by GC
     this.in = in;
     this.byteBuf = byteBuf;

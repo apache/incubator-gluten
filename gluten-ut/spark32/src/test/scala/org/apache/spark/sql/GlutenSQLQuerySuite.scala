@@ -21,6 +21,10 @@ import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, CartesianProductExec, SortMergeJoinExec}
+import org.apache.spark.sql.execution.CommandResultExec
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
+import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {

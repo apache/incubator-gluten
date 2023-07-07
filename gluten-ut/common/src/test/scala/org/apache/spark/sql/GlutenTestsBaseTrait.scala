@@ -18,6 +18,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.utils.BackendTestSettings
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 
 trait GlutenTestsBaseTrait {
 

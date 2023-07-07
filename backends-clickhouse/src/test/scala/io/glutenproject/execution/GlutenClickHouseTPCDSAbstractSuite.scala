@@ -32,9 +32,10 @@ import java.io.File
 import java.util
 
 import scala.io.Source
+import scala.language.postfixOps
 
 abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
-  private var _spark: SparkSession = _
+  private var _spark: SparkSession = null
 
   override protected def spark: SparkSession = _spark
   override protected val backend: String = "ch"
@@ -64,8 +65,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           }
           val noFallBack = queryNum match {
             case i
-                if i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
-                  i == 88 || i == 94 =>
+                if (i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
+                  i == 88 || i == 94) =>
               // Q10 BroadcastHashJoin, ExistenceJoin
               // Q16 ShuffledHashJoin, NOT condition
               // Q28 BroadcastNestedLoopJoin
@@ -75,7 +76,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
               // Q88 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
-            case j if j == 38 || j == 87 =>
+            case j if (j == 38 || j == 87) =>
               // Q38 and Q87 : Hash shuffle is not supported for expression in some case
               if (isAqe) {
                 (true, true)
@@ -154,7 +155,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.length == 24)
+    assert(result.size == 24)
   }
 
   override protected def sparkConf: SparkConf = {

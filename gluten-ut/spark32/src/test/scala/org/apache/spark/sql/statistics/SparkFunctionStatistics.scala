@@ -165,8 +165,7 @@ class SparkFunctionStatistics extends QueryTest {
       }
     )
     // For wrongly recognized supported case.
-    Seq("array_contains", "map_keys", "get_json_object",
-        "element_at", "map_from_arrays", "map_values",
+    Seq("array_contains", "map_keys", "get_json_object", "element_at", "map_from_arrays", "map_values",
         "struct", "array").foreach(
       name => {
         if (supportedFunctions.remove(name)) {

@@ -386,7 +386,7 @@ object GlutenConfig {
       GLUTEN_UGI_TOKENS,
       UserGroupInformation.getCurrentUser.getTokens.asScala
         .map(_.encodeToUrlString)
-        .mkString("\u0000"))
+        .mkString("\0"))
     nativeConfMap.put(GLUTEN_UGI_USERNAME, UserGroupInformation.getCurrentUser.getUserName)
 
     // return
