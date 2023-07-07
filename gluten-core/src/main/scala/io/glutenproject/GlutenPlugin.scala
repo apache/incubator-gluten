@@ -19,6 +19,7 @@ package io.glutenproject
 
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.events.GlutenBuildInfoEvent
 import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.test.TestStats
@@ -30,12 +31,14 @@ import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.execution.ui.GlutenEventUtils
 import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.SparkResourcesUtil
 
 import java.util
 import java.util.{Collections, Objects}
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 class GlutenPlugin extends SparkPlugin {
@@ -49,9 +52,12 @@ class GlutenPlugin extends SparkPlugin {
 }
 
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Logging {
+  private var _sc: Option[SparkContext] = None
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
-    showGlutenBuildInfo()
+    _sc = Some(sc)
+    GlutenEventUtils.registerListener(sc)
+    postBuildInfoEvent(sc)
 
     val conf = pluginContext.conf()
     if (conf.getBoolean(GlutenConfig.UT_STATISTIC.key, defaultValue = false)) {
@@ -72,41 +78,55 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     Collections.emptyMap()
   }
 
+  override def registerMetrics(appId: String, pluginContext: PluginContext): Unit = {
+    if (pluginContext.conf().getBoolean("spark.gluten.ui.enabled", true)) {
+      _sc.foreach { sc =>
+        GlutenEventUtils.attachUI(sc)
+        logInfo("Gluten SQL Tab has attached.")
+      }
+    }
+  }
+
   override def shutdown(): Unit = {
     BackendsApiManager.getContextApiInstance.shutdown()
   }
 
-  private def showGlutenBuildInfo(): Unit = {
-    var backendInfo = ""
-    if (BackendsApiManager.veloxBackend) {
-      backendInfo = s"""
-                       |Velox branch: $VELOX_BRANCH
-                       |Velox revision: $VELOX_REVISION
-                       |Velox revision time: $VELOX_REVISION_TIME""".stripMargin
-    }
-    if (BackendsApiManager.chBackend) {
-      backendInfo = s"""
-                       |CH branch: $CH_BRANCH
-                       |CH commit: $CH_COMMIT""".stripMargin
-    }
-    val buildInfo =
-      s"""
-        |======================================
-        |Gluten build info:
-        |Gluten version: $VERSION
-        |GCC version: $GCC_VERSION
-        |Java version: $JAVA_COMPILE_VERSION
-        |Scala version: $SCALA_COMPILE_VERSION
-        |Spark version: $SPARK_COMPILE_VERSION
-        |Hadoop version: $HADOOP_COMPILE_VERSION
-        |Build branch: $BRANCH
-        |Build revision: $REVISION
-        |Build revision time: $REVISION_TIME
-        |Build date: $BUILD_DATE
-        |Repo url: $REPO_URL $backendInfo
-        |======================================
-        """.stripMargin
-    logInfo(buildInfo)
+  private def postBuildInfoEvent(sc: SparkContext): Unit = {
+    val (backend, backendBranch, backendRevision, backendRevisionTime) =
+      if (BackendsApiManager.veloxBackend) {
+        ("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+      } else if (BackendsApiManager.chBackend) {
+        ("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+      } else {
+        throw new IllegalStateException("Unknown backend")
+      }
+
+    val glutenBuildInfo = new mutable.HashMap[String, String]()
+    glutenBuildInfo.put("Gluten Version", VERSION)
+    glutenBuildInfo.put("GCC Version", GCC_VERSION)
+    glutenBuildInfo.put("Java Version", JAVA_COMPILE_VERSION)
+    glutenBuildInfo.put("Scala Version", SCALA_COMPILE_VERSION)
+    glutenBuildInfo.put("Spark Version", SPARK_COMPILE_VERSION)
+    glutenBuildInfo.put("Hadoop Version", HADOOP_COMPILE_VERSION)
+    glutenBuildInfo.put("Gluten Branch", BRANCH)
+    glutenBuildInfo.put("Gluten Revision", REVISION)
+    glutenBuildInfo.put("Gluten Revision Time", REVISION_TIME)
+    glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
+    glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
+    glutenBuildInfo.put("Backend", backend)
+    glutenBuildInfo.put("Backend Branch", backendBranch)
+    glutenBuildInfo.put("Backend Revision", backendRevision)
+    glutenBuildInfo.put("Backend Revision Time", backendRevisionTime)
+    val infoMap = glutenBuildInfo.toMap
+    val loggingInfo = infoMap.toSeq.sortBy(_._1).map { case (name, value) =>
+      s"$name: $value"
+    }.mkString(
+      "Gluten build info:\n==============================================================\n",
+      "\n",
+      "\n==============================================================")
+    logInfo(loggingInfo)
+    val event = GlutenBuildInfoEvent(infoMap)
+    GlutenEventUtils.post(sc, event)
   }
 
   def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
