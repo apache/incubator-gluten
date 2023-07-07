@@ -1314,7 +1314,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         | (5, '2023-07-07 11:25:00.123456', 'Asia/Shanghai'),
         | (6, '2023-07-07 11:25:00.123456789', 'Asia/Shanghai'),
         | (7, '2023-07-07 11:25:00', NULL),
-        | (8, NULL, 'Asia/Shanghai')
+        | (8, NULL, 'Asia/Shanghai'),
+        | (9, '2023-07-07 11:25:00.123', 'GMT+0'),
+        | (10, '2023-07-07 11:25:00.123', 'GMT-0'),
+        | (11, '2023-07-07 11:25:00.123', 'GMT+5'),
+        | (12, '2023-07-07 11:25:00.123', 'GMT-5'),
+        | (13, '2023-07-07 11:25:00.123', 'GMT')
         |""".stripMargin
     spark.sql(data_insert_sql)
     val from_utc_timestamp_sql =

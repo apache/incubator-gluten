@@ -41,6 +41,18 @@ namespace local_engine
 
         static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<UTCTimestampSparkFunctionBase>(); }
 
+        static String convertTimeZone(String & time_zone)
+        {
+            if (time_zone.size() == 0 || time_zone.data()[0] != 'G')
+                return time_zone;
+            else if (time_zone.rfind("GMT+", 0) == 0)
+                return time_zone.replace(0, 4, "Etc/GMT-");
+            else if (time_zone.rfind("GMT-", 0) == 0)
+                return time_zone.replace(0, 4, "Etc/GMT+");
+            else
+                return time_zone;
+        }
+
         DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes & arguments) const override
         {
             if (arguments.size() < 2)
@@ -124,8 +136,9 @@ namespace local_engine
                     DB::Field time_zone_val;
                     date_time_col->get(i, date_time_val);
                     time_zone_col->get(i, time_zone_val);
-                    LocalDateTime date_time(date_time_val.get<UInt32>(), Name::to ? DateLUT::instance("UTC") : DateLUT::instance(time_zone_val.get<String>()));
-                    time_t utc_time_val = date_time.to_time_t(Name::from ? DateLUT::instance("UTC") : DateLUT::instance(time_zone_val.get<String>()));
+                    std::string time_zone = convertTimeZone(time_zone_val.get<String>());
+                    LocalDateTime date_time(date_time_val.get<UInt32>(), Name::to ? DateLUT::instance("UTC") : DateLUT::instance(time_zone));
+                    time_t utc_time_val = date_time.to_time_t(Name::from ? DateLUT::instance("UTC") : DateLUT::instance(time_zone));
                     column->insert(DB::Field(utc_time_val));
                 }
             }
@@ -142,18 +155,19 @@ namespace local_engine
                         throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s 1st argument must be datetime64 type", name);
                 }
                 const DB::DataTypeDateTime64 * date_time_type = static_cast<const DB::DataTypeDateTime64 *>(arg1.type.get());
+                Int64 scale_multiplier = DB::DecimalUtils::scaleMultiplier<Int64>(date_time_type->getScale());
                 for (size_t i = 0; i < input_rows_count; ++i)
                 {
                     DB::Field date_time_val;
                     DB::Field time_zone_val;
                     date_time_col->get(i, date_time_val);
                     time_zone_col->get(i, time_zone_val);
+                    std::string time_zone = convertTimeZone(time_zone_val.get<String>());
                     DB::DateTime64 date_time_64 = date_time_val.get<DB::DateTime64>();
-                    Int64 scale_multiplier = DB::DecimalUtils::scaleMultiplier<Int64>(date_time_type->getScale());
                     Int64 seconds = date_time_64.value / scale_multiplier;
                     Int64 micros = date_time_64.value % scale_multiplier;
-                    LocalDateTime date_time(seconds, Name::to ? DateLUT::instance("UTC") : DateLUT::instance(time_zone_val.get<String>()));
-                    time_t utc_time_val = date_time.to_time_t(Name::from ? DateLUT::instance("UTC") : DateLUT::instance(time_zone_val.get<String>()));
+                    LocalDateTime date_time(seconds, Name::to ? DateLUT::instance("UTC") : DateLUT::instance(time_zone));
+                    time_t utc_time_val = date_time.to_time_t(Name::from ? DateLUT::instance("UTC") : DateLUT::instance(time_zone));
                     DB::DateTime64 utc_time(utc_time_val * scale_multiplier + micros);
                     column->insert(DB::Field(utc_time));
                 }
