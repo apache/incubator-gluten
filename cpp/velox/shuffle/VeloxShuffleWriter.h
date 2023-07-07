@@ -206,11 +206,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status initPartitions();
 
-  arrow::Status initColumnTypes(const facebook::velox::RowVector& rv, bool removePid);
+  arrow::Status initColumnTypes(const facebook::velox::RowVector& rv);
 
   arrow::Status splitRowVector(const facebook::velox::RowVector& rv);
 
-  arrow::Status initFromRowVector(const facebook::velox::RowVector& rv, bool removePid);
+  arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
 
   arrow::Status createPartition2Row(uint32_t rowNum);
 
