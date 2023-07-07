@@ -53,7 +53,9 @@ object GlutenShuffleUtils {
       case None =>
         val sparkCodecKey = IO_COMPRESSION_CODEC.key
         val codec =
-          conf.get(sparkCodecKey, IO_COMPRESSION_CODEC.defaultValueString)
+          conf
+            .get(sparkCodecKey, IO_COMPRESSION_CODEC.defaultValueString)
+            .toLowerCase(Locale.ROOT)
         checkCodecValues(
           sparkCodecKey,
           codec,
