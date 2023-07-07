@@ -25,6 +25,7 @@ import io.glutenproject.vectorized._
 import org.apache.commons.io.FileUtils
 import org.apache.spark._
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -64,7 +65,12 @@ class ColumnarShuffleWriter[K, V](
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
-  private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
+  private val compressionCodec =
+    if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
+      GlutenShuffleUtils.getCompressionCodec(conf)
+    } else {
+      null // uncompressed
+    }
 
   private val compressionCodecBackend =
     GlutenConfig.getConf.columnarShuffleCodecBackend.orNull

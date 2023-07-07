@@ -26,7 +26,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
-import java.util.UUID
+import java.util.{Locale, UUID}
 
 class CHColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -49,7 +49,7 @@ class CHColumnarShuffleWriter[K, V](
   private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
   private val splitSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressCodec =
-    GlutenShuffleUtils.getCompressionCodec(conf)
+    GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
