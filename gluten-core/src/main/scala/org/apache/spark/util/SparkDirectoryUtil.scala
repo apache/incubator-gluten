@@ -65,7 +65,7 @@ object SparkDirectoryUtil extends Logging {
   }
 }
 
-class Namespace(private val parents: Array[File], private val name: String) extends Logging {
+class Namespace(private val parents: Array[File], private val name: String) {
   private val all = parents.map { root =>
     val path = Paths.get(root.getAbsolutePath)
       .resolve(name)
@@ -105,16 +105,6 @@ class Namespace(private val parents: Array[File], private val name: String) exte
       val file = path.toFile
       FileUtils.forceMkdir(file)
       file
-    }
-  }
-
-  def forceDelete(): Unit = {
-    all.foreach { subDir =>
-      try FileUtils.forceDelete(subDir)
-      catch {
-        case _: Exception =>
-          logError(s"Failed to cleanup Gluten local dir ${subDir.getAbsolutePath}.")
-      }
     }
   }
 }
