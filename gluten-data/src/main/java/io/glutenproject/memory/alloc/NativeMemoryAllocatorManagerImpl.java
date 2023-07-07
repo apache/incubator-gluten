@@ -17,7 +17,7 @@
 
 package io.glutenproject.memory.alloc;
 
-import org.apache.spark.util.memory.TaskResources;
+import org.apache.spark.util.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

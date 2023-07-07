@@ -35,7 +35,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.TaskResources
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 
 import scala.collection.JavaConverters._

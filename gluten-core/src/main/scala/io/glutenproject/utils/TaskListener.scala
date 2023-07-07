@@ -15,16 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.spark.util.memory
+package io.glutenproject.utils
 
-/**
- * Manages the lifecycle for a specific type of memory resource managed by Spark. See also
- * `org.apache.spark.util.memory.TaskResources`.
- */
-trait TaskResourceManager {
-  @throws(classOf[Exception])
-  def release(): Unit
+import org.apache.spark.TaskFailedReason
 
-  // #release() will be called in higher precedence if the manager has higher priority
-  def priority(): Long = 100
+trait TaskListener {
+  def onTaskStart(): Unit
+  def onTaskSucceeded(): Unit
+  def onTaskFailed(failureReason: TaskFailedReason): Unit
 }

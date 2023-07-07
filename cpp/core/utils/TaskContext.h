@@ -14,14 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.expression
 
-object TransformerState {
-  private lazy val validationState = new ThreadLocal[Integer] {
-    override def initialValue: Integer = 0
+#pragma once
+
+#include <memory>
+#include <vector>
+
+namespace {
+class TaskContextStorage {
+ public:
+  void bind(std::shared_ptr<void> object) {
+    objects_.push_back(object);
   }
-  def underValidationState: Boolean = validationState.get() > 0
 
-  def enterValidation: Unit = validationState.set(validationState.get() + 1)
-  def finishValidation: Unit = validationState.set(validationState.get() - 1)
-}
+ private:
+  std::vector<std::shared_ptr<void>> objects_;
+};
+} // namespace
+
+namespace gluten {
+
+extern thread_local std::unique_ptr<TaskContextStorage> taskContextStorage;
+
+void bindToTask(std::shared_ptr<void> object);
+
+void bindToTaskIfPossible(std::shared_ptr<void> object);
+
+void createTaskContextStorage();
+
+void deleteTaskContextStorage();
+} // namespace gluten

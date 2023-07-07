@@ -374,7 +374,7 @@ std::shared_ptr<arrow::Buffer> VeloxShuffleWriter::generateComplexTypeBuffers(ve
 }
 
 arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
-  auto veloxColumnBatch = VeloxColumnarBatch::from(defaultLeafVeloxMemoryPool().get(), cb);
+  auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
   auto& rv = *veloxColumnBatch->getFlattenedRowVector();
   RETURN_NOT_OK(initFromRowVector(rv));
   if (options_.partitioning_name == "single") {

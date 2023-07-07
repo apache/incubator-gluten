@@ -22,8 +22,8 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.test.TestStats
-
-import org.apache.spark.{SparkConf, SparkContext}
+import io.glutenproject.utils.TaskListener
+import org.apache.spark.{SparkConf, SparkContext, TaskFailedReason}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.GlutenListenerFactory
@@ -32,7 +32,7 @@ import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.sql.utils.ExpressionUtil
-import org.apache.spark.util.SparkResourcesUtil
+import org.apache.spark.util.{SparkResourcesUtil, TaskResources}
 
 import java.util
 import java.util.{Collections, Objects}
@@ -153,6 +153,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
 
 private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
   private var executorEndpoint: GlutenExecutorEndpoint = _
+  private val taskListeners: Seq[TaskListener] = Array(TaskResources)
 
   /**
    * Initialize the executor plugin.
@@ -168,6 +169,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
         s" and set off heap memory size by option 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
+    // TODO categorize the APIs by driver's or executor's
     BackendsApiManager.initialize()
     BackendsApiManager.getContextApiInstance.initialize(conf)
 
@@ -181,6 +183,18 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
   override def shutdown(): Unit = {
     BackendsApiManager.getContextApiInstance.shutdown()
     super.shutdown()
+  }
+
+  override def onTaskStart(): Unit = {
+    taskListeners.foreach(_.onTaskStart())
+  }
+
+  override def onTaskSucceeded(): Unit = {
+    taskListeners.reverse.foreach(_.onTaskSucceeded())
+  }
+
+  override def onTaskFailed(failureReason: TaskFailedReason): Unit = {
+    taskListeners.reverse.foreach(_.onTaskFailed(failureReason))
   }
 }
 

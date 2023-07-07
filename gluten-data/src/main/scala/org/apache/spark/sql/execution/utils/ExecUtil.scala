@@ -38,8 +38,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.MutablePair
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.{MutablePair, TaskResources}
 
 object ExecUtil {
 

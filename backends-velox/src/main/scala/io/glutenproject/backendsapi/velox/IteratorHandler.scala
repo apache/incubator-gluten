@@ -48,8 +48,7 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.ExecutorManager
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.{ExecutorManager, TaskResources}
 
 class IteratorHandler extends IteratorApi with Logging {
 

@@ -14,14 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.expression
 
-object TransformerState {
-  private lazy val validationState = new ThreadLocal[Integer] {
-    override def initialValue: Integer = 0
+
+package io.glutenproject.init
+
+import org.apache.spark.util.TaskResource
+
+// To make native task context work properly, register this resource type in ContextAPI
+class JniTaskContext extends TaskResource {
+
+  private val handle: Long = InitializerJniWrapper.makeTaskContext()
+
+  override def release(): Unit = {
+    InitializerJniWrapper.closeTaskContext(handle)
   }
-  def underValidationState: Boolean = validationState.get() > 0
 
-  def enterValidation: Unit = validationState.set(validationState.get() + 1)
-  def finishValidation: Unit = validationState.set(validationState.get() - 1)
+  override def priority(): Long = 10
 }

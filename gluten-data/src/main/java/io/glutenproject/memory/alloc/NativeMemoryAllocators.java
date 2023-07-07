@@ -21,7 +21,7 @@ import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.Spiller;
 import io.glutenproject.memory.TaskMemoryMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.memory.TaskResources;
+import org.apache.spark.util.TaskResources;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,15 +62,12 @@ public final class NativeMemoryAllocators {
       return globalInstance();
     }
     final String id = NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global);
-    if (!TaskResources.isResourceManagerRegistered(id)) {
-      final NativeMemoryAllocatorManager manager = createNativeMemoryAllocatorManager(
-              TaskResources.getSparkMemoryManager(),
-              TaskResources.getSharedMetrics(), Spiller.NO_OP,
-              global
-          );
-      TaskResources.addResourceManager(id, manager);
-    }
-    return ((NativeMemoryAllocatorManager) TaskResources.getResourceManager(id)).getManaged();
+    return TaskResources.addResourceIfNotRegistered(
+        id, () -> createNativeMemoryAllocatorManager(
+            TaskResources.getLocalTaskContext().taskMemoryManager(),
+            TaskResources.getSharedMetrics(), Spiller.NO_OP,
+            global
+        )).getManaged();
   }
 
   public NativeMemoryAllocator createSpillable(Spiller spiller) {
@@ -79,12 +76,11 @@ public final class NativeMemoryAllocators {
     }
 
     final NativeMemoryAllocatorManager manager = createNativeMemoryAllocatorManager(
-            TaskResources.getSparkMemoryManager(),
-            TaskResources.getSharedMetrics(), spiller,
-            global
-        );
-    TaskResources.addAnonymousResourceManager(manager);
-    return manager.getManaged();
+        TaskResources.getLocalTaskContext().taskMemoryManager(),
+        TaskResources.getSharedMetrics(), spiller,
+        global
+    );
+    return TaskResources.addAnonymousResource(manager).getManaged();
   }
 
   public NativeMemoryAllocator globalInstance() {

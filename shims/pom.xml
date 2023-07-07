@@ -68,9 +68,6 @@
         <plugin>
           <groupId>org.scalastyle</groupId>
           <artifactId>scalastyle-maven-plugin</artifactId>
-          <configuration>
-            <configLocation>${project.basedir}/../../scalastyle-config.xml</configLocation>
-          </configuration>
         </plugin>
         <plugin>
           <groupId>com.diffplug.spotless</groupId>

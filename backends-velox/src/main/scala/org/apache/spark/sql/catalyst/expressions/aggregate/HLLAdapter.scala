@@ -38,7 +38,7 @@ case class HLLAdapter(
       mutableAggBufferOffset = 0,
       inputAggBufferOffset = 0)
   }
-  
+
   private lazy val relativeSD = HyperLogLogPlusPlus.validateDoubleLiteral(relativeSDExpr)
 
   private lazy val hllppHelper = new HyperLogLogPlusPlusHelper(relativeSD)
@@ -50,7 +50,7 @@ case class HLLAdapter(
   }
 
   private lazy val projection = UnsafeProjection.create(aggBufferDataType)
-  
+
   private lazy val row = new UnsafeRow(hllppHelper.numWords)
 
   override def prettyName: String = "approx_count_distinct_velox"

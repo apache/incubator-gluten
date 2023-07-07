@@ -21,12 +21,12 @@ import io.glutenproject.backendsapi.ContextApi
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 import io.glutenproject.expression.UDFMappings
-
+import io.glutenproject.init.JniTaskContext
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkConf
+import org.apache.spark.util.TaskResource
 
 import java.util.Locale
-
 import scala.sys.process._
 
 class ContextInitializer extends ContextApi {
@@ -48,6 +48,10 @@ class ContextInitializer extends ContextApi {
       new SharedLibraryLoaderCentos7
     }
     loader.asInstanceOf[SharedLibraryLoader].loadLib(load)
+  }
+
+  override def taskResourceFactories(): Seq[() => TaskResource] = {
+    Seq(() => new JniTaskContext())
   }
 
   override def initialize(conf: SparkConf): Unit = {
@@ -85,6 +89,6 @@ class ContextInitializer extends ContextApi {
   }
 
   override def shutdown(): Unit = {
-    /// TODO shutdown implementation in velox to release resources
+    // TODO shutdown implementation in velox to release resources
   }
 }

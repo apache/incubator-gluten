@@ -254,7 +254,7 @@ object BackendSettings extends BackendSettingsApi {
         false
     }
   }
-  
+
   override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
     // Count(1) is a special case to handle. Do not fallback it and its children in the first place.
     !(isCount1(plan) || isSum1(plan))
