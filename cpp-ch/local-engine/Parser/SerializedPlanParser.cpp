@@ -1029,8 +1029,14 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     }
     else if (function_name == "concat")
     {
+        /// 1. ConcatOverloadResolver cannot build arrayConcat for Nullable(Array) type which causes failures when using functions like concat(split()).
+        ///    So we use arrayConcat directly if the output type is array.
+        /// 2. CH ConcatImpl can only accept at least 2 arguments, but Spark concat can accept 1 argument, like concat('a')
+        ///    in such case we use identity function
         if (function.output_type().has_list())
             ch_function_name = "arrayConcat";
+        else if (args.size() == 1)
+            ch_function_name = "identity";
         else
             ch_function_name = "concat";
     }
