@@ -148,6 +148,8 @@ object ExpressionMappings {
     Sig[DateDiff](DATE_DIFF),
     Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),
     Sig[UnixTimestamp](UNIX_TIMESTAMP),
+    Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
+    Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
     Sig[AddMonths](ADD_MONTHS),
     Sig[DateFormatClass](DATE_FORMAT),
     Sig[TruncDate](TRUNC),

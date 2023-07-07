@@ -1298,5 +1298,38 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-2207: From/To UTCTimestamp") {
+    val create_table_sql =
+      """
+        | create table test_tbl_2207(id bigint, time_t string, time_zone string) using parquet;
+        |""".stripMargin
+    spark.sql(create_table_sql);
+    val data_insert_sql =
+      """
+        | insert into test_tbl_2207 values
+        | (1, '2023-07-07 11:25:00', 'UTC'),
+        | (2, '2023-07-07 11:25:00', 'Asia/Shanghai'),
+        | (3, '2023-07-07 11:25:00', 'Asia/Seoul'),
+        | (4, '2023-07-07 11:25:00.123', 'Asia/Shanghai'),
+        | (5, '2023-07-07 11:25:00.123456', 'Asia/Shanghai'),
+        | (6, '2023-07-07 11:25:00.123456789', 'Asia/Shanghai'),
+        | (7, '2023-07-07 11:25:00', NULL),
+        | (8, '2023', 'Asia/Shanghai'),
+        | (9, NULL, 'Asia/Shanghai'),
+        | (10, '2023-07-07 11:25:00', '')
+        |""".stripMargin
+    spark.sql(data_insert_sql)
+    val from_utc_timestamp_sql =
+      """
+        | select id, from_utc_timestamp(time_t, time_zone) from test_tbl_2207
+        |""".stripMargin
+    val to_utc_timestamp_sql =
+      """
+        | select id, to_utc_timestamp(time_t, time_zone) from test_tbl_2207
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(from_utc_timestamp_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(to_utc_timestamp_sql, true, { _ => })
+  }
+
 }
 // scalastyle:on line.size.limit

@@ -155,6 +155,8 @@ object ExpressionNames {
   final val DATE_DIFF = "datediff"
   final val TO_UNIX_TIMESTAMP = "to_unix_timestamp"
   final val UNIX_TIMESTAMP = "unix_timestamp"
+  final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
+  final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
   final val ADD_MONTHS = "add_months"
   final val DATE_FORMAT = "date_format"
   final val TRUNC = "trunc"
