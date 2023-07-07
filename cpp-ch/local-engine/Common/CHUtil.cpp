@@ -603,6 +603,7 @@ void BackendInitializerUtil::initContexts()
     {
         global_context = Context::createGlobal(shared_context.get());
         global_context->makeGlobalContext();
+        global_context->setConfig(config);
 
         auto getDefaultPath = [] -> auto
         {
