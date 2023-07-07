@@ -54,6 +54,10 @@ protected:
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
+    DB::ActionsDAGPtr expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header)
+    {
+        return plan_parser->expressionsToActionsDAG(expressions, header, header);
+    }
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) { return plan_parser->parseLiteral(literal); }
     // collect all steps for metrics
     std::vector<IQueryPlanStep *> steps;
