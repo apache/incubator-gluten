@@ -28,7 +28,7 @@ case class GlutenBuildInfoEvent(info: Map[String, String]) extends GlutenEvent {
  * `SparkListenerSQLAdaptiveExecutionUpdate`.
  * In non-AQE this event holds the whole plan fallback reason.
  *
- * Note that, some nodes may not be included in this event, e.g., `set a=b`
+ * Note that, some nodes may have no both `numFallbackNodes` and `numGlutenNodes`, e.g., `set a=b`
  *
  * @param executionId The query execution id.
  * @param numGlutenNodes The number of Gluten plan nodes.
