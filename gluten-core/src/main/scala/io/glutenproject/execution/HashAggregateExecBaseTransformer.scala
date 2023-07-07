@@ -233,7 +233,7 @@ abstract class HashAggregateExecBaseTransformer(
     var needsProjection = false
     // If the result expressions has different size with output attribute,
     // post-projection is needed.
-    if (resultExpressions.size != aggOutAttributes.size) {
+    if (resultExpressions.nonEmpty && resultExpressions.size != aggOutAttributes.size) {
       needsProjection = true
     } else {
       // Compare each item in result expressions and output attributes.
