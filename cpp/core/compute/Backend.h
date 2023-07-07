@@ -59,6 +59,12 @@ class Backend : public std::enable_shared_from_this<Backend> {
   /// Return true if parsed successfully.
   void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
     taskInfo_ = taskInfo;
+#ifdef GLUTEN_PRINT_DEBUG
+    auto jsonPlan = substraitFromPbToJson("Plan", data, size);
+    std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
+    std::cout << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
+              << ", taskId: " << taskInfo_.taskId << "; " << jsonPlan << std::endl;
+#endif
     GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
   }
 
