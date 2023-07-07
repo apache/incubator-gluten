@@ -27,6 +27,7 @@ object ExpressionNames {
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
+  final val COLLECT_SET = "collect_set"
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
   final val VAR_SAMP = "var_samp"
   final val VAR_POP = "var_pop"

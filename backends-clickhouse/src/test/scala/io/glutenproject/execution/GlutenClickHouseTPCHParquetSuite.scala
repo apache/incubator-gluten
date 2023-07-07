@@ -898,13 +898,30 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("Bug-398 collec_list failure") {
+  test("Bug-398 collect_list failure") {
     val sql =
       """
         |select n_regionkey, collect_list(if(n_regionkey=0, n_name, null)) as t from nation group by n_regionkey
         |order by n_regionkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
+  test("collect_set") {
+    val sql =
+      """
+        |select a, b from (
+        |select n_regionkey as a, collect_set(if(n_regionkey=0, n_name, null)) as set from nation group by n_regionkey)
+        |lateral view explode(set) as b
+        |order by a, b
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[CHHashAggregateExecTransformer])
+  }
+
+  test("collect_set should return empty set") {
+    runQueryAndCompare(
+      "select collect_set(if(n_regionkey != -1, null, n_regionkey)) from nation"
+    )(checkOperatorMatch[CHHashAggregateExecTransformer])
   }
 
   test("Test 'spark.gluten.enabled' false") {

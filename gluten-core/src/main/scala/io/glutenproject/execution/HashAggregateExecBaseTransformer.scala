@@ -582,11 +582,10 @@ abstract class HashAggregateExecBaseTransformer(
           case other =>
             throw new UnsupportedOperationException(s"not currently supported: $other.")
         }
-      case CollectList(_, _, _) =>
+      case _: CollectList | _: CollectSet =>
         mode match {
           case Partial =>
-            val collectList = aggregateFunc.asInstanceOf[CollectList]
-            val aggBufferAttr = collectList.inputAggBufferAttributes
+            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
             for (index <- aggBufferAttr.indices) {
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
               aggregateAttr += attr

@@ -331,5 +331,16 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, df => {})
   }
+
+  test("collec_set") {
+    val sql =
+      """
+        |select a, b from (
+        |select cc_call_center_id as a, collect_set(cc_call_center_sk) as set from call_center group by cc_call_center_id)
+        |lateral view explode(set) as b
+        |order by a, b
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+  }
 }
 // scalastyle:on line.size.limit

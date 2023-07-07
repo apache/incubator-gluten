@@ -280,6 +280,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "average", // [overwritten by Gluten - xxx]
       "multiple column distinct count", // [not urgent, function with multiple params]
       "agg without groups and functions", // [not urgent]
+      // collect_set is non-deterministic,
+      // the order of the collection elements returned by CH is different from Spark.
+      "collect functions",
       "collect functions structs", // [not urgent]
       "SPARK-31500: collect_set() of BinaryType returns duplicate elements", // [not urgent]
       "SPARK-17641: collect functions should not collect null values", // [not urgent]
