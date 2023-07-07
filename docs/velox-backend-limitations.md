@@ -1,13 +1,14 @@
 ---
 layout: page
-title: Compatibility
+title: Velox Backend Limitations
 nav_order: 6
 ---
-This document describes some corner cases which will throw exception or has different appearance, cannot successfully fall back to vanilla.
+This document describes the limitations of velox backend by listing some known cases where exception will be thrown, gluten behaves incompatibly with spark, or certain plan's execution
+must fall back to vanilla spark, etc.
 
 ### Runtime BloomFilter
 
-Because velox BloomFilter implementation is different with spark, so if the query fallbacks might_contain to velox but offload bloom_filter_agg to velox, it will throw exception.
+Velox BloomFilter's implementation is different from Spark's. So if `might_contain` falls back, but `bloom_filter_agg` is offloaded to velox, an exception will be thrown.
 
 #### example
 
@@ -18,7 +19,7 @@ SELECT might_contain(null, null) both_null,
             null) null_value
 ```
 
-Will throw exception
+The below exception will be thrown.
 
 ```
 Unexpected Bloom filter version number (512)
@@ -30,22 +31,22 @@ java.io.IOException: Unexpected Bloom filter version number (512)
 
 #### Solution
 
-Set the gluten config `spark.gluten.sql.native.bloomFilter=false`, it will fallback to vanilla bloom filter, you can also disable runtime filter by setting spark config `spark.sql.optimizer.runtime.bloomFilter.enabled=false`
+Set the gluten config `spark.gluten.sql.native.bloomFilter=false` to fall back to vanilla bloom filter, you can also disable runtime filter by setting spark config `spark.sql.optimizer.runtime.bloomFilter.enabled=false`.
 
 ### ANSI (fallback behavior)
 
-Gluten currently doesn't support ANSI mode, if Spark configured ansi, gluten will fallback to vanilla Spark.
+Gluten currently doesn't support ANSI mode. If ANSI is enabled, Spark plan's execution will always fall back to vanilla Spark.
 
 ### Case Sensitive mode (incompatible behavior)
 
-Gluten only supports spark default case-insensitive mode, if case-sensitive, may get incorrect result.
+Gluten only supports spark default case-insensitive mode. If case-sensitive mode is enabled, user may get incorrect result.
 
 ### Spark's columnar reading (fatal error)
 
 If the user enables Spark's columnar reading, error can occur due to Spark's columnar vector is not compatible with
 Gluten's.
 
-### JSON FUNCTION (incompatible behavior)
+### JSON functions (incompatible behavior)
 
 Gluten only supports double quotes surrounded strings, not single quotes, in JSON data. If user use single quotes, will get incorrect result.
 
@@ -55,7 +56,7 @@ In velox, lookaround (lookahead/lookbehind) pattern is not supported in RE2-base
 such as `rlike`, `regexp_extract`, etc.
 
 ### FileSource format (fallback behavior)
-Gluten only supports parquet, if is other format, will fallback to vanilla spark.
+Currently, Gluten only fully supports parquet file format. If other format is used, scan operator will fall back to vanilla spark.
 
 ### Parquet read conf (incompatible behavior)
 Gluten supports `spark.files.ignoreCorruptFiles` and `spark.files.ignoreMissingFiles` with default false, if true, the behavior is same as config false.
@@ -131,4 +132,4 @@ spark.range(100).toDF("id")
 
 ### Spill
 
-`OutOfMemoryExcetpion` may still be triggered within current implementation of spill-to-disk feature, when shuffle partitions is set to a large number. When this case happens, please try reduce the partition number to get rid of the OOM.
+`OutOfMemoryExcetpion` may still be triggered within current implementation of spill-to-disk feature, when shuffle partitions is set to a large number. When this case happens, please try to reduce the partition number to get rid of the OOM.

@@ -530,7 +530,6 @@ export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.backend.lib=velox \
   --conf spark.driver.extraClassPath=${GLUTEN_JAR} \
   --conf spark.executor.extraClassPath=${GLUTEN_JAR} \
   --conf spark.memory.offHeap.enabled=true \

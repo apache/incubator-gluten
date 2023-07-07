@@ -6,8 +6,8 @@ parent: Developer Overview
 ---
 # Developer Guide for Implementing Spark Built-in SQL Functions in Velox
 
-In velox, two folders `prestosql` & `sparksql` are holding most sql functions, respective for `presto` and `spark`. At runtime, gluten will firstly check whether the calling function is registered in `sparksql` and will use
-it if registered. If not, then check `prestosql` functions and find a matched one for reuse according to function signature. If the required function is lacking in both folders (exceptions are some common functions defined
+In velox, two folders `prestosql` & `sparksql` are holding most sql functions, respective for `presto` and `spark`. Gluten will ask velox to firstly register `prestosql` functions, then `sparksql` functions. So if `prestosql`
+and `sparksql` share same signature for a function, the `sparksql` function will overwrite the corresponding `prestosql` function. If the required function is lacking in both folders (exceptions are some common functions defined
 outside, like `cast`), we need to implement the missing function in `sparksql` folder. It is possible that a `prestosql` function has some semantic difference with the corresponding spark function, even though they share the
 same name and function signature. If so, we also need to do an implementation in `sparksql` folder, generally based on the original impl. for `prestosql`.
 
