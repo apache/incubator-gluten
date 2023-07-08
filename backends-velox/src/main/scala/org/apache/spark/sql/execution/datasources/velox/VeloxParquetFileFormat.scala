@@ -23,7 +23,7 @@ import scala.collection.mutable
 import scala.collection.JavaConverters._
 import com.google.common.base.Preconditions
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.{ColumnarBatches, IndicatorVector}
+import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}

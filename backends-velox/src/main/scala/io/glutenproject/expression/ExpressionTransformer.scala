@@ -23,6 +23,7 @@ import io.glutenproject.expression.ExpressionConverter.replaceWithExpressionTran
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, SelectionNode, StructLiteralNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.{IntegerType, LongType}
+import scala.language.existentials
 
 class AliasTransformer(substraitExprName: String,
                        child: ExpressionTransformer,
