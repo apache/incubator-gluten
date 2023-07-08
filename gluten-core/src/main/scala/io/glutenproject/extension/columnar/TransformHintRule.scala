@@ -535,7 +535,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             val maybeExchange = buildSidePlan.find {
               case BroadcastExchangeExec(_, _) => true
               case _ => false
-            }
+            }.map(_.asInstanceOf[BroadcastExchangeExec])
 
             maybeExchange match {
               case Some(exchange@BroadcastExchangeExec(mode, child)) =>
