@@ -119,7 +119,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
  protected:
   ::substrait::Plan substraitPlan_;
-  SparkTaskInfo taskInfo_;
+  SparkTaskInfo taskInfo_{0, 0, 0};
   // static conf map
   std::unordered_map<std::string, std::string> confMap_;
 };

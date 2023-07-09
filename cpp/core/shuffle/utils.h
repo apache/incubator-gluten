@@ -116,7 +116,7 @@ static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShu
     const std::vector<std::shared_ptr<arrow::Field>>& fields) {
   std::vector<std::shared_ptr<arrow::DataType>> shuffleWriterTypeId;
   std::pair<std::string, arrow::Type::type> fieldTypeNotImplemented;
-  for (auto field : fields) {
+  for (auto& field : fields) {
     switch (field->type()->id()) {
       case arrow::BooleanType::type_id:
       case arrow::Int8Type::type_id:

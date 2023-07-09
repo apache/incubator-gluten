@@ -126,7 +126,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
 
   std::vector<velox::TypePtr> veloxTypeList;
-  for (auto subType : subTypeList) {
+  for (auto& subType : subTypeList) {
     veloxTypeList.push_back(velox::substrait::toVeloxType(subType->type));
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));

@@ -63,7 +63,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
-  vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
+  if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
+    return;
+  }
   google::ShutdownGoogleLogging();
 }
 

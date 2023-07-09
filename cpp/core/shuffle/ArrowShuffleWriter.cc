@@ -92,7 +92,7 @@ ShuffleWriterOptions ShuffleWriterOptions::defaults() {
 arrow::Result<std::shared_ptr<ArrowShuffleWriter>> ArrowShuffleWriter::create(
     uint32_t numPartitions,
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-    ShuffleWriterOptions options) {
+    const ShuffleWriterOptions& options) {
   std::shared_ptr<ArrowShuffleWriter> res(
       new ArrowShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options)));
   RETURN_NOT_OK(res->init());
@@ -338,11 +338,14 @@ arrow::Status ArrowShuffleWriter::createRecordBatchFromBuffer(uint32_t partition
     switch (columnTypeId_[i]->id()) {
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id:
-        sizeofBinaryOffset = sizeof(arrow::BinaryType::offset_type);
       case arrow::LargeBinaryType::type_id:
       case arrow::LargeStringType::type_id: {
-        if (sizeofBinaryOffset == -1)
+        if ((columnTypeId_[i]->id() == arrow::LargeBinaryType::type_id) ||
+            (columnTypeId_[i]->id() == arrow::LargeStringType::type_id)) {
           sizeofBinaryOffset = sizeof(arrow::LargeBinaryType::offset_type);
+        } else {
+          sizeofBinaryOffset = sizeof(arrow::BinaryType::offset_type);
+        }
 
         auto buffers = partitionBuffers_[fixedWidthColCnt_ + binaryIdx][partitionId];
         // validity buffer
@@ -412,7 +415,8 @@ arrow::Status ArrowShuffleWriter::createRecordBatchFromBuffer(uint32_t partition
           if (columnTypeId_[i]->id() == arrow::BooleanType::type_id)
             buffers[1] = arrow::SliceBuffer(buffers[1], 0, arrow::bit_util::BytesForBits(numRows));
           else
-            buffers[1] = arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(columnTypeId_[i]->id()) >> 3));
+            buffers[1] = arrow::SliceBuffer(
+                buffers[1], 0, static_cast<int64_t>(numRows) * (arrow::bit_width(columnTypeId_[i]->id()) >> 3));
         }
 
         arrays[i] =
@@ -446,11 +450,13 @@ arrow::Status ArrowShuffleWriter::allocatePartitionBuffers(int32_t partitionId, 
     switch (columnTypeId_[i]->id()) {
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id:
-        sizeofBinaryOffset = sizeof(arrow::StringType::offset_type);
       case arrow::LargeBinaryType::type_id:
       case arrow::LargeStringType::type_id: {
-        if (sizeofBinaryOffset == -1) {
+        if ((columnTypeId_[i]->id() == arrow::LargeBinaryType::type_id) ||
+            (columnTypeId_[i]->id() == arrow::LargeStringType::type_id)) {
           sizeofBinaryOffset = sizeof(arrow::LargeStringType::offset_type);
+        } else {
+          sizeofBinaryOffset = sizeof(arrow::StringType::offset_type);
         }
 
         std::shared_ptr<arrow::Buffer> offsetBuffer;
@@ -461,23 +467,27 @@ arrow::Status ArrowShuffleWriter::allocatePartitionBuffers(int32_t partitionId, 
             arrow::AllocateResizableBuffer(valueBufSize, options_.memory_pool.get()));
         ARROW_RETURN_NOT_OK(allocateBufferFromPool(offsetBuffer, newSize * sizeofBinaryOffset + 1));
         // set the first offset to 0
-        uint8_t* offsetaddr = offsetBuffer->mutable_data();
-        memset(offsetaddr, 0, 8);
+        if (offsetBuffer) {
+          uint8_t* offsetaddr = offsetBuffer->mutable_data();
+          memset(offsetaddr, 0, 8);
 
-        partitionBinaryAddrs_[binaryIdx][partitionId] =
-            BinaryBuff(value_buffer->mutable_data(), offsetBuffer->mutable_data(), valueBufSize);
+          partitionBinaryAddrs_[binaryIdx][partitionId] =
+              BinaryBuff(value_buffer->mutable_data(), offsetBuffer->mutable_data(), valueBufSize);
 
-        if (inputHasNull_[fixedWidthColCnt_ + binaryIdx]) {
-          ARROW_RETURN_NOT_OK(allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
-          // initialize all true once allocated
-          memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
-          partitionValidityAddrs_[fixedWidthColCnt_ + binaryIdx][partitionId] = validityBuffer->mutable_data();
-        } else {
-          partitionValidityAddrs_[fixedWidthColCnt_ + binaryIdx][partitionId] = nullptr;
+          if (inputHasNull_[fixedWidthColCnt_ + binaryIdx]) {
+            ARROW_RETURN_NOT_OK(allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
+            // initialize all true once allocated
+            if (validityBuffer) {
+              memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
+              partitionValidityAddrs_[fixedWidthColCnt_ + binaryIdx][partitionId] = validityBuffer->mutable_data();
+            }
+          } else {
+            partitionValidityAddrs_[fixedWidthColCnt_ + binaryIdx][partitionId] = nullptr;
+          }
+          partitionBuffers_[fixedWidthColCnt_ + binaryIdx][partitionId] = {
+              std::move(validityBuffer), std::move(offsetBuffer), std::move(value_buffer)};
+          binaryIdx++;
         }
-        partitionBuffers_[fixedWidthColCnt_ + binaryIdx][partitionId] = {
-            std::move(validityBuffer), std::move(offsetBuffer), std::move(value_buffer)};
-        binaryIdx++;
         break;
       }
       case arrow::StructType::type_id:
@@ -503,18 +513,22 @@ arrow::Status ArrowShuffleWriter::allocatePartitionBuffers(int32_t partitionId, 
           ARROW_RETURN_NOT_OK(
               allocateBufferFromPool(valueBuffer, newSize * (arrow::bit_width(columnTypeId_[i]->id()) >> 3)));
         }
-        partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
+        if (valueBuffer) {
+          partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
 
-        if (inputHasNull_[fixedWidthIdx]) {
-          ARROW_RETURN_NOT_OK(allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
-          // initialize all true once allocated
-          memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
-          partitionValidityAddrs_[fixedWidthIdx][partitionId] = validityBuffer->mutable_data();
-        } else {
-          partitionValidityAddrs_[fixedWidthIdx][partitionId] = nullptr;
+          if (inputHasNull_[fixedWidthIdx]) {
+            ARROW_RETURN_NOT_OK(allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
+            // initialize all true once allocated
+            if (validityBuffer) {
+              memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
+              partitionValidityAddrs_[fixedWidthIdx][partitionId] = validityBuffer->mutable_data();
+            }
+          } else {
+            partitionValidityAddrs_[fixedWidthIdx][partitionId] = nullptr;
+          }
+          partitionBuffers_[fixedWidthIdx][partitionId] = {std::move(validityBuffer), std::move(valueBuffer)};
+          fixedWidthIdx++;
         }
-        partitionBuffers_[fixedWidthIdx][partitionId] = {std::move(validityBuffer), std::move(valueBuffer)};
-        fixedWidthIdx++;
         break;
       }
     }
@@ -802,16 +816,16 @@ arrow::Status ArrowShuffleWriter::splitFixedWidthValueBuffer(const arrow::Record
             dstPidBase += 1;
           }
 #if 0
-          for (r; r+4<size; r+=4)                              
-          {                                                                                    
+          for (r; r+4<size; r+=4)
+          {
             auto srcOffset = reducerOffsets_[r];                                 /*16k*/
             __m128i srcLd = _mm_loadl_epi64((__m128i*)(&reducerOffsets_[r]));
             __m128i srcOffset4x = _mm_cvtepu16_epi32(srcLd);
-            
+
             __m256i src4x = _mm256_i32gather_epi64((const long long int*)srcAddr,srcOffset4x,8);
             //_mm256_store_si256((__m256i*)dstPidBase,src4x);
             _mm_stream_si128((__m128i*)dstPidBase,src2x);
-                                                         
+
             _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r]*sizeof(uint64_t)+64], _MM_HINT_T2);
             _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r+1]*sizeof(uint64_t)+64], _MM_HINT_T2);
             _mm_prefetch(&(srcAddr)[(uint32_t)reducerOffsets_[r+2]*sizeof(uint64_t)+64], _MM_HINT_T2);
@@ -989,9 +1003,11 @@ arrow::Status ArrowShuffleWriter::splitValidityBuffer(const arrow::RecordBatch& 
           std::shared_ptr<arrow::Buffer> validityBuffer;
           auto status = allocateBufferFromPool(validityBuffer, arrow::bit_util::BytesForBits(newSize));
           ARROW_RETURN_NOT_OK(status);
-          dstAddrs[pid] = const_cast<uint8_t*>(validityBuffer->data());
-          memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
-          partitionBuffers_[col][pid][0] = std::move(validityBuffer);
+          if (validityBuffer) {
+            dstAddrs[pid] = const_cast<uint8_t*>(validityBuffer->data());
+            memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
+            partitionBuffers_[col][pid][0] = std::move(validityBuffer);
+          }
         }
       }
       auto srcAddr = const_cast<uint8_t*>(rb.column_data(colIdx)->buffers[0]->data());
