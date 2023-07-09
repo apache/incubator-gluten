@@ -54,18 +54,6 @@
     <pluginManagement>
       <plugins>
         <plugin>
-          <groupId>net.alchim31.maven</groupId>
-          <artifactId>scala-maven-plugin</artifactId>
-          <configuration>
-            <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
-              <arg>-Ywarn-unused:imports</arg>
-              <arg>-Xfatal-warnings</arg>
-              <arg>-deprecation</arg>
-            </args>
-          </configuration>
-        </plugin>
-        <plugin>
           <groupId>org.scalastyle</groupId>
           <artifactId>scalastyle-maven-plugin</artifactId>
         </plugin>
