@@ -99,6 +99,8 @@ public class ManagedReservationListener implements ReservationListener {
 
   @Override
   public long currentMemory() {
-    return consumer.getUsed();
+    synchronized (this) {
+      return consumer.getUsed();
+    }
   }
 }

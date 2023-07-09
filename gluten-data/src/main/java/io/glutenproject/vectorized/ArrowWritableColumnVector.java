@@ -19,6 +19,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -185,9 +186,15 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     List<FieldVector> fieldVectors = root.getFieldVectors();
     vector = fieldVectors.get(0);
     vector.setInitialCapacity(capacity);
-    vector.allocateNew();
-    this.writer = createVectorWriter(vector);
-    createVectorAccessor(vector, null);
+    try {
+      vector.allocateNew();
+      this.writer = createVectorWriter(vector);
+      createVectorAccessor(vector, null);
+    } catch (OutOfMemoryException e) {
+      throw new OutOfMemoryException("OutOfMemory to allocate vector");
+    } finally {
+      root.close();
+    }
   }
 
   public ValueVector getValueVector() {
@@ -1019,7 +1026,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
     @Override
     final UTF8String getUTF8String(int rowId) {
-      return UTF8String.fromString(getDecimal(rowId).toString());
+      Decimal decimal = getDecimal(rowId);
+      if (decimal != null) {
+        String decimalString = decimal.toString();
+        return UTF8String.fromString(decimalString);
+      }
+      return null;
     }
   }
 

@@ -87,7 +87,11 @@ public class JniResourceHelper {
       String destFilePath = destPath + "/" + fileEntry.getName();
       File destFile = new File(destFilePath);
       if (fileEntry.isDirectory()) {
-        destFile.mkdirs();
+        try {
+          destFile.mkdirs();
+        } catch (SecurityException e) {
+          LOG.error("Error create directory", e);
+        }
         copyResourcesToDirectory(urlConnection, destFilePath, fileEntry);
       } else {
         try {
@@ -105,10 +109,14 @@ public class JniResourceHelper {
     }
     final String folderToLoad = "";
     URL url = new URL("jar:file:" + sourceJar + "!/");
-    final URLConnection urlConnection = (JarURLConnection) url.openConnection();
+    final URLConnection urlConnection = url.openConnection();
     File workDir_handler = new File(workDir + "/tmp");
     if (!workDir_handler.exists()) {
-      workDir_handler.mkdirs();
+      try {
+        workDir_handler.mkdirs();
+      } catch (SecurityException e) {
+        LOG.error("Error create directory", e);
+      }
     }
 
     if (urlConnection instanceof JarURLConnection) {
@@ -139,11 +147,15 @@ public class JniResourceHelper {
         File destFile = new File(destPath + "/" + oneEntry.getName().substring(rm_length));
         File parentFile = destFile.getParentFile();
         if (parentFile != null) {
-          parentFile.mkdirs();
+          try {
+            parentFile.mkdirs();
+          } catch (SecurityException e) {
+            LOG.error("Error create directory", e);
+          }
         }
 
-        FileOutputStream outFile = new FileOutputStream(destFile);
         InputStream inFile = origJar.getInputStream(oneEntry);
+        FileOutputStream outFile = new FileOutputStream(destFile);
 
         try {
           byte[] buffer = new byte[4 * 1024];

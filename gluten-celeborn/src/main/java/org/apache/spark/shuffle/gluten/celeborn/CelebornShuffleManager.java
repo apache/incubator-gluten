@@ -34,8 +34,8 @@ public class CelebornShuffleManager implements ShuffleManager {
     ConcurrentHashMap.newKeySet();
   private final RssShuffleFallbackPolicyRunner fallbackPolicyRunner;
   private String newAppId;
-  private LifecycleManager lifecycleManager;
-  private ShuffleClient rssShuffleClient;
+  private volatile LifecycleManager lifecycleManager;
+  private volatile ShuffleClient rssShuffleClient;
   private volatile ColumnarShuffleManager _columnarShuffleManager;
 
   public CelebornShuffleManager(SparkConf conf) {
@@ -67,7 +67,7 @@ public class CelebornShuffleManager implements ShuffleManager {
     // Parallelism needs to be considered in this place,
     // because if there is one RDD that depends on multiple RDDs
     // at the same time, it may bring parallel `register shuffle`, such as Join in Sql.
-    if (isDriver() && lifecycleManager == null) {
+    if (isDriver()) {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appId, celebornConf);

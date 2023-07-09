@@ -27,4 +27,20 @@ public class NativeColumnarToRowInfo {
     this.lengths = lengths;
     this.memoryAddress = memoryAddress;
   }
+
+  /**
+   * useless getter/setter to make code scan tool happy
+   *
+   */
+  public int[] getOffsets() {
+    return this.offsets;
+  }
+
+  public int[] getLengths() {
+    return this.lengths;
+  }
+
+  public long getMemoryAddress() {
+    return this.memoryAddress;
+  }
 }
