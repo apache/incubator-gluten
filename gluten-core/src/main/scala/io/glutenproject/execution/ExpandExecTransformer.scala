@@ -39,7 +39,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 case class ExpandExecTransformer(projections: Seq[Seq[Expression]],

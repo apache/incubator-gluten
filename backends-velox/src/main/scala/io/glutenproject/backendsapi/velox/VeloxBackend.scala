@@ -18,7 +18,6 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-import io.glutenproject.backendsapi.velox.IteratorHandler
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
@@ -29,7 +28,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.types._
 
-import scala.util.control.Breaks.{break, breakable}
+import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_VELOX_BACKEND

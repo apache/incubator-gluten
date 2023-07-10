@@ -204,7 +204,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status initIpcWriteOptions();
 
-  arrow::Status initPartitions(const facebook::velox::RowVector& rv);
+  arrow::Status initPartitions();
 
   arrow::Status initColumnTypes(const facebook::velox::RowVector& rv);
 

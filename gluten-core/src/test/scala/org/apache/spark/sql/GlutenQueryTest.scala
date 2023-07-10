@@ -22,9 +22,9 @@ package org.apache.spark.sql
  * 1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
 import org.apache.spark.rpc.GlutenDriverEndpoint
-import org.apache.spark.sql.catalyst.expressions.{Alias, AssertTrue, Attribute}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Join, LogicalPlan, Project, Sort, Subquery, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Join, LogicalPlan, Sort, Subquery, SubqueryAlias}
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.columnar.InMemoryRelation

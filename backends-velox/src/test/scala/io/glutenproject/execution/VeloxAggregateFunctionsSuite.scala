@@ -18,11 +18,6 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.functions.{avg, col}
-import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
-
-import scala.collection.JavaConverters
 
 class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
 
@@ -30,8 +25,6 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
-
-  import testImplicits._
 
   override def beforeAll(): Unit = {
     super.beforeAll()
