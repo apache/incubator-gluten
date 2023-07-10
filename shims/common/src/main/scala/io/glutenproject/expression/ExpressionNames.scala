@@ -27,6 +27,7 @@ object ExpressionNames {
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
+  final val COLLECT_SET = "collect_set"
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
   final val VAR_SAMP = "var_samp"
   final val VAR_POP = "var_pop"
@@ -100,6 +101,7 @@ object ExpressionNames {
   final val ACOSH = "acosh"
   final val ASINH = "asinh"
   final val ATANH = "atanh"
+  final val BIN = "bin"
   final val CEIL = "ceil"
   final val FLOOR = "floor"
   final val EXP = "exp"
@@ -232,6 +234,7 @@ object ExpressionNames {
   final val NTILE = "ntile"
   final val LEAD = "lead"
   final val LAG = "lag"
+  final val NTH_VALUE = "nth_value"
 
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"

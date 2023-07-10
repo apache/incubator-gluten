@@ -39,47 +39,33 @@ static DB::ColumnWithTypeAndName getColumnFromColumnVector(JNIEnv * /*env*/, job
 
 static std::string jstring2string(JNIEnv * env, jstring jStr)
 {
-    try
-    {
-        if (!jStr)
-            return "";
+    if (!jStr)
+        return "";
 
-        jclass string_class = env->GetObjectClass(jStr);
-        jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
-        jbyteArray string_jbytes
-            = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
+    jclass string_class = env->GetObjectClass(jStr);
+    jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
+    jbyteArray string_jbytes
+        = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
 
-        size_t length = static_cast<size_t>(env->GetArrayLength(string_jbytes));
-        jbyte * p_bytes = env->GetByteArrayElements(string_jbytes, nullptr);
+    size_t length = static_cast<size_t>(env->GetArrayLength(string_jbytes));
+    jbyte * p_bytes = env->GetByteArrayElements(string_jbytes, nullptr);
 
-        std::string ret = std::string(reinterpret_cast<char *>(p_bytes), length);
-        env->ReleaseByteArrayElements(string_jbytes, p_bytes, JNI_ABORT);
+    std::string ret = std::string(reinterpret_cast<char *>(p_bytes), length);
+    env->ReleaseByteArrayElements(string_jbytes, p_bytes, JNI_ABORT);
 
-        env->DeleteLocalRef(string_jbytes);
-        env->DeleteLocalRef(string_class);
-        return ret;
-    }
-    catch (DB::Exception & e)
-    {
-        local_engine::ExceptionUtils::handleException(e);
-    }
+    env->DeleteLocalRef(string_jbytes);
+    env->DeleteLocalRef(string_class);
+    return ret;
 }
 
 static jstring stringTojstring(JNIEnv * env, const char * pat)
 {
-    try
-    {
-        jclass strClass = (env)->FindClass("java/lang/String");
-        jmethodID ctorID = (env)->GetMethodID(strClass, "<init>", "([BLjava/lang/String;)V");
-        jbyteArray bytes = (env)->NewByteArray(strlen(pat));
-        (env)->SetByteArrayRegion(bytes, 0, strlen(pat), reinterpret_cast<const jbyte *>(pat));
-        jstring encoding = (env)->NewStringUTF("UTF-8");
-        return static_cast<jstring>((env)->NewObject(strClass, ctorID, bytes, encoding));
-    }
-    catch (DB::Exception & e)
-    {
-        local_engine::ExceptionUtils::handleException(e);
-    }
+    jclass strClass = (env)->FindClass("java/lang/String");
+    jmethodID ctorID = (env)->GetMethodID(strClass, "<init>", "([BLjava/lang/String;)V");
+    jbyteArray bytes = (env)->NewByteArray(strlen(pat));
+    (env)->SetByteArrayRegion(bytes, 0, strlen(pat), reinterpret_cast<const jbyte *>(pat));
+    jstring encoding = (env)->NewStringUTF("UTF-8");
+    return static_cast<jstring>((env)->NewObject(strClass, ctorID, bytes, encoding));
 }
 
 extern "C" {
@@ -151,7 +137,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "nextBatch", "()Ljava/nio/ByteBuffer;");
 
     local_engine::ReservationListenerWrapper::reservation_listener_class
-        = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/memory/alloc/ReservationListener;");
+        = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/memory/alloc/CHReservationListener;");
     local_engine::ReservationListenerWrapper::reservation_listener_reserve
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "reserve", "(J)J");
     local_engine::ReservationListenerWrapper::reservation_listener_reserve_or_throw
@@ -322,7 +308,7 @@ JNIEXPORT jobject Java_io_glutenproject_vectorized_BatchIterator_nativeFetchMetr
     LOG_DEBUG(&Poco::Logger::get("jni"), "{}", metrics_json);
     jobject native_metrics = env->NewObject(native_metrics_class, native_metrics_constructor, stringTojstring(env, metrics_json.c_str()));
     return native_metrics;
-    LOCAL_ENGINE_JNI_METHOD_END(env,)
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
 JNIEXPORT void
@@ -778,7 +764,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_conv
     for (int i = 0; i < num_columns; i++)
     {
         auto * name = static_cast<jstring>(env->GetObjectArrayElement(names, i));
-        c_names.emplace_back(std::move(jstring2string(env, name)));
+        c_names.emplace_back(jstring2string(env, name));
 
         auto * type = static_cast<jbyteArray>(env->GetObjectArrayElement(types, i));
         auto type_length = env->GetArrayLength(type);
@@ -849,17 +835,17 @@ JNIEXPORT void Java_io_glutenproject_vectorized_CHBlockWriterJniWrapper_nativeCl
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitFileWriterWrapper(
-    JNIEnv * env, jobject obj, jstring file_uri_)
+    JNIEnv * env, jobject , jstring file_uri_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto file_uri = jstring2string(env, file_uri_);
     auto * writer = local_engine::createFileWriterWrapper(file_uri);
     return reinterpret_cast<jlong>(writer);
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
 JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_write(
-    JNIEnv * env, jobject obj, jlong instanceId, jlong block_address)
+    JNIEnv * env, jobject , jlong instanceId, jlong block_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
@@ -901,7 +887,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
         local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, io_buffer_size, join_key, join_type, struct_string));
     env->ReleaseByteArrayElements(named_struct, struct_address, JNI_ABORT);
     return obj->instance();
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
 JNIEXPORT jlong
@@ -911,7 +897,7 @@ Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeCloneBuildHashTable(JN
     auto * cloned = local_engine::make_wrapper(
         local_engine::SharedPointerWrapper<local_engine::StorageJoinFromReadBuffer>::sharedPtr(instance));
     return cloned->instance();
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
 JNIEXPORT void
@@ -1057,12 +1043,12 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_SimpleExpressionEval_nativeNext
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_getDefaultAllocator(JNIEnv * env, jclass)
+JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_getDefaultAllocator(JNIEnv * , jclass)
 {
     return -1;
 }
 
-JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_createListenableAllocator(JNIEnv * env, jclass, jobject listener)
+JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_createListenableAllocator(JNIEnv * env, jclass, jobject listener)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto listener_wrapper = std::make_shared<local_engine::ReservationListenerWrapper>(env->NewGlobalRef(listener));
@@ -1070,14 +1056,14 @@ JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_createL
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT void Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator(JNIEnv * env, jclass, jlong allocator_id)
+JNIEXPORT void Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_releaseAllocator(JNIEnv * env, jclass, jlong allocator_id)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::releaseAllocator(allocator_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jlong Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated(JNIEnv * env, jclass, jlong allocator_id)
+JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_bytesAllocated(JNIEnv * env, jclass, jlong allocator_id)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     return local_engine::allocatorMemoryUsage(allocator_id);

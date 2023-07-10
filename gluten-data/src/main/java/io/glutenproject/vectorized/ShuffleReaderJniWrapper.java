@@ -29,6 +29,7 @@ public class ShuffleReaderJniWrapper extends JniInitialized {
 
   public native long next(long handle);
 
+  public native void populateMetrics(long handle, ShuffleReaderMetrics metrics);
   public native void close(long handle);
 
 }

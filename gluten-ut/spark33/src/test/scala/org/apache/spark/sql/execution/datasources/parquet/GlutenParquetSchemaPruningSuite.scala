@@ -18,7 +18,7 @@
 package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.tags.ExtendedSQLTest
 
 @ExtendedSQLTest

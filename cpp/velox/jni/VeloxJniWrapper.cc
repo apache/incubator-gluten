@@ -67,19 +67,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   google::ShutdownGoogleLogging();
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_init_InitializerJniWrapper_makeTaskContext( // NOLINT
-    JNIEnv* env,
-    jclass clazz) {
-  JNI_METHOD_START
-  return -1L;
-  JNI_METHOD_END(-1L)
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_closeTaskContext( // NOLINT
-    JNIEnv* env,
-    jclass clazz,
-    jlong handle){JNI_METHOD_START JNI_METHOD_END()}
-
 JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_initialize( // NOLINT
     JNIEnv* env,
     jclass clazz,

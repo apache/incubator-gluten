@@ -78,6 +78,37 @@ VectorPtr readFlatVector(
       pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
 }
 
+template <>
+VectorPtr readFlatVector<TypeKind::HUGEINT>(
+    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    int32_t& bufferIdx,
+    uint32_t length,
+    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool) {
+  auto nulls = convertToVeloxBuffer(buffers[bufferIdx]);
+  bufferIdx++;
+  auto arrowValueBuffer = buffers[bufferIdx];
+  // Because if buffer does not compress, it will get from netty, the address maynot aligned 16B, which will cause
+  // int128_t = xxx coredump by instruction movdqa
+  auto data = static_cast<const int128_t*>(reinterpret_cast<const void*>(arrowValueBuffer->data()));
+  BufferPtr values;
+  if ((reinterpret_cast<uintptr_t>(data) & 0xf) == 0) {
+    values = convertToVeloxBuffer(arrowValueBuffer);
+  } else {
+    values = AlignedBuffer::allocate<char>(arrowValueBuffer->size(), pool);
+    memcpy(values->asMutable<char>(), arrowValueBuffer->data(), arrowValueBuffer->size());
+  }
+  bufferIdx++;
+  std::vector<BufferPtr> stringBuffers;
+  if (nulls == nullptr || nulls->size() == 0) {
+    auto vp = std::make_shared<FlatVector<int128_t>>(
+        pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
+    return vp;
+  }
+  return std::make_shared<FlatVector<int128_t>>(
+      pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
+}
+
 VectorPtr readFlatVectorStringView(
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     int32_t& bufferIdx,

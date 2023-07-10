@@ -71,7 +71,7 @@ add_library(gluten_clickhouse_backend_libs
         ${jni_sources})
 
 target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
-        substait_source                         # compile options from substait_source  
+        substrait_source
         clickhouse_aggregate_functions
         clickhouse_functions
         gluten_spark_functions
@@ -87,11 +87,17 @@ if (ENABLE_LOCAL_UDFS)
     endforeach()
 endif ()
 
+file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Parser/*_function_parser)
+foreach(child ${children})
+    add_headers_and_sources(function_parsers ${child})
+endforeach()
+
 # Notice: soures files under Parser/*_udf subdirectories must be built into target ${LOCALENGINE_SHARED_LIB} directly
 #         to make sure all function parsers are registered successly.
 add_library(${LOCALENGINE_SHARED_LIB} SHARED
         local_engine_jni.cpp
         ${local_udfs_sources}
+        ${function_parsers_sources}
         $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
 
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC

@@ -25,7 +25,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import io.glutenproject.backendsapi.BackendsApiManager
 
 import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
 
 class CreateMapTransformer(substraitExprName: String, children: Seq[ExpressionTransformer],
   useStringTypeWhenEmpty: Boolean, original: CreateMap)

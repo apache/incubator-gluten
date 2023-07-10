@@ -19,7 +19,7 @@ namespace
 {
     /// The difference between reinterpretAsStringSpark and reinterpretAsString is that reinterpretAsStringSpark:
     /// 1. Does not cut trailing zeros
-    /// 2. Output reinterpreted bytes in big-endian order. e.g. input: 0x1234, output: [0x00 0x00 0x12 0x34]
+    /// 2. Output reinterpreted bytes in big-endian order for integer type. e.g. input: 0x1234, output: [0x00 0x00 0x12 0x34]
     class FunctionReinterpretAsStringSpark : public IFunction
     {
     public:
@@ -50,7 +50,7 @@ namespace
         ColumnPtr
         executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t /*input_rows_count*/) const override
         {
-            auto from_type = arguments[0].type;
+            auto is_string_type = isString(arguments[0].type);
 
             ColumnPtr result;
 
@@ -67,8 +67,10 @@ namespace
             for (size_t i = 0; i < rows; ++i)
             {
                 /// Transform little-endian in input to big-endian in output
+                /// NOTE: We don't need do the transform for string type
                 String data = src.getDataAt(i).toString();
-                std::reverse(data.begin(), data.end());
+                if (!is_string_type)
+                    std::reverse(data.begin(), data.end());
 
                 data_to.resize(offset + data.size() + 1);
                 memcpy(&data_to[offset], data.data(), data.size());

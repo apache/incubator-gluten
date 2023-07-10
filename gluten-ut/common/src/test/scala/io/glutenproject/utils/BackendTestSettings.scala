@@ -138,10 +138,12 @@ object BackendTestSettings {
   val instance: BackendTestSettings = BackendsApiManager.getBackendName match {
     case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
       // scalastyle:off classforname
-      Class.forName("io.glutenproject.utils.clickhouse.ClickHouseTestSettings").newInstance()
+      Class.forName("io.glutenproject.utils.clickhouse.ClickHouseTestSettings")
+        .getDeclaredConstructor().newInstance()
         .asInstanceOf[BackendTestSettings]
     case GlutenConfig.GLUTEN_VELOX_BACKEND =>
-      Class.forName("io.glutenproject.utils.velox.VeloxTestSettings").newInstance()
+      Class.forName("io.glutenproject.utils.velox.VeloxTestSettings")
+        .getDeclaredConstructor().newInstance()
         .asInstanceOf[BackendTestSettings]
      // scalastyle:on classforname
     case other =>

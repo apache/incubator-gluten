@@ -59,8 +59,9 @@ jstring charTojstring(JNIEnv * env, const char * pat)
 {
     jclass str_class = (env)->FindClass("Ljava/lang/String;");
     jmethodID ctor_id = (env)->GetMethodID(str_class, "<init>", "([BLjava/lang/String;)V");
-    jbyteArray bytes = (env)->NewByteArray(strlen(pat));
-    (env)->SetByteArrayRegion(bytes, 0, strlen(pat), reinterpret_cast<jbyte *>(const_cast<char *>(pat)));
+    jsize strSize = static_cast<jsize>(strlen(pat));
+    jbyteArray bytes = (env)->NewByteArray(strSize);
+    (env)->SetByteArrayRegion(bytes, 0, strSize, reinterpret_cast<jbyte *>(const_cast<char *>(pat)));
     jstring encoding = (env)->NewStringUTF("UTF-8");
     jstring result = static_cast<jstring>((env)->NewObject(str_class, ctor_id, bytes, encoding));
     env->DeleteLocalRef(bytes);
@@ -71,8 +72,9 @@ jstring charTojstring(JNIEnv * env, const char * pat)
 jbyteArray stringTojbyteArray(JNIEnv * env, const std::string & str)
 {
     const auto * ptr = reinterpret_cast<const jbyte *>(str.c_str());
-    jbyteArray jarray = env->NewByteArray(str.size());
-    env->SetByteArrayRegion(jarray, 0, str.size(), ptr);
+    jsize strSize = static_cast<jsize>(str.size());
+    jbyteArray jarray = env->NewByteArray(strSize);
+    env->SetByteArrayRegion(jarray, 0, strSize, ptr);
     return jarray;
 }
 

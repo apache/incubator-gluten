@@ -604,6 +604,7 @@ void BackendInitializerUtil::initContexts()
     {
         global_context = Context::createGlobal(shared_context.get());
         global_context->makeGlobalContext();
+        global_context->setConfig(config);
 
         auto getDefaultPath = [] -> auto
         {
@@ -714,7 +715,6 @@ void BackendFinalizerUtil::finalizeGlobally()
 
     auto & global_context = SerializedPlanParser::global_context;
     auto & shared_context = SerializedPlanParser::shared_context;
-    auto * logger = BackendInitializerUtil::logger;
     if (global_context)
     {
         global_context->shutdown();

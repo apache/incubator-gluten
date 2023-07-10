@@ -19,13 +19,11 @@ package org.apache.spark.sql.execution.datasources.velox
 
 import java.io.IOException
 import java.net.URI
-
 import scala.collection.mutable
 import scala.collection.JavaConverters._
-
 import com.google.common.base.Preconditions
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.IndicatorVector
+import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
@@ -35,7 +33,6 @@ import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.parquet.hadoop.util.ContextUtil
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
@@ -98,9 +95,8 @@ class VeloxParquetFileFormat extends GlutenParquetFileFormat
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            Preconditions.checkState(batch.column(0).isInstanceOf[IndicatorVector])
-            val giv = batch.column(0).asInstanceOf[IndicatorVector]
-            giv.retain()
+            Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
+            ColumnarBatches.retain(batch)
             writeQueue.enqueue(batch)
           }
 

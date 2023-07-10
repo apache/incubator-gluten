@@ -59,6 +59,7 @@ vcpkg_cmake_configure(
         -DCMAKE_DISABLE_FIND_PACKAGE_Libiberty=ON
         -DCMAKE_DISABLE_FIND_PACKAGE_LibAIO=ON
         -DLIBAIO_FOUND=OFF
+        -DFOLLY_HAVE_INT128_T=ON
         -DCMAKE_INSTALL_DIR=share/folly
         # Fix folly static link libstdc++
         # See: https://github.com/facebook/folly/blob/b88123c2abf4b3244ed285e6db0d4bea2d24f95f/CMakeLists.txt#L192

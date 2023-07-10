@@ -36,6 +36,9 @@ import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExi
 import org.apache.spark.sql.extension.{GlutenCustomerExpressionTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, GlutenBucketedWriteWithoutHiveSupportSuite, GlutenCreateTableAsSelectSuite, GlutenDDLSourceLoadSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE, GlutenExternalCommandRunnerSuite, GlutenFilteredScanSuite, GlutenFiltersSuite, GlutenInsertSuite, GlutenPartitionedWriteSuite, GlutenPathOptionSuite, GlutenPrunedScanSuite, GlutenResolvedDataSourceSuite, GlutenSaveLoadSuite, GlutenTableScanSuite}
 
+// Some settings' line length exceeds 100
+// scalastyle:off line.size.limit
+
 class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenSessionExtensionSuite]
@@ -242,8 +245,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFramePivotSuite]
     // substring issue
     .exclude("pivot with column definition in groupby")
-    // velox int128_t address 16B align issue
-    .exclude("optimized pivot DecimalType")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSameResultSuite]
   // spill not supported yet.
@@ -809,11 +810,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
     .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
     .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
-    // Schema clipping.
-    .exclude("SPARK-10301 requested schema clipping - out of order")
-    .exclude("SPARK-10301 requested schema clipping - requested schema contains physical schema")
-    .exclude("SPARK-10301 requested schema clipping - schemas overlap but don't contain each other")
-    .exclude("SPARK-10301 requested schema clipping - deeply nested struct")
     // Rewrite because the filter after datasource is not needed.
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
@@ -828,11 +824,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
     .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
     .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
-    // Schema clipping.
-    .exclude("SPARK-10301 requested schema clipping - out of order")
-    .exclude("SPARK-10301 requested schema clipping - requested schema contains physical schema")
-    .exclude("SPARK-10301 requested schema clipping - schemas overlap but don't contain each other")
-    .exclude("SPARK-10301 requested schema clipping - deeply nested struct")
     // Rewrite because the filter after datasource is not needed.
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
@@ -842,117 +833,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV1SchemaPruningSuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .excludeByPrefix("Spark vectorized reader - ")
-    // Struct reader does not support implicit schema pruning.
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field with disabled nested schema pruning")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field with disabled nested schema pruning")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field and its parent struct")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field and its parent struct")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field and the partition column")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field and the partition column")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "partial schema intersection - select missing subfield")
-    .exclude("Non-vectorized reader - with partition data column - partial schema intersection - " +
-      "select missing subfield")
-    .exclude("Non-vectorized reader - without partition data column - empty schema intersection")
-    .exclude("Non-vectorized reader - with partition data column - empty schema intersection")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select nested field in aggregation function of Aggregate")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select nested field in aggregation function of Aggregate")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select nested field in Expand")
-    .exclude("Non-vectorized reader - with partition data column - select nested field in Expand")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38918: nested schema pruning with correlated subqueries")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38918: nested schema pruning with correlated subqueries")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-34963: extract case-insensitive struct field from struct")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-34963: extract case-insensitive struct field from struct")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated EXISTS subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated EXISTS subquery")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated IN subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated IN subquery")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT IN subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT IN subquery")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
     // spark.sql.parquet.enableVectorizedReader=true not supported
     .excludeByPrefix("Spark vectorized reader - ")
-    // Struct reader does not support implicit schema pruning.
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field with disabled nested schema pruning")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field with disabled nested schema pruning")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field and its parent struct")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field and its parent struct")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select a single complex field and the partition column")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select a single complex field and the partition column")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "partial schema intersection - select missing subfield")
-    .exclude("Non-vectorized reader - with partition data column - partial schema intersection - " +
-      "select missing subfield")
-    .exclude("Non-vectorized reader - without partition data column - empty schema intersection")
-    .exclude("Non-vectorized reader - with partition data column - empty schema intersection")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select nested field in aggregation function of Aggregate")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "select nested field in aggregation function of Aggregate")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "select nested field in Expand")
-    .exclude("Non-vectorized reader - with partition data column - select nested field in Expand")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38918: nested schema pruning with correlated subqueries")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38918: nested schema pruning with correlated subqueries")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-34963: extract case-insensitive struct field from struct")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-34963: extract case-insensitive struct field from struct")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated EXISTS subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated EXISTS subquery")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT EXISTS subquery")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated IN subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated IN subquery")
-    .exclude("Non-vectorized reader - without partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT IN subquery")
-    .exclude("Non-vectorized reader - with partition data column - " +
-      "SPARK-38977: schema pruning with correlated NOT IN subquery")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
@@ -1052,14 +935,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from float to double")
     .exclude("read float and double together")
   enableSuite[GlutenParquetReadSchemaSuite]
-    // Struct reader does not support implicit schema pruning.
-    .excludeByPrefix("add a nested column")
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
-    // Struct reader does not support implicit schema pruning.
-    .excludeByPrefix("add a nested column")
   enableSuite[GlutenMergedParquetReadSchemaSuite]
-    // Struct reader does not support implicit schema pruning.
-    .excludeByPrefix("add a nested column")
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2DataFrameSuite]
   enableSuite[GlutenDataSourceV2FunctionSuite]
@@ -1147,3 +1024,4 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStatisticsCollectionSuite]
   enableSuite[FallbackStrategiesSuite]
 }
+// scalastyle:on line.size.limit

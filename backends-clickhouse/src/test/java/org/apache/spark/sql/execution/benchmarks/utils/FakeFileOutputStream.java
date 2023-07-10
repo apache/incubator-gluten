@@ -19,9 +19,7 @@ package org.apache.spark.sql.execution.benchmarks.utils;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
- * For CHAggAndShuffleBenchmark, fake output for shuffle writing.
- */
+/** For CHAggAndShuffleBenchmark, fake output for shuffle writing. */
 public class FakeFileOutputStream extends OutputStream {
   @Override
   public void write(int b) throws IOException {

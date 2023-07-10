@@ -38,8 +38,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.MutablePair
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.{MutablePair, TaskResources}
 
 object ExecUtil {
 
@@ -48,8 +47,7 @@ object ExecUtil {
     var info: NativeColumnarToRowInfo = null
     val batchHandle = ColumnarBatches.getNativeHandle(batch)
     val instanceId = jniWrapper.nativeColumnarToRowInit(
-      batchHandle,
-      NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+      NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
     info = jniWrapper.nativeColumnarToRowWrite(batchHandle, instanceId)
 
     new Iterator[InternalRow] {

@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.TransformContext
 import io.glutenproject.execution.TransformSupport
 import io.glutenproject.expression._
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.SubstraitContext
@@ -29,7 +29,6 @@ import io.glutenproject.substrait.expression._
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel._
-
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -38,7 +37,6 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 
@@ -49,8 +47,7 @@ case class EvalPythonExecTransformer(
     resultAttrs: Seq[Attribute],
     child: SparkPlan)
   extends EvalPythonExec
-  with TransformSupport
-  with GlutenPlan {
+  with TransformSupport {
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
@@ -61,7 +58,7 @@ case class EvalPythonExecTransformer(
       iter: Iterator[InternalRow],
       schema: StructType,
       context: TaskContext): Iterator[InternalRow] = {
-    throw new NotImplementedError("EvalPythonExecTransformer doesn't support evaluate")
+    throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
@@ -95,13 +92,11 @@ case class EvalPythonExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
-  override def doValidateInternal(): Boolean = {
-    /// All udfs should be scalar python udf
+  override protected def doValidateInternal(): ValidationResult = {
+    // All udfs should be scalar python udf
     for (udf <- udfs) {
       if (!PythonUDF.isScalarPythonUDF(udf)) {
-        logInfo(
-          s"Validation failed for ${this.getClass.toString} due to: $udf is not scalar python udf")
-        return false
+        return notOk(s"$udf is not scalar python udf")
       }
     }
 
@@ -118,21 +113,16 @@ case class EvalPythonExecTransformer(
           ExpressionConverter.replaceWithExpressionTransformer(udf, child.output).doTransform(args))
       })
 
-    val relNode =
-      try {
-        RelBuilder.makeProjectRel(null, expressionNodes, context, operatorId)
-      } catch {
-        case e: Throwable =>
-          this.appendValidateLog(
-            s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-          return false
-      }
-
+    val relNode = RelBuilder.makeProjectRel(null, expressionNodes, context, operatorId)
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
-      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+      if (BackendsApiManager.getValidatorApiInstance.doValidate(planNode)) {
+        ok()
+      } else {
+        notOk(s"substrait plan check failure, $planNode")
+      }
     } else {
-      true
+      ok()
     }
   }
 

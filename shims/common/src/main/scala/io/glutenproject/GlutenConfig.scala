@@ -140,8 +140,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
-  def enableCoalesceBatches: Boolean = conf.getConf(COLUMNAR_COALESCE_BATCHES_ENABLED)
-
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
   def enableColumnarGenerate: Boolean = conf.getConf(COLUMNAR_GENERATE_ENABLED)
@@ -221,6 +219,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def printStackOnValidateFailure: Boolean =
     conf.getConf(VALIDATE_FAILURE_PRINT_STACK_ENABLED)
+
+  def enableFallbackReport: Boolean = conf.getConf(FALLBACK_REPORTER_ENABLED)
 
   def debug: Boolean = conf.getConf(DEBUG_LEVEL_ENABLED)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
@@ -386,7 +386,7 @@ object GlutenConfig {
       GLUTEN_UGI_TOKENS,
       UserGroupInformation.getCurrentUser.getTokens.asScala
         .map(_.encodeToUrlString)
-        .mkString("\0"))
+        .mkString("\u0000"))
     nativeConfMap.put(GLUTEN_UGI_USERNAME, UserGroupInformation.getCurrentUser.getUserName)
 
     // return
@@ -736,12 +736,6 @@ object GlutenConfig {
       .intConf
       .createWithDefault(4096)
 
-  val COLUMNAR_COALESCE_BATCHES_ENABLED =
-    buildConf("spark.gluten.sql.columnar.coalesce.batches")
-      .internal()
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")
       .internal()
@@ -925,7 +919,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("DEBUG")
+      .createWithDefault("INFO")
 
   val SOFT_AFFINITY_LOG_LEVEL =
     buildConf("spark.gluten.soft-affinity.logLevel")
@@ -990,4 +984,10 @@ object GlutenConfig {
       .doc("A class for the extended expressions transformer.")
       .stringConf
       .createWithDefaultString("")
+
+  val FALLBACK_REPORTER_ENABLED =
+    buildConf("spark.gluten.sql.columnar.fallbackReporter")
+      .doc("When true, enable fallback reporter rule to print fallback reason")
+      .booleanConf
+      .createWithDefault(true)
 }

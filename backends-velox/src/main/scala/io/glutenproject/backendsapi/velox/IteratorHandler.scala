@@ -27,8 +27,6 @@ import scala.collection.JavaConverters._
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
-import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
-import io.glutenproject.memory.alloc._
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
@@ -38,7 +36,6 @@ import io.glutenproject.vectorized._
 import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -48,8 +45,7 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.ExecutorManager
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.{ExecutorManager, TaskResources}
 
 class IteratorHandler extends IteratorApi with Logging {
 
@@ -83,31 +79,6 @@ class IteratorHandler extends IteratorApi with Logging {
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
     GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
-  }
-
-  /**
-   * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
-   *
-   * @param iter
-   * @param recordsPerBatch
-   * @param numOutputRows
-   * @param numInputBatches
-   * @param numOutputBatches
-   * @param collectTime
-   * @param concatTime
-   * @param avgCoalescedNumRows
-   * @return
-   */
-  override def genCoalesceIterator(iter: Iterator[ColumnarBatch],
-                                   recordsPerBatch: Int,
-                                   numOutputRows: SQLMetric = null,
-                                   numInputBatches: SQLMetric = null,
-                                   numOutputBatches: SQLMetric = null,
-                                   collectTime: SQLMetric = null,
-                                   concatTime: SQLMetric = null,
-                                   avgCoalescedNumRows: SQLMetric = null)
-  : Iterator[ColumnarBatch] = {
-    throw new UnsupportedOperationException("Velox backend does not support coalesce batch")
   }
 
   /**
@@ -226,22 +197,6 @@ class IteratorHandler extends IteratorApi with Logging {
     new CloseableColumnBatchIterator(resIter, Some(pipelineTime))
   }
   // scalastyle:on argcount
-
-  /**
-   * Generate NativeMemoryAllocatorManager.
-   *
-   * @return
-   */
-  override def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
-                                               spiller: Spiller,
-                                               taskMemoryMetrics: TaskMemoryMetrics
-                                              ): NativeMemoryAllocatorManager = {
-    val rl = new ManagedReservationListener(
-      new GlutenMemoryConsumer(taskMemoryManager, spiller),
-      taskMemoryMetrics
-    )
-    new MemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
-  }
 
   /**
    * Generate Native FileScanRDD, currently only for ClickHouse Backend.

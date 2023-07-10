@@ -35,17 +35,18 @@ void FunctionExecutor::buildExpression()
 
     Int32 field = 0;
     auto * arguments = scalar_function->mutable_arguments();
-    for (const auto & input_type : input_types)
-    {
-        substrait::FunctionArgument argument;
-        auto * value = argument.mutable_value();
-        auto * selection = value->mutable_selection();
-        auto * direct_reference = selection->mutable_direct_reference();
-        auto * struct_field = direct_reference->mutable_struct_field();
-        struct_field->set_field(field++);
 
-        arguments->Add(std::move(argument));
-    }
+    std::for_each(input_types.cbegin(), input_types.cend(),
+      [&](const auto & ) {
+          substrait::FunctionArgument argument;
+          auto * value = argument.mutable_value();
+          auto * selection = value->mutable_selection();
+          auto * direct_reference = selection->mutable_direct_reference();
+          auto * struct_field = direct_reference->mutable_struct_field();
+          struct_field->set_field(field++);
+
+          arguments->Add(std::move(argument));
+    });
 }
 
 void FunctionExecutor::buildHeader()
@@ -62,9 +63,8 @@ void FunctionExecutor::parseExtensions()
 
 void FunctionExecutor::parseExpression()
 {
-    std::vector<String> required_columns;
     /// Notice keep_result must be true, because result_node of current function must be output node in actions_dag
-    auto actions_dag = plan_parser.parseFunction(header, expression, result_name, required_columns, nullptr, true);
+    auto actions_dag = plan_parser.parseFunction(header, expression, result_name, nullptr, true);
     // std::cout << "actions_dag:" << std::endl;
     // std::cout << actions_dag->dumpDAG() << std::endl;
 

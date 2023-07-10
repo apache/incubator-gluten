@@ -22,7 +22,7 @@ import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -55,7 +55,7 @@ abstract class HashAggregateExecBaseTransformer(
                                      initialInputBufferOffset: Int,
                                      resultExpressions: Seq[NamedExpression],
                                      child: SparkPlan)
-  extends BaseAggregateExec with TransformSupport with GlutenPlan {
+  extends BaseAggregateExec with TransformSupport {
 
   override lazy val allAttributes: AttributeSeq =
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
@@ -132,50 +132,31 @@ abstract class HashAggregateExecBaseTransformer(
       case d: DecimalType => true
       case a: ArrayType => true
       case n: NullType => true
-      case other => this.appendValidateLog(
-        s"Validation failed for ${this.getClass.toString}" +
-          s" due to: {data type ${dataType}}");
-        false
+      case other => false
     }
   }
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val aggParams = new AggregationParams
-    val relNode = {
-      try {
-        getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
-      } catch {
-        case e: Throwable =>
-          this.appendValidateLog(
-            s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-          return false
-      }
-    }
+    val relNode = getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
     if (aggregateAttributes.exists(attr => !checkType(attr.dataType))) {
-      return false
+      return notOk("does not support data type in aggregation expression," +
+        s"${aggregateAttributes.map(_.dataType)}")
     }
     if (groupingExpressions.exists(attr => !checkType(attr.dataType))) {
-      return false
+      return notOk("does not support data type in group expression," +
+        s"${groupingExpressions.map(_.dataType)}")
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 
@@ -601,11 +582,10 @@ abstract class HashAggregateExecBaseTransformer(
           case other =>
             throw new UnsupportedOperationException(s"not currently supported: $other.")
         }
-      case CollectList(_, _, _) =>
+      case _: CollectList | _: CollectSet =>
         mode match {
           case Partial =>
-            val collectList = aggregateFunc.asInstanceOf[CollectList]
-            val aggBufferAttr = collectList.inputAggBufferAttributes
+            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
             for (index <- aggBufferAttr.indices) {
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
               aggregateAttr += attr

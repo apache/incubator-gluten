@@ -17,11 +17,10 @@
 
 package io.glutenproject.memory;
 
-import io.glutenproject.memory.alloc.Spiller;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.memory.TaskResources;
+import org.apache.spark.util.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -25,7 +25,6 @@ import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToR
 import io.glutenproject.expression.{AliasTransformer, AliasTransformerBase, ExpressionNames, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sig}
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
-import io.glutenproject.execution.ColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
 import org.apache.commons.lang3.ClassUtils
@@ -180,17 +179,19 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    *
    * @return
    */
-  override def createColumnarBatchSerializer(schema: StructType,
-                                             readBatchNumRows: SQLMetric,
-                                             numOutputRows: SQLMetric,
-                                             dataSize: SQLMetric): Serializer = {
+  override def createColumnarBatchSerializer(
+      schema: StructType,
+      metrics: Map[String, SQLMetric]): Serializer = {
+    val readBatchNumRows = metrics("avgReadBatchNumRows")
+    val numOutputRows = metrics("numOutputRows")
+    val decompressTime = metrics("decompressTime")
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor = clazz.getConstructor(classOf[StructType],
         classOf[SQLMetric], classOf[SQLMetric])
       constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
     } else {
-      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows, decompressTime)
     }
   }
 
@@ -204,25 +205,25 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     val countsAndBytes = child
       .executeColumnar()
       .mapPartitions { iter =>
-        val input = new ArrayBuffer[Long]()
+        val input = new ArrayBuffer[ColumnarBatch]()
         // This iter is ClosableColumnarBatch, hasNext will remove it from native batch map,
         // and serialize function append(RowVector) may reserve the buffer,
         // so we can not release the batch before flush to OutputStream
         while (iter.hasNext) {
           val batch = iter.next
           if (batch.numCols() != 0) {
-            val handle = ColumnarBatches.getNativeHandle(batch)
-            val newHandle = ColumnarBatchSerializerJniWrapper.INSTANCE.insertBatch(handle)
-            input += newHandle
+            ColumnarBatches.retain(batch)
+            input += batch
           }
         }
 
         if (input.isEmpty) {
           Iterator((0L, Array[Byte]()))
         } else {
-          val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(input.toArray,
-            NativeMemoryAllocators.contextInstance().getNativeInstanceId)
-          ColumnarBatchSerializerJniWrapper.INSTANCE.closeBatches(input.toArray)
+          val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
+          val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(handleArray,
+            NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+          input.foreach(ColumnarBatches.release)
           Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
         }
       }
@@ -277,6 +278,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * add trim node for trimming space or whitespace. See spark's Cast.scala.
    */
   override def genCastWithNewChild(c: Cast): Cast = {
+    // scalastyle:off nonascii
     // Common whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
     val trimWhitespaceStr = " \t\n\u000B\u000C\u000D\u001C\u001D\u001E\u001F"
     // Space separator.
@@ -288,6 +290,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     val trimParaSepStr = "\u2029"
     // Needs to be trimmed for casting to float/double/decimal
     val trimSpaceStr = ('\u0000' to '\u0020').toList.mkString
+    // scalastyle:on nonascii
     c.dataType match {
       case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
         c
@@ -352,8 +355,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    (List(_ => LoadBeforeColumnarToRow()): List[SparkSession => Rule[SparkPlan]]) :::
-      List(spark => NativeWritePostRule(spark))
+    List(spark => NativeWritePostRule(spark))
   }
 
   /**

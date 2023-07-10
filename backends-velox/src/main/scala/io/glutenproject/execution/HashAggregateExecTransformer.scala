@@ -19,7 +19,6 @@ package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
 import com.google.protobuf.Any
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.VeloxAggregateFunctionsBuilder.{veloxFourIntermediateTypes, veloxSixIntermediateTypes, veloxThreeIntermediateTypes}
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig

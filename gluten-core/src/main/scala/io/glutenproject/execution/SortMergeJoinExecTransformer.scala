@@ -25,7 +25,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.GlutenConfig
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.substrait.proto.JoinRel
 import org.apache.spark.rdd.RDD
@@ -51,7 +51,7 @@ case class SortMergeJoinExecTransformer(
                                          right: SparkPlan,
                                          isSkewJoin: Boolean = false,
                                          projectList: Seq[NamedExpression] = null)
-  extends BinaryExecNode with TransformSupport with GlutenPlan {
+  extends BinaryExecNode with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -252,50 +252,31 @@ case class SortMergeJoinExecTransformer(
       JoinRel.JoinType.UNRECOGNIZED
   }
 
-  override def doValidateInternal(): Boolean = {
+  override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
-      this.appendValidateLog(
-        s"Validation failed for ${this.getClass.toString}" +
-          s" due to: {Join type ${joinType}}")
-      return false
+      return notOk(s"does not support join type $joinType, substrait: $substraitJoinType")
     }
-    val relNode = try {
-      JoinUtils.createJoinRel(
-        streamedKeys,
-        bufferedKeys,
-        condition,
-        substraitJoinType,
-        false,
-        joinType,
-        genJoinParametersBuilder(),
-        null, null, streamedPlan.output,
-        bufferedPlan.output,
-        substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
-    } catch {
-      case e: Throwable =>
-        this.appendValidateLog(
-          s"Validation failed for ${this.getClass.toString} due to: ${e.getMessage}")
-        return false
-    }
+    val relNode = JoinUtils.createJoinRel(
+      streamedKeys,
+      bufferedKeys,
+      condition,
+      substraitJoinType,
+      false,
+      joinType,
+      genJoinParametersBuilder(),
+      null, null, streamedPlan.output,
+      bufferedPlan.output,
+      substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       val validateInfo = BackendsApiManager.getValidatorApiInstance
         .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo()
-        for (i <- 0 until fallbackInfo.size()) {
-          this.appendValidateLog(fallbackInfo.get(i))
-        }
-        this.appendValidateLog(s"Validation failed for ${this.getClass.toString}" +
-          s" due to: native check failure.")
-        return false
-      }
-      true
+      nativeValidationResult(validateInfo)
     } else {
-      true
+      ok()
     }
   }
 

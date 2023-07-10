@@ -26,8 +26,7 @@ import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
-import io.glutenproject.test.TestStats
-import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
+import io.glutenproject.utils.SubstraitPlanPrinterUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -50,42 +49,7 @@ case class WholestageTransformContext(
     root: PlanNode,
     substraitContext: SubstraitContext = null)
 
-trait TransformSupport extends SparkPlan with LogLevelUtil {
-
-  lazy val validateFailureLogLevel = GlutenConfig.getConf.validateFailureLogLevel
-  lazy val printStackOnValidateFailure = GlutenConfig.getConf.printStackOnValidateFailure
-
-  /**
-   * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
-   */
-  final def doValidate(): Boolean = {
-    try {
-      TransformerState.enterValidation
-      val res = doValidateInternal
-
-      if (!res) {
-        TestStats.addFallBackClassName(this.getClass.toString)
-      }
-
-      res
-    } finally {
-      TransformerState.finishValidation
-    }
-  }
-
-  def doValidateInternal(): Boolean = false
-
-  def logValidateFailure(msg: => String, e: Throwable): Unit = {
-    if (printStackOnValidateFailure) {
-      logOnLevel(validateFailureLogLevel, msg, e)
-    } else {
-      logOnLevel(validateFailureLogLevel, msg)
-    }
-  }
-//  def logValidateFailureWithoutThrowable(msg: => String): Unit = {
-//      logOnLevel(validateFailureLogLevel, msg)
-//  }
-
+trait TransformSupport extends GlutenPlan {
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
    *
@@ -116,7 +80,7 @@ trait TransformSupport extends SparkPlan with LogLevelUtil {
 }
 
 case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode with TransformSupport with GlutenPlan with LogLevelUtil {
+  extends UnaryExecNode with TransformSupport {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.

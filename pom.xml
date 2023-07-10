@@ -564,9 +564,13 @@
           <version>${scala.compiler.version}</version>
           <configuration>
             <recompileMode>${scala.recompile.mode}</recompileMode>
-            <args>
-              <arg>-Ywarn-unused:imports</arg>
-            </args>
+              <args>
+                <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+                <arg>-Ywarn-unused:imports</arg>
+                <arg>-Xfatal-warnings</arg>
+                <arg>-deprecation</arg>
+                <arg>-feature</arg>
+              </args>
           </configuration>
           <executions>
             <execution>
@@ -634,6 +638,7 @@
             <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
             <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
             <outputEncoding>UTF-8</outputEncoding>
+            <configLocation>dev/scalastyle-config.xml</configLocation>
           </configuration>
           <executions>
             <execution>
@@ -680,19 +685,18 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
           <configuration>
-            <!--            <java>-->
-            <!--              <googleJavaFormat>-->
-            <!--                <version>1.7</version>-->
-            <!--                <style>AOSP</style>-->
-            <!--              </googleJavaFormat>-->
+            <java>
+              <googleJavaFormat>
+                <version>1.7</version>
+              </googleJavaFormat>
 
-            <!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
-            <!--              <importOrder>-->
-            <!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
-            <!--              </importOrder>-->
+              <!-- \# refers to the static imports -->
+              <importOrder>
+                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>
+              </importOrder>
 
-            <!--              <removeUnusedImports />-->
-            <!--            </java>-->
+              <removeUnusedImports />
+            </java>
             <scala>
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>

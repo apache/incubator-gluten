@@ -34,9 +34,4 @@ public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
   public native long deserialize(long handle, byte[] data);
 
   public native void close(long handle);
-
-  // Record the exists batch twice
-  public native long insertBatch(long handle);
-
-  public native void closeBatches(long[] handles);
 }

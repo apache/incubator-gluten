@@ -19,13 +19,9 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseGlutenPartition, BroadCastHashJoinContext, WholestageTransformContext}
-import io.glutenproject.memory.TaskMemoryMetrics
-import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.spark.{broadcast, Partition, SparkConf, SparkContext, TaskContext}
-import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -33,6 +29,7 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark._
 
 trait IteratorApi {
 
@@ -44,20 +41,6 @@ trait IteratorApi {
   def genFilePartition(index: Int,
                        partitions: Seq[InputPartition],
                        wsCxt: WholestageTransformContext): BaseGlutenPartition
-
-  /**
-   * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
-   *
-   * @return
-   */
-  def genCoalesceIterator(iter: Iterator[ColumnarBatch],
-                          recordsPerBatch: Int,
-                          numOutputRows: SQLMetric = null,
-                          numInputBatches: SQLMetric = null,
-                          numOutputBatches: SQLMetric = null,
-                          collectTime: SQLMetric = null,
-                          concatTime: SQLMetric = null,
-                          avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch]
 
   /**
    * Generate closeable ColumnBatch iterator.
@@ -109,15 +92,6 @@ trait IteratorApi {
                            numOutputBatches: SQLMetric,
                            scanTime: SQLMetric
                           ): RDD[ColumnarBatch]
-
-  /**
-   * Generate NativeMemoryAllocatorManager. If the backend contains no native
-   * components, then just throwing from this method is a recommended way.
-   */
-  def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
-                                      spiller: Spiller,
-                                      taskMemoryMetrics: TaskMemoryMetrics
-                                     ): NativeMemoryAllocatorManager
 
   /**
    * Compute for BroadcastBuildSideRDD

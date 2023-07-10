@@ -71,7 +71,7 @@ static void assertReadConsistentWithWritten(const SparkRowInfo & spark_row_info,
     /// Check if output of SparkRowReader is consistent with types_and_fields
     {
         auto reader = SparkRowReader(spark_row_info.getDataTypes());
-        reader.pointTo(spark_row_info.getBufferAddress(), spark_row_info.getTotalBytes());
+        reader.pointTo(spark_row_info.getBufferAddress(), static_cast<int32_t>(spark_row_info.getTotalBytes()));
         for (size_t i = 0; i < type_and_fields.size(); ++i)
         {
             EXPECT_TRUE(reader.getField(i) == type_and_fields[i].field);
@@ -296,19 +296,19 @@ TEST(SparkRow, MapTypes)
          []() -> Field
          {
              Map map(2);
-             map[0] = std::move(Tuple{Int32(1), Int32(2)});
-             map[1] = std::move(Tuple{Int32(3), Int32(4)});
+             map[0] = Tuple{Int32(1), Int32(2)};
+             map[1] = Tuple{Int32(3), Int32(4)};
              return std::move(map);
          }()},
         {std::make_shared<DataTypeMap>(std::make_shared<DataTypeInt32>(), map_type),
          []() -> Field
          {
              Map inner_map(2);
-             inner_map[0] = std::move(Tuple{Int32(5), Int32(6)});
-             inner_map[1] = std::move(Tuple{Int32(7), Int32(8)});
+             inner_map[0] = Tuple{Int32(5), Int32(6)};
+             inner_map[1] = Tuple{Int32(7), Int32(8)};
 
              Map map(1);
-             map.back() = std::move(Tuple{Int32(9), std::move(inner_map)});
+             map.back() = Tuple{Int32(9), std::move(inner_map)};
              return std::move(map);
          }()},
     };
@@ -335,15 +335,15 @@ TEST(SparkRow, StructMapTypes)
          []() -> Field
          {
              Map map(1);
-             map[0] = std::move(Tuple{Int32(1), Int32(2)});
-             return std::move(Tuple{std::move(map)});
+             map[0] = Tuple{Int32(1), Int32(2)};
+             return Tuple{std::move(map)};
          }()},
         {std::make_shared<DataTypeMap>(std::make_shared<DataTypeInt32>(), tuple_type),
          []() -> Field
          {
              Tuple inner_tuple{Int32(4)};
              Map map(1);
-             map.back() = std::move(Tuple{Int32(3), std::move(inner_tuple)});
+             map.back() = Tuple{Int32(3), std::move(inner_tuple)};
              return std::move(map);
          }()},
     };
@@ -403,7 +403,7 @@ TEST(SparkRow, ArrayMapTypes)
          []() -> Field
          {
              Map map(1);
-             map[0] = std::move(Tuple{Int32(1), Int32(2)});
+             map[0] = Tuple{Int32(1), Int32(2)};
 
              Array array(1);
              array[0] = std::move(map);

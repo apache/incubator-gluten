@@ -18,18 +18,17 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-import io.glutenproject.backendsapi.velox.IteratorHandler
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.types._
 
-import scala.util.control.Breaks.{break, breakable}
+import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_VELOX_BACKEND
@@ -168,11 +167,11 @@ object BackendSettings extends BackendSettingsApi {
           case _ =>
         }
         windowExpression.windowFunction match {
+          // 'ignoreNulls=true' is not supported in Velox for 'NthValue'.
           case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-               _: PercentRank =>
+               _: PercentRank | _@NthValue(_, _, false) =>
           case _ =>
             allSupported = false
-            break
         }})
     }
     allSupported
@@ -254,7 +253,7 @@ object BackendSettings extends BackendSettingsApi {
         false
     }
   }
-  
+
   override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
     // Count(1) is a special case to handle. Do not fallback it and its children in the first place.
     !(isCount1(plan) || isSum1(plan))
@@ -276,5 +275,4 @@ object BackendSettings extends BackendSettingsApi {
 
   override def rescaleDecimalIntegralExpression(): Boolean = true
 
-  override def supportCoalesceBatch(): Boolean = false
 }

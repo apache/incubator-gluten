@@ -16,14 +16,13 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.utils.CHJoinValidateUtil
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.SparkPlan
-
-import io.substrait.proto.JoinRel
 
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -48,11 +47,11 @@ case class CHShuffledHashJoinExecTransformer(
       newRight: SparkPlan): CHShuffledHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
-  override def doValidateInternal(): Boolean = {
+  override def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
     if (shouldFallback) {
-      return false
+      return notOk("ch join validate fail")
     }
     super.doValidateInternal()
   }
@@ -82,17 +81,15 @@ case class CHBroadcastHashJoinExecTransformer(
       newRight: SparkPlan): CHBroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
-  /*
-
-   */
-  override def doValidateInternal(): Boolean = {
-    var shouldFallback =
+  override protected def doValidateInternal(): ValidationResult = {
+    val shouldFallback =
       CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
-    if (isNullAwareAntiJoin == true) {
-      shouldFallback = true
-    }
+
     if (shouldFallback) {
-      return false
+      return notOk("ch join validate fail")
+    }
+    if (isNullAwareAntiJoin) {
+      return notOk("ch does not support NAAJ")
     }
     super.doValidateInternal()
   }

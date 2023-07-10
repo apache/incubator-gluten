@@ -24,6 +24,9 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
 
+// Some sqls' line length exceeds 100
+// scalastyle:off line.size.limit
+
 class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
   override protected val tpcdsQueries: String =
@@ -125,7 +128,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     val testSql =
       """
         |SELECT i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact,
-        | 	sum(ss_ext_sales_price) AS ext_price
+        |    sum(ss_ext_sales_price) AS ext_price
         | FROM date_dim
         | LEFT JOIN store_sales ON d_date_sk = ss_sold_date_sk
         | LEFT JOIN item ON ss_item_sk = i_item_sk AND i_manager_id = 7
@@ -154,7 +157,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     val testSql =
       """
         |SELECT  i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact,
-        | 	sum(ss_ext_sales_price) AS ext_price
+        |    sum(ss_ext_sales_price) AS ext_price
         | FROM date_dim
         | LEFT JOIN store_sales ON d_date_sk = ss_sold_date_sk
         | LEFT JOIN item ON ss_item_sk = i_item_sk AND i_manager_id = 7
@@ -178,7 +181,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     val testSql =
       """
         |SELECT  /*+  merge(date_dim)*/ i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact,
-        | 	sum(ss_ext_sales_price) AS ext_price
+        |    sum(ss_ext_sales_price) AS ext_price
         | FROM date_dim
         | LEFT JOIN store_sales ON d_date_sk == ss_sold_date_sk AND (d_date_sk = 213232  OR ss_sold_date_sk = 3232)
         | LEFT JOIN item ON ss_item_sk = i_item_sk AND i_manager_id = 7
@@ -328,4 +331,16 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, df => {})
   }
+
+  test("collec_set") {
+    val sql =
+      """
+        |select a, b from (
+        |select cc_call_center_id as a, collect_set(cc_call_center_sk) as set from call_center group by cc_call_center_id)
+        |lateral view explode(set) as b
+        |order by a, b
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+  }
 }
+// scalastyle:on line.size.limit

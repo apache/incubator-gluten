@@ -34,7 +34,7 @@ ParquetOutputFormatFile::ParquetOutputFormatFile(
 OutputFormatFile::OutputFormatPtr ParquetOutputFormatFile::createOutputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<OutputFormatFile::OutputFormat>();
-    res->write_buffer = std::move(write_buffer_builder->build(file_uri));
+    res->write_buffer = write_buffer_builder->build(file_uri);
 
     //TODO: align spark parquet config with ch parquet config
     auto format_settings = DB::getFormatSettings(context);

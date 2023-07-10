@@ -49,8 +49,8 @@ protected:
     void movePartitionToTable(const StoragePtr & dest_table, const ASTPtr & partition, ContextPtr context) override;
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     size_t getNumberOfUnfinishedMutations() const override { return 0; }
-    std::map<int64_t, MutationCommands> getAlterMutationCommandsForPart(const DataPartPtr & part) const override { return {}; }
-    void attachRestoredParts(MutableDataPartsVector && parts) override { throw std::runtime_error("not implement"); };
+    std::map<int64_t, MutationCommands> getAlterMutationCommandsForPart(const DataPartPtr & /*part*/) const override { return {}; }
+    void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
 };
 
 }

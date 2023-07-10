@@ -19,8 +19,10 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
+import io.glutenproject.memory.Spiller
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
+import org.apache.commons.io.FileUtils
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
@@ -54,6 +56,8 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
   private val localDirs = SparkDirectoryUtil
     .namespace("shuffle-write")
     .mkChildDirs(UUID.randomUUID().toString)
+
+  private val localDirsStr = localDirs
     .map(_.getAbsolutePath)
     .mkString(",")
 
@@ -120,9 +124,9 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
             batchCompressThreshold,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
-            localDirs,
+            localDirsStr,
             preferSpill,
-            NativeMemoryAllocators.createSpillable(
+            NativeMemoryAllocators.getDefault().createSpillable(
               new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
                   if (nativeShuffleWriter == -1L) {
@@ -198,6 +202,16 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
     jniWrapper.close(nativeShuffleWriter)
   }
 
+  def deleteLocalDirs(): Unit = {
+    localDirs.foreach { subDir =>
+      try FileUtils.forceDelete(subDir)
+      catch {
+        case _: Exception =>
+          logError(s"Failed to cleanup Gluten local dir ${subDir.getAbsolutePath}.")
+      }
+    }
+  }
+
   override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
@@ -214,6 +228,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
         closeShuffleWriter()
         nativeShuffleWriter = -1L
       }
+      deleteLocalDirs()
     }
   }
 

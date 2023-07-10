@@ -85,6 +85,7 @@ object ExpressionMappings {
     Sig[StringSpace](SPACE),
     // SparkSQL Math functions
     Sig[Abs](ABS),
+    Sig[Bin](BIN),
     Sig[Ceil](CEIL),
     Sig[Floor](FLOOR),
     Sig[Exp](EXP),
@@ -218,6 +219,7 @@ object ExpressionMappings {
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
     Sig[CollectList](COLLECT_LIST),
+    Sig[CollectSet](COLLECT_SET),
     Sig[VarianceSamp](VAR_SAMP),
     Sig[VariancePop](VAR_POP),
     Sig[BitAndAgg](BIT_AND_AGG),
@@ -239,7 +241,8 @@ object ExpressionMappings {
     Sig[PercentRank](PERCENT_RANK),
     Sig[NTile](NTILE),
     Sig[Lead](LEAD),
-    Sig[Lag](LAG)
+    Sig[Lag](LAG),
+    Sig[NthValue](NTH_VALUE)
   )
 
   def expressionsMap: Map[Class[_], String] =

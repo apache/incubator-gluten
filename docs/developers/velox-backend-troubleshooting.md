@@ -11,6 +11,6 @@ parent: Developer Overview
 We depend on checking exceptions thrown from native code to validate whether a spark plan can
 be really offloaded to native engine. But if `libunwind-dev` is installed, native exception will not be
 caught and will interrupt the program. So far, we observed this fatal error can happen only on Ubuntu 20.04.
-Please remove `libunwind-dev` to address this issue.
+Please remove `libunwind-dev` and then re-build the project to address this issue.
 
 `sudo apt-get purge --auto-remove libunwind-dev`

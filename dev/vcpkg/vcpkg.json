@@ -64,7 +64,9 @@
         "xxhash",
         "protobuf",
         "benchmark",
-        "jemalloc"
+        "jemalloc",
+        "icu",
+        "simdjson"
       ]
     },
     "velox-s3": {
@@ -95,6 +97,7 @@
     }
   },
   "overrides": [
-    { "name": "fmt", "version": "8.0.1" }
+    { "name": "fmt", "version": "8.0.1" },
+    { "name": "simdjson", "version": "3.1.5" }
   ]
 }

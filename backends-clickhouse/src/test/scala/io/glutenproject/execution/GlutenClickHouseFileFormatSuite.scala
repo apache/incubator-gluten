@@ -25,8 +25,6 @@ import org.apache.spark.sql.types.{StructField, _}
 import java.sql.{Date, Timestamp}
 import java.util
 
-import scala.language.implicitConversions
-
 case class AllDataTypesWithNonPrimitiveType(
     string_field: String,
     int_field: java.lang.Integer,
@@ -286,6 +284,10 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("read excel export csv base") {
+    implicit class StringToDate(s: String) {
+      def date: Date = Date.valueOf(s)
+    }
+
     val schema = StructType.apply(
       Seq(
         StructField.apply("c1", DateType, nullable = true),
@@ -311,13 +313,15 @@ class GlutenClickHouseFileFormatSuite
     }
 
     assert(csvFileScan.size == 1)
-    assert(result.length == 18)
+    assert(result.length == 20)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(16).getFloat(2) == -100000)
     assert(result.apply(16).getDouble(3) == -100000)
     assert(result.apply(16).getInt(4) == -100000)
     assert(result.apply(16).getLong(5) == -100000)
+    assert(result.apply(18).getDate(0) == "2023-07-19".date)
+    assert(result.apply(19).getDate(0) == "2023-07-01".date)
   }
 
   test("read excel export csv delimiter") {
@@ -435,8 +439,9 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("csv \\r") {
+    // scalastyle:off nonascii
     val csv_files = Seq("csv_r.csv", "中文.csv")
-
+    // scalastyle:on nonascii
     csv_files.foreach(
       file => {
         val csv_path = csvDataPath + "/" + file
@@ -464,6 +469,61 @@ class GlutenClickHouseFileFormatSuite
         }
         checkAnswer(df, expectedAnswer)
       })
+  }
+
+  test("header size not equal csv first lines") {
+    // In Csv file ,there is five field schema of header
+    val schemaLessThanCsvHeader = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true),
+        StructField.apply("c2", IntegerType, nullable = true),
+        StructField.apply("c3", IntegerType, nullable = true),
+        StructField.apply("c4", IntegerType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("header", "true")
+      .schema(schemaLessThanCsvHeader)
+      .csv(csvDataPath + "/header.csv")
+      .toDF()
+
+    df.createTempView("test_schema_header_less_than_csv_header")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        |select * from test_schema_header_less_than_csv_header
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+
+    val schemaMoreThanCsvHeader = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true),
+        StructField.apply("c2", IntegerType, nullable = true),
+        StructField.apply("c3", IntegerType, nullable = true),
+        StructField.apply("c4", IntegerType, nullable = true),
+        StructField.apply("c5", IntegerType, nullable = true),
+        StructField.apply("c6", IntegerType, nullable = true)
+      ))
+
+    val df2 = spark.read
+      .option("delimiter", ",")
+      .option("header", "true")
+      .schema(schemaMoreThanCsvHeader)
+      .csv(csvDataPath + "/header.csv")
+      .toDF()
+
+    df2.createTempView("test_schema_header_More_than_csv_header")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        |select * from test_schema_header_More_than_csv_header
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
   }
 
   test("fix: read date field value wrong") {
@@ -787,6 +847,7 @@ class GlutenClickHouseFileFormatSuite
     (0 to 299).map {
       i =>
         if (i % 100 == 1) {
+          // scalastyle:off nonascii
           AllDataTypesWithNonPrimitiveType(
             "测试中文",
             null,
@@ -798,6 +859,7 @@ class GlutenClickHouseFileFormatSuite
             null,
             null,
             null)
+          // scalastyle:on nonascii
         } else if (i % 25 == 0) {
           if (i % 50 == 0) {
             AllDataTypesWithNonPrimitiveType(

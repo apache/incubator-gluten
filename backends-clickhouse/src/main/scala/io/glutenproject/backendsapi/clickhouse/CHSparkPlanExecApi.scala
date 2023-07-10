@@ -221,10 +221,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def createColumnarBatchSerializer(
       schema: StructType,
-      readBatchNumRows: SQLMetric,
-      numOutputRows: SQLMetric,
-      dataSize: SQLMetric): Serializer = {
-    new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize)
+      metrics: Map[String, SQLMetric]): Serializer = {
+    new CHColumnarBatchSerializer(
+      metrics("avgReadBatchNumRows"),
+      metrics("numOutputRows"),
+      metrics("dataSize"))
   }
 
   /** Create broadcast relation for BroadcastExchangeExec */
@@ -267,10 +268,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               Seq(ProjectExecTransformer(child.output ++ appendedProjections, wt.child)))
           case w: WholeStageCodegenExec =>
             w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections, w.child)))
-          case c: CoalesceBatchesExec =>
-            // when aqe is open
-            // TODO: remove this after pushdowning preprojection
-            wrapChild(c)
           case columnarAQEShuffleReadExec: ColumnarAQEShuffleReadExec =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection

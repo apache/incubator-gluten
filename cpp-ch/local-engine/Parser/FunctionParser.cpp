@@ -11,6 +11,7 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int UNKNOWN_FUNCTION;
+    extern const int NOT_IMPLEMENTED;
 }
 }
 
@@ -20,7 +21,17 @@ using namespace DB;
 
 String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
-    auto func_signature = plan_parser->function_mapping.at(std::to_string(substrait_func.function_reference()));
+    return getCHFunctionName(CommonFunctionInfo(substrait_func));
+}
+
+String FunctionParser::getCHFunctionName(const DB::DataTypes &) const
+{
+    throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Not implemented");
+}
+
+String FunctionParser::getCHFunctionName(const CommonFunctionInfo & func_info) const
+{
+    auto func_signature = plan_parser->function_mapping.at(std::to_string(func_info.function_ref));
     auto pos = func_signature.find(':');
     auto func_name = func_signature.substr(0, pos);
 
@@ -33,38 +44,57 @@ String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunct
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
     const substrait::Expression_ScalarFunction & substrait_func,
     const String & ch_func_name,
-    ActionsDAGPtr & actions_dag,
-    std::vector<String> & required_columns) const
+    ActionsDAGPtr & actions_dag) const
 {
-    auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
-    {
-        return &actions_dag->addColumn(
-            ColumnWithTypeAndName(type->createColumnConst(1, field), type, plan_parser->getUniqueName(toString(field))));
-    };
+    return parseFunctionArguments(CommonFunctionInfo(substrait_func), ch_func_name, actions_dag);
+}
 
+DB::ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
+    const CommonFunctionInfo & func_info, const String & ch_func_name, DB::ActionsDAGPtr & actions_dag) const
+{
     ActionsDAG::NodeRawConstPtrs parsed_args;
-    const auto & args = substrait_func.arguments();
+    const auto & args = func_info.arguments;
     parsed_args.reserve(args.size());
     for (const auto & arg : args)
-        plan_parser->parseFunctionArgument(actions_dag, parsed_args, required_columns, ch_func_name, arg);
+        plan_parser->parseFunctionArgument(actions_dag, parsed_args, ch_func_name, arg);
     return parsed_args;
+}
+
+DB::ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
+    const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
+{
+    return parseFunctionArguments(func_info, getCHFunctionName(func_info), actions_dag);
 }
 
 const ActionsDAG::Node * FunctionParser::parse(
     const substrait::Expression_ScalarFunction & substrait_func,
-    ActionsDAGPtr & actions_dag,
-    std::vector<String> & required_columns) const
+    ActionsDAGPtr & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
-    auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag, required_columns);
+    auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
     const auto * func_node = toFunctionNode(actions_dag, ch_func_name, parsed_args);
     return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
+}
+
+const DB::ActionsDAG::Node * FunctionParser::parse(
+    const CommonFunctionInfo & func_info, ActionsDAGPtr & actions_dag) const
+{
+    auto ch_func_name = getCHFunctionName(func_info);
+    auto parsed_args = parseFunctionArguments(func_info, ch_func_name, actions_dag);
+    const auto * func_node = toFunctionNode(actions_dag, ch_func_name, parsed_args);
+    return convertNodeTypeIfNeeded(func_info, func_node, actions_dag);
 }
 
 const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     const substrait::Expression_ScalarFunction & substrait_func, const ActionsDAG::Node * func_node, ActionsDAGPtr & actions_dag) const
 {
-    const auto & output_type = substrait_func.output_type();
+    return convertNodeTypeIfNeeded(CommonFunctionInfo(substrait_func), func_node, actions_dag);
+}
+
+const DB::ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
+    const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const
+{
+    const auto & output_type = func_info.output_type;
     if (!isTypeMatched(output_type, func_node->result_type))
         return ActionsDAGUtil::convertNodeType(
             actions_dag, func_node, SerializedPlanParser::parseType(output_type)->getName(), func_node->result_name);
@@ -78,12 +108,13 @@ void FunctionParserFactory::registerFunctionParser(const String & name, Value va
         throw Exception(ErrorCodes::LOGICAL_ERROR, "FunctionParserFactory: function parser name '{}' is not unique", name);
 }
 
-
 FunctionParserPtr FunctionParserFactory::get(const String & name, SerializedPlanParser * plan_parser)
 {
     auto res = tryGet(name, plan_parser);
     if (!res)
+    {
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unknown function parser {}", name);
+    }
 
     return res;
 }

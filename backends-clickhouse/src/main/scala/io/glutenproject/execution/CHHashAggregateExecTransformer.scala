@@ -38,20 +38,13 @@ object CHHashAggregateExecTransformer {
   def getAggregateResultAttributes(
       groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression]): Seq[Attribute] = {
-    val groupingAttributes = groupingExpressions.map(
-      expr => {
-        ConverterUtils.getAttrFromExpr(expr).toAttribute
-      })
-    groupingAttributes ++ aggregateExpressions.map(
-      expr => {
-        expr.resultAttribute
-      })
+    groupingExpressions.map(ConverterUtils.getAttrFromExpr(_).toAttribute) ++ aggregateExpressions
+      .map(_.resultAttribute)
   }
 
   private val curId = new java.util.concurrent.atomic.AtomicLong()
-  def newStructFieldId(): Long = {
-    curId.getAndIncrement()
-  }
+
+  def newStructFieldId(): Long = curId.getAndIncrement()
 }
 
 case class CHHashAggregateExecTransformer(
@@ -112,20 +105,19 @@ case class CHHashAggregateExecTransformer(
       val nameList = new util.ArrayList[String]()
       val (inputAttrs, outputAttrs) =
         if (!modes.contains(Partial)) {
+          var resultAttrIndex = 0
           for (attr <- aggregateResultAttributes) {
-            val colName = if (aggregateAttributes.contains(attr)) {
-              // for aggregate func
-              ConverterUtils.genColumnNameWithExprId(attr) +
-                "#Partial#" + ConverterUtils.getShortAttributeName(attr)
-            } else {
-              // for group by cols
-              ConverterUtils.genColumnNameWithExprId(attr)
-            }
+            val colName = getIntermediateAggregateResultColumnName(
+              resultAttrIndex,
+              aggregateResultAttributes,
+              groupingExpressions,
+              aggregateExpressions)
             nameList.add(colName)
             val (dataType, nullable) =
               getIntermediateAggregateResultType(attr, aggregateExpressions)
             nameList.addAll(ConverterUtils.collectStructFieldNames(dataType))
             typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
+            resultAttrIndex += 1
           }
           (aggregateResultAttributes, output)
         } else {
@@ -298,9 +290,27 @@ case class CHHashAggregateExecTransformer(
 
   def numShufflePartitions: Option[Int] = Some(0)
 
+  // aggResultAttributes is groupkeys ++ aggregate expressions
+  def getIntermediateAggregateResultColumnName(
+      columnIndex: Int,
+      aggResultAttributes: Seq[Attribute],
+      groupingExprs: Seq[NamedExpression],
+      aggExpressions: Seq[AggregateExpression]): String = {
+    val resultAttr = aggResultAttributes(columnIndex)
+    if (columnIndex < groupingExprs.length) {
+      ConverterUtils.genColumnNameWithExprId(resultAttr)
+    } else {
+      val aggExpr = aggExpressions(columnIndex - groupingExprs.length)
+      var aggFunctionName =
+        AggregateFunctionsBuilder.getSubstraitFunctionName(aggExpr.aggregateFunction).get
+      ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
+    }
+  }
+
   def getIntermediateAggregateResultType(
       attr: Attribute,
       inputAggregateExpressions: Seq[AggregateExpression]): (DataType, Boolean) = {
+
     def makeStructType(types: Seq[(DataType, Boolean)]): StructType = {
       val fields = new Array[StructField](types.length)
       var i = 0
@@ -308,7 +318,7 @@ case class CHHashAggregateExecTransformer(
         case (dataType, nullable) =>
           fields.update(
             i,
-            new StructField(
+            StructField(
               s"anonymousField${CHHashAggregateExecTransformer.newStructFieldId()}",
               dataType,
               nullable))
@@ -318,7 +328,7 @@ case class CHHashAggregateExecTransformer(
     }
 
     def makeStructTypeSingleOne(dataType: DataType, nullable: Boolean): StructType = {
-      makeStructType(Seq[(DataType, Boolean)]((dataType, nullable)))
+      makeStructType(Seq((dataType, nullable)))
     }
 
     val aggregateExpression = inputAggregateExpressions.find(_.resultAttribute == attr)
@@ -327,7 +337,7 @@ case class CHHashAggregateExecTransformer(
     //   1. the intermediate result column will has a special format name,
     //     see genPartialAggregateResultColumnName
     //   2. Use a struct type to wrap the arguments' types of the aggregate function.
-    val (dataType, nullable) = if (!aggregateExpression.isDefined) {
+    val (dataType, nullable) = if (aggregateExpression.isEmpty) {
       (attr.dataType, attr.nullable)
     } else {
       aggregateExpression.get match {
@@ -335,17 +345,20 @@ case class CHHashAggregateExecTransformer(
           aggExpr.aggregateFunction match {
             case avg: Average =>
               (makeStructTypeSingleOne(avg.child.dataType, attr.nullable), attr.nullable)
-            case collectList: CollectList =>
+            case collect @ (_: CollectList | _: CollectSet) =>
               // Be careful with the nullable. We must keep the nullable the same as the column
               // otherwise it will cause a parsing exception on partial aggregated data.
-              (
-                makeStructTypeSingleOne(collectList.child.dataType, collectList.child.nullable),
-                collectList.child.nullable
-              )
+              val child = collect.children.head
+              (makeStructTypeSingleOne(child.dataType, child.nullable), child.nullable)
             case covar: Covariance =>
               var fields = Seq[(DataType, Boolean)]()
               fields = fields :+ (covar.left.dataType, covar.left.nullable)
               fields = fields :+ (covar.right.dataType, covar.right.nullable)
+              (makeStructType(fields), attr.nullable)
+            case corr: PearsonCorrelation =>
+              var fields = Seq[(DataType, Boolean)]()
+              fields = fields :+ (corr.left.dataType, corr.left.nullable)
+              fields = fields :+ (corr.right.dataType, corr.right.nullable)
               (makeStructType(fields), attr.nullable)
             case expr =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)

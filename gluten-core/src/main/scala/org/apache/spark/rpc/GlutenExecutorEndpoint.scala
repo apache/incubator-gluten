@@ -33,15 +33,14 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
   with Logging {
   override val rpcEnv: RpcEnv = SparkEnv.get.rpcEnv
 
-  val executorEndpoint: RpcEndpointRef =
-    rpcEnv.setupEndpoint(GlutenRpcConstants.GLUTEN_EXECUTOR_ENDPOINT_NAME, this)
-
   private val driverHost = conf.get(config.DRIVER_HOST_ADDRESS.key, "localhost")
   private val driverPort = conf.getInt(config.DRIVER_PORT.key, 7077)
   private val driverUrl =
     s"spark://${GlutenRpcConstants.GLUTEN_DRIVER_ENDPOINT_NAME}@$driverHost:$driverPort"
 
   @volatile var driverEndpointRef: RpcEndpointRef = null
+
+  rpcEnv.setupEndpoint(GlutenRpcConstants.GLUTEN_EXECUTOR_ENDPOINT_NAME, this)
 
   override def onStart(): Unit = {
     rpcEnv

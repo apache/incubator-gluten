@@ -19,7 +19,7 @@ class ExcelTextFormatFile : public FormatFile
 public:
     explicit ExcelTextFormatFile(
         DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-        : FormatFile(context_, file_info_, read_buffer_builder_){};
+        : FormatFile(context_, file_info_, read_buffer_builder_){}
 
     ~ExcelTextFormatFile() override = default;
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
@@ -40,7 +40,7 @@ public:
         DB::Names & input_field_names_,
         String escape_);
 
-    String getName() const { return "ExcelRowInputFormat"; }
+    String getName() const override { return "ExcelRowInputFormat"; }
 
 private:
     String escape;
@@ -53,13 +53,15 @@ public:
 
     std::vector<String> readNames() override;
     std::vector<String> readTypes() override;
+    void skipFieldDelimiter() override;
     void skipRowEndDelimiter() override;
     bool readField(DB::IColumn & column, const DB::DataTypePtr & type, const DB::SerializationPtr & serialization, bool is_last_file_column, const String & column_name) override;
 
 private:
     void preSkipNullValue();
+    bool isEndOfLine();
     static void skipEndOfLine(DB::ReadBuffer & in);
-    static void skipWhitespacesAndTabs(DB::ReadBuffer & in);
+    static void skipWhitespacesAndTabs(DB::ReadBuffer & in, const bool & allow_whitespace_or_tab_as_delimiter);
 
 
     std::vector<String> input_field_names;

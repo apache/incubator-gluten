@@ -239,7 +239,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       () =>
         val allGlutenPlans = wholeStageTransformer2.collect { case g: GlutenPlan => g }
 
-        assert(allGlutenPlans.size == 61)
+        assert(allGlutenPlans.size == 58)
 
         val shjPlan = allGlutenPlans(8)
         assert(shjPlan.metrics("totalTime").value == 7)
@@ -306,20 +306,22 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         .get(0)
         .getProcessors
         .get(0)
-        .getInputRows == 591677)
+        .getInputRows == 591673)
+
     assert(
       nativeMetricsData.metricsDataList
         .get(4)
         .getSteps
-        .get(0)
+        .get(1)
         .getProcessors
         .get(1)
         .getOutputRows == 4)
+
     assert(
       nativeMetricsData.metricsDataList
         .get(4)
         .getSteps
-        .get(0)
+        .get(1)
         .getProcessors
         .get(0)
         .getOutputRows == 4)

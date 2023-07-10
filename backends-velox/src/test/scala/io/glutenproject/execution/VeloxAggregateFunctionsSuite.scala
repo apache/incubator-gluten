@@ -18,11 +18,6 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.functions.{avg, col}
-import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
-
-import scala.collection.JavaConverters
 
 class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
 
@@ -30,8 +25,6 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
-
-  import testImplicits._
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -326,7 +319,8 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
     }
     runQueryAndCompare(
       s"""
-         |select first(l_linenumber), first(l_linenumber, true), count(distinct l_partkey) from lineitem
+         |select first(l_linenumber), first(l_linenumber, true), count(distinct l_partkey)
+         |from lineitem
          |""".stripMargin) { df => {
       assert(getExecutedPlan(df).count(plan => {
         plan.isInstanceOf[HashAggregateExecTransformer]
@@ -344,14 +338,16 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
     }
     runQueryAndCompare(
       s"""
-         |select last_value(l_linenumber), last_value(l_linenumber, true) from lineitem
+         |select last_value(l_linenumber), last_value(l_linenumber, true)
+         |from lineitem
          |group by l_orderkey;
          |""".stripMargin) {
       checkOperatorMatch[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
-         |select last(l_linenumber), last(l_linenumber, true), count(distinct l_partkey) from lineitem
+         |select last(l_linenumber), last(l_linenumber, true), count(distinct l_partkey)
+         |from lineitem
          |""".stripMargin) { df => {
       assert(getExecutedPlan(df).count(plan => {
         plan.isInstanceOf[HashAggregateExecTransformer]
