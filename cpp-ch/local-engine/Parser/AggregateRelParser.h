@@ -1,4 +1,5 @@
 #pragma once
+#include <Parser/FunctionParser.h>
 #include <Parser/RelParser.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -18,9 +19,15 @@ private:
         const substrait::AggregateRel::Measure * measure = nullptr;
         Strings arg_column_names;
         DB::DataTypes arg_column_types;
+        Array params;
+        String signature_function_name;
         String function_name;
-        bool has_mismatch_nullablity = false;
-        String filter_column_name;
+        // If no combinator be applied on it, same as function_name
+        String combinator_function_name;
+        // For avoiding repeated builds.
+        FunctionParser::CommonFunctionInfo parser_func_info;
+        // For avoiding repeated builds.
+        FunctionParserPtr function_parser;
     };
 
     Poco::Logger * logger = &Poco::Logger::get("AggregateRelParser");
@@ -38,8 +45,6 @@ private:
     void addMergingAggregatedStep();
     void addAggregatingStep();
     void addPostProjection();
-    void addPostProjectionForAggregatingResult();
-    void addPostProjectionForTypeMismatch();
 
     void buildAggregateDescriptions(AggregateDescriptions & descriptions);
 };

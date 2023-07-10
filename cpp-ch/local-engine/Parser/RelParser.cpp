@@ -16,7 +16,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 AggregateFunctionPtr RelParser::getAggregateFunction(
-    DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
+    const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
 {
     auto & factory = AggregateFunctionFactory::instance();
     return factory.get(name, arg_types, parameters, properties);
@@ -75,6 +75,7 @@ void registerWindowRelParser(RelParserFactory & factory);
 void registerSortRelParser(RelParserFactory & factory);
 void registerExpandRelParser(RelParserFactory & factory);
 void registerAggregateParser(RelParserFactory & factory);
+void registerProjectRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -83,5 +84,6 @@ void registerRelParsers()
     registerSortRelParser(factory);
     registerExpandRelParser(factory);
     registerAggregateParser(factory);
+    registerProjectRelParser(factory);
 }
 }

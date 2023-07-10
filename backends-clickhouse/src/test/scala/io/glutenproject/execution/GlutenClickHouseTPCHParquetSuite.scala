@@ -1244,6 +1244,113 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-2221 empty hash aggregate exec") {
+    val sql1 =
+      """
+        | select count(1) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
+
+    val sql2 =
+      """
+        | select count(1) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 left join (
+        |       select * from values(6,5),(7,5),(8,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+
+    val sql3 =
+      """
+        | select count(1) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(6,5),(7,5),(8,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => }, false)
+
+    val sql4 =
+      """
+        | select count(*) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => }, false)
+
+    val sql5 =
+      """
+        | select count(*) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(6,5),(7,5),(8,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+  }
+
   test("GLUTEN-2095: test cast(string as binary)") {
     runQueryAndCompare(
       "select cast(n_nationkey as binary), cast(n_comment as binary) from nation"
@@ -1296,6 +1403,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
               }) == 4)
         }
     }
+  }
+
+  test("GLUTEN-2243 empty projection") {
+    val sql =
+      """
+        | select count(1) from(
+        |   select b,c from values(1,2),(1,2) as data(b,c) group by b,c
+        |   union all
+        |   select a, b from values (1,2),(1,2),(2,3) as data(a,b) group by a, b
+        | )
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
 }
