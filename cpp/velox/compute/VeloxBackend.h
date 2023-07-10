@@ -46,9 +46,7 @@ class VeloxBackend final : public Backend {
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
       const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
-  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
-      MemoryAllocator* allocator,
-      std::shared_ptr<ColumnarBatch> cb) override;
+  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(MemoryAllocator* allocator) override;
 
   std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
       MemoryAllocator* allocator,
