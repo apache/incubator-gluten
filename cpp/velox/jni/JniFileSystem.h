@@ -26,6 +26,10 @@ namespace gluten {
 
 class JniReadFile : public facebook::velox::ReadFile {
  public:
+  explicit JniReadFile(jobject obj);
+
+  ~JniReadFile() override;
+
   std::string_view pread(uint64_t offset, uint64_t length, void* buf) const override;
 
   bool shouldCoalesce() const override;
@@ -37,10 +41,15 @@ class JniReadFile : public facebook::velox::ReadFile {
   std::string getName() const override;
 
   uint64_t getNaturalReadSize() const override;
+
+ private:
+  jobject obj_;
 };
 
 class JniWriteFile : public facebook::velox::WriteFile {
  public:
+  explicit JniWriteFile(jobject obj);
+  ~JniWriteFile() override;
   void append(std::string_view data) override;
 
   void flush() override;
@@ -48,12 +57,15 @@ class JniWriteFile : public facebook::velox::WriteFile {
   void close() override;
 
   uint64_t size() const override;
+
+ private:
+  jobject obj_;
 };
 
 class JniFileSystem : public facebook::velox::filesystems::FileSystem {
  public:
-  explicit JniFileSystem(std::shared_ptr<const facebook::velox::Config> config);
-
+  explicit JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::Config> config);
+  ~JniFileSystem() override;
   std::string name() const override;
 
   std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
@@ -80,6 +92,9 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
 
   static std::function<std::shared_ptr<FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
   fileSystemGenerator();
+
+ private:
+  jobject obj_;
 };
 
 void registerJniFileSystem();

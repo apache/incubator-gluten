@@ -20,13 +20,18 @@ package io.glutenproject.fs;
 // Mirror of C++ side gluten::JniFileSystem, only for handling calls from C++ via JNI
 public interface JniFilesystem {
 
+  static JniFilesystem getFileSystem(String path) {
+    // todo
+    return null;
+  }
+
   ReadFile openFileForRead(String path); // todo read Map<String, String> as write options
 
   WriteFile openFileForWrite(String path); // todo read Map<String, String> as write options
 
-  boolean remove(String path);
+  void remove(String path);
 
-  boolean rename(String oldPath, String newPath, boolean overwrite);
+  void rename(String oldPath, String newPath, boolean overwrite);
 
   boolean exists(String path);
 
@@ -37,7 +42,7 @@ public interface JniFilesystem {
   void rmdir(String path);
 
   interface ReadFile {
-    byte[] pread(long offset, long length, long buf); // uint64_t offset, uint64_t length, void* buf
+    void pread(long offset, long length, long buf); // uint64_t offset, uint64_t length, void* buf
 
     boolean shouldCoalesce();
 
