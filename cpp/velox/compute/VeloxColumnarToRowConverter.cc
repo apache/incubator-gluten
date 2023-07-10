@@ -71,9 +71,11 @@ arrow::Status VeloxColumnarToRowConverter::init() {
     if (arrow::is_binary_like(field->type()->id())) {
       auto strViews = vecs_[colIdx]->asFlatVector<velox::StringView>()->rawValues();
       for (int rowIdx = 0; rowIdx < numRows_; rowIdx++) {
-        auto length = strViews[rowIdx].size();
-        int64_t bytes = roundNumberOfBytesToNearestWord(length);
-        lengths_[rowIdx] += bytes;
+        if (!vecs_[colIdx]->isNullAt(rowIdx)) {
+          auto length = strViews[rowIdx].size();
+          int64_t bytes = roundNumberOfBytesToNearestWord(length);
+          lengths_[rowIdx] += bytes;
+        }
       }
     }
   }
