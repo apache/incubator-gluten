@@ -20,17 +20,6 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 
 import java.io.File
-import io.glutenproject.utils.ArrowUtil
-import io.glutenproject.vectorized.ArrowWritableColumnVector
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
-import org.apache.spark.sql.catalyst.util.GenericArrayData
-import org.apache.spark.sql.execution.VeloxColumnarToRowExec
-import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
-import org.apache.spark.sql.types.{ArrayType, BooleanType, CalendarIntervalType, Decimal, DecimalType, IntegerType, MapType, StructField, StructType, TimestampType}
-import org.apache.spark.sql.utils.SparkVectorUtil
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnarMap}
-import org.apache.spark.unsafe.types.CalendarInterval
 
 class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath

@@ -24,7 +24,6 @@ import org.apache.spark.internal.Logging
 
 import java.io.{File, IOException}
 import java.nio.file.Paths
-import scala.runtime.BoxedUnit
 
 /**
  * Manages Gluten's local directories, for storing jars, libs, spill files, or other temporary
@@ -40,7 +39,6 @@ object SparkDirectoryUtil extends Logging {
           case e: Exception =>
             throw new RuntimeException(e)
         }
-        BoxedUnit.UNIT
       })
       logInfo(s"Created local directory at $localDir")
       Some(localDir)

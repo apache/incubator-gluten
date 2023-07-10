@@ -43,8 +43,7 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    try {
-      new Iterator[ColumnarBatch] {
+    new Iterator[ColumnarBatch] {
         var batchId = 0
         var closed = false
         private var finalBatch = -1L
@@ -81,7 +80,6 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
           batchId += 1
           ColumnarBatches.create(handle)
         }
-      }
     }
   }
 
