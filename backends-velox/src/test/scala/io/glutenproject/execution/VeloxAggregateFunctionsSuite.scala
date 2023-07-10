@@ -512,4 +512,15 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
     }
     }
   }
+
+  test("count(1)") {
+    runQueryAndCompare(
+      """
+        |select count(1) from (select * from values(1,2) as data(a,b) group by a,b union all
+        |select * from values(2,3),(3,4) as data(c,d) group by c,d);
+        |""".stripMargin) { df =>
+      assert(getExecutedPlan(df).count(plan =>
+        plan.isInstanceOf[HashAggregateExecTransformer]) >= 2)
+    }
+  }
 }
