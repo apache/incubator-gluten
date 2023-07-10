@@ -66,7 +66,7 @@ object SparkDirectoryUtil extends Logging {
 }
 
 class Namespace(private val parents: Array[File], private val name: String) {
-  private val all = parents.map { root =>
+  val all = parents.map { root =>
     val path = Paths.get(root.getAbsolutePath)
       .resolve(name)
     path.toFile

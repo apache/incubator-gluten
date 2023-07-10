@@ -21,6 +21,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.vectorized._
+import org.apache.commons.io.FileUtils
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
@@ -53,7 +54,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
 
   private val localDirs = SparkDirectoryUtil
     .namespace("shuffle-write")
-    .mkChildDirs(UUID.randomUUID().toString)
+    .all
     .map(_.getAbsolutePath)
     .mkString(",")
 
