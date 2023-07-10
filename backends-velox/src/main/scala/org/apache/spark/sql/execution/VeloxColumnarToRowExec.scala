@@ -108,9 +108,9 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
   private def f: Iterator[ColumnarBatch] => Iterator[InternalRow] = { batches =>
     // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
     val jniWrapper = new NativeColumnarToRowJniWrapper()
-    // Init NativeColumnarToRow with the first ColumnarBatch
-    var c2rId = -1L
     var closed = false
+    val c2rId = jniWrapper.nativeColumnarToRowInit(
+        NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
 
     if (batches.isEmpty) {
       Iterator.empty
@@ -154,11 +154,6 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
           } else {
             val beforeConvert = System.currentTimeMillis()
             val batchHandle = ColumnarBatches.getNativeHandle(batch)
-            if (c2rId == -1) {
-              c2rId = jniWrapper.nativeColumnarToRowInit(
-                batchHandle,
-                NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
-            }
             val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
 
             convertTime += (System.currentTimeMillis() - beforeConvert)
