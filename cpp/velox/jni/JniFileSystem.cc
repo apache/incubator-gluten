@@ -103,11 +103,6 @@ void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {
   vm = nullptr;
 }
 
-void gluten::registerJniFileSystem() {
-  facebook::velox::filesystems::registerFileSystem(
-      JniFileSystem::schemeMatcher(), JniFileSystem::fileSystemGenerator());
-}
-
 std::string_view gluten::JniReadFile::pread(uint64_t offset, uint64_t length, void* buf) const {
   JNIEnv* env;
   attachCurrentThreadAsDaemonOrThrow(vm, &env);
@@ -308,6 +303,11 @@ gluten::JniFileSystem::fileSystemGenerator() {
     checkException(env);
     return lfs;
   };
+}
+
+void gluten::registerJniFileSystem() {
+  facebook::velox::filesystems::registerFileSystem(
+      JniFileSystem::schemeMatcher(), JniFileSystem::fileSystemGenerator());
 }
 
 gluten::JniFileSystem::JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::Config> config)
