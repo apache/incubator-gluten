@@ -30,11 +30,15 @@ public:
     }
 
     static AggregateFunctionPtr getAggregateFunction(
-        DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
+        const DB::String & name,
+        DB::DataTypes arg_types,
+        DB::AggregateFunctionProperties & properties,
+        const DB::Array & parameters = {});
 
     static DB::DataTypePtr parseType(const substrait::Type & type) { return SerializedPlanParser::parseType(type); }
 
 protected:
+    inline SerializedPlanParser * getPlanParser() { return plan_parser; }
     inline ContextPtr getContext() { return plan_parser->context; }
 
     inline String getUniqueName(const std::string & name) { return plan_parser->getUniqueName(name); }
@@ -62,13 +66,6 @@ protected:
     buildFunctionNode(ActionsDAGPtr action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
     {
         return plan_parser->toFunctionNode(action_dag, function, args);
-    }
-
-    DB::AggregateFunctionPtr getAggregateFunction(const std::string & name, DB::DataTypes arg_types)
-    {
-        auto & factory = DB::AggregateFunctionFactory::instance();
-        DB::AggregateFunctionProperties properties;
-        return factory.get(name, arg_types, DB::Array{}, properties);
     }
 
 private:

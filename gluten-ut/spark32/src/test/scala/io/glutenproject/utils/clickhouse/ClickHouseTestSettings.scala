@@ -438,9 +438,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "reuse window partitionBy",
       "reuse window orderBy",
-      "collect_list in ascending ordered window",
-      "collect_list in descending ordered window",
-      "collect_set in window",
       "lead/lag with ignoreNulls",
       "Window spill with less than the inMemoryThreshold",
       "Window spill with more than the inMemoryThreshold and spillThreshold",
