@@ -75,6 +75,7 @@ void registerWindowRelParser(RelParserFactory & factory);
 void registerSortRelParser(RelParserFactory & factory);
 void registerExpandRelParser(RelParserFactory & factory);
 void registerAggregateParser(RelParserFactory & factory);
+void registerProjectRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -83,5 +84,6 @@ void registerRelParsers()
     registerSortRelParser(factory);
     registerExpandRelParser(factory);
     registerAggregateParser(factory);
+    registerProjectRelParser(factory);
 }
 }

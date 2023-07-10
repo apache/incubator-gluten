@@ -1298,5 +1298,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-2243 empty projection") {
+    val sql =
+      """
+        | select count(1) from(
+        |   select b,c from values(1,2),(1,2) as data(b,c) group by b,c
+        |   union all
+        |   select a, b from values (1,2),(1,2),(2,3) as data(a,b) group by a, b
+        | )
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
 }
 // scalastyle:on line.size.limit

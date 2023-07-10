@@ -81,6 +81,7 @@
 #include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include "RelParser.h"
 
 namespace DB
 {
@@ -654,6 +655,10 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
             ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
             NamesWithAliases aliases;
             auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
+            if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
+            {
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size.");
+            }
             for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             {
                 aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
@@ -728,43 +733,24 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         }
         case substrait::Rel::RelTypeCase::kGenerate:
         case substrait::Rel::RelTypeCase::kProject: {
+            rel_stack.push_back(&rel);
             const substrait::Rel * input = nullptr;
-            bool is_generate = false;
-            std::vector<substrait::Expression> expressions;
-
             if (rel.has_project())
             {
                 const auto & project = rel.project();
                 input = &project.input();
-
-                expressions.reserve(project.expressions_size());
-                for (int i = 0; i < project.expressions_size(); ++i)
-                    expressions.emplace_back(project.expressions(i));
             }
             else
             {
                 const auto & generate = rel.generate();
                 input = &generate.input();
-                is_generate = true;
-
-                expressions.reserve(generate.child_output_size() + 1);
-                for (int i = 0; i < generate.child_output_size(); ++i)
-                    expressions.push_back(generate.child_output(i));
-                expressions.emplace_back(generate.generator());
             }
-            rel_stack.push_back(&rel);
             query_plan = parseOp(*input, rel_stack);
             rel_stack.pop_back();
-            // for prewhere
-            Block read_schema;
-            // Since some columns' nullability are remove by prewhere, need to use the lastest plan's schema direclty.
-            read_schema = query_plan->getCurrentDataStream().header;
 
-            auto actions_dag = expressionsToActionsDAG(expressions, query_plan->getCurrentDataStream().header, read_schema);
-            auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), actions_dag);
-            expression_step->setStepDescription(is_generate ? "Generate" : "Project");
-            steps.emplace_back(expression_step.get());
-            query_plan->addStep(std::move(expression_step));
+            auto project_parser = RelParserFactory::instance().getBuilder(substrait::Rel::RelTypeCase::kProject)(this);
+            query_plan = project_parser->parse(std::move(query_plan), rel, rel_stack);
+            steps.insert(steps.end(), project_parser->getSteps().begin(), project_parser->getSteps().end());
             break;
         }
         case substrait::Rel::RelTypeCase::kAggregate: {
