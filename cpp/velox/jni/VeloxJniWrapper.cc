@@ -23,10 +23,10 @@
 #include <exception>
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
-#include "compute/VeloxParquetDatasource.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
+#include "operators/writer/VeloxParquetDatasource.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 #include <iostream>

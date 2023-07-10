@@ -1,8 +1,8 @@
 #include "VeloxShuffleWriter.h"
-#include "compute/ArrowTypeUtils.h"
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
+#include "utils/ArrowTypeUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 
 #include "utils/compression.h"

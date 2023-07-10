@@ -25,13 +25,13 @@
 #include <cstring>
 #include <string>
 
-#include "ArrowTypeUtils.h"
 #include "arrow/c/bridge.h"
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/VeloxMemoryPool.h"
+#include "utils/ArrowTypeUtils.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
