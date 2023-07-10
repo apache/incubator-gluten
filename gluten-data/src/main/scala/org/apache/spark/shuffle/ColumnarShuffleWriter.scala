@@ -55,9 +55,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
 
   private val localDirs = SparkDirectoryUtil
     .namespace("shuffle-write")
-    .mkChildDirs(UUID.randomUUID().toString)
-
-  private val localDirsStr = localDirs
+    .all
     .map(_.getAbsolutePath)
     .mkString(",")
 
@@ -124,7 +122,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
             batchCompressThreshold,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
-            localDirsStr,
+            localDirs,
             preferSpill,
             NativeMemoryAllocators.getDefault().createSpillable(
               new Spiller() {
@@ -202,16 +200,6 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
     jniWrapper.close(nativeShuffleWriter)
   }
 
-  def deleteLocalDirs(): Unit = {
-    localDirs.foreach { subDir =>
-      try FileUtils.forceDelete(subDir)
-      catch {
-        case _: Exception =>
-          logError(s"Failed to cleanup Gluten local dir ${subDir.getAbsolutePath}.")
-      }
-    }
-  }
-
   override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
@@ -228,7 +216,6 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
         closeShuffleWriter()
         nativeShuffleWriter = -1L
       }
-      deleteLocalDirs()
     }
   }
 
