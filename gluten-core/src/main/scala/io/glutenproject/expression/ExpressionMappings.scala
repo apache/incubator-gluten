@@ -80,6 +80,7 @@ object ExpressionMappings {
     Sig[StringSplit](SPLIT),
     Sig[Substring](SUBSTRING),
     Sig[ConcatWs](CONCAT_WS),
+    Sig[Left](LEFT),
     Sig[StringRepeat](REPEAT),
     Sig[StringTranslate](TRANSLATE),
     Sig[StringSpace](SPACE),

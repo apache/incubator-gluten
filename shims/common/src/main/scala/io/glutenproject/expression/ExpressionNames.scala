@@ -91,6 +91,7 @@ object ExpressionNames {
   final val SPLIT = "split"
   final val SUBSTRING = "substring"
   final val CONCAT_WS = "concat_ws"
+  final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
   final val SPACE = "space"
