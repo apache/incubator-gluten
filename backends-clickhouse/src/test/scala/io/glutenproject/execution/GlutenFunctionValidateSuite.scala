@@ -172,14 +172,14 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
 
   test("test 'function xxhash64'") {
     val df = runQueryAndCompare(
-      "select xxhash64(id) from range(10)"
+      "select xxhash64(id), xxhash64(cast(id as byte)), xxhash64(cast(id as short)) from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 
   test("test 'function murmur3hash'") {
     val df = runQueryAndCompare(
-      "select hash(id) from range(10)"
+      "select hash(id), hash(cast(id as byte)), hash(cast(id as short)) from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
