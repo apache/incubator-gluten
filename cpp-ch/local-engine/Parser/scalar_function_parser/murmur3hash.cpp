@@ -15,12 +15,12 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-class FunctionParserHash : public FunctionParser
+class FunctionParserMurmur3Hash : public FunctionParser
 {
 public:
-    explicit FunctionParserHash(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserMurmur3Hash(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
 
-    static constexpr auto name = "hash";
+    static constexpr auto name = "murmur3hash";
 
     String getName() const override { return name; }
 
@@ -52,5 +52,5 @@ public:
     }
 };
 
-static FunctionParserRegister<FunctionParserHash> register_hash;
+static FunctionParserRegister<FunctionParserMurmur3Hash> register_murmur3hash;
 }
