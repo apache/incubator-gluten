@@ -141,6 +141,24 @@ static inline void checkException(JNIEnv* env) {
   }
 }
 
+static jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  jmethodID ret = getMethodId(env, thisClass, name, sig);
+  if (ret == nullptr) {
+    std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return ret;
+}
+
+static jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
+  jclass globalClass = createGlobalClassReference(env, className);
+  if (globalClass == nullptr) {
+    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for" + std::string(className);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return globalClass;
+}
+
 class SparkAllocationListener final : public gluten::AllocationListener {
  public:
   SparkAllocationListener(

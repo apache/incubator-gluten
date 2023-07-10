@@ -114,9 +114,11 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // mem cap ratio
   float_t memCapRatio = 0.75;
-  auto got = conf.find(kMemoryCapRatio);
-  if (got != conf.end()) {
-    memCapRatio = std::stof(got->second);
+  {
+    auto got = conf.find(kMemoryCapRatio);
+    if (got != conf.end()) {
+      memCapRatio = std::stof(got->second);
+    }
   }
 
   // mem tracker
@@ -132,9 +134,11 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // spill threshold ratio (out of the memory cap)
   float_t spillThresholdRatio = 0.6;
-  got = conf.find(kSpillThresholdRatio);
-  if (got != conf.end()) {
-    spillThresholdRatio = std::stof(got->second);
+  {
+    auto got = conf.find(kSpillThresholdRatio);
+    if (got != conf.end()) {
+      spillThresholdRatio = std::stof(got->second);
+    }
   }
 
   spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);

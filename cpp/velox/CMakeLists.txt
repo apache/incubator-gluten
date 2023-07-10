@@ -225,6 +225,7 @@ set(VELOX_SRCS
     memory/VeloxColumnarBatch.cc
     utils/VeloxArrowUtils.cc
     utils/ArrowTypeUtils.cc
+    jni/JniFileSystem.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

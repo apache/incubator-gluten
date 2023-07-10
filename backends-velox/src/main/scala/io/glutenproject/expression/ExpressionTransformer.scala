@@ -71,7 +71,7 @@ class GetStructFieldTransformer(substraitExprName: String,
         node.getFieldLiteral(ordinal)
       case node: SelectionNode =>
         // Append the nested index to selection node.
-        node.addNestedChildIdx(new Integer(ordinal))
+        node.addNestedChildIdx(java.lang.Integer.valueOf(ordinal))
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
