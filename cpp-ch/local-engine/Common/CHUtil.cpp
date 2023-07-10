@@ -10,16 +10,13 @@
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <DataTypes/IDataType.h>
 #include <DataTypes/NestedUtils.h>
-#include <DataTypes/Serializations/ISerialization.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsConversion.h>
@@ -27,7 +24,6 @@
 #include <IO/ReadBufferFromFile.h>
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
-#include <Interpreters/castColumn.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/Chunk.h>
@@ -41,6 +37,7 @@
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/Config/ConfigProcessor.h>
+#include <Common/GlutenSignalHandler.h>
 #include <Common/Logger.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
@@ -509,7 +506,7 @@ void BackendInitializerUtil::initConfig(std::string * plan)
 
 void BackendInitializerUtil::initLoggers()
 {
-    auto level = config->getString("logger.level", "error");
+    auto level = config->getString("logger.level", "warning");
     if (config->has("logger.log"))
         local_engine::Logger::initFileLogger(*config, "ClickHouseBackend");
     else
@@ -686,6 +683,8 @@ void BackendInitializerUtil::init(std::string * plan)
         init_flag,
         [&]
         {
+            SignalHandler::instance().init();
+
             registerAllFactories();
             LOG_INFO(logger, "Register all factories.");
 
