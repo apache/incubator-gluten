@@ -54,7 +54,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
 
   private val localDirs = SparkDirectoryUtil
     .namespace("shuffle-write")
-    .mkChildDirs(UUID.randomUUID().toString)
+    .mkChildDirs(dep.shuffleId + "_" + mapId)
 
   private val localDirsStr = localDirs
     .map(_.getAbsolutePath)
