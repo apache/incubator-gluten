@@ -476,7 +476,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
 
       if (errMsg == null) {
         fail(s"Expected null error message, but `$errMsg` found")
-      } else if (!errMsg.contains("")) {
+      } else if (!errMsg.contains(expectedErrMsg)) {
         fail(s"Expected error message is `$expectedErrMsg`, but `$errMsg` found")
       }
     }
