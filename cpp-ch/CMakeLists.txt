@@ -67,6 +67,25 @@ add_custom_command(
         -DENABLE_JEMALLOC=ON
         -DENABLE_MULTITARGET_CODE=ON
         -DENABLE_EXTERN_LOCAL_ENGINE=ON
+        -DENABLE_LIBRARIES=OFF
+        -DENABLE_HDFS=ON
+        -DENABLE_GSASL_LIBRARY=ON
+        -DENABLE_EMBEDDED_COMPILER=ON
+        -DUSE_UNWIND=ON
+        -DENABLE_KRB5=ON
+        -DENABLE_RAPIDJSON=ON
+        -DENABLE_AWS_S3=ON
+        -DENABLE_PARQUET=ON
+        -DENABLE_BROTLI=ON
+        -DENABLE_THRIFT=ON
+        -DENABLE_HIVE=ON
+        -DENABLE_ODBC=OFF
+        -DENABLE_SIMDJSON=ON
+        -DENABLE_FASTOPS=ON
+        -DENABLE_LIBURING=ON
+        -DENABLE_ISAL_LIBRARY=ON
+        -DENABLE_VECTORSCAN=ON
+        -DENABLE_CLICKHOUSE_ALL=OFF
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
         cmake --build ${CH_BINARY_DIR} --target ch\"
