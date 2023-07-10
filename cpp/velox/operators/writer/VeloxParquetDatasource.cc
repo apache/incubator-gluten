@@ -77,7 +77,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
-  auto compressionCodec = CompressionKind::CompressionKind_NONE;
+  auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
     // spark support none, uncompressed, snappy, gzip, lzo, brotli, lz4, zstd.
