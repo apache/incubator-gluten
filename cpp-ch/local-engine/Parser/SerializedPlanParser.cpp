@@ -1221,6 +1221,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this);
     if (func_parser)
     {
+        LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "parse function {} by function parser: {}", func_name, func_parser->getName());
         const auto * result_node = func_parser->parse(scalar_function, actions_dag);
         if (keep_result)
             actions_dag->addOrReplaceInOutputs(*result_node);

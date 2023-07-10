@@ -18,9 +18,9 @@ package io.glutenproject.execution
 
 import io.glutenproject.extension.GlutenPlan
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding, NullPropagation}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.functions.{col, rand, when}
 import org.apache.spark.sql.internal.SQLConf
@@ -453,6 +453,40 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80, '??') " +
         s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test slice function") {
+    val sql =
+      """
+        |select slice(arr, 1, 5), slice(arr, 1, 100), slice(arr, -2, 5), slice(arr, 1, n_nationkey),
+        |slice(null, 1, 2), slice(arr, null, 2), slice(arr, 1, null)
+        |from (select split(n_comment, ' ') as arr, n_nationkey from nation) t
+        |""".stripMargin
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test slice function with unexpected arguments") {
+    def checkException(sql: String, expectedErrMsg: String): Unit = {
+      val errMsg = intercept[SparkException] {
+        spark.sql(sql).collect()
+      }.getMessage
+
+      if (errMsg == null) {
+        fail(s"Expected null error message, but `$errMsg` found")
+      } else if (!errMsg.contains(expectedErrMsg)) {
+        fail(s"Expected error message is `$expectedErrMsg`, but `$errMsg` found")
+      }
+    }
+
+    checkException(
+      "select slice(split(n_comment, ' '), n_regionkey, 5) from nation",
+      "Unexpected value for start")
+    checkException(
+      "select slice(split(n_comment, ' '), 1, -5) from nation",
+      "Unexpected value for length")
   }
 
   test("test 'function regexp_extract_all'") {
