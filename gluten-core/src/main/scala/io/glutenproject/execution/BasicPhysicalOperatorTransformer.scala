@@ -406,7 +406,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
       return notOk(s"schema check failed, $schema")
     }

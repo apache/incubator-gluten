@@ -35,7 +35,7 @@ import org.apache.spark.sql.execution.SparkPlan
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) with TransformSupport {
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     val leftCondition = getLeftCondition
     if (leftCondition == null) {
       // All the filters can be pushed down and the computing of this Filter

@@ -47,7 +47,7 @@ case class CHShuffledHashJoinExecTransformer(
       newRight: SparkPlan): CHShuffledHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
     if (shouldFallback) {
