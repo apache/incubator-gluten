@@ -18,14 +18,12 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.ValidatorApi
-
-import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, TimestampType}
+import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, NullType, ShortType, StringType, StructType, TimestampType}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidatorInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.StructType
 
 class Validator extends ValidatorApi {
 
@@ -62,6 +60,7 @@ class Validator extends ValidatorApi {
         case _: MapType =>
         case _: StructType =>
         case _: ArrayType =>
+        case _: NullType =>
         case _ => return false
       }
     }
