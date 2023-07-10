@@ -20,12 +20,10 @@ package io.glutenproject.init;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import org.apache.spark.sql.internal.SQLConf;
-import org.apache.spark.util.memory.TaskResourceManager;
-import org.apache.spark.util.memory.TaskResources;
 
 import java.util.Map;
 
-// Initialize global / local contexts before calling any native methods from Java side.
+// Initialize global contexts before calling any native methods from Java side.
 public abstract class JniInitialized {
   static {
     String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
@@ -34,41 +32,5 @@ public abstract class JniInitialized {
     InitializerJniWrapper.initialize(JniUtils.toNativeConf(nativeConfMap));
   }
 
-  protected JniInitialized() {
-    if (!TaskResources.inSparkTask()) {
-      return;
-    }
-
-    if (!TaskResources.isResourceManagerRegistered(TaskContextManager.RESOURCE_ID)) {
-      TaskResources.addResourceManager(TaskContextManager.RESOURCE_ID, new TaskContextManager());
-    }
-  }
-
-  protected long getBackendHandle() {
-    if (!TaskResources.isResourceManagerRegistered(TaskContextManager.RESOURCE_ID)) {
-      throw new IllegalStateException("Resource not registered: " + TaskContextManager.RESOURCE_ID);
-    }
-    return ((TaskContextManager) TaskResources.getResourceManager(
-        TaskContextManager.RESOURCE_ID)).handle;
-  }
-
-  // manages lifecycles of native thread-local task contexts
-  private static class TaskContextManager implements TaskResourceManager {
-    private static final String RESOURCE_ID = TaskContextManager.class.toString();
-    private final long handle;
-
-    private TaskContextManager() {
-      handle = InitializerJniWrapper.makeTaskContext();
-    }
-
-    @Override
-    public void release() throws Exception {
-      InitializerJniWrapper.closeTaskContext(handle);
-    }
-
-    @Override
-    public long priority() {
-      return TaskResourceManager.super.priority();
-    }
-  }
+  protected JniInitialized() {}
 }

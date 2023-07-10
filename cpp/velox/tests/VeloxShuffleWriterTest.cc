@@ -136,9 +136,9 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     return fileReader;
   }
 
-  void splitRowVector(VeloxShuffleWriter& shuffle_writer, velox::RowVectorPtr vector) {
+  void splitRowVector(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-    GLUTEN_THROW_NOT_OK(shuffle_writer.split(cb));
+    GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb));
   }
 
   RowVectorPtr takeRows(const RowVectorPtr& source, const std::vector<int32_t>& idxs) const {
@@ -175,16 +175,11 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     }
   }
 
-  void testShuffleWriteMultiBlocks(
+  void shuffleWriteReadMultiBlocks(
       VeloxShuffleWriter& shuffleWriter,
-      std::vector<velox::RowVectorPtr> vectors,
       int32_t expectPartitionLength,
       TypePtr dataType,
       std::vector<std::vector<velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
-    for (auto& vector : vectors) {
-      splitRowVector(shuffleWriter, vector);
-    }
-
     ASSERT_NOT_OK(shuffleWriter.stop());
     // verify data file
     checkFileExists(shuffleWriter.dataFile());
@@ -215,6 +210,30 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
         velox::test::assertEqualVectors(expectedVectors[i][j], deserialized);
       }
     }
+  }
+
+  void testShuffleWriteMultiBlocks(
+      VeloxShuffleWriter& shuffleWriter,
+      std::vector<std::shared_ptr<ColumnarBatch>> batches,
+      int32_t expectPartitionLength,
+      TypePtr dataType,
+      std::vector<std::vector<velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
+    for (auto& batch : batches) {
+      GLUTEN_THROW_NOT_OK(shuffleWriter.split(batch));
+    }
+    shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
+  }
+
+  void testShuffleWriteMultiBlocks(
+      VeloxShuffleWriter& shuffleWriter,
+      std::vector<velox::RowVectorPtr> vectors,
+      int32_t expectPartitionLength,
+      TypePtr dataType,
+      std::vector<std::vector<velox::RowVectorPtr>> expectedVectors) {
+    for (auto& vector : vectors) {
+      splitRowVector(shuffleWriter, vector);
+    }
+    shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
   }
 
   std::shared_ptr<arrow::internal::TemporaryDir> tmpDir1_;
@@ -488,15 +507,15 @@ TEST_P(VeloxShuffleWriterTest, rangePartition) {
   ARROW_ASSIGN_OR_THROW(
       shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_))
 
-  auto children1 = inputVector1_->children();
-  std::vector<VectorPtr> rangeVectorChildren1 = {makeFlatVector<int32_t>({0, 1, 0, 1, 0, 1, 0, 1, 0, 1})};
-  rangeVectorChildren1.insert(rangeVectorChildren1.end(), children1.begin(), children1.end());
-  auto rangeVector1 = makeRowVector(rangeVectorChildren1);
+  auto pid1 = makeRowVector({makeFlatVector<int32_t>({0, 1, 0, 1, 0, 1, 0, 1, 0, 1})});
+  auto rangeVector1 = makeRowVector(inputVector1_->children());
+  auto compositeBatch1 = CompositeColumnarBatch::create(
+      {std::make_shared<VeloxColumnarBatch>(pid1), std::make_shared<VeloxColumnarBatch>(rangeVector1)});
 
-  auto children2 = inputVector2_->children();
-  std::vector<VectorPtr> rangeVectorChildren2 = {makeFlatVector<int32_t>({0, 1})};
-  rangeVectorChildren2.insert(rangeVectorChildren2.end(), children2.begin(), children2.end());
-  auto rangeVector2 = makeRowVector(rangeVectorChildren2);
+  auto pid2 = makeRowVector({makeFlatVector<int32_t>({0, 1})});
+  auto rangeVector2 = makeRowVector(inputVector2_->children());
+  auto compositeBatch2 = CompositeColumnarBatch::create(
+      {std::make_shared<VeloxColumnarBatch>(pid2), std::make_shared<VeloxColumnarBatch>(rangeVector2)});
 
   auto block1Pid1 = takeRows(inputVector1_, {0, 2, 4, 6, 8});
   auto block2Pid1 = takeRows(inputVector2_, {0});
@@ -506,7 +525,7 @@ TEST_P(VeloxShuffleWriterTest, rangePartition) {
 
   testShuffleWriteMultiBlocks(
       *shuffleWriter_,
-      {rangeVector1, rangeVector2, rangeVector1},
+      {compositeBatch1, compositeBatch2, compositeBatch1},
       2,
       inputVector1_->type(),
       {{block1Pid1, block2Pid1, block1Pid1}, {block1Pid2, block2Pid2, block1Pid2}});

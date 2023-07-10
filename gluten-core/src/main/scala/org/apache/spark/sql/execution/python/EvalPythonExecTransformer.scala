@@ -58,7 +58,7 @@ case class EvalPythonExecTransformer(
       iter: Iterator[InternalRow],
       schema: StructType,
       context: TaskContext): Iterator[InternalRow] = {
-    throw new NotImplementedError("EvalPythonExecTransformer doesn't support evaluate")
+    throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
   }
 
   override protected def doExecute(): RDD[InternalRow] = {

@@ -32,6 +32,9 @@
 
 namespace gluten {
 
+/**
+ * For testing.
+ */
 arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb);
 
 /**

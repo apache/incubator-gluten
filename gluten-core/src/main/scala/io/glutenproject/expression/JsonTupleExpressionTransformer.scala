@@ -22,8 +22,8 @@ import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.ListNode
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Expression, JsonTuple}
-import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.catalyst.expressions.Expression
+
 
 case class JsonTupleExpressionTransformer(
     substraitExprName: String,

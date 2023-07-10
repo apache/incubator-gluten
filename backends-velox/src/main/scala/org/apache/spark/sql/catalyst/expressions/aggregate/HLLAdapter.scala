@@ -19,7 +19,7 @@ package org.apache.spark.sql.catalyst.expressions.aggregate
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.trees.BinaryLike
-import org.apache.spark.sql.catalyst.util.{ArrayData, HyperLogLogPlusPlusHelper}
+import org.apache.spark.sql.catalyst.util.HyperLogLogPlusPlusHelper
 import org.apache.spark.sql.types._
 
 // HLL in Velox's intermediate type is binary, which is different from spark HLL.
@@ -38,7 +38,7 @@ case class HLLAdapter(
       mutableAggBufferOffset = 0,
       inputAggBufferOffset = 0)
   }
-  
+
   private lazy val relativeSD = HyperLogLogPlusPlus.validateDoubleLiteral(relativeSDExpr)
 
   private lazy val hllppHelper = new HyperLogLogPlusPlusHelper(relativeSD)
@@ -50,7 +50,7 @@ case class HLLAdapter(
   }
 
   private lazy val projection = UnsafeProjection.create(aggBufferDataType)
-  
+
   private lazy val row = new UnsafeRow(hllppHelper.numWords)
 
   override def prettyName: String = "approx_count_distinct_velox"

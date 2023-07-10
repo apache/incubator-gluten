@@ -279,6 +279,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * add trim node for trimming space or whitespace. See spark's Cast.scala.
    */
   override def genCastWithNewChild(c: Cast): Cast = {
+    // scalastyle:off nonascii
     // Common whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
     val trimWhitespaceStr = " \t\n\u000B\u000C\u000D\u001C\u001D\u001E\u001F"
     // Space separator.
@@ -290,6 +291,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     val trimParaSepStr = "\u2029"
     // Needs to be trimmed for casting to float/double/decimal
     val trimSpaceStr = ('\u0000' to '\u0020').toList.mkString
+    // scalastyle:on nonascii
     c.dataType match {
       case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
         c

@@ -27,6 +27,7 @@
 #include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "utils/TaskContext.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;
@@ -112,9 +113,9 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
 std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
     MemoryAllocator* allocator,
     struct ArrowSchema* cSchema) {
-  // TODO: wait to fix task memory pool
-  auto veloxPool = defaultLeafVeloxMemoryPool();
-  // AsWrappedVeloxAggregateMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
+  auto veloxAggregatePool = asAggregateVeloxMemoryPool(allocator);
+  auto veloxPool = veloxAggregatePool->addLeafChild("row_to_columnar");
+  gluten::bindToTask(veloxPool);
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 

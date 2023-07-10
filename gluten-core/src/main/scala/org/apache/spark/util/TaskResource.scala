@@ -14,14 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.expression
 
-object TransformerState {
-  private lazy val validationState = new ThreadLocal[Integer] {
-    override def initialValue: Integer = 0
-  }
-  def underValidationState: Boolean = validationState.get() > 0
+package org.apache.spark.util
 
-  def enterValidation: Unit = validationState.set(validationState.get() + 1)
-  def finishValidation: Unit = validationState.set(validationState.get() - 1)
+/**
+ * Manages the lifecycle for a specific type of memory resource managed by Spark. See also
+ * `org.apache.spark.util.TaskResources`.
+ */
+trait TaskResource {
+  @throws(classOf[Exception])
+  def release(): Unit
+
+  // #release() will be called in higher precedence if the manager has higher priority
+  def priority(): Long = 100
 }

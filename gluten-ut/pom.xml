@@ -162,20 +162,11 @@
             <jvmArgs>
               <jvmArg>-Xss128m</jvmArg>
             </jvmArgs>
-            <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
-              <arg>-Ywarn-unused:imports</arg>
-              <arg>-Xfatal-warnings</arg>
-              <arg>-deprecation</arg>
-            </args>
           </configuration>
         </plugin>
         <plugin>
           <groupId>org.scalastyle</groupId>
           <artifactId>scalastyle-maven-plugin</artifactId>
-          <configuration>
-            <configLocation>${project.basedir}/../../scalastyle-config.xml</configLocation>
-          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
