@@ -13,6 +13,8 @@
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
 #include <Common/StringUtils/StringUtils.h>
 
+#include <Operator/EmptyHashAggregate.h>
+
 namespace DB
 {
 namespace ErrorCodes
@@ -33,6 +35,15 @@ DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const su
 {
     setup(std::move(query_plan), rel);
     LOG_TRACE(logger, "original header is: {}", plan->getCurrentDataStream().header.dumpStructure());
+    if (rel.aggregate().measures().empty() && (rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty()))
+    {
+        LOG_TRACE(&Poco::Logger::get("AggregateRelParser"), "Empty aggregate step");
+        auto empty_agg = std::make_unique<EmptyHashAggregateStep>(plan->getCurrentDataStream());
+        empty_agg->setStepDescription("Empty aggregate");
+        steps.push_back(empty_agg.get());
+        plan->addStep(std::move(empty_agg));
+        return std::move(plan);
+    }
     addPreProjection();
     LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentDataStream().header.dumpStructure());
     if (has_final_stage)
