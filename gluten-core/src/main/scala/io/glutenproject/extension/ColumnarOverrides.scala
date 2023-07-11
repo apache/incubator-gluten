@@ -20,10 +20,9 @@ package io.glutenproject.extension
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.columnar._
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.GlutenRemoveRedundantSorts
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -166,7 +165,7 @@ case class TransformPreOverrides(
    * */
   private def addProjectionForShuffleExchange(plan: ShuffleExchangeExec): (Int, Partitioning,
     SparkPlan) = {
-    def selectEpxressions(exprs: Seq[Expression], attributes: Seq[Attribute])
+    def selectExpressions(exprs: Seq[Expression], attributes: Seq[Attribute])
     : (Seq[NamedExpression], Seq[Int]) = {
       var expressionPos = Seq[Int]()
       var projectExpressions = Seq[NamedExpression]()
@@ -190,7 +189,9 @@ case class TransformPreOverrides(
     plan.outputPartitioning match {
       case HashPartitioning(exprs, numPartitions) =>
         val (projectExpressions, newExpressionsPosition) = {
-          selectEpxressions(exprs, plan.child.output)
+          selectExpressions(exprs,
+            BackendsApiManager.getTransformerApiInstance
+              .getPlanOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
@@ -206,7 +207,9 @@ case class TransformPreOverrides(
       case RangePartitioning(orderings, numPartitions) =>
         val exprs = orderings.map(ordering => ordering.child)
         val (projectExpressions, newExpressionsPosition) = {
-          selectEpxressions(exprs, plan.child.output)
+          selectExpressions(exprs,
+            BackendsApiManager.getTransformerApiInstance
+              .getPlanOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)

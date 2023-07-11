@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
+import io.glutenproject.execution.CHHashAggregateExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
@@ -26,9 +27,11 @@ import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.types.StructField
@@ -137,5 +140,17 @@ class CHTransformerApi extends TransformerApi with Logging {
 
   override def getSupportExpressionClassName: util.Set[String] = {
     ExpressionDocUtil.supportExpression()
+  }
+
+  override def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
+    plan match {
+      case hash: HashAggregateExec =>
+        CHHashAggregateExecTransformer.getAggregateResultAttributes(
+          hash.groupingExpressions,
+          hash.aggregateExpressions)
+      case _ =>
+        plan.output
+    }
+
   }
 }

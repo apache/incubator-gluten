@@ -18,9 +18,11 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructField
 
@@ -62,5 +64,9 @@ trait TransformerApi {
 
   def getSupportExpressionClassName: util.Set[String] = {
     util.Collections.emptySet()
+  }
+
+  def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
+    plan.output
   }
 }
