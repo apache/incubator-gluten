@@ -69,7 +69,7 @@ spark-shell \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
  --conf spark.gluten.loadLibFromJar=true \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
- --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
+ --jars https://github.com/oap-project/gluten/releases/download/1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-1.0.0.jar
 ```
 
 # 3.2 Custom Build
@@ -78,7 +78,7 @@ Alternatively, you can build gluten from source, then do some configurations to 
 
 ```
 export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
-spark-shell 
+spark-shell
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
