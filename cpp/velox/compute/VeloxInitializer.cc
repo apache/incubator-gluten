@@ -20,9 +20,9 @@
 
 #include <folly/executors/IOThreadPoolExecutor.h>
 
-#include "RegistrationAllFunctions.h"
-#include "RowVectorStream.h"
 #include "config/GlutenConfig.h"
+#include "operators/functions/RegistrationAllFunctions.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "utils/exception.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/serializers/PrestoSerializer.h"

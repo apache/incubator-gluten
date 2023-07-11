@@ -126,10 +126,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     if (bucketedScan) {
       throw new UnsupportedOperationException("bucketed scan is not supported")
     }
-    if (relation.options.exists(option =>
-      option._1 == mergeSchemaOptionKey && option._2 == "true")) {
-      throw new UnsupportedOperationException(s"option $mergeSchemaOptionKey is not supported.")
-    }
     super.doValidateInternal()
   }
 

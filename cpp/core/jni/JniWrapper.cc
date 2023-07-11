@@ -562,10 +562,8 @@ JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowInit( // NOLINT
     JNIEnv* env,
     jobject,
-    jlong batchHandle,
     jlong allocatorId) {
   JNI_METHOD_START
-  std::shared_ptr<ColumnarBatch> cb = columnarBatchHolder.lookup(batchHandle);
   // convert the native batch to Spark unsafe row.
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);
   if (allocator == nullptr) {
@@ -573,7 +571,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
   }
   auto backend = gluten::createBackend();
   std::shared_ptr<ColumnarToRowConverter> columnarToRowConverter =
-      gluten::arrowGetOrThrow(backend->getColumnar2RowConverter((*allocator).get(), cb));
+      gluten::arrowGetOrThrow(backend->getColumnar2RowConverter((*allocator).get()));
   int64_t instanceID = columnarToRowConverterHolder.insert(columnarToRowConverter);
   return instanceID;
   JNI_METHOD_END(-1)

@@ -31,10 +31,10 @@
 
 #include <chrono>
 
-#include "compute/VeloxColumnarToRowConverter.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
+#include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "utils/TestUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 

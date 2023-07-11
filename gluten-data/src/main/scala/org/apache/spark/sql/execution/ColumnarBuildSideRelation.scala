@@ -106,7 +106,8 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
 
     // Convert columnar to Row.
     val jniWrapper = new NativeColumnarToRowJniWrapper()
-    var c2rId = -1L
+    val c2rId = jniWrapper.nativeColumnarToRowInit(
+      NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
     var closed = false
     var batchId = 0
     val iterator = if (batches.length > 0) {
@@ -134,11 +135,6 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
             batch.close()
             rows
           } else {
-            if (c2rId == -1) {
-              c2rId = jniWrapper.nativeColumnarToRowInit(
-                batchHandle,
-                NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
-            }
             val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
             batch.close()
             val columnNames = key.flatMap {

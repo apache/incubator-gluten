@@ -19,8 +19,8 @@
 #include <compute/VeloxBackend.h>
 
 #include "BenchmarkUtils.h"
-#include "compute/ArrowTypeUtils.h"
 #include "compute/VeloxPlanConverter.h"
+#include "utils/ArrowTypeUtils.h"
 
 using namespace facebook;
 using namespace gluten;

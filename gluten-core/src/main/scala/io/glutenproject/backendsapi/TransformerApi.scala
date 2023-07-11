@@ -18,6 +18,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -62,5 +63,9 @@ trait TransformerApi {
 
   def getSupportExpressionClassName: util.Set[String] = {
     util.Collections.emptySet()
+  }
+
+  def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
+    plan.output
   }
 }

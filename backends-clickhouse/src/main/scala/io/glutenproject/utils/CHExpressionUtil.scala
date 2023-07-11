@@ -18,18 +18,17 @@ package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionNames._
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Expression, GetJsonObject, Literal}
 
-trait FunctionValidator extends Logging {
-  def doValidate(expr: Expression): Boolean = false
+trait FunctionValidator {
+  def doValidate(expr: Expression): Boolean
 }
 
-class DefaultBlackList() extends FunctionValidator {
+case class DefaultValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = false
 }
 
-class UnixTimeStampValidator() extends FunctionValidator {
+case class UnixTimeStampValidator() extends FunctionValidator {
   final val DATE_TYPE = "date"
 
   override def doValidate(expr: Expression): Boolean = {
@@ -37,7 +36,7 @@ class UnixTimeStampValidator() extends FunctionValidator {
   }
 }
 
-class GetJsonObjectValidator() extends FunctionValidator {
+case class GetJsonObjectValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = {
     val path = expr.asInstanceOf[GetJsonObject].path
     if (!path.isInstanceOf[Literal]) {
@@ -52,35 +51,21 @@ class GetJsonObjectValidator() extends FunctionValidator {
   }
 }
 
-class ValidatorUtil(validator: FunctionValidator) {
-  def doValidate(expr: Expression): Boolean = validator.doValidate(expr)
-}
 object CHExpressionUtil {
 
-  /**
-   * The blacklist for Clickhouse unsupported or mismatched expression / aggregate function with
-   * specific input type.
-   */
-  final val EMPTY_TYPE = ""
-  final val ARRAY_TYPE = "array"
-  final val MAP_TYPE = "map"
-  final val STRUCT_TYPE = "struct"
-  final val STRING_TYPE = "string"
-
-  final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, ValidatorUtil] = Map(
-    BLOOM_FILTER_AGG -> new ValidatorUtil(new DefaultBlackList)
+  final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
+    BLOOM_FILTER_AGG -> DefaultValidator()
   )
 
-  final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, ValidatorUtil] = Map(
-    SPLIT_PART -> new ValidatorUtil(new DefaultBlackList),
-    TO_UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
-    UNIX_TIMESTAMP -> new ValidatorUtil(new UnixTimeStampValidator),
-    MIGHT_CONTAIN -> new ValidatorUtil(new DefaultBlackList),
-    GET_JSON_OBJECT -> new ValidatorUtil(new GetJsonObjectValidator),
-    ARRAY_MAX -> new ValidatorUtil(new DefaultBlackList),
-    ARRAY_MIN -> new ValidatorUtil(new DefaultBlackList),
-    SLICE -> new ValidatorUtil(new DefaultBlackList),
-    ARRAYS_OVERLAP -> new ValidatorUtil(new DefaultBlackList),
-    SORT_ARRAY -> new ValidatorUtil(new DefaultBlackList)
+  final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, FunctionValidator] = Map(
+    SPLIT_PART -> DefaultValidator(),
+    TO_UNIX_TIMESTAMP -> UnixTimeStampValidator(),
+    UNIX_TIMESTAMP -> UnixTimeStampValidator(),
+    MIGHT_CONTAIN -> DefaultValidator(),
+    GET_JSON_OBJECT -> GetJsonObjectValidator(),
+    ARRAY_MAX -> DefaultValidator(),
+    ARRAY_MIN -> DefaultValidator(),
+    ARRAYS_OVERLAP -> DefaultValidator(),
+    SORT_ARRAY -> DefaultValidator()
   )
 }
