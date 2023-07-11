@@ -85,6 +85,10 @@ add_custom_command(
         -DENABLE_ANNOY=OFF
         -DENABLE_ULID=OFF
         -DENABLE_MYSQL=OFF
+        -DENABLE_BCRYPT=OFF
+        -DENABLE_LDAP=OFF
+        -DENABLE_MSGPACK=OFF
+        -DUSE_REPLXX=OFF
         -DENABLE_CLICKHOUSE_ALL=OFF
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
