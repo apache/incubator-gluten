@@ -66,6 +66,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"bround", "roundBankers"},
        {"exp", "exp"},
        {"power", "power"},
+       {"pow", "power"},
        {"cos", "cos"},
        {"cosh", "cosh"},
        {"sin", "sin"},
