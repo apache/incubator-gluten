@@ -1116,7 +1116,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     auto payload = std::make_shared<arrow::ipc::IpcPayload>();
 #ifndef SKIPCOMPRESS
     // Extract numRows from header column
-    auto numRows = *reinterpret_cast<uint32_t*>(rb.column_data(0)->buffers[2]->mutable_data());
+    ARROW_ASSIGN_OR_RAISE(auto numRows, getRecordBatchNumRows(rb));
     auto isTinyBatch = numRows <= options_.batch_compress_threshold;
 #else
   auto isTinyBatch = true;
@@ -1370,6 +1370,22 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       RETURN_NOT_OK(resetValidityBuffers(partitionId));
     }
     return arrow::Status::OK();
+  }
+
+  arrow::Result<uint32_t> VeloxShuffleWriter::getRecordBatchNumRows(const arrow::RecordBatch& rb) {
+    // Check header column
+    if (rb.num_columns() < 1) {
+      return arrow::Status::Invalid("Header column num_columns() < 1");
+    }
+    auto& buffers = rb.column_data(0)->buffers;
+    if (buffers.size() != 3) {
+      return arrow::Status::Invalid("Header column buffers.size() != 3");
+    }
+    if (buffers[2]->size() != kDefaultBufferAlignment) {
+      std::cout << buffers[2]->size() << std::endl;
+      return arrow::Status::Invalid("Header column wrong buffer size");
+    }
+    return *reinterpret_cast<uint32_t*>(buffers[2]->mutable_data());
   }
 
 } // namespace gluten
