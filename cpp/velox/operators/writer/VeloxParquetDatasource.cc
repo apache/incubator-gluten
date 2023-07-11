@@ -46,7 +46,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
 
   auto veloxPool = asAggregateVeloxMemoryPool(gluten::defaultMemoryAllocator().get());
-  pool_ = veloxPool->addLeafChild("velox_parquet_write");
+  pool_ = veloxPool->addAggregateChild("velox_parquet_write");
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
