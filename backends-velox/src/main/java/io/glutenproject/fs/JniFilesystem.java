@@ -17,12 +17,13 @@
 
 package io.glutenproject.fs;
 
+import org.apache.commons.lang3.NotImplementedException;
+
 // Mirror of C++ side gluten::JniFileSystem, only for handling calls from C++ via JNI
 public interface JniFilesystem {
 
   static JniFilesystem getFileSystem(String path) {
-    // todo
-    return null;
+    throw new NotImplementedException("TODO"); // implementations on the way
   }
 
   ReadFile openFileForRead(String path); // todo read Map<String, String> as write options

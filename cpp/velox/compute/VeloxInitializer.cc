@@ -36,6 +36,7 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
+#include "jni/JniFileSystem.h"
 
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(SkipRowSortInWindowOp);
@@ -99,6 +100,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   FLAGS_SkipRowSortInWindowOp = true;
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
+  gluten::registerJniFileSystem(); // JNI filesystem, for spilling-to-heap if we have extra JVM heap spaces
 
   // spill mode
   std::string spillStrategy;

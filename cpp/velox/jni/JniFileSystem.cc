@@ -78,8 +78,8 @@ void gluten::initVeloxJniFileSystem(JNIEnv* env) {
       getMethodIdOrError(env, jniFileSystemClass, "rename", "(Ljava/lang/String;Ljava/lang/String;Z)V");
   jniFileSystemExists = getMethodIdOrError(env, jniFileSystemClass, "exists", "(Ljava/lang/String;)Z");
   jniFileSystemList = getMethodIdOrError(env, jniFileSystemClass, "list", "(Ljava/lang/String;)[Ljava/lang/String;");
-  jniFileSystemMkdir = getMethodIdOrError(env, jniFileSystemClass, "list", "(Ljava/lang/String;)V");
-  jniFileSystemRmdir = getMethodIdOrError(env, jniFileSystemClass, "list", "(Ljava/lang/String;)V");
+  jniFileSystemMkdir = getMethodIdOrError(env, jniFileSystemClass, "mkdir", "(Ljava/lang/String;)V");
+  jniFileSystemRmdir = getMethodIdOrError(env, jniFileSystemClass, "rmdir", "(Ljava/lang/String;)V");
 
   // methods in JniFilesystem$ReadFile
   jniReadFilePread = getMethodIdOrError(env, jniReadFileClass, "pread", "(JJJ)V");
@@ -92,7 +92,7 @@ void gluten::initVeloxJniFileSystem(JNIEnv* env) {
   jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", "([B)V");
   jniWriteFileFlush = getMethodIdOrError(env, jniWriteFileClass, "flush", "()V");
   jniWriteFileClose = getMethodIdOrError(env, jniWriteFileClass, "close", "()V");
-  jniWriteFileSize = getMethodIdOrError(env, jniWriteFileClass, "size", "()V");
+  jniWriteFileSize = getMethodIdOrError(env, jniWriteFileClass, "size", "()J");
 }
 
 void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {

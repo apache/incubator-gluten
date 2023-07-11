@@ -339,12 +339,12 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     jint partitionId,
     jlong taskId,
     jboolean saveInput,
-    jstring localDir,
+    jstring spillDir,
     jbyteArray confArr) {
   JNI_METHOD_START
   arrow::Status msg;
 
-  auto localDirStr = jStringToCString(env, localDir);
+  auto spillDirStr = jStringToCString(env, spillDir);
 
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArr, nullptr));
   auto planSize = env->GetArrayLength(planArr);
@@ -381,7 +381,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   }
 
   std::shared_ptr<ResultIterator> resIter =
-      backend->getResultIterator((*allocator).get(), localDirStr, inputIters, confs);
+      backend->getResultIterator((*allocator).get(), spillDirStr, inputIters, confs);
   return resultIteratorHolder.insert(std::move(resIter));
   JNI_METHOD_END(-1)
 }

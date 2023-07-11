@@ -56,7 +56,7 @@ public class PlanEvaluatorJniWrapper extends JniInitialized {
       int partitionId,
       long taskId,
       boolean saveInputToFile,
-      String localDir,
+      String spillDir,
       byte[] confPlan) throws RuntimeException;
 
   /**
