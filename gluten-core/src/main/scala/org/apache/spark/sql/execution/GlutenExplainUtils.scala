@@ -38,6 +38,15 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
   private def collectFallbackNodes(plan: QueryPlan[_]): (Int, Map[String, String]) = {
     var numGlutenNodes = 0
     val fallbackNodeToReason = new mutable.HashMap[String, String]
+
+    def addFallbackNodeWithReason(p: SparkPlan, reason: String): Unit = {
+      p.getTagValue(QueryPlan.OP_ID_TAG).foreach { opId =>
+        // e.g., 002 project, it is used to help analysis by `substring(4)`
+        val formattedNodeName = f"${opId}%03d ${p.nodeName}"
+        fallbackNodeToReason.put(formattedNodeName, reason)
+      }
+    }
+
     def collect(tmp: QueryPlan[_]): Unit = {
       tmp.foreachUp {
         case _: WholeStageCodegenExec =>
@@ -49,13 +58,12 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
           p.innerChildren.foreach(collect)
         case p: SparkPlan =>
           p.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
-            case Some(reason) =>
-              val opId = p.getTagValue(QueryPlan.OP_ID_TAG)
-              assert(opId.isDefined)
-              // e.g., 002 project, it is used to help analysis by `substring(4)`
-              val formattedNodeName = f"${opId.get}%03d ${p.nodeName}"
-              fallbackNodeToReason.put(formattedNodeName, reason)
+            case Some(reason) => addFallbackNodeWithReason(p, reason)
             case _ =>
+              // If the SparkPlan does not have fallback reason, then there are two options:
+              // 1. Gluten ignore that plan and it's a kind of fallback
+              // 2. Gluten does not support it without the fallback reason
+              addFallbackNodeWithReason(p, "Gluten does not touch it or does not support it")
           }
           p.innerChildren.foreach(collect)
         case _ =>

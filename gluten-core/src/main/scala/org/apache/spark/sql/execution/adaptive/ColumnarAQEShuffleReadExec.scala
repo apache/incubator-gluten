@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.adaptive
 
+import io.glutenproject.extension.GlutenPlan
+
 import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -34,11 +36,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * @param child          It is usually `ShuffleQueryStageExec`, but can be the shuffle exchange
  *                       node during canonicalization.
  * @param partitionSpecs The partition specs that defines the arrangement.
- * @param description    The string description of this shuffle reader.
  */
-case class ColumnarAQEShuffleReadExec(child: SparkPlan,
-                                      partitionSpecs: Seq[ShufflePartitionSpec])
-  extends UnaryExecNode {
+case class ColumnarAQEShuffleReadExec(
+    child: SparkPlan,
+    partitionSpecs: Seq[ShufflePartitionSpec])
+  extends UnaryExecNode with GlutenPlan {
   // We don't extends AQEShuffleReadExec since it has private constructor
 
   override lazy val outputPartitioning: Partitioning = {
