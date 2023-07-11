@@ -67,7 +67,7 @@ arrow::Status VeloxColumnarToRowConverter::init() {
 
 arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  rv_ = veloxBatch->getFlattenedRowVector();
+  rv_ = veloxBatch->getRowVector();
   RETURN_NOT_OK(init());
 
   // Initialize the offsets_ , lengths_
