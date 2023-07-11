@@ -45,13 +45,10 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
-case class TransformPreOverrides(
-  isTopParentExchange: Boolean,
-  isAdaptiveContext: Boolean) extends Rule[SparkPlan] {
+case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  val isAdaptiveContextOrTopParentExchange = isTopParentExchange || isAdaptiveContext
   val reuseSubquery = isAdaptiveContext && conf.subqueryReuseEnabled
 
   /**
@@ -334,8 +331,7 @@ case class TransformPreOverrides(
       case plan: TakeOrderedAndProjectExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
-        TakeOrderedAndProjectExecTransformer(plan.limit, plan.sortOrder, plan.projectList, child,
-          isAdaptiveContextOrTopParentExchange)
+        TakeOrderedAndProjectExecTransformer(plan.limit, plan.sortOrder, plan.projectList, child)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
@@ -347,15 +343,12 @@ case class TransformPreOverrides(
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
                   ColumnarShuffleUtil.genColumnarShuffleExchange(
-                    plan, projectChild, isAdaptiveContextOrTopParentExchange,
-                    projectChild.output.drop(1))
+                    plan, projectChild, projectChild.output.drop(1))
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
-                ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child,
-                  isAdaptiveContextOrTopParentExchange = isAdaptiveContextOrTopParentExchange,
-                  null)
+                ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
             }
           } else if (BackendsApiManager.getSettings.supportShuffleWithProject(plan
             .outputPartitioning, plan.child)) {
@@ -367,20 +360,17 @@ case class TransformPreOverrides(
                 val newPlan = ShuffleExchangeExec(newPartitioning, newChild, plan.shuffleOrigin)
                 // the new projections columns are appended at the end.
                 ColumnarShuffleUtil.genColumnarShuffleExchange(
-                  newPlan, newChild, isAdaptiveContextOrTopParentExchange,
-                  newChild.output.dropRight(projectColumnNumber))
+                  newPlan, newChild, newChild.output.dropRight(projectColumnNumber))
               } else {
                 // It's the case that partitioning expressions could be offloaded into native.
                 plan.withNewChildren(Seq(child))
               }
             }
             else {
-              ColumnarShuffleUtil.genColumnarShuffleExchange(
-                plan, child, isAdaptiveContextOrTopParentExchange, null)
+              ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
             }
           } else {
-            ColumnarShuffleUtil.genColumnarShuffleExchange(
-              plan, child, isAdaptiveContextOrTopParentExchange, null)
+            ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
           }
         } else {
           plan.withNewChildren(Seq(child))
@@ -662,8 +652,6 @@ case class ColumnarOverrideRules(session: SparkSession)
   lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  // Tracks whether the given input plan's top parent is exchange.
-  private var isTopParentExchange: Boolean = false
   // Tracks whether the columnar rule is called through AQE.
   private var isAdaptiveContext: Boolean = false
   // This is an empirical value, may need to be changed for supporting other versions of spark.
@@ -686,9 +674,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation(),
       (_: SparkSession) => AddTransformHintRule(),
-      (_: SparkSession) => TransformPreOverrides(
-        this.isTopParentExchange,
-        this.isAdaptiveContext),
+      (_: SparkSession) => TransformPreOverrides(this.isAdaptiveContext),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
       (_: SparkSession) => RemoveTransformHintRule(),
       (_: SparkSession) => GlutenRemoveRedundantSorts) :::
@@ -711,10 +697,6 @@ case class ColumnarOverrideRules(session: SparkSession)
     maybe(session, plan) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
-      this.isTopParentExchange = plan match {
-        case _: Exchange => true
-        case _ => false
-      }
       val traceElements = Thread.currentThread.getStackTrace
       assert(traceElements.length > aqeStackTraceIndex,
         s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")

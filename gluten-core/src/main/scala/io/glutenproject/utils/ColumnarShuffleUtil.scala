@@ -30,16 +30,11 @@ object ColumnarShuffleUtil {
    * @param child            the child of shuffle exchange.
    * @return a columnar shuffle exchange.
    */
-  def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
-                                 child: SparkPlan,
-                                 isAdaptiveContextOrTopParentExchange: Boolean,
-                                 shuffleOutputAttributes: Seq[Attribute]): SparkPlan = {
-    if (isAdaptiveContextOrTopParentExchange) {
-      ColumnarShuffleExchangeExec(plan.outputPartitioning, child,
-        plan.shuffleOrigin, shuffleOutputAttributes)
-    } else {
-      ColumnarShuffleExchangeExec(
-        plan.outputPartitioning, child, plan.shuffleOrigin, shuffleOutputAttributes)
-    }
+  def genColumnarShuffleExchange(
+      plan: ShuffleExchangeExec,
+      child: SparkPlan,
+      shuffleOutputAttributes: Seq[Attribute]): SparkPlan = {
+    ColumnarShuffleExchangeExec(plan.outputPartitioning, child, plan.shuffleOrigin,
+      shuffleOutputAttributes)
   }
 }
