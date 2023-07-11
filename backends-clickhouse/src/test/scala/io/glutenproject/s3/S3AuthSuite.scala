@@ -28,7 +28,7 @@ import org.scalatest.funsuite.AnyFunSuite
 // scalastyle:off
 @Ignore
 class S3AuthSuite extends AnyFunSuite {
-  val libPath = "/usr/local/clickhouse/lib/libchd.so"
+  val libPath = "/usr/local/clickhouse/lib/libch.so"
 
   // Throughout this test, the trusted user will visited three buckets:
   // 1. a bucket(trustedOwnedBucket) owned by himself.

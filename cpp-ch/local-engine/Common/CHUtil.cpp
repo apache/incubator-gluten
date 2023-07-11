@@ -447,16 +447,17 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
     return ch_backend_conf;
 }
 
-void BackendInitializerUtil::initConfig(std::string * plan)
+DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::string * plan)
 {
+    DB::Context::ConfigurationPtr config;
     if (plan == nullptr)
     {
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
-        return;
+        return config;
     }
 
     /// Parse input substrait plan, and get native conf map from it.
-    backend_conf_map = getBackendConfMap(*plan);
+    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(*plan);
     if (backend_conf_map.count(CH_RUNTIME_CONFIG_FILE))
     {
         if (fs::exists(CH_RUNTIME_CONFIG_FILE) && fs::is_regular_file(CH_RUNTIME_CONFIG_FILE))
@@ -480,8 +481,13 @@ void BackendInitializerUtil::initConfig(std::string * plan)
 
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
         {
-            /// Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
+            // Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
+        }
+        if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
+        {
+            // temporally put runtime_settings into config, so that they can be retrieved later in initSettings
+            config->setString(key, value);
         }
         else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX + "bucket"))
         {
@@ -510,10 +516,11 @@ void BackendInitializerUtil::initConfig(std::string * plan)
             config->setString(key.substr(SPARK_HADOOP_PREFIX.length()), value);
         }
     }
+    return config;
 }
 
 
-void BackendInitializerUtil::initLoggers()
+void BackendInitializerUtil::initLoggers(DB::Context::ConfigurationPtr config)
 {
     auto level = config->getString("logger.level", "error");
     if (config->has("logger.log"))
@@ -524,7 +531,7 @@ void BackendInitializerUtil::initLoggers()
     logger = &Poco::Logger::get("ClickHouseBackend");
 }
 
-void BackendInitializerUtil::initEnvs()
+void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
 {
     /// Set environment variable TZ if possible
     if (config->has("timezone"))
@@ -548,48 +555,53 @@ void BackendInitializerUtil::initEnvs()
     setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
 }
 
-void BackendInitializerUtil::initSettings()
+std::unique_ptr<DB::Settings> BackendInitializerUtil::initSettings(DB::Context::ConfigurationPtr config)
 {
     static const std::string settings_path("local_engine.settings");
+    static const std::string runtime_settings_path(CH_RUNTIME_SETTINGS_PREFIX);
 
-    settings = Settings();
+    std::unique_ptr<DB::Settings> settings = std::make_unique<DB::Settings>();
 
     /// Initialize default setting.
-    settings.set("date_time_input_format", "best_effort");
-
-    Poco::Util::AbstractConfiguration::Keys config_keys;
-    config->keys(settings_path, config_keys);
+    settings->set("date_time_input_format", "best_effort");
 
     /// Firstly apply section [local_engine.settings] in config file to settings
-    for (const std::string & key : config_keys)
-        settings.set(key, config->getString(settings_path + "." + key));
+    {
+        Poco::Util::AbstractConfiguration::Keys settings_keys;
+        config->keys(settings_path, settings_keys);
+
+        for (const std::string & key : settings_keys)
+            settings->set(key, config->getString(settings_path + "." + key));
+    }
 
     /// Secondly apply spark.gluten.sql.columnar.backend.ch.runtime_settings.* to settings
-    for (const auto & kv : backend_conf_map)
     {
-        const auto & key = kv.first;
-        const auto & value = kv.second;
-        if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
-            settings.set(key.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), value);
+        Poco::Util::AbstractConfiguration::Keys runtime_settings_keys;
+        config->keys(runtime_settings_path, runtime_settings_keys);
+
+        for (const std::string & key : runtime_settings_keys)
+            settings->set(key, config->getString(runtime_settings_path + "." + key));
     }
 
     /// Finally apply some fixed kvs to settings.
-    settings.set("join_use_nulls", true);
-    settings.set("input_format_orc_allow_missing_columns", true);
-    settings.set("input_format_orc_case_insensitive_column_matching", true);
-    settings.set("input_format_orc_import_nested", true);
-    settings.set("input_format_parquet_allow_missing_columns", true);
-    settings.set("input_format_parquet_case_insensitive_column_matching", true);
-    settings.set("input_format_parquet_import_nested", true);
-    settings.set("output_format_parquet_version", "1.0");
-    settings.set("output_format_parquet_compression_method", "snappy");
-    settings.set("output_format_parquet_string_as_string", true);
-    settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
-    settings.set("function_json_value_return_type_allow_complex", true);
-    settings.set("function_json_value_return_type_allow_nullable", true);
+    settings->set("join_use_nulls", true);
+    settings->set("input_format_orc_allow_missing_columns", true);
+    settings->set("input_format_orc_case_insensitive_column_matching", true);
+    settings->set("input_format_orc_import_nested", true);
+    settings->set("input_format_parquet_allow_missing_columns", true);
+    settings->set("input_format_parquet_case_insensitive_column_matching", true);
+    settings->set("input_format_parquet_import_nested", true);
+    settings->set("output_format_parquet_version", "1.0");
+    settings->set("output_format_parquet_compression_method", "snappy");
+    settings->set("output_format_parquet_string_as_string", true);
+    settings->set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
+    settings->set("function_json_value_return_type_allow_complex", true);
+    settings->set("function_json_value_return_type_allow_nullable", true);
+
+    return settings;
 }
 
-void BackendInitializerUtil::initContexts()
+void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 {
     /// Make sure global_context and shared_context are constructed only once.
     auto & shared_context = SerializedPlanParser::shared_context;
@@ -605,7 +617,7 @@ void BackendInitializerUtil::initContexts()
         global_context->makeGlobalContext();
         global_context->setConfig(config);
 
-        auto getDefaultPath = [] -> auto
+        auto getDefaultPath = [config] -> auto
         {
             bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
             char buffer[PATH_MAX];
@@ -620,16 +632,18 @@ void BackendInitializerUtil::initContexts()
     }
 }
 
-void BackendInitializerUtil::applyGlobalConfigAndSettings()
+void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr config, std::unique_ptr<DB::Settings> & settings)
 {
     auto & global_context = SerializedPlanParser::global_context;
     global_context->setConfig(config);
-    global_context->setSettings(settings);
+    global_context->setSettings(*settings);
 }
 
-void BackendInitializerUtil::applyConfig(DB::ContextMutablePtr context)
+void BackendInitializerUtil::applyConfig(
+    DB::ContextMutablePtr context, DB::Context::ConfigurationPtr config, std::unique_ptr<DB::Settings> & settings)
 {
     context->setConfig(config);
+    context->setSettings(*settings);
 }
 
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
@@ -661,7 +675,7 @@ void BackendInitializerUtil::registerAllFactories()
     LOG_INFO(logger, "Register all functions.");
 }
 
-void BackendInitializerUtil::initCompiledExpressionCache()
+void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::ConfigurationPtr config)
 {
 #if USE_EMBEDDED_COMPILER
     /// 128 MB
@@ -678,20 +692,20 @@ void BackendInitializerUtil::initCompiledExpressionCache()
 
 void BackendInitializerUtil::init(std::string * plan)
 {
-    initConfig(plan);
+    DB::Context::ConfigurationPtr config = initConfig(plan);
 
-    initLoggers();
+    initLoggers(config);
 
-    initEnvs();
+    initEnvs(config);
     LOG_INFO(logger, "Init environment variables.");
 
-    initSettings();
+    std::unique_ptr<DB::Settings> settings = initSettings(config);
     LOG_INFO(logger, "Init settings.");
 
-    initContexts();
+    initContexts(config);
     LOG_INFO(logger, "Init shared context and global context.");
 
-    applyGlobalConfigAndSettings();
+    applyGlobalConfigAndSettings(config, settings);
     LOG_INFO(logger, "Apply configuration and setting for global context.");
 
     std::call_once(
@@ -701,7 +715,7 @@ void BackendInitializerUtil::init(std::string * plan)
             registerAllFactories();
             LOG_INFO(logger, "Register all factories.");
 
-            initCompiledExpressionCache();
+            initCompiledExpressionCache(config);
             LOG_INFO(logger, "Init compiled expressions cache factory.");
 
             GlobalThreadPool::initialize();
@@ -714,19 +728,15 @@ void BackendInitializerUtil::init(std::string * plan)
         });
 }
 
-std::mutex update_config_mutex;
-
 void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::string * plan)
 {
-    std::lock_guard<std::mutex> guard(update_config_mutex);
-    initConfig(plan);
-    applyConfig(context);
+    DB::Context::ConfigurationPtr config = initConfig(plan);
+    std::unique_ptr<DB::Settings> settings = initSettings(config);
+    applyConfig(context, config, settings);
 }
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
-
-
     auto & global_context = SerializedPlanParser::global_context;
     auto & shared_context = SerializedPlanParser::shared_context;
     if (global_context)
@@ -739,7 +749,6 @@ void BackendFinalizerUtil::finalizeGlobally()
 
 void BackendFinalizerUtil::finalizeSessionally()
 {
-
 }
 
 }
