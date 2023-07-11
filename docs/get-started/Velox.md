@@ -340,7 +340,8 @@ This environment variable is required during building Gluten and running Spark a
 It's recommended to put it in .bashrc on Driver and Worker nodes.
 
 ```bash
-export ICP_ROOT=/path_to_QAT_driver
+echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
+source ~/.bashrc
 ```
 2. **This step is required if your application is running as Non-root user**.
 The users must be added to the 'qat' group after QAT drvier is installed.
@@ -366,6 +367,8 @@ echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 rmmod usdm_drv
 insmod $ICP_ROOT/build/usdm_drv.ko max_huge_pages=1024 max_huge_pages_per_process=32
 EOF
+
+chmod +x /usr/local/bin/qat_startup.sh
 
 cat << EOF > /etc/systemd/system/qat_startup.service
 [Unit]
