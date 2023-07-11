@@ -23,7 +23,6 @@
 #include <arrow/type_traits.h>
 #include <arrow/util/decimal.h>
 
-#include "ArrowTypeUtils.h"
 #include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
 #include "memory/VeloxColumnarBatch.h"

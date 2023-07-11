@@ -18,12 +18,12 @@
 #include <arrow/record_batch.h>
 #include <gtest/gtest.h>
 
-#include "compute/VeloxRowToColumnarConverter.h"
 #include "jni/JniErrors.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
+#include "operators/serializer//VeloxRowToColumnarConverter.h"
 #include "utils/TestUtils.h"
 #include "velox/vector/ComplexVector.h"
 

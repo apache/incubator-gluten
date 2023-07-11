@@ -18,14 +18,12 @@
 #include "VeloxBackend.h"
 #include <filesystem>
 
-#include "ArrowTypeUtils.h"
 #include "arrow/c/bridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
-#include "compute/RowVectorStream.h"
 #include "compute/VeloxPlanConverter.h"
-#include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
+#include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/TaskContext.h"
 #include "velox/common/file/FileSystems.h"

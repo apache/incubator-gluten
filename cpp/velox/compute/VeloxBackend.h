@@ -24,11 +24,11 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include <iostream>
-#include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "compute/VeloxParquetDatasource.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
+#include "operators/serializer/VeloxColumnarToRowConverter.h"
+#include "operators/writer/VeloxParquetDatasource.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/reader.h"

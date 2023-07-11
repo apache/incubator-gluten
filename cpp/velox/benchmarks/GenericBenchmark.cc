@@ -28,10 +28,10 @@
 #include "BatchStreamIterator.h"
 #include "BatchVectorIterator.h"
 #include "BenchmarkUtils.h"
-#include "compute/ArrowTypeUtils.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
+#include "utils/ArrowTypeUtils.h"
 #include "utils/exception.h"
 
 #include <thread>
