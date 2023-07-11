@@ -19,13 +19,13 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.ValidatorApi
 
-import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, TimestampType}
+import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructType, TimestampType}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidatorInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
+
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.StructType
 
 class Validator extends ValidatorApi {
 
@@ -44,26 +44,48 @@ class Validator extends ValidatorApi {
 
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = true
 
-  override def doSchemaValidate(schema: StructType): Boolean = {
-    for (field <- schema.fields) {
-      field.dataType match {
-        case _: BooleanType =>
-        case _: ByteType =>
-        case _: ShortType =>
-        case _: IntegerType =>
-        case _: LongType =>
-        case _: FloatType =>
-        case _: DoubleType =>
-        case _: StringType =>
-        case _: BinaryType =>
-        case _: DecimalType =>
-        case _: DateType =>
-        case _: TimestampType =>
-        case _: MapType =>
-        case _: StructType =>
-        case _: ArrayType =>
-        case _ => return false
-      }
+  private def primitiveTypeValidate(dataType: DataType): Boolean = {
+    dataType match {
+      case _: BooleanType =>
+      case _: ByteType =>
+      case _: ShortType =>
+      case _: IntegerType =>
+      case _: LongType =>
+      case _: FloatType =>
+      case _: DoubleType =>
+      case _: StringType =>
+      case _: BinaryType =>
+      case _: DecimalType =>
+      case _: DateType =>
+      case _: TimestampType =>
+      case _ => return false
+    }
+    true
+  }
+
+  override def doSchemaValidate(schema: DataType): Boolean = {
+    if (primitiveTypeValidate(schema)) {
+      return true
+    }
+    schema match {
+      case map: MapType =>
+        if (!doSchemaValidate(map.keyType)) {
+          return false
+        }
+        if (!doSchemaValidate(map.valueType)) {
+          return false
+        }
+      case struct: StructType =>
+        for (field <- struct.fields) {
+          if (!doSchemaValidate(field.dataType)) {
+            return false
+          }
+        }
+      case array: ArrayType =>
+        if (!doSchemaValidate(array.elementType)) {
+          return false
+        }
+      case _ => return false
     }
     true
   }

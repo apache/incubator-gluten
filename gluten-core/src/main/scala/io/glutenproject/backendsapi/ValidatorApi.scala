@@ -20,9 +20,10 @@ package io.glutenproject.backendsapi
 import io.glutenproject.expression.{ExpressionMappings, ExpressionNames}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidatorInfo
+
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.DataType
 
 object TypeKey {
   final val EMPTY_TYPE = ""
@@ -102,5 +103,5 @@ trait ValidatorApi {
    *
    * @return true by default
    */
-  def doSchemaValidate(schema: StructType): Boolean = true
+  def doSchemaValidate(schema: DataType): Boolean = true
 }
