@@ -1115,6 +1115,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       const arrow::RecordBatch& rb, bool reuseBuffers) {
     auto payload = std::make_shared<arrow::ipc::IpcPayload>();
 #ifndef SKIPCOMPRESS
+    // Extract numRows from header column
     auto numRows = *reinterpret_cast<uint32_t*>(rb.column_data(0)->buffers[2]->mutable_data());
     auto isTinyBatch = numRows <= options_.batch_compress_threshold;
 #else
