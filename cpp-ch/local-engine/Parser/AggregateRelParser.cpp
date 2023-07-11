@@ -167,7 +167,7 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         description.argument_names = agg_info.arg_column_names;
         // May apply `PartialMerge` and `If` on the original function.
         auto [combinator_function_name, combinator_function_arg_types]
-            = typeid_cast<BaseAggregateFunctionParser *>(agg_info.function_parser.get())
+            = dynamic_cast<BaseAggregateFunctionParser *>(agg_info.function_parser.get())
                   ->tryApplyCHCombinator(agg_info.parser_func_info, agg_info.function_name, agg_info.arg_column_types);
         DB::AggregateFunctionProperties properties;
         description.function = getAggregateFunction(combinator_function_name, combinator_function_arg_types, properties, agg_info.params);
