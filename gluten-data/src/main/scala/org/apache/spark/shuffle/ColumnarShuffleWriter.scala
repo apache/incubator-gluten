@@ -22,7 +22,6 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.Spiller
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
-import org.apache.commons.io.FileUtils
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
@@ -31,7 +30,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourcesUtil, Utils}
 
 import java.io.IOException
-import java.util.UUID
 
 class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
                                         handle: BaseShuffleHandle[K, V, V],
