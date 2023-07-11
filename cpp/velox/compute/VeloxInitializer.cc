@@ -32,11 +32,11 @@
 #ifdef ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
+#include "jni/JniFileSystem.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "jni/JniFileSystem.h"
 
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(SkipRowSortInWindowOp);

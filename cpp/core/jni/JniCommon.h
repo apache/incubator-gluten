@@ -56,7 +56,8 @@ static inline jmethodID getStaticMethodId(JNIEnv* env, jclass thisClass, const c
 static jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
   jmethodID ret = getStaticMethodId(env, thisClass, name, sig);
   if (ret == nullptr) {
-    std::string errorMessage = "Unable to find static method " + std::string(name) + " within signature" + std::string(sig);
+    std::string errorMessage =
+        "Unable to find static method " + std::string(name) + " within signature" + std::string(sig);
     throw gluten::GlutenException(errorMessage);
   }
   return ret;

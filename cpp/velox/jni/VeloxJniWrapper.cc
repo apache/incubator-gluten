@@ -25,10 +25,10 @@
 #include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
+#include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryPool.h"
 #include "operators/writer/VeloxParquetDatasource.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
-#include "jni/JniFileSystem.h"
 
 #include <iostream>
 
