@@ -26,7 +26,6 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkConf
 import org.apache.spark.util.TaskResource
 
-import java.util.Locale
 import scala.sys.process._
 
 class ContextInitializer extends ContextApi {
