@@ -153,6 +153,8 @@ object ExpressionMappings {
     Sig[TruncDate](TRUNC),
     Sig[TruncTimestamp](DATE_TRUNC),
     Sig[GetTimestamp](GET_TIMESTAMP),
+    Sig[NextDay](NEXT_DAY),
+    Sig[LastDay](LAST_DAY),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
