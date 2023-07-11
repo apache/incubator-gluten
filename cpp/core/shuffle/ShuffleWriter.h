@@ -26,10 +26,12 @@
 
 namespace gluten {
 
+namespace {
 static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultBatchCompressThreshold = 256;
 static constexpr int32_t kDefaultBufferAlignment = 64;
+} // namespace
 
 struct ShuffleWriterOptions {
   int64_t offheap_per_task = 0;
