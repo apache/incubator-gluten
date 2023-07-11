@@ -380,6 +380,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test 'function current_date'") {
+    runSql("select current_date() from range(10)")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'function date_add/date_sub/datediff'") {
     val df = runQueryAndCompare(
       "select l_shipdate, l_commitdate, " +
