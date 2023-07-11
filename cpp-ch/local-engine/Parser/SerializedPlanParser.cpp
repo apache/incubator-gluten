@@ -442,7 +442,7 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
             auto tmp_ctx = DB::Context::createCopy(global_context);
             SerializedPlanParser tmp_plan_parser(tmp_ctx);
             auto function_parser = FunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
-            auto agg_function_parser = typeid_cast<BaseAggregateFunctionParser *>(function_parser.get());
+            auto agg_function_parser = dynamic_cast<BaseAggregateFunctionParser *>(function_parser.get());
             auto agg_function_name = agg_function_parser->getCHFunctionName(args_types);
             data_type = AggregateFunctionFactory::instance()
                             .get(agg_function_name, args_types, function_parser->getDefaultFunctionParameters(), properties)
