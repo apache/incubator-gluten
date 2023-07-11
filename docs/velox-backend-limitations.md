@@ -133,3 +133,14 @@ spark.range(100).toDF("id")
 ### Spill
 
 `OutOfMemoryExcetpion` may still be triggered within current implementation of spill-to-disk feature, when shuffle partitions is set to a large number. When this case happens, please try to reduce the partition number to get rid of the OOM.
+
+### TableScan on data types
+
+- Byte type (fallback behavior)
+- Timestamp type
+
+  Only reading with INT96 and dictionary encoding is supported. When reading INT64 represented millisecond/microsecond timestamps, or INT96 represented timestamps of other encodings, exceptions can occur.
+
+- Complex types
+  - Parquet scan of nested array with struct or array as element type is not supported in Velox (fallback behavior).
+  - Parquet scan of nested map with struct as key type, or array type as value type is not supported in Velox (fallback behavior).
