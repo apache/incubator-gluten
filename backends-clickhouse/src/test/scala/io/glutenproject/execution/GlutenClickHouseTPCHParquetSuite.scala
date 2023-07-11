@@ -381,7 +381,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("test 'function date_add/date_sub/datediff'") {
-    val df = runQueryAndCompare(
+    runQueryAndCompare(
       "select l_shipdate, l_commitdate, " +
         "date_add(l_shipdate, 1), date_add(l_shipdate, -1), " +
         "date_sub(l_shipdate, 1), date_sub(l_shipdate, -1), " +
@@ -391,13 +391,45 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("test 'function remainder'") {
-    val df = runQueryAndCompare(
+    runQueryAndCompare(
       "select l_orderkey, l_partkey, l_orderkey % l_partkey, l_partkey % l_orderkey " +
         "from lineitem order by l_orderkey desc, l_partkey desc limit 1"
     )(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("coalesce") {
+  test("test array_position") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_position(split(n_comment, ' '), 'final') from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_position(array(1,2,3,null), 1), array_position(array(1,2,3,null), null)," +
+          "array_position(array(1,2,3,null), 5), array_position(array(1,2,3), 5), " +
+          "array_position(array(1,2,3), 2), array_position(cast(null as array<int>), 1)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_contains") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_contains(split(n_comment, ' '), 'final') from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_contains(array(1,2,3,null), 1), array_contains(array(1,2,3,null), " +
+          "cast(null as int)), array_contains(array(1,2,3,null), 5), array_contains(array(1,2,3), 5)," +
+          "array_contains(array(1,2,3), 2), array_contains(cast(null as array<int>), 1)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])

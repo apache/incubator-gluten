@@ -170,6 +170,8 @@ object ExpressionMappings {
     Sig[Crc32](CRC32),
     // Array functions
     Sig[Size](SIZE),
+    Sig[Slice](SLICE),
+    Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
     Sig[PosExplode](POSEXPLODE),
@@ -178,11 +180,9 @@ object ExpressionMappings {
     Sig[ArrayContains](ARRAY_CONTAINS),
     Sig[ArrayMax](ARRAY_MAX),
     Sig[ArrayMin](ARRAY_MIN),
-    Sig[Sequence](SEQUENCE),
     Sig[SortArray](SORT_ARRAY),
     Sig[ArraysOverlap](ARRAYS_OVERLAP),
-    Sig[Slice](SLICE),
-
+    Sig[ArrayPosition](ARRAY_POSITION),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
