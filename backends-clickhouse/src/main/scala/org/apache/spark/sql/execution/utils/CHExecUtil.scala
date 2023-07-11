@@ -118,6 +118,8 @@ object CHExecUtil extends Logging {
       override def next(): Product2[Int, ColumnarBatch] = {
         val nextBatch = splitIterator.next()
         // need add rows before shuffle write, one block will convert to one row
+        // Because one is always added during shuffle write
+        // one line needs to be subtracted here
         records_written_metric.add(nextBatch.numRows() - 1)
         (splitIterator.nextPartitionId(), nextBatch)
       };
