@@ -7,7 +7,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Parser/CHColumnToSparkRow.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Parser/TypeParser.h>
 #include <base/StringRef.h>
 #include <base/types.h>
 #include <jni/jni_common.h>
@@ -62,7 +62,7 @@ struct SparkRowToCHColumnHelper
         auto ok = substrait_type->ParseFromString(type);
         if (!ok)
             throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Type from string failed");
-        return SerializedPlanParser::parseType(*substrait_type);
+        return TypeParser::parseType(*substrait_type);
     }
 };
 

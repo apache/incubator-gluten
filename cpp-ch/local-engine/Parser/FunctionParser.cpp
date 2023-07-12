@@ -1,7 +1,8 @@
-#include <Functions/FunctionFactory.h>
-#include <Common/CHUtil.h>
-#include <DataTypes/IDataType.h>
 #include <Core/Field.h>
+#include <DataTypes/IDataType.h>
+#include <Functions/FunctionFactory.h>
+#include <Parser/TypeParser.h>
+#include <Common/CHUtil.h>
 
 #include "FunctionParser.h"
 
@@ -95,9 +96,9 @@ const DB::ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const
 {
     const auto & output_type = func_info.output_type;
-    if (!isTypeMatched(output_type, func_node->result_type))
+    if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
         return ActionsDAGUtil::convertNodeType(
-            actions_dag, func_node, SerializedPlanParser::parseType(output_type)->getName(), func_node->result_name);
+            actions_dag, func_node, TypeParser::parseType(output_type)->getName(), func_node->result_name);
     else
         return func_node;
 }

@@ -43,6 +43,7 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/RelParser.h>
 #include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
+#include <Parser/TypeParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
@@ -112,12 +113,6 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
         res += v[i]->result_name;
     }
     return res;
-}
-
-bool isTypeMatched(const substrait::Type & substrait_type, const DataTypePtr & ch_type)
-{
-    const auto parsed_ch_type = SerializedPlanParser::parseType(substrait_type);
-    return parsed_ch_type->equals(*ch_type);
 }
 
 void SerializedPlanParser::parseExtensions(
@@ -248,7 +243,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
 {
     assert(rel.has_local_files());
     assert(rel.has_base_schema());
-    auto header = parseNameStruct(rel.base_schema());
+    auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     auto source = std::make_shared<SubstraitFileSource>(context, header, rel.local_files());
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<ReadFromStorageStep>(std::move(source_pipe), "substrait local files", nullptr);
@@ -265,7 +260,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
     auto pos = iter.find(':');
     auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
 
-    auto source = std::make_shared<SourceFromJavaIter>(parseNameStruct(rel.base_schema()), input_iters[iter_index]);
+    auto source = std::make_shared<SourceFromJavaIter>(TypeParser::buildBlockFromNamedStruct(rel.base_schema()), input_iters[iter_index]);
     QueryPlanStepPtr source_step = std::make_unique<ReadFromPreparedSource>(Pipe(source));
     source_step->setStepDescription("Read From Java Iter");
     return source_step;
@@ -294,7 +289,7 @@ DB::QueryPlanPtr SerializedPlanParser::parseMergeTreeTable(const substrait::Read
     DB::Block header;
     if (rel.has_base_schema() && rel.base_schema().names_size())
     {
-        header = parseNameStruct(rel.base_schema());
+        header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     }
     else
     {
@@ -411,49 +406,6 @@ SerializedPlanParser::parsePreWhereInfo(const substrait::Expression & rel, Block
     return prewhere_info;
 }
 
-Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struct_)
-{
-    ColumnsWithTypeAndName internal_cols;
-    internal_cols.reserve(struct_.names_size());
-    std::list<std::string> field_names;
-    for (int i = 0; i < struct_.names_size(); ++i)
-    {
-        field_names.emplace_back(struct_.names(i));
-    }
-
-    for (int i = 0; i < struct_.struct_().types_size(); ++i)
-    {
-        auto name = field_names.front();
-        const auto & type = struct_.struct_().types(i);
-        auto data_type = parseType(type, &field_names);
-        // This is a partial aggregate data column.
-        // It's type is special, must be a struct type contains all arguments types.
-        Poco::StringTokenizer name_parts(name, "#");
-        if (name_parts.count() >= 4)
-        {
-            auto nested_data_type = DB::removeNullable(data_type);
-            const auto * tuple_type = typeid_cast<const DataTypeTuple *>(nested_data_type.get());
-            if (!tuple_type)
-            {
-                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", data_type->getName());
-            }
-            auto args_types = tuple_type->getElements();
-            AggregateFunctionProperties properties;
-            auto tmp_ctx = DB::Context::createCopy(global_context);
-            SerializedPlanParser tmp_plan_parser(tmp_ctx);
-            auto function_parser = FunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
-            auto agg_function_parser = dynamic_cast<BaseAggregateFunctionParser *>(function_parser.get());
-            auto agg_function_name = agg_function_parser->getCHFunctionName(args_types);
-            data_type = AggregateFunctionFactory::instance()
-                            .get(agg_function_name, args_types, function_parser->getDefaultFunctionParameters(), properties)
-                            ->getStateType();
-        }
-        internal_cols.push_back(ColumnWithTypeAndName(data_type, name));
-    }
-    Block res(std::move(internal_cols));
-    return res;
-}
-
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
 {
     return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
@@ -465,168 +417,6 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type)
         return std::make_shared<DataTypeNullable>(nested_type);
     else
         return nested_type;
-}
-
-/**
- * names is used to name struct type fields.
- *
- */
-DataTypePtr SerializedPlanParser::parseType(const substrait::Type & substrait_type, std::list<std::string> * names)
-{
-    DataTypePtr ch_type;
-    std::string_view current_name;
-    if (names)
-    {
-        current_name = names->front();
-        names->pop_front();
-    }
-
-    if (substrait_type.has_bool_())
-    {
-        ch_type = DataTypeFactory::instance().get("Bool");
-        ch_type = wrapNullableType(substrait_type.bool_().nullability(), ch_type);
-    }
-    else if (substrait_type.has_i8())
-    {
-        ch_type = std::make_shared<DataTypeInt8>();
-        ch_type = wrapNullableType(substrait_type.i8().nullability(), ch_type);
-    }
-    else if (substrait_type.has_i16())
-    {
-        ch_type = std::make_shared<DataTypeInt16>();
-        ch_type = wrapNullableType(substrait_type.i16().nullability(), ch_type);
-    }
-    else if (substrait_type.has_i32())
-    {
-        ch_type = std::make_shared<DataTypeInt32>();
-        ch_type = wrapNullableType(substrait_type.i32().nullability(), ch_type);
-    }
-    else if (substrait_type.has_i64())
-    {
-        ch_type = std::make_shared<DataTypeInt64>();
-        ch_type = wrapNullableType(substrait_type.i64().nullability(), ch_type);
-    }
-    else if (substrait_type.has_string())
-    {
-        ch_type = std::make_shared<DataTypeString>();
-        ch_type = wrapNullableType(substrait_type.string().nullability(), ch_type);
-    }
-    else if (substrait_type.has_binary())
-    {
-        ch_type = std::make_shared<DataTypeString>();
-        ch_type = wrapNullableType(substrait_type.binary().nullability(), ch_type);
-    }
-    else if (substrait_type.has_fixed_char())
-    {
-        const auto & fixed_char = substrait_type.fixed_char();
-        ch_type = std::make_shared<DataTypeFixedString>(fixed_char.length());
-        ch_type = wrapNullableType(fixed_char.nullability(), ch_type);
-    }
-    else if (substrait_type.has_fixed_binary())
-    {
-        const auto & fixed_binary = substrait_type.fixed_binary();
-        ch_type = std::make_shared<DataTypeFixedString>(fixed_binary.length());
-        ch_type = wrapNullableType(fixed_binary.nullability(), ch_type);
-    }
-    else if (substrait_type.has_fp32())
-    {
-        ch_type = std::make_shared<DataTypeFloat32>();
-        ch_type = wrapNullableType(substrait_type.fp32().nullability(), ch_type);
-    }
-    else if (substrait_type.has_fp64())
-    {
-        ch_type = std::make_shared<DataTypeFloat64>();
-        ch_type = wrapNullableType(substrait_type.fp64().nullability(), ch_type);
-    }
-    else if (substrait_type.has_timestamp())
-    {
-        ch_type = std::make_shared<DataTypeDateTime64>(6);
-        ch_type = wrapNullableType(substrait_type.timestamp().nullability(), ch_type);
-    }
-    else if (substrait_type.has_date())
-    {
-        ch_type = std::make_shared<DataTypeDate32>();
-        ch_type = wrapNullableType(substrait_type.date().nullability(), ch_type);
-    }
-    else if (substrait_type.has_decimal())
-    {
-        UInt32 precision = substrait_type.decimal().precision();
-        UInt32 scale = substrait_type.decimal().scale();
-        if (precision > DataTypeDecimal128::maxPrecision())
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support decimal type with precision {}", precision);
-        ch_type = createDecimal<DataTypeDecimal>(precision, scale);
-        ch_type = wrapNullableType(substrait_type.decimal().nullability(), ch_type);
-    }
-    else if (substrait_type.has_struct_())
-    {
-        DataTypes ch_field_types(substrait_type.struct_().types().size());
-        Strings field_names;
-        for (int i = 0; i < static_cast<int>(ch_field_types.size()); ++i)
-        {
-            if (names)
-                field_names.push_back(names->front());
-
-            ch_field_types[i] = parseType(substrait_type.struct_().types()[i], names);
-        }
-        if (!field_names.empty())
-            ch_type = std::make_shared<DataTypeTuple>(ch_field_types, field_names);
-        else
-            ch_type = std::make_shared<DataTypeTuple>(ch_field_types);
-        ch_type = wrapNullableType(substrait_type.struct_().nullability(), ch_type);
-    }
-    else if (substrait_type.has_list())
-    {
-        auto ch_nested_type = parseType(substrait_type.list().type());
-        ch_type = std::make_shared<DataTypeArray>(ch_nested_type);
-        ch_type = wrapNullableType(substrait_type.list().nullability(), ch_type);
-    }
-    else if (substrait_type.has_map())
-    {
-        if (substrait_type.map().key().has_nothing())
-        {
-            // special case
-            ch_type = std::make_shared<DataTypeMap>(std::make_shared<DataTypeNothing>(), std::make_shared<DataTypeNothing>());
-            ch_type = wrapNullableType(substrait_type.map().nullability(), ch_type);
-        }
-        else
-        {
-            auto ch_key_type = parseType(substrait_type.map().key());
-            auto ch_val_type = parseType(substrait_type.map().value());
-            ch_type = std::make_shared<DataTypeMap>(ch_key_type, ch_val_type);
-            ch_type = wrapNullableType(substrait_type.map().nullability(), ch_type);
-        }
-    }
-    else if (substrait_type.has_nothing())
-    {
-        ch_type = std::make_shared<DataTypeNothing>();
-        ch_type = wrapNullableType(true, ch_type);
-    }
-    else
-        throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support type {}", substrait_type.DebugString());
-
-    /// TODO(taiyang-li): consider Time/IntervalYear/IntervalDay/TimestampTZ/UUID/VarChar/FixedBinary/UserDefined
-    return ch_type;
-}
-
-DB::DataTypePtr SerializedPlanParser::parseType(const std::string & type)
-{
-    static std::map<std::string, std::string> type2type
-        = {{"BooleanType", "UInt8"},
-           {"ByteType", "Int8"},
-           {"ShortType", "Int16"},
-           {"IntegerType", "Int32"},
-           {"LongType", "Int64"},
-           {"FloatType", "Float32"},
-           {"DoubleType", "Float64"},
-           {"StringType", "String"},
-           {"DateType", "Date"}};
-
-    auto it = type2type.find(type);
-    if (it == type2type.end())
-    {
-        throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unknow spark type: {}", type);
-    }
-    return DB::DataTypeFactory::instance().get(it->second);
 }
 
 QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
@@ -1304,12 +1094,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
         result_node = function_node;
 
-        if (!isTypeMatched(rel.scalar_function().output_type(), function_node->result_type))
+        if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type))
         {
             result_node = ActionsDAGUtil::convertNodeType(
                 actions_dag,
                 function_node,
-                SerializedPlanParser::parseType(rel.scalar_function().output_type())->getName(),
+                TypeParser::parseType(rel.scalar_function().output_type())->getName(),
                 function_node->result_name);
         }
 
@@ -1341,7 +1131,7 @@ void SerializedPlanParser::parseFunctionArguments(
     if (function_name == "JSONExtract")
     {
         parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        auto data_type = parseType(scalar_function.output_type());
+        auto data_type = TypeParser::parseType(scalar_function.output_type());
         parsed_args.emplace_back(add_column(std::make_shared<DB::DataTypeString>(), data_type->getName()));
     }
     else if (function_name == "tupleElement")
@@ -1847,7 +1637,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
             break;
         }
         case substrait::Expression_Literal::kNull: {
-            type = parseType(literal.null());
+            type = TypeParser::parseType(literal.null());
             field = Field{};
             break;
         }
@@ -1899,7 +1689,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 function_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
             else
             {
-                DataTypePtr ch_type = parseType(substrait_type);
+                DataTypePtr ch_type = TypeParser::parseType(substrait_type);
                 args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
 
                 function_node = toFunctionNode(actions_dag, "CAST", args);
@@ -2434,7 +2224,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
                 return makeASTFunction("reinterpretAsStringSpark", args);
             else
             {
-                DataTypePtr ch_type = SerializedPlanParser::parseType(substrait_type);
+                DataTypePtr ch_type = TypeParser::parseType(substrait_type);
                 args.emplace_back(std::make_shared<ASTLiteral>(ch_type->getName()));
 
                 return makeASTFunction("CAST", args);
