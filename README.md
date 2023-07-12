@@ -5,32 +5,32 @@
 
 ## 1.1 Problem Statement
 
-Apache Spark is a stable, mature project that has been under development for many years. The project has been proven to be one of the best frameworks to scale out of processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that required various optimizations over time. A key optimization introduced in Spark 2.0 replaced Volcano mode with whole-stage code-generation to achieve a 2x speedup. Since then most of the optimization works at the query plan level. The operator's performance stopped to grow.
+Apache Spark is a stable, mature project that has been under development for many years. The project has been proven to be one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most optimization works are at query plan level. Single operator's performance almost stops growing.
 
 <p align="center">
 <img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="800">
 </p>
 
-On the other side, SQL engine is researched for years. There are product or libraries like Clickhouse, Arrow or Velox. By using features like native implementation, columnar data format as well as vectorized data processing, these libraries outperform much of Spark's JVM based SQL engine. However these libraries are running on single node.
+On the other side, SQL engines have been researched for many years. There are a few products or libraries like Clickhouse, Arrow and Velox, etc. By using features like native implementation, columnar data format and vectorized data processing, these libraries can outperform Spark's JVM based SQL engine. However, these libraries are running on single node.
 
 ## 1.2 Gluten's Solution
 
-“Gluten” is Latin for glue. Main goal of project Gluten is to “glue" the SparkSQL and native libraries. So we can take use of and benefit from Spark SQL's scale out framework as well native libraries' high performance.
+“Gluten” is Latin for glue. Main goal of project Gluten is to “glue" the SparkSQL and native libraries. So we can take use of and benefit from the high scalability of Spark SQL framework, as well as the high performance of native libraries.
 
-The basic rule of Gluten's design is that we would reuse spark's whole control flow and as many JVM code as possible but offload the compute intensive data processing part to native code. Here is what Gluten does:
+The basic rule of Gluten's design is that we would reuse spark's whole control flow and as many JVM code as possible but offload the compute-intensive data processing part to native code. Here is what Gluten does:
 * Transform Spark’s whole stage physical plan to Substrait plan and send to native
-* Offload performance critical data processing to native library
+* Offload performance-critical data processing to native library
 * Define clear JNI interfaces for native libraries
-* Switch the native backends easily
+* Switch available native backends easily
 * Reuse Spark’s distributed control flow
 * Manage data sharing between JVM and native
 * Extend support to native accelerators
 
 ## 1.3 Target User
 
-Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is a plugin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seamlessly, no code changes are needed. However as a plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md)
+Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is a plugin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seamlessly, no code changes are needed. However as a plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
 
-## 1.4 References:
+## 1.4 References
 
 You may click below links for more related information.
 - [Gluten Intro Video at Data AI Summit 2022](https://www.youtube.com/watch?v=0Q6gHT_N-1U)
@@ -41,13 +41,13 @@ You may click below links for more related information.
 
 # 2 Architecture
 
-The overview chart is like below. Spark physical plan is transformed to substrait plan. Substrait is to create a well defined cross-language specification for data compute operations. More details can be found from https://substrait.io/. Then substrait plan is passed to native through JNI call. In native the operator chain should be built and start to run. We use Spark3.0's columnar API as the data interface, so the native library should return Columnar Batch to Spark. We may need to wrap the columnar batch for each native backend. Gluten's c++ code use Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
+The overview chart is like below. Spark physical plan is transformed to substrait plan. Substrait is to create a well defined cross-language specification for data compute operations. More details can be found from https://substrait.io/. Then substrait plan is passed to native through JNI call. In native the operator chain should be built and start to run. We use the columnar API of Spark (since Spark-3.0) as the data interface, so the native library should return Columnar Batch to Spark. We may need to wrap the columnar batch for each native backend. Gluten's c++ code use Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
 <p align="center">
 <img src="https://user-images.githubusercontent.com/47296334/199617207-1140698a-4d53-462d-9bc7-303d14be060b.png" width="800">
 </p>
-There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. Gluten can also be easily extended to any accelerator libraries as backend.
+There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. Gluten can also be easily extended to any other accelerator libraries as backend.
 
-There are several key component in Gluten:
+There are several key components in Gluten:
 * Query plan conversion which convert Spark's physical plan into substrait plan in each stage.
 * Unified memory management in Spark is used to control the native memory allocation as well
 * Columnar shuffle is used to shuffle columnar data directly. The shuffle service still reuses the one in Spark core. The exchange operator is reimplemented to support columnar data format
@@ -57,11 +57,11 @@ There are several key component in Gluten:
 
 # 3 Usage
 
-Gluten is still under active development now. There are two ways to use Gluten. 
+Gluten is still under active development. There are two ways to use Gluten.
 
 # 3.1 Use Prebuilt jar
 
-One Way is use released binary jar. Here is the simple example. we support centos7/8 and ubuntu20.04/22.04 now.
+One Way is to use released binary jar. Here is a simple example. We support centos7/8 and ubuntu20.04/22.04 by now.
 
 ```
 spark-shell \
@@ -74,7 +74,7 @@ spark-shell \
 
 # 3.2 Custom Build
 
-Another way is build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details.
+Alternatively, you can build gluten from source, then do some configurations to enable Gluten plugin for Spark. Here is a simple example. Please refer to the corresponding backend part below for more details.
 
 ```
 export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
@@ -130,9 +130,9 @@ Feel free to submit any bugs, issues or enhancement requirements to github issue
 
 ## 4.3 Documentation
 
-Unfortunately we haven't organized the documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under development now, and some designs may change. Feel free to talk with us and share other design and ideas.
+Unfortunately we haven't organized the documentation site for Gluten. Currently all document is held in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under active development, and the document may not reflect the latest designs. Please feel free to contact with us for sharing your design ideas.
 
-CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code, this work is still in progress, so propose a new modification PR without any hesitation if you have good ideas. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
+CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code. Please propose a PR without any hesitation if you have any good idea for better coding style. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
 
 # 5 Performance
 
