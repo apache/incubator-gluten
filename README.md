@@ -5,7 +5,7 @@
 
 ## 1.1 Problem Statement
 
-Apache Spark is a stable, mature project that has been under development for many years. The project has been proven to be one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most optimization works are at query plan level. Single operator's performance almost stops growing.
+Apache Spark is a stable, mature project that has been under development for many years. The project has been proven to be one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most optimizations are at query plan level. Single operator's performance almost stops growing.
 
 <p align="center">
 <img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="800">
@@ -28,7 +28,7 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 
 ## 1.3 Target User
 
-Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is a plugin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seamlessly, no code changes are needed. However as a plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
+Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is a plugin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seamlessly, no code changes are needed. However, as a plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
 
 ## 1.4 References
 
@@ -87,13 +87,13 @@ spark-shell
   ...
 ```
 
-### 3.2.1 Build and Install Gluten with Velox backend
+### 3.2.1 Build and install Gluten with Velox backend
 
 <img src="https://github.com/facebookincubator/velox/raw/main/static/logo.svg" width="200">
 
 If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](./docs/get-started/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
 
-### 3.2.2 Build and Install Gluten with ClickHouse backend
+### 3.2.2 Build and install Gluten with ClickHouse backend
 
 ![logo](./docs/image/ClickHouse/logo.png)
 
@@ -118,25 +118,25 @@ rm -rf $SPARK_HOME/jars/arrow-*
 
 # 4 Contribution
 
-Gluten project welcomes everyone to contribute. 
+Contributing code to Gluten project is welcome!
 
 ## 4.1 Community
 
-Currently we communicate with all developers and users in a wechat group(Chinese only), and a Spark channel in Velox Slack group. Contact us if you would like to join in. Refer to Contact info below
+Currently, we communicate with developers/users in a wechat group (Chinese only) and a Spark channel in Velox Slack group. Contact us if you would like to join in. Refer to Contact info below.
 
 ## 4.2 Bug Reports
 
-Feel free to submit any bugs, issues or enhancement requirements to github issue list. Be sure to follow the bug fill template so we can solve it quickly. If you already implement a PR and would like to contribute, you may submit an issue firstly and refer to the issue in the PR. 
+Feel free to submit any bug or enhancement requirement to github issue list. Be sure to follow the template to clearly describe your issue. For contributing code, please submit an issue firstly and mention that issue in your PR.
 
 ## 4.3 Documentation
 
 Currently, all gluten documents are held at [docs](https://github.com/oap-project/gluten/tree/main/docs). Gluten is still under active development, and the documents may not reflect the latest designs. Please feel free to contact us for getting more design details or sharing your design ideas.
 
-CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code. Please propose a PR without any hesitation if you have any good idea for better coding style. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
+[CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md) is provided for the purpose of helping developers keep good & consistent coding style while contributing code. Please propose a PR without any hesitation if you have any good idea for better coding style.
 
 # 5 Performance
 
-We use Decision Support Benchmark1(TPC-H Like) to evaluate the performance for Gluten project.
+We use Decision Support Benchmark1 (TPC-H like) to evaluate Gluten's performance.
 Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. We use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline. Please check [Decision Support Benchmark1](./backends-velox/workload/tpch) has the script and queries as the examples to run the performance testing for Velox backend.
 
 The testing environment is using single node with 2TB datasize and using Spark3.3.2 for both baseline and Gluten. The Decision Support Benchmark1 result shows an overall speedup of 2.71x and up to 14.53x speedup in a single query with Gluten and Velox backend. Spark3.2 performance is pretty close. Performance data is tested in Jun. 2023. Contact us if you'd like to know the latest performance number
@@ -149,7 +149,7 @@ The testing environment is using a 8-nodes AWS cluster with 1TB datasize and usi
 
 # 6 License
 
-Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
+Gluten is under Apache 2.0 license (https://www.apache.org/licenses/LICENSE-2.0).
 
 # 7 Contact
 
