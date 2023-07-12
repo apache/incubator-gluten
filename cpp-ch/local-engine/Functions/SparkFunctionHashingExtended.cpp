@@ -7,8 +7,8 @@ namespace local_engine
 
 REGISTER_FUNCTION(HashingExtended)
 {
-    factory.registerFunction<FunctionXxHashSpark64>();
-    factory.registerFunction<FunctionMurmurHashSpark3_32>();
+    factory.registerFunction<SparkFunctionXxHash64>();
+    factory.registerFunction<SparkFunctionMurmurHash3_32>();
 }
 
 }
