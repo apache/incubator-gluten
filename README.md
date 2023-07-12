@@ -53,7 +53,7 @@ There are several key components in Gluten:
 * Columnar shuffle is used to shuffle columnar data directly. The shuffle service still reuses the one in Spark core. The exchange operator is reimplemented to support columnar data format
 * For unsupported operators or functions Gluten fallback the operator to Vanilla Spark. There are C2R and R2C converter to convert the columnar data and Spark's internal row data. Both C2R and R2C are implemented natively as well
 * Metrics are very important to get insight of Spark's execution, identify the issues or bottlenecks. Gluten collects the metrics from native library and shows in Spark UI.
-* Shim layer is used to support multiple releases of Spark. Gluten only plans to support the latest 2-3 spark stable releases, with no plans to add support on older spark releases. Current support is on Spark 3.2 and Spark 3.3.
+* Shim layer is used to support multiple releases of Spark. Gluten only plans to support the latest 2-3 spark stable releases, with no plans to support older spark releases. Currently, only Spark-3.2 & Spark-3.3 are supported.
 
 # 3 Usage
 
@@ -61,7 +61,7 @@ Gluten is still under active development. There are two ways to use Gluten.
 
 # 3.1 Use Prebuilt jar
 
-One Way is to use released binary jar. Here is a simple example. We support centos7/8 and ubuntu20.04/22.04 by now.
+One Way is to use released binary jar. Here is a simple example. Currently, only centos7/8 and ubuntu20.04/22.04 are well supported.
 
 ```
 spark-shell \
@@ -130,7 +130,7 @@ Feel free to submit any bugs, issues or enhancement requirements to github issue
 
 ## 4.3 Documentation
 
-Unfortunately we haven't organized the documentation site for Gluten. Currently all document is held in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under active development, and the document may not reflect the latest designs. Please feel free to contact with us for sharing your design ideas.
+Currently, all gluten documents are held at [docs](https://github.com/oap-project/gluten/tree/main/docs). Gluten is still under active development, and the documents may not reflect the latest designs. Please feel free to contact us for getting more design details or sharing your design ideas.
 
 CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code. Please propose a PR without any hesitation if you have any good idea for better coding style. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
 
