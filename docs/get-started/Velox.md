@@ -358,6 +358,7 @@ cat /etc/security/limits.conf | grep qat
 3. Enable huge page. This step is required to execute each time after system reboot. We recommend using systemctl to manage at system startup.
 You change the values for "max_huge_pages" and "max_huge_pages_per_process" to make sure there are enough resources for your workload.
 As for Spark applications, one process matches one executor. Within the executor, every task is allocated a maximum of 5 huge pages.
+
 ```bash
 sudo su -
 
