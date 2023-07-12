@@ -342,7 +342,12 @@ It's recommended to put it in .bashrc on Driver and Worker nodes.
 ```bash
 echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
 source ~/.bashrc
+
+# Also set for root if running as non-root user
+sudo su - 
+echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
 ```
+
 2. **This step is required if your application is running as Non-root user**.
 The users must be added to the 'qat' group after QAT drvier is installed.
 And change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf.
