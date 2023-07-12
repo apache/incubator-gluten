@@ -23,11 +23,12 @@
 #include <jni.h>
 
 #include "compute/ProtobufUtils.h"
+#include "config/GlutenConfig.h"
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
 #ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/qat_util.h"
+#include "utils/qat/QatCodec.h"
 #endif
 
 #ifdef GLUTEN_ENABLE_IAA
@@ -62,43 +63,22 @@ static inline std::string jStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer, clen);
 }
 
-static inline arrow::Result<arrow::Compression::type> getCompressionType(JNIEnv* env, jstring codecJstr) {
+static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring codecJstr, jstring codecBackendJstr) {
+  if (codecJstr == NULL) {
+    return arrow::Compression::UNCOMPRESSED;
+  }
   auto codecU = env->GetStringUTFChars(codecJstr, JNI_FALSE);
 
   std::string codecL;
   std::transform(codecU, codecU + std::strlen(codecU), std::back_inserter(codecL), ::tolower);
-#ifdef GLUTEN_ENABLE_QAT
-  // TODO: Support more codec.
-  static const std::string qat_codec_prefix = "gluten_qat_";
-  if (codecL.rfind(qat_codec_prefix, 0) == 0) {
-    auto codec = codecL.substr(qat_codec_prefix.size());
-    if (gluten::qat::SupportsCodec(codec)) {
-      gluten::qat::EnsureQatCodecRegistered(codec);
-      codecL = "custom";
-    } else {
-      std::string error_message = "Unrecognized compression codec: " + codecL;
-      env->ReleaseStringUTFChars(codecJstr, codecU);
-      throw gluten::GlutenException(error_message);
-    }
+
+#if defined(GLUTEN_ENABLE_QAT) || defined(GLUTEN_ENABLE_IAA)
+  if (codecBackendJstr) {
+    codecL = "custom";
   }
 #endif
 
-#ifdef GLUTEN_ENABLE_IAA
-  static const std::string qpl_codec_prefix = "gluten_iaa_";
-  if (codecL.rfind(qpl_codec_prefix, 0) == 0) {
-    auto codec = codecL.substr(qpl_codec_prefix.size());
-    if (gluten::qpl::SupportsCodec(codec)) {
-      gluten::qpl::EnsureQplCodecRegistered(codec);
-      codecL = "custom";
-    } else {
-      std::string error_message = "Unrecognized compression codec: " + codecL;
-      env->ReleaseStringUTFChars(codecJstr, codecU);
-      throw gluten::GlutenException(error_message);
-    }
-  }
-#endif
-
-  ARROW_ASSIGN_OR_RAISE(auto compression_type, arrow::util::Codec::GetCompressionType(codecL));
+  GLUTEN_ASSIGN_OR_THROW(auto compression_type, arrow::util::Codec::GetCompressionType(codecL));
 
   if (compression_type == arrow::Compression::LZ4) {
     compression_type = arrow::Compression::LZ4_FRAME;

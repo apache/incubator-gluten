@@ -66,6 +66,7 @@ class VeloxInitializer {
   void init(const std::unordered_map<std::string, std::string>& conf);
   void initCache(const std::unordered_map<std::string, std::string>& conf);
   void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
+  void initHWAccelerators(const std::unordered_map<std::string, std::string>& conf);
 
   void printConf(const std::unordered_map<std::string, std::string>& conf);
 

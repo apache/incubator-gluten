@@ -247,31 +247,6 @@ With above steps, you will get a physical plan output like:
 native validation failed due to: in ProjectRel, Scalar function name not registered: get_struct_field, called with arguments: (ROW<col_0:INTEGER,col_1:BIGINT,col_2:BIGINT>, INTEGER).
 ```
 
-# High-Bandwidth Memory (HBM) support
-
-Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It is implemented on top of [Memkind library](http://memkind.github.io/memkind/). You can refer to memkind's [readme](https://github.com/memkind/memkind#memkind) for more details.
-
-## Build Gluten with HBM
-
-Gluten will internally build and link to a specific version of Memkind library and [hwloc](https://github.com/open-mpi/hwloc). Other dependencies should be installed on Driver and Worker node first:
-
-```bash
-sudo apt install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
-```
-
-After the set-up, you can now build Gluten with HBM. Below command is used to enable this feature
-
-```bash
-cd /path_to_gluten
-
-## The script builds two jars for spark 3.2.2 and 3.3.1.
-./dev/buildbundle-veloxbe.sh --enable_hbm=ON
-```
-
-## Configure and enable HBM in Spark Application
-
-At runtime, `MEMKIND_HBW_NODES` enviroment variable is detected for configuring HBM NUMA nodes. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`. Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.
-
 # Spill (Experimental)
 
 Velox backend supports spilling-to-disk.
@@ -320,42 +295,98 @@ The 30% of off-heap memory is preserved for the operators in Velox that doesn't 
 
 It's worth noting that the 45% of off-heap memory is not shared across Velox operators in a single task. This could cause OOM if more than one memory-consuming operators are there in the task. If so, please try decreasing `spark.gluten.sql.columnar.backend.velox.spillMemoryThresholdRatio` to make each operator manage its own share. 
 
+# High-Bandwidth Memory (HBM) support
+
+Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It is implemented on top of [Memkind library](http://memkind.github.io/memkind/). You can refer to memkind's [readme](https://github.com/memkind/memkind#memkind) for more details.
+
+## Build Gluten with HBM
+
+Gluten will internally build and link to a specific version of Memkind library and [hwloc](https://github.com/open-mpi/hwloc). Other dependencies should be installed on Driver and Worker node first:
+
+```bash
+sudo apt install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
+```
+
+After the set-up, you can now build Gluten with HBM. Below command is used to enable this feature
+
+```bash
+cd /path_to_gluten
+
+## The script builds two jars for spark 3.2.2 and 3.3.1.
+./dev/buildbundle-veloxbe.sh --enable_hbm=ON
+```
+
+## Configure and enable HBM in Spark Application
+
+At runtime, `MEMKIND_HBW_NODES` enviroment variable is detected for configuring HBM NUMA nodes. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`. Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.
+
 # Intel® QuickAssist Technology (QAT) support
 
 Gluten supports using Intel® QuickAssist Technology (QAT) for data compression during Spark Shuffle. It benefits from QAT Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
 
 This feature is based on QAT driver library and [QATzip](https://github.com/intel/QATzip) library. Please manually download QAT driver for your system, and follow its README to build and install on all Driver and Worker node: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
 
+## Software Requirements
+- Download QAT driver for your system, and follow its README to build and install on all Driver and Worker nodes: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
+- Below compression libraries need to be installed on all Driver and Worker nodes:
+  - Zlib* library of version 1.2.7 or higher
+  - ZSTD* library of version 1.5.4 or higher
+  - LZ4* library
+
 ## Build Gluten with QAT
 
-Gluten will internally build and link to a specific version of QATzip library. Please **uninstall QATzip library** before building Gluten if it's already installed. Additional environment set-up are also required:
-
-1. Setup ICP_ROOT environment variable. This environment variable is required during building Gluten and running Spark applicaitons. It's recommended to put it in .bashrc on Driver and Worker node.
+1. Setup ICP_ROOT environment variable to the directory where QAT driver is extracted.
+This environment variable is required during building Gluten and running Spark applications.
+It's recommended to put it in .bashrc on Driver and Worker nodes.
 
 ```bash
-export ICP_ROOT=/path_to_QAT_driver
+echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
+source ~/.bashrc
 ```
-2. **This step is required if your application is running as Non-root user**. The users must be added to the 'qat' group after QAT drvier is installed:
+2. **This step is required if your application is running as Non-root user**.
+The users must be added to the 'qat' group after QAT drvier is installed.
+And change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf.
 
 ```bash
 sudo usermod -aG qat username # need to relogin
-```
-Change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf. To set 500MB add a line like this in /etc/security/limits.conf:
 
-```bash
-cat /etc/security/limits.conf |grep qat
+# To set 500MB add a line like this in /etc/security/limits.conf
+cat /etc/security/limits.conf | grep qat
 @qat - memlock 500000
 ```
 
-3. Enable huge page as root user. **Note that this step is required to execute each time after system reboot.**
-
+3. Enable huge page. This step is required to execute each time after system reboot. We recommend using systemctl to manage at system startup.
+You change the values for "max_huge_pages" and "max_huge_pages_per_process" to make sure there are enough resources for your workload.
+As for Spark applications, one process matches one executor. Within the executor, every task is allocated a maximum of 5 huge pages.
 ```bash
- echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
- rmmod usdm_drv
- insmod $ICP_ROOT/build/usdm_drv.ko max_huge_pages=1024 max_huge_pages_per_process=32
+sudo su -
+
+cat << EOF > /usr/local/bin/qat_startup.sh
+#!/bin/bash
+echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+rmmod usdm_drv
+insmod $ICP_ROOT/build/usdm_drv.ko max_huge_pages=1024 max_huge_pages_per_process=32
+EOF
+
+chmod +x /usr/local/bin/qat_startup.sh
+
+cat << EOF > /etc/systemd/system/qat_startup.service
+[Unit]
+Description=Configure QAT
+
+[Service]
+ExecStart=/usr/local/bin/qat_startup.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl enable qat_startup.service
+systemctl start qat_startup.service # setup immediately
+systemctl status qat_startup.service
 ```
- 
-After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
+
+4. After the setup, you are now ready to build Gluten with QAT. Use the command below to enable this feature:
 
 ```bash
 cd /path_to_gluten
@@ -364,9 +395,9 @@ cd /path_to_gluten
 ./dev/buildbundle-veloxbe.sh --enable_qat=ON
 ```
 
-## Enable QAT with Gzip Compression for shuffle compression
+## Enable QAT with Gzip/Zstd for shuffle compression
 
-1. To enable QAT at run-time, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](../qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
+1. To offload shuffle compression into QAT, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](../qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
 
 ```bash
 ## run as root
@@ -401,7 +432,7 @@ There is 8 QAT acceleration device(s) in the system:
 3. Extra Gluten configurations are required when starting Spark application
 
 ```
---conf spark.gluten.sql.columnar.shuffle.codec=gzip
+--conf spark.gluten.sql.columnar.shuffle.codec=gzip # Valid options are gzip and zstd
 --conf spark.gluten.sql.columnar.shuffle.codecBackend=qat
 ```
 

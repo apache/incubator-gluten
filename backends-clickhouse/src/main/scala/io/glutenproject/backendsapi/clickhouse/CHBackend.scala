@@ -72,6 +72,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   // unit: SECONDS, default 1 day
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT: Int = 86400
 
+  val GLUTNE_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
+
   override def supportFileFormatRead(
       format: ReadFileFormat,
       fields: Array[StructField],
@@ -151,4 +153,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
+
+  override def shuffleSupportedCodec(): Set[String] = GLUTNE_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
 }

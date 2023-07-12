@@ -28,6 +28,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.io._
 import java.nio.ByteBuffer
+import java.util.Locale
 
 import scala.reflect.ClassTag
 
@@ -64,7 +65,7 @@ private class CHColumnarBatchSerializerInstance(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT.toBoolean
   )
   private lazy val compressionCodec =
-    GlutenShuffleUtils.getCompressionCodec(SparkEnv.get.conf)
+    GlutenShuffleUtils.getCompressionCodec(SparkEnv.get.conf).toUpperCase(Locale.ROOT)
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
