@@ -35,7 +35,8 @@ class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
     // the first column in first row from `query`.
     val rows = query.plan.executeCollect()
     if (rows.length > 1) {
-      sys.error(s"more than one row returned by a subquery used as an expression:\n${query.plan}")
+      throw new IllegalStateException(
+        s"more than one row returned by a subquery used as an expression:\n${query.plan}")
     }
     val result: AnyRef = if (rows.length == 1) {
       assert(rows(0).numFields == 1,

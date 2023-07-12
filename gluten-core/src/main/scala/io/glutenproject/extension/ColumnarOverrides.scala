@@ -665,10 +665,10 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
     val tagBeforeTransformHitsRules = if (this.isAdaptiveContext) {
-      TagBeforeTransformHits.ruleBuilders
-    } else {
       // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
       List.empty
+    } else {
+      TagBeforeTransformHits.ruleBuilders
     }
     tagBeforeTransformHitsRules :::
     List(
