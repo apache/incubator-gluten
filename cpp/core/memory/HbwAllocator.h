@@ -37,10 +37,6 @@ class HbwMemoryAllocator final : public MemoryAllocator {
 
   bool free(void* p, int64_t size) override;
 
-  bool reserveBytes(int64_t size) override;
-
-  bool unreserveBytes(int64_t size) override;
-
   int64_t getBytes() const override;
 
  private:

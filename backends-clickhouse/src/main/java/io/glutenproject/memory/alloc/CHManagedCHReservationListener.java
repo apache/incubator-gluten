@@ -17,8 +17,8 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,14 +29,14 @@ public class CHManagedCHReservationListener implements CHReservationListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(CHManagedCHReservationListener.class);
 
-  private GlutenMemoryConsumer consumer;
+  private MemoryTarget target;
   private final TaskMemoryMetrics metrics;
   private volatile boolean open = true;
 
   private final AtomicLong currentMemory = new AtomicLong(0L);
 
-  public CHManagedCHReservationListener(GlutenMemoryConsumer consumer, TaskMemoryMetrics metrics) {
-    this.consumer = consumer;
+  public CHManagedCHReservationListener(MemoryTarget target, TaskMemoryMetrics metrics) {
+    this.target = target;
     this.metrics = metrics;
   }
 
@@ -49,9 +49,9 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       if (LOG.isDebugEnabled()) {
         LOG.debug(String.format("reserve memory size from native: %d", size));
       }
-      long granted = consumer.acquire(size);
+      long granted = target.borrow(size);
       if (granted < size) {
-        consumer.free(granted);
+        target.repay(granted);
         throw new UnsupportedOperationException(
             "Not enough spark off-heap execution memory. "
                 + "Acquired: "
@@ -76,7 +76,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       if (LOG.isDebugEnabled()) {
         LOG.debug(String.format("reserve memory (without exception) size from native: %d", size));
       }
-      long granted = consumer.acquire(size);
+      long granted = target.borrow(size);
       if (granted < size && (LOG.isWarnEnabled())) {
         LOG.warn(
             String.format(
@@ -114,7 +114,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       if (LOG.isDebugEnabled()) {
         LOG.debug(String.format("unreserve memory size from native: %d", memoryToFree));
       }
-      consumer.free(memoryToFree);
+      target.repay(memoryToFree);
       currentMemory.addAndGet(-memoryToFree);
       metrics.inc(-size);
       return memoryToFree;
@@ -133,7 +133,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       }
       currentMemory.set(0L);
 
-      consumer = null; // make it gc reachable
+      target = null; // make it gc reachable
       open = false;
     }
   }

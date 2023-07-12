@@ -40,14 +40,13 @@ class MemoryAllocator {
 
   virtual bool free(void* p, int64_t size) = 0;
 
-  virtual bool reserveBytes(int64_t size) = 0;
-  virtual bool unreserveBytes(int64_t size) = 0;
-
   virtual int64_t getBytes() const = 0;
 };
 
 class AllocationListener {
  public:
+  static AllocationListener* noop();
+
   virtual ~AllocationListener() = default;
 
   // Value of diff can be either positive or negative
@@ -75,9 +74,9 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
 
   bool free(void* p, int64_t size) override;
 
-  bool reserveBytes(int64_t size) override;
+  MemoryAllocator* delegatedAllocator();
 
-  bool unreserveBytes(int64_t size) override;
+  AllocationListener* listener();
 
   int64_t getBytes() const override;
 
@@ -100,10 +99,6 @@ class StdMemoryAllocator final : public MemoryAllocator {
   bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) override;
 
   bool free(void* p, int64_t size) override;
-
-  bool reserveBytes(int64_t size) override;
-
-  bool unreserveBytes(int64_t size) override;
 
   int64_t getBytes() const override;
 

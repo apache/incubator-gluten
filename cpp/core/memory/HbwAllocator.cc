@@ -81,16 +81,6 @@ bool HbwMemoryAllocator::free(void* p, int64_t size) {
   return true;
 }
 
-bool HbwMemoryAllocator::reserveBytes(int64_t size) {
-  bytes_ += size;
-  return true;
-}
-
-bool HbwMemoryAllocator::unreserveBytes(int64_t size) {
-  bytes_ -= size;
-  return true;
-}
-
 int64_t HbwMemoryAllocator::getBytes() const {
   return bytes_;
 }

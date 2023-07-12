@@ -209,6 +209,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
 
+  def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -921,15 +923,21 @@ object GlutenConfig {
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
       .internal()
-      .doc(
-        "none: Disable spill on Velox backend; " +
-          "threshold: Use spark.gluten.sql.columnar.backend.velox.memoryCapRatio " +
-          "to calculate a memory threshold number for triggering spill; " +
-          "auto: Let Spark memory manager manage Velox's spilling")
+      .doc("none: Disable spill on Velox backend; " +
+        "auto: Let Spark memory manager manage Velox's spilling")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("none", "threshold", "auto"))
-      .createWithDefault("threshold")
+      .checkValues(Set("none", "auto"))
+      .createWithDefault("auto")
+
+  val COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO =
+    buildConf("spark.gluten.sql.columnar.backend.velox.overAcquiredMemoryRatio")
+      .internal()
+      .doc("If larger than 0, Velox backend will try over-acquire this ratio of the total " +
+        "allocated memory as backup to avoid OOM")
+      .doubleConf
+      .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
+      .createWithDefault(0.3d)
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")

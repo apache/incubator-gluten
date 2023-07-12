@@ -15,18 +15,14 @@
  * limitations under the License.
  */
 
-#pragma once
+package io.glutenproject.memory.memtarget;
 
-#include <memory>
-#include <vector>
-
-namespace gluten {
-
-bool onSparkTaskMainThread();
-
-void bindToTask(std::shared_ptr<void> object);
-
-void createTaskContextStorage();
-
-void deleteTaskContextStorage();
-} // namespace gluten
+// The naming convention "borrow" and "repay" are for preventing collisions with
+//   other APIs.
+//
+// Implementations are not necessary to be thread-safe
+public interface MemoryTarget {
+  long borrow(long size);
+  long repay(long size);
+  long bytes();
+}

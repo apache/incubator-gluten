@@ -17,70 +17,60 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
-
+import io.glutenproject.memory.memtarget.MemoryTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Reserve Spark managed memory. */
+import java.util.function.Consumer;
+
+/**
+ * Reserve Spark managed memory.
+ */
 public class ManagedReservationListener implements ReservationListener {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ManagedReservationListener.class);
 
-  private GlutenMemoryConsumer consumer;
-  private TaskMemoryMetrics metrics;
+  private MemoryTarget target;
+  private final TaskMemoryMetrics metrics;
   private volatile boolean open = true;
+  private volatile long reserved = 0L;
 
-  public ManagedReservationListener(GlutenMemoryConsumer consumer, TaskMemoryMetrics metrics) {
-    this.consumer = consumer;
+  public ManagedReservationListener(MemoryTarget target, TaskMemoryMetrics metrics) {
+    this.target = target;
     this.metrics = metrics;
   }
 
-  @Override
-  public void reserveOrThrow(long size) {
-    synchronized (this) {
-      if (!open) {
-        return;
-      }
-      long granted = consumer.acquire(size);
-      if (granted < size) {
-        consumer.free(granted);
-        throw new UnsupportedOperationException(
-            "Not enough spark off-heap execution memory. "
-                + "Acquired: "
-                + size
-                + ", granted: "
-                + granted
-                + ". "
-                + "Try tweaking config option spark.memory.offHeap.size to "
-                + "get larger space to run this application. ");
-      }
-      metrics.inc(size);
-    }
-  }
-
-  @Override
-  public long reserve(long size) {
+  private long reserve0(long size, Consumer<String> onOom) {
     synchronized (this) {
       if (!open) {
         return 0L;
       }
-      long granted = consumer.acquire(size);
-      if (granted < size) {
-        LOG.warn(
-            "Not enough spark off-heap execution memory. "
-                + "Acquired: "
-                + size
-                + ", granted: "
-                + granted
-                + ". "
-                + "Try tweaking config option spark.memory.offHeap.size to "
-                + "get larger space to run this application. ");
-      }
+      long granted = target.borrow(size);
+      reserved += granted;
       metrics.inc(granted);
+      if (granted < size) {
+        target.repay(granted);
+        onOom.accept("Not enough spark off-heap execution memory. " +
+            "Acquired: " + size + ", granted: " + granted + ". " +
+            "Try tweaking config option spark.memory.offHeap.size to " +
+            "get larger space to run this application. ");
+      }
       return granted;
     }
+  }
+
+  @Override
+  public void reserveOrThrow(long size) {
+    reserve0(size, s -> {
+      throw new UnsupportedOperationException(s);
+    });
+  }
+
+  @Override
+  public long reserve(long size) {
+   return reserve0(size, LOG::warn);
   }
 
   @Override
@@ -89,7 +79,8 @@ public class ManagedReservationListener implements ReservationListener {
       if (!open) {
         return 0L;
       }
-      consumer.free(size);
+      target.repay(size);
+      reserved -= size;
       metrics.inc(-size);
       return size;
     }
@@ -98,13 +89,8 @@ public class ManagedReservationListener implements ReservationListener {
   @Override
   public void inactivate() {
     synchronized (this) {
-      consumer = null; // make it gc reachable
+      target = null; // make it gc reachable
       open = false;
     }
-  }
-
-  @Override
-  public long currentMemory() {
-    return consumer.getUsed();
   }
 }

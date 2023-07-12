@@ -17,10 +17,11 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.Spiller;
+import io.glutenproject.memory.memtarget.MemoryTarget;
+import io.glutenproject.memory.memtarget.OverAcquire;
+import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.Spiller;
 import io.glutenproject.memory.TaskMemoryMetrics;
-
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
@@ -28,15 +29,17 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Built-in toolkit for managing native memory allocations. To use the facility, one should import
- * Gluten's C++ library then create the c++ instance using following example code:
- *
- * <p>```c++ auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id); ```
- *
- * <p>The ID "allocator_id" can be retrieved from Java API {@link
- * NativeMemoryAllocator#getNativeInstanceId()}.
- *
- * <p>FIXME: to export the native APIs in a standard way
+ * Built-in toolkit for managing native memory allocations. To use the facility, one should
+ * import Gluten's C++ library then create the c++ instance using following example code:
+ * <p>
+ * ```c++
+ * auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+ * ```
+ * <p>
+ * The ID "allocator_id" can be retrieved from Java API
+ * {@link NativeMemoryAllocator#getNativeInstanceId()}.
+ * <p>
+ * FIXME: to export the native APIs in a standard way
  */
 public final class NativeMemoryAllocators {
   private static final Map<NativeMemoryAllocator.Type, NativeMemoryAllocators> INSTANCES =
@@ -62,27 +65,23 @@ public final class NativeMemoryAllocators {
     }
     final String id = NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global);
     return TaskResources.addResourceIfNotRegistered(
-            id,
-            () ->
-                createNativeMemoryAllocatorManager(
-                    TaskResources.getLocalTaskContext().taskMemoryManager(),
-                    TaskResources.getSharedMetrics(),
-                    Spiller.NO_OP,
-                    global))
-        .getManaged();
+        id, () -> createNativeMemoryAllocatorManager(
+            TaskResources.getLocalTaskContext().taskMemoryManager(),
+            TaskResources.getSharedMetrics(), 0.0D, Spiller.NO_OP,
+            global
+        )).getManaged();
   }
 
-  public NativeMemoryAllocator createSpillable(Spiller spiller) {
+  public NativeMemoryAllocator create(double overAcquiredRatio, Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
 
-    final NativeMemoryAllocatorManager manager =
-        createNativeMemoryAllocatorManager(
-            TaskResources.getLocalTaskContext().taskMemoryManager(),
-            TaskResources.getSharedMetrics(),
-            spiller,
-            global);
+    final NativeMemoryAllocatorManager manager = createNativeMemoryAllocatorManager(
+        TaskResources.getLocalTaskContext().taskMemoryManager(),
+        TaskResources.getSharedMetrics(), overAcquiredRatio, spiller,
+        global
+    );
     return TaskResources.addAnonymousResource(manager).getManaged();
   }
 
@@ -93,12 +92,18 @@ public final class NativeMemoryAllocators {
   private static NativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
       TaskMemoryManager taskMemoryManager,
       TaskMemoryMetrics taskMemoryMetrics,
+      double overAcquiredRatio,
       Spiller spiller,
       NativeMemoryAllocator delegated) {
-
-    ManagedReservationListener rl =
-        new ManagedReservationListener(
-            new GlutenMemoryConsumer(taskMemoryManager, spiller), taskMemoryMetrics);
+    MemoryTarget target = new GlutenMemoryConsumer(taskMemoryManager, spiller);
+    if (overAcquiredRatio != 0.0D) {
+      target = new OverAcquire(target,
+          new OverAcquire.DummyTarget(taskMemoryManager), overAcquiredRatio);
+    }
+    ManagedReservationListener rl = new ManagedReservationListener(
+        target,
+        taskMemoryMetrics
+    );
     return new NativeMemoryAllocatorManagerImpl(
         NativeMemoryAllocator.createListenable(rl, delegated));
   }

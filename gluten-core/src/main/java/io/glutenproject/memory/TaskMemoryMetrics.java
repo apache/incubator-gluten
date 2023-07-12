@@ -19,6 +19,7 @@ package io.glutenproject.memory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+// thread safe
 public class TaskMemoryMetrics {
   private final AtomicLong peak = new AtomicLong(0L);
   private final AtomicLong total = new AtomicLong(0L);

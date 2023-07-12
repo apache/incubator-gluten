@@ -17,9 +17,8 @@
 
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.TaskMemoryMetrics;
-
 import org.apache.arrow.memory.AllocationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,11 +26,12 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ManagedAllocationListener implements AllocationListener, AutoCloseable {
-  private static final Logger LOG = LoggerFactory.getLogger(ManagedAllocationListener.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ManagedAllocationListener.class);
 
   public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
-  private final GlutenMemoryConsumer consumer;
+  private final MemoryTarget target;
   private final TaskMemoryMetrics metrics;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -39,8 +39,9 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public ManagedAllocationListener(GlutenMemoryConsumer consumer, TaskMemoryMetrics metrics) {
-    this.consumer = consumer;
+  public ManagedAllocationListener(MemoryTarget target,
+                                        TaskMemoryMetrics metrics) {
+    this.target = target;
     this.metrics = metrics;
   }
 
@@ -58,18 +59,13 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
       return;
     }
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
-    long granted = consumer.acquire(toBeAcquired);
+    long granted = target.borrow(toBeAcquired);
     if (granted < toBeAcquired) {
-      consumer.free(granted);
-      throw new UnsupportedOperationException(
-          "Not enough spark off-heap execution memory. "
-              + "Acquired: "
-              + size
-              + ", granted: "
-              + granted
-              + ". "
-              + "Try tweaking config option spark.memory.offHeap.size to "
-              + "get larger space to run this application. ");
+      target.repay(granted);
+      throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
+          "Acquired: " + size + ", granted: " + granted + ". " +
+          "Try tweaking config option spark.memory.offHeap.size to " +
+          "get larger space to run this application. ");
     }
     metrics.inc(granted);
   }
@@ -88,7 +84,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
       return;
     }
     long toBeReleased = -requiredBlocks * BLOCK_SIZE;
-    consumer.free(toBeReleased);
+    target.repay(toBeReleased);
     metrics.inc(-toBeReleased);
   }
 
