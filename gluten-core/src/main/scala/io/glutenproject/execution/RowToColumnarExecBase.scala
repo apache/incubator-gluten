@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
@@ -30,9 +31,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 /**
  * Provides a common executor to translate an [[RDD]] of [[InternalRow]] into an [[RDD]] of
  * [[ColumnarBatch]]. This is inserted whenever such a transition is determined to be needed.
- *
  */
-abstract class RowToColumnarExecBase(child: SparkPlan) extends RowToColumnarTransition {
+abstract class RowToColumnarExecBase(child: SparkPlan)
+  extends RowToColumnarTransition with GlutenPlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =

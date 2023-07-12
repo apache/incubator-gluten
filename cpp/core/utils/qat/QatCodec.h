@@ -19,19 +19,23 @@
 
 #include <arrow/util/compression.h>
 #include <qatzip.h>
+#include <vector>
 
 namespace gluten {
 namespace qat {
 
-static const std::vector<std::string> qat_supported_codec = {"gzip"};
+static const std::vector<std::string> kQatSupportedCodec = {"gzip", "zstd"};
 
-bool SupportsCodec(const std::string& codec);
+bool supportsCodec(const std::string& qatCodec);
 
-void EnsureQatCodecRegistered(const std::string& codec);
+void ensureQatCodecRegistered(const std::string& codec);
 
-std::unique_ptr<arrow::util::Codec> MakeQatGZipCodec(QzPollingMode_T polling_mode, int compression_level);
+std::unique_ptr<arrow::util::Codec> makeQatGZipCodec(QzPollingMode_T pollingMode, int compressionLevel);
 
-std::unique_ptr<arrow::util::Codec> MakeDefaultQatGZipCodec();
+std::unique_ptr<arrow::util::Codec> makeDefaultQatGZipCodec();
 
+std::unique_ptr<arrow::util::Codec> makeQatZstdCodec(int compressionLevel);
+
+std::unique_ptr<arrow::util::Codec> makeDefaultQatZstdCodec();
 } // namespace qat
 } // namespace gluten

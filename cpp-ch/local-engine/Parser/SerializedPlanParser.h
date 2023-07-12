@@ -118,7 +118,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
-       {"concat", "concat"},
+       {"concat", ""}, /// dummy mapping
        {"strpos", "position"},
        {"char_length",
         "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
@@ -135,7 +135,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"unbase64", "base64Decode"},
        {"lpad", "leftPadUTF8"},
        {"rpad", "rightPadUTF8"},
-       {"reverse", "reverseUTF8"},
+       {"reverse", ""}, /// dummy mapping
        {"md5", "MD5"},
        {"translate", "translateUTF8"},
        {"repeat", "repeat"},
@@ -144,10 +144,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"space", "space"},
 
        /// hash functions
-       {"murmur3hash", "murmurHashSpark3_32"},
-       {"xxhash64", "xxHashSpark64"},
        {"sha1", "SHA1"},
-       {"sha2", ""}, /// dummpy mapping
+       {"sha2", ""}, /// dummy mapping
        {"crc32", "CRC32"},
 
        // in functions
@@ -155,41 +153,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
 
        // null related functions
        {"coalesce", "coalesce"},
-
-       // aggregate functions
-       {"count", "count"},
-       {"avg", "avg"},
-       {"sum", "sum"},
-       {"min", "min"},
-       {"max", "max"},
-       {"collect_list", "groupArray"},
-       {"first", "first_value_respect_nulls"},
-       {"first_ignore_null", "first_value"},
-       {"last_ignore_null", "last_value"},
-       {"last", "last_value_respect_nulls"},
-
-       // window functions
-       {"lead", "lead"},
-       {"lag", "lag"},
-       {"dense_rank", "dense_rank"},
-       {"rank", "rank"},
-       {"row_number", "row_number"},
-       {"ntile", "ntile"},
-       {"percent_rank", "percent_rank"},
-       {"cume_dist", "cume_dist"},
-
-       // In Spark, stddev is the alias for stddev_samp.
-       {"stddev", "stddev_samp"},
-       {"stddev_samp", "stddev_samp"},
-       {"stddev_pop", "stddev_pop"},
-       {"bit_and", "groupBitAnd"},
-       {"bit_or", "groupBitOr"},
-       {"bit_xor", "groupBitXor"},
-       {"covar_pop", "covarPop"},
-       {"covar_samp", "covarSamp"},
-       {"var_samp", "varSamp"},
-       {"var_pop", "varPop"},
-       {"corr", "corr"},
 
        // date or datetime functions
        {"from_unixtime", "fromUnixTimestampInJodaSyntax"},
@@ -386,35 +349,6 @@ private:
 
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(std::vector<String> columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
-
-    static Aggregator::Params getAggregateParam(const Names & keys, const AggregateDescriptions & aggregates, const ContextPtr & context_)
-    {
-        const Settings & settings = context_->getSettingsRef();
-        return Aggregator::Params(
-            keys,
-            aggregates,
-            false,
-            settings.max_rows_to_group_by,
-            settings.group_by_overflow_mode,
-            settings.group_by_two_level_threshold,
-            settings.group_by_two_level_threshold_bytes,
-            settings.max_bytes_before_external_group_by,
-            settings.empty_result_for_aggregation_by_empty_set,
-            context_->getTempDataOnDisk(),
-            settings.max_threads,
-            settings.min_free_disk_space_for_temporary_data,
-            true,
-            3,
-            settings.max_block_size,
-            false,
-            false);
-    }
-
-    static Aggregator::Params getMergedAggregateParam(const Names & keys, const AggregateDescriptions & aggregates)
-    {
-        Settings settings;
-        return Aggregator::Params(keys, aggregates, false, settings.max_threads, settings.max_block_size);
-    }
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, std::vector<String> columns);
 

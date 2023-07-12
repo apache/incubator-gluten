@@ -22,7 +22,7 @@ spark.hadoop.fs.s3a.connection.ssl.enabled      true
 spark.hadoop.fs.s3a.path.style.access           false
 ```
 
-Note if testing with a mock AWS S3 enviorment(like Minio/Ceph), users may required to modify some of the values. E.g., on Minio setup, below config is required: `spark.hadoop.fs.s3a.path.style.access true`
+Note if testing with a mock AWS S3 environment(like Minio/Ceph), users may required to modify some of the values. E.g., on Minio setup, below config is required: `spark.hadoop.fs.s3a.path.style.access true`
 
 ## Configuring S3 instance credentials
 

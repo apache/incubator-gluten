@@ -72,6 +72,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   // unit: SECONDS, default 1 day
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT: Int = 86400
 
+  val GLUTNE_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
+
   override def supportFileFormatRead(
       format: ReadFileFormat,
       fields: Array[StructField],
@@ -101,14 +103,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def supportShuffleWithProject(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
-    // FIXME: The HashAggregateExec's output is different from backend, cannot use directly.
     child match {
-      case _: HashAggregateExec =>
-        logInfo(
-          s"Not support shuffleExechangeExec with child of HashAggregateExec, which" +
-            s" has expressions in partitioning")
-        false
-      case _ => true
+      case hash: HashAggregateExec =>
+        // support project when aggregation only has grouping keys, for tpcds q14a,b
+        hash.aggregateExpressions.isEmpty
+      case _ =>
+        true
     }
   }
 
@@ -153,4 +153,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
+
+  override def shuffleSupportedCodec(): Set[String] = GLUTNE_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
 }

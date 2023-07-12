@@ -34,6 +34,7 @@
     <module>gluten-core</module>
     <module>package</module>
     <module>substrait/substrait-spark</module>
+    <module>gluten-ui</module>
   </modules>
 
   <properties>
@@ -564,9 +565,13 @@
           <version>${scala.compiler.version}</version>
           <configuration>
             <recompileMode>${scala.recompile.mode}</recompileMode>
-            <args>
-              <arg>-Ywarn-unused:imports</arg>
-            </args>
+              <args>
+                <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+                <arg>-Ywarn-unused:imports</arg>
+                <arg>-Xfatal-warnings</arg>
+                <arg>-deprecation</arg>
+                <arg>-feature</arg>
+              </args>
           </configuration>
           <executions>
             <execution>
@@ -634,6 +639,7 @@
             <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
             <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
             <outputEncoding>UTF-8</outputEncoding>
+            <configLocation>dev/scalastyle-config.xml</configLocation>
           </configuration>
           <executions>
             <execution>

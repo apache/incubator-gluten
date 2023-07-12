@@ -18,15 +18,14 @@
 #include "VeloxBackend.h"
 #include <filesystem>
 
-#include "ArrowTypeUtils.h"
 #include "arrow/c/bridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
-#include "compute/RowVectorStream.h"
 #include "compute/VeloxPlanConverter.h"
-#include "compute/VeloxRowToColumnarConverter.h"
 #include "config/GlutenConfig.h"
+#include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "utils/TaskContext.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;
@@ -96,25 +95,19 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
 }
 
 arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar2RowConverter(
-    MemoryAllocator* allocator,
-    std::shared_ptr<ColumnarBatch> cb) {
-  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  if (veloxBatch) {
-    auto arrowPool = asArrowMemoryPool(allocator);
-    auto veloxPool = asAggregateVeloxMemoryPool(allocator);
-    auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
-    return std::make_shared<VeloxColumnarToRowConverter>(arrowPool, ctxVeloxPool);
-  } else {
-    return Backend::getColumnar2RowConverter(allocator, cb);
-  }
+    MemoryAllocator* allocator) {
+  auto arrowPool = asArrowMemoryPool(allocator);
+  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
+  auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
+  return std::make_shared<VeloxColumnarToRowConverter>(arrowPool, ctxVeloxPool);
 }
 
 std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
     MemoryAllocator* allocator,
     struct ArrowSchema* cSchema) {
-  // TODO: wait to fix task memory pool
-  auto veloxPool = defaultLeafVeloxMemoryPool();
-  // AsWrappedVeloxAggregateMemoryPool(allocator)->addChild("row_to_columnar", velox::memory::MemoryPool::Kind::kLeaf);
+  auto veloxAggregatePool = asAggregateVeloxMemoryPool(allocator);
+  auto veloxPool = veloxAggregatePool->addLeafChild("row_to_columnar");
+  gluten::bindToTask(veloxPool);
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 

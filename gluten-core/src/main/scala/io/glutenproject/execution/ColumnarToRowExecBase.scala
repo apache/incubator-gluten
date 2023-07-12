@@ -18,26 +18,22 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
-abstract class ColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTransition {
+abstract class ColumnarToRowExecBase(child: SparkPlan)
+  extends ColumnarToRowTransition with GlutenPlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarToRowMetrics(sparkContext)
 
-  def doValidate(): Boolean = {
-    try {
-      buildCheck()
-    } catch {
-      case _: Throwable =>
-        logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
-        return false
-    }
-    true
+  override protected def doValidateInternal(): ValidationResult = {
+    buildCheck()
+    ValidationResult.ok
   }
 
   def buildCheck(): Unit

@@ -17,8 +17,11 @@
 
 package org.apache.spark.sql.gluten
 
-import io.glutenproject.GlutenConfig
+import io.glutenproject.{GlutenConfig, VERSION}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.GlutenSQLTestsTrait
+import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusStore, SparkListenerSQLExecutionStart}
+import org.apache.spark.status.ElementTrackingStore
 
 class GlutenFallbackSuite extends GlutenSQLTestsTrait {
 
@@ -26,8 +29,8 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
     val testAppender = new LogAppender("fallback reason")
     withLogAppender(testAppender) {
       withSQLConf(
-        GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "true",
-        GlutenConfig.VALIDATE_FAILURE_LOG_LEVEL.key -> "info") {
+        GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
+        GlutenConfig.VALIDATE_FAILURE_LOG_LEVEL.key -> "error") {
         withTable("t") {
           spark.range(10).write.format("parquet").saveAsTable("t")
           sql("SELECT * FROM t").collect()
@@ -36,6 +39,65 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.contains(
         "Validation failed for plan: Scan parquet default.t, " +
           "due to: columnar FileScan is not enabled in FileSourceScanExec")))
+    }
+  }
+
+  test("test fallback event") {
+    val kvStore = spark.sparkContext.statusStore.store.asInstanceOf[ElementTrackingStore]
+    val glutenStore = new GlutenSQLAppStatusStore(kvStore)
+    assert(glutenStore.buildInfo().info.find(_._1 == "Gluten Version").exists(_._2 == VERSION))
+
+    def runExecution(sqlString: String): Long = {
+      var id = 0L
+      val listener = new SparkListener {
+        override def onOtherEvent(event: SparkListenerEvent): Unit = {
+          event match {
+            case e: SparkListenerSQLExecutionStart => id = e.executionId
+            case _ =>
+          }
+        }
+      }
+      spark.sparkContext.addSparkListener(listener)
+      try {
+        sql(sqlString).collect()
+        spark.sparkContext.listenerBus.waitUntilEmpty()
+      } finally {
+        spark.sparkContext.removeSparkListener(listener)
+      }
+      id
+    }
+
+    withTable("t") {
+      spark.range(10).write.format("parquet").saveAsTable("t")
+      val id = runExecution("SELECT * FROM t")
+      val execution = glutenStore.execution(id)
+      assert(execution.isDefined)
+      assert(execution.get.numGlutenNodes == 1)
+      assert(execution.get.numFallbackNodes == 0)
+      assert(execution.get.fallbackNodeToReason.isEmpty)
+
+      withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
+        val id = runExecution("SELECT * FROM t")
+        val execution = glutenStore.execution(id)
+        assert(execution.isDefined)
+        assert(execution.get.numGlutenNodes == 0)
+        assert(execution.get.numFallbackNodes == 1)
+        val fallbackReason = execution.get.fallbackNodeToReason.head
+        assert(fallbackReason._1.contains("Scan parquet default.t"))
+        assert(fallbackReason._2.contains("columnar FileScan is not enabled in FileSourceScanExec"))
+      }
+    }
+
+    withTable("t1", "t2") {
+      spark.range(10).write.format("parquet").saveAsTable("t1")
+      spark.range(10).write.format("parquet").saveAsTable("t2")
+
+      val id = runExecution("SELECT * FROM t1 JOIN t2")
+      val execution = glutenStore.execution(id)
+      // broadcast exchange and broadcast nested loop join
+      assert(execution.get.numFallbackNodes == 2)
+      assert(execution.get.fallbackNodeToReason.head._2.contains(
+        "Gluten does not touch it or does not support it"))
     }
   }
 }

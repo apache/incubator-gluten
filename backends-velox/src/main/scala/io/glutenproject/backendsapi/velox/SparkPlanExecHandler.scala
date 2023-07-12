@@ -25,7 +25,6 @@ import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToR
 import io.glutenproject.expression.{AliasTransformer, AliasTransformerBase, ExpressionNames, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sig}
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
-import io.glutenproject.execution.ColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
 import org.apache.commons.lang3.ClassUtils
@@ -279,6 +278,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * add trim node for trimming space or whitespace. See spark's Cast.scala.
    */
   override def genCastWithNewChild(c: Cast): Cast = {
+    // scalastyle:off nonascii
     // Common whitespace to be trimmed, including: ' ', '\n', '\r', '\f', etc.
     val trimWhitespaceStr = " \t\n\u000B\u000C\u000D\u001C\u001D\u001E\u001F"
     // Space separator.
@@ -290,6 +290,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     val trimParaSepStr = "\u2029"
     // Needs to be trimmed for casting to float/double/decimal
     val trimSpaceStr = ('\u0000' to '\u0020').toList.mkString
+    // scalastyle:on nonascii
     c.dataType match {
       case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
         c
@@ -354,8 +355,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    (List(_ => LoadBeforeColumnarToRow()): List[SparkSession => Rule[SparkPlan]]) :::
-      List(spark => NativeWritePostRule(spark))
+    List(spark => NativeWritePostRule(spark))
   }
 
   /**

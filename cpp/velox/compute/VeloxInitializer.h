@@ -24,8 +24,8 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <filesystem>
 
-#include "VeloxColumnarToRowConverter.h"
 #include "velox/common/caching/AsyncDataCache.h"
+#include "velox/common/memory/MemoryPool.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
@@ -66,6 +66,7 @@ class VeloxInitializer {
   void init(const std::unordered_map<std::string, std::string>& conf);
   void initCache(const std::unordered_map<std::string, std::string>& conf);
   void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
+  void initHWAccelerators(const std::unordered_map<std::string, std::string>& conf);
 
   void printConf(const std::unordered_map<std::string, std::string>& conf);
 

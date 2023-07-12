@@ -209,23 +209,23 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
-    shuffle/VeloxShuffleWriter.cc
     jni/VeloxJniWrapper.cc
     shuffle/VeloxShuffleReader.cc
+    shuffle/VeloxShuffleWriter.cc
     compute/VeloxBackend.cc
     compute/VeloxInitializer.cc
     compute/WholeStageResultIterator.cc
-    compute/RegistrationAllFunctions.cc
-    compute/ArrowTypeUtils.cc
-    compute/VeloxColumnarToRowConverter.cc
     compute/VeloxPlanConverter.cc
-    compute/VeloxRowToColumnarConverter.cc
-    compute/VeloxParquetDatasource.cc
+    operators/functions/RegistrationAllFunctions.cc
+    operators/serializer/VeloxColumnarToRowConverter.cc
+    operators/serializer/VeloxColumnarBatchSerializer.cc
+    operators/serializer/VeloxRowToColumnarConverter.cc
+    operators/writer/VeloxParquetDatasource.cc
     memory/LargeMemoryPool.cc
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
     utils/VeloxArrowUtils.cc
-    operators/serializer/VeloxColumnarBatchSerializer.cc
+    utils/ArrowTypeUtils.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

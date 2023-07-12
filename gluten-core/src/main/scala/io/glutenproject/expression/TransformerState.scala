@@ -22,6 +22,6 @@ object TransformerState {
   }
   def underValidationState: Boolean = validationState.get() > 0
 
-  def enterValidation = validationState.set(validationState.get() + 1)
-  def finishValidation = validationState.set(validationState.get() - 1)
+  def enterValidation: Unit = validationState.set(validationState.get() + 1)
+  def finishValidation: Unit = validationState.set(validationState.get() - 1)
 }

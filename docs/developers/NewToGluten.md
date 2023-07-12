@@ -357,7 +357,6 @@ from gluten-thirdparty-lib-<osversion>.jar when spark.gluten.loadLibFromJar=true
 spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
- --conf spark.gluten.sql.columnar.backend.lib=velox \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
  --conf spark.gluten.loadLibFromJar=true \

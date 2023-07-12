@@ -40,7 +40,7 @@ void StorageJoinFromReadBuffer::restore()
         {
             auto final_block = sample_block.cloneWithColumns(block.mutateColumns());
             info.update(final_block);
-            join->addJoinedBlock(final_block, true);
+            join->addBlockToJoin(final_block, true);
         }
     }
     in.reset();

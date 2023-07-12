@@ -18,11 +18,10 @@
 #include "VeloxPlanConverter.h"
 #include <filesystem>
 
-#include "ArrowTypeUtils.h"
 #include "arrow/c/bridge.h"
 #include "compute/ResultIterator.h"
-#include "compute/RowVectorStream.h"
 #include "config/GlutenConfig.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;

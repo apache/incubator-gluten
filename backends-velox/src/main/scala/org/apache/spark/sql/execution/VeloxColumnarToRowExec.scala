@@ -31,11 +31,10 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.types._
-
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.TaskResources
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 
 import scala.collection.JavaConverters._
@@ -62,6 +61,9 @@ case class VeloxColumnarToRowExec(child: SparkPlan)
         case _: DateType =>
         case _: BinaryType =>
         case _: DecimalType =>
+        case _: ArrayType =>
+        case _: MapType =>
+        case _: StructType =>
         case _ =>
           throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
             s"VeloxColumnarToRowExec.")
@@ -106,9 +108,9 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
   private def f: Iterator[ColumnarBatch] => Iterator[InternalRow] = { batches =>
     // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
     val jniWrapper = new NativeColumnarToRowJniWrapper()
-    // Init NativeColumnarToRow with the first ColumnarBatch
-    var c2rId = -1L
     var closed = false
+    val c2rId = jniWrapper.nativeColumnarToRowInit(
+        NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
 
     if (batches.isEmpty) {
       Iterator.empty
@@ -152,11 +154,6 @@ class ColumnarToRowRDD(@transient sc: SparkContext, rdd: RDD[ColumnarBatch],
           } else {
             val beforeConvert = System.currentTimeMillis()
             val batchHandle = ColumnarBatches.getNativeHandle(batch)
-            if (c2rId == -1) {
-              c2rId = jniWrapper.nativeColumnarToRowInit(
-                batchHandle,
-                NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
-            }
             val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
 
             convertTime += (System.currentTimeMillis() - beforeConvert)

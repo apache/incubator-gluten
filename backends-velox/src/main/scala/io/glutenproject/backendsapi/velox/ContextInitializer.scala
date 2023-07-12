@@ -21,11 +21,10 @@ import io.glutenproject.backendsapi.ContextApi
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 import io.glutenproject.expression.UDFMappings
-
+import io.glutenproject.init.JniTaskContext
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkConf
-
-import java.util.Locale
+import org.apache.spark.util.TaskResource
 
 import scala.sys.process._
 
@@ -50,6 +49,10 @@ class ContextInitializer extends ContextApi {
     loader.asInstanceOf[SharedLibraryLoader].loadLib(load)
   }
 
+  override def taskResourceFactories(): Seq[() => TaskResource] = {
+    Seq(() => new JniTaskContext())
+  }
+
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
@@ -61,12 +64,6 @@ class ContextInitializer extends ContextApi {
       .loadAndCreateLink("libarrow.so.1200.0.0", "libarrow.so.1200", false)
       .loadAndCreateLink("libparquet.so.1200.0.0", "libparquet.so.1200", false)
       .commit()
-    if (conf.get(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND, "")
-      .toUpperCase(Locale.ROOT) == GlutenConfig.GLUTEN_QAT_BACKEND_NAME) {
-      loader.newTransaction()
-        .loadAndCreateLink("libqatzip.so.3.0.1", "libqatzip.so.3", false)
-        .commit()
-    }
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
     System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
@@ -85,6 +82,6 @@ class ContextInitializer extends ContextApi {
   }
 
   override def shutdown(): Unit = {
-    /// TODO shutdown implementation in velox to release resources
+    // TODO shutdown implementation in velox to release resources
   }
 }

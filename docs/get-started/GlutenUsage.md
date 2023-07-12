@@ -5,22 +5,24 @@ nav_order: 4
 parent: Getting-Started
 ---
 # Build parameters
-## Parameters for builddeps-veloxbe.sh
+## Parameters for buildbundle-veloxbe.sh or builddeps-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=Release`.
 
-| Parameters | Description | Default value |
-| ---------- | ----------- | ------------- |
-| build_type | Gluten build type(for arrow/velox/cpp), CMAKE_BUILD_TYPE  | Release |
-| build_tests | build test code in cpp folder and arrow | OFF |
-| build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
-| build_jemalloc   | build with jemalloc | ON |
-| build_protobuf | build protobuf lib    | ON|
-| enable_qat | enable QAT for shuffle data de/compression| OFF|
-| enable_iaa | enable IAA for shuffle data de/compression| OFF|
-| enable_hbm | enable HBM allocator      | OFF|
-| enable_s3   | build with s3 lib        | OFF|
-| enable_hdfs | build with hdfs lib      | OFF|
-| enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
+| Parameters       | Description                                                 | Default value |
+|------------------|-------------------------------------------------------------|---------------|
+| build_type       | build type for arrow, velox & gluten cpp, CMAKE_BUILD_TYPE  | Release       |
+| build_tests      | build test code in cpp folder and arrow                     | OFF           |
+| build_benchmarks | build benchmark code in cpp folder and arrow                | OFF           |
+| build_jemalloc   | build with jemalloc                                         | ON            |
+| build_protobuf   | build protobuf lib                                          | ON            |
+| enable_qat       | enable QAT for shuffle data de/compression                  | OFF           |
+| enable_iaa       | enable IAA for shuffle data de/compression                  | OFF           |
+| enable_hbm       | enable HBM allocator                                        | OFF           |
+| enable_s3        | build with s3 lib                                           | OFF           |
+| enable_hdfs      | build with hdfs lib                                         | OFF           |
+| enable_ep_cache  | enable caching for external project build (Arrow and Velox) | OFF           |
+| skip_build_ep    | skip the build of external projects (arrow, velox)          | OFF           |
+| enable_vcpkg     | enable vcpkg for static build                               | OFF           |
 
 ## Parameters for get_arrow.sh
 Please set them via `--`, e.g., `--enable_custom_codec=ON`.

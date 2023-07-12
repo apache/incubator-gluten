@@ -209,7 +209,7 @@ class TestOperator extends WholeStageTransformerSuite {
     runQueryAndCompare(
       "select cume_dist() over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-    
+
     runQueryAndCompare(
       "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem ") {
@@ -240,6 +240,14 @@ class TestOperator extends WholeStageTransformerSuite {
   test("chr function") {
     val df = runQueryAndCompare("SELECT chr(l_orderkey + 64) " +
       "from lineitem limit 1") { _ => }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("bin function") {
+    val df = runQueryAndCompare("SELECT bin(l_orderkey) " +
+      "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
     checkLengthAndPlan(df, 1)
   }
 

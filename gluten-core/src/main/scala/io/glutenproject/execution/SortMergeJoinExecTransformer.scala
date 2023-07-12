@@ -37,20 +37,20 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.JavaConverters._
-import java.{lang, util}
+import java.util.{ArrayList => JArrayList}
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
 case class SortMergeJoinExecTransformer(
-                                         leftKeys: Seq[Expression],
-                                         rightKeys: Seq[Expression],
-                                         joinType: JoinType,
-                                         condition: Option[Expression],
-                                         left: SparkPlan,
-                                         right: SparkPlan,
-                                         isSkewJoin: Boolean = false,
-                                         projectList: Seq[NamedExpression] = null)
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isSkewJoin: Boolean = false,
+    projectList: Seq[NamedExpression] = null)
   extends BinaryExecNode with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -59,7 +59,6 @@ case class SortMergeJoinExecTransformer(
 
   val sparkConf = sparkContext.getConf
 
-  val resultSchema = this.schema
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
 
@@ -288,9 +287,9 @@ case class SortMergeJoinExecTransformer(
           (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
           val readRel = RelBuilder.makeReadRel(
-            new util.ArrayList[Attribute](plan.output.asJava),
+            new JArrayList[Attribute](plan.output.asJava),
             context,
-            new lang.Long(-1)) /* A special handling in Join to delay the rel registration. */
+            -1) /* A special handling in Join to delay the rel registration. */
           (readRel, plan.output, true)
       }
     }

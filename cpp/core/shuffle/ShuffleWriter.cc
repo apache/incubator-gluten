@@ -20,6 +20,7 @@
 #include <arrow/result.h>
 
 #include "ShuffleSchema.h"
+#include "utils/macros.h"
 
 namespace gluten {
 
@@ -35,8 +36,7 @@ ShuffleWriterOptions ShuffleWriterOptions::defaults() {
 arrow::Status ShuffleBufferPool::allocate(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
   // if size is already larger than buffer pool size, allocate it directly
   // make size 64byte aligned
-  auto reminder = size & 0x3f;
-  size += (64 - reminder) & ((reminder == 0) - 1);
+  size = ROUND_TO_LINE(size, kDefaultBufferAlignment);
   if (size > SPLIT_BUFFER_SIZE) {
     ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, pool_.get()));
     return arrow::Status::OK();
@@ -51,8 +51,7 @@ arrow::Status ShuffleBufferPool::allocate(std::shared_ptr<arrow::Buffer>& buffer
 }
 
 arrow::Status ShuffleBufferPool::allocateDirectly(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
-  auto reminder = size & 0x3f;
-  size += (64 - reminder) & ((reminder == 0) - 1);
+  size = ROUND_TO_LINE(size, kDefaultBufferAlignment);
   ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, pool_.get()));
   return arrow::Status::OK();
 }

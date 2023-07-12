@@ -23,10 +23,10 @@
 #include <exception>
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
-#include "compute/VeloxParquetDatasource.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
+#include "operators/writer/VeloxParquetDatasource.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 #include <iostream>
@@ -66,19 +66,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   google::ShutdownGoogleLogging();
 }
-
-JNIEXPORT jlong JNICALL Java_io_glutenproject_init_InitializerJniWrapper_makeTaskContext( // NOLINT
-    JNIEnv* env,
-    jclass clazz) {
-  JNI_METHOD_START
-  return -1L;
-  JNI_METHOD_END(-1L)
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_closeTaskContext( // NOLINT
-    JNIEnv* env,
-    jclass clazz,
-    jlong handle){JNI_METHOD_START JNI_METHOD_END()}
 
 JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_initialize( // NOLINT
     JNIEnv* env,

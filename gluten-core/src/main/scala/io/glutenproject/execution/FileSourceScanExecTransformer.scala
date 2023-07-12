@@ -31,7 +31,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLExecution, ScalarSubquery, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
@@ -126,10 +125,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     // Bucketing table has `bucketId` in filename, should apply this in backends
     if (bucketedScan) {
       throw new UnsupportedOperationException("bucketed scan is not supported")
-    }
-    if (relation.options.exists(option =>
-      option._1 == mergeSchemaOptionKey && option._2 == "true")) {
-      throw new UnsupportedOperationException(s"option $mergeSchemaOptionKey is not supported.")
     }
     super.doValidateInternal()
   }

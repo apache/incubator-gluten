@@ -22,8 +22,10 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.Spiller
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
+import org.apache.commons.io.FileUtils
 import org.apache.spark._
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -32,12 +34,13 @@ import org.apache.spark.util.{SparkDirectoryUtil, SparkResourcesUtil, Utils}
 import java.io.IOException
 import java.util.UUID
 
-class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
-                                        handle: BaseShuffleHandle[K, V, V],
-                                        mapId: Long,
-                                        writeMetrics: ShuffleWriteMetricsReporter)
+class ColumnarShuffleWriter[K, V](
+    shuffleBlockResolver: IndexShuffleBlockResolver,
+    handle: BaseShuffleHandle[K, V, V],
+    mapId: Long,
+    writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
-    with Logging {
+  with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
 
@@ -55,12 +58,22 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
   private val localDirs = SparkDirectoryUtil
     .namespace("shuffle-write")
     .mkChildDirs(UUID.randomUUID().toString)
+
+  private val localDirsStr = localDirs
     .map(_.getAbsolutePath)
     .mkString(",")
 
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
 
-  private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
+  private val compressionCodec =
+    if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
+      GlutenShuffleUtils.getCompressionCodec(conf)
+    } else {
+      null // uncompressed
+    }
+
+  private val compressionCodecBackend =
+    GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
 
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
@@ -118,19 +131,21 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
             availableOffHeapPerTask(),
             nativeBufferSize,
             compressionCodec,
+            compressionCodecBackend,
             batchCompressThreshold,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
-            localDirs,
+            localDirsStr,
             preferSpill,
-            NativeMemoryAllocators.getDefault().createSpillable(
-              new Spiller() {
+            NativeMemoryAllocators
+              .getDefault()
+              .createSpillable(new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
                   if (nativeShuffleWriter == -1L) {
                     throw new IllegalStateException(
                       "Fatal: spill() called before a shuffle writer " +
-                      "is created. This behavior should be optimized by moving memory " +
-                      "allocations from make() to split()")
+                        "is created. This behavior should be optimized by moving memory " +
+                        "allocations from make() to split()")
                   }
                   logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
                   // fixme pass true when being called by self
@@ -138,10 +153,12 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
                   logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                   spilled
                 }
-              }).getNativeInstanceId,
+              })
+              .getNativeInstanceId,
             writeSchema,
             handle,
-            taskContext.taskAttemptId())
+            taskContext.taskAttemptId()
+          )
         }
         val startTime = System.nanoTime()
         val bytes = jniWrapper.split(nativeShuffleWriter, cb.numRows, handle)
@@ -159,9 +176,12 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
       splitResult = jniWrapper.stop(nativeShuffleWriter)
     }
 
-    dep.metrics("splitTime").add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
-      splitResult.getTotalWriteTime -
-      splitResult.getTotalCompressTime)
+    dep
+      .metrics("splitTime")
+      .add(
+        System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+          splitResult.getTotalWriteTime -
+          splitResult.getTotalCompressTime)
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
@@ -199,6 +219,16 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
     jniWrapper.close(nativeShuffleWriter)
   }
 
+  def deleteLocalDirs(): Unit = {
+    localDirs.foreach { subDir =>
+      try FileUtils.forceDelete(subDir)
+      catch {
+        case _: Exception =>
+          logError(s"Failed to cleanup Gluten local dir ${subDir.getAbsolutePath}.")
+      }
+    }
+  }
+
   override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
@@ -215,6 +245,7 @@ class ColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolve
         closeShuffleWriter()
         nativeShuffleWriter = -1L
       }
+      deleteLocalDirs()
     }
   }
 

@@ -42,6 +42,7 @@
 #include <Operator/PartitionColumnFillingTransform.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/RelParser.h>
+#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
@@ -80,6 +81,7 @@
 #include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include "RelParser.h"
 
 namespace DB
 {
@@ -436,10 +438,15 @@ Block SerializedPlanParser::parseNameStruct(const substrait::NamedStruct & struc
                 throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", data_type->getName());
             }
             auto args_types = tuple_type->getElements();
-            auto agg_function_name = getFunctionName(name_parts[3], {});
             AggregateFunctionProperties properties;
-            auto tmp = AggregateFunctionFactory::instance().get(agg_function_name, args_types, {}, properties);
-            data_type = tmp->getStateType();
+            auto tmp_ctx = DB::Context::createCopy(global_context);
+            SerializedPlanParser tmp_plan_parser(tmp_ctx);
+            auto function_parser = FunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
+            auto agg_function_parser = dynamic_cast<BaseAggregateFunctionParser *>(function_parser.get());
+            auto agg_function_name = agg_function_parser->getCHFunctionName(args_types);
+            data_type = AggregateFunctionFactory::instance()
+                            .get(agg_function_name, args_types, function_parser->getDefaultFunctionParameters(), properties)
+                            ->getStateType();
         }
         internal_cols.push_back(ColumnWithTypeAndName(data_type, name));
     }
@@ -648,6 +655,10 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
             ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
             NamesWithAliases aliases;
             auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
+            if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
+            {
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size.");
+            }
             for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             {
                 aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
@@ -722,43 +733,24 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         }
         case substrait::Rel::RelTypeCase::kGenerate:
         case substrait::Rel::RelTypeCase::kProject: {
+            rel_stack.push_back(&rel);
             const substrait::Rel * input = nullptr;
-            bool is_generate = false;
-            std::vector<substrait::Expression> expressions;
-
             if (rel.has_project())
             {
                 const auto & project = rel.project();
                 input = &project.input();
-
-                expressions.reserve(project.expressions_size());
-                for (int i = 0; i < project.expressions_size(); ++i)
-                    expressions.emplace_back(project.expressions(i));
             }
             else
             {
                 const auto & generate = rel.generate();
                 input = &generate.input();
-                is_generate = true;
-
-                expressions.reserve(generate.child_output_size() + 1);
-                for (int i = 0; i < generate.child_output_size(); ++i)
-                    expressions.push_back(generate.child_output(i));
-                expressions.emplace_back(generate.generator());
             }
-            rel_stack.push_back(&rel);
             query_plan = parseOp(*input, rel_stack);
             rel_stack.pop_back();
-            // for prewhere
-            Block read_schema;
-            // Since some columns' nullability are remove by prewhere, need to use the lastest plan's schema direclty.
-            read_schema = query_plan->getCurrentDataStream().header;
 
-            auto actions_dag = expressionsToActionsDAG(expressions, query_plan->getCurrentDataStream().header, read_schema);
-            auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), actions_dag);
-            expression_step->setStepDescription(is_generate ? "Generate" : "Project");
-            steps.emplace_back(expression_step.get());
-            query_plan->addStep(std::move(expression_step));
+            auto project_parser = RelParserFactory::instance().getBuilder(substrait::Rel::RelTypeCase::kProject)(this);
+            query_plan = project_parser->parse(std::move(query_plan), rel, rel_stack);
+            steps.insert(steps.end(), project_parser->getSteps().begin(), project_parser->getSteps().end());
             break;
         }
         case substrait::Rel::RelTypeCase::kAggregate: {
@@ -867,14 +859,6 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     }
     return query_plan;
 }
-
-AggregateFunctionPtr getAggregateFunction(const std::string & name, DataTypes arg_types)
-{
-    auto & factory = AggregateFunctionFactory::instance();
-    AggregateFunctionProperties properties;
-    return factory.get(name, arg_types, Array{}, properties);
-}
-
 
 NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & header)
 {
@@ -1021,6 +1005,26 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);
         if (function_signature.find("vbin") != std::string::npos)
             ch_function_name = "length";
+    }
+    else if (function_name == "reverse")
+    {
+        if (function.output_type().has_list())
+            ch_function_name = "arrayReverse";
+        else
+            ch_function_name = "reverseUTF8";
+    }
+    else if (function_name == "concat")
+    {
+        /// 1. ConcatOverloadResolver cannot build arrayConcat for Nullable(Array) type which causes failures when using functions like concat(split()).
+        ///    So we use arrayConcat directly if the output type is array.
+        /// 2. CH ConcatImpl can only accept at least 2 arguments, but Spark concat can accept 1 argument, like concat('a')
+        ///    in such case we use identity function
+        if (function.output_type().has_list())
+            ch_function_name = "arrayConcat";
+        else if (args.size() == 1)
+            ch_function_name = "identity";
+        else
+            ch_function_name = "concat";
     }
     else
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);
@@ -1217,6 +1221,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this);
     if (func_parser)
     {
+        LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "parse function {} by function parser: {}", func_name, func_parser->getName());
         const auto * result_node = func_parser->parse(scalar_function, actions_dag);
         if (keep_result)
             actions_dag->addOrReplaceInOutputs(*result_node);

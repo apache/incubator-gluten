@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config._
@@ -40,18 +41,25 @@ object GlutenShuffleUtils {
         val glutenCodecKey = GlutenConfig.COLUMNAR_SHUFFLE_CODEC.key
         if (glutenConfig.columnarShuffleEnableQat) {
           checkCodecValues(glutenCodecKey, codec, GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC)
-          GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
         } else if (glutenConfig.columnarShuffleEnableIaa) {
           checkCodecValues(glutenCodecKey, codec, GlutenConfig.GLUTEN_IAA_SUPPORTED_CODEC)
-          GlutenConfig.GLUTEN_IAA_CODEC_PREFIX + codec
         } else {
-          codec
+          checkCodecValues(
+            glutenCodecKey,
+            codec,
+            BackendsApiManager.getSettings.shuffleSupportedCodec())
         }
+        codec
       case None =>
         val sparkCodecKey = IO_COMPRESSION_CODEC.key
         val codec =
-          conf.get(sparkCodecKey, IO_COMPRESSION_CODEC.defaultValueString).toUpperCase(Locale.ROOT)
-        checkCodecValues(sparkCodecKey, codec, GlutenConfig.GLUTEN_SHUFFLE_SUPPORTED_CODEC)
+          conf
+            .get(sparkCodecKey, IO_COMPRESSION_CODEC.defaultValueString)
+            .toLowerCase(Locale.ROOT)
+        checkCodecValues(
+          sparkCodecKey,
+          codec,
+          BackendsApiManager.getSettings.shuffleSupportedCodec())
         codec
     }
   }

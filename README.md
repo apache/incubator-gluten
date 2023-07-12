@@ -67,7 +67,6 @@ One Way is use released binary jar. Here is the simple example. we support cento
 spark-shell \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
- --conf spark.gluten.sql.columnar.backend.lib=velox \
  --conf spark.gluten.loadLibFromJar=true \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
  --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
@@ -82,7 +81,6 @@ export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 spark-shell 
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.backend.lib=velox or ch \
   --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
   --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
   --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
@@ -139,9 +137,9 @@ CppCodingStyle.md is provided for the purpose of helping C++ developers to contr
 # 5 Performance
 
 We use Decision Support Benchmark1(TPC-H Like) to evaluate the performance for Gluten project.
-Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. Firstly we change column data type like Decimal to Double and Date to String. Secondly we use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline. Thirdly we modify the SQLs to use double and string data type for both Gluten and baseline, please check [Decision Support Benchmark1](./backends-velox/workload/tpch) has the script and queries as the examples to run the performance testing for Velox backend.
+Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. We use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline. Please check [Decision Support Benchmark1](./backends-velox/workload/tpch) has the script and queries as the examples to run the performance testing for Velox backend.
 
-The testing environment is using single node with 2TB datasize and using Spark3.1.1 for both baseline and Gluten. The Decision Support Benchmark1 result shows an average speedup of 2.07x and up to 8.1X speedup in a single query with Gluten and Velox backend. Spark3.2 performance is pretty close. Performance data is tested in Sep. 2022. Contact us if you'd like to know latest performance number
+The testing environment is using single node with 2TB datasize and using Spark3.3.2 for both baseline and Gluten. The Decision Support Benchmark1 result shows an overall speedup of 2.71x and up to 14.53x speedup in a single query with Gluten and Velox backend. Spark3.2 performance is pretty close. Performance data is tested in Jun. 2023. Contact us if you'd like to know the latest performance number
 ![Performance](./docs/image/velox_decision_support_bench1_22queries_performance.png)
 
 The testing environment is using a 8-nodes AWS cluster with 1TB datasize and using Spark3.1.1 for both baseline and Gluten. The Decision Support Benchmark1 result shows an average speedup of 2.12x and up to 3.48x speedup with Gluten and Clickhouse backend.

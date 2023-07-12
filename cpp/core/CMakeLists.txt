@@ -194,7 +194,9 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/PartitionWriterCreator.cc
         shuffle/LocalPartitionWriter.cc
         shuffle/rss/RemotePartitionWriter.cc
-        shuffle/rss/CelebornPartitionWriter.cc memory/ColumnarBatch.cc)
+        shuffle/rss/CelebornPartitionWriter.cc
+        memory/ColumnarBatch.cc
+        utils/TaskContext.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
@@ -226,9 +228,10 @@ endif()
 
 if(ENABLE_QAT)
   include(BuildQATzip)
-  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qat/qat_util.cc)
-  target_link_libraries(gluten PUBLIC qatzip::qatzip)
+  include(BuildQATZstd)
+  target_sources(gluten PRIVATE utils/qat/QatCodec.cc)
+  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR} ${QATZSTD_INCLUDE_DIR})
+  target_link_libraries(gluten PUBLIC qatzip::qatzip qatzstd::qatzstd)
 endif()
 
 if(ENABLE_IAA)

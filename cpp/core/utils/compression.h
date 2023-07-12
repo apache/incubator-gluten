@@ -22,7 +22,7 @@
 #include <vector>
 
 #ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/qat_util.h"
+#include "utils/qat/QatCodec.h"
 #endif
 
 #ifdef GLUTEN_ENABLE_IAA

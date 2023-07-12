@@ -280,6 +280,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "average", // [overwritten by Gluten - xxx]
       "multiple column distinct count", // [not urgent, function with multiple params]
       "agg without groups and functions", // [not urgent]
+      // collect_set is non-deterministic,
+      // the order of the collection elements returned by CH is different from Spark.
+      "collect functions",
       "collect functions structs", // [not urgent]
       "SPARK-31500: collect_set() of BinaryType returns duplicate elements", // [not urgent]
       "SPARK-17641: collect functions should not collect null values", // [not urgent]
@@ -294,7 +297,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "min_by", // [not urgent]
       "aggregation with filter",
       // replaceSortAggWithHashAgg is not turned on for CH backend.
-      GLUTEN_TEST + "use gluten hash agg to replace vanilla spark sort agg"
+      GLUTEN_TEST + "use gluten hash agg to replace vanilla spark sort agg",
+      "zero average",
+      "zero stddev"
     )
     .excludeByPrefix(
       "SPARK-22951", // [not urgent] dropDuplicates
@@ -322,7 +327,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "misc md5 function",
       "misc sha1 function",
       "misc sha2 function",
-      "misc crc32 function"
+      "misc crc32 function",
+      "concat function - arrays"
+    )
+    .includeByPrefix(
+      "reverse function - array"
     )
 
   enableSuite[GlutenDateFunctionsSuite]
@@ -433,9 +442,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "reuse window partitionBy",
       "reuse window orderBy",
-      "collect_list in ascending ordered window",
-      "collect_list in descending ordered window",
-      "collect_set in window",
       "lead/lag with ignoreNulls",
       "Window spill with less than the inMemoryThreshold",
       "Window spill with more than the inMemoryThreshold and spillThreshold",
@@ -451,5 +457,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-13860: " + "covar_samp, var_samp (variance), stddev_samp (stddev) " +
         "functions in specific window LEGACY_STATISTICAL_AGGREGATE off"
     )
+
+  enableSuite[GlutenDataFrameRangeSuite]
+    .includeByPrefix("SPARK-21041")
 }
 
