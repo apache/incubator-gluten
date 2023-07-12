@@ -17,6 +17,7 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 import org.apache.spark.{Partition, SparkContext, TaskContext}
@@ -52,6 +53,9 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     case _ =>
       this
   }
+
+  override protected def doValidateInternal(): ValidationResult =
+    ValidationResult.notOk("does not support")
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")

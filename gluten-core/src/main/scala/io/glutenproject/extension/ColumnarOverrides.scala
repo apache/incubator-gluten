@@ -561,10 +561,11 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
       logDebug(s"ColumnarPostOverrides ColumnarToRowExecBase(${child.nodeName})")
       val nativeConversion =
         BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-      if (nativeConversion.doValidate()) {
+      val validationResult = nativeConversion.doValidate()
+      if (validationResult.validated) {
         nativeConversion
       } else {
-        logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
+        TransformHints.tagNotTransformable(plan, validationResult)
         plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
       }
     } else {
