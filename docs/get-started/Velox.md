@@ -600,13 +600,13 @@ TO ease your first-hand experience of using Gluten, we have set up an external r
 
 ## Gluten event
 
-Gluten provide two events `GlutenBuildInfoEvent` and `GlutenPlanFallbackEvent`:
+Gluten provides two events `GlutenBuildInfoEvent` and `GlutenPlanFallbackEvent`:
 
 - GlutenBuildInfoEvent, it contains the Gluten build information so that we are able to be aware of the environment when doing some debug.
   It includes `Java Version`, `Scala Version`, `GCC Version`, `Gluten Version`, `Spark Version`, `Hadoop Version`, `Gluten Revision`, `Backend`, `Backend Revision`, etc.
 
 - GlutenPlanFallbackEvent, it contains the fallback information for each query execution.
-  Note, If the query execution is in AQE, then Gluten will post it for each stage.
+  Note, if the query execution is in AQE, then Gluten will post it for each stage.
 
 Developers can register `SparkListener` to handle these two Gluten events.
 
