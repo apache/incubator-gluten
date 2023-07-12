@@ -1269,6 +1269,26 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-1790 count multi cols") {
+    val sql1 =
+      """
+        | select count(n_regionkey, n_nationkey) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        | select count(a, b) from values(1,null),(2, 2) as data(a,b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+    val sql3 =
+      """
+        | select count(a, b) from values(null,1),(2, 2) as data(a,b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+  }
+
   test("GLUTEN-2028: struct as join key") {
     val tables = Seq("struct_1", "struct_2")
     tables.foreach {
