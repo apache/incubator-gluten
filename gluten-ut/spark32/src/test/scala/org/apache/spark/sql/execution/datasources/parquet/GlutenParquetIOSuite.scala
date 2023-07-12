@@ -41,8 +41,8 @@ class GlutenParquetIOSuite extends ParquetIOSuite with GlutenSQLTestsBaseTrait {
     withParquetFile(data) { path =>
       val errMsg = intercept[Exception](spark.read.schema(readSchema).parquet(path).collect())
         .getMessage
-      assert(errMsg.contains(
-        "BaseVector::compatibleKind(BaseVector::typeKind(), source->typeKind())"))
+      assert(errMsg.contains("BaseVector::compatibleKind(outputType->childAt(i)->kind(), " +
+        "requestedType->childAt(i)->kind())"))
     }
   }
 }
