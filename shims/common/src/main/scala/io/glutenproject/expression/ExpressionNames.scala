@@ -98,6 +98,9 @@ object ExpressionNames {
   final val TRANSLATE = "translate"
   final val SPACE = "space"
 
+  // URL functions
+  final val PARSE_URL = "parse_url"
+
   // SparkSQL Math functions
   final val ABS = "abs"
   final val ACOSH = "acosh"
