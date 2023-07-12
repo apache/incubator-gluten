@@ -663,9 +663,14 @@ case class ColumnarOverrideRules(session: SparkSession)
   // while creating the rules. At this time SQLConf may not be there yet.
 
   def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
+    val tagBeforeTransformHitsRules = if (this.isAdaptiveContext) {
+      // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
+      List.empty
+    } else {
+      TagBeforeTransformHits.ruleBuilders
+    }
+    tagBeforeTransformHitsRules :::
     List(
-      (spark: SparkSession) => FallbackOnANSIMode(spark),
-      (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation(),
       (_: SparkSession) => AddTransformHintRule(),

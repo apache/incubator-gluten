@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec, QueryStageExec}
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -117,6 +117,13 @@ object TransformHints {
   }
 }
 
+// Holds rules which have higher privilege to tag (not) transformable before AddTransformHintRule.
+object TagBeforeTransformHits {
+  val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
+    List(FallbackOnANSIMode, FallbackMultiCodegens)
+  }
+}
+
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (GlutenConfig.getConf.enableAnsiMode) {
@@ -173,8 +180,7 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
         p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))
       case p if isAQEShuffleReadExec(p) =>
         p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))
-      case p: BroadcastQueryStageExec =>
-        p
+      case p: QueryStageExec => p
       case p => tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableRecursive)))
     }
   }
@@ -183,8 +189,6 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     plan match {
       case plan if existsMultiCodegens(plan) =>
         tagNotTransformableRecursive(plan)
-      case p: BroadcastQueryStageExec =>
-        p
       case other =>
         other.withNewChildren(other.children.map(tagNotTransformableForMultiCodegens))
     }
