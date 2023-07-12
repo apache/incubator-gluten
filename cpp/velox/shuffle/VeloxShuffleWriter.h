@@ -349,8 +349,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_ =
       std::make_unique<facebook::velox::serializer::presto::PrestoVectorSerde>();
 
- private:
-  static inline arrow::Result<uint32_t> getRecordBatchNumRows(const arrow::RecordBatch& rb);
 }; // class VeloxShuffleWriter
 
 } // namespace gluten
