@@ -52,6 +52,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"unix_timestamp", "toUnixTimestamp"},
        {"date_format", "formatDateTimeInJodaSyntax"},
        {"current_date", "today"},
+       {"now", "now64"},
+       {"current_timestamp", "now64"},
 
        /// arithmetic functions
        {"subtract", "minus"},
@@ -59,6 +61,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"add", "plus"},
        {"divide", "divide"},
        {"modulus", "modulo"},
+       {"mod", "modulo"},
        {"pmod", "pmod"},
        {"abs", "abs"},
        {"ceil", "ceil"},
@@ -67,6 +70,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"bround", "roundBankers"},
        {"exp", "exp"},
        {"power", "power"},
+       {"pow", "power"},
        {"cos", "cos"},
        {"cosh", "cosh"},
        {"sin", "sin"},

@@ -106,7 +106,9 @@ object ExpressionNames {
   final val FLOOR = "floor"
   final val EXP = "exp"
   final val POWER = "power"
+  final val POW = "pow"
   final val PMOD = "pmod"
+  final val MOD = "mod"
   final val ROUND = "round"
   final val BROUND = "bround"
   final val SIN = "sin"
@@ -161,6 +163,8 @@ object ExpressionNames {
   final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
   final val CURRENT_DATE = "current_date"
+  final val CURRENT_TIMESTAMP = "current_timestamp"
+  final val NOW = "now"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"

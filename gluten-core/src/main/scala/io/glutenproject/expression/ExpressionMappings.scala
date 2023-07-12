@@ -90,7 +90,9 @@ object ExpressionMappings {
     Sig[Floor](FLOOR),
     Sig[Exp](EXP),
     Sig[Pow](POWER),
+    Sig[Pow](POW),
     Sig[Pmod](PMOD),
+    Sig[Pmod](MOD),
     Sig[Round](ROUND),
     Sig[BRound](BROUND),
     Sig[Sin](SIN),
@@ -154,6 +156,8 @@ object ExpressionMappings {
     Sig[TruncTimestamp](DATE_TRUNC),
     Sig[GetTimestamp](GET_TIMESTAMP),
     Sig[CurrentDate](CURRENT_DATE),
+    Sig[CurrentTimestamp](CURRENT_TIMESTAMP),
+    Sig[Now](NOW),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
