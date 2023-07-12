@@ -48,7 +48,7 @@ Gluten's.
 
 ### JSON functions (incompatible behavior)
 
-Gluten only supports double quotes surrounded strings, not single quotes, in JSON data. If user use single quotes, will get incorrect result.
+Velox only supports double quotes surrounded strings, not single quotes, in JSON data. If single quotes are used, gluten will produce incorrect result.
 
 ### Lookaround pattern for regexp functions (fallback behavior)
 
