@@ -101,14 +101,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def supportShuffleWithProject(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
-    // FIXME: The HashAggregateExec's output is different from backend, cannot use directly.
     child match {
-      case _: HashAggregateExec =>
-        logInfo(
-          s"Not support shuffleExechangeExec with child of HashAggregateExec, which" +
-            s" has expressions in partitioning")
-        false
-      case _ => true
+      case hash: HashAggregateExec =>
+        // support project when aggregation only has grouping keys, for tpcds q14a,b
+        hash.aggregateExpressions.isEmpty
+      case _ =>
+        true
     }
   }
 

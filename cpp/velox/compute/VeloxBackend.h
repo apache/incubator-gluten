@@ -24,11 +24,11 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include <iostream>
-#include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "compute/VeloxParquetDatasource.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
+#include "operators/serializer/VeloxColumnarToRowConverter.h"
+#include "operators/writer/VeloxParquetDatasource.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/reader.h"
@@ -46,9 +46,7 @@ class VeloxBackend final : public Backend {
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
       const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
-  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
-      MemoryAllocator* allocator,
-      std::shared_ptr<ColumnarBatch> cb) override;
+  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(MemoryAllocator* allocator) override;
 
   std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
       MemoryAllocator* allocator,

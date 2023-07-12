@@ -25,7 +25,6 @@ import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToR
 import io.glutenproject.expression.{AliasTransformer, AliasTransformerBase, ExpressionNames, ExpressionTransformer, GetStructFieldTransformer, HashExpressionTransformer, NamedStructTransformer, Sig}
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
-import io.glutenproject.execution.ColumnarRules.LoadBeforeColumnarToRow
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
 import org.apache.commons.lang3.ClassUtils
@@ -356,8 +355,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    (List(_ => LoadBeforeColumnarToRow()): List[SparkSession => Rule[SparkPlan]]) :::
-      List(spark => NativeWritePostRule(spark))
+    List(spark => NativeWritePostRule(spark))
   }
 
   /**

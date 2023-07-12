@@ -20,13 +20,11 @@ package io.glutenproject.execution
 import java.util.Objects
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -45,16 +43,6 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
       fileScan.dataFilters ++ pushdownFilters
     case _ =>
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
-  }
-
-  override protected def doValidateInternal(): ValidationResult = {
-    scan match {
-      case parquetScan: ParquetScan if parquetScan.options.containsKey(mergeSchemaOptionKey) &&
-        parquetScan.options.get(mergeSchemaOptionKey) == "true" =>
-        return notOk(s"option $mergeSchemaOptionKey is not supported")
-      case _ =>
-    }
-    super.doValidateInternal()
   }
 
   override def outputAttributes(): Seq[Attribute] = output

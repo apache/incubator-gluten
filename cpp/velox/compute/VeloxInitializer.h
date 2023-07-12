@@ -24,8 +24,8 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <filesystem>
 
-#include "VeloxColumnarToRowConverter.h"
 #include "velox/common/caching/AsyncDataCache.h"
+#include "velox/common/memory/MemoryPool.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
