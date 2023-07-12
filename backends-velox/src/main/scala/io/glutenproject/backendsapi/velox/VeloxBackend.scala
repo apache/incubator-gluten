@@ -229,11 +229,12 @@ object BackendSettings extends BackendSettingsApi {
    */
   private def isCount1(plan: SparkPlan): Boolean = {
     plan match {
-      case exec: HashAggregateExec if exec.aggregateExpressions.forall(expression =>
-        expression.aggregateFunction.isInstanceOf[Count] &&
-          expression.aggregateFunction.asInstanceOf[Count].children.forall(child =>
-            child.isInstanceOf[Literal] && child.asInstanceOf[Literal].value == 1)) =>
-        true
+      case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty &&
+        exec.aggregateExpressions.forall(expression => {
+          expression.aggregateFunction match {
+            case c: Count => c.children.size == 1 && c.children.head.equals(Literal(1))
+            case _ => false
+          }}) => true
       case _ =>
         false
     }
@@ -246,18 +247,21 @@ object BackendSettings extends BackendSettingsApi {
    */
   private def isSum1(plan: SparkPlan): Boolean = {
     plan match {
-      case exec: HashAggregateExec if exec.aggregateExpressions.forall(expression =>
-        expression.aggregateFunction.isInstanceOf[Sum] &&
-          expression.aggregateFunction.asInstanceOf[Sum].children.forall(child =>
-            child.isInstanceOf[Literal] && child.asInstanceOf[Literal].value == 1)) =>
-        true
+      case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty &&
+        exec.aggregateExpressions.forall(expression => {
+          expression.aggregateFunction match {
+            case s: Sum => s.children.size == 1 && s.children.head.equals(Literal(1))
+            case _ => false
+          }
+        }) => true
       case _ =>
         false
     }
   }
 
   override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
-    // Count(1) is a special case to handle. Do not fallback it and its children in the first place.
+    // Count(1) and Sum(1) are special cases that Velox backend can handle.
+    // Do not fallback it and its children in the first place.
     !(isCount1(plan) || isSum1(plan))
   }
 
