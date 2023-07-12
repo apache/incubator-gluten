@@ -117,13 +117,6 @@ object TransformHints {
   }
 }
 
-// Holds rules which have higher privilege to tag (not) transformable before AddTransformHintRule.
-object TagBeforeTransformHits {
-  val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
-    List(FallbackOneRowRelation, FallbackOnANSIMode, FallbackMultiCodegens)
-  }
-}
-
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (GlutenConfig.getConf.enableAnsiMode) {
@@ -203,23 +196,6 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     } else plan
   }
 }
-
-// This rule will fall back the whole plan if it contains OneRowRelation scan.
-// This should only affect some light-weight cases in some basic UTs.
-case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
-    val hasOneRowRelation =
-      plan.find(_.isInstanceOf[RDDScanExec]) match {
-        case Some(scan: RDDScanExec) => scan.name.equals("OneRowRelation")
-        case _ => false
-      }
-    if (hasOneRowRelation) {
-      plan.foreach(TransformHints.tagNotTransformable(_, "fallback one row plan"))
-    }
-    plan
-  }
-}
-
 
 /**
  * This rule plans [[RDDScanExec]] with a fake schema to make gluten work, because gluten

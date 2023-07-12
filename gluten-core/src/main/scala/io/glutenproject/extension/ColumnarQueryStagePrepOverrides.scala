@@ -89,7 +89,6 @@ case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPl
 
 object ColumnarQueryStagePrepOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
-    val builders = TagBeforeTransformHits.ruleBuilders :+ FallbackBroadcastExchange
-    builders.foreach(extensions.injectQueryStagePrepRule)
+    extensions.injectQueryStagePrepRule(FallbackBroadcastExchange)
   }
 }
