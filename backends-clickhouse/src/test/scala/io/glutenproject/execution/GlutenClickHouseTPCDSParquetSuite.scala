@@ -344,56 +344,59 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
   }
 
   test("GLUTEN-1626: test 'roundHalfup'") {
-    var sql =
+    val sql0 =
       """
         |select cast(ss_wholesale_cost as Int) a, round(sum(ss_wholesale_cost),2),
         |round(sum(ss_wholesale_cost+0.06),2), round(sum(ss_wholesale_cost-0.04),2)
         |from store_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
-    sql =
+    compareResultsAgainstVanillaSpark(sql0, true, _ => {})
+
+    val sql1 =
       """
         |select cast(ss_sales_price as Int) a, round(sum(ss_sales_price),2),
         |round(sum(ss_sales_price+0.06),2), round(sum(ss_sales_price-0.04),2)
         |from store_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql1, true, _ => {})
 
-    sql =
+    val sql2 =
       """
         |select cast(cs_wholesale_cost as Int) a, round(sum(cs_wholesale_cost),2),
         |round(sum(cs_wholesale_cost+0.06),2), round(sum(cs_wholesale_cost-0.04),2)
         |from catalog_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
-    sql =
+    compareResultsAgainstVanillaSpark(sql2, true, _ => {})
+
+    val sql3 =
       """
         |select cast(cs_sales_price as Int) a, round(sum(cs_sales_price),2),
         |round(sum(cs_sales_price+0.06),2), round(sum(cs_sales_price-0.04),2)
         |from catalog_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql3, true, _ => {})
 
-    sql =
+    val sql4 =
       """
         |select cast(ws_wholesale_cost as Int) a, round(sum(ws_wholesale_cost),2),
         |round(sum(ws_wholesale_cost+0.06),2), round(sum(ws_wholesale_cost-0.04),2)
         |from web_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
-    sql =
+    compareResultsAgainstVanillaSpark(sql4, true, _ => {})
+
+    val sql5 =
       """
         |select cast(ws_sales_price as Int) a, round(sum(ws_sales_price),2),
         |round(sum(ws_sales_price+0.06),2), round(sum(ws_sales_price-0.04),2)
         |from web_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql5, true, _ => {})
   }
 }
 // scalastyle:on line.size.limit
