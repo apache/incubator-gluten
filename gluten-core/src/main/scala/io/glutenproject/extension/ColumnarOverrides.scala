@@ -45,7 +45,8 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
-case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkPlan] {
+case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkPlan]
+  with LogLevelUtil {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
@@ -101,6 +102,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
               newChild)
         case _ =>
           // If the child is not transformable, transform the grandchildren only.
+          logOnLevel(columnarConf.validateFailureLogLevel,
+            s"Validation failed for plan: ${plan.nodeName}, due to: empty child output.")
           val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
           plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
       }
@@ -665,10 +668,10 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
     val tagBeforeTransformHitsRules = if (this.isAdaptiveContext) {
-      TagBeforeTransformHits.ruleBuilders
-    } else {
       // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
       List.empty
+    } else {
+      TagBeforeTransformHits.ruleBuilders
     }
     tagBeforeTransformHitsRules :::
     List(
