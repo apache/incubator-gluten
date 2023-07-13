@@ -22,7 +22,6 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.Spiller
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
-import org.apache.commons.io.FileUtils
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
@@ -32,7 +31,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourcesUtil, Utils}
 
 import java.io.IOException
-import java.util.UUID
 
 class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -57,9 +55,7 @@ class ColumnarShuffleWriter[K, V](
 
   private val localDirs = SparkDirectoryUtil
     .namespace("shuffle-write")
-    .mkChildDirs(UUID.randomUUID().toString)
-
-  private val localDirsStr = localDirs
+    .all
     .map(_.getAbsolutePath)
     .mkString(",")
 
@@ -135,7 +131,7 @@ class ColumnarShuffleWriter[K, V](
             batchCompressThreshold,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
-            localDirsStr,
+            localDirs,
             preferSpill,
             NativeMemoryAllocators
               .getDefault()
@@ -219,16 +215,6 @@ class ColumnarShuffleWriter[K, V](
     jniWrapper.close(nativeShuffleWriter)
   }
 
-  def deleteLocalDirs(): Unit = {
-    localDirs.foreach { subDir =>
-      try FileUtils.forceDelete(subDir)
-      catch {
-        case _: Exception =>
-          logError(s"Failed to cleanup Gluten local dir ${subDir.getAbsolutePath}.")
-      }
-    }
-  }
-
   override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
@@ -245,7 +231,6 @@ class ColumnarShuffleWriter[K, V](
         closeShuffleWriter()
         nativeShuffleWriter = -1L
       }
-      deleteLocalDirs()
     }
   }
 
