@@ -10,7 +10,6 @@ object Constants {
   val VANILLA_CONF: SparkConf = new SparkConf(false)
 
   val VELOX_CONF: SparkConf = new SparkConf(false)
-    .set("spark.gluten.sql.columnar.backend.lib", "velox")
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
@@ -19,7 +18,6 @@ object Constants {
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
 
   val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf(false)
-    .set("spark.gluten.sql.columnar.backend.lib", "velox")
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
