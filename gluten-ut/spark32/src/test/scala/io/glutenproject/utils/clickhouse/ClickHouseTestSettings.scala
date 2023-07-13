@@ -93,6 +93,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "elementAt",
       "Concat",
       "Shuffle",
+      "Array Distinct", // exclude this when fix GLUTEN-2340
       "SPARK-33386: element_at ArrayIndexOutOfBoundsException",
       "SPARK-33460: element_at NoSuchElementException"
     )
@@ -335,7 +336,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "array_max function",
       "array_min function",
       "array position function",
-      "array contains function"
+      "array contains function",
+      "array_distinct functions",
+      "array_union functions"
     )
     .includeByPrefix(
       "reverse function - array"

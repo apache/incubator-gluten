@@ -196,6 +196,8 @@ object ExpressionNames {
   final val SORT_ARRAY = "sort_array"
   final val ARRAYS_OVERLAP = "arrays_overlap"
   final val ARRAY_POSITION = "array_position"
+  final val ARRAY_DISTINCT = "array_distinct"
+  final val ARRAY_UNION = "array_union"
 
   // Map functions
   final val CREATE_MAP = "map"

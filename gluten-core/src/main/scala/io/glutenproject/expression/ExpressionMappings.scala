@@ -189,6 +189,8 @@ object ExpressionMappings {
     Sig[SortArray](SORT_ARRAY),
     Sig[ArraysOverlap](ARRAYS_OVERLAP),
     Sig[ArrayPosition](ARRAY_POSITION),
+    Sig[ArrayDistinct](ARRAY_DISTINCT),
+    Sig[ArrayUnion](ARRAY_UNION),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),

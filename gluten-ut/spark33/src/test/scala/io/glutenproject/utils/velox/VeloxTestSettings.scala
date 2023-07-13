@@ -125,6 +125,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("Map Concat")
     .exclude("Shuffle")
+    // TODO: ArrayDistinct should handle duplicated Double.NaN
+    .excludeByPrefix("SPARK-36741")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
