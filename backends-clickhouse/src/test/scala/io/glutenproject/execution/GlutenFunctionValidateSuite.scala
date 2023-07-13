@@ -172,7 +172,8 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
 
   test("test 'function xxhash64'") {
     val df1 = runQueryAndCompare(
-      "select xxhash64(cast(id as int)), xxhash64(cast(id as byte)), xxhash64(cast(id as short)), " +
+      "select xxhash64(cast(id as int)), xxhash64(cast(id as byte)), " +
+        "xxhash64(cast(id as short)), " +
         "xxhash64(cast(id as long)), xxhash64(cast(id as float)), xxhash64(cast(id as double)), " +
         "xxhash64(cast(id as string)), xxhash64(cast(id as binary)), xxhash64(cast(id as date)), " +
         "xxhash64(cast(id as timestamp)), xxhash64(cast(id as decimal(5, 2))), " +
@@ -187,7 +188,8 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         "xxhash64(cast(id as float), 'spark'), xxhash64(cast(id as double), 'spark'), " +
         "xxhash64(cast(id as string), 'spark'), xxhash64(cast(id as binary), 'spark'), " +
         "xxhash64(cast(id as date), 'spark'), xxhash64(cast(id as timestamp), 'spark'), " +
-        "xxhash64(cast(id as decimal(5, 2)), 'spark'), xxhash64(cast(id as decimal(10, 2)), 'spark'), " +
+        "xxhash64(cast(id as decimal(5, 2)), 'spark'), " +
+        "xxhash64(cast(id as decimal(10, 2)), 'spark'), " +
         "xxhash64(cast(id as decimal(30, 2)), 'spark') from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df2, 10)
