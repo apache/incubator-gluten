@@ -1,14 +1,14 @@
-From 902910d203e2d7694213745751d5fc09002583d1 Mon Sep 17 00:00:00 2001
-From: Chengcheng Jin <chengcheng.jin@intel.com>
-Date: Fri, 19 May 2023 08:13:58 +0000
-Subject: [PATCH] use options_.memory_pool
+From ae622b3f80e7057d405af44e0734b2d9dcd23d1a Mon Sep 17 00:00:00 2001
+From: Rong Ma <rong.ma@intel.com>
+Date: Sun, 25 Jun 2023 08:11:58 +0000
+Subject: [PATCH] use options_.memory_pool and shrink compressed buffer
 
 ---
- cpp/src/arrow/ipc/writer.cc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ cpp/src/arrow/ipc/writer.cc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/cpp/src/arrow/ipc/writer.cc b/cpp/src/arrow/ipc/writer.cc
-index f0f0e96ee..0fd681f60 100644
+index f0f0e96ee..944827f1d 100644
 --- a/cpp/src/arrow/ipc/writer.cc
 +++ b/cpp/src/arrow/ipc/writer.cc
 @@ -193,7 +193,7 @@ class RecordBatchSerializer {
@@ -20,6 +20,14 @@ index f0f0e96ee..0fd681f60 100644
      ARROW_ASSIGN_OR_RAISE(auto actual_length,
                            codec->Compress(buffer.size(), buffer.data(), maximum_length,
                                            result->mutable_data() + sizeof(int64_t)));
+@@ -214,6 +214,7 @@ class RecordBatchSerializer {
+       // Size of -1 indicates to the reader that the body doesn't need to be decompressed
+       prefixed_length = -1;
+     }
++    RETURN_NOT_OK(result->Resize(actual_length + sizeof(int64_t), /* shrink_to_fit= */ true));
+     *reinterpret_cast<int64_t*>(result->mutable_data()) =
+         bit_util::ToLittleEndian(prefixed_length);
+     *out = SliceBuffer(std::move(result), /*offset=*/0, actual_length + sizeof(int64_t));
 -- 
 2.25.1
 

@@ -256,14 +256,12 @@ arrow::Status PreferCachePartitionWriter::evictPartition(int32_t partitionId /* 
     return arrow::Status::OutOfMemory("Cannot evict partition ", partitionId, " because writer is stopped.");
   }
 
-  if (shuffleWriter_->totalCachedPayloadSize() <= 0) {
-    return arrow::Status::OutOfMemory("No partition to evict.");
-  }
-
   int64_t evictTime = 0;
   TIME_NANO_START(evictTime)
+
   ARROW_ASSIGN_OR_RAISE(auto spilledFile, createTempShuffleFile(nextSpilledFileDir()));
-  SpillInfo spillInfo = {spilledFile};
+  SpillInfo spillInfo{spilledFile};
+
   // Spill all cached batches into one file, record their start and length.
   ARROW_ASSIGN_OR_RAISE(auto spilledFileOs, arrow::io::FileOutputStream::Open(spilledFile, true));
   for (auto pid = 0; pid < shuffleWriter_->numPartitions(); ++pid) {
@@ -283,10 +281,13 @@ arrow::Status PreferCachePartitionWriter::evictPartition(int32_t partitionId /* 
     }
   }
   RETURN_NOT_OK(spilledFileOs->Close());
-  spills_.push_back(std::move(spillInfo));
 
   TIME_NANO_END(evictTime)
   shuffleWriter_->setTotalEvictTime(shuffleWriter_->totalEvictTime() + evictTime);
+
+  if (!spillInfo.partitionSpillInfos.empty()) {
+    spills_.push_back(std::move(spillInfo));
+  }
 
   return arrow::Status::OK();
 }
