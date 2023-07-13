@@ -48,10 +48,8 @@ public class ExpressionEvaluatorJniWrapper {
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long allocatorId, byte[] wsPlan, GeneralInIterator[] batchItr) throws RuntimeException;
-
-  /** Create a native compute kernel and return a row iterator. */
-  native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
+      long allocatorId, byte[] wsPlan, GeneralInIterator[] batchItr, byte[] confArray)
+      throws RuntimeException;
 
   /**
    * Closes the projector referenced by nativeHandler.
