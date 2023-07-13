@@ -94,6 +94,8 @@ public:
 
     String getName() const override { return "SubstraitFileSource"; }
 
+    void applyFilters(std::vector<DB::KeyCondition> filters_) const;
+
 protected:
     DB::Chunk generate() override;
 
@@ -110,6 +112,7 @@ private:
     /// E.g. if parquet file schema is `info struct<name string, age int>`, and output_header is `info Tuple(name String, age Int32)`
     /// then there is not need to flatten `info` column, because null value of `info` column will be represented as null value of `info.name` and `info.age`, which is obviously wrong.
     std::unordered_set<size_t> columns_to_skip_flatten;
+    std::vector<DB::KeyCondition> filters;
 
     UInt32 current_file_index = 0;
     std::unique_ptr<FileReaderWrapper> file_reader;

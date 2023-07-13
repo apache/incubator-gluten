@@ -42,6 +42,7 @@
 #include <Common/typeid_cast.h>
 #include "DataTypes/DataTypesDecimal.h"
 #include "IO/readDecimalText.h"
+#include <boost/stacktrace.hpp>
 
 namespace DB
 {
@@ -121,6 +122,15 @@ SubstraitFileSource::SubstraitFileSource(
     }
 }
 
+void SubstraitFileSource::applyFilters(std::vector<DB::KeyCondition> filters_) const
+{
+    for (size_t i=0; i < files.size(); ++i)
+    {
+        FormatFilePtr file = files[i];
+        file->setFilters(filters_);
+    }
+}
+
 DB::Chunk SubstraitFileSource::generate()
 {
     while (true)
@@ -187,7 +197,7 @@ bool SubstraitFileSource::tryPrepareReader()
     }
     else
         file_reader = std::make_unique<NormalFileReader>(current_file, context, to_read_header, flatten_output_header);
-
+    }
     return true;
 }
 

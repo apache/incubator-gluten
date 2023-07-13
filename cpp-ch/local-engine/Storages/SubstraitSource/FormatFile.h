@@ -25,6 +25,7 @@
 #include <Interpreters/Context.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Storages/MergeTree/KeyCondition.h>
 #include <substrait/plan.pb.h>
 #include <Parser/TypeParser.h>
 
@@ -80,6 +81,14 @@ public:
 
     virtual size_t getStartOffset() const { return file_info.start(); }
     virtual size_t getLength() const { return file_info.length(); }
+    
+    void setFilters(std::vector<DB::KeyCondition> filters_) 
+    { 
+        for (size_t i = 0; i < filters_.size(); ++i)
+        {
+            filters.push_back(filters_[i]);
+        }
+    }
 
 protected:
     DB::ContextPtr context;
@@ -87,6 +96,7 @@ protected:
     ReadBufferBuilderPtr read_buffer_builder;
     std::vector<String> partition_keys;
     std::map<String, String> partition_values;
+    std::vector<DB::KeyCondition> filters;
 };
 using FormatFilePtr = std::shared_ptr<FormatFile>;
 using FormatFiles = std::vector<FormatFilePtr>;

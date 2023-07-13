@@ -87,6 +87,7 @@
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <base/Decimal.h>
 #include <base/types.h>
 #include <google/protobuf/util/json_util.h>
@@ -266,8 +267,15 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     auto source = std::make_shared<SubstraitFileSource>(context, header, rel.local_files());
     auto source_pipe = Pipe(source);
-    auto source_step = std::make_unique<ReadFromStorageStep>(std::move(source_pipe), "substrait local files", nullptr);
+    // auto source_step = std::make_unique<ReadFromGlutenSourceStep>(std::move(source_pipe), "substrait local files", nullptr);
+    auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
     source_step->setStepDescription("read local files");
+    if (rel.has_filter())
+    {
+        const ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
+        const ActionsDAG::Node * filter_node = parseExpression(actions_dag, rel.filter());
+        source_step->addFilter(actions_dag, filter_node);
+    }
     return source_step;
 }
 
@@ -2513,7 +2521,18 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
     current_query_plan = std::move(query_plan);
     Stopwatch stopwatch;
     stopwatch.start();
-    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = false};
+    QueryPlanOptimizationSettings optimization_settings{
+        .optimize_plan = true,
+        .filter_push_down = true,
+        .distinct_in_order = false,
+        .read_in_order = false,
+        .aggregation_in_order = false,
+        .remove_redundant_sorting = false,
+        .aggregate_partitions_independently = false,
+        .remove_redundant_distinct = false,
+        .optimize_projection = false,
+        .force_use_projection = false
+    };
     DB::QueryPriorities priorities;
     String query = "query";
     const Settings & settings = context->getSettingsRef();

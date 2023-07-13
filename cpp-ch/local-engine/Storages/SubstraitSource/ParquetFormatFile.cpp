@@ -32,6 +32,23 @@
 #    include <parquet/arrow/reader.h>
 #    include <Common/Config.h>
 
+#include <memory>
+#include <string>
+#include <utility>
+
+#include <parquet/arrow/reader.h>
+#include <Common/Config.h>
+#include <Formats/FormatFactory.h>
+#include <Formats/FormatSettings.h>
+#include <IO/SeekableReadBuffer.h>
+#include <Storages/ArrowParquetBlockInputFormat.h>
+#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+
+#include <DataTypes/DataTypesNumber.h>
+
+// clang-format on
 namespace DB
 {
 namespace ErrorCodes
@@ -64,7 +81,6 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     }
     else
         required_row_groups = collectRequiredRowGroups(total_row_groups);
-
     auto format_settings = DB::getFormatSettings(context);
 #    if USE_LOCAL_FORMATS
     format_settings.parquet.import_nested = true;
@@ -143,10 +159,14 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
 
     std::vector<RowGroupInfomation> row_group_metadatas;
     row_group_metadatas.reserve(total_row_groups);
+    std::vector<std::string> columns = {"id"};
+    std::vector<DB::DataTypePtr> column_types = { std::make_shared<DB::DataTypeInt32>() };
     for (int i = 0; i < total_row_groups; ++i)
-    {
+    {   
+        if (!checkRowGroupIfNeed(file_meta->RowGroup(i), columns, column_types))
+            continue;
+        
         auto row_group_meta = file_meta->RowGroup(i);
-
         auto offset = static_cast<UInt64>(row_group_meta->file_offset());
         if (!offset)
             offset = static_cast<UInt64>(row_group_meta->ColumnChunk(0)->file_offset());
@@ -165,5 +185,6 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
     }
     return row_group_metadatas;
 }
+
 }
 #endif
