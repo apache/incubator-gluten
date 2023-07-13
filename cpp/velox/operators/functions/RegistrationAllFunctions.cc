@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 #include "RegistrationAllFunctions.h"
-#include "RowConstructor.h"
+#include "DecimalVectorFunctions.h"
+#include "RowConstructorWithNull.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
@@ -23,29 +24,33 @@
 #include "velox/functions/sparksql/aggregates/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
 
-using namespace facebook;
+using namespace facebook::velox;
+// using namespace gluten::functions;
 
 namespace gluten {
 
 namespace {
-void registerCustomFunctions() {
-  velox::exec::registerVectorFunction(
-      "row_constructor",
-      std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
+void registerCustomFunctions(const std::string& prefix) {
+  exec::registerVectorFunction(
+      "row_constructor_with_null",
+      std::vector<std::shared_ptr<exec::FunctionSignature>>{},
       std::make_unique<RowConstructor>());
+  exec::registerStatefulVectorFunction(prefix + "make_decimal", makeDecimalSignatures(), makeMakeDecimal);
+  exec::registerStatefulVectorFunction(prefix + "check_overflow", checkOverflowSignatures(), makeCheckOverflow);
+  exec::registerStatefulVectorFunction(prefix + "unscaled_value", unscaledValueSignatures(), makeUnscaledValue);
 }
 } // anonymous namespace
 
 void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
   // presto sql functions to overwrite the registration for same named functions.
-  velox::functions::prestosql::registerAllScalarFunctions();
-  velox::functions::sparksql::registerFunctions("");
-  // registerCustomFunctions();
-  velox::aggregate::prestosql::registerAllAggregateFunctions();
-  velox::functions::aggregate::sparksql::registerAggregateFunctions("");
-  velox::window::prestosql::registerAllWindowFunctions();
-  velox::functions::window::sparksql::registerWindowFunctions("");
+  functions::prestosql::registerAllScalarFunctions();
+  functions::sparksql::registerFunctions("");
+  registerCustomFunctions("");
+  aggregate::prestosql::registerAllAggregateFunctions();
+  functions::aggregate::sparksql::registerAggregateFunctions("");
+  window::prestosql::registerAllWindowFunctions();
+  functions::window::sparksql::registerWindowFunctions("");
 }
 
 } // namespace gluten

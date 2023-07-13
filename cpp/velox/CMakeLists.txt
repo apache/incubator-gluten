@@ -217,6 +217,7 @@ set(VELOX_SRCS
     compute/WholeStageResultIterator.cc
     compute/VeloxPlanConverter.cc
     operators/functions/RegistrationAllFunctions.cc
+    operators/functions/DecimalVectorFunctions.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc

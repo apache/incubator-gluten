@@ -42,26 +42,6 @@ namespace gluten {
 #define PREFETCHT1(ptr) __builtin_prefetch(ptr, 0, 2)
 #define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
 #endif
-// #define SKIPWRITE
-
-#if defined(__x86_64__)
-template <typename T>
-std::string m128iToString(const __m128i var) {
-  std::stringstream sstr;
-  T values[16 / sizeof(T)];
-  std::memcpy(values, &var, sizeof(values)); // See discussion below
-  if (sizeof(T) == 1) {
-    for (unsigned int i = 0; i < sizeof(__m128i); i++) { // C++11: Range for also possible
-      sstr << std::hex << (int)values[i] << " " << std::dec;
-    }
-  } else {
-    for (unsigned int i = 0; i < sizeof(__m128i) / sizeof(T); i++) {
-      sstr << std::hex << values[i] << " " << std::dec;
-    }
-  }
-  return sstr.str();
-}
-#endif
 
 namespace {
 
