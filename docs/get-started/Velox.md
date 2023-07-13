@@ -100,7 +100,6 @@ cd /path_to_gluten/ep/build-velox/src/
 cd /path_to_gluten/cpp
 ## if you use custom velox_home or arrow_home, make sure specified here by --arrow_home or --velox_home 
 ./compile.sh --build_velox_backend=ON
-make -j
 
 ## compile Gluten java module and create package jar
 cd /path_to_gluten
@@ -112,7 +111,7 @@ mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
-Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.2/Spark 3.3.1.
+Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.x/Spark 3.3.x.
 
 ## HDFS support
 
