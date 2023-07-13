@@ -371,7 +371,7 @@ struct SignalHandler::Impl
     /// initialize termination process and signal handlers
     void initializeTerminationAndSignalProcessing()
     {
-        addSignalHandler({SIGABRT, SIGSEGV, SIGBUS, SIGTSTP}, signalHandler, &handled_signals);
+        addSignalHandler({SIGABRT, SIGSEGV, SIGILL, SIGBUS, SIGSYS, SIGFPE, SIGPIPE, SIGTSTP, SIGTRAP}, signalHandler, &handled_signals);
 
         /// TODO:: Set up Poco ErrorHandler for Poco Threads.
         // static KillingErrorHandler killing_error_handler;
