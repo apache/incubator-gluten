@@ -342,22 +342,31 @@ It's recommended to put it in .bashrc on Driver and Worker nodes.
 ```bash
 echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
 source ~/.bashrc
+
+# Also set for root if running as non-root user
+sudo su - 
+echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
+exit
 ```
+
 2. **This step is required if your application is running as Non-root user**.
 The users must be added to the 'qat' group after QAT drvier is installed.
 And change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf.
 
 ```bash
-sudo usermod -aG qat username # need to relogin
+sudo su -
+usermod -aG qat username # need relogin to take effect
 
 # To set 500MB add a line like this in /etc/security/limits.conf
-cat /etc/security/limits.conf | grep qat
-@qat - memlock 500000
+echo "@qat - memlock 500000" >> /etc/security/limits.conf
+
+exit
 ```
 
 3. Enable huge page. This step is required to execute each time after system reboot. We recommend using systemctl to manage at system startup.
 You change the values for "max_huge_pages" and "max_huge_pages_per_process" to make sure there are enough resources for your workload.
 As for Spark applications, one process matches one executor. Within the executor, every task is allocated a maximum of 5 huge pages.
+
 ```bash
 sudo su -
 
@@ -384,6 +393,8 @@ EOF
 systemctl enable qat_startup.service
 systemctl start qat_startup.service # setup immediately
 systemctl status qat_startup.service
+
+exit
 ```
 
 4. After the setup, you are now ready to build Gluten with QAT. Use the command below to enable this feature:
