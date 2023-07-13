@@ -631,4 +631,3 @@ The performance of Gluten + ClickHouse backend increases by **about 1/3**.
 
 https://opencicd.kyligence.com/job/Gluten/job/gluten-ci/
 public read-only account：gluten/hN2xX3uQ4m
-
