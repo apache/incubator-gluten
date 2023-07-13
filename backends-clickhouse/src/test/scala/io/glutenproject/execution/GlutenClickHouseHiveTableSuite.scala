@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterAll
 
 import java.io.File
+import java.sql.Timestamp
 
 case class AllDataTypesWithComplextType(
     string_field: String = null,
@@ -42,6 +43,7 @@ case class AllDataTypesWithComplextType(
     boolean_field: java.lang.Boolean = null,
     decimal_field: java.math.BigDecimal = null,
     date_field: java.sql.Date = null,
+    timestamp_field: java.sql.Timestamp = null,
     array: Seq[Int] = null,
     arrayContainsNull: Seq[Option[Int]] = null,
     map: Map[Int, Long] = null,
@@ -112,6 +114,9 @@ class GlutenClickHouseHiveTableSuite()
 
   private val txt_table_name = "hive_txt_test"
   private val json_table_name = "hive_json_test"
+  private val json_serde_jar_path = getClass
+    .getResource("/")
+    .getPath + "openx-json-serde/json-serde-1.3.8-jar-with-dependencies.jar"
 
   private val txt_table_create_sql = "create table if not exists %s (".format(txt_table_name) +
     "string_field string," +
@@ -124,6 +129,7 @@ class GlutenClickHouseHiveTableSuite()
     "bool_field boolean," +
     "decimal_field decimal(23, 12)," +
     "date_field date," +
+    "timestamp_field timestamp," +
     "array_field array<int>," +
     "array_field_with_null array<int>," +
     "map_field map<int, long>," +
@@ -139,6 +145,7 @@ class GlutenClickHouseHiveTableSuite()
     "bool_field boolean," +
     "decimal_field decimal(23, 12)," +
     "date_field date," +
+    "timestamp_field timestamp," +
     "array_field array<int>," +
     "array_field_with_null array<int>," +
     "map_field map<int,long>," +
@@ -165,6 +172,7 @@ class GlutenClickHouseHiveTableSuite()
             i % 2 == 0,
             new java.math.BigDecimal(i + ".56"),
             new java.sql.Date(System.currentTimeMillis()),
+            new Timestamp(System.currentTimeMillis()),
             Seq.apply(i + 1, i + 2, i + 3),
             Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
             Map.apply((i + 1, i + 2), (i + 3, i + 4)),
@@ -181,6 +189,8 @@ class GlutenClickHouseHiveTableSuite()
     spark.createDataFrame(genTestData()).createOrReplaceTempView("tmp_t")
     val truncate_sql = "truncate table %s".format(table_name)
     val drop_sql = "drop table if exists %s".format(table_name)
+    val add_jar_sql = "add jar %s".format(json_serde_jar_path)
+    spark.sql(add_jar_sql)
     spark.sql(drop_sql)
     spark.sql(table_create_sql)
     spark.sql(truncate_sql)
