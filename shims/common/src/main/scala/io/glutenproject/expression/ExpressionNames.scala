@@ -162,9 +162,6 @@ object ExpressionNames {
   final val TRUNC = "trunc"
   final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
-  final val CURRENT_DATE = "current_date"
-  final val CURRENT_TIMESTAMP = "current_timestamp"
-  final val NOW = "now"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"

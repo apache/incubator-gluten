@@ -51,9 +51,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"to_unix_timestamp", "toUnixTimestamp"},
        {"unix_timestamp", "toUnixTimestamp"},
        {"date_format", "formatDateTimeInJodaSyntax"},
-       {"current_date", "today"},
-       {"now", "now64"},
-       {"current_timestamp", "now64"},
 
        /// arithmetic functions
        {"subtract", "minus"},

@@ -155,9 +155,6 @@ object ExpressionMappings {
     Sig[TruncDate](TRUNC),
     Sig[TruncTimestamp](DATE_TRUNC),
     Sig[GetTimestamp](GET_TIMESTAMP),
-    Sig[CurrentDate](CURRENT_DATE),
-    Sig[CurrentTimestamp](CURRENT_TIMESTAMP),
-    Sig[Now](NOW),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),

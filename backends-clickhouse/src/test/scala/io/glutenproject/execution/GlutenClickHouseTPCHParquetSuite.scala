@@ -380,24 +380,22 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("test 'function current_date'") {
-    runSql("select current_date() from range(10)")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
-  test("test 'function current_timestamp'") {
-    runSql("select current_timestamp() from range(10)")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
-  test("test 'function now'") {
-    runSql("select now() from range(10)")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
   test("test 'function mod'") {
-    runSql("select mod() from range(10)")(checkOperatorMatch[ProjectExecTransformer])
+    // runSql("select mod(2, 1.8) from range(10)")(checkOperatorMatch[ProjectExecTransformer])
+    val sql =
+      """
+         select mod(2, 1.8) from range(10)
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("test 'function pow'") {
-    runSql("select pow() from range(10)")(checkOperatorMatch[ProjectExecTransformer])
+    // runSql("select pow(2, 3) from range(10)")(checkOperatorMatch[ProjectExecTransformer])
+    val sql =
+      """
+         select pow(2, 3) from range(10)
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("test 'function date_add/date_sub/datediff'") {
