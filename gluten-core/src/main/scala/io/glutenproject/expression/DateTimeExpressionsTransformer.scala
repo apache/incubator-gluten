@@ -114,6 +114,7 @@ class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransfor
 
 /**
  * The failOnError depends on the config for ANSI. ANSI is not supported currently.
+ * And timeZoneId is passed to velox config.
  */
 case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTransformer,
   format: ExpressionTransformer, timeZoneId: Option[String], failOnError: Boolean,
@@ -122,11 +123,7 @@ case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: Expres
   with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val dataTypes = if (timeZoneId != None) {
-      Seq(original.timeExp.dataType, StringType, StringType)
-    } else {
-      Seq(original.timeExp.dataType, StringType)
-    }
+    val dataTypes = Seq(original.timeExp.dataType, StringType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
@@ -136,10 +133,6 @@ case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: Expres
     expressionNodes.add(timeExpNode)
     val formatNode = format.doTransform(args)
     expressionNodes.add(formatNode)
-    if (timeZoneId != None) {
-      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
-    }
-
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
