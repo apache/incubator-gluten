@@ -26,14 +26,21 @@ if (ENABLE_TESTS)
 
         file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_udf)
         foreach(child ${children})
-            add_headers_and_sources(local_udfs_test ${child})
+            add_headers_and_sources(local_engine_udf ${child})
         endforeach()
     endif ()
 
-    message("gtest_sources ${local_engine_gtest_sources}")
-    message("local UDFs: ${local_udfs_test_sources}")
+    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_function_parser)
+    foreach(child ${children})
+        add_headers_and_sources(local_engine_function_parser ${child})
+    endforeach()
 
-    add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_udfs_test_sources})
+
+    message("local engine gtest sources: ${local_engine_gtest_sources}")
+    message("local engine udf sources: ${local_engine_udf_sources}")
+    message("local engine function parser sources: ${local_engine_function_parser_sources}")
+
+    add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_engine_udf_sources} ${local_engine_function_parser_sources})
     target_include_directories(unit_tests_local_engine PRIVATE
         ${GTEST_INCLUDE_DIRS}/include
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
