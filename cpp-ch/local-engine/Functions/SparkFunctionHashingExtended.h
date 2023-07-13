@@ -38,7 +38,7 @@ template <typename T>
 struct IntHashPromotion
 {
     static constexpr bool is_signed = is_signed_v<T>;
-    static constexpr size_t size = std::min<size_t>(4, sizeof(T));
+    static constexpr size_t size = std::max<size_t>(4, sizeof(T));
 
     using Type = typename NumberTraits::Construct<is_signed, false, size>::Type;
     static constexpr bool need_promotion_v = sizeof(T) < 4;
@@ -175,13 +175,17 @@ private:
                     column->getName(), column->size(), vec_to.size(), getName());
 
         const NullMap * null_map = nullptr;
-        const IColumn * not_const_column = column;
         const IColumn * data_column = column;
+        // const IColumn * data_column = column;
         bool from_const = false;
-        if (isColumnConst(*column))
-            not_const_column = &assert_cast<const ColumnConst &>(*column).getDataColumn();
 
-        if (const ColumnNullable * col_nullable = checkAndGetColumn<ColumnNullable>(not_const_column))
+        if (isColumnConst(*column))
+        {
+            from_const = true;
+            data_column = &assert_cast<const ColumnConst &>(*column).getDataColumn();
+        }
+
+        if (const ColumnNullable * col_nullable = checkAndGetColumn<ColumnNullable>(data_column))
         {
             null_map = &col_nullable->getNullMapData();
             data_column = &col_nullable->getNestedColumn();
@@ -298,7 +302,7 @@ public:
         }
         else
         {
-            if constexpr (std::is_same_v<T, Float64>)
+            if constexpr (std::is_same_v<T, Float32>)
             {
                 if (n == -0.0f) [[unlikely]]
                     return applyNumber<Int32>(0, seed);
@@ -320,8 +324,46 @@ public:
     static ToType applyDecimal(const T & n, UInt64 seed)
     {
         using NativeType = typename T::NativeType;
-        NativeType v = n.value;
-        return Impl::apply(reinterpret_cast<const char *>(&v), sizeof(v), seed);
+
+        if constexpr (sizeof(NativeType) <= 8)
+        {
+            Int64 v = n.value;
+            return Impl::apply(reinterpret_cast<const char *>(&v), sizeof(v), seed);
+        }
+        else
+        {
+            using base_type = typename NativeType::base_type;
+
+            NativeType v = n.value;
+            // std::cout << "input: " << v << std::endl;
+
+            /// Calculate leading zeros
+            bool negative = v < 0;
+            size_t item_count = std::size(v.items);
+            size_t leading_zeros = 0;
+            for (size_t i = 0; i < item_count; ++i)
+            {
+                base_type item = v.items[item_count - 1 - i];
+                base_type temp = negative ? ~item : item;
+                size_t curr_leading_zeros = getLeadingZeroBits(temp);
+                leading_zeros += curr_leading_zeros;
+
+                if (curr_leading_zeros != sizeof(base_type) * 8)
+                    break;
+            }
+            size_t offset = (item_count * sizeof(base_type) * 8 - leading_zeros + 8) / 8;
+            // std::cout << "offset:" << offset << std::s
+
+            /// Convert v to big-endian style
+            for (size_t i = 0; i < item_count; ++i)
+                v.items[i] = __builtin_bswap64(v.items[i]);
+            for (size_t i = 0; i < item_count; ++i)
+                std::swap(v.items[i], v.items[std::size(v.items) - i - 1]);
+
+            /// Calculate hash(refer to https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html#toByteArray)
+            const char * begin = reinterpret_cast<const char *>(&v.items[0]);
+            return Impl::apply(begin + offset, item_count * sizeof(base_type) - offset, seed);
+        }
     }
 };
 
