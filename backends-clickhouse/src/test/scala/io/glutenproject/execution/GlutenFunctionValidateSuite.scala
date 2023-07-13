@@ -143,6 +143,33 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
       .mode("overwrite")
       .parquet(dateTableFilePath)
     spark.catalog.createTable("date_table", dateTableFilePath, fileFormat)
+    val str2Mapfile = Files.createTempFile("", ".parquet").toFile
+    str2Mapfile.deleteOnExit()
+    val str2MapFilePath = str2Mapfile.getAbsolutePath
+    val str2MapSchema = StructType(
+      Array(
+        StructField("str", StringType, true)
+      ))
+    val str2MapData = sparkContext.parallelize(
+      Seq(
+        Row("a:1,b:2,c:3"),
+        Row("a:1,b:2"),
+        Row("a:1;b:2"),
+        Row("a:1,d:4"),
+        Row("a:"),
+        Row(null),
+        Row(":,a:1"),
+        Row(":"),
+        Row("")
+      ))
+    val str2MapDfParquet = spark.createDataFrame(str2MapData, str2MapSchema)
+    str2MapDfParquet
+      .coalesce(1)
+      .write
+      .format("parquet")
+      .mode("overwrite")
+      .parquet(str2MapFilePath)
+    spark.catalog.createTable("str2map_table", str2MapFilePath, fileFormat)
   }
 
   test("Test get_json_object 1") {
@@ -236,5 +263,13 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
   }
   test("test last_day") {
     runQueryAndCompare("select last_day(day) from date_table") { _ => }
+  }
+
+  test("test str2map") {
+    val sql1 =
+      """
+        |select str, str_to_map(str, ',', ':') from str2map_table
+        |""".stripMargin
+    runQueryAndCompare(sql1)(checkOperatorMatch[ProjectExecTransformer])
   }
 }
