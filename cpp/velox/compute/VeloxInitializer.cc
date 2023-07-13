@@ -127,10 +127,14 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // mem tracker
   int64_t maxMemory = facebook::velox::memory::kMaxMemory;
+  auto gotMemory = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
   if (spillStrategy == "threshold") {
-    auto got = conf.find(kSparkOffHeapMemory); // per executor, shared by tasks for creating iterator
-    if (got != conf.end()) {
-      maxMemory = (long)(memCapRatio * (double)std::stol(got->second));
+    if (gotMemory != conf.end()) {
+      maxMemory = (long)(memCapRatio * (double)std::stol(gotMemory->second));
+    }
+  } else if (spillStrategy == "auto") {
+    if (gotMemory != conf.end()) {
+      maxMemory = (long)(std::stol(gotMemory->second));
     }
   }
 
