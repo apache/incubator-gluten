@@ -147,6 +147,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"sha1", "SHA1"},
        {"sha2", ""}, /// dummy mapping
        {"crc32", "CRC32"},
+       {"murmur3hash", "sparkMurmurHash3_32"},
+       {"xxhash64", "sparkXxHash64"},
 
        // in functions
        {"in", "in"},
@@ -267,7 +269,7 @@ public:
     {
         return metrics.at(0);
     }
-    
+
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
     static ContextMutablePtr global_context;
