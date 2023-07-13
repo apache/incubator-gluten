@@ -69,12 +69,7 @@ class Validator extends ValidatorApi {
     }
     schema match {
       case map: MapType =>
-        if (!doSchemaValidate(map.keyType)) {
-          return false
-        }
-        if (!doSchemaValidate(map.valueType)) {
-          return false
-        }
+        return doSchemaValidate(map.keyType) && doSchemaValidate(map.valueType)
       case struct: StructType =>
         for (field <- struct.fields) {
           if (!doSchemaValidate(field.dataType)) {
@@ -82,9 +77,7 @@ class Validator extends ValidatorApi {
           }
         }
       case array: ArrayType =>
-        if (!doSchemaValidate(array.elementType)) {
-          return false
-        }
+        return doSchemaValidate(array.elementType)
       case _ => return false
     }
     true
