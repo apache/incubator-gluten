@@ -248,6 +248,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
     configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
+    // Expects there always has a value set for timezone. Otherwise, an exception will be thrown.
+    configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(kSessionTimezone, std::nullopt);
 
     // Set the max memory of partial aggregation as 3/4 of offheap size.
     auto maxMemory =
