@@ -45,6 +45,18 @@ struct IntHashPromotion
 };
 
 
+inline String toHexString(const char * buf, size_t length)
+{
+    String res(length * 2, '\0');
+    char * out = res.data();
+    for (size_t i = 0; i < length; ++i)
+    {
+        writeHexByteUppercase(buf[i], out);
+        out += 2;
+    }
+    return res;
+}
+
 DECLARE_MULTITARGET_CODE(
 
 template <typename Impl>
@@ -79,7 +91,10 @@ private:
             if constexpr (std::is_arithmetic_v<FromType>)
                 to = applyNumber(value, to);
             else if constexpr (is_decimal<FromType>)
+            {
+                // std::cout << "decimal field:" << toString(DecimalField(value, 2)) << std::endl;
                 to = applyDecimal(value, to);
+            }
             else
                 throw Exception(
                     ErrorCodes::ILLEGAL_COLUMN, "Illegal column {} of argument of function {}", data_column->getName(), getName());
@@ -335,11 +350,11 @@ public:
             using base_type = typename NativeType::base_type;
 
             NativeType v = n.value;
-            // std::cout << "input: " << v << std::endl;
 
             /// Calculate leading zeros
+            constexpr size_t item_count = std::size(v.items);
+            constexpr size_t total_bytes = sizeof(base_type) * item_count;
             bool negative = v < 0;
-            size_t item_count = std::size(v.items);
             size_t leading_zeros = 0;
             for (size_t i = 0; i < item_count; ++i)
             {
@@ -351,18 +366,27 @@ public:
                 if (curr_leading_zeros != sizeof(base_type) * 8)
                     break;
             }
-            size_t offset = (item_count * sizeof(base_type) * 8 - leading_zeros + 8) / 8;
-            // std::cout << "offset:" << offset << std::s
+
+            size_t offset = total_bytes - (total_bytes * 8 - leading_zeros + 8) / 8;
+            // std::cout << "offset:" << offset << ",leading_zeros:" << leading_zeros << std::endl;
 
             /// Convert v to big-endian style
+            // std::cout << "littleendian:" << toHexString(reinterpret_cast<const char *>(&v.items[0]), item_count * sizeof(base_type))
+                    //   << std::endl;
             for (size_t i = 0; i < item_count; ++i)
                 v.items[i] = __builtin_bswap64(v.items[i]);
-            for (size_t i = 0; i < item_count; ++i)
-                std::swap(v.items[i], v.items[std::size(v.items) - i - 1]);
+            for (size_t i = 0; i < item_count / 2; ++i)
+                std::swap(v.items[i], v.items[std::size(v.items) -1 - i]);
 
             /// Calculate hash(refer to https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html#toByteArray)
-            const char * begin = reinterpret_cast<const char *>(&v.items[0]);
-            return Impl::apply(begin + offset, item_count * sizeof(base_type) - offset, seed);
+            const char * buffer = reinterpret_cast<const char *>(&v.items[0]) + offset;
+            size_t length = item_count * sizeof(base_type) - offset;
+            // std::cout << "bigendian:" << toHexString(reinterpret_cast<const char *>(&v.items[0]), item_count * sizeof(base_type))
+                    //   << std::endl;
+            // std::cout << "buffer:" << toHexString(buffer, length) << std::endl;
+            return Impl::apply(buffer, length, seed);
+            // std::cout << "ret:" << ret << std::endl;
+            // return ret;
         }
     }
 };
@@ -411,7 +435,9 @@ struct SparkImplXxHash64
 /// handle aligned reads, do the conversion here
 static ALWAYS_INLINE uint32_t getblock32(const uint32_t * p, int i)
 {
-    return p[i];
+    uint32_t res;
+    memcpy(&res, p + i, sizeof(res));
+    return res;
 }
 
 static ALWAYS_INLINE uint32_t rotl32(uint32_t x, int8_t r)
