@@ -3,11 +3,11 @@
 #include "compute/Backend.h"
 #include "memory/ColumnarBatchIterator.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "utils/metrics.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
-#include "velox/substrait/SubstraitToVeloxPlan.h"
 
 namespace gluten {
 
@@ -95,7 +95,7 @@ class WholeStageResultIteratorFirstStage final : public WholeStageResultIterator
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
       const std::vector<facebook::velox::core::PlanNodeId>& scanNodeIds,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
       const std::string spillDir,
       const std::unordered_map<std::string, std::string>& confMap,
@@ -103,7 +103,7 @@ class WholeStageResultIteratorFirstStage final : public WholeStageResultIterator
 
  private:
   std::vector<facebook::velox::core::PlanNodeId> scanNodeIds_;
-  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos_;
+  std::vector<std::shared_ptr<SplitInfo>> scanInfos_;
   std::vector<facebook::velox::core::PlanNodeId> streamIds_;
   std::vector<std::vector<facebook::velox::exec::Split>> splits_;
   bool noMoreSplits_ = false;

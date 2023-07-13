@@ -39,8 +39,20 @@ function(add_velox_test TEST_EXEC)
   gtest_discover_tests(${TEST_EXEC})
 endfunction()
 
-# velox test
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
-add_velox_test(velox_converter_test SOURCES ArrowToVeloxTest.cc VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc ColumnarToRowTest.cc)
+add_velox_test(velox_data_conversion_test SOURCES ArrowToVeloxTest.cc VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc ColumnarToRowTest.cc)
 add_velox_test(orc_test SOURCES OrcTest.cc)
 add_velox_test(velox_operators_test SOURCES VeloxColumnarBatchSerializerTest.cc)
+add_velox_test(
+  velox_plan_conversion_test
+  SOURCES
+  Substrait2VeloxPlanConversionTest.cc
+  Substrait2VeloxPlanValidatorTest.cc
+  Substrait2VeloxValuesNodeConversionTest.cc
+  SubstraitExtensionCollectorTest.cc
+  VeloxSubstraitRoundTripTest.cc
+  VeloxSubstraitSignatureTest.cc
+  VeloxToSubstraitTypeTest.cc
+  FunctionTest.cc
+  JsonToProtoConverter.cc
+  FilePathGenerator.cc)
