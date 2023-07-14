@@ -419,6 +419,48 @@ class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("max_by") {
+    runQueryAndCompare(s"""
+                          |select max_by(l_linenumber, l_comment) from lineitem;
+                          |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare(s"""
+                          |select max_by(distinct l_linenumber, l_comment)
+                          |from lineitem
+                          |""".stripMargin) {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
+  test("min_by") {
+    runQueryAndCompare(s"""
+                          |select min_by(l_linenumber, l_comment) from lineitem;
+                          |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare(s"""
+                          |select min_by(distinct l_linenumber, l_comment)
+                          |from lineitem
+                          |""".stripMargin) {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
   test("distinct functions") {
     runQueryAndCompare("SELECT sum(DISTINCT l_partkey), count(*) FROM lineitem") {
       df =>

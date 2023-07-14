@@ -85,7 +85,7 @@ case class HashAggregateExecTransformer(
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
         case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
-            _: VariancePop | _: Corr | _: CovPopulation | _: CovSample =>
+            _: VariancePop | _: Corr | _: CovPopulation | _: CovSample | _: MaxMinBy =>
           expr.mode match {
             case Partial | PartialMerge =>
               return true
@@ -134,7 +134,7 @@ case class HashAggregateExecTransformer(
           throw new UnsupportedOperationException(s"${expr.mode} not supported.")
       }
       expr.aggregateFunction match {
-        case _: Average | _: First | _: Last =>
+        case _: Average | _: First | _: Last | _: MaxMinBy =>
           // Select first and second aggregate buffer from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
@@ -229,6 +229,11 @@ case class HashAggregateExecTransformer(
       case last: Last =>
         structTypeNodes.add(ConverterUtils.getTypeNode(last.dataType, nullable = true))
         structTypeNodes.add(ConverterUtils.getTypeNode(BooleanType, nullable = true))
+      case maxMinBy: MaxMinBy =>
+        structTypeNodes
+          .add(ConverterUtils.getTypeNode(maxMinBy.valueExpr.dataType, nullable = true))
+        structTypeNodes
+          .add(ConverterUtils.getTypeNode(maxMinBy.orderingExpr.dataType, nullable = true))
       case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
         structTypeNodes.add(
@@ -356,7 +361,7 @@ case class HashAggregateExecTransformer(
       case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
         generateMergeCompanionNode()
       case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop | _: Corr |
-          _: CovPopulation | _: CovSample | _: First | _: Last =>
+          _: CovPopulation | _: CovSample | _: First | _: Last | _: MaxMinBy =>
         generateMergeCompanionNode()
       case _ =>
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
@@ -388,7 +393,7 @@ case class HashAggregateExecTransformer(
         val aggregateFunction = expression.aggregateFunction
         aggregateFunction match {
           case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
-              _: VariancePop | _: Corr | _: CovPopulation | _: CovSample =>
+              _: VariancePop | _: Corr | _: CovPopulation | _: CovSample | _: MaxMinBy =>
             expression.mode match {
               case Partial | PartialMerge =>
                 typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
@@ -512,12 +517,13 @@ case class HashAggregateExecTransformer(
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
-        case _: First | _: Last =>
+        case _: First | _: Last | _: MaxMinBy =>
           aggregateExpression.mode match {
             case PartialMerge | Final =>
               assert(
                 functionInputAttributes.size == 2,
-                s"${aggregateExpression.mode.toString} of First/Last expects two input attributes.")
+                s"${aggregateExpression.mode.toString} of " +
+                  s"${aggregateFunction.getClass.toString} expects two input attributes.")
               // Use a Velox function to combine the intermediate columns into struct.
               val childNodes = functionInputAttributes.toList
                 .map(
@@ -729,8 +735,8 @@ case class HashAggregateExecTransformer(
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodes = new JArrayList[ExpressionNode]()
         aggregateFunc match {
-          case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop |
-              _: VarianceSamp | _: VariancePop | _: Corr | _: CovPopulation | _: CovSample
+          case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
+              _: VariancePop | _: Corr | _: CovPopulation | _: CovSample | _: MaxMinBy
               if aggExpr.mode == PartialMerge | aggExpr.mode == Final =>
             // Only occupies one column due to intermediate results are combined
             // by previous projection.
