@@ -93,7 +93,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q49", // inconsistent results
     "q61", // inconsistent results
     "q67", // inconsistent results
-    "q78", // inconsistent results
     "q83", // decimal error
     "q90" // inconsistent results(decimal)
   )
