@@ -360,11 +360,11 @@ spark-shell --name run_gluten \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
  --conf spark.gluten.loadLibFromJar=true \
- --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
+ --jars https://github.com/oap-project/gluten/releases/download/1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-1.0.0.jar
 
 ```
 
-# How to prioritize loading Gluten jars in Spark 
+# How to prioritize loading Gluten jars in Spark
 
 To implement the Insert into directory function in gluten, it is necessary to overwrite the implementation of HiveFileFormat in vanilla spark. Therefore, when running a program that uses gluten, it is essential to ensure that the gluten jar is loaded prior to the vanilla spark jar. In this section, we will provide some configuration settings in `$SPARK_HOME/conf/spark-defaults.conf` for Yarn client, Yarn cluster, and Local&Standalone mode to guarantee that the gluten jar is prioritized.
 

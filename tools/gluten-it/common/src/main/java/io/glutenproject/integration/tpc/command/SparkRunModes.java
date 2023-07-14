@@ -85,7 +85,7 @@ public final class SparkRunModes {
 
   private static class LocalClusterMode implements Mode {
     // We should transfer the jars to be tested in the integration testing to executors
-    public static final String[] EXTRA_JARS = new String[]{"gluten-package-0.5.0-SNAPSHOT.jar"};
+    public static final String[] EXTRA_JARS = new String[]{"gluten-package-1.0.0.jar"};
 
     @CommandLine.Option(names = {"--local-cluster"}, description = "Run in Spark local cluster mode", required = true)
     private boolean enabled;
