@@ -63,8 +63,6 @@ object CHExpressionUtil {
     UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     MIGHT_CONTAIN -> DefaultValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
-    ARRAY_MAX -> DefaultValidator(),
-    ARRAY_MIN -> DefaultValidator(),
     ARRAYS_OVERLAP -> DefaultValidator(),
     SORT_ARRAY -> DefaultValidator()
   )

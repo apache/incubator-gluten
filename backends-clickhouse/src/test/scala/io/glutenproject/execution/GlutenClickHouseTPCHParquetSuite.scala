@@ -526,6 +526,34 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test array_max") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_max(split(n_comment, ' ')) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+      runQueryAndCompare(
+        "select array_max(null), array_max(array(null)), array_max(array(1, 2, 3, null)), " +
+          "array_max(array(1.0, 2.0, 3.0, null)), array_max(array('z', 't', 'abc'))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_min") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_min(split(n_comment, ' ')) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+      runQueryAndCompare(
+        "select array_min(null), array_min(array(null)), array_min(array(1, 2, 3, null)), " +
+          "array_min(array(1.0, 2.0, 3.0, null)), array_min(array('z', 't', 'abc'))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("test slice function") {
     val sql =
       """
