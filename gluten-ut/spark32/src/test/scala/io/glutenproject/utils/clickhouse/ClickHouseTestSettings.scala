@@ -91,7 +91,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude(
       "Array and Map Size - legacy",
-      "Array contains",
       "Sequence of numbers",
       "Reverse",
       "elementAt",
