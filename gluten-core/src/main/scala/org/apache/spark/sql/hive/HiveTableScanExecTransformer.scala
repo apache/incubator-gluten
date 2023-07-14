@@ -142,7 +142,8 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
     tableMeta.storage.inputFormat match {
       case Some("org.apache.hadoop.mapred.TextInputFormat") =>
         tableMeta.storage.serde match {
-          case Some("org.openx.data.jsonserde.JsonSerDe") =>
+          case Some("org.openx.data.jsonserde.JsonSerDe") |
+               Some("org.apache.hive.hcatalog.data.JsonSerDe") =>
             val scan = JsonScan(
                 session,
                 fileIndex,

@@ -114,9 +114,6 @@ class GlutenClickHouseHiveTableSuite()
 
   private val txt_table_name = "hive_txt_test"
   private val json_table_name = "hive_json_test"
-  private val json_serde_jar_path = getClass
-    .getResource("/")
-    .getPath + "openx-json-serde/json-serde-1.3.8-jar-with-dependencies.jar"
 
   private val txt_table_create_sql = "create table if not exists %s (".format(txt_table_name) +
     "string_field string," +
@@ -151,7 +148,7 @@ class GlutenClickHouseHiveTableSuite()
     "map_field map<int,long>," +
     "map_field_with_null map<int,long>, " +
     "day string) partitioned by(day)" +
-    "ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'" +
+    "ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'" +
     "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'" +
     "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
 
@@ -189,8 +186,6 @@ class GlutenClickHouseHiveTableSuite()
     spark.createDataFrame(genTestData()).createOrReplaceTempView("tmp_t")
     val truncate_sql = "truncate table %s".format(table_name)
     val drop_sql = "drop table if exists %s".format(table_name)
-    val add_jar_sql = "add jar %s".format(json_serde_jar_path)
-    spark.sql(add_jar_sql)
     spark.sql(drop_sql)
     spark.sql(table_create_sql)
     spark.sql(truncate_sql)
