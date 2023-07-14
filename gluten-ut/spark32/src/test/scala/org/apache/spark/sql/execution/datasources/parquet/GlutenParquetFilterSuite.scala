@@ -227,7 +227,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
             sql(s"select a from $tableName where b > 0").collect()
           }
           assert(e.getCause.isInstanceOf[RuntimeException] && e.getCause.getMessage.contains(
-            """Found duplicate field(s) "B": [B, b] in case-insensitive mode"""))
+            """Found duplicate field(s) b in case-insensitive mode"""))
         }
 
         withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
