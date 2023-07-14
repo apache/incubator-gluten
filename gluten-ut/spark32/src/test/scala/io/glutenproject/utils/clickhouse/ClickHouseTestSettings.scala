@@ -328,7 +328,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "misc sha1 function",
       "misc sha2 function",
       "misc crc32 function",
-      "concat function - arrays"
+      "concat function - arrays",
+      "array position function",
+      "array contains function"
     )
     .includeByPrefix(
       "reverse function - array"
