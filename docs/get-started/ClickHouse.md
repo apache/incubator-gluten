@@ -153,7 +153,7 @@ rm -f jars/protobuf-java-2.5.0.jar
 wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P ./jars
-wget http://www.congiu.net/hive-json-serde/1.3.8/hdp23/json-serde-1.3.8-jar-with-dependencies.jar ./jars
+wget https://repo1.maven.org/maven2/io/starburst/openx/data/json-serde/1.3.9-e.10/json-serde-1.3.9-e.10-jar-with-dependencies.jar ./jars
 cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
 ```
 
@@ -167,7 +167,7 @@ rm -f jars/protobuf-java-2.5.0.jar
 wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P ./jars
-wget http://www.congiu.net/hive-json-serde/1.3.8/hdp23/json-serde-1.3.8-jar-with-dependencies.jar ./jars
+wget https://repo1.maven.org/maven2/io/starburst/openx/data/json-serde/1.3.9-e.10/json-serde-1.3.9-e.10-jar-with-dependencies.jar ./jars
 cp gluten-XXXXX-spark-3.3-jar-with-dependencies.jar jars/
 ```
 

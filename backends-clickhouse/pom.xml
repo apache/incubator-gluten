@@ -119,7 +119,7 @@
       <groupId>io.starburst.openx.data</groupId>
       <artifactId>json-serde</artifactId>
       <version>1.3.9-e.8</version>
-       <scope>test</scope>
+      <scope>test</scope>
     </dependency>
     <dependency>
        <groupId>org.apache.hive.hcatalog</groupId>
@@ -128,16 +128,16 @@
 	    <scope>test</scope>
 	    <exclusions>
 		<exclusion>
-		   <groupId>org.pentaho</groupId>
-	           <artifactId>pentaho-aggdesigner-algorithm</artifactId>
-	        </exclusion>
+          <groupId>org.pentaho</groupId>
+          <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+        </exclusion>
 		<exclusion>
-		    <groupId>net.minidev</groupId>
-		    <artifactId>json-smart</artifactId>
+          <groupId>net.minidev</groupId>
+          <artifactId>json-smart</artifactId>
 	    </exclusion>
 	    <exclusion>
-		    <groupId>org.apache.hive</groupId>
-		    <artifactId>hive-exec</artifactId>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-exec</artifactId>
 	    </exclusion>
 	    </exclusions>
     </dependency>
