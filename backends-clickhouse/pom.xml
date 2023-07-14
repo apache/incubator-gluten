@@ -127,18 +127,18 @@
 	    <version>2.3.9</version>
 	    <scope>test</scope>
 	    <exclusions>
-		<exclusion>
-          <groupId>org.pentaho</groupId>
-          <artifactId>pentaho-aggdesigner-algorithm</artifactId>
-        </exclusion>
-		<exclusion>
-          <groupId>net.minidev</groupId>
-          <artifactId>json-smart</artifactId>
-	    </exclusion>
-	    <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-exec</artifactId>
-	    </exclusion>
+          <exclusion>
+            <groupId>org.pentaho</groupId>
+            <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-exec</artifactId>
+          </exclusion>
 	    </exclusions>
     </dependency>
     <dependency>
