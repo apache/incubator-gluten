@@ -153,7 +153,9 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
 
             val columnInOutput = output.zipWithIndex.filter {
               p: (Attribute, Int) =>
-                if (output.size == 1) {
+                if (output.map(_.toAttribute).find(_.name == columnExpr.name).size == 1) {
+                  // The comparison of exprId can be ignored when
+                  // only one attribute name match is found.
                   p._1.name == columnExpr.name
                 } else {
                   // A case where output has multiple columns with same name
