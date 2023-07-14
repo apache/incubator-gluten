@@ -30,7 +30,6 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.utils.BindReferencesUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -269,8 +268,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         child.output)
     }
     assert(currRel != null, "Expand Rel should be valid")
-    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
-    TransformContext(inputAttributes, outputAttrs, currRel)
+    TransformContext(inputAttributes, output, currRel)
   }
 
   protected override def doExecute(): RDD[InternalRow] =

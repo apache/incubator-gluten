@@ -31,7 +31,6 @@ import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
 
 import org.apache.spark.rdd.RDD
@@ -232,8 +231,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         child.output)
     }
     assert(currRel != null, "Window Rel should be valid")
-    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
-    TransformContext(inputAttributes, outputAttrs, currRel)
+    TransformContext(inputAttributes, output, currRel)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

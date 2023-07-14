@@ -1,4 +1,5 @@
 #include "SerializedPlanParser.h"
+#include <algorithm>
 #include <memory>
 #include <string_view>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
@@ -366,7 +367,7 @@ DB::QueryPlanPtr SerializedPlanParser::parseMergeTreeTable(const substrait::Read
     {
         auto input_header = query->getCurrentDataStream().header;
         std::erase_if(non_nullable_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
-        auto* remove_null_step = addRemoveNullableStep(*query, non_nullable_columns);
+        auto * remove_null_step = addRemoveNullableStep(*query, non_nullable_columns);
         if (remove_null_step)
         {
             steps.emplace_back(remove_null_step);
@@ -396,7 +397,7 @@ SerializedPlanParser::parsePreWhereInfo(const substrait::Expression & rel, Block
     prewhere_info->need_filter = true;
     prewhere_info->remove_prewhere_column = true;
     auto cols = prewhere_info->prewhere_actions->getRequiredColumnsNames();
-     // Keep it the same as the input.
+    // Keep it the same as the input.
     prewhere_info->prewhere_actions->removeUnusedActions(Names{filter_name}, false, true);
     prewhere_info->prewhere_actions->projectInput(false);
     for (const auto & name : input.getNames())
@@ -457,6 +458,51 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
             auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), actions_dag);
             expression_step->setStepDescription("Rename Output");
             query_plan->addStep(std::move(expression_step));
+        }
+
+        // fixes: issue-1874, to keep the nullability as expected.
+        const auto & output_schema = root_rel.root().output_schema();
+        if (output_schema.types_size())
+        {
+            auto original_header = query_plan->getCurrentDataStream().header;
+            const auto & original_cols = original_header.getColumnsWithTypeAndName();
+            if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
+            {
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
+            }
+            bool need_final_project = false;
+            DB::ColumnsWithTypeAndName final_cols;
+            for (int i = 0; i < output_schema.types_size(); ++i)
+            {
+                const auto & col = original_cols[i];
+                auto type = TypeParser::parseType(output_schema.types(i));
+                // At present, we only check nullable mismatch.
+                // intermediate aggregate data is special, no check here.
+                if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DB::DataTypeAggregateFunction*>(col.type.get()))
+                {
+                    if (type->isNullable())
+                    {
+                        final_cols.emplace_back(type->createColumn(), std::make_shared<DB::DataTypeNullable>(col.type), col.name);
+                    }
+                    else
+                    {
+                        final_cols.emplace_back(type->createColumn(), DB::removeNullable(col.type), col.name);
+                    }
+                    need_final_project = true;
+                }
+                else
+                {
+                    final_cols.push_back(col);
+                }
+            }
+            if (need_final_project)
+            {
+                ActionsDAGPtr final_project
+                    = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+                QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), final_project);
+                final_project_step->setStepDescription("Project for output schema");
+                query_plan->addStep(std::move(final_project_step));
+            }
         }
         return query_plan;
     }
@@ -2591,5 +2637,4 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
     }
     // else, do nothing.
 }
-
 }

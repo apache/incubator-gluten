@@ -1438,6 +1438,41 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
   }
 
+  test("GLUTEN-1874 not null in one stream") {
+    val sql =
+      """
+        |select n_regionkey from (
+        | select *, row_number() over (partition by n_regionkey order by is_new) as rank from(
+        |   select n_regionkey, 0 as is_new from nation where n_regionkey is not null
+        |   union all
+        |   select n_regionkey, 1 as is_new from (
+        |     select n_regionkey,
+        |       row_number() over (partition by n_regionkey order by n_nationkey) as rn from nation
+        |   ) t0 where rn = 1
+        | ) t1
+        |) t2 where rank = 1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-1874 not null in both streams") {
+    val sql =
+      """
+        |select n_regionkey from (
+        | select *, row_number() over (partition by n_regionkey order by is_new) as rank from(
+        |   select n_regionkey, 0 as is_new from nation where n_regionkey is not null
+        |   union all
+        |   select n_regionkey, 1 as is_new from (
+        |     select n_regionkey,
+        |       row_number() over (partition by n_regionkey order by n_nationkey) as rn
+        |     from nation where n_regionkey is not null
+        |   ) t0 where rn = 1
+        | ) t1
+        |) t2 where rank = 1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("GLUTEN-2095: test cast(string as binary)") {
     runQueryAndCompare(
       "select cast(n_nationkey as binary), cast(n_comment as binary) from nation"

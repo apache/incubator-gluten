@@ -18,15 +18,19 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -164,12 +168,26 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       throw new NullPointerException(s"ColumnarWholestageTransformer can't doTansform on $child")
     }
     val outNames = new java.util.ArrayList[String]()
-    for (attr <- childCtx.outputAttributes) {
-      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
-    }
-    val planNode =
-      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
+    val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
+      val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- childCtx.outputAttributes) {
+        outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
+        outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
 
+      // Fixes issue-1874
+      val outputSchema = TypeBuilder.makeStruct(false, outputTypeNodeList)
+      PlanBuilder.makePlan(substraitContext,
+        Lists.newArrayList(childCtx.root),
+        outNames,
+        outputSchema,
+        null)
+    } else {
+      for (attr <- childCtx.outputAttributes) {
+        outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
+      }
+      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
+    }
     planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
 
     WholestageTransformContext(

@@ -155,4 +155,5 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 
   override def shuffleSupportedCodec(): Set[String] = GLUTNE_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
+  override def needOutputSchemaForPlan(): Boolean = true
 }
