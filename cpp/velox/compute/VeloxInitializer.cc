@@ -92,7 +92,7 @@ void VeloxInitializer::printConf(const std::unordered_map<std::string, std::stri
   oss << "}\n";
   oss << "memPoolOptions = {";
   oss << " alignment:" << memPoolOptions_.alignment;
-  oss << ", capacity:" << (memPoolOptions_.capacity >> 20) << "M";
+  oss << ", capacity:" << (memPoolOptions_.maxCapacity >> 20) << "M";
   oss << ", trackUsage:" << (int)memPoolOptions_.trackUsage;
   oss << " }\n";
   oss << "spillThreshold = " << (spillThreshold_ >> 20) << "M";
@@ -134,7 +134,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     }
   }
 
-  memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .capacity = maxMemory};
+  memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .maxCapacity = maxMemory};
 
   // spill threshold ratio (out of the memory cap)
   float_t spillThresholdRatio = 0.6;
@@ -214,6 +214,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 #endif
 
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
+  velox::connector::registerConnectorFactory(std::make_shared<velox::connector::hive::HiveConnectorFactory>());
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());

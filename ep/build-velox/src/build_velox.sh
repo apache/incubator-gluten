@@ -61,7 +61,8 @@ function compile {
   if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     setup
   fi
-
+  # create libvelox_hive_connector.a for VeloxInitializer.cc
+  sed -i 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
   COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON"
   if [ $ENABLE_BENCHMARK == "OFF" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
@@ -118,8 +119,6 @@ function check_commit {
       fi
     fi
   else
-    ## velox add fbthrift folder by root. git clean -dfx will fail.
-    sudo rm -rf fbthrift/*
     git clean -dffx :/
   fi
 

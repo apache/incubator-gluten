@@ -181,6 +181,7 @@ static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
       options);
   defaultPoolRoot->setHighUsageCallback(
       [=](velox::memory::MemoryPool& pool) { return pool.reservedBytes() >= spillThreshold; });
+  defaultPoolRoot->testingSetCapacity(facebook::velox::memory::kMaxMemory);
   return defaultPoolRoot;
 }
 
