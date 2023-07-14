@@ -435,9 +435,7 @@ struct SparkImplXxHash64
 /// handle aligned reads, do the conversion here
 static ALWAYS_INLINE uint32_t getblock32(const uint32_t * p, int i)
 {
-    uint32_t res;
-    memcpy(&res, p + i, sizeof(res));
-    return res;
+    return p[i];
 }
 
 static ALWAYS_INLINE uint32_t rotl32(uint32_t x, int8_t r)
@@ -476,7 +474,8 @@ static void SparkMurmurHash3_x86_32(const void * key, size_t len, uint32_t seed,
     uint32_t k1 = 0;
     while (tail != data + len)
     {
-        k1 = *tail;
+        /// Notice: we must cast uint8_t to char, otherwise k1 is wrong.
+        k1 = static_cast<char>(*tail);
 
         k1 *= c1;
         k1 = rotl32(k1, 15);
