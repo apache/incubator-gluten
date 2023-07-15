@@ -22,12 +22,11 @@ import io.glutenproject.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-import org.scalatest.BeforeAndAfterAll
 
 import java.io.File
 import java.sql.Timestamp
@@ -52,9 +51,9 @@ case class AllDataTypesWithComplextType(
 
 class GlutenClickHouseHiveTableSuite()
   extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper
-  with SharedSparkSession
-  with BeforeAndAfterAll {
+  with AdaptiveSparkPlanHelper {
+
+  private var _hiveSpark: SparkSession = _
 
   override protected val resourcePath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
@@ -100,16 +99,20 @@ class GlutenClickHouseHiveTableSuite()
       .setMaster("local[*]")
   }
 
-  override protected def spark: SparkSession = {
-    val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
-    SparkSession
-      .builder()
-      .config(sparkConf)
-      .enableHiveSupport()
-      .config(
-        "javax.jdo.option.ConnectionURL",
-        s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
-      .getOrCreate()
+  override protected def spark: SparkSession = _hiveSpark
+
+  override protected def initializeSession(): Unit = {
+    if (_hiveSpark == null) {
+      val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
+      _hiveSpark = SparkSession
+        .builder()
+        .config(sparkConf)
+        .enableHiveSupport()
+        .config(
+          "javax.jdo.option.ConnectionURL",
+          s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
+        .getOrCreate()
+    }
   }
 
   private val txt_table_name = "hive_txt_test"
@@ -206,8 +209,31 @@ class GlutenClickHouseHiveTableSuite()
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
+    super.beforeAll()
     initializeTable(txt_table_name, txt_table_create_sql, null)
     initializeTable(json_table_name, json_table_create_sql, "2023-06-05")
+  }
+
+  override protected def afterAll(): Unit = {
+    ClickHouseLog.clearCache()
+
+    try {
+      super.afterAll()
+    } finally {
+      try {
+        if (_hiveSpark != null) {
+          try {
+            _hiveSpark.sessionState.catalog.reset()
+          } finally {
+            _hiveSpark.stop()
+            _hiveSpark = null
+          }
+        }
+      } finally {
+        SparkSession.clearActiveSession()
+        SparkSession.clearDefaultSession()
+      }
+    }
   }
 
   test("test hive text table") {
