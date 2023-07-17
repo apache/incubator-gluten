@@ -42,16 +42,13 @@ import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.datasources.velox.VeloxParquetFileFormat
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
-import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil}
+import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil, HiveUtils}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.util.SerializableJobConf
 
-import java.io.IOException
-import java.net.URI
-import scala.collection.JavaConverters._
 import com.google.common.base.Preconditions
 import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
 
@@ -75,6 +72,19 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
     throw QueryExecutionErrors.inferSchemaUnsupportedForHiveError()
+  }
+
+  /**
+   * Gluten only supports convert [[InsertIntoHiveDirCommand]], see [[GlutenColumnarRules]].
+   */
+  private def isGlutenHiveWrite(sparkSession: SparkSession): Boolean = {
+    fileSinkConf.tableInfo
+      .getOutputFileFormatClassName()
+      .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat") &&
+      sparkSession.sparkContext.conf.getOption("spark.plugins")
+        .contains("io.glutenproject.GlutenPlugin") &&
+      sparkSession.sessionState.conf.getConf(HiveUtils.CONVERT_METASTORE_PARQUET) &&
+      sparkSession.sessionState.conf.getConf(HiveUtils.CONVERT_INSERTING_PARTITIONED_TABLE)
   }
 
   override def prepareWrite(
@@ -107,14 +117,8 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
     // Avoid referencing the outer object.
     val fileSinkConfSer = fileSinkConf
 
-    if (
-      fileSinkConf.tableInfo
-        .getOutputFileFormatClassName()
-        .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
-      && sparkSession.conf.contains("spark.plugins") && sparkSession.conf
-        .get("spark.plugins")
-        .equals("io.glutenproject.GlutenPlugin")
-    ) {
+    if (isGlutenHiveWrite(sparkSession)) {
+      logInfo("Use Gluten parquet write for hive")
       val compressionCodec = if (fileSinkConf.compressed) {
         // hive related configurations
         fileSinkConf.compressCodec
