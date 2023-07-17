@@ -42,9 +42,9 @@ public:
                 null
             else if (isNull(value))
                 null
-            else if (has(assertNotNull(arr), value))
+            else if (has(assumeNotNull(arr), value))
                 true
-            else if (has(assertNotNull(arr), null))
+            else if (has(assumeNotNull(arr), null))
                 null
             else
                 false

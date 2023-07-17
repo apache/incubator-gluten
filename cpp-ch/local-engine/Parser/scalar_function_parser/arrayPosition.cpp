@@ -39,7 +39,7 @@ public:
             else if (isNull(value))
                 null
             else
-                indexOf(assertNotNull(arr), value)
+                indexOf(assumeNotNull(arr), value)
 
             Main difference between Spark array_position and CH indexOf:
             1. Spark array_position returns null if either of the arguments are null
