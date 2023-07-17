@@ -83,7 +83,7 @@ case class CHHashAggregateExecTransformer(
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
       // are in the one WholeStageTransformer.
-      if (!modes.contains(Partial)) {
+      if (modes.isEmpty || !modes.contains(Partial)) {
         (
           getAggRel(context, operatorId, aggParams, childCtx.root),
           childCtx.outputAttributes,
@@ -103,8 +103,17 @@ case class CHHashAggregateExecTransformer(
       aggParams.isReadRel = true
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
-      val (inputAttrs, outputAttrs) =
-        if (!modes.contains(Partial)) {
+      val (inputAttrs, outputAttrs) = {
+        if (modes.isEmpty) {
+          // When there is no aggregate function, it does not need
+          // to handle outputs according to the AggregateMode
+          for (attr <- child.output) {
+            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+          }
+          (child.output, output)
+        } else if (!modes.contains(Partial)) {
+          // non-partial mode
           var resultAttrIndex = 0
           for (attr <- aggregateResultAttributes) {
             val colName = getIntermediateAggregateResultColumnName(
@@ -121,6 +130,7 @@ case class CHHashAggregateExecTransformer(
           }
           (aggregateResultAttributes, output)
         } else {
+          // partial mode
           for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
             nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
@@ -128,6 +138,7 @@ case class CHHashAggregateExecTransformer(
 
           (child.output, aggregateResultAttributes)
         }
+      }
 
       // The iterator index will be added in the path of LocalFiles.
       val iteratorIndex: Long = context.nextIteratorIndex
