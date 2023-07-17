@@ -198,14 +198,15 @@ void ParquetColumnChunkReader::parseDictPage()
 void ParquetColumnChunkReader::readAndDecompressPageData(size_t compressed_size, size_t uncompressed_size, bool is_compressed)
 {
     if (is_compressed) {
-        compressed_data_buf.reserve(compressed_size);
-        page_reader->readBytes(compressed_data_buf.data(), compressed_size);
-        ReadBufferFromMemory data_read_buffer(compressed_data_buf.data(), compressed_size);
+//        compressed_data_buf.reserve(compressed_size);
+//        page_reader->readBytes(compressed_data_buf.data(), compressed_size);
+        auto * compress_data = page_reader->getCurrentPos();
         uncompressed_buf.reserve(uncompressed_size);
         // refactor decompress code
         if (compress_codec)
         {
-            compress_codec->decompress(compressed_data_buf.data(), compressed_size, uncompressed_buf.data(), uncompressed_size);
+            compress_codec->decompress(compress_data, compressed_size, uncompressed_buf.data(), uncompressed_size);
+            page_reader->skipBytes(compressed_size);
         }
         else
         {

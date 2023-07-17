@@ -3,6 +3,8 @@
 #include <Functions/FunctionsLogical.h>
 #include <Functions/IFunction.h>
 #include <Functions/IFunctionAdaptors.h>
+#include <Columns/ColumnNullable.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Interpreters/ActionsDAG.h>
 
 namespace DB

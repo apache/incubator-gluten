@@ -23,6 +23,11 @@ public:
 
     void readBytes(char * buffer, size_t size);
 
+    char * getCurrentPos()
+    {
+        return page_data->data() + offset;
+    }
+
     void skipBytes(size_t size);
 
     uint64_t getOffset() const { return offset; }
@@ -31,7 +36,6 @@ private:
     // need a new seekable read buffer, shouldn't share read buffer with other page reader
     SeekableReadBufferPtr stream;
     parquet::format::PageHeader cur_page_header;
-    PaddedPODArray<char> page_buffer;
     std::unique_ptr<PaddedPODArray<char>> page_data;
     uint64_t offset = 0;
     uint64_t next_header_pos = 0;

@@ -36,13 +36,13 @@ void PageReader::nextHeader()
     size_t nbytes = HEADER_INIT_SIZE;
     size_t remaining = finish_offset - offset;
     nbytes = std::min(nbytes, remaining);
-    page_buffer.reserve(nbytes);
     do
     {
-        header_length = stream->read(page_buffer.data(), nbytes);
+        auto * header_offset = page_data->data() + offset;
+        header_length = std::min(nbytes, remaining);
         try
         {
-            header_length = deserialize_thrift_msg(reinterpret_cast<uint8_t *>(page_buffer.data()), header_length, TProtocolType::COMPACT, &cur_page_header);
+            header_length = deserialize_thrift_msg(reinterpret_cast<uint8_t *>(header_offset), header_length, TProtocolType::COMPACT, &cur_page_header);
             break;
         }
         catch (DB::Exception &)
