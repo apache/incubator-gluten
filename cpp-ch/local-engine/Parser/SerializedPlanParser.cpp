@@ -1207,19 +1207,6 @@ void SerializedPlanParser::parseFunctionArguments(
         for (int index = 1; index < args.size(); index += 2)
             parseFunctionArgument(actions_dag, parsed_args, function_name, args[index]);
     }
-    else if (function_name == "has")
-    {
-        // since FunctionArrayIndex::useDefaultImplementationForNulls = false, we need to unwrap the
-        // nullable
-        const ActionsDAG::Node * arg_node = parseFunctionArgument(actions_dag, function_name, args[0]);
-        if (arg_node->result_type->isNullable())
-        {
-            auto nested_type = typeid_cast<const DB::DataTypeNullable *>(arg_node->result_type.get())->getNestedType();
-            arg_node = ActionsDAGUtil::convertNodeType(actions_dag, arg_node, nested_type->getName());
-        }
-        parsed_args.emplace_back(arg_node);
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[1]);
-    }
     else if (function_name == "repeat")
     {
         // repeat. the field index must be unsigned integer in CH, cast the signed integer in substrait

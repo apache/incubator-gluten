@@ -180,16 +180,17 @@ object ExpressionNames {
 
   // Array functions
   final val SIZE = "size"
+  final val SLICE = "slice"
+  final val SEQUENCE = "sequence"
   final val CREATE_ARRAY = "array"
   final val GET_ARRAY_ITEM = "get_array_item"
   final val ELEMENT_AT = "element_at"
   final val ARRAY_CONTAINS = "array_contains"
   final val ARRAY_MAX = "array_max"
   final val ARRAY_MIN = "array_min"
-  final val SEQUENCE = "sequence"
   final val SORT_ARRAY = "sort_array"
   final val ARRAYS_OVERLAP = "arrays_overlap"
-  final val SLICE = "slice"
+  final val ARRAY_POSITION = "array_position"
 
   // Map functions
   final val CREATE_MAP = "map"
