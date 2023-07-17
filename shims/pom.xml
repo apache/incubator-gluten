@@ -64,7 +64,7 @@
           <configuration>
             <scala>
               <scalafmt>
-                <file>${project.basedir}/../../.scalafmt.conf</file>
+                <file>${project.basedir}/../.scalafmt.conf</file>
               </scalafmt>
             </scala>
           </configuration>
