@@ -150,10 +150,12 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
               throw new IllegalArgumentException(s"Multiple key columns found in expression: $key")
             }
             val columnExpr = columnNames.head
-
+            val oneColumnWithSameName = output.find(_.name == columnExpr.name).size == 1
             val columnInOutput = output.zipWithIndex.filter {
               p: (Attribute, Int) =>
-                if (output.size == 1) {
+                if (oneColumnWithSameName) {
+                  // The comparison of exprId can be ignored when
+                  // only one attribute name match is found.
                   p._1.name == columnExpr.name
                 } else {
                   // A case where output has multiple columns with same name

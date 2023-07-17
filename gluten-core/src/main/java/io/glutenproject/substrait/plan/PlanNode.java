@@ -20,6 +20,7 @@ package io.glutenproject.substrait.plan;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.rel.RelNode;
+import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.Plan;
 import io.substrait.proto.PlanRel;
 import io.substrait.proto.RelRoot;
@@ -32,6 +33,7 @@ public class PlanNode implements Serializable {
   private final ArrayList<RelNode> relNodes = new ArrayList<>();
   private final ArrayList<String> outNames = new ArrayList<>();
 
+  private TypeNode outputSchema = null;
   private AdvancedExtensionNode extension = null;
 
   PlanNode(ArrayList<FunctionMappingNode> mappingNodes,
@@ -40,6 +42,18 @@ public class PlanNode implements Serializable {
     this.mappingNodes.addAll(mappingNodes);
     this.relNodes.addAll(relNodes);
     this.outNames.addAll(outNames);
+  }
+
+  PlanNode(ArrayList<FunctionMappingNode> mappingNodes,
+           ArrayList<RelNode> relNodes,
+           ArrayList<String> outNames,
+           TypeNode outputSchema,
+           AdvancedExtensionNode extension) {
+    this.mappingNodes.addAll(mappingNodes);
+    this.relNodes.addAll(relNodes);
+    this.outNames.addAll(outNames);
+    this.outputSchema = outputSchema;
+    this.extension = extension;
   }
 
   PlanNode(AdvancedExtensionNode extension) {
@@ -60,6 +74,9 @@ public class PlanNode implements Serializable {
       relRootBuilder.setInput(relNode.toProtobuf());
       for (String name : outNames) {
         relRootBuilder.addNames(name);
+      }
+      if (outputSchema != null) {
+        relRootBuilder.setOutputSchema(outputSchema.toProtobuf().getStruct());
       }
       planRelBuilder.setRoot(relRootBuilder.build());
 

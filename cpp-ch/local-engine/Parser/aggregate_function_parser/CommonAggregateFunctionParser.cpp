@@ -1,6 +1,7 @@
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
+#include <Parser/TypeParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
 #include <Common/CHUtil.h>
@@ -24,30 +25,13 @@ DB::ActionsDAG::NodeRawConstPtrs BaseAggregateFunctionParser::parseFunctionArgum
     const CommonFunctionInfo & func_info, const String &, DB::ActionsDAGPtr & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs collected_args;
-    const auto & inputs = actions_dag->getInputs();
     for (const auto & arg : func_info.arguments)
     {
         auto arg_value = arg.value();
-        const DB::ActionsDAG::Node * arg_node = nullptr;
-        if (arg_value.has_selection())
-        {
-            auto col_pos = arg_value.selection().direct_reference().struct_field().field();
-            arg_node = inputs[col_pos];
-        }
-        else if (arg_value.has_literal())
-        {
-            const auto * node = parseExpression(actions_dag, arg_value);
-            actions_dag->addOrReplaceInOutputs(*node);
-            arg_node = node;
-        }
-        else
-        {
-            // For aggregate function, the only supported argument type is selection or literal.
-            throw Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported argument type: {}", arg.DebugString());
-        }
+        const DB::ActionsDAG::Node * arg_node = parseExpression(actions_dag, arg_value);
 
         // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
-        auto required_output_type = DB::WhichDataType(SerializedPlanParser::parseType(func_info.output_type));
+        auto required_output_type = DB::WhichDataType(TypeParser::parseType(func_info.output_type));
         if (required_output_type.isNullable()
             && func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
             && !arg_node->result_type->isNullable())
@@ -74,7 +58,7 @@ const DB::ActionsDAG::Node * BaseAggregateFunctionParser::convertNodeTypeIfNeede
     const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const
 {
     auto ret_node = func_node;
-    auto output_type = SerializedPlanParser::parseType(func_info.output_type);
+    auto output_type = TypeParser::parseType(func_info.output_type);
     if (!output_type->equals(*func_node->result_type))
     {
         ret_node = ActionsDAGUtil::convertNodeType(actions_dag, func_node, output_type->getName(), func_node->result_name);
@@ -168,7 +152,6 @@ std::pair<String, DB::DataTypes> BaseAggregateFunctionParser::tryApplyCHCombinat
     }; \
     static const FunctionParserRegister<AggregateFunctionParser##cls_name> register_##cls_name = FunctionParserRegister<AggregateFunctionParser##cls_name>();
 
-REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Count, count, count)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Sum, sum, sum)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Avg, avg, avg)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Min, min, min)

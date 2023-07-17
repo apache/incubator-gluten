@@ -127,7 +127,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
-  def columnarShuffleCodecBackend: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
+  def columnarShuffleCodecBackend: Option[String] = conf
+    .getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
+    .filter(Set(GLUTEN_QAT_BACKEND_NAME, GLUTEN_IAA_BACKEND_NAME).contains(_))
 
   def columnarShuffleEnableQat: Boolean =
     columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_QAT_BACKEND_NAME)
@@ -271,18 +273,14 @@ object GlutenConfig {
   val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
   val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
 
-  val GLUTEN_SHUFFLE_SUPPORTED_CODEC: Set[String] =
-    Set("LZ4", "ZSTD", "SNAPPY") // "SNAPPY" is only valid for CH backend.
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
   // QAT config
-  val GLUTEN_QAT_BACKEND_NAME = "QAT"
-  val GLUTEN_QAT_CODEC_PREFIX = "gluten_qat_"
-  val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("GZIP")
+  val GLUTEN_QAT_BACKEND_NAME = "qat"
+  val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
   // IAA config
-  val GLUTEN_IAA_BACKEND_NAME = "IAA"
-  val GLUTEN_IAA_CODEC_PREFIX = "gluten_iaa_"
-  val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("GZIP")
+  val GLUTEN_IAA_BACKEND_NAME = "iaa"
+  val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
   // Backends.
   val GLUTEN_VELOX_BACKEND = "velox"
@@ -325,7 +323,7 @@ object GlutenConfig {
   // unit: SECONDS, default 1 day
   val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT: Int = 86400
 
-  // Supported hive/pthon/scala udf names
+  // Supported hive/python/scala udf names
   val GLUTEN_SUPPORTED_HIVE_UDFS = "spark.gluten.supported.hive.udfs"
   val GLUTEN_SUPPORTED_PYTHON_UDFS = "spark.gluten.supported.python.udfs"
   val GLUTEN_SUPPORTED_SCALA_UDFS = "spark.gluten.supported.scala.udfs"
@@ -361,7 +359,8 @@ object GlutenConfig {
     val keys = ImmutableList.of(
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_MAX_BATCH_SIZE_KEY
+      GLUTEN_MAX_BATCH_SIZE_KEY,
+      SQLConf.SESSION_LOCAL_TIMEZONE.key
     )
     keys.forEach(
       k => {
@@ -416,6 +415,8 @@ object GlutenConfig {
       (
         COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
         COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
+      (COLUMNAR_SHUFFLE_CODEC.key, ""),
+      (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
       ("spark.hadoop.input.read.timeout", "180000"),
       ("spark.hadoop.input.write.timeout", "180000"),
@@ -709,19 +710,19 @@ object GlutenConfig {
       .internal()
       .doc(
         "By default, the supported codecs are lz4 and zstd. " +
-          "When spark.gluten.sql.columnar.shuffle.codecBackend=qat, the supported codec is gzip. " +
-          "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa, the supported codec is gzip.")
+          "When spark.gluten.sql.columnar.shuffle.codecBackend=qat," +
+          "the supported codecs are gzip and zstd. " +
+          "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa," +
+          "the supported codec is gzip.")
       .stringConf
-      .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(
-        GLUTEN_SHUFFLE_SUPPORTED_CODEC ++ GLUTEN_QAT_SUPPORTED_CODEC ++ GLUTEN_IAA_SUPPORTED_CODEC)
+      .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
 
   val COLUMNAR_SHUFFLE_CODEC_BACKEND =
     buildConf(GlutenConfig.GLUTEN_SHUFFLE_CODEC_BACKEND)
       .internal()
       .stringConf
-      .transform(_.toUpperCase(Locale.ROOT))
+      .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
 
   val COLUMNAR_SHUFFLE_BATCH_COMPRESS_THRESHOLD =

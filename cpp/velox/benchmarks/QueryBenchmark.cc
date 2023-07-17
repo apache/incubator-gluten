@@ -35,7 +35,7 @@ const std::string getFilePath(const std::string& fileName) {
 std::shared_ptr<ResultIterator> getResultIterator(
     MemoryAllocator* allocator,
     std::shared_ptr<Backend> backend,
-    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos,
+    const std::vector<std::shared_ptr<SplitInfo>>& setScanInfos,
     std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
   auto veloxPool = asAggregateVeloxMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild(
@@ -46,7 +46,7 @@ std::shared_ptr<ResultIterator> getResultIterator(
   veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.
-  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   std::vector<velox::core::PlanNodeId> scanIds;
   std::vector<velox::core::PlanNodeId> streamIds;
 
@@ -73,7 +73,7 @@ auto BM = [](::benchmark::State& state,
   const auto& filePath = getFilePath("plan/" + jsonFile);
   auto plan = getPlanFromFile(filePath);
 
-  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
   for (const auto& datasetPath : datasetPaths) {
     if (std::filesystem::is_directory(datasetPath)) {

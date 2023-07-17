@@ -62,7 +62,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"abs", "abs"},
        {"ceil", "ceil"},
        {"floor", "floor"},
-       {"round", "round"},
+       {"round", "roundHalfUp"},
        {"bround", "roundBankers"},
        {"exp", "exp"},
        {"power", "power"},
@@ -147,6 +147,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"sha1", "SHA1"},
        {"sha2", ""}, /// dummy mapping
        {"crc32", "CRC32"},
+       {"murmur3hash", "sparkMurmurHash3_32"},
+       {"xxhash64", "sparkXxHash64"},
 
        // in functions
        {"in", "in"},
@@ -257,10 +259,6 @@ public:
     PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
-    static DB::Block parseNameStruct(const substrait::NamedStruct & struct_);
-    static DB::DataTypePtr parseType(const substrait::Type & type, std::list<std::string> * names = nullptr);
-    // This is used for construct a data type from spark type name;
-    static DB::DataTypePtr parseType(const std::string & type);
 
     void addInputIter(jobject iter) { input_iters.emplace_back(iter); }
 
@@ -271,6 +269,8 @@ public:
     {
         return metrics.at(0);
     }
+
+    static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -294,7 +294,6 @@ private:
         std::vector<IQueryPlanStep *>& steps);
 
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
-    static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
     DB::ActionsDAGPtr parseFunction(
         const Block & header,
         const substrait::Expression & rel,

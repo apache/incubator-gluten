@@ -39,26 +39,7 @@ class TransformerHandler extends TransformerApi with Logging {
   override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
                                                    child: SparkPlan)
   : Boolean = {
-    val outputAttributes = child.output
-    // Complex type is not supported.
-    for (attr <- outputAttributes) {
-      attr.dataType match {
-        case _: BooleanType =>
-        case _: ByteType =>
-        case _: ShortType =>
-        case _: IntegerType =>
-        case _: LongType =>
-        case _: FloatType =>
-        case _: DoubleType =>
-        case _: StringType =>
-        case _: TimestampType =>
-        case _: DateType =>
-        case _: BinaryType =>
-        case _: DecimalType =>
-        case _ => return false
-      }
-    }
-    true
+    new Validator().doSchemaValidate(child.schema)
   }
 
   /**

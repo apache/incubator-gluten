@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.utils.LogicalPlanSelector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
@@ -58,7 +59,7 @@ private case class FakeRowLogicAdaptor(child: LogicalPlan) extends OrderPreservi
  * This is usually used in data writing since Spark doesn't expose APIs to write columnar data as of
  * now.
  */
-case class FakeRowAdaptor(child: SparkPlan) extends UnaryExecNode {
+case class FakeRowAdaptor(child: SparkPlan) extends UnaryExecNode with GlutenPlan {
   if (child.logicalLink.isDefined) {
     setLogicalLink(FakeRowLogicAdaptor(child.logicalLink.get))
   }

@@ -248,6 +248,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
     configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
+    configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(kSessionTimezone, "");
 
     // Set the max memory of partial aggregation as 3/4 of offheap size.
     auto maxMemory =
@@ -309,7 +310,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& scanNodeIds,
-    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
+    const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,

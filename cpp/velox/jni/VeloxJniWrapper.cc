@@ -28,7 +28,7 @@
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryPool.h"
 #include "operators/writer/VeloxParquetDatasource.h"
-#include "velox/substrait/SubstraitToVeloxPlanValidator.h"
+#include "substrait/SubstraitToVeloxPlanValidator.h"
 
 #include <iostream>
 
@@ -97,7 +97,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrap
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
-  velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
+  gluten::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
   try {
     return planValidator.validate(subPlan);
   } catch (std::invalid_argument& e) {
@@ -124,7 +124,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidateWithFal
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
-  velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
+  gluten::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
   jclass infoCls = env->FindClass("Lio/glutenproject/validate/NativePlanValidatorInfo;");
   if (infoCls == nullptr) {
     std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidatorInfo";

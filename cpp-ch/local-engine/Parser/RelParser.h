@@ -35,8 +35,6 @@ public:
         DB::AggregateFunctionProperties & properties,
         const DB::Array & parameters = {});
 
-    static DB::DataTypePtr parseType(const substrait::Type & type) { return SerializedPlanParser::parseType(type); }
-
 protected:
     inline SerializedPlanParser * getPlanParser() { return plan_parser; }
     inline ContextPtr getContext() { return plan_parser->context; }

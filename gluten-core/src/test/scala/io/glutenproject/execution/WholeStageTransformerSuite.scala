@@ -178,19 +178,25 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   /**
    * Get all the children plan of plans.
    * @param plans: the input plans.
-   * @param children: all the children plans of the input plans.
    * @return
    */
-  def getChildrenPlan(plans: Seq[SparkPlan], children: Seq[SparkPlan]): Seq[SparkPlan] = {
+  def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
     if (plans.isEmpty) {
-      return children
+      return Seq()
     }
-    var newChildren = children
-    plans.foreach {
-      case stage: ShuffleQueryStageExec =>
-        newChildren = getChildrenPlan(Seq(stage.plan), newChildren)
-      case plan =>
-        newChildren = getChildrenPlan(plan.children, newChildren) :+ plan
+
+    val inputPlans : Seq[SparkPlan] = plans.map {
+      case stage: ShuffleQueryStageExec => stage.plan
+      case plan => plan
+    }
+
+    var newChildren: Seq[SparkPlan] = Seq()
+    inputPlans.foreach { plan =>
+      newChildren = newChildren ++ getChildrenPlan(plan.children)
+      // To avoid duplication of WholeStageCodegenXXX and its children.
+      if (!plan.nodeName.startsWith("WholeStageCodegen")) {
+        newChildren = newChildren :+ plan
+      }
     }
     newChildren
   }
@@ -203,9 +209,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   def getExecutedPlan(df: DataFrame): Seq[SparkPlan] = {
     df.queryExecution.executedPlan match {
       case exec: AdaptiveSparkPlanExec =>
-        getChildrenPlan(Seq(exec.executedPlan), Seq())
+        getChildrenPlan(Seq(exec.executedPlan))
       case plan =>
-        getChildrenPlan(Seq(plan), Seq())
+        getChildrenPlan(Seq(plan))
     }
   }
 

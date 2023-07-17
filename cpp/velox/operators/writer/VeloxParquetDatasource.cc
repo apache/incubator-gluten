@@ -38,6 +38,7 @@
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
+using namespace facebook::velox::dwio::common;
 
 namespace gluten {
 
@@ -45,7 +46,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
 
   auto veloxPool = asAggregateVeloxMemoryPool(gluten::defaultMemoryAllocator().get());
-  pool_ = veloxPool->addLeafChild("velox_parquet_write");
+  pool_ = veloxPool->addAggregateChild("velox_parquet_write");
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
@@ -76,42 +77,39 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
-  auto compressionCodec = arrow::Compression::SNAPPY;
+  auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
     // spark support none, uncompressed, snappy, gzip, lzo, brotli, lz4, zstd.
     if (boost::iequals(compressionCodecStr, "snappy")) {
-      compressionCodec = arrow::Compression::SNAPPY;
+      compressionCodec = CompressionKind::CompressionKind_SNAPPY;
     } else if (boost::iequals(compressionCodecStr, "gzip")) {
-      compressionCodec = arrow::Compression::GZIP;
+      compressionCodec = CompressionKind::CompressionKind_GZIP;
     } else if (boost::iequals(compressionCodecStr, "lzo")) {
-      // arrow does not support write parquet using lzo
-      // https://issues.apache.org/jira/browse/ARROW-12430
-      throw GlutenException("Gluten does not support write parquet using lzo.");
+      compressionCodec = CompressionKind::CompressionKind_LZO;
     } else if (boost::iequals(compressionCodecStr, "brotli")) {
       // please make sure `brotli` is enabled when compiling
-      compressionCodec = arrow::Compression::BROTLI;
+      throw GlutenException("Gluten+velox does not support write parquet using brotli.");
     } else if (boost::iequals(compressionCodecStr, "lz4")) {
-      compressionCodec = arrow::Compression::LZ4;
+      compressionCodec = CompressionKind::CompressionKind_LZ4;
     } else if (boost::iequals(compressionCodecStr, "zstd")) {
-      compressionCodec = arrow::Compression::ZSTD;
+      compressionCodec = CompressionKind::CompressionKind_ZSTD;
     } else if (boost::iequals(compressionCodecStr, "uncompressed")) {
-      compressionCodec = arrow::Compression::UNCOMPRESSED;
+      compressionCodec = CompressionKind::CompressionKind_NONE;
     } else if (boost::iequals(compressionCodecStr, "none")) {
-      compressionCodec = arrow::Compression::UNCOMPRESSED;
+      compressionCodec = CompressionKind::CompressionKind_NONE;
     }
   }
 
-  auto properities = ::parquet::WriterProperties::Builder()
-                         .max_row_group_length(maxRowGroupRows_)
-                         ->compression(compressionCodec)
-                         ->build();
+  velox::parquet::WriterOptions writeOption;
+  writeOption.maxRowGroupLength = maxRowGroupRows_;
+  writeOption.bytesInRowGroup = maxRowGroupBytes_;
+  writeOption.compression = compressionCodec;
   // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
   std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
   auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, configData);
 
-  parquetWriter_ =
-      std::make_unique<velox::parquet::Writer>(std::move(sink_), *(pool_), maxRowGroupBytes_, properities, queryCtx);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {

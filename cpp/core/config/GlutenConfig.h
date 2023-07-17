@@ -29,6 +29,8 @@ const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
+const std::string kSessionTimezone = "spark.sql.session.timeZone";
+
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
 
 const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
@@ -43,6 +45,11 @@ const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.code
 
 const std::string kUGIUserName = "spark.gluten.ugi.username";
 const std::string kUGITokens = "spark.gluten.ugi.tokens";
+
+const std::string kShuffleCompressionCodec = "spark.gluten.sql.columnar.shuffle.codec";
+const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.shuffle.codecBackend";
+const std::string kQatBackendName = "qat";
+const std::string kIaaBackendName = "iaa";
 
 std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
 } // namespace gluten

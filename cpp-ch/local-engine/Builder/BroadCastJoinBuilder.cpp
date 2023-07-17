@@ -1,6 +1,7 @@
 #include "BroadCastJoinBuilder.h"
 #include <jni.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/TypeParser.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <Poco/StringTokenizer.h>
@@ -156,7 +157,7 @@ namespace BroadCastJoinBuilder
         auto substrait_struct = std::make_unique<substrait::NamedStruct>();
         substrait_struct->ParseFromString(named_struct);
 
-        Block header = SerializedPlanParser::parseNameStruct(*substrait_struct);
+        Block header = TypeParser::buildBlockFromNamedStruct(*substrait_struct);
         ColumnsDescription columns_description(header.getNamesAndTypesList());
         return buildInBackground(key, input, io_buffer_size, key_names, kind, strictness, columns_description);
     }

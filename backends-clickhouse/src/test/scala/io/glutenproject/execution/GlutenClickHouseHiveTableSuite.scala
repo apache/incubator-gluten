@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterAll
 
 import java.io.File
+import java.sql.Timestamp
 
 case class AllDataTypesWithComplextType(
     string_field: String = null,
@@ -42,6 +43,7 @@ case class AllDataTypesWithComplextType(
     boolean_field: java.lang.Boolean = null,
     decimal_field: java.math.BigDecimal = null,
     date_field: java.sql.Date = null,
+    timestamp_field: java.sql.Timestamp = null,
     array: Seq[Int] = null,
     arrayContainsNull: Seq[Option[Int]] = null,
     map: Map[Int, Long] = null,
@@ -124,6 +126,7 @@ class GlutenClickHouseHiveTableSuite()
     "bool_field boolean," +
     "decimal_field decimal(23, 12)," +
     "date_field date," +
+    "timestamp_field timestamp," +
     "array_field array<int>," +
     "array_field_with_null array<int>," +
     "map_field map<int, long>," +
@@ -139,12 +142,13 @@ class GlutenClickHouseHiveTableSuite()
     "bool_field boolean," +
     "decimal_field decimal(23, 12)," +
     "date_field date," +
+    "timestamp_field timestamp," +
     "array_field array<int>," +
     "array_field_with_null array<int>," +
     "map_field map<int,long>," +
     "map_field_with_null map<int,long>, " +
     "day string) partitioned by(day)" +
-    "ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'" +
+    "ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'" +
     "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'" +
     "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
 
@@ -165,6 +169,7 @@ class GlutenClickHouseHiveTableSuite()
             i % 2 == 0,
             new java.math.BigDecimal(i + ".56"),
             new java.sql.Date(System.currentTimeMillis()),
+            new Timestamp(System.currentTimeMillis()),
             Seq.apply(i + 1, i + 2, i + 3),
             Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
             Map.apply((i + 1, i + 2), (i + 3, i + 4)),

@@ -57,8 +57,7 @@ case class GlutenFallbackReporter(
       case _: GlutenPlan => // ignore
       case plan: SparkPlan =>
         plan.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
-          case Some(reason) =>
-            logFallbackReason(validateFailureLogLevel, plan.nodeName, reason)
+          case Some(_) => // We have logged it before, so skip it
           case _ =>
             // some SparkPlan do not have hint, e.g., `ColumnarAQEShuffleRead`
             TransformHints.getHintOption(plan) match {

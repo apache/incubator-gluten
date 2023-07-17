@@ -1269,6 +1269,26 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-1790 count multi cols") {
+    val sql1 =
+      """
+        | select count(n_regionkey, n_nationkey) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        | select count(a, b) from values(1,null),(2, 2) as data(a,b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+    val sql3 =
+      """
+        | select count(a, b) from values(null,1),(2, 2) as data(a,b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+  }
+
   test("GLUTEN-2028: struct as join key") {
     val tables = Seq("struct_1", "struct_2")
     tables.foreach {
@@ -1416,6 +1436,41 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |   ) t3
         | )""".stripMargin
     compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+  }
+
+  test("GLUTEN-1874 not null in one stream") {
+    val sql =
+      """
+        |select n_regionkey from (
+        | select *, row_number() over (partition by n_regionkey order by is_new) as rank from(
+        |   select n_regionkey, 0 as is_new from nation where n_regionkey is not null
+        |   union all
+        |   select n_regionkey, 1 as is_new from (
+        |     select n_regionkey,
+        |       row_number() over (partition by n_regionkey order by n_nationkey) as rn from nation
+        |   ) t0 where rn = 1
+        | ) t1
+        |) t2 where rank = 1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-1874 not null in both streams") {
+    val sql =
+      """
+        |select n_regionkey from (
+        | select *, row_number() over (partition by n_regionkey order by is_new) as rank from(
+        |   select n_regionkey, 0 as is_new from nation where n_regionkey is not null
+        |   union all
+        |   select n_regionkey, 1 as is_new from (
+        |     select n_regionkey,
+        |       row_number() over (partition by n_regionkey order by n_nationkey) as rn
+        |     from nation where n_regionkey is not null
+        |   ) t0 where rn = 1
+        | ) t1
+        |) t2 where rank = 1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("GLUTEN-2095: test cast(string as binary)") {

@@ -24,6 +24,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
 import java.nio.file.Files
+import java.sql.Date
 
 import scala.collection.immutable.Seq
 
@@ -106,6 +107,42 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
       .parquet(parquetPath)
 
     spark.catalog.createTable("json_test", parquetPath, fileFormat)
+
+    val dateSchema = StructType(
+      Array(
+        StructField("day", DateType, true),
+        StructField("weekday_abbr", StringType, true)
+      )
+    )
+    val dateRows = sparkContext.parallelize(
+      Seq(
+        Row(Date.valueOf("2019-01-01"), "MO"),
+        Row(Date.valueOf("2019-01-01"), "TU"),
+        Row(Date.valueOf("2019-01-01"), "TH"),
+        Row(Date.valueOf("2019-01-01"), "WE"),
+        Row(Date.valueOf("2019-01-01"), "FR"),
+        Row(Date.valueOf("2019-01-01"), "SA"),
+        Row(Date.valueOf("2019-01-01"), "SU"),
+        Row(Date.valueOf("2019-01-01"), "MO"),
+        Row(Date.valueOf("2019-01-02"), "MM"),
+        Row(Date.valueOf("2019-01-03"), "TH"),
+        Row(Date.valueOf("2019-01-04"), "WE"),
+        Row(Date.valueOf("2019-01-05"), "FR"),
+        Row(null, "SA"),
+        Row(Date.valueOf("2019-01-07"), null)
+      )
+    )
+    val dateTableFile = Files.createTempFile("", ".parquet").toFile
+    dateTableFile.deleteOnExit()
+    val dateTableFilePath = dateTableFile.getAbsolutePath
+    val dateTablePQ = spark.createDataFrame(dateRows, dateSchema)
+    dateTablePQ
+      .coalesce(1)
+      .write
+      .format("parquet")
+      .mode("overwrite")
+      .parquet(dateTableFilePath)
+    spark.catalog.createTable("date_table", dateTableFilePath, fileFormat)
   }
 
   test("Test get_json_object 1") {
@@ -171,20 +208,66 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("test 'function xxhash64'") {
-    val df = runQueryAndCompare(
-      "select xxhash64(id), xxhash64(cast(id as byte)), xxhash64(cast(id as short)), " +
+    val df1 = runQueryAndCompare(
+      "select xxhash64(cast(id as int)), xxhash64(cast(id as byte)), " +
+        "xxhash64(cast(id as short)), " +
         "xxhash64(cast(id as long)), xxhash64(cast(id as float)), xxhash64(cast(id as double)), " +
-        "xxhash64(cast(id as string)), xxhash64(cast(id as binary)) from range(10)"
+        "xxhash64(cast(id as string)), xxhash64(cast(id as binary)), " +
+        "xxhash64(cast(from_unixtime(id) as date)), " +
+        "xxhash64(cast(from_unixtime(id) as timestamp)), xxhash64(cast(id as decimal(5, 2))), " +
+        "xxhash64(cast(id as decimal(10, 2))), xxhash64(cast(id as decimal(30, 2))) " +
+        "from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
-    checkLengthAndPlan(df, 10)
+    checkLengthAndPlan(df1, 10)
+
+    val df2 = runQueryAndCompare(
+      "select xxhash64(cast(id as int), 'spark'), xxhash64(cast(id as byte), 'spark'), " +
+        "xxhash64(cast(id as short), 'spark'), xxhash64(cast(id as long), 'spark'), " +
+        "xxhash64(cast(id as float), 'spark'), xxhash64(cast(id as double), 'spark'), " +
+        "xxhash64(cast(id as string), 'spark'), xxhash64(cast(id as binary), 'spark'), " +
+        "xxhash64(cast(from_unixtime(id) as date), 'spark'), " +
+        "xxhash64(cast(from_unixtime(id) as timestamp), 'spark'), " +
+        "xxhash64(cast(id as decimal(5, 2)), 'spark'), " +
+        "xxhash64(cast(id as decimal(10, 2)), 'spark'), " +
+        "xxhash64(cast(id as decimal(30, 2)), 'spark') from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df2, 10)
   }
 
   test("test 'function murmur3hash'") {
-    val df = runQueryAndCompare(
-      "select hash(id), hash(cast(id as byte)), hash(cast(id as short)), " +
+    val df1 = runQueryAndCompare(
+      "select hash(cast(id as int)), hash(cast(id as byte)), hash(cast(id as short)), " +
         "hash(cast(id as long)), hash(cast(id as float)), hash(cast(id as double)), " +
-        "hash(cast(id as string)), hash(cast(id as binary)) from range(10)"
+        "hash(cast(id as string)), hash(cast(id as binary)), " +
+        "hash(cast(from_unixtime(id) as date)), " +
+        "hash(cast(from_unixtime(id) as timestamp)), hash(cast(id as decimal(5, 2))), " +
+        "hash(cast(id as decimal(10, 2))), hash(cast(id as decimal(30, 2))) from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
-    checkLengthAndPlan(df, 10)
+    checkLengthAndPlan(df1, 10)
+
+    val df2 = runQueryAndCompare(
+      "select hash(cast(id as int), 'spark'), hash(cast(id as byte), 'spark'), " +
+        "hash(cast(id as short), 'spark'), hash(cast(id as long), 'spark'), " +
+        "hash(cast(id as float), 'spark'), hash(cast(id as double), 'spark'), " +
+        "hash(cast(id as string), 'spark'), hash(cast(id as binary), 'spark'), " +
+        "hash(cast(from_unixtime(id) as date), 'spark'), " +
+        "hash(cast(from_unixtime(id) as timestamp), 'spark'), " +
+        "hash(cast(id as decimal(5, 2)), 'spark'), hash(cast(id as decimal(10, 2)), 'spark'), " +
+        "hash(cast(id as decimal(30, 2)), 'spark') from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df2, 10)
+  }
+
+  test("test next_day const") {
+    runQueryAndCompare("select next_day(day, 'MO') from date_table") { _ => }
+  }
+  test("test next_day const all null") {
+    runQueryAndCompare("select next_day(day, 'MM') from date_table") { _ => }
+  }
+  test("test next_day dynamic") {
+    runQueryAndCompare("select next_day(day, weekday_abbr) from date_table") { _ => }
+  }
+  test("test last_day") {
+    runQueryAndCompare("select last_day(day) from date_table") { _ => }
   }
 }

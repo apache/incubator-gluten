@@ -31,7 +31,7 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.utils.BindReferencesUtil
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -309,8 +309,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     }
     assert(currRel != null, "Project Rel should be valid")
 
-    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
-    TransformContext(inputAttributes, outputAttrs, currRel)
+    TransformContext(inputAttributes, output, currRel)
   }
 
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)

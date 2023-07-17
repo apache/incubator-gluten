@@ -18,12 +18,12 @@
 #pragma once
 
 #include <benchmark/benchmark.h>
-#include <velox/substrait/SubstraitToVeloxPlan.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <thread>
 #include <utility>
+#include "substrait/SubstraitToVeloxPlan.h"
 
 #include "compute/ProtobufUtils.h"
 #include "memory/VeloxColumnarBatch.h"
@@ -81,13 +81,9 @@ std::string getPlanFromFile(const std::string& filePath);
 /// Get the file paths, starts, lengths from a directory.
 /// Use fileFormat to specify the format to read, eg., orc, parquet.
 /// Return a split info.
-std::shared_ptr<facebook::velox::substrait::SplitInfo> getSplitInfos(
-    const std::string& datasetPath,
-    const std::string& fileFormat);
+std::shared_ptr<gluten::SplitInfo> getSplitInfos(const std::string& datasetPath, const std::string& fileFormat);
 
-std::shared_ptr<facebook::velox::substrait::SplitInfo> getSplitInfosFromFile(
-    const std::string& fileName,
-    const std::string& fileFormat);
+std::shared_ptr<gluten::SplitInfo> getSplitInfosFromFile(const std::string& fileName, const std::string& fileFormat);
 
 bool checkPathExists(const std::string& filepath);
 

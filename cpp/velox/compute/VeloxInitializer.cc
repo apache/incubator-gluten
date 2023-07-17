@@ -23,6 +23,12 @@
 #include "config/GlutenConfig.h"
 #include "operators/functions/RegistrationAllFunctions.h"
 #include "operators/plannodes/RowVectorStream.h"
+#ifdef GLUTEN_ENABLE_QAT
+#include "utils/qat/QatCodec.h"
+#endif
+#ifdef GLUTEN_ENABLE_IAA
+#include "utils/qpl/qpl_codec.h"
+#endif
 #include "utils/exception.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/serializers/PrestoSerializer.h"
@@ -87,7 +93,7 @@ void VeloxInitializer::printConf(const std::unordered_map<std::string, std::stri
   oss << "}\n";
   oss << "memPoolOptions = {";
   oss << " alignment:" << memPoolOptions_.alignment;
-  oss << ", capacity:" << (memPoolOptions_.capacity >> 20) << "M";
+  oss << ", capacity:" << (memPoolOptions_.maxCapacity >> 20) << "M";
   oss << ", trackUsage:" << (int)memPoolOptions_.trackUsage;
   oss << " }\n";
   oss << "spillThreshold = " << (spillThreshold_ >> 20) << "M";
@@ -132,7 +138,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     }
   }
 
-  memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .capacity = maxMemory};
+  memPoolOptions_ = {.alignment = facebook::velox::memory::MemoryAllocator::kMaxAlignment, .maxCapacity = maxMemory};
 
   // spill threshold ratio (out of the memory cap)
   float_t spillThresholdRatio = 0.6;
@@ -207,12 +213,14 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   initCache(conf);
   initIOExecutor(conf);
+  initHWAccelerators(conf);
 
 #ifdef GLUTEN_PRINT_DEBUG
   printConf(conf);
 #endif
 
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
+  velox::connector::registerConnectorFactory(std::make_shared<velox::connector::hive::HiveConnectorFactory>());
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
@@ -310,6 +318,29 @@ void VeloxInitializer::initIOExecutor(const std::unordered_map<std::string, std:
   if (splitPreloadPerDriver > 0 && ioThreads > 0) {
     LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
               << ", IO threads: " << ioThreads;
+  }
+}
+
+void VeloxInitializer::initHWAccelerators(const std::unordered_map<std::string, std::string>& conf) {
+  auto got = conf.find(kShuffleCompressionCodecBackend);
+  if (got != conf.end() && !got->second.empty()) {
+#ifdef GLUTEN_ENABLE_QAT
+    if (got->second == kQatBackendName) {
+      got = conf.find(kShuffleCompressionCodec);
+      if (got != conf.end() && gluten::qat::supportsCodec(got->second)) {
+        gluten::qat::ensureQatCodecRegistered(got->second);
+      }
+    }
+#endif
+
+#ifdef GLUTEN_ENABLE_IAA
+    if (got->second == kIaaBackendName) {
+      got = conf.find(kShuffleCompressionCodec);
+      if (got != conf.end() && gluten::qpl::SupportsCodec(got->second)) {
+        gluten::qpl::EnsureQplCodecRegistered(got->second);
+      }
+    }
+#endif
   }
 }
 

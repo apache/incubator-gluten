@@ -87,11 +87,9 @@ class VeloxBackend final : public Backend {
   }
 
   static void getInfoAndIds(
-      const std::unordered_map<
-          facebook::velox::core::PlanNodeId,
-          std::shared_ptr<facebook::velox::substrait::SplitInfo>>& splitInfoMap,
+      const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
       const std::unordered_set<facebook::velox::core::PlanNodeId>& leafPlanNodeIds,
-      std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
       std::vector<facebook::velox::core::PlanNodeId>& scanIds,
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 

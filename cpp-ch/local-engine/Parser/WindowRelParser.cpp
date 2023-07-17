@@ -15,6 +15,7 @@
 #include <Interpreters/WindowDescription.h>
 #include <Parser/RelParser.h>
 #include <Parser/SortRelParser.h>
+#include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/WindowStep.h>
 #include <base/sort.h>
@@ -52,7 +53,7 @@ WindowRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & re
         const auto & win_function = measure.measure();
         ColumnWithTypeAndName named_col;
         named_col.name = win_function.column_name();
-        named_col.type = parseType(win_function.output_type());
+        named_col.type = TypeParser::parseType(win_function.output_type());
         named_col.column = named_col.type->createColumn();
         output_header.insert(named_col);
     }

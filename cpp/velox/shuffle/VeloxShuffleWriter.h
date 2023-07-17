@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "memory/LargeMemoryPool.h"
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"

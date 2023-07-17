@@ -68,8 +68,7 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
     }
   }
 
-  protected def doValidateInternal(): ValidationResult =
-    ValidationResult.notOk(s"$nodeName does not override doValidateInternal")
+  protected def doValidateInternal(): ValidationResult = ValidationResult.ok
 
   protected def logValidateFailure(msg: => String, e: Throwable): Unit = {
     if (printStackOnValidateFailure) {

@@ -42,7 +42,9 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import java.{lang, util}
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
+
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
@@ -264,9 +266,9 @@ trait HashJoinLikeExecTransformer
           (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
           val readRel = RelBuilder.makeReadRel(
-            new util.ArrayList[Attribute](plan.output.asJava),
+            new JArrayList[Attribute](plan.output.asJava),
             substraitContext,
-            new lang.Long(-1)) /* A special handling in Join to delay the rel registration. */
+            -1) /* A special handling in Join to delay the rel registration. */
           (readRel, plan.output, true)
       }
     }
@@ -362,12 +364,12 @@ trait HashJoinLikeExecTransformer
 }
 
 object HashJoinLikeExecTransformer {
-  def makeEqualToExpression(leftNode: ExpressionNode,
-                            leftType: DataType,
-                            rightNode: ExpressionNode,
-                            rightType: DataType,
-                            functionMap: java.util.HashMap[String, java.lang.Long]
-                           ): ExpressionNode = {
+  def makeEqualToExpression(
+      leftNode: ExpressionNode,
+      leftType: DataType,
+      rightNode: ExpressionNode,
+      rightType: DataType,
+      functionMap: JHashMap[String, JLong]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ExpressionNames.EQUAL, Seq(leftType, rightType)))
 
@@ -377,9 +379,10 @@ object HashJoinLikeExecTransformer {
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 
-  def makeAndExpression(leftNode: ExpressionNode,
-                        rightNode: ExpressionNode,
-                        functionMap: java.util.HashMap[String, java.lang.Long]): ExpressionNode = {
+  def makeAndExpression(
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      functionMap: JHashMap[String, JLong]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ExpressionNames.AND, Seq(BooleanType, BooleanType)))
 
@@ -390,14 +393,15 @@ object HashJoinLikeExecTransformer {
   }
 }
 
-abstract class ShuffledHashJoinExecTransformerBase(leftKeys: Seq[Expression],
-                                                   rightKeys: Seq[Expression],
-                                                   joinType: JoinType,
-                                                   buildSide: BuildSide,
-                                                   condition: Option[Expression],
-                                                   left: SparkPlan,
-                                                   right: SparkPlan,
-                                                   isSkewJoin: Boolean)
+abstract class ShuffledHashJoinExecTransformerBase(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isSkewJoin: Boolean)
   extends HashJoinLikeExecTransformer {
 
   override def joinBuildSide: BuildSide = buildSide
@@ -408,19 +412,21 @@ abstract class ShuffledHashJoinExecTransformerBase(leftKeys: Seq[Expression],
   }
 }
 
-case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
-                                    joinType: JoinType,
-                                    buildSideStructure: Seq[Attribute],
-                                    buildHashTableId: String)
+case class BroadCastHashJoinContext(
+    buildSideJoinKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSideStructure: Seq[Attribute],
+    buildHashTableId: String)
 
-abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                                rightKeys: Seq[Expression],
-                                                joinType: JoinType,
-                                                buildSide: BuildSide,
-                                                condition: Option[Expression],
-                                                left: SparkPlan,
-                                                right: SparkPlan,
-                                                isNullAwareAntiJoin: Boolean)
+abstract class BroadcastHashJoinExecTransformer(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isNullAwareAntiJoin: Boolean)
   extends HashJoinLikeExecTransformer {
 
   override def joinBuildSide: BuildSide = buildSide
