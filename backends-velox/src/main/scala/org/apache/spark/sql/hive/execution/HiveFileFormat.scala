@@ -33,7 +33,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspectorUtils, Stru
 import org.apache.hadoop.io.Writable
 import org.apache.hadoop.mapred.{JobConf, Reporter}
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-import org.apache.parquet.hadoop.codec.CodecConfig
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SPECULATION_ENABLED
 import org.apache.spark.sql.SparkSession
@@ -53,6 +53,7 @@ import java.io.IOException
 import java.net.URI
 import scala.collection.JavaConverters._
 import com.google.common.base.Preconditions
+import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
 
 /**
  * This file is copied from Spark
@@ -81,6 +82,31 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
       job: Job,
       options: Map[String, String],
       dataSchema: StructType): OutputWriterFactory = {
+    val conf = job.getConfiguration
+    val tableDesc = fileSinkConf.getTableInfo
+    conf.set("mapred.output.format.class", tableDesc.getOutputFileFormatClassName)
+
+    // When speculation is on and output committer class name contains "Direct", we should warn
+    // users that they may loss data if they are using a direct output committer.
+    val speculationEnabled = sparkSession.sparkContext.conf.get(SPECULATION_ENABLED)
+    val outputCommitterClass = conf.get("mapred.output.committer.class", "")
+    if (speculationEnabled && outputCommitterClass.contains("Direct")) {
+      val warningMessage =
+        s"$outputCommitterClass may be an output committer that writes data directly to " +
+          "the final location. Because speculation is enabled, this output committer may " +
+          "cause data loss (see the case in SPARK-10063). If possible, please use an output " +
+          "committer that does not have this behavior (e.g. FileOutputCommitter)."
+      logWarning(warningMessage)
+    }
+
+    // Add table properties from storage handler to hadoopConf, so any custom storage
+    // handler settings can be set to hadoopConf
+    HiveTableUtil.configureJobPropertiesForStorageHandler(tableDesc, conf, false)
+    Utilities.copyTableJobPropertiesToConf(tableDesc, conf)
+
+    // Avoid referencing the outer object.
+    val fileSinkConfSer = fileSinkConf
+
     if (
       fileSinkConf.tableInfo
         .getOutputFileFormatClassName()
@@ -90,17 +116,23 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
         .equals("io.glutenproject.GlutenPlugin")
     ) {
       val compressionCodec = if (fileSinkConf.compressed) {
+        // hive related configurations
         fileSinkConf.compressCodec
       } else {
-        "none"
+        val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
+        parquetOptions.compressionCodecClassName
       }
       val nativeConf = VeloxParquetFileFormat.nativeConf(
         options, compressionCodec)
 
       // Only offload parquet write to velox backend.
       new OutputWriterFactory {
+        private val jobConf = new SerializableJobConf(new JobConf(job.getConfiguration))
+        @transient private lazy val outputFormat =
+          jobConf.value.getOutputFormat.asInstanceOf[HiveOutputFormat[AnyRef, Writable]]
+
         override def getFileExtension(context: TaskAttemptContext): String = {
-          CodecConfig.from(context).getCodec.getExtension + ".parquet"
+          Utilities.getFileExtension(jobConf.value, fileSinkConfSer.getCompressed, outputFormat)
         }
 
         override def newInstance(
@@ -162,30 +194,6 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
         }
       }
     } else {
-      val conf = job.getConfiguration
-      val tableDesc = fileSinkConf.getTableInfo
-      conf.set("mapred.output.format.class", tableDesc.getOutputFileFormatClassName)
-
-      // When speculation is on and output committer class name contains "Direct", we should warn
-      // users that they may loss data if they are using a direct output committer.
-      val speculationEnabled = sparkSession.sparkContext.conf.get(SPECULATION_ENABLED)
-      val outputCommitterClass = conf.get("mapred.output.committer.class", "")
-      if (speculationEnabled && outputCommitterClass.contains("Direct")) {
-        val warningMessage =
-          s"$outputCommitterClass may be an output committer that writes data directly to " +
-            "the final location. Because speculation is enabled, this output committer may " +
-            "cause data loss (see the case in SPARK-10063). If possible, please use an output " +
-            "committer that does not have this behavior (e.g. FileOutputCommitter)."
-        logWarning(warningMessage)
-      }
-
-      // Add table properties from storage handler to hadoopConf, so any custom storage
-      // handler settings can be set to hadoopConf
-      HiveTableUtil.configureJobPropertiesForStorageHandler(tableDesc, conf, false)
-      Utilities.copyTableJobPropertiesToConf(tableDesc, conf)
-
-      // Avoid referencing the outer object.
-      val fileSinkConfSer = fileSinkConf
       new OutputWriterFactory {
         private val jobConf = new SerializableJobConf(new JobConf(conf))
         @transient private lazy val outputFormat =
