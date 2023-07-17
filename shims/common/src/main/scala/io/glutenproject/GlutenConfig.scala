@@ -162,6 +162,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
+  def fallbackPolicy: String = conf.getConf(COLUMNAR_FALLBACK_POLICY)
+
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
     if (!enableNumaBinding) {
@@ -778,6 +780,16 @@ object GlutenConfig {
       .internal()
       .longConf
       .createWithDefault(100 * 1000 * 1000)
+
+  val COLUMNAR_FALLBACK_POLICY =
+    buildConf("spark.gluten.sql.columnar.fallback.policy")
+      .internal()
+      .doc("The fallback policy in gluten. By default, 'operator' means fallback each " +
+        "operator, 'stage' means fallback each stage, 'query' means fallback query")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValues(Set("operator", "stage", "query"))
+      .createWithDefault("operator")
 
   val COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")

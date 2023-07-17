@@ -662,6 +662,10 @@ case class ColumnarOverrideRules(session: SparkSession)
   private val aqeStackTraceIndex = 13
 
   lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
+
+  // for fallback policy
+  lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
+
   private var originalPlan: SparkPlan = _
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -752,7 +756,6 @@ case class ColumnarOverrideRules(session: SparkSession)
     fallbacks >= wholeStageFallbackThreshold
   }
 
-  // for non-AQE env
   def fallbackWholeQuery(plan: SparkPlan): Boolean = {
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
@@ -815,11 +818,11 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
-      if (isAdaptiveContext && fallbackWholeStage(plan)) {
-        logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
-        insertTransitions(originalPlan, false)
-      } else if (!isAdaptiveContext && fallbackWholeQuery(plan)) {
+      if (fallbackPolicy == "query" && fallbackWholeQuery(plan)) {
         logWarning("Fall back to run the query due to unsupported operator!")
+        insertTransitions(originalPlan, false)
+      } else if (fallbackPolicy == "stage" && isAdaptiveContext && fallbackWholeStage(plan)) {
+        logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
         insertTransitions(originalPlan, false)
       } else {
         logOnLevel(
