@@ -167,6 +167,7 @@ class GlutenClickHouseHiveTableSuite()
       "bool_field boolean," +
       "decimal_field decimal(23, 12)," +
       "date_field date," +
+      "timestamp_field timestamp," +
       "array_field array<int>," +
       "array_field_with_null array<int>," +
       "map_field map<int, long>," +
