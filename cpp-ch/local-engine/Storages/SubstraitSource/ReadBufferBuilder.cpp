@@ -101,7 +101,7 @@ public:
                 start_end_pos.first,
                 start_end_pos.second);
             read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(),
+                uri_path, file_uri.getPath(), context->getConfigRef(),
                 read_settings, start_end_pos.second);
 
             if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
@@ -111,7 +111,7 @@ public:
         else
         {
             read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-                uri_path, file_uri.getPath(), context->getGlobalContext()->getConfigRef(), read_settings);
+                uri_path, file_uri.getPath(), context->getConfigRef(), read_settings);
         }
         return read_buffer;
     }
@@ -120,7 +120,7 @@ public:
     adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, std::string uri_path, std::string file_path)
     {
         std::string hdfs_file_path = uri_path + file_path;
-        auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getGlobalContext()->getConfigRef());
+        auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getConfigRef());
         auto fs = DB::createHDFSFS(builder.get());
         hdfsFile fin = hdfsOpenFile(fs.get(), file_path.c_str(), O_RDONLY, 0, 0, 0);
         if (!fin)
@@ -371,7 +371,7 @@ private:
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
             context->getRemoteHostFilter(),
-            static_cast<unsigned>(context->getGlobalContext()->getSettingsRef().s3_max_redirects),
+            static_cast<unsigned>(context->getSettingsRef().s3_max_redirects),
             false,
             false,
             nullptr,
