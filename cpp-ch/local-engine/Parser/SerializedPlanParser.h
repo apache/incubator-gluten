@@ -314,6 +314,10 @@ private:
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
+    bool convertBinaryArithmeticFunDecimalArgs(
+        ActionsDAGPtr actions_dag,
+        ActionsDAG::NodeRawConstPtrs & args,
+        const substrait::Expression_ScalarFunction & arithmeticFun);
     const ActionsDAG::Node * parseFunctionWithDAG(
         const substrait::Expression & rel,
         std::string & result_name,

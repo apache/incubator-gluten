@@ -426,6 +426,9 @@ object GlutenQueryTest extends Assertions {
       }
     case (a: Float, b: Float) =>
       java.lang.Float.floatToRawIntBits(a) == java.lang.Float.floatToRawIntBits(b)
+    case (a: BigDecimal, b: BigDecimal) =>
+      val maxDeviation: BigDecimal = BigDecimal(1, math.max(a.scale, b.scale))
+      (a - b).abs.compare(maxDeviation) <= 0
     case (a, b) => a == b
   }
 

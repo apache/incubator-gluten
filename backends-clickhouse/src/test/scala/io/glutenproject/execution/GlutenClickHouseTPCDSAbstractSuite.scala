@@ -65,7 +65,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           val noFallBack = queryNum match {
             case i
                 if i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
-                  i == 88 || i == 94 =>
+                  i == 88 || i == 90 || i == 94 =>
               // Q10 BroadcastHashJoin, ExistenceJoin
               // Q16 ShuffledHashJoin, NOT condition
               // Q28 BroadcastNestedLoopJoin
@@ -73,6 +73,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
               // Q45 BroadcastHashJoin, ExistenceJoin
               // Q77 CartesianProduct
               // Q88 BroadcastNestedLoopJoin
+              // Q90 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
             case j if j == 38 || j == 87 =>
@@ -90,11 +91,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
   // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
   protected val excludedTpcdsQueries: Set[String] = Set(
     "q18", // inconsistent results
-    "q49", // inconsistent results
     "q61", // inconsistent results
-    "q67", // inconsistent results
-    "q83", // decimal error
-    "q90" // inconsistent results(decimal)
+    "q67" // inconsistent results
   )
 
   def executeTPCDSTest(isAqe: Boolean): Unit = {
