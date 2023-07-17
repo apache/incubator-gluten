@@ -243,6 +243,40 @@ PageFilterPtr PushDownFilter::getPageFilter()
     return std::make_shared<PageFilter>(conditions);
 }
 
+
+ActionsDAGPtr PushDownFilter::removeFunction(ActionsDAGPtr dag, DB::String name)
+{
+    ActionsDAG::NodeRawConstPtrs condition_nodes;
+    for (const auto & item : dag->getNodes())
+    {
+        if (item.type != ActionsDAG::ActionType::FUNCTION)
+            continue;
+        if (!isFunctionAnd(item) && item.function_base->getName() != name)
+        {
+            condition_nodes.emplace_back(&item);
+        }
+    }
+    const ActionsDAG::Node * res = nullptr;
+    FunctionOverloadResolverPtr func_builder_and = std::make_unique<FunctionToOverloadResolverAdaptor>(std::make_shared<FunctionAnd>());
+    for (const auto & item : condition_nodes)
+    {
+        if (!res)
+        {
+            res = item;
+        }
+        else
+        {
+            ActionsDAG::NodeRawConstPtrs children = {res, item};
+            res = &dag->addFunction(func_builder_and, children, "");
+        }
+    }
+    dag->removeUnusedResult(dag->getOutputs().back()->result_name);
+    dag->addOrReplaceInOutputs(*res);
+    Names names = {res->result_name};
+    dag->removeUnusedActions(names);
+    return dag;
+}
+
 Block RowGroupFilter::getArguments()
 {
     Block block;

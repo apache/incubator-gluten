@@ -3,6 +3,7 @@
 #include <Core/Block.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ExpressionActions.h>
+#include "base/types.h"
 
 namespace DB
 {
@@ -48,13 +49,12 @@ class PushDownFilter : public IFilter
 public:
     explicit PushDownFilter(ActionsDAGPtr dag_) : dag(dag_)
     {
-        filter_name = dag->getOutputs().back()->result_name;
-        Names names = {filter_name};
-        dag->removeUnusedActions(names);
+        removeFunction(dag, "isNotNull");
         for (const auto & item : dag->getInputs())
         {
             condition_columns.insert(item->result_name);
         }
+        filter_name = dag->getOutputs().back()->result_name;
         dag->projectInput(true);
         for (const auto & item : dag->getInputs())
         {
@@ -64,6 +64,7 @@ public:
     }
     ~PushDownFilter() override { }
 
+    static ActionsDAGPtr removeFunction(ActionsDAGPtr dag, DB::String name);
     const std::unordered_set<DB::String> & getConditionColumns() { return condition_columns; }
     RowGroupFilterPtr getRowGroupFilter();
     PageFilterPtr getPageFilter();
