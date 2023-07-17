@@ -90,6 +90,10 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
     return veloxAlloc_->toString();
   }
 
+  size_t capacity() const override {
+    return veloxAlloc_->capacity();
+  }
+
  private:
   gluten::MemoryAllocator* glutenAlloc_;
   velox::memory::MemoryAllocator* veloxAlloc_;

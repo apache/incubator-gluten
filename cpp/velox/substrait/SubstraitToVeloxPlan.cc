@@ -851,8 +851,8 @@ core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::Re
     auto outName = subParser_->makeNodeName(planNodeId_, idx);
     auto columnType = isPartitionColumns[idx] ? connector::hive::HiveColumnHandle::ColumnType::kPartitionKey
                                               : connector::hive::HiveColumnHandle::ColumnType::kRegular;
-    assignments[outName] =
-        std::make_shared<connector::hive::HiveColumnHandle>(colNameList[idx], columnType, veloxTypeList[idx]);
+    assignments[outName] = std::make_shared<connector::hive::HiveColumnHandle>(
+        colNameList[idx], columnType, veloxTypeList[idx], veloxTypeList[idx]);
     outNames.emplace_back(outName);
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
