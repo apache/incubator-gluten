@@ -144,7 +144,8 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
       })
 
     tableMeta.storage.inputFormat match {
-      case Some(inputFormat) if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+      case Some(inputFormat) if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(
+        Utils.classForName(inputFormat)) =>
         tableMeta.storage.serde match {
           case Some("org.openx.data.jsonserde.JsonSerDe") |
                Some("org.apache.hive.hcatalog.data.JsonSerDe") =>
