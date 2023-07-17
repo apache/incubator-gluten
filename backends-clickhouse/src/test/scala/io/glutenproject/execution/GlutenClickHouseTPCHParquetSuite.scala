@@ -339,7 +339,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(21, noFallBack = false) { df => }
   }
 
-  test("lag") {
+  test("GLUTEN-2115: Fix wrong number of records shuffle written") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.adaptive.enabled", "true")
@@ -1248,6 +1248,72 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |order by t1.l_orderkey, t1.l_partkey, t2.o_custkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-2198: Fix wrong schema when there is no aggregate function") {
+    val sql =
+      """
+        |select b, a
+        |from
+        |  (
+        |    select l_shipdate as a, l_returnflag as b from lineitem
+        |    union
+        |    select o_orderdate as a, o_orderstatus as b from orders
+        |  )
+        |group by b, a
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    val sql1 =
+      """
+        |select b, a, sum(c), avg(c)
+        |from
+        |  (
+        |    select l_shipdate as a, l_returnflag as b, l_quantity as c from lineitem
+        |    union
+        |    select o_orderdate as a, o_orderstatus as b, o_totalprice as c from orders
+        |  )
+        |group by b, a
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        |select t1.o_orderkey, o_shippriority, sss from (
+        |(
+        |  select o_orderkey,o_shippriority from orders
+        |) t1
+        |left join
+        |(
+        | select c_custkey custkey, c_nationkey, sum(c_acctbal) as sss
+        | from customer
+        | group by 1,2
+        |) t2
+        |on t1.o_orderkey=t2.custkey and t1.o_shippriority=t2.c_nationkey
+        |)
+        |order by t1.o_orderkey desc, o_shippriority
+        |limit 100
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+    val sql3 =
+      """
+        |select t1.o_orderkey, o_shippriority from (
+        |(
+        |  select o_orderkey,o_shippriority from orders
+        |) t1
+        |left join
+        |(
+        | select c_custkey custkey, c_nationkey
+        | from customer
+        | group by 1,2
+        |) t2
+        |on t1.o_orderkey=t2.custkey and t1.o_shippriority=t2.c_nationkey
+        |)
+        |order by t1.o_orderkey desc, o_shippriority
+        |limit 100
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
   }
 
   test("GLUTEN-2079: aggregate function with filter") {
