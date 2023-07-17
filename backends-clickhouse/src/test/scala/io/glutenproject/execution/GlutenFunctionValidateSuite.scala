@@ -215,7 +215,7 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         "xxhash64(cast(id as string)), xxhash64(cast(id as binary)), " +
         "xxhash64(cast(from_unixtime(id) as date)), " +
         "xxhash64(cast(from_unixtime(id) as timestamp)), xxhash64(cast(id as decimal(5, 2))), " +
-        "xxhash64(cast(id as decimal(10, 2))) " +
+        "xxhash64(cast(id as decimal(10, 2))), xxhash64(cast(id as decimal(30, 2))) " +
         "from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df1, 10)
@@ -228,7 +228,8 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         "xxhash64(cast(from_unixtime(id) as date), 'spark'), " +
         "xxhash64(cast(from_unixtime(id) as timestamp), 'spark'), " +
         "xxhash64(cast(id as decimal(5, 2)), 'spark'), " +
-        "xxhash64(cast(id as decimal(10, 2)), 'spark') from range(10)"
+        "xxhash64(cast(id as decimal(10, 2)), 'spark'), " +
+        "xxhash64(cast(id as decimal(30, 2)), 'spark') from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df2, 10)
   }
@@ -240,7 +241,7 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         "hash(cast(id as string)), hash(cast(id as binary)), " +
         "hash(cast(from_unixtime(id) as date)), " +
         "hash(cast(from_unixtime(id) as timestamp)), hash(cast(id as decimal(5, 2))), " +
-        "hash(cast(id as decimal(10, 2))) from range(10)"
+        "hash(cast(id as decimal(10, 2))), hash(cast(id as decimal(30, 2))) from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df1, 10)
 
@@ -251,8 +252,8 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         "hash(cast(id as string), 'spark'), hash(cast(id as binary), 'spark'), " +
         "hash(cast(from_unixtime(id) as date), 'spark'), " +
         "hash(cast(from_unixtime(id) as timestamp), 'spark'), " +
-        "hash(cast(id as decimal(5, 2)), 'spark'), hash(cast(id as decimal(10, 2)), 'spark') " +
-        "from range(10)"
+        "hash(cast(id as decimal(5, 2)), 'spark'), hash(cast(id as decimal(10, 2)), 'spark'), " +
+        "hash(cast(id as decimal(30, 2)), 'spark') from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df2, 10)
   }
