@@ -37,9 +37,9 @@ namespace {} // namespace
 VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {}
 
 void VeloxBackend::getInfoAndIds(
-    const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<velox::substrait::SplitInfo>>& splitInfoMap,
+    const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
     const std::unordered_set<velox::core::PlanNodeId>& leafPlanNodeIds,
-    std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
+    std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     std::vector<velox::core::PlanNodeId>& scanIds,
     std::vector<velox::core::PlanNodeId>& streamIds) {
   if (splitInfoMap.size() == 0) {
@@ -75,7 +75,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   veloxPlan_ = veloxPlanConverter->toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.
-  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   std::vector<velox::core::PlanNodeId> scanIds;
   std::vector<velox::core::PlanNodeId> streamIds;
 

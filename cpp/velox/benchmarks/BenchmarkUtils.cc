@@ -71,10 +71,8 @@ velox::dwio::common::FileFormat getFileFormat(const std::string& fileFormat) {
   }
 }
 
-std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
-    const std::string& datasetPath,
-    const std::string& fileFormat) {
-  auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
+std::shared_ptr<gluten::SplitInfo> getSplitInfos(const std::string& datasetPath, const std::string& fileFormat) {
+  auto scanInfo = std::make_shared<gluten::SplitInfo>();
 
   // Set format to scan info.
   scanInfo->format = getFileFormat(fileFormat);
@@ -97,10 +95,8 @@ std::shared_ptr<velox::substrait::SplitInfo> getSplitInfos(
   return scanInfo;
 }
 
-std::shared_ptr<velox::substrait::SplitInfo> getSplitInfosFromFile(
-    const std::string& fileName,
-    const std::string& fileFormat) {
-  auto scanInfo = std::make_shared<velox::substrait::SplitInfo>();
+std::shared_ptr<gluten::SplitInfo> getSplitInfosFromFile(const std::string& fileName, const std::string& fileFormat) {
+  auto scanInfo = std::make_shared<gluten::SplitInfo>();
 
   // Set format to scan info.
   scanInfo->format = getFileFormat(fileFormat);

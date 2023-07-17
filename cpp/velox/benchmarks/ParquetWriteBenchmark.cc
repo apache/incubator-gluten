@@ -118,7 +118,7 @@ class GoogleBenchmarkParquetWrite {
   std::vector<int> rowGroupIndices_;
   std::vector<int> columnIndices_;
   std::shared_ptr<arrow::Schema> schema_;
-  parquet::ArrowReaderProperties properties_;
+  ::parquet::ArrowReaderProperties properties_;
 };
 
 class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmarkParquetWrite {
@@ -173,12 +173,12 @@ class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmar
 
     for (auto _ : state) {
       // Choose compression
-      std::shared_ptr<parquet::WriterProperties> props =
-          parquet::WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
+      std::shared_ptr<::parquet::WriterProperties> props =
+          ::parquet::WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
 
       // Opt to store Arrow schema for easier reads back into Arrow
-      std::shared_ptr<parquet::ArrowWriterProperties> arrow_props =
-          parquet::ArrowWriterProperties::Builder().store_schema()->build();
+      std::shared_ptr<::parquet::ArrowWriterProperties> arrow_props =
+          ::parquet::ArrowWriterProperties::Builder().store_schema()->build();
 
       std::shared_ptr<arrow::io::FileOutputStream> outfile;
       outfile = arrow::io::FileOutputStream::Open(outputPath_ + fileName).ValueOrDie();
