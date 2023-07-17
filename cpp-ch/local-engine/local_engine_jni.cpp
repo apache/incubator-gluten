@@ -71,6 +71,7 @@ static jstring stringTojstring(JNIEnv * env, const char * pat)
 extern "C" {
 #endif
 
+extern char * createExecutor(const std::string &);
 
 namespace dbms
 {
@@ -192,19 +193,26 @@ JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_na
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+
+JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithRowIterator(
+    JNIEnv * env, jobject /*obj*/, jbyteArray plan)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    jsize plan_size = env->GetArrayLength(plan);
+    jbyte * plan_address = env->GetByteArrayElements(plan, nullptr);
+    std::string plan_string;
+    plan_string.assign(reinterpret_cast<const char *>(plan_address), plan_size);
+    auto * executor = createExecutor(plan_string);
+    env->ReleaseByteArrayElements(plan, plan_address, JNI_ABORT);
+    return reinterpret_cast<jlong>(executor);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
 JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
-    JNIEnv * env, jobject /*obj*/, jlong allocator_id, jbyteArray plan, jobjectArray iter_arr, jbyteArray conf_plan)
+    JNIEnv * env, jobject /*obj*/, jlong allocator_id, jbyteArray plan, jobjectArray iter_arr)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::getAllocator(allocator_id)->query_context;
-
-    // by task update new configs ( in case of dynamic config update )
-    jsize plan_buf_size = env->GetArrayLength(conf_plan);
-    jbyte * plan_buf_addr = env->GetByteArrayElements(conf_plan, nullptr);
-    std::string plan_str;
-    plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
-    local_engine::BackendInitializerUtil::updateConfig(query_context, &plan_str);
-
     local_engine::SerializedPlanParser parser(query_context);
     jsize iter_num = env->GetArrayLength(iter_arr);
     for (jsize i = 0; i < iter_num; i++)
