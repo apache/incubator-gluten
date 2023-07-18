@@ -61,13 +61,6 @@
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
-          <configuration>
-            <scala>
-              <scalafmt>
-                <file>${project.basedir}/../.scalafmt.conf</file>
-              </scalafmt>
-            </scala>
-          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
