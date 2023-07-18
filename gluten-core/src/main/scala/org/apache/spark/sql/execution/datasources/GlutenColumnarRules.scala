@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.utils.LogicalPlanSelector
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow

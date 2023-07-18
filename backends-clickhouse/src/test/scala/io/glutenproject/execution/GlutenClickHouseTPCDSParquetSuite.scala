@@ -45,8 +45,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       //      .set("spark.sql.files.maxPartitionBytes", "134217728")
       //      .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.memory.offHeap.size", "4g")
-      .set("spark.gluten.sql.validate.failure.logLevel", "ERROR")
-      .set("spark.gluten.sql.validate.failure.printStack", "true")
+      .set("spark.gluten.sql.validation.logLevel", "ERROR")
+      .set("spark.gluten.sql.validation.printStackOnFailure", "true")
   }
 
   executeTPCDSTest(false)

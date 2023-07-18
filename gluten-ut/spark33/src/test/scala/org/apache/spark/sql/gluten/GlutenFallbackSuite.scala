@@ -30,7 +30,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
     withLogAppender(testAppender) {
       withSQLConf(
         GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
-        GlutenConfig.VALIDATE_FAILURE_LOG_LEVEL.key -> "error") {
+        GlutenConfig.VALIDATION_LOG_LEVEL.key -> "error") {
         withTable("t") {
           spark.range(10).write.format("parquet").saveAsTable("t")
           sql("SELECT * FROM t").collect()

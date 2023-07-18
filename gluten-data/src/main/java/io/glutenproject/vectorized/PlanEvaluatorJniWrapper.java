@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.validate.NativePlanValidatorInfo;
+import io.glutenproject.validate.NativePlanValidationInfo;
 import io.glutenproject.init.JniInitialized;
 
 /**
@@ -41,7 +41,7 @@ public class PlanEvaluatorJniWrapper extends JniInitialized {
    */
   native boolean nativeDoValidate(byte[] subPlan);
 
-  native NativePlanValidatorInfo nativeDoValidateWithFallBackLog(byte[] subPlan);
+  native NativePlanValidationInfo nativeDoValidateWithFallBackLog(byte[] subPlan);
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *

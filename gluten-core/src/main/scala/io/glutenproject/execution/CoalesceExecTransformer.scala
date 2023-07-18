@@ -55,10 +55,10 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   }
 
   override protected def doValidateInternal(): ValidationResult =
-    ValidationResult.notOk("does not support")
+    ValidationResult.notOk(s"$nodeName has not been supported")
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+    throw new UnsupportedOperationException(s"$nodeName doesn't support doTransform.")
   }
 
   protected override def doExecute(): RDD[InternalRow] = {
@@ -66,7 +66,7 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+    throw new UnsupportedOperationException(s"$nodeName doesn't support doExecuteColumnar.")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): CoalesceExecTransformer =

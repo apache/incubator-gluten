@@ -67,7 +67,7 @@ case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPl
                     bhj.right,
                     bhj.isNullAwareAntiJoin)
                 val isBhjTransformable = bhjTransformer.doValidate()
-                if (isBhjTransformable.validated) {
+                if (isBhjTransformable.isValid) {
                   val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
                   exchangeTransformer.doValidate()
                 } else {

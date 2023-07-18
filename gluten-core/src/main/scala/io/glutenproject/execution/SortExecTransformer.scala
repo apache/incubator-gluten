@@ -17,9 +17,8 @@
 
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.GlutenConfig
+
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
@@ -29,7 +28,6 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.substrait.proto.SortField
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -108,7 +106,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
     var colIdx = originalInputAttributes.size
     sortOrder.foreach(order => {
-      val builder = SortField.newBuilder();
+      val builder = SortField.newBuilder()
       val projectExprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, originalInputAttributes).doTransform(args)
       projectExpressions.add(projectExprNode)
@@ -199,7 +197,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     val args = context.registeredFunction
     val sortFieldList = new util.ArrayList[SortField]()
     sortOrder.foreach(order => {
-      val builder = SortField.newBuilder();
+      val builder = SortField.newBuilder()
       val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
         .doTransform(args)
@@ -245,7 +243,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
-      return notOk("backend does not sort")
+      return ValidationResult.notOk("Current backend does not support sort")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
@@ -253,14 +251,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     val relNode = getRelNode(
       substraitContext, sortOrder, child.output, operatorId, null, validation = true)
 
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {

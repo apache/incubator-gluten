@@ -20,7 +20,7 @@ package io.glutenproject.vectorized;
 import com.google.protobuf.Any;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.validate.NativePlanValidatorInfo;
+import io.glutenproject.validate.NativePlanValidationInfo;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
@@ -55,7 +55,7 @@ public class NativePlanEvaluator {
     return jniWrapper.nativeDoValidate(subPlan);
   }
 
-  public NativePlanValidatorInfo doValidateWithFallBackLog(byte[] subPlan) {
+  public NativePlanValidationInfo doValidateWithFallBackLog(byte[] subPlan) {
     return jniWrapper.nativeDoValidateWithFallBackLog(subPlan);
   }
 

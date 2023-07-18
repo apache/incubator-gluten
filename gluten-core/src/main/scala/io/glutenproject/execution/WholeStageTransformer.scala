@@ -28,7 +28,6 @@ import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark.rdd.RDD

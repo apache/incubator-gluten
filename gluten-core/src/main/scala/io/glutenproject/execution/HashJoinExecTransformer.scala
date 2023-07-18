@@ -19,7 +19,7 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
-import io.glutenproject.GlutenConfig
+
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
@@ -28,7 +28,6 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.substrait.proto.JoinRel
 import org.apache.spark.rdd.RDD
@@ -228,7 +227,8 @@ trait HashJoinLikeExecTransformer
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
-      return notOk(s"does not support join type: $hashJoinType, substrait: $substraitJoinType")
+      return ValidationResult
+        .notOk(s"Unsupported join type of $hashJoinType for substrait: $substraitJoinType")
     }
     val relNode = JoinUtils.createJoinRel(
       streamedKeyExprs,
@@ -242,19 +242,7 @@ trait HashJoinLikeExecTransformer
       buildPlan.output,
       substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      if (!validateInfo.isSupported) {
-        val fallbackInfo = validateInfo.getFallbackInfo.asScala
-          .mkString("native check failure:", ", ", "")
-        return notOk(fallbackInfo)
-      }
-      ok()
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(substraitContext: SubstraitContext): TransformContext = {

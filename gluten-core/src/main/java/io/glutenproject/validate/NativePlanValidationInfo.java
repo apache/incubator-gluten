@@ -19,10 +19,10 @@ package io.glutenproject.validate;
 
 import java.util.Vector;
 
-public class NativePlanValidatorInfo {
+public class NativePlanValidationInfo {
     private final Vector<String> fallbackInfo = new Vector<>();
     private final int isSupported;
-    public NativePlanValidatorInfo(int isSupported, String fallbackInfo) {
+    public NativePlanValidationInfo(int isSupported, String fallbackInfo) {
         this.isSupported = isSupported;
         String[] splitInfo = fallbackInfo.split("@");
         for(int i = 0; i < splitInfo.length; i++) {

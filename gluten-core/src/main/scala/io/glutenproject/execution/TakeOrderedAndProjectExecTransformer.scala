@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.utils.ColumnarShuffleUtil
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
@@ -114,5 +115,4 @@ case class TakeOrderedAndProjectExecTransformer(
       finalPlan.doExecuteColumnar()
     }
   }
-
 }

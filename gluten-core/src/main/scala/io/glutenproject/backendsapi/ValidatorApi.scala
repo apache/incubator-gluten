@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.expression.{ExpressionMappings, ExpressionNames}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.validate.NativePlanValidatorInfo
+import io.glutenproject.validate.NativePlanValidationInfo
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
 import org.apache.spark.sql.execution.SparkPlan
@@ -90,7 +90,7 @@ trait ValidatorApi {
    */
   def doValidate(plan: PlanNode): Boolean
 
-  def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidatorInfo
+  def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidationInfo
   /**
    * Validate against Compression method, such as bzip2.
    */

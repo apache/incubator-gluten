@@ -105,9 +105,9 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
       outputPartitioning, child)) {
-      return notOk("schema check failed")
+      return ValidationResult.notOk("Found schema check failure in shuffle exchange.")
     }
-    ok()
+    ValidationResult.ok
   }
 
   override def nodeName: String = "ColumnarExchange"

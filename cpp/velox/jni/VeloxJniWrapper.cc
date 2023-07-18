@@ -122,9 +122,9 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidateWithFal
   velox::core::ExecCtx execCtx(pool, &queryCtx);
 
   gluten::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
-  jclass infoCls = env->FindClass("Lio/glutenproject/validate/NativePlanValidatorInfo;");
+  jclass infoCls = env->FindClass("Lio/glutenproject/validate/NativePlanValidationInfo;");
   if (infoCls == nullptr) {
-    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidatorInfo";
+    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidationInfo";
     throw gluten::GlutenException(errorMessage);
   }
   jmethodID method = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");

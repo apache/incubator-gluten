@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
+
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
@@ -83,19 +83,13 @@ trait BasicScanExecTransformer extends TransformSupport {
     if (!BackendsApiManager.getTransformerApiInstance
       .supportsReadFileFormat(
         fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
-      return notOk(s"does not support fileFormat: $fileFormat")
+      return ValidationResult.notOk(s"Not supported file format for scan: $fileFormat")
     }
 
     val substraitContext = new SubstraitContext
     val relNode = doTransform(substraitContext).root
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {

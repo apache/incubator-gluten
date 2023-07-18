@@ -207,7 +207,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
 
-  def validateFailureLogLevel: String = conf.getConf(VALIDATE_FAILURE_LOG_LEVEL)
+  def validationLogLevel: String = conf.getConf(VALIDATION_LOG_LEVEL)
 
   def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
 
@@ -219,8 +219,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
-  def printStackOnValidateFailure: Boolean =
-    conf.getConf(VALIDATE_FAILURE_PRINT_STACK_ENABLED)
+  def printStackOnValidationFailure: Boolean =
+    conf.getConf(VALIDATION_PRINT_FAILURE_STACK_)
 
   def enableFallbackReport: Boolean = conf.getConf(FALLBACK_REPORTER_ENABLED)
 
@@ -912,8 +912,8 @@ object GlutenConfig {
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("DEBUG")
 
-  val VALIDATE_FAILURE_LOG_LEVEL =
-    buildConf("spark.gluten.sql.validate.failure.logLevel")
+  val VALIDATION_LOG_LEVEL =
+    buildConf("spark.gluten.sql.validation.logLevel")
       .internal()
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
@@ -921,6 +921,12 @@ object GlutenConfig {
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("INFO")
+
+  val VALIDATION_PRINT_FAILURE_STACK_ =
+    buildConf("spark.gluten.sql.validation.printStackOnFailure")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
 
   val SOFT_AFFINITY_LOG_LEVEL =
     buildConf("spark.gluten.soft-affinity.logLevel")
@@ -931,12 +937,6 @@ object GlutenConfig {
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("DEBUG")
-
-  val VALIDATE_FAILURE_PRINT_STACK_ENABLED =
-    buildConf("spark.gluten.sql.validate.failure.printStack")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
 
   val DEBUG_LEVEL_ENABLED =
     buildConf("spark.gluten.sql.debug")

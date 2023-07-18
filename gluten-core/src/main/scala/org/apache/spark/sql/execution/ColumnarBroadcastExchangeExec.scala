@@ -129,10 +129,10 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
 
   override protected def doValidateInternal(): ValidationResult = mode match {
     case _: HashedRelationBroadcastMode =>
-      ok()
+      ValidationResult.ok
     case _ =>
-      // IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
-      notOk("only support HashedRelationBroadcastMode")
+      // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
+      ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
   }
 
   override def doPrepare(): Unit = {
