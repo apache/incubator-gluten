@@ -1134,13 +1134,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
             args = std::move(new_args);
         }
 
+        bool converted_decimal_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, args, scalar_function);
         auto function_builder = FunctionFactory::instance().get(ch_func_name, context);
         std::string args_name = join(args, ',');
         result_name = ch_func_name + "(" + args_name + ")";
         const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
         result_node = function_node;
 
-        if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type))
+        if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type)  && !converted_decimal_args)
         {
             result_node = ActionsDAGUtil::convertNodeType(
                 actions_dag,
@@ -1156,6 +1157,66 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
             actions_dag->addOrReplaceInOutputs(*result_node);
     }
     return result_node;
+}
+
+bool SerializedPlanParser::convertBinaryArithmeticFunDecimalArgs(
+    ActionsDAGPtr actions_dag,
+    ActionsDAG::NodeRawConstPtrs & args,
+    const substrait::Expression_ScalarFunction & arithmeticFun) {
+
+    auto function_signature = function_mapping.at(std::to_string(arithmeticFun.function_reference()));
+    auto pos = function_signature.find(':');
+    auto func_name = function_signature.substr(0, pos);
+
+    if (func_name == "divide" || func_name == "multiply" || func_name == "plus" || func_name == "minus") {
+
+        /// for divide/plus/minus, we need to convert first arg to result precision and scale
+        /// for multiply, we need to convert first arg to result precision, but keep scale
+        if (isDecimalOrNullableDecimal(args[0]->result_type) && isDecimalOrNullableDecimal(args[1]->result_type)) {
+            UInt32 p1 = getDecimalPrecision(*DB::removeNullable(args[0]->result_type));
+            UInt32 s1 = getDecimalScale(*DB::removeNullable(args[0]->result_type));
+            UInt32 p2 = getDecimalPrecision(*DB::removeNullable(args[1]->result_type));
+            UInt32 s2 = getDecimalScale(*DB::removeNullable(args[1]->result_type));
+
+            UInt32 precision;
+            UInt32 scale;
+            if (func_name == "plus" || func_name == "minus") {
+                scale = std::max(s1, s2);
+                precision = scale + std::max(p1 - s1, p2 - s2) + 1;
+            }
+            else if (func_name == "divide")
+            {
+                scale = std::max(static_cast<UInt32>(6), s1 + p2 + 1);
+                precision = p1 - s1 + s2 + scale;
+            }
+            else  // multiply
+            {
+                scale = s1;
+                precision = p1 + p2 + 1;
+            }
+
+            ActionsDAG::NodeRawConstPtrs new_args;
+            new_args.reserve(args.size());
+
+            ActionsDAG::NodeRawConstPtrs cast_args;
+            cast_args.reserve(2);
+            cast_args.emplace_back(args[0]);
+            DataTypePtr ch_type = createDecimal<DataTypeDecimal>(precision, scale);
+            ch_type = wrapNullableType(arithmeticFun.output_type().decimal().nullability(), ch_type);
+            String type_name = ch_type->getName();
+            DataTypePtr str_type = std::make_shared<DataTypeString>();
+            const ActionsDAG::Node * type_node = &actions_dag->addColumn(
+                ColumnWithTypeAndName(str_type->createColumnConst(1, type_name), str_type, getUniqueName(type_name)));
+            cast_args.emplace_back(type_node);
+            const ActionsDAG::Node * cast_node = toFunctionNode(actions_dag, "CAST", cast_args);
+            actions_dag->addOrReplaceInOutputs(*cast_node);
+            new_args.emplace_back(cast_node);
+            new_args.emplace_back(args[1]);
+            args = std::move(new_args);
+            return true;
+        }
+    }
+    return false;
 }
 
 void SerializedPlanParser::parseFunctionArguments(
