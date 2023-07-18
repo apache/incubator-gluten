@@ -27,7 +27,7 @@ import io.glutenproject.vectorized.NativePlanEvaluator
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
 
-class VeloxValidator extends ValidatorApi {
+class Validator extends ValidatorApi {
 
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
     doExprValidate(Map(), substraitExprName, expr)

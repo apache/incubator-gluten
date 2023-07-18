@@ -19,7 +19,7 @@ package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
 
-import io.glutenproject.backendsapi.velox.VeloxValidator
+import io.glutenproject.backendsapi.velox.Validator
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -54,7 +54,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = schema
-    if (!new VeloxValidator().doSchemaValidate(schema)) {
+    if (!new Validator().doSchemaValidate(schema)) {
       throw new UnsupportedOperationException(
         s"schema ${schema.toString()} contains not support type in row to columnar")
     }
