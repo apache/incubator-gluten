@@ -1,0 +1,50 @@
+name: Bug Report
+description: Report a bug or unexpected behavior.
+title: "[Which Backend?]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please add as much relevant information to the form below as you can.
+        This will help us replicate and solve the issue. Thank you!
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      description: What backend of gluten are you running?
+      options:
+        - VL (Velox)
+        - CH (ClickHouse)
+    validations:
+      required: true
+  - type: textarea
+    id: descriptionbug
+    attributes:
+      label: Bug description
+      description: Please describe the issue.
+      value: "[actual behavior]."
+    validations:
+      required: true
+  - type: textarea
+    id: descriptionexpected
+    attributes:
+      label: Expected Behavior
+      description: Please describe the expected behavior.
+      value: "[Expected behavior]."
+    validations:
+      required: true
+  - type: textarea
+    id: info
+    attributes:
+      label: System information
+      description: Please run `dev/info.sh` and paste the output here.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: bash
+
