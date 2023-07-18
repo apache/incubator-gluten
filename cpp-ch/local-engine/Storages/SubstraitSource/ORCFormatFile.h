@@ -1,23 +1,22 @@
 #pragma once
 #include <config.h>
 #include <Common/Config.h>
-// clang-format off
+
 #if USE_ORC
-#include <memory>
-#include <IO/ReadBuffer.h>
-#include <Interpreters/Context.h>
-#include <Storages/SubstraitSource/FormatFile.h>
-#include <base/types.h>
+#    include <memory>
+#    include <IO/ReadBuffer.h>
+#    include <Interpreters/Context.h>
+#    include <Storages/SubstraitSource/FormatFile.h>
+#    include <base/types.h>
 
-#if USE_LOCAL_FORMATS
-#include <arrow/adapters/orc/adapter.h>
-#include <Processors/Formats/IInputFormat.h>
-#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
-#else
-#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
-#endif
+#    if USE_LOCAL_FORMATS
+#        include <Processors/Formats/IInputFormat.h>
+#        include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
+#        include <arrow/adapters/orc/adapter.h>
+#    else
+#        include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#    endif
 
-// clang-format on
 namespace local_engine
 {
 struct StripeInformation
@@ -29,9 +28,7 @@ struct StripeInformation
     UInt64 start_row;
 };
 
-// clang-format off
-#if USE_LOCAL_FORMATS
-// clang-format on
+#    if USE_LOCAL_FORMATS
 // local engine's orc block input formatter
 // the behavior of generate is different from DB::ORCBlockInputFormat
 class ORCBlockInputFormat : public DB::IInputFormat
@@ -81,22 +78,25 @@ private:
 
     std::shared_ptr<arrow::RecordBatchReader> fetchNextStripe();
 };
-// clang-format off
-#endif
-// clang-format on
-class OrcFormatFile : public FormatFile
+#    endif
+
+class ORCFormatFile : public FormatFile
 {
 public:
-    explicit OrcFormatFile(
+    explicit ORCFormatFile(
         DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
-    ~OrcFormatFile() override = default;
+    ~ORCFormatFile() override = default;
+
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+
+    DB::NamesAndTypesList getSchema() const override;
+
     std::optional<size_t> getTotalRows() override;
 
-    bool supportSplit() override { return true; }
+    bool supportSplit() const override { return true; }
 
 private:
-    std::mutex mutex;
+    mutable std::mutex mutex;
     std::optional<size_t> total_rows;
 
     std::vector<StripeInformation> collectRequiredStripes(UInt64 & total_stripes);

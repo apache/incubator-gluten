@@ -1,4 +1,4 @@
-#include "JsonFormatFile.h"
+#include "JSONFormatFile.h"
 
 #include <Formats/FormatSettings.h>
 #include <Formats/FormatFactory.h>
@@ -7,20 +7,13 @@
 namespace local_engine
 {
 
-JsonFormatFile::JsonFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
+JSONFormatFile::JSONFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
     :FormatFile(context_, file_info_, read_buffer_builder_) {}
 
-FormatFile::InputFormatPtr JsonFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr JSONFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = read_buffer_builder->build(file_info, true);
-
-    Poco::URI file_uri(file_info.uri_file());
-    DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
-    if (compression != DB::CompressionMethod::None)
-    {
-        res->read_buffer = DB::wrapReadBufferWithCompressionMethod(std::move(res->read_buffer), compression);
-    }
+    res->read_buffer = read_buffer_builder->buildWithCompressionWrapper(file_info, true);
 
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
     format_settings.with_names_use_header = true;
@@ -31,6 +24,14 @@ FormatFile::InputFormatPtr JsonFormatFile::createInputFormat(const DB::Block & h
         std::make_shared<DB::JSONEachRowRowInputFormat>(*(res->read_buffer), header, in_params, format_settings, false);
     res->input = json_input_format;
     return res;
+}
+
+DB::NamesAndTypesList JSONFormatFile::getSchema() const
+{
+    auto in = read_buffer_builder->buildWithCompressionWrapper(file_info, true);
+    auto format_settings = DB::getFormatSettings(context);
+    DB::JSONEachRowSchemaReader reader(*in, format_settings);
+    return reader.readSchema();
 }
 
 }

@@ -605,16 +605,13 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             assert(read.has_local_files() || read.has_extension_table() && "Only support local parquet files or merge tree read rel");
             if (read.has_local_files())
             {
-                query_plan = std::make_unique<QueryPlan>();
                 QueryPlanStepPtr step;
                 if (isReadRelFromJava(read))
-                {
                     step = parseReadRealWithJavaIter(read);
-                }
                 else
-                {
                     step = parseReadRealWithLocalFile(read);
-                }
+
+                query_plan = std::make_unique<QueryPlan>();
                 steps.emplace_back(step.get());
                 query_plan->addStep(std::move(step));
 

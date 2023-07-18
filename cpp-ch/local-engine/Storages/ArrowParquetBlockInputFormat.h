@@ -4,12 +4,11 @@
 #include "config.h"
 
 #if USE_PARQUET && USE_LOCAL_FORMATS
-// clang-format off
-#include <Common/ChunkBuffer.h>
-#include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
-#include "ch_parquet/OptimizedParquetBlockInputFormat.h"
-#include "ch_parquet/arrow/reader.h"
-// clang-format on
+#    include <Common/ChunkBuffer.h>
+#    include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
+#    include "ch_parquet/OptimizedParquetBlockInputFormat.h"
+#    include "ch_parquet/arrow/reader.h"
+
 namespace arrow
 {
 class RecordBatchReader;

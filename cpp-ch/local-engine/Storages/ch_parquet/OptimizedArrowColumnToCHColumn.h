@@ -4,7 +4,6 @@
 #include <Common/Config.h>
 
 #if USE_LOCAL_FORMATS
-// clang-format off
 #if USE_ARROW || USE_ORC || USE_PARQUET
 
 #include <unordered_map>
@@ -12,8 +11,6 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <DataTypes/IDataType.h>
 #include <arrow/table.h>
-
-// clang-format on
 
 namespace DB
 {

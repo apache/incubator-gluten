@@ -1,14 +1,13 @@
 #include "ArrowParquetBlockInputFormat.h"
-// clang-format off
-#if USE_PARQUET && USE_LOCAL_FORMATS
-#include <arrow/record_batch.h>
-#include <Common/Stopwatch.h>
-#include <arrow/table.h>
-#include <boost/range/irange.hpp>
-#include <DataTypes/NestedUtils.h>
 
-#include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
-// clang-format on
+#if USE_PARQUET && USE_LOCAL_FORMATS
+#    include <DataTypes/NestedUtils.h>
+#    include <arrow/record_batch.h>
+#    include <arrow/table.h>
+#    include <boost/range/irange.hpp>
+#    include <Common/Stopwatch.h>
+#    include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
+
 using namespace DB;
 
 namespace local_engine

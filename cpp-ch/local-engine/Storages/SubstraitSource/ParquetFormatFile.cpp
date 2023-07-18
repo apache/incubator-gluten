@@ -1,22 +1,21 @@
 #include "ParquetFormatFile.h"
-// clang-format off
+
 #if USE_PARQUET
 
-#include <memory>
-#include <string>
-#include <utility>
+#    include <memory>
+#    include <string>
+#    include <utility>
 
-#include <parquet/arrow/reader.h>
-#include <Common/Config.h>
-#include <Formats/FormatFactory.h>
-#include <Formats/FormatSettings.h>
-#include <IO/SeekableReadBuffer.h>
-#include <Storages/ArrowParquetBlockInputFormat.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
-#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#    include <Formats/FormatFactory.h>
+#    include <Formats/FormatSettings.h>
+#    include <IO/SeekableReadBuffer.h>
+#    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#    include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#    include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#    include <Storages/ArrowParquetBlockInputFormat.h>
+#    include <parquet/arrow/reader.h>
+#    include <Common/Config.h>
 
-// clang-format on
 namespace DB
 {
 namespace ErrorCodes
@@ -51,9 +50,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         required_row_groups = collectRequiredRowGroups(total_row_groups);
 
     auto format_settings = DB::getFormatSettings(context);
-// clang-format off
-#if USE_LOCAL_FORMATS
-    // clang-format on
+#    if USE_LOCAL_FORMATS
     format_settings.parquet.import_nested = true;
 
     std::vector<int> row_group_indices;
@@ -63,9 +60,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 
     auto input_format
         = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
-// clang-format off
-#else
-    // clang-format on
+#    else
     std::vector<int> total_row_group_indices(total_row_groups);
     std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
 
@@ -83,11 +78,17 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
     auto input_format = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
-// clang-format off
-#endif
-    // clang-format on
+#    endif
     res->input = input_format;
     return res;
+}
+
+DB::NamesAndTypesList ParquetFormatFile::getSchema() const
+{
+    auto in = read_buffer_builder->build(file_info);
+    auto format_settings = DB::getFormatSettings(context);
+    DB::ParquetSchemaReader reader(*in, format_settings);
+    return reader.readSchema();
 }
 
 std::optional<size_t> ParquetFormatFile::getTotalRows()

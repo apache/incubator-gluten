@@ -3,11 +3,10 @@
 #include <Common/Config.h>
 
 #if USE_PARQUET && USE_LOCAL_FORMATS
-// clang-format off
-#include <Formats/FormatSettings.h>
-#include <Processors/Formats/IInputFormat.h>
-#include <Processors/Formats/ISchemaReader.h>
-// clang-format on
+#    include <Formats/FormatSettings.h>
+#    include <Processors/Formats/IInputFormat.h>
+#    include <Processors/Formats/ISchemaReader.h>
+
 namespace ch_parquet::arrow
 {
 class FileReader;

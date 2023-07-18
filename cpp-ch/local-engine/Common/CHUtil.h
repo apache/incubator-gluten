@@ -33,7 +33,11 @@ public:
     static constexpr UInt64 FLAT_NESTED_TABLE = 2;
     // flatten the struct and array(struct) columns.
     // It's different from Nested::flattend()
-    static DB::Block flattenBlock(const DB::Block & block, UInt64 flags = FLAT_STRUCT | FLAT_NESTED_TABLE, bool recursively = false);
+    static DB::Block flattenBlock(
+        const DB::Block & block,
+        UInt64 flags = FLAT_STRUCT | FLAT_NESTED_TABLE,
+        bool recursively = false,
+        const std::unordered_set<size_t> & columns_to_skip_flatten = {});
 };
 
 /// Use this class to extract element columns from columns of nested type in a block, e.g. named Tuple.
