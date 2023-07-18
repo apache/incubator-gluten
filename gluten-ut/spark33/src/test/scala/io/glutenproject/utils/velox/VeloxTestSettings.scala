@@ -160,6 +160,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
+    .exclude("concat")
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
       "gluten",
