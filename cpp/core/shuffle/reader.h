@@ -44,8 +44,10 @@ class Reader {
   arrow::Status close();
   int64_t getDecompressTime();
 
- private:
+ protected:
   std::shared_ptr<arrow::MemoryPool> pool_;
+
+ private:
   std::shared_ptr<arrow::io::InputStream> in_;
   ReaderOptions options_;
   std::shared_ptr<arrow::Schema> writeSchema_;

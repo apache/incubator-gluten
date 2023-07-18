@@ -197,7 +197,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       uint32_t numPartitions,
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options)
-      : ShuffleWriter(numPartitions, partitionWriterCreator, options),
+      : ShuffleWriter(numPartitions, partitionWriterCreator, std::move(options)),
         veloxPool_(defaultLeafVeloxMemoryPool()),
         arena_(std::make_unique<facebook::velox::StreamArena>(veloxPool_.get())) {}
 
@@ -268,6 +268,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Status evictPartitionsOnDemand(int64_t* size);
 
   arrow::Status evictPartition(int32_t partitionId);
+
+  std::shared_ptr<arrow::RecordBatch> makeRecordBatch(
+      uint32_t numRows,
+      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
   std::shared_ptr<arrow::Buffer> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 

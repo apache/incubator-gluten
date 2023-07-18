@@ -57,6 +57,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", configDirs.c_str(), 1);
 
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
+    shuffleWriterOptions_.write_schema = true;
 
     bool prefer_evict = GetParam();
     shuffleWriterOptions_.prefer_evict = prefer_evict;
@@ -136,6 +137,10 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     return fileReader;
   }
 
+  // getRecordBatches() {
+  //   GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
+  // }
+
   void splitRowVector(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
     GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb));
@@ -163,14 +168,17 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
 
     std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
     ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter.dataFile()));
-    auto expectedSchema = shuffleWriter.writeSchema();
+    auto expectedSchema = shuffleWriter.compressWriteSchema();
     // verify schema
-    ASSERT_TRUE(fileReader->schema()->Equals(expectedSchema, true));
+    ASSERT_TRUE(fileReader->schema()->Equals(expectedSchema, true))
+        << "File schema: " << fileReader->schema()->ToString() << " expectedSchema: " << expectedSchema->ToString()
+        << std::endl;
     std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
     ASSERT_NOT_OK(fileReader->ReadAll(&batches));
     ASSERT_EQ(batches.size(), vectors.size());
     for (int32_t i = 0; i < batches.size(); i++) {
-      auto deserialized = VeloxShuffleReader::readRowVector(*batches[i], asRowType(vectors[i]->type()), pool_.get());
+      auto deserialized =
+          VeloxShuffleReader::readRowVector(*batches[i], asRowType(vectors[i]->type()), arrowPool_.get(), pool_.get());
       velox::test::assertEqualVectors(vectors[i], deserialized);
     }
   }
@@ -185,7 +193,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     checkFileExists(shuffleWriter.dataFile());
     // verify output temporary files
     const auto& lengths = shuffleWriter.partitionLengths();
-    auto expectedSchema = shuffleWriter.writeSchema();
+    auto expectedSchema = shuffleWriter.compressWriteSchema();
     ASSERT_EQ(lengths.size(), expectPartitionLength);
     int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0);
 
@@ -206,7 +214,8 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
       // auto partitionVectors = std::move(expectedVectors[i]);
       ASSERT_EQ(expectedVectors[i].size(), batches.size());
       for (int32_t j = 0; j < batches.size(); j++) {
-        auto deserialized = VeloxShuffleReader::readRowVector(*batches[j], asRowType(dataType), pool_.get());
+        auto deserialized =
+            VeloxShuffleReader::readRowVector(*batches[j], asRowType(dataType), arrowPool_.get(), pool_.get());
         velox::test::assertEqualVectors(expectedVectors[i][j], deserialized);
       }
     }
@@ -252,6 +261,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
   velox::RowVectorPtr hashInputVector2_;
 
   std::shared_ptr<velox::memory::MemoryPool> pool_ = defaultLeafVeloxMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
 };
 
 arrow::Status splitRowVectorStatus(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {

@@ -85,7 +85,13 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
   // TODO: helper methods
   arrow::Status writeSchemaPayload(arrow::io::OutputStream* os) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, getSchemaPayload(shuffleWriter_->writeSchema()));
+    std::shared_ptr<arrow::ipc::IpcPayload> payload;
+    if (shuffleWriter_->options().compression_type == arrow::Compression::type::UNCOMPRESSED) {
+      std::cout << "uncompress schema" << std::endl;
+      ARROW_ASSIGN_OR_RAISE(payload, getSchemaPayload(shuffleWriter_->writeSchema()));
+    } else {
+      ARROW_ASSIGN_OR_RAISE(payload, getSchemaPayload(shuffleWriter_->compressWriteSchema()));
+    }
     int32_t metadataLength = 0; // unused
     RETURN_NOT_OK(
         arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));

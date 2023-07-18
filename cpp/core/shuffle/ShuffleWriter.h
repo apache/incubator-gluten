@@ -23,6 +23,7 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
+#include "utils/compression.h"
 
 namespace gluten {
 
@@ -40,9 +41,9 @@ struct ShuffleWriterOptions {
   int32_t num_sub_dirs = kDefaultNumSubDirs;
   int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
-
+  std::shared_ptr<arrow::util::Codec> codec = createArrowIpcCodec(compression_type);
   bool prefer_evict = true;
-  bool write_schema = true; // just used in test
+  bool write_schema = false;
   bool buffered_write = false;
 
   std::string data_file;
@@ -74,9 +75,9 @@ class ShuffleBufferPool {
     return arrow::Status::OK();
   }
 
-  arrow::Status allocate(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
+  arrow::Status allocate(std::shared_ptr<arrow::Buffer>& buffer, int64_t size);
 
-  arrow::Status allocateDirectly(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
+  arrow::Status allocateDirectly(std::shared_ptr<arrow::ResizableBuffer>& buffer, int64_t size);
 
   void reset() {
     if (combineBuffer_ != nullptr) {
@@ -120,6 +121,8 @@ class ShuffleWriter {
   virtual arrow::Status stop() = 0;
 
   virtual std::shared_ptr<arrow::Schema> writeSchema();
+
+  virtual std::shared_ptr<arrow::Schema> compressWriteSchema();
 
   virtual std::shared_ptr<arrow::Schema>& schema() {
     return schema_;
@@ -219,7 +222,7 @@ class ShuffleWriter {
   ShuffleWriter(
       int32_t numPartitions,
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
-      ShuffleWriterOptions options)
+      const ShuffleWriterOptions& options)
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)),
@@ -244,6 +247,7 @@ class ShuffleWriter {
 
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::Schema> writeSchema_;
+  std::shared_ptr<arrow::Schema> compressWriteSchema_;
 
   std::vector<int64_t> partitionCachedRecordbatchSize_; // in bytes
   std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partitionCachedRecordbatch_;

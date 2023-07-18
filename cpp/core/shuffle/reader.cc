@@ -44,7 +44,8 @@ Reader::Reader(
     GLUTEN_ASSIGN_OR_THROW(writeSchema_, arrow::ipc::ReadSchema(*firstMessage_, nullptr))
     firstMessageConsumed_ = true;
   } else {
-    writeSchema_ = toWriteSchema(*schema);
+    // TODO, ignore codec
+    writeSchema_ = toCompressWriteSchema(*schema);
   }
 }
 
