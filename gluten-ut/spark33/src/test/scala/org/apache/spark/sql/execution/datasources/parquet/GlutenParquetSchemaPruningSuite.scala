@@ -27,6 +27,9 @@ class GlutenParquetV1SchemaPruningSuite
   // disable column reader for nested type
   override protected val vectorizedReaderNestedEnabledKey: String =
     SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set("spark.memory.offHeap.size", "3g")
+  }
 }
 
 @ExtendedSQLTest
@@ -35,4 +38,7 @@ class GlutenParquetV2SchemaPruningSuite
   with GlutenSQLTestsBaseTrait {
   override protected val vectorizedReaderNestedEnabledKey: String =
     SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set("spark.memory.offHeap.size", "3g")
+  }
 }
