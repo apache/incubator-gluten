@@ -116,6 +116,7 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   private val txt_table_name = "hive_txt_test"
+  private val txt_user_define_input = "hive_txt_user_define_input"
   private val json_table_name = "hive_json_test"
 
   private val txt_table_create_sql = "create table if not exists %s (".format(txt_table_name) +
@@ -154,6 +155,25 @@ class GlutenClickHouseHiveTableSuite()
     "ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'" +
     "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'" +
     "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+  private val txt_table_user_define_create_sql =
+    "create table if not exists %s (".format(txt_user_define_input) +
+      "string_field string," +
+      "int_field int," +
+      "long_field long," +
+      "float_field float," +
+      "double_field double," +
+      "short_field short," +
+      "byte_field byte," +
+      "bool_field boolean," +
+      "decimal_field decimal(23, 12)," +
+      "date_field date," +
+      "timestamp_field timestamp," +
+      "array_field array<int>," +
+      "array_field_with_null array<int>," +
+      "map_field map<int, long>," +
+      "map_field_with_null map<int, long>) " +
+      "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.UserDefineTextInputFormat'" +
+      "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
 
   def genTestData(): Seq[AllDataTypesWithComplextType] = {
     (0 to 199).map {
@@ -211,6 +231,7 @@ class GlutenClickHouseHiveTableSuite()
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
     initializeTable(txt_table_name, txt_table_create_sql, null)
+    initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
     initializeTable(json_table_name, json_table_create_sql, "2023-06-05")
   }
 
@@ -247,6 +268,31 @@ class GlutenClickHouseHiveTableSuite()
          |        sum(short_field),
          |        sum(decimal_field)
          | from $txt_table_name
+         | group by string_field
+         | order by string_field
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        val txtFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(txtFileScan.size == 1)
+      })
+  }
+
+  test("test hive text table using user define input format") {
+    val sql =
+      s"""
+         | select string_field,
+         |        sum(int_field),
+         |        avg(long_field),
+         |        min(float_field),
+         |        max(double_field),
+         |        sum(short_field),
+         |        sum(decimal_field)
+         | from $txt_user_define_input
          | group by string_field
          | order by string_field
          |""".stripMargin

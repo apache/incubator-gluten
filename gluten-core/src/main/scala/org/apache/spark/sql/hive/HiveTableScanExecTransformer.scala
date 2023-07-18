@@ -25,6 +25,8 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.ReadRelNode
+
+import org.apache.hadoop.mapred.TextInputFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
@@ -40,6 +42,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
+import org.apache.spark.util.Utils
 
 import scala.collection.JavaConverters
 import scala.collection.mutable.ArrayBuffer
@@ -139,21 +142,23 @@ class HiveTableScanExecTransformer(requestedAttributes: Seq[Attribute],
         } else hasComplexType
         outputFieldTypes.append(StructField(x.name, x.dataType, x.nullable))
       })
+
     tableMeta.storage.inputFormat match {
-      case Some("org.apache.hadoop.mapred.TextInputFormat") =>
+      case Some(inputFormat) if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(
+        Utils.classForName(inputFormat)) =>
         tableMeta.storage.serde match {
           case Some("org.openx.data.jsonserde.JsonSerDe") |
                Some("org.apache.hive.hcatalog.data.JsonSerDe") =>
             val scan = JsonScan(
-                session,
-                fileIndex,
-                tableMeta.schema,
-                StructType(outputFieldTypes.toArray),
-                tableMeta.partitionSchema,
-                new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
-                Array.empty,
-                partitionPruningPred,
-                Seq.empty)
+              session,
+              fileIndex,
+              tableMeta.schema,
+              StructType(outputFieldTypes.toArray),
+              tableMeta.partitionSchema,
+              new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
+              Array.empty,
+              partitionPruningPred,
+              Seq.empty)
             Option.apply(GlutenTextBasedScanWrapper.wrap(scan, tableMeta.dataSchema))
           case _ =>
             val scan = SparkShimLoader.getSparkShims.getTextScan(
@@ -234,6 +239,8 @@ object HiveTableScanExecTransformer {
 
   val NULL_VALUE: Char = 0x00
   val DEFAULT_FIELD_DELIMITER: Char = 0x01
+  val TEXT_INPUT_FORMAT_CLASS: Class[TextInputFormat] =
+    Utils.classForName("org.apache.hadoop.mapred.TextInputFormat")
 
   def isHiveTableScan(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[HiveTableScanExec]
