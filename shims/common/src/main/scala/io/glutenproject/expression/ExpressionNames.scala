@@ -247,4 +247,7 @@ object ExpressionNames {
 
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"
+
+  // A placeholder for native UDF functions
+  final val UDF_PLACEHOLDER = "udf_placeholder"
 }

@@ -194,7 +194,8 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
         memory/ColumnarBatch.cc
-        utils/TaskContext.cc)
+        utils/TaskContext.cc
+        utils/StringUtil.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})

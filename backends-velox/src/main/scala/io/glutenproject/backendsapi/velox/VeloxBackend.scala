@@ -45,6 +45,9 @@ class VeloxBackend extends Backend {
 object BackendSettings extends BackendSettingsApi {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
+
+  val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
+
   override def supportFileFormatRead(
       format: ReadFileFormat,
       fields: Array[StructField],

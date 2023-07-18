@@ -120,17 +120,16 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(dwio::common::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
   add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_reader.a")
   add_velox_dependency(parquet::reader::native "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_native_parquet_reader.a")
-  if(BUILD_BENCHMARKS)
-    add_velox_dependency(parquet::reader::duckdb "${VELOX_COMPONENTS_PATH}/dwio/parquet/duckdb_reader/libvelox_dwio_duckdb_parquet_reader.a")
-    add_velox_dependency(parquet::reader::duckdb_allocator "${VELOX_COMPONENTS_PATH}/duckdb/memory/libvelox_duckdb_allocator.a")
-    add_velox_dependency(parquet::reader::duckdb_conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
-    add_velox_dependency(duckdb::duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
-    add_velox_dependency(parquet::reader::duckdb_tpch_extension "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/libtpch_extension.a")
-    add_velox_dependency(dbgen "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/dbgen/libdbgen.a")
-  endif()
+  add_velox_dependency(parquet::reader::duckdb "${VELOX_COMPONENTS_PATH}/dwio/parquet/duckdb_reader/libvelox_dwio_duckdb_parquet_reader.a")
+  add_velox_dependency(parquet::reader::duckdb_allocator "${VELOX_COMPONENTS_PATH}/duckdb/memory/libvelox_duckdb_allocator.a")
+  add_velox_dependency(parquet::reader::duckdb_conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
+  add_velox_dependency(duckdb::duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
+  add_velox_dependency(parquet::reader::duckdb_tpch_extension "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/libtpch_extension.a")
+  add_velox_dependency(dbgen "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/dbgen/libdbgen.a")
 
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
 
+  add_velox_dependency(dwio::type::fbhive "${VELOX_COMPONENTS_PATH}/dwio/type/fbhive/libvelox_dwio_type_fbhive.a")
   add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
   add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
   add_velox_dependency(expression "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression.a")
@@ -236,9 +235,11 @@ set(VELOX_SRCS
     memory/LargeMemoryPool.cc
     memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
+    udf/UdfLoader.cc
     utils/VeloxArrowUtils.cc
     utils/ArrowTypeUtils.cc
     jni/JniFileSystem.cc
+    jni/JniUdf.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
@@ -336,3 +337,5 @@ if(ENABLE_S3)
   find_awssdk()
   target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()
+
+add_subdirectory(udf/examples)

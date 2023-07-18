@@ -31,8 +31,9 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.AggregateFunctionRewriteRule
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, GetStructField, Literal, NamedExpression, StringTrim}
+import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier}
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, ExpressionInfo, GetStructField, Literal, NamedExpression, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -46,6 +47,7 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
+import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -389,6 +391,13 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
 
   /** Define backend specfic expression mappings. */
   override def extraExpressionMappings: Seq[Sig] = {
-    Seq(Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT))
+    Seq(
+      Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
+      Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER))
+  }
+
+  override def genInjectedFunctions()
+      : Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
+    UDFResolver.loadAndGetFunctionDescriptions
   }
 }

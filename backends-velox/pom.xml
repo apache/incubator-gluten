@@ -15,7 +15,8 @@
 
   <properties>
     <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-    <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
+    <cpp.build.dir>../cpp/build/</cpp.build.dir>
+    <cpp.releases.dir>${cpp.build.dir}/releases/</cpp.releases.dir>
   </properties>
 
   <profiles>
@@ -168,7 +169,7 @@
   <build>
     <resources>
       <resource>
-        <directory>${cpp.build.dir}</directory>
+        <directory>${cpp.releases.dir}</directory>
       </resource>
       <resource>
         <directory>${resource.dir}</directory>
@@ -204,6 +205,11 @@
       <plugin>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
+        <configuration>
+          <systemProperties>
+            <velox.udf.lib.path>${cpp.build.dir}/velox/udf/examples/libmyudf.so</velox.udf.lib.path>
+          </systemProperties>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

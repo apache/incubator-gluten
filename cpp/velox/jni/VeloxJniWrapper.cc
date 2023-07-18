@@ -21,6 +21,7 @@
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
 #include <exception>
+#include "JniUdf.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxInitializer.h"
 #include "config/GlutenConfig.h"
@@ -57,6 +58,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   FLAGS_logtostderr = true;
   gluten::getJniErrorsState()->initialize(env);
   gluten::initVeloxJniFileSystem(env);
+  gluten::initVeloxJniUDF(env);
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -67,6 +69,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   gluten::finalizeVeloxJniFileSystem(env);
+  gluten::finalizeVeloxJniUDF(env);
   google::ShutdownGoogleLogging();
 }
 
@@ -78,6 +81,15 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_initiali
   auto sparkConfs = gluten::getConfMap(env, planArray);
   gluten::setBackendFactory(veloxBackendFactory, sparkConfs);
   gluten::VeloxInitializer::create(sparkConfs);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibraries( // NOLINT
+    JNIEnv* env,
+    jclass clazz,
+    jstring libPaths) {
+  JNI_METHOD_START
+  gluten::jniLoadUdf(env, jStringToCString(env, libPaths));
   JNI_METHOD_END()
 }
 

@@ -39,6 +39,7 @@
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
 #include "jni/JniFileSystem.h"
+#include "udf/UdfLoader.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
@@ -197,6 +198,8 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
   }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
+
+  UdfLoader::getInstance()->registerUdf();
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
