@@ -166,14 +166,27 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
       }
     }
   }
-  std::unordered_set<std::string> functions = {"regexp_replace",    "split",         "split_part",
-                                               "factorial",         "concat_ws",     "rand",
-                                               "json_array_length", "from_unixtime", "to_unix_timestamp",
-                                               "unix_timestamp",    "repeat",        "translate",
-                                               "add_months",        "date_format",   "trunc",
-                                               "sequence",          "posexplode",    "arrays_overlap",
-                                               "array_min",         "array_max",     "approx_percentile"};
-  if (functions.find(name) != functions.end()) {
+  std::unordered_set<std::string> blackList = {
+      "regexp_replace",
+      "split",
+      "split_part",
+      "factorial",
+      "concat_ws",
+      "rand",
+      "json_array_length",
+      "from_unixtime",
+      "repeat",
+      "translate",
+      "add_months",
+      "date_format",
+      "trunc",
+      "sequence",
+      "posexplode",
+      "arrays_overlap",
+      "array_min",
+      "array_max",
+      "approx_percentile"};
+  if (blackList.find(name) != blackList.end()) {
     logValidateMsg("native validation failed due to: Function is not supported: " + name);
     return false;
   }
