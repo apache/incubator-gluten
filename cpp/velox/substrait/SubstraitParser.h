@@ -102,6 +102,7 @@ class SubstraitParser {
   /// keyword. For those functions with different names in Substrait and Velox,
   /// a mapping relation should be added here.
   std::unordered_map<std::string, std::string> substraitVeloxFunctionMap_ = {
+      {"date_format", "format_datetime"},
       {"is_not_null", "isnotnull"}, /*Spark functions.*/
       {"is_null", "isnull"},
       {"equal", "equalto"},

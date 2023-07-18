@@ -17,10 +17,21 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
+import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{JST, PST, UTC, UTC_OPT}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{IntegerType, StringType, TimestampType}
+import org.apache.spark.unsafe.types.UTF8String
+
+//import java.time.ZoneId
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
+  private val PST_OPT = Option(PST.getId)
+  private val JST_OPT = Option(JST.getId)
+
   override def testIntegralInput(testFunc: Number => Unit): Unit = {
     def checkResult(input: Long): Unit = {
       if (input.toByte == input) {
@@ -64,5 +75,61 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // Spark collect causes long overflow.
     // testIntegralFunc(Long.MaxValue)
     // testIntegralFunc(Long.MinValue)
+  }
+
+  // gluten only support set timezone with config
+  test("DateFormat adapted") {
+    Seq("legacy", "corrected").foreach { legacyParserPolicy =>
+      withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy) {
+        checkEvaluation(
+          DateFormatClass(Literal.create(null, TimestampType), Literal("y"), UTC_OPT),
+          null)
+        checkEvaluation(DateFormatClass(Cast(Literal(d), TimestampType, UTC_OPT),
+          Literal.create(null, StringType), UTC_OPT), null)
+
+        //Seq((UTC.getId, "13"), (PST.getId, "5"), (JST.getId, "22")).foreach {case (timezone: String, expected_hour: String) =>
+        Seq((UTC.getId, "13"), (JST.getId, "22")).foreach { case (timezone: String, expected_hour: String) =>
+          withSQLConf(SQLConf.SESSION_LOCAL_TIMEZONE.key -> timezone) {
+            checkEvaluation(DateFormatClass(Cast(Literal(d), TimestampType, Option(timezone)),
+              Literal("y")), "2015")
+            checkEvaluation(DateFormatClass(Literal(ts), Literal("y")), "2013")
+            checkEvaluation(DateFormatClass(Cast(Literal(d), TimestampType, Option(timezone)),
+              Literal("H")), "0")
+            checkEvaluation(DateFormatClass(Literal(ts), Literal("H")), expected_hour)
+          }
+        }
+
+        // Test escaping of format
+        GenerateUnsafeProjection.generate(
+          DateFormatClass(Literal(ts), Literal("\""), JST_OPT) :: Nil)
+
+        // SPARK-28072 The codegen path should work
+        checkEvaluation(
+          expression = DateFormatClass(
+            BoundReference(ordinal = 0, dataType = TimestampType, nullable = true),
+            BoundReference(ordinal = 1, dataType = StringType, nullable = true),
+            JST_OPT),
+          expected = "22",
+          inputRow = InternalRow(DateTimeUtils.fromJavaTimestamp(ts), UTF8String.fromString("H")))
+      }
+    }
+  }
+
+  test("DateFormat timezone hour adapted") {
+    Seq("legacy", "corrected").foreach { legacyParserPolicy =>
+      //Seq((UTC.getId, "13"), (PST.getId, "5"), (JST.getId, "22")).foreach {case (timezone: String, expected_hour: String) =>
+      Seq(("Asia/Shanghai", "21"), (JST.getId, "22")).foreach { case (timezone: String, expected_hour: String) =>
+        withSQLConf(
+          (SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy),
+          (SQLConf.SESSION_LOCAL_TIMEZONE.key -> timezone)) {
+          checkEvaluation(DateFormatClass(Cast(Literal(d), TimestampType, Option(timezone)),
+            Literal("y")), "2015")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("y")), "2013")
+          checkEvaluation(DateFormatClass(Cast(Literal(d), TimestampType, Option(timezone)),
+            Literal("H")), "0")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("H"), Option(timezone)), expected_hour)
+        }
+      }
+    }
   }
 }
