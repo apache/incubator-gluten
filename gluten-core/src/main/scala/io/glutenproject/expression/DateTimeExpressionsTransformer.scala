@@ -114,7 +114,7 @@ class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransfor
 
 /**
  * The failOnError depends on the config for ANSI. ANSI is not supported currently.
- * And timeZoneId is passed to velox config.
+ * And timeZoneId is passed to backend config.
  */
 case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTransformer,
   format: ExpressionTransformer, timeZoneId: Option[String], failOnError: Boolean,
