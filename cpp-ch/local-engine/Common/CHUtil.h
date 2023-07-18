@@ -97,9 +97,6 @@ public:
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(std::string * plan);
 
-    static void updateConfig(DB::ContextMutablePtr , std::string *);
-
-
    // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
@@ -109,7 +106,7 @@ public:
     inline static const String CH_RUNTIME_CONFIG_FILE = CH_RUNTIME_CONFIG_PREFIX + "config_file";
 
     inline static const String CH_RUNTIME_SETTINGS = "runtime_settings";
-    inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS;
+    inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS + ".";
 
     inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
     inline static const String SETTINGs_PATH = "local_engine.settings";
@@ -129,20 +126,23 @@ private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
 
-    static DB::Context::ConfigurationPtr initConfig(std::string * plan);
-    static void initLoggers(DB::Context::ConfigurationPtr config);
-    static void initEnvs(DB::Context::ConfigurationPtr config);
-    static std::unique_ptr<DB::Settings> initSettings(DB::Context::ConfigurationPtr config);
-    static void initContexts(DB::Context::ConfigurationPtr config);
-    static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
+    static void initConfig(std::string * plan);
+    static void initConfig();
+    static void initLoggers();
+    static void initEnvs();
+    static void initSettings();
+    static void initContexts();
     static void registerAllFactories();
-    static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, std::unique_ptr<DB::Settings> &);
-    static void applyConfig(DB::ContextMutablePtr, DB::Context::ConfigurationPtr config, std::unique_ptr<DB::Settings> &);
+    static void applyConfigAndSettings();
+    static void initCompiledExpressionCache();
 
     static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
 
     inline static std::once_flag init_flag;
+    inline static std::map<std::string, std::string> backend_conf_map;
+    inline static DB::Context::ConfigurationPtr config;
     inline static Poco::Logger * logger;
+    inline static DB::Settings settings;
 };
 
 class BackendFinalizerUtil

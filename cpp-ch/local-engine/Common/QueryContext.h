@@ -17,7 +17,7 @@ struct NativeAllocatorContext
 {
     std::shared_ptr<DB::CurrentThread::QueryScope> query_scope;
     std::shared_ptr<DB::ThreadStatus> thread_status;
-    DB::ContextMutablePtr query_context;
+    DB::ContextPtr query_context;
     std::shared_ptr<DB::ThreadGroup> group;
     ReservationListenerWrapperPtr listener;
 };
