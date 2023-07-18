@@ -240,6 +240,7 @@ set(VELOX_SRCS
     memory/VeloxColumnarBatch.cc
     utils/VeloxArrowUtils.cc
     utils/ArrowTypeUtils.cc
+    jni/JniFileSystem.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc

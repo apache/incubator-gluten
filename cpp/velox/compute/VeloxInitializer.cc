@@ -38,6 +38,7 @@
 #ifdef ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
+#include "jni/JniFileSystem.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
@@ -105,6 +106,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   FLAGS_SkipRowSortInWindowOp = true;
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
+  gluten::registerJniFileSystem(); // JNI filesystem, for spilling-to-heap if we have extra JVM heap spaces
 
   // spill mode
   std::string spillStrategy;
@@ -120,9 +122,11 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // mem cap ratio
   float_t memCapRatio = 0.75;
-  auto got = conf.find(kMemoryCapRatio);
-  if (got != conf.end()) {
-    memCapRatio = std::stof(got->second);
+  {
+    auto got = conf.find(kMemoryCapRatio);
+    if (got != conf.end()) {
+      memCapRatio = std::stof(got->second);
+    }
   }
 
   // mem tracker
@@ -138,9 +142,11 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // spill threshold ratio (out of the memory cap)
   float_t spillThresholdRatio = 0.6;
-  got = conf.find(kSpillThresholdRatio);
-  if (got != conf.end()) {
-    spillThresholdRatio = std::stof(got->second);
+  {
+    auto got = conf.find(kSpillThresholdRatio);
+    if (got != conf.end()) {
+      spillThresholdRatio = std::stof(got->second);
+    }
   }
 
   spillThreshold_ = (int64_t)(spillThresholdRatio * (float_t)maxMemory);
