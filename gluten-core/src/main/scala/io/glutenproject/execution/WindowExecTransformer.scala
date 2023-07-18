@@ -17,11 +17,9 @@
 
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
 import com.google.protobuf.Any
 
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
@@ -29,7 +27,6 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.substrait.proto.SortField
 
@@ -174,7 +171,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
-      return notOk(s"unsupport window expression ${windowExpression.mkString(", ")}")
+      return ValidationResult
+        .notOk(s"Found unsupported window expression: ${windowExpression.mkString(", ")}")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
@@ -184,15 +182,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
       windowExpression, partitionSpec,
       orderSpec, child.output, operatorId, null, validation = true)
 
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext,
-        Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {

@@ -18,9 +18,8 @@
 package io.glutenproject.execution
 
 import java.util
-import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.GlutenConfig
+
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
@@ -28,7 +27,6 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -89,14 +87,8 @@ case class LimitTransformer(child: SparkPlan,
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
     val relNode = getRelNode(context, operatorId, offset, count, child.output, null, true)
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+
+    doNativeValidation(context, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {

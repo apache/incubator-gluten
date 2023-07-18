@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.ValidatorApi
 
 import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructType, TimestampType}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.validate.NativePlanValidatorInfo
+import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -37,7 +37,7 @@ class Validator extends ValidatorApi {
     validator.doValidate(plan.toProtobuf.toByteArray)
   }
 
-  override def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidatorInfo = {
+  override def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidationInfo = {
     val validator = new NativePlanEvaluator()
     validator.doValidateWithFallBackLog(plan.toProtobuf.toByteArray)
   }

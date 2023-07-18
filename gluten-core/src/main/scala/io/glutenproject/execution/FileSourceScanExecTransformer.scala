@@ -123,8 +123,9 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override protected def doValidateInternal(): ValidationResult = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
+    // TODO Support bucketed scan
     if (bucketedScan) {
-      throw new UnsupportedOperationException("bucketed scan is not supported")
+      throw new UnsupportedOperationException("Bucketed scan is unsupported for now.")
     }
     super.doValidateInternal()
   }

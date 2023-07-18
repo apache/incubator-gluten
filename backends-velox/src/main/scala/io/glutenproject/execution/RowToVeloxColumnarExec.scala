@@ -25,6 +25,7 @@ import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
+
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.ArrowBuf
 

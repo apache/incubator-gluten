@@ -51,7 +51,7 @@ case class CHShuffledHashJoinExecTransformer(
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
     if (shouldFallback) {
-      return notOk("ch join validate fail")
+      return ValidationResult.notOk("ch join validate fail")
     }
     super.doValidateInternal()
   }
@@ -86,10 +86,10 @@ case class CHBroadcastHashJoinExecTransformer(
       CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
 
     if (shouldFallback) {
-      return notOk("ch join validate fail")
+      return ValidationResult.notOk("ch join validate fail")
     }
     if (isNullAwareAntiJoin) {
-      return notOk("ch does not support NAAJ")
+      return ValidationResult.notOk("ch does not support NAAJ")
     }
     super.doValidateInternal()
   }

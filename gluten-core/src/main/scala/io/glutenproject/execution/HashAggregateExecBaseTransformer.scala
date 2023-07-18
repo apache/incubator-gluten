@@ -17,7 +17,6 @@
 
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -28,7 +27,6 @@ import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -142,22 +140,14 @@ abstract class HashAggregateExecBaseTransformer(
     val aggParams = new AggregationParams
     val relNode = getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
     if (aggregateAttributes.exists(attr => !checkType(attr.dataType))) {
-      return notOk("does not support data type in aggregation expression," +
+      return ValidationResult.notOk("Found not supported data type in aggregation expression," +
         s"${aggregateAttributes.map(_.dataType)}")
     }
     if (groupingExpressions.exists(attr => !checkType(attr.dataType))) {
-      return notOk("does not support data type in group expression," +
+      return ValidationResult.notOk("Found not supported data type in group expression," +
         s"${groupingExpressions.map(_.dataType)}")
     }
-    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-    // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -459,7 +449,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case Sum(_, _) =>
         mode match {
@@ -481,7 +471,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case Count(_) =>
         mode match {
@@ -495,7 +485,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg | _: BitXorAgg =>
         mode match {
@@ -510,7 +500,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case _: Corr =>
         mode match {
@@ -529,7 +519,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: ${other}.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case _: CovPopulation | _: CovSample =>
         mode match {
@@ -538,7 +528,7 @@ abstract class HashAggregateExecBaseTransformer(
             val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
             assert(aggBufferAttr.size == expectedBufferSize,
               s"Aggregate function ${aggregateFunc}" +
-                s" expects ${expectedBufferSize} buffer attribute.")
+                s" expects ${expectedBufferSize} buffer attributes.")
             for (index <- aggBufferAttr.indices) {
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
               aggregateAttr += attr
@@ -548,7 +538,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: ${other}.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         mode match {
@@ -563,7 +553,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
         // for spark33
@@ -580,7 +570,7 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case _: CollectList | _: CollectSet =>
         mode match {
@@ -595,10 +585,11 @@ abstract class HashAggregateExecBaseTransformer(
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
           case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
       case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
+        throw new UnsupportedOperationException(
+          s"Unsupported aggregate function in getAttrForAggregateExpr")
     }
     resIndex
   }

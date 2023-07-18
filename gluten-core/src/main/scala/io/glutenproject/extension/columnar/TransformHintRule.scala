@@ -96,7 +96,7 @@ object TransformHints {
   }
 
   def tagNotTransformable(plan: SparkPlan, validationResult: ValidationResult): Unit = {
-    if (!validationResult.validated) {
+    if (!validationResult.isValid) {
       tag(plan, TRANSFORM_UNSUPPORTED(validationResult.reason))
     }
   }
@@ -555,7 +555,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                     TransformHints.tagNotTransformable(bhj,
                       "it's a materialized broadcast exchange or reused broadcast exchange")
                   case ColumnarBroadcastExchangeExec(mode, child) =>
-                    if (!isBhjTransformable.validated) {
+                    if (!isBhjTransformable.isValid) {
                       throw new IllegalStateException(s"BroadcastExchange has already been" +
                         s" transformed to columnar version but BHJ is determined as" +
                         s" non-transformable: ${bhj.toString()}")
@@ -637,11 +637,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             var tagged: ValidationResult = null
             val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
             tagged = limitPlan.doValidate()
-            if (tagged.validated) {
+            if (tagged.isValid) {
               val sortPlan = SortExecTransformer(plan.sortOrder, false, plan.child)
               tagged = sortPlan.doValidate()
             }
-            if (tagged.validated) {
+            if (tagged.isValid) {
               val projectPlan = ProjectExecTransformer(plan.projectList, plan.child)
               tagged = projectPlan.doValidate()
             }
@@ -661,7 +661,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
 
   implicit class EncodeTransformableTagImplicits(validationResult: ValidationResult) {
     def toTransformHint: TransformHint = {
-      if (validationResult.validated) {
+      if (validationResult.isValid) {
         TRANSFORM_SUPPORTED()
       } else {
         TRANSFORM_UNSUPPORTED(validationResult.reason)

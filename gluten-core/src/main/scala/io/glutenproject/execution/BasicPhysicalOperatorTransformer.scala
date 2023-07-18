@@ -17,7 +17,6 @@
 
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -29,7 +28,6 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.SparkConf
@@ -144,30 +142,24 @@ abstract class FilterExecTransformerBase(val cond: Expression,
   override protected def doValidateInternal(): ValidationResult = {
     if (cond == null) {
       // The computing of this Filter is not needed.
-      return ok()
+      return ValidationResult.ok
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = getRelNode(
       substraitContext, cond, child.output, operatorId, null, validation = true)
-    // For now arrow backend only support scan + filter pattern
+    // For now backends only support scan + filter pattern
     if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
       if (!(child.isInstanceOf[DataSourceScanExec] ||
         child.isInstanceOf[DataSourceV2ScanExecBase])) {
-        return notOk("child is not DataSourceScanExec or DataSourceV2ScanExecBase")
+        return ValidationResult
+          .notOk("Filter operator's child is not DataSourceScanExec or DataSourceV2ScanExecBase")
       }
     }
 
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -236,14 +228,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     val relNode = getRelNode(
       substraitContext, projectList, child.output, operatorId, null, validation = true)
     // Then, validate the generated plan in native engine.
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
@@ -386,12 +371,10 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
     copy(children = newChildren)
 
   def columnarInputRDD: RDD[ColumnarBatch] = {
-    if (children.size == 0) {
+    if (children.isEmpty) {
       throw new IllegalArgumentException(s"Empty children")
     }
-    children.map {
-      case c => Seq(c.executeColumnar())
-    }.reduce {
+    children.map(c => Seq(c.executeColumnar())).reduce {
       (a, b) => a ++ b
     }.reduce(
       (a, b) => a.union(b)
@@ -407,9 +390,9 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
-      return notOk(s"schema check failed, $schema")
+      return ValidationResult.notOk(s"Found schema check failure for $schema in $nodeName")
     }
-    ok()
+    ValidationResult.ok
   }
 }
 

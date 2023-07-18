@@ -65,7 +65,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan)
         case _: MapType =>
         case _: StructType =>
         case _ =>
-          throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
+          throw new UnsupportedOperationException(s"${field.dataType} is unsupported in " +
             s"VeloxColumnarToRowExec.")
       }
     }

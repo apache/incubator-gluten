@@ -16,17 +16,12 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
-
-import com.google.common.collect.Lists
 
 import java.util
 
@@ -41,25 +36,14 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
     if (leftCondition == null) {
       // All the filters can be pushed down and the computing of this Filter
       // is not needed.
-      return ok()
+      return ValidationResult.ok
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode =
       getRelNode(substraitContext, leftCondition, child.output, operatorId, null, validation = true)
-    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-    // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new CHNativeExpressionEvaluator()
-      if (validator.doValidate(planNode.toProtobuf.toByteArray)) {
-        ok()
-      } else {
-        notOk("native check failure")
-      }
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {

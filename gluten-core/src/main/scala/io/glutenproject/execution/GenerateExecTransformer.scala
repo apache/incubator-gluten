@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
-import io.glutenproject.GlutenConfig
+
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
@@ -36,11 +36,9 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.expression.ExpressionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 
 import java.util.ArrayList
 import com.google.protobuf.Any
-import com.google.common.collect.Lists
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 
@@ -88,9 +86,11 @@ case class GenerateExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
+  override def nodeName: String = "GenerateExec"
+
   override protected def doValidateInternal(): ValidationResult = {
     if (BackendsApiManager.veloxBackend) {
-      return notOk("Velox backend does not support")
+      return ValidationResult.notOk(s"Velox backend does not support this operator: ${nodeName}")
     }
 
     val context = new SubstraitContext
@@ -113,16 +113,8 @@ case class GenerateExecTransformer(
 
     val relNode = getRelNode(context, operatorId, child.output, null, generatorNode,
       childOutputNodes, true)
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
-      if (BackendsApiManager.getValidatorApiInstance.doValidate(planNode)) {
-        ok()
-      } else {
-        notOk("substrait plan node validate failure")
-      }
-    } else {
-      ok()
-    }
+
+    doNativeValidation(context, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {

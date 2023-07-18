@@ -102,7 +102,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
               newChild)
         case _ =>
           // If the child is not transformable, transform the grandchildren only.
-          logOnLevel(columnarConf.validateFailureLogLevel,
+          logOnLevel(columnarConf.validationLogLevel,
             s"Validation failed for plan: ${plan.nodeName}, due to: empty child output.")
           val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
           plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
@@ -140,7 +140,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
             reuseSubquery)
           newScan match {
             case ts: TransformSupport =>
-              if (ts.doValidate().validated) {
+              if (ts.doValidate().isValid) {
                 ts
               } else {
                 replaceWithTransformerPlan(plan.child)
@@ -510,7 +510,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
         plan.tableIdentifier,
         plan.disableBucketedScan)
       val validationResult = transformer.doValidate()
-      if (validationResult.validated) {
+      if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         transformer
       } else {
@@ -531,7 +531,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
       val transformer = new BatchScanExecTransformer(plan.output,
         plan.scan, newPartitionFilters)
       val validationResult = transformer.doValidate()
-      if (validationResult.validated) {
+      if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         transformer
       } else {
@@ -565,7 +565,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
       val nativeConversion =
         BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
       val validationResult = nativeConversion.doValidate()
-      if (validationResult.validated) {
+      if (validationResult.isValid) {
         nativeConversion
       } else {
         TransformHints.tagNotTransformable(plan, validationResult)
