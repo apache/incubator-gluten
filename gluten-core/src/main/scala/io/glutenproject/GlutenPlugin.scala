@@ -150,18 +150,6 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     val offHeapPerTask = offHeapSize / (executorCores / taskCores)
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
 
-    // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
-    if (BackendsApiManager.getSettings.disableVanillaColumnarReaders(conf)) {
-      // FIXME Hongze 22/12/06
-      //  BatchScan.scala in shim was not always loaded by class loader.
-      //  The file should be removed and the "ClassCastException" issue caused by
-      //  spark.sql.<format>.enableVectorizedReader=true should be fixed in another way.
-      //  Before the issue was fixed we force the use of vanilla row reader by using
-      //  the following statement.
-      conf.set("spark.sql.parquet.enableVectorizedReader", "false")
-      conf.set("spark.sql.orc.enableVectorizedReader", "false")
-      conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
-    }
     // We will apply another rule named GlutenRemoveRedundantSorts to remove redundant sort after
     // columnar rule's TransformPreOverrides. Since sort can be removed from the use of hash
     // agg to replace sort agg, but the sort order is not satisfied by latter executed operator.

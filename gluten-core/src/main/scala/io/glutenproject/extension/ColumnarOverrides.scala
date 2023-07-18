@@ -42,6 +42,7 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -623,7 +624,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
   extends Rule[SparkPlan] {
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  private def replaceVithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
+  private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
     case c2r: ColumnarToRowExecBase if isVanillaColumnarReader(c2r.child) =>
       ColumnarToRowExec(c2r.child)
     case c2r: ColumnarToRowExec if isVanillaColumnarReader(c2r.child) =>
@@ -631,7 +632,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
     case _ if isVanillaColumnarReader(plan) =>
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
     case _ =>
-      plan.withNewChildren(plan.children.map(replaceVithVanillaColumnarToRow))
+      plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToRow))
   }
 
   private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
@@ -640,14 +641,28 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
     case _ => false
   }
 
-  def apply(plan: SparkPlan): SparkPlan =
-    if (GlutenConfig.getConf.enableVanillaColumnarReaders) {
-      val newPlan = replaceVithVanillaColumnarToRow(plan)
+  def apply(plan: SparkPlan): SparkPlan = {
+    if (GlutenConfig.getConf.enableVanillaVectorizedReaders) {
+      session.conf.set(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key, "true")
+      session.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "true")
+      session.conf.set(SQLConf.CACHE_VECTORIZED_READER_ENABLED.key, "true")
+      val newPlan = replaceWithVanillaColumnarToRow(plan)
       planChangeLogger.logRule(ruleName, plan, newPlan)
       newPlan
     } else {
+      // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
+      // FIXME Hongze 22/12/06
+      //  BatchScan.scala in shim was not always loaded by class loader.
+      //  The file should be removed and the "ClassCastException" issue caused by
+      //  spark.sql.<format>.enableVectorizedReader=true should be fixed in another way.
+      //  Before the issue was fixed we force the use of vanilla row reader by using
+      //  the following statement.
+      session.conf.set(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key, "false")
+      session.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "false")
+      session.conf.set(SQLConf.CACHE_VECTORIZED_READER_ENABLED.key, "false")
       plan
     }
+  }
 }
 
 case class ColumnarOverrideRules(session: SparkSession)

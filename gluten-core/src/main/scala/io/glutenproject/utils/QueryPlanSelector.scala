@@ -26,8 +26,6 @@ import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 
-import scala.util.Try
-
 object PhysicalPlanSelector extends QueryPlanSelector[SparkPlan] {
   override protected def validate(plan: SparkPlan): Boolean = {
     BackendsApiManager.getValidatorApiInstance.doSparkPlanValidate(plan)
@@ -59,11 +57,11 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }
-    val conf: Option[String] = session.conf.getOption(GlutenConfig.GLUTEN_ENABLE_KEY)
-    val ret = conf.flatMap((x: String) =>
-      Try(x.toBoolean).toOption).getOrElse(GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT)
-    logInfo(s"shouldUseGluten: $ret")
-    ret & validate(plan)
+    val glutenEnabled = session.conf.
+      get(GlutenConfig.GLUTEN_ENABLE_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString).toBoolean
+    logInfo(s"shouldUseGluten: $glutenEnabled")
+
+    glutenEnabled & validate(plan)
   }
 
   def maybe(session: SparkSession, plan: T)(func: => T): T = {
