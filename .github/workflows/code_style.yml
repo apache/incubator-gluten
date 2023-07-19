@@ -50,6 +50,7 @@ jobs:
       - name: Check License Header
         if: ${{github.event.pull_request.base.sha}}
         run: |
+          pip install regex
           git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
           export BASE_COMMIT=${{github.event.pull_request.base.sha}}
           dev/check.py header main

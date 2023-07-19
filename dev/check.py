@@ -25,7 +25,7 @@ SCRIPTS = util.script_path()
 
 
 def header_command(commit, files, fix):
-    options = "-vk" if fix == "show" else "-i"
+    options = "-vk" if fix == "show" else "-iv"
 
     status, stdout, stderr = util.run(
         f"{SCRIPTS}/license-header.py {options} -", input=files
