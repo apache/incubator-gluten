@@ -747,7 +747,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jint bufferSize,
     jstring codecJstr,
     jstring codecBackendJstr,
-    jint batchCompressThreshold,
+    jint bufferCompressThreshold,
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
@@ -798,7 +798,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
 
   shuffleWriterOptions.task_attempt_id = (int64_t)taskAttemptId;
-  shuffleWriterOptions.batch_compress_threshold = batchCompressThreshold;
+  shuffleWriterOptions.buffer_compress_threshold = bufferCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);
@@ -960,7 +960,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jobject,
     jobject jniIn,
     jlong cSchema,
-    jlong allocId) {
+    jlong allocId,
+    jstring compressionType,
+    jstring compressionBackend) {
   JNI_METHOD_START
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocId);
   if (allocator == nullptr) {
@@ -971,6 +973,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   ReaderOptions options = ReaderOptions::defaults();
   options.ipc_read_options.memory_pool = pool.get();
   options.ipc_read_options.use_threads = false;
+  if (compressionType != nullptr) {
+    options.compression_type = getCompressionType(env, compressionType, compressionBackend);
+  }
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 

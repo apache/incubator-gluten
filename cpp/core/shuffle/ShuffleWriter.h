@@ -30,7 +30,7 @@ namespace gluten {
 namespace {
 static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
-static constexpr int32_t kDefaultBatchCompressThreshold = 256;
+static constexpr int32_t kDefaultBufferCompressThreshold = 1024;
 static constexpr int32_t kDefaultBufferAlignment = 64;
 } // namespace
 
@@ -39,7 +39,7 @@ struct ShuffleWriterOptions {
   int32_t buffer_size = kDefaultShuffleWriterBufferSize;
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
-  int32_t batch_compress_threshold = kDefaultBatchCompressThreshold;
+  int32_t buffer_compress_threshold = kDefaultBufferCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   std::shared_ptr<arrow::util::Codec> codec = createArrowIpcCodec(compression_type);
   bool prefer_evict = true;

@@ -71,8 +71,8 @@ class ColumnarShuffleWriter[K, V](
   private val compressionCodecBackend =
     GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
 
-  private val batchCompressThreshold =
-    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
+  private val bufferCompressThreshold =
+    GlutenConfig.getConf.columnarShuffleBufferCompressThreshold
 
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
 
@@ -128,7 +128,7 @@ class ColumnarShuffleWriter[K, V](
             nativeBufferSize,
             compressionCodec,
             compressionCodecBackend,
-            batchCompressThreshold,
+            bufferCompressThreshold,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,

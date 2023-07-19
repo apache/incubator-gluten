@@ -177,7 +177,7 @@ int64_t getMaxCompressedBufferSize(
     arrow::util::Codec* codec) {
   int64_t totalSize = 0;
   for (auto& buffer : buffers) {
-    if (buffer != nullptr) {
+    if (buffer != nullptr && buffer->size() != 0) {
       totalSize += codec->MaxCompressedLen(buffer->size(), nullptr);
     }
   }
@@ -189,12 +189,13 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     const std::shared_ptr<arrow::Schema> compressWriteSchema,
     ShuffleBufferPool* pool,
-    arrow::util::Codec* codec) {
+    arrow::util::Codec* codec,
+    int32_t bufferCompressThreshold) {
   std::vector<std::shared_ptr<arrow::Array>> arrays;
-  // header col, numRows
+  // header col, numRows, compressionType
   {
-    std::shared_ptr<arrow::Buffer> headerBuffer;
-    GLUTEN_THROW_NOT_OK(pool->allocate(headerBuffer, sizeof(uint32_t)));
+    std::shared_ptr<arrow::ResizableBuffer> headerBuffer;
+    GLUTEN_THROW_NOT_OK(pool->allocateDirectly(headerBuffer, sizeof(uint32_t)));
     memcpy(headerBuffer->mutable_data(), &numRows, sizeof(uint32_t));
     int32_t compressType = static_cast<int32_t>(codec->compression_type());
     memcpy(headerBuffer->mutable_data() + sizeof(uint32_t), &compressType, sizeof(int32_t));
@@ -202,8 +203,8 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
   }
 
   // Length buffer layout |buffers.size()|buffer1 unCompressedLength|buffer1 compressedLength| buffer2...
-  std::shared_ptr<arrow::Buffer> lengthBuffer;
-  GLUTEN_THROW_NOT_OK(pool->allocate(lengthBuffer, (buffers.size() * 2 + 1) * sizeof(int64_t)));
+  std::shared_ptr<arrow::ResizableBuffer> lengthBuffer;
+  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(lengthBuffer, (buffers.size() * 2 + 1) * sizeof(int64_t)));
   int64_t offset = 0;
   writeInt64(lengthBuffer, offset, buffers.size());
 
@@ -213,23 +214,27 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
   int64_t compressValueOffset = 0;
   for (auto& buffer : buffers) {
     if (buffer != nullptr && buffer->size() != 0) {
-      writeInt64(lengthBuffer, offset, buffer->size());
       int64_t actualLength;
-      int64_t maxLength = codec->MaxCompressedLen(buffer->size(), nullptr);
-      GLUTEN_ASSIGN_OR_THROW(
-          actualLength,
-          codec->Compress(
-              buffer->size(), buffer->data(), maxLength, valueBuffer->mutable_data() + compressValueOffset));
+      if (buffer->size() >= bufferCompressThreshold) {
+        writeInt64(lengthBuffer, offset, buffer->size());
+        int64_t maxLength = codec->MaxCompressedLen(buffer->size(), nullptr);
+        GLUTEN_ASSIGN_OR_THROW(
+            actualLength,
+            codec->Compress(
+                buffer->size(), buffer->data(), maxLength, valueBuffer->mutable_data() + compressValueOffset));
+      } else {
+        // Will not compress small buffer, mark uncompressed length as -1 to indicate it is original buffer
+        writeInt64(lengthBuffer, offset, -1);
+        memcpy(valueBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
+        actualLength = buffer->size();
+      }
       compressValueOffset += actualLength;
       writeInt64(lengthBuffer, offset, actualLength);
-      // std::cout << "before compress " << buffer->size() << "actualLength " << actualLength << std::endl;
     } else {
       writeInt64(lengthBuffer, offset, 0);
       writeInt64(lengthBuffer, offset, 0);
-      // std::cout << "before compress 0 actualLength 0" << std::endl;
     }
   }
-  // std::cout << "writer buffer size " << buffers.size() << std::endl;
   GLUTEN_THROW_NOT_OK(valueBuffer->Resize(compressValueOffset, /*shrink*/ true));
 
   arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(1)->type(), lengthBuffer, pool));
@@ -244,10 +249,10 @@ std::shared_ptr<arrow::RecordBatch> makeUncompressedRecordBatch(
     const std::shared_ptr<arrow::Schema> writeSchema,
     ShuffleBufferPool* pool) {
   std::vector<std::shared_ptr<arrow::Array>> arrays;
-  // header col, numRows
+  // header col, numRows, compressionType
   {
-    std::shared_ptr<arrow::Buffer> headerBuffer;
-    GLUTEN_THROW_NOT_OK(pool->allocate(headerBuffer, sizeof(uint32_t) * 2));
+    std::shared_ptr<arrow::ResizableBuffer> headerBuffer;
+    GLUTEN_THROW_NOT_OK(pool->allocateDirectly(headerBuffer, sizeof(uint32_t) * 2));
     memcpy(headerBuffer->mutable_data(), &numRows, sizeof(uint32_t));
     int32_t compressType = static_cast<int32_t>(arrow::Compression::type::UNCOMPRESSED);
     memcpy(headerBuffer->mutable_data() + sizeof(uint32_t), &compressType, sizeof(int32_t));
@@ -259,22 +264,6 @@ std::shared_ptr<arrow::RecordBatch> makeUncompressedRecordBatch(
     arrays.emplace_back(makeBinaryArray(writeSchema->field(i + 1)->type(), buffers[i], pool));
   }
   return arrow::RecordBatch::Make(writeSchema, 1, {arrays});
-}
-
-inline arrow::Result<uint32_t> getRecordBatchNumRows(const arrow::RecordBatch& rb) {
-  // Check header column
-  if (rb.num_columns() < 1) {
-    return arrow::Status::Invalid("Header column num_columns() < 1");
-  }
-  auto& buffers = rb.column_data(0)->buffers;
-  if (buffers.size() != 3) {
-    return arrow::Status::Invalid("Header column buffers.size() != 3");
-  }
-  if (buffers[2]->size() != kDefaultBufferAlignment) {
-    std::cout << buffers[2]->size() << std::endl;
-    return arrow::Status::Invalid("Header column wrong buffer size");
-  }
-  return *reinterpret_cast<uint32_t*>(buffers[2]->mutable_data());
 }
 } // namespace
 
@@ -344,8 +333,6 @@ arrow::Status VeloxShuffleWriter::initIpcWriteOptions() {
   }
   ipcWriteOptions.use_threads = false;
 
-  // tinyBatchWriteOptions_ = ipcWriteOptions;
-  // tinyBatchWriteOptions_.codec = nullptr;
   return arrow::Status::OK();
 }
 
@@ -1222,25 +1209,23 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     // Extract numRows from header column
     TIME_NANO_OR_RAISE(
         totalCompressTime_, arrow::ipc::GetRecordBatchPayload(rb, options_.ipc_write_options, payload.get()));
-    // ARROW_ASSIGN_OR_RAISE(auto numRows, getRecordBatchNumRows(rb));
-    // auto isTinyBatch = numRows <= options_.batch_compress_threshold;
-    // if (isTinyBatch || options_.codec == nullptr) {
-    //   // Without compression, we need to perform a manual copy of the original buffers
-    //   // so that we can reuse them for next split.
-    //   if (reuseBuffers) {
-    //     for (auto i = 0; i < payload->body_buffers.size(); ++i) {
-    //       auto& buffer = payload->body_buffers[i];
-    //       if (buffer) {
-    //         auto memoryPool = options_.ipc_write_options.memory_pool;
-    //         ARROW_ASSIGN_OR_RAISE(auto copy, ::arrow::AllocateResizableBuffer(buffer->size(), memoryPool));
-    //         if (buffer->size() > 0) {
-    //           memcpy(copy->mutable_data(), buffer->data(), static_cast<size_t>(buffer->size()));
-    //         }
-    //         buffer = std::move(copy);
-    //       }
-    //     }
-    //   }
-    // }
+    if (options_.codec == nullptr) {
+      // Without compression, we need to perform a manual copy of the original buffers
+      // so that we can reuse them for next split.
+      if (reuseBuffers) {
+        for (auto i = 0; i < payload->body_buffers.size(); ++i) {
+          auto& buffer = payload->body_buffers[i];
+          if (buffer) {
+            auto memoryPool = options_.ipc_write_options.memory_pool;
+            ARROW_ASSIGN_OR_RAISE(auto copy, ::arrow::AllocateResizableBuffer(buffer->size(), memoryPool));
+            if (buffer->size() > 0) {
+              memcpy(copy->mutable_data(), buffer->data(), static_cast<size_t>(buffer->size()));
+            }
+            buffer = std::move(copy);
+          }
+        }
+      }
+    }
     return payload;
   }
 
@@ -1367,11 +1352,16 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
   std::shared_ptr<arrow::RecordBatch> VeloxShuffleWriter::makeRecordBatch(
       uint32_t numRows, const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
-    // auto isTinyBatch = numRows <= options_.batch_compress_threshold;
     if (options_.codec == nullptr) {
       return makeUncompressedRecordBatch(numRows, buffers, writeSchema(), pool_.get());
     } else {
-      return makeCompressedRecordBatch(numRows, buffers, compressWriteSchema(), pool_.get(), options_.codec.get());
+      return makeCompressedRecordBatch(
+          numRows,
+          buffers,
+          compressWriteSchema(),
+          pool_.get(),
+          options_.codec.get(),
+          options_.buffer_compress_threshold);
     }
   }
 

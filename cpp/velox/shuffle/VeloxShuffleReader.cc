@@ -266,25 +266,28 @@ RowVectorPtr readRowVectorInternal(
     auto valueBufferLength = lengthPtr[0];
     auto valueBuffer = readColumnBuffer(batch, 2);
     int64_t valueOffset = 0;
+    auto codec = createArrowIpcCodec(compressType);
     for (int64_t i = 0, j = 1; i < valueBufferLength; i++, j = j + 2) {
       int64_t uncompressLength = lengthPtr[j];
       int64_t compressLength = lengthPtr[j + 1];
-      // std::cout << "uncompress length " << uncompressLength << "compressLength " << compressLength << std::endl;
       auto compressBuffer = arrow::SliceBuffer(valueBuffer, valueOffset, compressLength);
       valueOffset += compressLength;
-      auto codec = createArrowIpcCodec(compressType);
-      std::shared_ptr<arrow::Buffer> uncompressBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
-      if (uncompressLength != 0) {
-        GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateBuffer(uncompressLength, arrowPool));
-        GLUTEN_ASSIGN_OR_THROW(
-            auto actualDecompressLength,
-            codec->Decompress(
-                compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
-        VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
+      // Small buffer, not compressed
+      if (uncompressLength == -1) {
+        buffers.emplace_back(compressBuffer);
+      } else {
+        std::shared_ptr<arrow::Buffer> uncompressBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
+        if (uncompressLength != 0) {
+          GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateBuffer(uncompressLength, arrowPool));
+          GLUTEN_ASSIGN_OR_THROW(
+              auto actualDecompressLength,
+              codec->Decompress(
+                  compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
+          VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
+        }
+        buffers.emplace_back(uncompressBuffer);
       }
-      buffers.emplace_back(uncompressBuffer);
     }
-    // std::cout << "read buffer size " << buffers.size() << std::endl;
   }
   return deserialize(rowType, length, buffers, pool);
 }

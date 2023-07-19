@@ -65,8 +65,8 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
 
-  private val batchCompressThreshold =
-    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
+  private val bufferCompressThreshold =
+    GlutenConfig.getConf.columnarShuffleBufferCompressThreshold
   private val jniWrapper = new ShuffleWriterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure
@@ -114,7 +114,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             availableOffHeapPerTask(),
             nativeBufferSize,
             customizedCompressionCodec,
-            batchCompressThreshold,
+            bufferCompressThreshold,
             celebornConf.pushBufferMaxSize,
             celebornPartitionPusher,
             NativeMemoryAllocators

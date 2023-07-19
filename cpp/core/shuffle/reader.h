@@ -26,6 +26,7 @@ namespace gluten {
 
 struct ReaderOptions {
   arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
+  arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
 
   static ReaderOptions defaults();
 };

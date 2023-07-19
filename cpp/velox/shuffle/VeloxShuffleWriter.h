@@ -286,9 +286,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // store velox column types
   std::vector<std::shared_ptr<const facebook::velox::Type>> veloxColumnTypes_;
 
-  // write options for tiny batches
-  arrow::ipc::IpcWriteOptions tinyBatchWriteOptions_;
-
   // Row ID -> Partition ID
   // subscript: Row ID
   // value: Partition ID

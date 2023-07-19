@@ -25,7 +25,8 @@ public class ShuffleReaderJniWrapper extends JniInitialized {
   private ShuffleReaderJniWrapper() {
   }
 
-  public native long make(JniByteInputStream jniIn, long cSchema, long allocatorId);
+  public native long make(JniByteInputStream jniIn, long cSchema, long allocatorId,
+                          String compressionType, String compressionCodecBackend);
 
   public native long next(long handle);
 

@@ -87,7 +87,6 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   arrow::Status writeSchemaPayload(arrow::io::OutputStream* os) {
     std::shared_ptr<arrow::ipc::IpcPayload> payload;
     if (shuffleWriter_->options().compression_type == arrow::Compression::type::UNCOMPRESSED) {
-      std::cout << "uncompress schema" << std::endl;
       ARROW_ASSIGN_OR_RAISE(payload, getSchemaPayload(shuffleWriter_->writeSchema()));
     } else {
       ARROW_ASSIGN_OR_RAISE(payload, getSchemaPayload(shuffleWriter_->compressWriteSchema()));
