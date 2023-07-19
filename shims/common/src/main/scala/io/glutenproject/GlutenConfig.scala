@@ -36,7 +36,7 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
-  def enableGluten: Boolean = conf.getConf(ENABLED_GLUTEN)
+  def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
 
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
@@ -49,7 +49,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
 
-  def enableVanillaColumnarReaders: Boolean = conf.getConf(VANILLA_COLUMNAR_READERS_ENABLED)
+  def enableVanillaVectorizedReaders: Boolean = conf.getConf(VANILLA_VECTORIZED_READERS_ENABLED)
 
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
 
@@ -453,12 +453,12 @@ object GlutenConfig {
     nativeConfMap
   }
 
-  val ENABLED_GLUTEN =
-    buildConf("spark.gluten.enabled")
+  val GLUTEN_ENABLED =
+    buildConf(GLUTEN_ENABLE_KEY)
       .internal()
       .doc("Whether to enable gluten. Default value is true.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -492,10 +492,10 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val VANILLA_COLUMNAR_READERS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.vanillaReaders")
+  val VANILLA_VECTORIZED_READERS_ENABLED =
+    buildConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
       .internal()
-      .doc("Enable or disable columnar vanilla scan.")
+      .doc("Enable or disable vanilla vectorized scan.")
       .booleanConf
       .createWithDefault(true)
 
