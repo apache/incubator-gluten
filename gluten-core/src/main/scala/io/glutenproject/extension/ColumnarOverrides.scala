@@ -623,7 +623,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
   extends Rule[SparkPlan] {
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  private def replaceVithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
+  private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
     case c2r: ColumnarToRowExecBase if isVanillaColumnarReader(c2r.child) =>
       ColumnarToRowExec(c2r.child)
     case c2r: ColumnarToRowExec if isVanillaColumnarReader(c2r.child) =>
@@ -631,7 +631,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
     case _ if isVanillaColumnarReader(plan) =>
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
     case _ =>
-      plan.withNewChildren(plan.children.map(replaceVithVanillaColumnarToRow))
+      plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToRow))
   }
 
   private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
@@ -641,8 +641,8 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
   }
 
   def apply(plan: SparkPlan): SparkPlan =
-    if (GlutenConfig.getConf.enableVanillaColumnarReaders) {
-      val newPlan = replaceVithVanillaColumnarToRow(plan)
+    if (GlutenConfig.getConf.enableVanillaVectorizedReaders) {
+      val newPlan = replaceWithVanillaColumnarToRow(plan)
       planChangeLogger.logRule(ruleName, plan, newPlan)
       newPlan
     } else {
