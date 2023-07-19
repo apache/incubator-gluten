@@ -91,16 +91,16 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
         // legacyParserPolicy is not respected by Gluten.
         // invalid format
-        //        val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
-        //        if (legacyParserPolicy == "legacy") {
-        //          checkAnswer(invalid,
-        //            Seq(Row(null), Row(null), Row(null), Row(null)))
-        //        } else {
-        //          val e = intercept[SparkUpgradeException](invalid.collect())
-        //          assert(e.getCause.isInstanceOf[IllegalArgumentException])
-        //          assert(
-        //            e.getMessage.contains("You may get a different result due to the upgrading to Spark"))
-        //        }
+        // val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
+        // if (legacyParserPolicy == "legacy") {
+        //   checkAnswer(invalid,
+        //     Seq(Row(null), Row(null), Row(null), Row(null)))
+        // } else {
+        //   val e = intercept[SparkUpgradeException](invalid.collect())
+        //   assert(e.getCause.isInstanceOf[IllegalArgumentException])
+        //   assert(e.getMessage.contains(
+        //     "You may get a different result due to the upgrading to Spark"))
+        // }
 
         // February
         val y1 = "2016-02-29"
