@@ -45,7 +45,7 @@
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 
 DECLARE_int32(split_preload_per_driver);
-DECLARE_bool(SkipRowSortInWindowOp);
+DECLARE_bool(EnableStreamingWindow);
 
 using namespace facebook;
 
@@ -103,7 +103,9 @@ void VeloxInitializer::printConf(const std::unordered_map<std::string, std::stri
 void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& conf) {
   // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
-  FLAGS_SkipRowSortInWindowOp = true;
+  // So we can directly use the StreamingWindow instead of Window operator.
+  FLAGS_EnableStreamingWindow = true;
+
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
   gluten::registerJniFileSystem(); // JNI filesystem, for spilling-to-heap if we have extra JVM heap spaces
