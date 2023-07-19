@@ -26,6 +26,9 @@ import os
 import regex
 import sys
 
+import util
+
+SCRIPTS = util.script_path()
 
 class attrdict(dict):
     __getattr__ = dict.__getitem__
@@ -34,7 +37,7 @@ class attrdict(dict):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Update license headers")
-    parser.add_argument("--header_intel", default="dev/license.header.intel", help="intel header file")
+    parser.add_argument("--header_intel", default=f"{SCRIPTS}/license.header.intel", help="intel header file")
     parser.add_argument(
         "--extra",
         default=80,
@@ -55,7 +58,7 @@ def parse_args():
     parser.add_argument(
         "-v", default=False, action="store_true", dest="verbose", help="verbose output"
     )
-    parser.add_argument("--excluded_copyright_files", default="dev/excluded_copyright_files.txt",
+    parser.add_argument("--excluded_copyright_files", default=f"{SCRIPTS}/excluded_copyright_files.txt",
                         help="Files that should be excluded")
 
     group = parser.add_mutually_exclusive_group()
@@ -110,6 +113,7 @@ file_types = OrderedDict(
         "*.h": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.hpp": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.inc": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
+        "*.js": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.java": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.scala": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.prolog": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),

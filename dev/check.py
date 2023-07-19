@@ -44,6 +44,9 @@ def get_commit(files):
     if files == "main" or files == "master":
         return util.run(f"git merge-base origin/{files} HEAD")[1]
 
+    if files == "branch":
+        return os.environ["BASE_COMMIT"]
+
     return ""
 
 
@@ -85,6 +88,7 @@ def add_options(parser):
 
     branch_parser = add_check_options(files, "main")
     branch_parser = add_check_options(files, "master")
+    branch_parser = add_check_options(files, "branch")
     commit_parser = add_check_options(files, "commit")
 
 
@@ -119,7 +123,6 @@ def parse_args():
 def run_command(args, command):
     commit = get_commit(args.files)
     files = get_files(commit, args.path)
-
     return command(commit, files, args.fix)
 
 

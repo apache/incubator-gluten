@@ -41,24 +41,16 @@ jobs:
           clang-format-version: '12'
           check-path: ${{ matrix.path['check'] }}
           fallback-style: 'Google' # optional
+
   license-check:
-    name: Formatting Check
+    name: License Header Check
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
       - name: Check License Header
-        if: ${{github.event.pull_request.base.sha}}
         run: |
-          pip install regex
           git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
-          export BASE_COMMIT=${{github.event.pull_request.base.sha}}
-          dev/check.py header main
-          if $?; then
-            dev/check.py header main --fix
-            echo -e "\n==== Apply using:"
-            echo "patch -p1 \<<EOF"
-            git --no-pager diff
-            echo "EOF"
-            false
-          fi
+          pip install regex
+          dev/check.sh ${{github.event.pull_request.base.sha}}
