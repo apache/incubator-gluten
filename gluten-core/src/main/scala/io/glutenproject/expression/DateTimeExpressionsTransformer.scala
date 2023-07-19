@@ -221,7 +221,6 @@ class MonthsBetweenTransformer(
     expressionNodes.add(data2Node)
     expressionNodes.add(roundOffNode)
     if (timeZoneId != None) {
-      logDebug(s"xxx MonthsBetween with timeZoneId: ${timeZoneId.get}")
       expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
     }
 
