@@ -648,7 +648,7 @@ class GlutenClickHouseHiveTableSuite()
       """
         | CREATE TABLE test_%s(
         |   id INT,
-        |   info STRUCT<name:STRING, age:INT>,   
+        |   info STRUCT<name:STRING, age:INT>,
         |   data MAP<STRING, INT>,
         |   values ARRAY<INT>
         | ) stored as %s;
@@ -662,7 +662,7 @@ class GlutenClickHouseHiveTableSuite()
         |   (4, struct('Jane', 40), map('G', 22, 'H', 30), array(10.0, 11.0, 12.0)),
         |   (5, struct('Kate', 45), map('I', 17, 'J', 28), array(13.0, 14.0, 15.0)),
         |   (6, null, null, null),
-        |   (7, struct('Tank', 20), map('X', null, 'Y', null), array(1.0, 2.0, 3.0)); 
+        |   (7, struct('Tank', 20), map('X', null, 'Y', null), array(1.0, 2.0, 3.0));
         |""".stripMargin
     val select_template = "select id, info, info.age, data, values from test_%s"
     val drop_template = "DROP TABLE test_%s"
