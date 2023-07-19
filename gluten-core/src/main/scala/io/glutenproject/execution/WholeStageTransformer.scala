@@ -235,6 +235,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     val basicScanExecTransformers = checkBatchScanExecTransformerChildren()
 
     if (basicScanExecTransformers.nonEmpty) {
+      assert(basicScanExecTransformers.size == 1)
 
       /**
        * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
