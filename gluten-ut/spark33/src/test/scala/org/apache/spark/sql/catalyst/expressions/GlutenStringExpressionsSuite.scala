@@ -21,7 +21,7 @@ import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.types._
 
 class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTestsTrait {
-  test(GlutenTestConstants.GLUTEN_TEST + "concat") {
+  test(GLUTEN_TEST + "concat") {
     def testConcat(inputs: String*): Unit = {
       val expected = if (inputs.contains(null)) null else inputs.mkString
       checkEvaluation(Concat(inputs.map(Literal.create(_, StringType))), expected)
