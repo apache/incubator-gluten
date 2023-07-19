@@ -23,7 +23,6 @@ import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Type;
 
-import org.apache.spark.sql.catalyst.expressions.PathInstruction.Named;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
