@@ -69,10 +69,8 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
         format_settings.csv.allow_single_quotes = false;
         format_settings.csv.allow_double_quotes = false;
     }
-    format_settings.csv.allow_set_column_default_value_if_no_input = true;
-    format_settings.csv.ignore_while_input_row_too_many_fields = true;
-    format_settings.csv.allow_check_deserialize_result = true;
-    format_settings.csv.allow_set_column_default_value_if_deserialize_failed = true;
+    format_settings.csv.allow_variable_number_of_columns = true;
+    format_settings.csv.use_default_on_bad_values = true;
     res->input = std::make_shared<DB::HiveTextRowInputFormat>(header, *(res->read_buffer), params, format_settings);
     return res;
 }
