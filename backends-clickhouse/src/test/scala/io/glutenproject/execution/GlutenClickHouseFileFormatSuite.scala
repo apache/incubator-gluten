@@ -381,7 +381,7 @@ class GlutenClickHouseFileFormatSuite
     }
 
     assert(csvFileScan.size == 1)
-    assert(result.length == 20)
+    assert(result.length == 21)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(16).getFloat(2) == -100000)
@@ -390,6 +390,7 @@ class GlutenClickHouseFileFormatSuite
     assert(result.apply(16).getLong(5) == -100000)
     assert(result.apply(18).getDate(0) == "2023-07-19".date)
     assert(result.apply(19).getDate(0) == "2023-07-01".date)
+    assert(result.apply(20).getDate(0) == "2023-01-21".date)
   }
 
   test("read excel export csv delimiter") {
