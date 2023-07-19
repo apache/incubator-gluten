@@ -29,14 +29,14 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
 class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
-  override def doValidate(plan: PlanNode): Boolean = {
-    val validator = new CHNativeExpressionEvaluator()
-    validator.doValidate(plan.toProtobuf.toByteArray)
-  }
 
-  override def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidationInfo = {
-    // not applicable for now but may implement in future
-    null
+  override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
+    val validator = new CHNativeExpressionEvaluator()
+    if (validator.doValidate(plan.toProtobuf.toByteArray)) {
+      new NativePlanValidationInfo(1, "")
+    } else {
+      new NativePlanValidationInfo(0, "CH native check failed.")
+    }
   }
 
   /**

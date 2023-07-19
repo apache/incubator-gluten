@@ -86,16 +86,9 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
   protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
     if (node != null && enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
-      // TODO Unify doValidate interface, remove this branch
-      if (BackendsApiManager.chBackend &&
-        BackendsApiManager.getValidatorApiInstance.doValidate(planNode)) {
-        ValidationResult.ok
-      } else if (BackendsApiManager.veloxBackend) {
-        val info = BackendsApiManager.getValidatorApiInstance.doValidateWithFallBackLog(planNode)
-        ValidationResult.convertFromValidationInfo(info)
-      } else {
-        ValidationResult.notOk("Native backend check failed.")
-      }
+      val info = BackendsApiManager.getValidatorApiInstance
+        .doNativeValidateWithFailureReason(planNode)
+      ValidationResult.convertFromValidationInfo(info)
     } else {
       ValidationResult.ok
     }

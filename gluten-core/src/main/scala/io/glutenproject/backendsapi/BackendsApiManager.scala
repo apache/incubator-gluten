@@ -73,8 +73,8 @@ object BackendsApiManager {
     manager.glutenBackendName
   }
 
-  def veloxBackend: Boolean = getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
-  def chBackend: Boolean = getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+  def isVeloxBackend: Boolean = getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
+  def isCHBackend: Boolean = getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
 
   def getContextApiInstance: ContextApi = {
     manager.contextApi

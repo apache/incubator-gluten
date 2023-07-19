@@ -86,11 +86,9 @@ trait ValidatorApi {
   def doSparkPlanValidate(plan: SparkPlan): Boolean
 
   /**
-   * Validate against Substrait plan node.
+   * Validate against Substrait plan node in native backend.
    */
-  def doValidate(plan: PlanNode): Boolean
-
-  def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidationInfo
+  def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo
   /**
    * Validate against Compression method, such as bzip2.
    */

@@ -89,7 +89,7 @@ case class GenerateExecTransformer(
   override def nodeName: String = "GenerateExec"
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (BackendsApiManager.veloxBackend) {
+    if (BackendsApiManager.isVeloxBackend) {
       return ValidationResult.notOk(s"Velox backend does not support this operator: ${nodeName}")
     }
 
