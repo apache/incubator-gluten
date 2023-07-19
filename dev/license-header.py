@@ -110,6 +110,7 @@ file_types = OrderedDict(
         "*.h": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.hpp": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.inc": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
+        "*.js": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.java": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.scala": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),
         "*.prolog": attrdict({"wrapper": wrapper_chpp, "hashbang": False}),

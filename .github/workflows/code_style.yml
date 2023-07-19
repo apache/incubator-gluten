@@ -41,18 +41,26 @@ jobs:
           clang-format-version: '12'
           check-path: ${{ matrix.path['check'] }}
           fallback-style: 'Google' # optional
+
   license-check:
-    name: Formatting Check
+    name: License Header Check
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Check License Header
+        working-directory: ${{github.workspace}}
         if: ${{github.event.pull_request.base.sha}}
         run: |
           pip install regex
+          echo ${{ github.workspace }}
+          echo "get fetch"
+          echo $PWD
           git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
-          export BASE_COMMIT=${{github.event.pull_request.base.sha}}
+          ls -alt dev/check.py
+          git log
+          which python3
           dev/check.py header main
           if $?; then
             dev/check.py header main --fix

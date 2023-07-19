@@ -119,7 +119,6 @@ def parse_args():
 def run_command(args, command):
     commit = get_commit(args.files)
     files = get_files(commit, args.path)
-
     return command(commit, files, args.fix)
 
 
