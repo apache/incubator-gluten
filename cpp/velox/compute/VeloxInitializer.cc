@@ -46,10 +46,15 @@
 
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(SkipRowSortInWindowOp);
+DECLARE_bool(velox_exception_user_stacktrace_enabled);
 
 using namespace facebook;
 
 namespace {
+
+const std::string kEnableUserExceptionStacktrace =
+    "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
+const std::string kEnableUserExceptionStacktraceDefault = "true";
 
 const std::string kHiveConnectorId = "test-hive";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
@@ -104,6 +109,16 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
   FLAGS_SkipRowSortInWindowOp = true;
+  // Set velox_exception_user_stacktrace_enabled.
+  {
+    auto got = conf.find(kEnableUserExceptionStacktrace);
+    std::string enableUserExceptionStacktrace = kEnableUserExceptionStacktraceDefault;
+    if (got != conf.end()) {
+      enableUserExceptionStacktrace = got->second;
+    }
+    FLAGS_velox_exception_user_stacktrace_enabled = (enableUserExceptionStacktrace == "true");
+  }
+
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
   gluten::registerJniFileSystem(); // JNI filesystem, for spilling-to-heap if we have extra JVM heap spaces
