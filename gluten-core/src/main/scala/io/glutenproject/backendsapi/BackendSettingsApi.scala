@@ -56,8 +56,8 @@ trait BackendSettingsApi {
   def fallbackAggregateWithChild(): Boolean = false
 
   def disableVanillaColumnarReaders(conf: SparkConf): Boolean =
-    !conf.getBoolean(GlutenConfig.VANILLA_COLUMNAR_READERS_ENABLED.key,
-      GlutenConfig.VANILLA_COLUMNAR_READERS_ENABLED.defaultValue.get)
+    !conf.getBoolean(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.key,
+      GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.defaultValue.get)
 
   def recreateJoinExecOnFallback(): Boolean = false
   def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
