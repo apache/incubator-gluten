@@ -37,6 +37,8 @@ object ExpressionMappings {
     Sig[Subtract](SUBTRACT),
     Sig[Multiply](MULTIPLY),
     Sig[Divide](DIVIDE),
+    Sig[UnaryPositive](POSITIVE),
+    Sig[UnaryMinus](NEGATIVE),
     Sig[And](AND),
     Sig[Or](OR),
     Sig[Cast](CAST),

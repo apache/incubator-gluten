@@ -48,6 +48,8 @@ object ExpressionNames {
   final val SUBTRACT = "subtract"
   final val MULTIPLY = "multiply"
   final val DIVIDE = "divide"
+  final val POSITIVE = "positive"
+  final val NEGATIVE = "negative"
   final val AND = "and"
   final val OR = "or"
   final val CAST = "cast"

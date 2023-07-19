@@ -397,6 +397,23 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     )(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test positive/negative") {
+    runQueryAndCompare(
+      "select +n_nationkey, positive(n_nationkey), -n_nationkey, negative(n_nationkey) from nation"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  // TODO: enable when supports interval type
+  ignore("test positive/negative with interval type") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select +interval 1 day, positive(interval 1 day), -interval 1 day, negative(interval 1 day)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("test array_position") {
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
