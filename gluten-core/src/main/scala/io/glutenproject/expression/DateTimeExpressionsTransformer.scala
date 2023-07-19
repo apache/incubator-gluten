@@ -215,8 +215,6 @@ class MonthsBetweenTransformer(
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
-    // val lowerFormatNode = ExpressionBuilder.makeStringLiteral("day")
-    // expressionNodes.add(lowerFormatNode)
     expressionNodes.add(date1Node)
     expressionNodes.add(data2Node)
     expressionNodes.add(roundOffNode)

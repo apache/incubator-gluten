@@ -42,12 +42,14 @@ public:
 
         const auto * round_arg = parsed_args.size() >= 3 ? parsed_args[2] : nullptr;
         const auto * timezone_arg = parsed_args.size() >= 4 ? parsed_args[3] : nullptr;
-        const auto * unit_const_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "day");
-        const auto * magic_const_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeFloat32>(), 30.636038795303726);
+        const auto * unit_const_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "second");
+        const auto * magic_const_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeFloat64>(), 2618099.998848);
         const auto * date_diff_node = toFunctionNode(actions_dag, "date_diff", {unit_const_node, parsed_args[1], parsed_args[0], timezone_arg});
         const auto * devide_node = toFunctionNode(actions_dag, "divide", {date_diff_node, magic_const_node});
         const auto * round_node = toFunctionNode(actions_dag, "round", {devide_node, addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 8)});
-        return toFunctionNode(actions_dag, "if", {round_arg, round_node, devide_node});
+        const auto * ifnode = toFunctionNode(actions_dag, "if", {round_arg, round_node, devide_node});
+
+        return convertNodeTypeIfNeeded(substrait_func, ifnode, actions_dag);
     }
 };
 

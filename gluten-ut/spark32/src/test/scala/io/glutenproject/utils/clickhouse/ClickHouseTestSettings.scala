@@ -347,7 +347,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "function date_add",
       "function date_sub",
       "datediff",
-      "function date_trunc"
+      "function date_trunc",
+      "function months_between"
     )
 
   enableSuite[GlutenMathFunctionsSuite]
