@@ -663,6 +663,8 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
 
+  lazy val queryFallbackThreshold = GlutenConfig.getConf.queryFallbackThreshold
+
   // for fallback policy
   lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
 
@@ -757,6 +759,9 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   def fallbackWholeQuery(plan: SparkPlan): Boolean = {
+    if (queryFallbackThreshold < 0) {
+      return false
+    }
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
       plan match {
@@ -764,7 +769,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         case _: QueryStageExec =>
           return
         case ColumnarToRowExec(p: GlutenPlan) =>
-          logDebug(s"cr2: ${p}")
+          logDebug(s"c2r: ${p}")
           fallbacks = fallbacks + 1
         // Possible fallback for leaf node.
         case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
@@ -774,7 +779,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       plan.children.map(p => countFallback(p))
     }
     countFallback(plan)
-    fallbacks > 1
+    fallbacks > queryFallbackThreshold
   }
 
   /**
