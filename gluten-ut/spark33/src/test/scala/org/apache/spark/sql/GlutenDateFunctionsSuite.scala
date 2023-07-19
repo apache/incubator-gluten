@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+
 import java.sql.{Date, Timestamp}
 import java.time.{LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
@@ -29,7 +31,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
   private def secs(millis: Long): Long = TimeUnit.MILLISECONDS.toSeconds(millis)
 
-  test("unix_timestamp") {
+  test(GLUTEN_TEST + "unix_timestamp") {
     Seq("corrected", "legacy").foreach { legacyParserPolicy =>
       withSQLConf(
         SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
@@ -116,7 +118,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
     }
   }
 
-  test("to_unix_timestamp") {
+  test(GLUTEN_TEST + "to_unix_timestamp") {
     Seq("corrected", "legacy").foreach { legacyParserPolicy =>
       withSQLConf(
         SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,

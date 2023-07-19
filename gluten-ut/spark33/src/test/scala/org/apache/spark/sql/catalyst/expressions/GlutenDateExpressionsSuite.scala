@@ -88,6 +88,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     "Asia/Hong_Kong",
     "Europe/Brussels")
   val outstandingZoneIds: Seq[ZoneId] = outstandingTimezonesIds.map(getZoneId)
+
   test(GLUTEN_TEST + "unix_timestamp") {
     Seq("legacy", "corrected").foreach {
       legacyParserPolicy =>
