@@ -28,6 +28,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
   import testImplicits._
 
   private def secs(millis: Long): Long = TimeUnit.MILLISECONDS.toSeconds(millis)
+
   // A modified spark ut, with timezone explicitly set and exception test disabled.
   test(GlutenTestConstants.GLUTEN_TEST + "unix_timestamp") {
     Seq("corrected", "legacy").foreach { legacyParserPolicy =>

@@ -1033,6 +1033,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-40407: repartition should not result in severe data skew")
     .exclude("SPARK-40660: Switch to XORShiftRandom to distribute elements")
   enableSuite[GlutenDateFunctionsSuite]
+    // The below two are replaced by two modified versions.
+    .exclude("unix_timestamp")
+    .exclude("to_unix_timestamp")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
