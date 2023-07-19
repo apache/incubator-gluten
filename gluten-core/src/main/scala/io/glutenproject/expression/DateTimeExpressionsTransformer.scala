@@ -190,6 +190,46 @@ class TruncTimestampTransformer(
   }
 }
 
+class MonthsBetweenTransformer(
+  substraitExprName: String,
+  date1: ExpressionTransformer,
+  date2: ExpressionTransformer,
+  roundOff: ExpressionTransformer,
+  timeZoneId: Option[String] = None,
+  original: MonthsBetween)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val date1Node = date1.doTransform(args)
+    val data2Node = date2.doTransform(args)
+    val roundOffNode = roundOff.doTransform(args)
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val dataTypes = if (timeZoneId != None) {
+      Seq(original.date1.dataType, original.date2.dataType, original.roundOff.dataType, StringType)
+    } else {
+      Seq(original.date1.dataType, original.date2.dataType, original.roundOff.dataType)
+    }
+
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    // val lowerFormatNode = ExpressionBuilder.makeStringLiteral("day")
+    // expressionNodes.add(lowerFormatNode)
+    expressionNodes.add(date1Node)
+    expressionNodes.add(data2Node)
+    expressionNodes.add(roundOffNode)
+    if (timeZoneId != None) {
+      logDebug(s"xxx MonthsBetween with timeZoneId: ${timeZoneId.get}")
+      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
+    }
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 object DateTimeExpressionsTransformer {
 
   val EXTRACT_DATE_FIELD_MAPPING: Map[Class[_], String] = Map(
