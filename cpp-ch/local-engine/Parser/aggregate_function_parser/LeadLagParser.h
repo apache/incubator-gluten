@@ -1,12 +1,12 @@
 #pragma once
-#include "CommonAggregateFunctionParser.h"
+#include <Parser/AggregateFunctionParser.h>
 
 namespace local_engine
 {
-class LeadParser : public BaseAggregateFunctionParser
+class LeadParser : public AggregateFunctionParser
 {
 public:
-    explicit LeadParser(SerializedPlanParser * plan_parser_) : BaseAggregateFunctionParser(plan_parser_) { }
+    explicit LeadParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
     ~LeadParser() override = default;
     static constexpr auto name = "lead";
     String getName() const override { return name; }
@@ -16,10 +16,10 @@ public:
         const CommonFunctionInfo & func_info, const String & ch_func_name, DB::ActionsDAGPtr & actions_dag) const override;
 };
 
-class LagParser : public BaseAggregateFunctionParser
+class LagParser : public AggregateFunctionParser
 {
 public:
-    explicit LagParser(SerializedPlanParser * plan_parser_) : BaseAggregateFunctionParser(plan_parser_) { }
+    explicit LagParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
     ~LagParser() override = default;
     static constexpr auto name = "lag";
     String getName() const override { return name; }

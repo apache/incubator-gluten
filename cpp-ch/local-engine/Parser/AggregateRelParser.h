@@ -1,5 +1,5 @@
 #pragma once
-#include <Parser/FunctionParser.h>
+#include <Parser/AggregateFunctionParser.h>
 #include <Parser/RelParser.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -25,9 +25,9 @@ private:
         // If no combinator be applied on it, same as function_name
         String combinator_function_name;
         // For avoiding repeated builds.
-        FunctionParser::CommonFunctionInfo parser_func_info;
+        AggregateFunctionParser::CommonFunctionInfo parser_func_info;
         // For avoiding repeated builds.
-        FunctionParserPtr function_parser;
+        AggregateFunctionParserPtr function_parser;
     };
 
     Poco::Logger * logger = &Poco::Logger::get("AggregateRelParser");

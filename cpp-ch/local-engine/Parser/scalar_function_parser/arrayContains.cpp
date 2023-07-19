@@ -28,10 +28,6 @@ public:
 
     String getName() const override { return name; }
 
-    String getCHFunctionName(const CommonFunctionInfo &) const override { return "has"; }
-
-    String getCHFunctionName(const DataTypes &) const override { return "has"; }
-
     const ActionsDAG::Node * parse(
     const substrait::Expression_ScalarFunction & substrait_func,
     ActionsDAGPtr & actions_dag) const override
@@ -53,12 +49,11 @@ public:
                 arr.nullable || value.nullable || arr.dataType.asInstanceOf[ArrayType].containsNull
         */
 
-        auto func_info = CommonFunctionInfo{substrait_func};
-        auto parsed_args = parseFunctionArguments(func_info, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 
-        auto ch_function_name = getCHFunctionName(func_info);
+        auto ch_function_name = getCHFunctionName(substrait_func);
 
         const auto * arr_arg = parsed_args[0];
         const auto * val_arg = parsed_args[1];
@@ -107,6 +102,11 @@ public:
             false_node
         });
         return convertNodeTypeIfNeeded(substrait_func, multi_if_node, actions_dag);
+    }
+protected:
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & /*substrait_func*/) const override
+    {
+        return "has";
     }
 };
 

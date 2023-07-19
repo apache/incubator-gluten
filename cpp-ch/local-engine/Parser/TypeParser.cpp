@@ -16,9 +16,10 @@
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <Parser/TypeParser.h>
+#include <Parser/AggregateFunctionParser.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/TypeParser.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
 
@@ -227,7 +228,7 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             AggregateFunctionProperties properties;
             auto tmp_ctx = DB::Context::createCopy(SerializedPlanParser::global_context);
             SerializedPlanParser tmp_plan_parser(tmp_ctx);
-            auto function_parser = FunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
+            auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
             data_type = AggregateFunctionFactory::instance()
                             .get(agg_function_name, args_types, function_parser->getDefaultFunctionParameters(), properties)

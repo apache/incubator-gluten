@@ -1,13 +1,14 @@
-#include "CommonScalarFunctionParser.h"
 #include <Functions/SparkFunctionNextDay.h>
+#include <Parser/FunctionParser.h>
+#include <Common/Exception.h>
 
 namespace local_engine
 {
 #define REGISTER_COMMON_SCALAR_FUNCTION_PARSER(cls_name, substrait_name, ch_name) \
-    class ScalarFunctionParser##cls_name : public CommonScalarFunctionParser \
+    class ScalarFunctionParser##cls_name : public FunctionParser \
     { \
     public: \
-        ScalarFunctionParser##cls_name(SerializedPlanParser * plan_parser_) : CommonScalarFunctionParser(plan_parser_) \
+        ScalarFunctionParser##cls_name(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) \
         { \
         } \
         ~ScalarFunctionParser##cls_name() override = default; \
@@ -16,11 +17,8 @@ namespace local_engine
         { \
             return #substrait_name; \
         } \
-        String getCHFunctionName(const DB::DataTypes &) const override \
-        { \
-            return #ch_name; \
-        } \
-        String getCHFunctionName(const CommonFunctionInfo &) const override \
+    protected: \
+        String getCHFunctionName(const substrait::Expression_ScalarFunction & /*substrait_func*/) const override \
         { \
             return #ch_name; \
         } \

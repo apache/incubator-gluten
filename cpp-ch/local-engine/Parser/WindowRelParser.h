@@ -4,9 +4,8 @@
 #include <Core/SortDescription.h>
 #include <DataTypes/IDataType.h>
 #include <Interpreters/WindowDescription.h>
-#include <Parser/FunctionParser.h>
+#include <Parser/AggregateFunctionParser.h>
 #include <Parser/RelParser.h>
-#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -33,9 +32,9 @@ private:
         // function name in CH
         String function_name;
         // For avoiding repeated builds.
-        FunctionParser::CommonFunctionInfo parser_func_info;
+        AggregateFunctionParser::CommonFunctionInfo parser_func_info;
         // For avoiding repeated builds.
-        FunctionParserPtr function_parser;
+        AggregateFunctionParserPtr function_parser;
 
         google::protobuf::RepeatedPtrField<substrait::Expression> partition_exprs;
         google::protobuf::RepeatedPtrField<substrait::SortField> sort_fields;
