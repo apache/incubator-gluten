@@ -2,7 +2,9 @@
 
 #include <Formats/FormatSettings.h>
 #include <Formats/FormatFactory.h>
+#include <Parser/TypeParser.h>
 #include <Processors/Formats/Impl/JSONEachRowRowInputFormat.h>
+
 
 namespace local_engine
 {
@@ -28,10 +30,9 @@ FormatFile::InputFormatPtr JSONFormatFile::createInputFormat(const DB::Block & h
 
 DB::NamesAndTypesList JSONFormatFile::getSchema() const
 {
-    auto in = read_buffer_builder->buildWithCompressionWrapper(file_info, true);
-    auto format_settings = DB::getFormatSettings(context);
-    DB::JSONEachRowSchemaReader reader(*in, format_settings);
-    return reader.readSchema();
+    const auto & schema = file_info.json().schema();
+    auto header = TypeParser::buildBlockFromNamedStruct(schema);
+    return header.getNamesAndTypesList();
 }
 
 }
