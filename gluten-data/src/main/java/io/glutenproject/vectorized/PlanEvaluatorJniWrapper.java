@@ -37,11 +37,10 @@ public class PlanEvaluatorJniWrapper extends JniInitialized {
    * Validate the Substrait plan in native compute engine.
    *
    * @param subPlan the Substrait plan in binary format.
-   * @return whether the computing of this plan is supported in native.
+   * @return whether the computing of this plan is supported in native and related info.
    */
-  native boolean nativeDoValidate(byte[] subPlan);
+  native NativePlanValidationInfo nativeValidateWithFailureReason(byte[] subPlan);
 
-  native NativePlanValidationInfo nativeDoValidateWithFallBackLog(byte[] subPlan);
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *

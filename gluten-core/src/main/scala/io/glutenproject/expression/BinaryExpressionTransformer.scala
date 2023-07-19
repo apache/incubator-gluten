@@ -77,7 +77,7 @@ class LikeTransformer(
 
     // CH backend does not support escapeChar, so skip it here.
     val expressionNodes =
-      if (BackendsApiManager.chBackend) {
+      if (BackendsApiManager.isCHBackend) {
         Lists.newArrayList(leftNode, rightNode)
       } else {
         Lists.newArrayList(leftNode, rightNode, escapeCharNode)

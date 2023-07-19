@@ -32,14 +32,9 @@ class Validator extends ValidatorApi {
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
     doExprValidate(Map(), substraitExprName, expr)
 
-  override def doValidate(plan: PlanNode): Boolean = {
+  override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
     val validator = new NativePlanEvaluator()
-    validator.doValidate(plan.toProtobuf.toByteArray)
-  }
-
-  override def doValidateWithFallBackLog(plan: PlanNode): NativePlanValidationInfo = {
-    val validator = new NativePlanEvaluator()
-    validator.doValidateWithFallBackLog(plan.toProtobuf.toByteArray)
+    validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray)
   }
 
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = true

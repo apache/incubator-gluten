@@ -61,7 +61,7 @@ case class StringLocateTransformer(
   original: StringLocate) extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (BackendsApiManager.chBackend) {
+    if (BackendsApiManager.isCHBackend) {
 
       val substrNode = substrExpr.doTransform(args)
       val strNode = strExpr.doTransform(args)

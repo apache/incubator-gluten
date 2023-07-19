@@ -50,13 +50,8 @@ public class NativePlanEvaluator {
     jniWrapper = new PlanEvaluatorJniWrapper();
   }
 
-  // Used to validate the Substrait plan in native compute engine.
-  public boolean doValidate(byte[] subPlan) {
-    return jniWrapper.nativeDoValidate(subPlan);
-  }
-
-  public NativePlanValidationInfo doValidateWithFallBackLog(byte[] subPlan) {
-    return jniWrapper.nativeDoValidateWithFallBackLog(subPlan);
+  public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
+    return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
   private PlanNode buildNativeConfNode(Map<String, String> confs) {

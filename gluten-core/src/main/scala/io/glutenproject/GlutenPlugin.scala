@@ -93,9 +93,9 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
 
   private def postBuildInfoEvent(sc: SparkContext): Unit = {
     val (backend, backendBranch, backendRevision, backendRevisionTime) =
-      if (BackendsApiManager.veloxBackend) {
+      if (BackendsApiManager.isVeloxBackend) {
         ("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
-      } else if (BackendsApiManager.chBackend) {
+      } else if (BackendsApiManager.isCHBackend) {
         ("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
       } else {
         throw new IllegalStateException("Unknown backend")

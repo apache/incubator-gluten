@@ -81,34 +81,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_initiali
   JNI_METHOD_END()
 }
 
-JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidate( // NOLINT
-    JNIEnv* env,
-    jobject obj,
-    jbyteArray planArray) {
-  JNI_METHOD_START
-  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
-  auto planSize = env->GetArrayLength(planArray);
-  ::substrait::Plan subPlan;
-  gluten::parseProtobuf(planData, planSize, &subPlan);
-
-  // A query context used for function validation.
-  velox::core::QueryCtx queryCtx;
-  auto pool = gluten::defaultLeafVeloxMemoryPool().get();
-  // An execution context used for function validation.
-  velox::core::ExecCtx execCtx(pool, &queryCtx);
-
-  gluten::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
-  try {
-    return planValidator.validate(subPlan);
-  } catch (std::invalid_argument& e) {
-    LOG(INFO) << "Failed to validate substrait plan because " << e.what();
-    return false;
-  }
-  JNI_METHOD_END(false)
-}
-
 JNIEXPORT jobject JNICALL
-Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeDoValidateWithFallBackLog( // NOLINT
+Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailureReason( // NOLINT
     JNIEnv* env,
     jobject obj,
     jbyteArray planArray) {
