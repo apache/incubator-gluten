@@ -50,6 +50,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
             val parquetDf = spark.read
               .format("parquet")
               .load(f.getCanonicalPath)
+            assert(df.schema.equals(parquetDf.schema))
             checkAnswer(parquetDf, df)
           }
         }

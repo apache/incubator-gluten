@@ -109,7 +109,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
   auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, configData);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, schema_);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
