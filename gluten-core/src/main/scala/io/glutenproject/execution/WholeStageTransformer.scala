@@ -155,7 +155,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     throw new UnsupportedOperationException("Row based execution is not supported")
   }
 
-  def doWholestageTransform(): WholestageTransformContext = {
+  def doWholeStageTransform(): WholestageTransformContext = {
     // invoke SparkPlan.prepare to do subquery preparation etc.
     super.prepare()
 
@@ -187,7 +187,6 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       }
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
-    planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
 
     WholestageTransformContext(
       childCtx.inputAttributes,
@@ -249,10 +248,10 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
           "The partition length of all the scan transformer are not the same.")
       }
       val startTime = System.nanoTime()
-      val wsCxt = doWholestageTransform()
+      val wsCtx = doWholeStageTransform()
 
       // the file format for each scan exec
-      wsCxt.substraitContext.setFileFormat(
+      wsCtx.substraitContext.setFileFormat(
         basicScanExecTransformers.map(ConverterUtils.getFileFormat).asJava)
 
       // generate each partition of all scan exec
@@ -260,25 +259,26 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
         i => {
           val currentPartitions = allScanPartitions.map(_(i))
           BackendsApiManager.getIteratorApiInstance
-            .genFilePartition(i, currentPartitions, wsCxt)
+            .genFilePartition(i, currentPartitions, wsCtx)
         })
 
+      planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(wsCtx.root.toProtobuf)
       logOnLevel(
         substraitPlanLogLevel,
-        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
+        s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
 
       new GlutenWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartitions,
-        wsCxt.outputAttributes,
+        wsCtx.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
         leafMetricsUpdater().updateInputMetrics,
         BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
           child,
-          wsCxt.substraitContext.registeredRelMap,
-          wsCxt.substraitContext.registeredJoinParams,
-          wsCxt.substraitContext.registeredAggregationParams
+          wsCtx.substraitContext.registeredRelMap,
+          wsCtx.substraitContext.registeredJoinParams,
+          wsCtx.substraitContext.registeredAggregationParams
         )
       )
     } else {
@@ -291,26 +291,27 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked
        */
       val startTime = System.nanoTime()
-      val resCtx = doWholestageTransform()
+      val wsCtx = doWholeStageTransform()
 
+      planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(wsCtx.root.toProtobuf)
       logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n${planJson}")
       logOnLevel(
         substraitPlanLogLevel,
-        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
+        s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
 
       new WholeStageZippedPartitionsRDD(
         sparkContext,
         genFinalNewRDDsForBroadcast(inputRDDs),
         numaBindingInfo,
         sparkConf,
-        resCtx,
+        wsCtx,
         pipelineTime,
         buildRelationBatchHolder,
         BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
           child,
-          resCtx.substraitContext.registeredRelMap,
-          resCtx.substraitContext.registeredJoinParams,
-          resCtx.substraitContext.registeredAggregationParams
+          wsCtx.substraitContext.registeredRelMap,
+          wsCtx.substraitContext.registeredJoinParams,
+          wsCtx.substraitContext.registeredAggregationParams
         )
       )
     }
