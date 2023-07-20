@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Configuration
-nav_order: 4
+nav_order: 3
 ---
 
 # Spark Configurations for Gluten Plugin

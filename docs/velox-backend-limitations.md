@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Velox Backend Limitations
-nav_order: 6
+nav_order: 5
 ---
 This document describes the limitations of velox backend by listing some known cases where exception will be thrown, gluten behaves incompatibly with spark, or certain plan's execution
 must fall back to vanilla spark, etc.
