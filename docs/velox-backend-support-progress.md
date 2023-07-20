@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Velox Backend's Supported Operators and Functions
+title: Velox Backend's Supported Operators & Functions
 nav_order: 5
 ---
 # The Operators and Functions Support Progress
