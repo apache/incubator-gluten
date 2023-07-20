@@ -20,6 +20,10 @@
 #include "VariantToVectorConverter.h"
 #include "velox/type/Type.h"
 
+#include "utils/ConfigExtractor.h"
+
+#include "config/GlutenConfig.h"
+
 namespace gluten {
 namespace {
 
@@ -736,17 +740,23 @@ core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::Re
   std::vector<std::string> colNameList;
   std::vector<TypePtr> veloxTypeList;
   std::vector<bool> isPartitionColumns;
+  // Convert field names into lower case when not case-sensitive.
+  bool asLowerCase = !folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "false"));
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
     colNameList.reserve(baseSchema.names().size());
     for (const auto& name : baseSchema.names()) {
-      colNameList.emplace_back(name);
+      std::string fieldName = name;
+      if (asLowerCase) {
+        folly::toLowerAscii(fieldName);
+      }
+      colNameList.emplace_back(fieldName);
     }
     auto substraitTypeList = subParser_->parseNamedStruct(baseSchema);
     isPartitionColumns = subParser_->parsePartitionColumns(baseSchema);
     veloxTypeList.reserve(substraitTypeList.size());
     for (const auto& substraitType : substraitTypeList) {
-      veloxTypeList.emplace_back(toVeloxType(substraitType->type));
+      veloxTypeList.emplace_back(toVeloxType(substraitType->type, asLowerCase));
     }
   }
 

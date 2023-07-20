@@ -252,6 +252,9 @@ set(VELOX_SRCS
     substrait/VeloxToSubstraitExpr.cc
     substrait/VeloxToSubstraitPlan.cc
     substrait/VeloxToSubstraitType.cc
+    utils/VeloxArrowUtils.cc
+    utils/ArrowTypeUtils.cc
+    utils/ConfigExtractor.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

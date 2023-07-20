@@ -74,9 +74,12 @@ class SubstraitToVeloxPlanValidator {
   /// An execution context used for function validation.
   core::ExecCtx* execCtx_;
 
+  // Unused customized conf map.
+  std::unordered_map<std::string, std::string> confMap_ = {};
+
   /// A converter used to convert Substrait plan into Velox's plan node.
   std::shared_ptr<SubstraitVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(pool_, true);
+      std::make_shared<SubstraitVeloxPlanConverter>(pool_, confMap_, true);
 
   /// A parser used to convert Substrait plan into recognizable representations.
   std::shared_ptr<SubstraitParser> subParser_ = std::make_shared<SubstraitParser>();
