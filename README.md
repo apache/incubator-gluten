@@ -1,5 +1,5 @@
 # Gluten: Plugin to Double SparkSQL's Performance
-*<b>This plugin is still under active development now, and doesn't have a stable release. Welcome to evaluate it. If you encounter any issues or have any suggestions, please submit to our issue list. We'd love to hear your feedback</b>*
+*<b>This plugin is still under active development now, and doesn't have a stable release. Welcome to evaluate it. If you encounter any issues or have any suggestions, please submit to our issue list. We'd love to hear your feedback.</b>*
 
 # 1 Introduction
 
@@ -102,19 +102,6 @@ If you would like to build and try  Gluten with **ClickHouse** backend, please f
 ### 3.2.3 Build script parameters
 
 [Gluten Usage](./docs/get-started/GlutenUsage.md) listed the parameters and their default value of build command for your reference
-
-### 3.2.4 Jar conflicts
-
-With the latest version of Gluten, there should not be any jar conflict anymore. If you still get hit with such issues, please following the below instructions.
-
-The potentially conflicting libraries include protobuf (Both Velox and CK backend), flatbuffers (Velox backend), and arrow-* (Velox backend). These libraries are compiled from source and packed into Gluten.jars. Jvm should search them from Gluten.jar firstly and load them. But for some reason jvm loads the jars from spark_home/jars which causes conflict. You may use below commands to remove the jars from spark_home/jars. We are still investigating the root cause. Welcome to share if you have good solution.
-
-```
-rm -rf $SPARK_HOME/jars/protobuf-*
-# velox backend only
-rm -rf $SPARK_HOME/jars/flatbuffers-*
-rm -rf $SPARK_HOME/jars/arrow-*
-```
 
 # 4 Contribution
 
