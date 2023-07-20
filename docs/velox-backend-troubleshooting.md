@@ -1,8 +1,7 @@
 ---
 layout: page
-title: Troubleshooting
+title: Velox Backend Troubleshooting
 nav_order: 10
-parent: Developer Overview
 ---
 ## Troubleshooting
 
