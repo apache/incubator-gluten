@@ -137,8 +137,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleEnableIaa: Boolean =
     columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_IAA_BACKEND_NAME)
 
-  def columnarShuffleBatchCompressThreshold: Int =
-    conf.getConf(COLUMNAR_SHUFFLE_BATCH_COMPRESS_THRESHOLD)
+  def columnarShuffleBufferCompressThreshold: Int =
+    conf.getConf(COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD)
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
@@ -725,11 +725,11 @@ object GlutenConfig {
       .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
 
-  val COLUMNAR_SHUFFLE_BATCH_COMPRESS_THRESHOLD =
-    buildConf("spark.gluten.sql.columnar.shuffle.batchCompressThreshold")
+  val COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.bufferCompressThreshold")
       .internal()
       .intConf
-      .createWithDefault(100)
+      .createWithDefault(1024)
 
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)

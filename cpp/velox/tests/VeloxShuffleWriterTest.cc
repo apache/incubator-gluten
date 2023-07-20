@@ -45,8 +45,18 @@ using namespace arrow;
 using namespace arrow::ipc;
 
 namespace gluten {
+struct ShuffleTestParams {
+  bool prefer_evict;
+  arrow::Compression::type compression_type;
 
-class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public velox::test::VectorTestBase {
+  std::string toString() const {
+    std::ostringstream out;
+    out << "prefer_evict = " << prefer_evict << " ; compression_type = " << compression_type;
+    return out.str();
+  }
+};
+
+class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public velox::test::VectorTestBase {
  protected:
   void SetUp() override {
     const std::string tmpDirPrefix = "columnar-shuffle-test";
@@ -57,11 +67,14 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", configDirs.c_str(), 1);
 
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
+    shuffleWriterOptions_.write_schema = true;
+    shuffleWriterOptions_.buffer_compress_threshold = 0;
 
-    bool prefer_evict = GetParam();
-    shuffleWriterOptions_.prefer_evict = prefer_evict;
+    ShuffleTestParams params = GetParam();
+    shuffleWriterOptions_.prefer_evict = params.prefer_evict;
+    shuffleWriterOptions_.compression_type = params.compression_type;
 
-    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(prefer_evict);
+    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(shuffleWriterOptions_.prefer_evict);
     std::vector<VectorPtr> children1 = {
         makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}),
         makeNullableFlatVector<int8_t>({1, -1, std::nullopt, std::nullopt, -2, 2, std::nullopt, std::nullopt, 3, -3}),
@@ -136,6 +149,10 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     return fileReader;
   }
 
+  // getRecordBatches() {
+  //   GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
+  // }
+
   void splitRowVector(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
     GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb));
@@ -147,6 +164,14 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
       copy->append(source->slice(idx, 1).get());
     }
     return copy;
+  }
+
+  std::shared_ptr<arrow::Schema> getExpectedSchema(VeloxShuffleWriter& shuffleWriter) {
+    if (shuffleWriterOptions_.compression_type == arrow::Compression::UNCOMPRESSED) {
+      return shuffleWriter.writeSchema();
+    } else {
+      return shuffleWriter.compressWriteSchema();
+    }
   }
 
   // 1 partitionLength
@@ -163,14 +188,17 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
 
     std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
     ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter.dataFile()));
-    auto expectedSchema = shuffleWriter.writeSchema();
+    auto expectedSchema = getExpectedSchema(shuffleWriter);
     // verify schema
-    ASSERT_TRUE(fileReader->schema()->Equals(expectedSchema, true));
+    ASSERT_TRUE(fileReader->schema()->Equals(expectedSchema, true))
+        << "File schema: " << fileReader->schema()->ToString() << " expectedSchema: " << expectedSchema->ToString()
+        << std::endl;
     std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
     ASSERT_NOT_OK(fileReader->ReadAll(&batches));
     ASSERT_EQ(batches.size(), vectors.size());
     for (int32_t i = 0; i < batches.size(); i++) {
-      auto deserialized = VeloxShuffleReader::readRowVector(*batches[i], asRowType(vectors[i]->type()), pool_.get());
+      auto deserialized =
+          VeloxShuffleReader::readRowVector(*batches[i], asRowType(vectors[i]->type()), arrowPool_.get(), pool_.get());
       velox::test::assertEqualVectors(vectors[i], deserialized);
     }
   }
@@ -185,7 +213,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
     checkFileExists(shuffleWriter.dataFile());
     // verify output temporary files
     const auto& lengths = shuffleWriter.partitionLengths();
-    auto expectedSchema = shuffleWriter.writeSchema();
+    auto expectedSchema = getExpectedSchema(shuffleWriter);
     ASSERT_EQ(lengths.size(), expectPartitionLength);
     int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0);
 
@@ -206,7 +234,8 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
       // auto partitionVectors = std::move(expectedVectors[i]);
       ASSERT_EQ(expectedVectors[i].size(), batches.size());
       for (int32_t j = 0; j < batches.size(); j++) {
-        auto deserialized = VeloxShuffleReader::readRowVector(*batches[j], asRowType(dataType), pool_.get());
+        auto deserialized =
+            VeloxShuffleReader::readRowVector(*batches[j], asRowType(dataType), arrowPool_.get(), pool_.get());
         velox::test::assertEqualVectors(expectedVectors[i][j], deserialized);
       }
     }
@@ -252,6 +281,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<bool>, public vel
   velox::RowVectorPtr hashInputVector2_;
 
   std::shared_ptr<velox::memory::MemoryPool> pool_ = defaultLeafVeloxMemoryPool();
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
 };
 
 arrow::Status splitRowVectorStatus(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
@@ -279,11 +309,11 @@ TEST_P(VeloxShuffleWriterTest, singlePart3Vectors) {
   testShuffleWrite(*shuffleWriter, {inputVector1_, inputVector2_, inputVector1_});
 }
 
-TEST_P(VeloxShuffleWriterTest, singlePartCompress) {
+TEST_P(VeloxShuffleWriterTest, singlePartCompressSmallBuffer) {
   shuffleWriterOptions_.buffer_size = 10;
   shuffleWriterOptions_.partitioning_name = "single";
   shuffleWriterOptions_.compression_type = arrow::Compression::LZ4_FRAME;
-  shuffleWriterOptions_.batch_compress_threshold = 1;
+  shuffleWriterOptions_.buffer_compress_threshold = 1024;
 
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter, VeloxShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_))
@@ -591,6 +621,15 @@ TEST_P(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
-INSTANTIATE_TEST_SUITE_P(TestPreferEvictParam, VeloxShuffleWriterTest, ::testing::Values(true, false));
+INSTANTIATE_TEST_SUITE_P(
+    TestPreferEvictParam,
+    VeloxShuffleWriterTest,
+    ::testing::Values(
+        ShuffleTestParams{true, arrow::Compression::UNCOMPRESSED},
+        ShuffleTestParams{true, arrow::Compression::LZ4_FRAME},
+        ShuffleTestParams{true, arrow::Compression::ZSTD},
+        ShuffleTestParams{false, arrow::Compression::UNCOMPRESSED},
+        ShuffleTestParams{false, arrow::Compression::LZ4_FRAME},
+        ShuffleTestParams{false, arrow::Compression::ZSTD}));
 
 } // namespace gluten

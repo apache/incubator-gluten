@@ -137,7 +137,13 @@ class PreferEvictPartitionWriter::LocalPartitionWriterInstance {
   }
 
   arrow::Status writeSchemaPayload(arrow::io::OutputStream* os) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, partitionWriter_->getSchemaPayload(shuffleWriter_->writeSchema()));
+    std::shared_ptr<arrow::ipc::IpcPayload> payload;
+    if (shuffleWriter_->options().compression_type == arrow::Compression::type::UNCOMPRESSED) {
+      ARROW_ASSIGN_OR_RAISE(payload, partitionWriter_->getSchemaPayload(shuffleWriter_->writeSchema()));
+    } else {
+      ARROW_ASSIGN_OR_RAISE(payload, partitionWriter_->getSchemaPayload(shuffleWriter_->compressWriteSchema()));
+    }
+
     int32_t metadataLength = 0; // unused
     RETURN_NOT_OK(
         arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));

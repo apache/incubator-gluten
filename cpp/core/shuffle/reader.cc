@@ -44,7 +44,11 @@ Reader::Reader(
     GLUTEN_ASSIGN_OR_THROW(writeSchema_, arrow::ipc::ReadSchema(*firstMessage_, nullptr))
     firstMessageConsumed_ = true;
   } else {
-    writeSchema_ = toWriteSchema(*schema);
+    if (options.compression_type != arrow::Compression::UNCOMPRESSED) {
+      writeSchema_ = toCompressWriteSchema(*schema);
+    } else {
+      writeSchema_ = toWriteSchema(*schema);
+    }
   }
 }
 
@@ -61,10 +65,8 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> Reader::next() {
     return nullptr;
   }
 
-  TIME_NANO_START(decompressTime_)
   GLUTEN_ASSIGN_OR_THROW(
       arrowBatch, arrow::ipc::ReadRecordBatch(*messageToRead, writeSchema_, nullptr, options_.ipc_read_options))
-  TIME_NANO_END(decompressTime_)
   std::shared_ptr<ColumnarBatch> glutenBatch = std::make_shared<ArrowColumnarBatch>(arrowBatch);
   return glutenBatch;
 }

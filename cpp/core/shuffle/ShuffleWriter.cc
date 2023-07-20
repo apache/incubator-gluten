@@ -33,7 +33,7 @@ ShuffleWriterOptions ShuffleWriterOptions::defaults() {
   return {};
 }
 
-arrow::Status ShuffleBufferPool::allocate(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
+arrow::Status ShuffleBufferPool::allocate(std::shared_ptr<arrow::Buffer>& buffer, int64_t size) {
   // if size is already larger than buffer pool size, allocate it directly
   // make size 64byte aligned
   size = ROUND_TO_LINE(size, kDefaultBufferAlignment);
@@ -50,7 +50,7 @@ arrow::Status ShuffleBufferPool::allocate(std::shared_ptr<arrow::Buffer>& buffer
   return arrow::Status::OK();
 }
 
-arrow::Status ShuffleBufferPool::allocateDirectly(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
+arrow::Status ShuffleBufferPool::allocateDirectly(std::shared_ptr<arrow::ResizableBuffer>& buffer, int64_t size) {
   size = ROUND_TO_LINE(size, kDefaultBufferAlignment);
   ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, pool_.get()));
   return arrow::Status::OK();
@@ -63,5 +63,14 @@ std::shared_ptr<arrow::Schema> ShuffleWriter::writeSchema() {
 
   writeSchema_ = toWriteSchema(*schema_);
   return writeSchema_;
+}
+
+std::shared_ptr<arrow::Schema> ShuffleWriter::compressWriteSchema() {
+  if (compressWriteSchema_ != nullptr) {
+    return compressWriteSchema_;
+  }
+
+  compressWriteSchema_ = toCompressWriteSchema(*schema_);
+  return compressWriteSchema_;
 }
 } // namespace gluten

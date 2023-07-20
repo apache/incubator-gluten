@@ -19,11 +19,14 @@ package io.glutenproject.vectorized
 
 import java.io._
 import java.nio.ByteBuffer
+
 import scala.reflect.ClassTag
+
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
@@ -32,10 +35,12 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
+
+import org.apache.spark.shuffle.GlutenShuffleUtils
 import org.apache.spark.util.TaskResources
+import org.apache.spark.SparkEnv
 
 class ColumnarBatchSerializer(
     schema: StructType,
@@ -75,9 +80,19 @@ private class ColumnarBatchSerializerInstance(
         val arrowSchema =
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+        val conf = SparkEnv.get.conf
+        val compressionCodec =
+          if (conf.getBoolean("spark.shuffle.compress", true)) {
+            GlutenShuffleUtils.getCompressionCodec(conf)
+          } else {
+            null // uncompressed
+          }
+        val compressionCodecBackend =
+          GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
         val handle = ShuffleReaderJniWrapper.INSTANCE.make(
           jniByteInputStream, cSchema.memoryAddress(),
-          NativeMemoryAllocators.getDefault().contextInstance.getNativeInstanceId)
+          NativeMemoryAllocators.getDefault().contextInstance.getNativeInstanceId,
+          compressionCodec, compressionCodecBackend)
         // Close shuffle reader instance as lately as the end of task processing,
         // since the native reader could hold a reference to memory pool that
         // was used to create all buffers read from shuffle reader. The pool

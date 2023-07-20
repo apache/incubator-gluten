@@ -20,6 +20,8 @@
 #include <arrow/array/array_binary.h>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "utils/compression.h"
+#include "utils/macros.h"
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/FlatVector.h"
@@ -237,23 +239,67 @@ RowVectorPtr deserialize(
 }
 
 std::shared_ptr<arrow::Buffer> readColumnBuffer(const arrow::RecordBatch& batch, int32_t fieldIdx) {
-  if (batch.column(fieldIdx)->type()->id() == arrow::StringType::type_id) {
-    return std::dynamic_pointer_cast<arrow::StringArray>(batch.column(fieldIdx))->value_data();
-  } else {
-    return std::dynamic_pointer_cast<arrow::LargeStringArray>(batch.column(fieldIdx))->value_data();
+  return std::dynamic_pointer_cast<arrow::LargeStringArray>(batch.column(fieldIdx))->value_data();
+}
+
+void getUncompressedBuffers(
+    const arrow::RecordBatch& batch,
+    arrow::MemoryPool* arrowPool,
+    const arrow::Compression::type compressType,
+    std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
+  auto lengthBuffer = readColumnBuffer(batch, 1);
+  const int64_t* lengthPtr = reinterpret_cast<const int64_t*>(lengthBuffer->data());
+  auto valueBufferLength = lengthPtr[0];
+  auto valueBuffer = readColumnBuffer(batch, 2);
+  int64_t valueOffset = 0;
+  auto codec = createArrowIpcCodec(compressType);
+  for (int64_t i = 0, j = 1; i < valueBufferLength; i++, j = j + 2) {
+    int64_t uncompressLength = lengthPtr[j];
+    int64_t compressLength = lengthPtr[j + 1];
+    auto compressBuffer = arrow::SliceBuffer(valueBuffer, valueOffset, compressLength);
+    valueOffset += compressLength;
+    // Small buffer, not compressed
+    if (uncompressLength == -1) {
+      buffers.emplace_back(compressBuffer);
+    } else {
+      std::shared_ptr<arrow::Buffer> uncompressBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
+      if (uncompressLength != 0) {
+        GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateBuffer(uncompressLength, arrowPool));
+        GLUTEN_ASSIGN_OR_THROW(
+            auto actualDecompressLength,
+            codec->Decompress(
+                compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
+        VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
+      }
+      buffers.emplace_back(uncompressBuffer);
+    }
   }
 }
 
-RowVectorPtr readRowVectorInternal(const arrow::RecordBatch& batch, RowTypePtr rowType, memory::MemoryPool* pool) {
+RowVectorPtr readRowVectorInternal(
+    const arrow::RecordBatch& batch,
+    RowTypePtr rowType,
+    int64_t& decompressTime,
+    arrow::MemoryPool* arrowPool,
+    memory::MemoryPool* pool) {
   auto header = readColumnBuffer(batch, 0);
   uint32_t length;
   mempcpy(&length, header->data(), sizeof(uint32_t));
+  int32_t compressTypeValue;
+  mempcpy(&compressTypeValue, header->data() + sizeof(uint32_t), sizeof(int32_t));
+  arrow::Compression::type compressType = static_cast<arrow::Compression::type>(compressTypeValue);
 
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
-  buffers.reserve(batch.num_columns() - 1);
-  for (int32_t i = 0; i < batch.num_columns() - 1; i++) {
-    auto buffer = readColumnBuffer(batch, i + 1);
-    buffers.emplace_back(buffer);
+  buffers.reserve(batch.num_columns() * 2);
+  if (compressType == arrow::Compression::type::UNCOMPRESSED) {
+    for (int32_t i = 0; i < batch.num_columns() - 1; i++) {
+      auto buffer = readColumnBuffer(batch, i + 1);
+      buffers.emplace_back(buffer);
+    }
+  } else {
+    TIME_NANO_START(decompressTime);
+    getUncompressedBuffers(batch, arrowPool, compressType, buffers);
+    TIME_NANO_END(decompressTime);
   }
   return deserialize(rowType, length, buffers, pool);
 }
@@ -277,13 +323,17 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> VeloxShuffleReader::next() {
     return nullptr;
   }
   auto rb = std::dynamic_pointer_cast<ArrowColumnarBatch>(batch)->getRecordBatch();
-  auto vp = readRowVectorInternal(*rb, rowType_, veloxPool_.get());
+  auto vp = readRowVectorInternal(*rb, rowType_, decompressTime_, pool_.get(), veloxPool_.get());
   return std::make_shared<VeloxColumnarBatch>(vp);
 }
 
-RowVectorPtr
-VeloxShuffleReader::readRowVector(const arrow::RecordBatch& rb, RowTypePtr rowType, memory::MemoryPool* pool) {
-  return readRowVectorInternal(rb, rowType, pool);
+RowVectorPtr VeloxShuffleReader::readRowVector(
+    const arrow::RecordBatch& rb,
+    RowTypePtr rowType,
+    arrow::MemoryPool* arrowPool,
+    memory::MemoryPool* pool) {
+  int64_t decompressTime = 0;
+  return readRowVectorInternal(rb, rowType, decompressTime, arrowPool, pool);
 }
 
 } // namespace gluten

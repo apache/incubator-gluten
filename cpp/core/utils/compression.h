@@ -21,6 +21,8 @@
 #include <bits/stl_algo.h>
 #include <vector>
 
+#include "exception.h"
+
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
@@ -42,11 +44,11 @@ static const std::vector<arrow::Compression::type> kSupportedCodec = {
     arrow::Compression::ZSTD};
 #endif
 
-arrow::Result<std::unique_ptr<arrow::util::Codec>> createArrowIpcCodec(arrow::Compression::type compressedType) {
+inline std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(arrow::Compression::type compressedType) {
   if (std::any_of(kSupportedCodec.begin(), kSupportedCodec.end(), [compressedType](const auto& codec) {
         return codec == compressedType;
       })) {
-    auto ret = arrow::util::Codec::Create(compressedType);
+    GLUTEN_ASSIGN_OR_THROW(auto ret, arrow::util::Codec::Create(compressedType));
     return ret;
   } else {
     return nullptr;

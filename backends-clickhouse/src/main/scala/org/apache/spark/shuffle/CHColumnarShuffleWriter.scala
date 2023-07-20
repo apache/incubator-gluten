@@ -50,8 +50,6 @@ class CHColumnarShuffleWriter[K, V](
   private val splitSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressCodec =
     GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
-  private val batchCompressThreshold =
-    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
   private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
   private val jniWrapper = new CHShuffleSplitterJniWrapper
