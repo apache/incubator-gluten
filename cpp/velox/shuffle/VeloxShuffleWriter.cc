@@ -236,7 +236,6 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
     }
   }
   GLUTEN_THROW_NOT_OK(valueBuffer->Resize(compressValueOffset, /*shrink*/ true));
-
   arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(1)->type(), lengthBuffer, pool));
   arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(2)->type(), valueBuffer, pool));
   return arrow::RecordBatch::Make(compressWriteSchema, 1, {arrays});
@@ -1207,8 +1206,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       const arrow::RecordBatch& rb, bool reuseBuffers) {
     auto payload = std::make_shared<arrow::ipc::IpcPayload>();
     // Extract numRows from header column
-    TIME_NANO_OR_RAISE(
-        totalCompressTime_, arrow::ipc::GetRecordBatchPayload(rb, options_.ipc_write_options, payload.get()));
+    GLUTEN_THROW_NOT_OK(arrow::ipc::GetRecordBatchPayload(rb, options_.ipc_write_options, payload.get()));
     if (options_.codec == nullptr) {
       // Without compression, we need to perform a manual copy of the original buffers
       // so that we can reuse them for next split.
@@ -1355,13 +1353,16 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     if (options_.codec == nullptr) {
       return makeUncompressedRecordBatch(numRows, buffers, writeSchema(), pool_.get());
     } else {
-      return makeCompressedRecordBatch(
+      TIME_NANO_START(totalCompressTime_);
+      auto rb = makeCompressedRecordBatch(
           numRows,
           buffers,
           compressWriteSchema(),
           pool_.get(),
           options_.codec.get(),
           options_.buffer_compress_threshold);
+      TIME_NANO_END(totalCompressTime_);
+      return rb;
     }
   }
 
