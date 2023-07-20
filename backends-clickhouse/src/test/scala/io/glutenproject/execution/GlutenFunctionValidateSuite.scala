@@ -143,6 +143,7 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
       .mode("overwrite")
       .parquet(dateTableFilePath)
     spark.catalog.createTable("date_table", dateTableFilePath, fileFormat)
+
     val str2Mapfile = Files.createTempFile("", ".parquet").toFile
     str2Mapfile.deleteOnExit()
     val str2MapFilePath = str2Mapfile.getAbsolutePath
@@ -170,6 +171,46 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
       .mode("overwrite")
       .parquet(str2MapFilePath)
     spark.catalog.createTable("str2map_table", str2MapFilePath, fileFormat)
+
+    val urlFile = Files.createTempFile("", ".parquet").toFile()
+    urlFile.deleteOnExit()
+    val urlFilePath = urlFile.getAbsolutePath
+    val urlTalbeSchema = StructType(
+      Array(
+        StructField("url", StringType, true)
+      )
+    )
+    val urlTableData = sparkContext.parallelize(
+      Seq(
+        Row("http://www.gluten.com"),
+        Row("www.gluten.com"),
+        Row("http://www.gluten.com?x=1"),
+        Row("http://www.gluten?x=1"),
+        Row("http://www.gluten.com?x=1#Ref"),
+        Row("http://www.gluten.com#Ref?x=1"),
+        Row("http://www.gluten.com?x=1&y=2"),
+        Row("https://www.gluten.com?x=1&y=2"),
+        Row("file://www.gluten.com?x=1&y=2"),
+        Row("hdfs://www.gluten.com?x=1&y=2"),
+        Row("hdfs://www.gluten.com?x=1&y=2/a/b"),
+        Row("hdfs://www.gluten.com/x/y"),
+        Row("hdfs://xy:12@www.gluten.com/x/y"),
+        Row("xy:12@www.gluten.com/x/y"),
+        Row("www.gluten.com/x/y"),
+        Row("www.gluten.com?x=1"),
+        Row("www.gluten.com:999?x=1"),
+        Row("www.gluten.com?x=1&y=2"),
+        Row("heel?x=1&y=2"),
+        Row("x=1&y=2"),
+        Row("/a/b/cx=1&y=2"),
+        Row("gluten?x=1&y=2"),
+        Row("xxhhh"),
+        Row(null)
+      )
+    )
+    val urlPQFile = spark.createDataFrame(urlTableData, urlTalbeSchema)
+    urlPQFile.coalesce(1).write.format("parquet").mode("overwrite").parquet(urlFilePath)
+    spark.catalog.createTable("url_table", urlFilePath, fileFormat)
   }
 
   test("Test get_json_object 1") {
@@ -304,5 +345,55 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         |select str, str_to_map(str, ',', ':') from str2map_table
         |""".stripMargin
     runQueryAndCompare(sql1)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test parse_url") {
+    val sql1 =
+      """
+        | select url, parse_url(url, "HOST") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql1)(checkOperatorMatch[ProjectExecTransformer])
+
+    val sql2 =
+      """
+        | select url, parse_url(url, "QUERY") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql2)(checkOperatorMatch[ProjectExecTransformer])
+
+    val sql3 =
+      """
+        | select url, parse_url(url, "QUERY", "x") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql3)(checkOperatorMatch[ProjectExecTransformer])
+
+    val sql5 =
+      """
+        | select url, parse_url(url, "FILE") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql5)(checkOperatorMatch[ProjectExecTransformer])
+
+    val sql6 =
+      """
+        | select url, parse_url(url, "REF") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql6)(checkOperatorMatch[ProjectExecTransformer])
+
+    val sql7 =
+      """
+        | select url, parse_url(url, "USERINFO") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql7)(checkOperatorMatch[ProjectExecTransformer])
+
+    val sql8 =
+      """
+        | select url, parse_url(url, "AUTHORITY") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql8)(checkOperatorMatch[ProjectExecTransformer])
+
+    val sql9 =
+      """
+        | select url, parse_url(url, "PROTOCOL") from url_table order by url
+      """.stripMargin
+    runQueryAndCompare(sql9)(checkOperatorMatch[ProjectExecTransformer])
   }
 }
