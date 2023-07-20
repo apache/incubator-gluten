@@ -43,7 +43,6 @@
 #include <Operator/PartitionColumnFillingTransform.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/RelParser.h>
-#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>

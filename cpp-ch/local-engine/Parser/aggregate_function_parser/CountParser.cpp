@@ -56,5 +56,5 @@ DB::ActionsDAG::NodeRawConstPtrs CountParser::parseFunctionArguments(
     }
     return {last_arg_node};
 }
-static const FunctionParserRegister<CountParser> register_count;
+static const AggregateFunctionParserRegister<CountParser> register_count;
 }

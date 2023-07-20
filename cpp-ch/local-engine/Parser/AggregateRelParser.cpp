@@ -6,8 +6,7 @@
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
-#include <Parser/FunctionParser.h>
-#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
+#include <Parser/AggregateFunctionParser.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
@@ -87,14 +86,14 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         AggregateInfo agg_info;
         auto arg = measure.measure().arguments(0).value();
         agg_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
-        auto function_parser = FunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
+        auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
         if (!function_parser)
         {
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported aggregate function: {}", agg_info.signature_function_name);
         }
         /// Put function_parser, parser_func_info and function_name into agg_info for reducing repeated builds.
         agg_info.function_parser = function_parser;
-        agg_info.parser_func_info = FunctionParser::CommonFunctionInfo(measure);
+        agg_info.parser_func_info = AggregateFunctionParser::CommonFunctionInfo(measure);
         agg_info.function_name = function_parser->getCHFunctionName(agg_info.parser_func_info);
         agg_info.measure = &measure;
         aggregates.push_back(agg_info);
@@ -167,8 +166,7 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         description.argument_names = agg_info.arg_column_names;
         // May apply `PartialMerge` and `If` on the original function.
         auto [combinator_function_name, combinator_function_arg_types]
-            = dynamic_cast<BaseAggregateFunctionParser *>(agg_info.function_parser.get())
-                  ->tryApplyCHCombinator(agg_info.parser_func_info, agg_info.function_name, agg_info.arg_column_types);
+            = agg_info.function_parser->tryApplyCHCombinator(agg_info.parser_func_info, agg_info.function_name, agg_info.arg_column_types);
         DB::AggregateFunctionProperties properties;
         description.function = getAggregateFunction(combinator_function_name, combinator_function_arg_types, properties, agg_info.params);
         descriptions.emplace_back(description);

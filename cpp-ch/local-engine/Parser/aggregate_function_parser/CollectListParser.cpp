@@ -4,6 +4,6 @@
 
 namespace local_engine
 {
-FunctionParserRegister<CollectListParser> register_collect_list;
-FunctionParserRegister<CollectSetParser> register_collect_set;
+AggregateFunctionParserRegister<CollectListParser> register_collect_list;
+AggregateFunctionParserRegister<CollectSetParser> register_collect_set;
 }

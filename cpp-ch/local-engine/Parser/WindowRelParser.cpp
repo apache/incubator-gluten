@@ -9,7 +9,7 @@
 #include <Core/SortDescription.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
-#include <Functions/FunctionFactory.h>
+#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/WindowDescription.h>
@@ -286,8 +286,8 @@ void WindowRelParser::initWindowsInfos(const substrait::WindowRel & win_rel)
         win_info.result_column_name = measure.measure().column_name();
         win_info.measure = &measure;
         win_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
-        win_info.parser_func_info = FunctionParser::CommonFunctionInfo(measure);
-        win_info.function_parser = FunctionParserFactory::instance().get(win_info.signature_function_name, getPlanParser());
+        win_info.parser_func_info = AggregateFunctionParser::CommonFunctionInfo(measure);
+        win_info.function_parser = AggregateFunctionParserFactory::instance().get(win_info.signature_function_name, getPlanParser());
         win_info.function_name = win_info.function_parser->getCHFunctionName(win_info.parser_func_info);
         win_info.partition_exprs = win_rel.partition_expressions();
         win_info.sort_fields = win_rel.sorts();

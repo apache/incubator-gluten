@@ -22,17 +22,7 @@ using namespace DB;
 
 String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
-    return getCHFunctionName(CommonFunctionInfo(substrait_func));
-}
-
-String FunctionParser::getCHFunctionName(const DB::DataTypes &) const
-{
-    throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Not implemented");
-}
-
-String FunctionParser::getCHFunctionName(const CommonFunctionInfo & func_info) const
-{
-    auto func_signature = plan_parser->function_mapping.at(std::to_string(func_info.function_ref));
+    auto func_signature = plan_parser->function_mapping.at(std::to_string(substrait_func.function_reference()));
     auto pos = func_signature.find(':');
     auto func_name = func_signature.substr(0, pos);
 
@@ -47,24 +37,12 @@ ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
     const String & ch_func_name,
     ActionsDAGPtr & actions_dag) const
 {
-    return parseFunctionArguments(CommonFunctionInfo(substrait_func), ch_func_name, actions_dag);
-}
-
-DB::ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const CommonFunctionInfo & func_info, const String & ch_func_name, DB::ActionsDAGPtr & actions_dag) const
-{
     ActionsDAG::NodeRawConstPtrs parsed_args;
-    const auto & args = func_info.arguments;
+    const auto & args = substrait_func.arguments();
     parsed_args.reserve(args.size());
     for (const auto & arg : args)
         plan_parser->parseFunctionArgument(actions_dag, parsed_args, ch_func_name, arg);
     return parsed_args;
-}
-
-DB::ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
-{
-    return parseFunctionArguments(func_info, getCHFunctionName(func_info), actions_dag);
 }
 
 const ActionsDAG::Node * FunctionParser::parse(
@@ -77,25 +55,10 @@ const ActionsDAG::Node * FunctionParser::parse(
     return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
 }
 
-const DB::ActionsDAG::Node * FunctionParser::parse(
-    const CommonFunctionInfo & func_info, ActionsDAGPtr & actions_dag) const
-{
-    auto ch_func_name = getCHFunctionName(func_info);
-    auto parsed_args = parseFunctionArguments(func_info, ch_func_name, actions_dag);
-    const auto * func_node = toFunctionNode(actions_dag, ch_func_name, parsed_args);
-    return convertNodeTypeIfNeeded(func_info, func_node, actions_dag);
-}
-
 const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     const substrait::Expression_ScalarFunction & substrait_func, const ActionsDAG::Node * func_node, ActionsDAGPtr & actions_dag) const
 {
-    return convertNodeTypeIfNeeded(CommonFunctionInfo(substrait_func), func_node, actions_dag);
-}
-
-const DB::ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
-    const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const
-{
-    const auto & output_type = func_info.output_type;
+    const auto & output_type = substrait_func.output_type();
     if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
         return ActionsDAGUtil::convertNodeType(
             actions_dag, func_node, TypeParser::parseType(output_type)->getName(), func_node->result_name);

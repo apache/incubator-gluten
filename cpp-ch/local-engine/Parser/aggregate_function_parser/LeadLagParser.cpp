@@ -48,7 +48,7 @@ LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const S
     }    
     return args;
 }
-FunctionParserRegister<LeadParser> lead_register;
+AggregateFunctionParserRegister<LeadParser> lead_register;
 
 DB::ActionsDAG::NodeRawConstPtrs
 LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const String & /*ch_func_name*/, DB::ActionsDAGPtr & actions_dag) const
@@ -96,5 +96,5 @@ LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const St
     }
     return args;
 }
-FunctionParserRegister<LagParser> lag_register;
+AggregateFunctionParserRegister<LagParser> lag_register;
 }

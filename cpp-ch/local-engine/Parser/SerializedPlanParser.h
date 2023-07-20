@@ -244,6 +244,7 @@ private:
     friend class RelParser;
     friend class ASTParser;
     friend class FunctionParser;
+    friend class AggregateFunctionParser;
     friend class FunctionExecutor;
     friend class NonNullableColumnsResolver;
 
