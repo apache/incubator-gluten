@@ -338,3 +338,47 @@ class CHTruncTimestampTransformer(
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
+
+case class CHToUnixTimestampTransformer(
+    substraitExprName: String,
+    timeExp: ExpressionTransformer,
+    format: ExpressionTransformer,
+    timeZoneId: Option[String],
+    failOnError: Boolean,
+    original: ToUnixTimestamp)
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // Only when timeExp is not string type or format = 'yyyy-MM-dd HH:mm:ss'
+    // can we transfrom the expr to substrait.
+    val formatNode = format.doTransform(args)
+    if (
+      original.timeExp.dataType.isInstanceOf[StringType] &&
+      (!formatNode.isInstanceOf[StringLiteralNode] ||
+        formatNode.asInstanceOf[StringLiteralNode].getValue != "yyyy-MM-dd HH:mm:ss")
+    ) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
+
+    val dataTypes = if (timeZoneId != None) {
+      Seq(original.timeExp.dataType, StringType)
+    } else {
+      Seq(original.timeExp.dataType)
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    val timeExpNode = timeExp.doTransform(args)
+    expressionNodes.add(timeExpNode)
+    if (timeZoneId != None) {
+      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
+    }
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}

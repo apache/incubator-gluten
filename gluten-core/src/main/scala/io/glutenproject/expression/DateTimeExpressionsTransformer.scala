@@ -20,7 +20,7 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, StringLiteralNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -112,6 +112,10 @@ class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransfor
   }
 }
 
+/**
+ * The failOnError depends on the config for ANSI. ANSI is not supported currently.
+ * And timeZoneId is passed to backend config.
+ */
 case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTransformer,
   format: ExpressionTransformer, timeZoneId: Option[String], failOnError: Boolean,
   original: ToUnixTimestamp)
@@ -119,20 +123,7 @@ case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: Expres
   with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // Only when timeExp is not string type or format = 'yyyy-MM-dd HH:mm:ss'
-    // can we transfrom the expr to substrait.
-    val formatNode = format.doTransform(args)
-    if (original.timeExp.dataType.isInstanceOf[StringType] &&
-      (!formatNode.isInstanceOf[StringLiteralNode] ||
-      formatNode.asInstanceOf[StringLiteralNode].getValue != "yyyy-MM-dd HH:mm:ss")) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
-    }
-
-    val dataTypes = if (timeZoneId != None) {
-      Seq(original.timeExp.dataType, StringType)
-    } else {
-      Seq(original.timeExp.dataType)
-    }
+    val dataTypes = Seq(original.timeExp.dataType, StringType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
@@ -140,27 +131,10 @@ case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: Expres
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
     val timeExpNode = timeExp.doTransform(args)
     expressionNodes.add(timeExpNode)
-    if (timeZoneId != None) {
-      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
-    }
-
+    val formatNode = format.doTransform(args)
+    expressionNodes.add(formatNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-class UnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTransformer,
-  format: ExpressionTransformer, timeZoneId: Option[String], failOnError: Boolean,
-  original: UnixTimestamp)
-  extends ExpressionTransformer
-  with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val toUnixTimestamp = ToUnixTimestamp(original.timeExp, original.format,
-      original.timeZoneId, original.failOnError)
-    val transformer = ToUnixTimestampTransformer(substraitExprName, timeExp, format,
-      timeZoneId, failOnError, toUnixTimestamp)
-    transformer.doTransform(args)
   }
 }
 

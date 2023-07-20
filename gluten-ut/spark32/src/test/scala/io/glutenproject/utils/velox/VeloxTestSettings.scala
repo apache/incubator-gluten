@@ -185,6 +185,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("unix_timestamp")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("to_unix_timestamp")
+    // Unsupported format: yyyy-MM-dd HH:mm:ss.SSS
+    .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
@@ -220,6 +226,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]
+      // The below two are replaced by two modified versions.
+      .exclude("unix_timestamp")
+      .exclude("to_unix_timestamp")
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]

@@ -131,6 +131,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
     .exclude("TIMESTAMP_MICROS")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("unix_timestamp")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("to_unix_timestamp")
+    // Unsupported format: yyyy-MM-dd HH:mm:ss.SSS
+    .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
@@ -1027,6 +1033,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-40407: repartition should not result in severe data skew")
     .exclude("SPARK-40660: Switch to XORShiftRandom to distribute elements")
   enableSuite[GlutenDateFunctionsSuite]
+    // The below two are replaced by two modified versions.
+    .exclude("unix_timestamp")
+    .exclude("to_unix_timestamp")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]

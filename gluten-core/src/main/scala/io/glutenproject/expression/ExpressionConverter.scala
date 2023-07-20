@@ -379,22 +379,18 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(d.startDate, attributeSeq),
           d)
       case t: ToUnixTimestamp =>
-        new ToUnixTimestampTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genUnixTimestampTransformer(
           substraitExprName.get,
           replaceWithExpressionTransformer(t.timeExp, attributeSeq),
           replaceWithExpressionTransformer(t.format, attributeSeq),
-          t.timeZoneId,
-          t.failOnError,
           t
         )
       case u: UnixTimestamp =>
-        new UnixTimestampTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genUnixTimestampTransformer(
           substraitExprName.get,
           replaceWithExpressionTransformer(u.timeExp, attributeSeq),
           replaceWithExpressionTransformer(u.format, attributeSeq),
-          u.timeZoneId,
-          u.failOnError,
-          u
+          ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
         )
       case truncTimestamp: TruncTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
