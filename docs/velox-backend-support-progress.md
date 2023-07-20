@@ -15,11 +15,11 @@ Gluten supported frequently used 164, shown as below picture.
 
 | Value        | Description                                                                               |
 |--------------|-------------------------------------------------------------------------------------------|
-| S            | (Supported) Gluten or Velox supports fully.                                               |
-| S*           | Foldable expression. Be converted to alias after spark's optimization.                    |
-| [Blank Cell] | (Not Applicable) Not applicable case or needs to confirm.                                 |
-| PS           | (Partial Support) Apache Spark supports this type, but Velox only  partially supports it. |
-| NS           | (Not Supported) Apache Spark supports this type but Velox backend does not.               |
+| S            | Supported. Gluten or Velox supports fully.                                                |
+| S*           | Mark for foldable expression that will be converted to alias after spark's optimization.  |
+| [Blank Cell] | Not applicable case or needs to confirm.                                                  |
+| PS           | Partial Support. Velox only partially supports it.                                        |
+| NS           | Not Supported. Velox backend does not support it.                                         |
 
 
 | Value      | Description                                                                                                                                                      |
