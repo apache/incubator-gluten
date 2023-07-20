@@ -60,7 +60,7 @@ Currently, Gluten only fully supports parquet file format. If other format is us
 
 ### Parquet read conf (incompatible behavior)
 Gluten supports `spark.files.ignoreCorruptFiles` and `spark.files.ignoreMissingFiles` with default false, if true, the behavior is same as config false.
-Gluten ignore `spark.sql.parquet.datetimeRebaseModeInRead`, it only returns what write in parquet file. It does not consider the difference between legacy
+Gluten ignores `spark.sql.parquet.datetimeRebaseModeInRead`, it only returns what write in parquet file. It does not consider the difference between legacy
 hybrid (Julian Gregorian) calendar and Proleptic Gregorian calendar. The result may be different with vanilla spark.
 
 ### Parquet write conf (incompatible behavior)

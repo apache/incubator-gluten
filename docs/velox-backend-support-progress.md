@@ -13,19 +13,19 @@ The total supported functions' number for [Spark3.3 is 387](https://spark.apache
 Gluten supported frequently used 164, shown as below picture.
 ![support](./image/support.png)
 
-| Value         | Description                                                                               |
-|---------------|-------------------------------------------------------------------------------------------|
-| S             | (Supported) Gluten or Velox support fully.                                                |
-| S*            | Foldable expression. Be converted to alias after spark's optimization.                    |
-| <Blank Cell> | (Not Applicable) Neither Gluten not Velox support this type in  this situation.            |
-| PS            | (Partial Support) Apache Spark supports this type, but Velox only  partially supports it. |
-| NS            | (Not Supported) Apache Spark supports this  type but Velox backend does not.              |
+| Value        | Description                                                                               |
+|--------------|-------------------------------------------------------------------------------------------|
+| S            | (Supported) Gluten or Velox supports fully.                                               |
+| S*           | Foldable expression. Be converted to alias after spark's optimization.                    |
+| [Blank Cell] | (Not Applicable) Not applicable case or needs to confirm.                                 |
+| PS           | (Partial Support) Apache Spark supports this type, but Velox only  partially supports it. |
+| NS           | (Not Supported) Apache Spark supports this type but Velox backend does not.               |
 
 
-| Value      | Description                                                  |
-| ---------- | ------------------------------------------------------------ |
-| Mismatched | Some functions are implimented by Velox, which return results mismatched with Apache Spark. So we marked then as "Mismatched" |
-| Ansi OFF   | Velox's doesn't fully support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)). Once Ansi is enabled, Gluten will fallback to Vanilla Spark. |
+| Value      | Description                                                                                                                                                      |
+| ---------- |------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Mismatched | Some functions are implemented by Velox, which return results mismatched with Apache Spark. So we marked then as "Mismatched".                                   |
+| Ansi OFF   | Gluten doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html). If it is enabled, Gluten will fall back to Vanilla Spark. |
 
 ### Operator Map
 
