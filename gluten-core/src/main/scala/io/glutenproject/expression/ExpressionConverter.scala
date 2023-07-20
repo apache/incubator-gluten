@@ -260,43 +260,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
-  def normalFunctionExpressionTransform(
-    expression: Expression,
-    attributes: Seq[Attribute],
-    substraitFunctioName: String): ExpressionTransformer = {
-      if (expression.children.length == 1) {
-        val childTransformer = replaceWithExpressionTransformer(
-          expression.children(0),
-          attributes)
-        new UnaryExpressionTransformer(substraitFunctioName, childTransformer, expression)
-      } else if (expression.children.length == 2) {
-        new BinaryExpressionTransformer(
-          substraitFunctioName,
-          replaceWithExpressionTransformer(expression.children(0), attributes),
-          replaceWithExpressionTransformer(expression.children(1), attributes),
-          expression)
-      } else if (expression.children.length == 3) {
-        new TernaryExpressionTransformer(
-          substraitFunctioName,
-          replaceWithExpressionTransformer(expression.children(0), attributes),
-          replaceWithExpressionTransformer(expression.children(1), attributes),
-          replaceWithExpressionTransformer(expression.children(2), attributes),
-          expression)
-      } else if (expression.children.length == 3) {
-        new QuaternaryExpressionTransformer(
-          substraitFunctioName,
-          replaceWithExpressionTransformer(expression.children(0), attributes),
-          replaceWithExpressionTransformer(expression.children(1), attributes),
-          replaceWithExpressionTransformer(expression.children(2), attributes),
-          replaceWithExpressionTransformer(expression.children(3), attributes),
-          expression)
-      } else {
-        throw new UnsupportedOperationException(
-          s"Unsupported function: ${expression.prettyName} with ${expression.children.length} " +
-            s"children.")
-      }
-  }
-
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
@@ -682,7 +645,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           q
         )
       case expr =>
-        normalFunctionExpressionTransform(expr, attributeSeq, substraitExprName.get)
+        logWarning(s"${expr.getClass} or $expr is not currently supported.")
+        throw new UnsupportedOperationException(
+          s"${expr.getClass} or $expr is not currently supported.")
     }
   }
 

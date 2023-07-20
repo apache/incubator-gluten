@@ -269,9 +269,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "LPAD/RPAD",
       "REPEAT",
       "length for string / binary",
-      "SPARK-40213: ascii for Latin-1 Supplement characters",
-      "SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url",
-      "ParseUrl"
+      "SPARK-40213: ascii for Latin-1 Supplement characters"
     )
 
   enableSuite[GlutenSessionExtensionSuite]
