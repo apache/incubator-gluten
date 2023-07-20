@@ -85,10 +85,6 @@ object ExpressionMappings {
     Sig[StringRepeat](REPEAT),
     Sig[StringTranslate](TRANSLATE),
     Sig[StringSpace](SPACE),
-
-    // URL functions
-    Sig[ParseUrl](PARSE_URL),
-
     // SparkSQL Math functions
     Sig[Abs](ABS),
     Sig[Bin](BIN),
