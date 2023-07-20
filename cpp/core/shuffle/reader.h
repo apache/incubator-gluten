@@ -47,6 +47,7 @@ class Reader {
 
  protected:
   std::shared_ptr<arrow::MemoryPool> pool_;
+  int64_t decompressTime_ = 0;
 
  private:
   std::shared_ptr<arrow::io::InputStream> in_;
@@ -54,7 +55,6 @@ class Reader {
   std::shared_ptr<arrow::Schema> writeSchema_;
   std::unique_ptr<arrow::ipc::Message> firstMessage_;
   bool firstMessageConsumed_ = false;
-  int64_t decompressTime_ = 0;
 };
 
 } // namespace gluten
