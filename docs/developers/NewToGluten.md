@@ -67,7 +67,7 @@ cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BU
 
 If you need to debug the tests in <gluten>/gluten-ut, You need to compile java code with `-P spark-ut`.
 
-# Debug java/scala with Intellij
+# Java/scala code development with Intellij
 
 ## Linux intellij local debug
 
@@ -102,7 +102,12 @@ If you have Ultimate intellij, you can try to debug remotely.
 - Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
 - Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
 
-# Debug cpp code with Visual Studio Code
+## Java/Scala code style setting
+
+Intellij IDE supports importing settings for Java/Scala code style. You can import [intellij-codestyle.xml](../../dev/intellij-codestyle.xml) to your IDE.
+See [Intellij guide](https://www.jetbrains.com/help/idea/configuring-code-style.html#import-code-style).
+
+# CPP code development with Visual Studio Code
 
 This guide is for remote debug. We will connect the remote linux server by `SSH`.
 Download the [windows vscode software](https://code.visualstudio.com/Download)
@@ -110,10 +115,8 @@ The important leftside bar is:
 - Explorer (Project structure)
 - Search
 - Run and Debug
-- Extensions (Install C/C++ Extension Pack, Remote Develoment, GitLens at least, C++ Test Mate is also suggested)
+- Extensions (Install C/C++ Extension Pack, Remote Development, GitLens at least, C++ Test Mate is also suggested)
 - Remote Explorer (Connect linux server by ssh command, click `+`, then input `ssh user@10.1.7.003`)
--
--
 - Manage (Settings)
 
 Input your password in the above pop-up window, it will take a few minutes to install linux vscode server in remote machine folder `~/.vscode-server`
