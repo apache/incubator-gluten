@@ -24,11 +24,27 @@
 
 namespace gluten {
 
+// TODO: hongze
+struct HeapHandle {
+  bool valid() const {
+    return true;
+  }
+};
+
+// TODO: hongze
+inline HeapHandle tryAllocHeapMemory(size_t size) {
+  HeapHandle handle;
+  return handle;
+}
+
+// TODO: hongze
+inline void freeHeapMemory(HeapHandle handle) {
+  // Do something
+}
+
 class JniReadFile : public facebook::velox::ReadFile {
  public:
-  explicit JniReadFile(jobject obj);
-
-  ~JniReadFile() override;
+  explicit JniReadFile(HeapHandle handle) : handle_(handle) {}
 
   std::string_view pread(uint64_t offset, uint64_t length, void* buf) const override;
 
@@ -38,18 +54,20 @@ class JniReadFile : public facebook::velox::ReadFile {
 
   uint64_t memoryUsage() const override;
 
-  std::string getName() const override;
+  std::string getName() const override {
+    return "<JniReadFile>";
+  }
 
   uint64_t getNaturalReadSize() const override;
 
  private:
-  jobject obj_;
+  HeapHandle handle_;
 };
 
 class JniWriteFile : public facebook::velox::WriteFile {
  public:
-  explicit JniWriteFile(jobject obj);
-  ~JniWriteFile() override;
+  explicit JniWriteFile(HeapHandle handle) : handle_(handle) {}
+
   void append(std::string_view data) override;
 
   void flush() override;
@@ -59,14 +77,22 @@ class JniWriteFile : public facebook::velox::WriteFile {
   uint64_t size() const override;
 
  private:
-  jobject obj_;
+  HeapHandle handle_;
 };
 
 class JniFileSystem : public facebook::velox::filesystems::FileSystem {
  public:
-  explicit JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::Config> config);
-  ~JniFileSystem() override;
-  std::string name() const override;
+  struct FileStub {
+    enum { INVALID, HEAP, DISK } type = INVALID;
+    HeapHandle handle;
+    std::string filename;
+  };
+
+  explicit JniFileSystem(std::shared_ptr<const facebook::velox::Config> config) : FileSystem(config) {}
+
+  std::string name() const override {
+    return "JNI FS";
+  }
 
   std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
       std::string_view path,
@@ -94,7 +120,8 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
   fileSystemGenerator();
 
  private:
-  jobject obj_;
+  std::map<std::string /*path*/, FileStub> fileStubs_;
+  std::mutex fileStubsMutex_;
 };
 
 void registerJniFileSystem();
