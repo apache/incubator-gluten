@@ -65,7 +65,7 @@ private:
         DB::WriteBufferFromOwnString ostr; \
         auto trace = boost::stacktrace::stacktrace(); \
         boost::stacktrace::detail::to_string(&trace.as_vector()[0], trace.size()); \
-        local_engine::JniErrorsGlobalState::instance().throwRuntimeException(env, "Unknow Exception", ostr.str().c_str()); \
+        local_engine::JniErrorsGlobalState::instance().throwRuntimeException(env, "Unknown Exception", ostr.str().c_str()); \
         return ret; \
     }
 }

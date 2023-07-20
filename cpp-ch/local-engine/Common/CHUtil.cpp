@@ -390,15 +390,20 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std::string * plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
+    if (plan == nullptr)
+    {
+        return ch_backend_conf;
+    }
+
 
     /// Parse backend configs from plan extensions
     do
     {
         auto plan_ptr = std::make_unique<substrait::Plan>();
-        auto success = plan_ptr->ParseFromString(plan);
+        auto success = plan_ptr->ParseFromString(*plan);
         if (!success)
             break;
 
@@ -438,17 +443,11 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
     return ch_backend_conf;
 }
 
-DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::string * plan)
+DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::string, std::string> & backend_conf_map)
 {
     DB::Context::ConfigurationPtr config;
-    if (plan == nullptr)
-    {
-        config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
-        return config;
-    }
 
     /// Parse input substrait plan, and get native conf map from it.
-    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(*plan);
     if (backend_conf_map.count(CH_RUNTIME_CONFIG_FILE))
     {
         if (fs::exists(CH_RUNTIME_CONFIG_FILE) && fs::is_regular_file(CH_RUNTIME_CONFIG_FILE))
@@ -475,37 +474,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::string * p
             // Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
         }
-        if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
-        {
-            // temporally put runtime_settings into config, so that they can be retrieved later in initSettings
-            config->setString(key, value);
-        }
-        else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX + "bucket"))
-        {
-            // deal with per bucket S3 configs, e.g. fs.s3a.bucket.bucket_name.assumed.role.arn
-            // for gluten, we require first authenticate with AK/SK(or instance profile), then assume other roles with STS
-            // so only the following per-bucket configs are supported:
-            // 1. fs.s3a.bucket.bucket_name.assumed.role.arn
-            // 2. fs.s3a.bucket.bucket_name.assumed.role.session.name
-            // 3. fs.s3a.bucket.bucket_name.endpoint
-            // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
 
-            // for spark.hadoop.fs.s3a.bucket.bucket_name.assumed.role.arn, put bucket_name.fs.s3a.assumed.role.arn into config
-            std::regex base_regex("bucket\\.([^\\.]+)\\.");
-            std::smatch base_match;
-            std::string new_key = key.substr(SPARK_HADOOP_PREFIX.length());
-            if (std::regex_search(new_key, base_match, base_regex))
-            {
-                std::string bucket_name = base_match[1].str();
-                new_key.replace(base_match[0].first - new_key.begin(), base_match[0].second - base_match[0].first, "");
-                config->setString(bucket_name + "." + new_key, value);
-            }
-        }
-        else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
-        {
-            // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
-            config->setString(key.substr(SPARK_HADOOP_PREFIX.length()), value);
-        }
     }
     return config;
 }
@@ -546,32 +515,50 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
     setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
 }
 
-std::unique_ptr<DB::Settings> BackendInitializerUtil::initSettings(DB::Context::ConfigurationPtr config)
+std::unique_ptr<DB::Settings> BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map)
 {
-    static const std::string settings_path("local_engine.settings");
-    static const std::string runtime_settings_path(CH_RUNTIME_SETTINGS_PREFIX);
-
     std::unique_ptr<DB::Settings> settings = std::make_unique<DB::Settings>();
 
     /// Initialize default setting.
     settings->set("date_time_input_format", "best_effort");
 
-    /// Firstly apply section [local_engine.settings] in config file to settings
+    for (const auto & pair : backend_conf_map)
     {
-        Poco::Util::AbstractConfiguration::Keys settings_keys;
-        config->keys(settings_path, settings_keys);
+        // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
+        if (pair.first.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
+        {
+            settings->set(pair.first.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), pair.second);
+        }
+        else if (pair.first.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
+        {
+            settings->set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
+        }
+        else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX + "bucket"))
+        {
+            // deal with per bucket S3 configs, e.g. fs.s3a.bucket.bucket_name.assumed.role.arn
+            // for gluten, we require first authenticate with AK/SK(or instance profile), then assume other roles with STS
+            // so only the following per-bucket configs are supported:
+            // 1. fs.s3a.bucket.bucket_name.assumed.role.arn
+            // 2. fs.s3a.bucket.bucket_name.assumed.role.session.name
+            // 3. fs.s3a.bucket.bucket_name.endpoint
+            // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
 
-        for (const std::string & key : settings_keys)
-            settings->set(key, config->getString(settings_path + "." + key));
-    }
-
-    /// Secondly apply spark.gluten.sql.columnar.backend.ch.runtime_settings.* to settings
-    {
-        Poco::Util::AbstractConfiguration::Keys runtime_settings_keys;
-        config->keys(runtime_settings_path, runtime_settings_keys);
-
-        for (const std::string & key : runtime_settings_keys)
-            settings->set(key, config->getString(runtime_settings_path + "." + key));
+            // for spark.hadoop.fs.s3a.bucket.bucket_name.assumed.role.arn, put bucket_name.fs.s3a.assumed.role.arn into config
+            std::regex base_regex("bucket\\.([^\\.]+)\\.");
+            std::smatch base_match;
+            std::string new_key = pair.first.substr(SPARK_HADOOP_PREFIX.length());
+            if (std::regex_search(new_key, base_match, base_regex))
+            {
+                std::string bucket_name = base_match[1].str();
+                new_key.replace(base_match[0].first - new_key.begin(), base_match[0].second - base_match[0].first, "");
+                settings->set(bucket_name + "." + new_key, pair.second);
+            }
+        }
+        else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
+        {
+            // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
+            settings->set(pair.first.substr(SPARK_HADOOP_PREFIX.length()), pair.second);
+        }
     }
 
     /// Finally apply some fixed kvs to settings.
@@ -630,10 +617,9 @@ void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::Configura
     global_context->setSettings(*settings);
 }
 
-void BackendInitializerUtil::applyConfig(
-    DB::ContextMutablePtr context, DB::Context::ConfigurationPtr config, std::unique_ptr<DB::Settings> & settings)
+void BackendInitializerUtil::updateNewSettings(
+    DB::ContextMutablePtr context, std::unique_ptr<DB::Settings> & settings)
 {
-    context->setConfig(config);
     context->setSettings(*settings);
 }
 
@@ -683,14 +669,15 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 
 void BackendInitializerUtil::init(std::string * plan)
 {
-    DB::Context::ConfigurationPtr config = initConfig(plan);
+    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
+    DB::Context::ConfigurationPtr config = initConfig(backend_conf_map);
 
     initLoggers(config);
 
     initEnvs(config);
     LOG_INFO(logger, "Init environment variables.");
 
-    std::unique_ptr<DB::Settings> settings = initSettings(config);
+    std::unique_ptr<DB::Settings> settings = initSettings(backend_conf_map);
     LOG_INFO(logger, "Init settings.");
 
     initContexts(config);
@@ -723,9 +710,13 @@ void BackendInitializerUtil::init(std::string * plan)
 
 void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::string * plan)
 {
-    DB::Context::ConfigurationPtr config = initConfig(plan);
-    std::unique_ptr<DB::Settings> settings = initSettings(config);
-    applyConfig(context, config, settings);
+    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
+
+    // configs cannot be updated per query
+    // settings can be updated per query
+
+    std::unique_ptr<DB::Settings> settings = initSettings(backend_conf_map);
+    updateNewSettings(context, settings);
 }
 
 void BackendFinalizerUtil::finalizeGlobally()

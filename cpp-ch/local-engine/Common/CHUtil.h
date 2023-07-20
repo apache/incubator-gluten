@@ -113,10 +113,10 @@ public:
     inline static const String CH_RUNTIME_CONFIG_FILE = CH_RUNTIME_CONFIG_PREFIX + "config_file";
 
     inline static const String CH_RUNTIME_SETTINGS = "runtime_settings";
-    inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS;
+    inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS + ".";
 
+    inline static const String SETTINGS_PATH = "local_engine.settings";
     inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
-    inline static const String SETTINGs_PATH = "local_engine.settings";
     inline static const std::string HADOOP_S3_ACCESS_KEY = "fs.s3a.access.key";
     inline static const std::string HADOOP_S3_SECRET_KEY = "fs.s3a.secret.key";
     inline static const std::string HADOOP_S3_ENDPOINT = "fs.s3a.endpoint";
@@ -133,17 +133,17 @@ private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
 
-    static DB::Context::ConfigurationPtr initConfig(std::string * plan);
+    static DB::Context::ConfigurationPtr initConfig(std::map<std::string, std::string> & backend_conf_map);
     static void initLoggers(DB::Context::ConfigurationPtr config);
     static void initEnvs(DB::Context::ConfigurationPtr config);
-    static std::unique_ptr<DB::Settings> initSettings(DB::Context::ConfigurationPtr config);
+    static std::unique_ptr<DB::Settings> initSettings(std::map<std::string, std::string> & backend_conf_map);
     static void initContexts(DB::Context::ConfigurationPtr config);
     static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
     static void registerAllFactories();
     static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, std::unique_ptr<DB::Settings> &);
-    static void applyConfig(DB::ContextMutablePtr, DB::Context::ConfigurationPtr config, std::unique_ptr<DB::Settings> &);
+    static void updateNewSettings(DB::ContextMutablePtr, std::unique_ptr<DB::Settings> &);
 
-    static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
+    static std::map<std::string, std::string> getBackendConfMap(std::string * plan);
 
     inline static std::once_flag init_flag;
     inline static Poco::Logger * logger;
