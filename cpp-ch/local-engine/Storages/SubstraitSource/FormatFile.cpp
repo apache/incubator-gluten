@@ -12,13 +12,15 @@
 #endif
 
 #if USE_ORC
-#include <Storages/SubstraitSource/OrcFormatFile.h>
+#include <Storages/SubstraitSource/ORCFormatFile.h>
 #endif
+
 #if USE_HIVE
 #include <Storages/SubstraitSource/TextFormatFile.h>
 #include <Storages/SubstraitSource/ExcelTextFormatFile.h>
 #endif
-#include <Storages/SubstraitSource/JsonFormatFile.h>
+
+#include <Storages/SubstraitSource/JSONFormatFile.h>
 
 namespace DB
 {
@@ -54,7 +56,7 @@ FormatFilePtr FormatFileUtil::createFile(
 #if USE_ORC
     if (file.has_orc())
     {
-        return std::make_shared<OrcFormatFile>(context, file, read_buffer_builder);
+        return std::make_shared<ORCFormatFile>(context, file, read_buffer_builder);
     }
 #endif
 
@@ -71,7 +73,7 @@ FormatFilePtr FormatFileUtil::createFile(
 
     if (file.has_json())
     {
-        return std::make_shared<JsonFormatFile>(context, file, read_buffer_builder);
+        return std::make_shared<JSONFormatFile>(context, file, read_buffer_builder);
     }
     throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Format not supported:{}", file.DebugString());
     __builtin_unreachable();

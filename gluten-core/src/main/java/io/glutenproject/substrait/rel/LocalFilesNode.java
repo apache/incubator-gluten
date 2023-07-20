@@ -73,6 +73,21 @@ public class LocalFilesNode implements Serializable {
     this.fileSchema = schema;
   }
 
+  private NamedStruct buildNamedStruct() {
+    NamedStruct.Builder namedStructBuilder = NamedStruct.newBuilder();
+
+    if (fileSchema != null) {
+      Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+      namedStructBuilder.setStruct(structBuilder.build());
+      for (StructField field : fileSchema.fields()) {
+        structBuilder.addTypes(
+            ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
+        namedStructBuilder.addNames(field.name());
+      }
+    }
+    return namedStructBuilder.build();
+  }
+
   public void setFileReadProperties(Map<String, String> fileReadProperties) {
     this.fileReadProperties = fileReadProperties;
   }
@@ -121,17 +136,8 @@ public class LocalFilesNode implements Serializable {
           String header = fileReadProperties.getOrDefault("header", "0");
           String escape = fileReadProperties.getOrDefault("escape", "");
           String nullValue = fileReadProperties.getOrDefault("nullValue", "");
+          NamedStruct textSchema = buildNamedStruct();
 
-          NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
-          if (fileSchema != null) {
-            Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-            nStructBuilder.setStruct(structBuilder.build());
-            for (StructField field : fileSchema.fields()) {
-              structBuilder.addTypes(
-                      ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
-              nStructBuilder.addNames(field.name());
-            }
-          }
           ReadRel.LocalFiles.FileOrFiles.TextReadOptions textReadOptions =
                   ReadRel.LocalFiles.FileOrFiles.TextReadOptions.newBuilder()
                           .setFieldDelimiter(field_delimiter)
@@ -140,14 +146,17 @@ public class LocalFilesNode implements Serializable {
                           .setEscape(escape)
                           .setNullValue(nullValue)
                           .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
-                          .setSchema(nStructBuilder.build())
+                          .setSchema(textSchema)
                           .build();
           fileBuilder.setText(textReadOptions);
           break;
         case JsonReadFormat:
+          NamedStruct jsonSchema = buildNamedStruct();
+
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
                   ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
                           .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                          .setSchema(jsonSchema)
                           .build();
           fileBuilder.setJson(jsonReadOptions);
           break;

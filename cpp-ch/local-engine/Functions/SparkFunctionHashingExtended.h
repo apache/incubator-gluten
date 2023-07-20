@@ -67,7 +67,7 @@ public:
 
     bool useDefaultImplementationForNulls() const override
     {
-        return true;
+        return false;
     }
 
 private:
@@ -91,10 +91,7 @@ private:
             if constexpr (std::is_arithmetic_v<FromType>)
                 to = applyNumber(value, to);
             else if constexpr (is_decimal<FromType>)
-            {
-                // std::cout << "decimal field:" << toString(DecimalField(value, 2)) << std::endl;
                 to = applyDecimal(value, to);
-            }
             else
                 throw Exception(
                     ErrorCodes::ILLEGAL_COLUMN, "Illegal column {} of argument of function {}", data_column->getName(), getName());
@@ -191,7 +188,6 @@ private:
 
         const NullMap * null_map = nullptr;
         const IColumn * data_column = column;
-        // const IColumn * data_column = column;
         bool from_const = false;
 
         if (isColumnConst(*column))
@@ -368,11 +364,8 @@ public:
             }
 
             size_t offset = total_bytes - (total_bytes * 8 - leading_zeros + 8) / 8;
-            // std::cout << "offset:" << offset << ",leading_zeros:" << leading_zeros << std::endl;
 
             /// Convert v to big-endian style
-            // std::cout << "littleendian:" << toHexString(reinterpret_cast<const char *>(&v.items[0]), item_count * sizeof(base_type))
-                    //   << std::endl;
             for (size_t i = 0; i < item_count; ++i)
                 v.items[i] = __builtin_bswap64(v.items[i]);
             for (size_t i = 0; i < item_count / 2; ++i)
@@ -381,12 +374,7 @@ public:
             /// Calculate hash(refer to https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html#toByteArray)
             const char * buffer = reinterpret_cast<const char *>(&v.items[0]) + offset;
             size_t length = item_count * sizeof(base_type) - offset;
-            // std::cout << "bigendian:" << toHexString(reinterpret_cast<const char *>(&v.items[0]), item_count * sizeof(base_type))
-                    //   << std::endl;
-            // std::cout << "buffer:" << toHexString(buffer, length) << std::endl;
             return Impl::apply(buffer, length, seed);
-            // std::cout << "ret:" << ret << std::endl;
-            // return ret;
         }
     }
 };

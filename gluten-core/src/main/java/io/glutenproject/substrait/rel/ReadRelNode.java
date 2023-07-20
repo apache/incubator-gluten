@@ -17,23 +17,22 @@
 
 package io.glutenproject.substrait.rel;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.PartitionColumns;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.Type;
-
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Map;
 
 public class ReadRelNode implements RelNode, Serializable {
@@ -46,8 +45,12 @@ public class ReadRelNode implements RelNode, Serializable {
   private StructType dataSchema;
   private Map<String, String> properties;
 
-  ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-              SubstraitContext context, ExpressionNode filterNode, Long iteratorIndex) {
+  ReadRelNode(
+      ArrayList<TypeNode> types,
+      ArrayList<String> names,
+      SubstraitContext context,
+      ExpressionNode filterNode,
+      Long iteratorIndex) {
     this.types.addAll(types);
     this.names.addAll(names);
     this.context = context;
@@ -55,9 +58,13 @@ public class ReadRelNode implements RelNode, Serializable {
     this.iteratorIndex = iteratorIndex;
   }
 
-  ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-              SubstraitContext context, ExpressionNode filterNode, Long iteratorIndex,
-              ArrayList<ColumnTypeNode> columnTypeNodes) {
+  ReadRelNode(
+      ArrayList<TypeNode> types,
+      ArrayList<String> names,
+      SubstraitContext context,
+      ExpressionNode filterNode,
+      Long iteratorIndex,
+      ArrayList<ColumnTypeNode> columnTypeNodes) {
     this.types.addAll(types);
     this.names.addAll(names);
     this.context = context;
@@ -67,15 +74,15 @@ public class ReadRelNode implements RelNode, Serializable {
   }
 
   public void setDataSchema(StructType schema) {
-    // this.dataSchema = schema;
     this.dataSchema = new StructType();
     for (StructField field : schema.fields()) {
       Boolean found = false;
       for (int i = 0; i < names.size(); i++) {
         // Case-insensitive schema matching
         if (field.name().equalsIgnoreCase(names.get(i))) {
-          this.dataSchema = this.dataSchema.add(
-            names.get(i), field.dataType(), field.nullable(), field.metadata());
+          this.dataSchema =
+              this.dataSchema.add(
+                  names.get(i), field.dataType(), field.nullable(), field.metadata());
           found = true;
           break;
         }
@@ -100,11 +107,13 @@ public class ReadRelNode implements RelNode, Serializable {
     for (TypeNode typeNode : types) {
       structBuilder.addTypes(typeNode.toProtobuf());
     }
+
     NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
     nStructBuilder.setStruct(structBuilder.build());
     for (String name : names) {
       nStructBuilder.addNames(name);
     }
+
     if (!columnTypeNodes.isEmpty()) {
       PartitionColumns.Builder partitionColumnsBuilder = PartitionColumns.newBuilder();
       for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
@@ -112,6 +121,7 @@ public class ReadRelNode implements RelNode, Serializable {
       }
       nStructBuilder.setPartitionColumns(partitionColumnsBuilder.build());
     }
+
     ReadRel.Builder readBuilder = ReadRel.newBuilder();
     readBuilder.setCommon(relCommonBuilder.build());
     readBuilder.setBaseSchema(nStructBuilder.build());
@@ -133,9 +143,9 @@ public class ReadRelNode implements RelNode, Serializable {
           filesNode.setFileSchema(dataSchema);
           filesNode.setFileReadProperties(properties);
         }
-        readBuilder.setLocalFiles(((LocalFilesNode)currentLocalFileNode).toProtobuf());
+        readBuilder.setLocalFiles(((LocalFilesNode) currentLocalFileNode).toProtobuf());
       } else if (currentLocalFileNode instanceof ExtensionTableNode) {
-        readBuilder.setExtensionTable(((ExtensionTableNode)currentLocalFileNode).toProtobuf());
+        readBuilder.setExtensionTable(((ExtensionTableNode) currentLocalFileNode).toProtobuf());
       }
     }
     Rel.Builder builder = Rel.newBuilder();

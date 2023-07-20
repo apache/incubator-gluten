@@ -109,27 +109,30 @@ DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
  * There is a special case with which we need be careful. In spark, struct/map/list are always
  * wrapped in Nullable, but this should not happen in clickhouse.
  */
-DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively)
+DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively, const std::unordered_set<size_t> & columns_to_skip_flatten)
 {
     DB::Block res;
 
-    for (const auto & elem : block)
+    for (size_t col_i = 0; col_i < block.columns(); ++col_i)
     {
-        DB::DataTypePtr nested_type = nullptr;
-        DB::ColumnPtr nested_col = nullptr;
+        const auto & elem = block.getByPosition(col_i);
+
+        if (columns_to_skip_flatten.contains(col_i))
+        {
+            res.insert(elem);
+            continue;
+        }
+
+        DB::DataTypePtr nested_type = removeNullable(elem.type);
+        DB::ColumnPtr nested_col = elem.column;
         DB::ColumnPtr null_map_col = nullptr;
         if (elem.type->isNullable())
         {
-            nested_type = typeid_cast<const DB::DataTypeNullable *>(elem.type.get())->getNestedType();
-            const auto * null_col = typeid_cast<const DB::ColumnNullable *>(elem.column->getPtr().get());
-            nested_col = null_col->getNestedColumnPtr();
-            null_map_col = null_col->getNullMapColumnPtr();
+            const auto * nullable_col = typeid_cast<const DB::ColumnNullable *>(elem.column->getPtr().get());
+            nested_col = nullable_col->getNestedColumnPtr();
+            null_map_col = nullable_col->getNullMapColumnPtr();
         }
-        else
-        {
-            nested_type = elem.type;
-            nested_col = elem.column;
-        }
+
         if (const DB::DataTypeArray * type_arr = typeid_cast<const DB::DataTypeArray *>(nested_type.get()))
         {
             const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(type_arr->getNestedType().get());
@@ -159,6 +162,7 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                         is_const ? DB::ColumnConst::create(std::move(column_array_of_element), block.rows()) : column_array_of_element,
                         std::make_shared<DB::DataTypeArray>(element_types[i]),
                         nested_name);
+
                     if (null_map_col)
                     {
                         // Should all field columns have the same null map ?
@@ -167,41 +171,38 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                             = DB::ColumnNullable::create(named_column_array_of_element.column, null_map_col);
                         named_column_array_of_element.type = null_type;
                     }
+
                     if (recursively)
                     {
                         auto flatten_one_col_block = flattenBlock({named_column_array_of_element}, flags, recursively);
                         for (const auto & named_col : flatten_one_col_block.getColumnsWithTypeAndName())
-                        {
                             res.insert(named_col);
-                        }
                     }
                     else
-                    {
                         res.insert(named_column_array_of_element);
-                    }
                 }
             }
             else
-            {
                 res.insert(elem);
-            }
         }
         else if (const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(nested_type.get()))
         {
             if (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
-                const DB::Strings & names = type_tuple->getElementNames();
+                const DB::Strings & element_names = type_tuple->getElementNames();
+
                 const DB::ColumnTuple * column_tuple;
                 if (isColumnConst(*nested_col))
                     column_tuple = typeid_cast<const DB::ColumnTuple *>(&assert_cast<const DB::ColumnConst &>(*nested_col).getDataColumn());
                 else
                     column_tuple = typeid_cast<const DB::ColumnTuple *>(nested_col.get());
+
                 size_t tuple_size = column_tuple->tupleSize();
                 for (size_t i = 0; i < tuple_size; ++i)
                 {
                     const auto & element_column = column_tuple->getColumn(i);
-                    String nested_name = DB::Nested::concatenateName(elem.name, names[i]);
+                    String nested_name = DB::Nested::concatenateName(elem.name, element_names[i]);
                     auto new_element_col = DB::ColumnWithTypeAndName(element_column.getPtr(), element_types[i], nested_name);
                     if (null_map_col && !element_types[i]->isNullable())
                     {
@@ -209,30 +210,23 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                         new_element_col.column = DB::ColumnNullable::create(new_element_col.column, null_map_col);
                         new_element_col.type = std::make_shared<DB::DataTypeNullable>(new_element_col.type);
                     }
+
                     if (recursively)
                     {
                         DB::Block one_col_block({new_element_col});
                         auto flatten_one_col_block = flattenBlock(one_col_block, flags, recursively);
                         for (const auto & named_col : flatten_one_col_block.getColumnsWithTypeAndName())
-                        {
                             res.insert(named_col);
-                        }
                     }
                     else
-                    {
                         res.insert(std::move(new_element_col));
-                    }
                 }
             }
             else
-            {
                 res.insert(elem);
-            }
         }
         else
-        {
             res.insert(elem);
-        }
     }
 
     return res;

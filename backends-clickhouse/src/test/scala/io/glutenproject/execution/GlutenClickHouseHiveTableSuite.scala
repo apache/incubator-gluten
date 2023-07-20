@@ -642,4 +642,42 @@ class GlutenClickHouseHiveTableSuite()
         assert(txtFileScan.size == 1)
       })
   }
+
+  test("test orc/parquet table with null complex type values") {
+    val create_template =
+      """
+        | CREATE TABLE test_%s(
+        |   id INT,
+        |   info STRUCT<name:STRING, age:INT>,
+        |   data MAP<STRING, INT>,
+        |   values ARRAY<INT>
+        | ) stored as %s;
+        |""".stripMargin
+    val insert_template =
+      """
+        | INSERT OVERWRITE test_%s VALUES
+        |   (1, struct('John', 25), map('A', 10, 'B', 20), array(1.0, 2.0, 3.0)),
+        |   (2, struct('Alice', 30), map('C', 15, 'D', 25), array(4.0, 5.0, 6.0)),
+        |   (3, struct('Bob', 35), map('E', 12, 'F', 18), array(7.0, 8.0, 9.0)),
+        |   (4, struct('Jane', 40), map('G', 22, 'H', 30), array(10.0, 11.0, 12.0)),
+        |   (5, struct('Kate', 45), map('I', 17, 'J', 28), array(13.0, 14.0, 15.0)),
+        |   (6, null, null, null),
+        |   (7, struct('Tank', 20), map('X', null, 'Y', null), array(1.0, 2.0, 3.0));
+        |""".stripMargin
+    val select_template = "select id, info, info.age, data, values from test_%s"
+    val drop_template = "DROP TABLE test_%s"
+
+    val formats = Array("orc", "parquet")
+    for (format <- formats) {
+      val create_sql = create_template.format(format, format)
+      val insert_sql = insert_template.format(format)
+      val select_sql = select_template.format(format)
+      val drop_sql = drop_template.format(format)
+
+      spark.sql(create_sql)
+      spark.sql(insert_sql)
+      compareResultsAgainstVanillaSpark(select_sql, true, _ => {})
+      spark.sql(drop_sql)
+    }
+  }
 }

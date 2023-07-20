@@ -1,18 +1,17 @@
-#include "OrcFormatFile.h"
-// clang-format off
+#include "ORCFormatFile.h"
+
 #if USE_ORC
-#include <memory>
-#include <Formats/FormatFactory.h>
-#include <IO/SeekableReadBuffer.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#include <Storages/SubstraitSource/OrcUtil.h>
+#    include <memory>
+#    include <Formats/FormatFactory.h>
+#    include <IO/SeekableReadBuffer.h>
+#    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#    include <Storages/SubstraitSource/OrcUtil.h>
 
-#if USE_LOCAL_FORMATS
-#include <Common/Exception.h>
-#include <DataTypes/NestedUtils.h>
-#include <Formats/FormatSettings.h>
+#    if USE_LOCAL_FORMATS
+#        include <DataTypes/NestedUtils.h>
+#        include <Formats/FormatSettings.h>
+#        include <Common/Exception.h>
 
-// clang-format on
 namespace DB
 {
 namespace ErrorCodes
@@ -149,13 +148,13 @@ std::shared_ptr<arrow::RecordBatchReader> ORCBlockInputFormat::fetchNextStripe()
 }
 #    endif
 
-OrcFormatFile::OrcFormatFile(
+ORCFormatFile::ORCFormatFile(
     DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
     : FormatFile(context_, file_info_, read_buffer_builder_)
 {
 }
 
-FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr ORCFormatFile::createInputFormat(const DB::Block & header)
 {
     auto file_format = std::make_shared<FormatFile::InputFormat>();
     file_format->read_buffer = read_buffer_builder->build(file_info);
@@ -198,7 +197,7 @@ FormatFile::InputFormatPtr OrcFormatFile::createInputFormat(const DB::Block & he
     return file_format;
 }
 
-std::optional<size_t> OrcFormatFile::getTotalRows()
+std::optional<size_t> ORCFormatFile::getTotalRows()
 {
     {
         std::lock_guard lock(mutex);
@@ -208,27 +207,36 @@ std::optional<size_t> OrcFormatFile::getTotalRows()
 
     UInt64 _;
     auto required_stripes = collectRequiredStripes(_);
+
     {
         std::lock_guard lock(mutex);
         if (total_rows)
             return total_rows;
+
         size_t num_rows = 0;
         for (const auto stipe_info : required_stripes)
-        {
             num_rows += stipe_info.num_rows;
-        }
+
         total_rows = num_rows;
         return total_rows;
     }
 }
 
-std::vector<StripeInformation> OrcFormatFile::collectRequiredStripes(UInt64 & total_stripes)
+DB::NamesAndTypesList ORCFormatFile::getSchema() const
+{
+    auto in = read_buffer_builder->build(file_info);
+    auto format_settings = DB::getFormatSettings(context);
+    DB::ORCSchemaReader reader(*in, format_settings);
+    return reader.readSchema();
+}
+
+std::vector<StripeInformation> ORCFormatFile::collectRequiredStripes(UInt64 & total_stripes)
 {
     auto in = read_buffer_builder->build(file_info);
     return collectRequiredStripes(in.get(), total_stripes);
 }
 
-std::vector<StripeInformation> OrcFormatFile::collectRequiredStripes(DB::ReadBuffer * read_buffer, UInt64 & total_stripes)
+std::vector<StripeInformation> ORCFormatFile::collectRequiredStripes(DB::ReadBuffer * read_buffer, UInt64 & total_stripes)
 {
     DB::FormatSettings format_settings{
         .seekable_read = true,

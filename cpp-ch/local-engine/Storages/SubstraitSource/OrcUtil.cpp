@@ -7,7 +7,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/Exception.h>
 
-// clang-format off
 
 #define ORC_THROW_NOT_OK(s)                   \
   do {                                        \
@@ -45,7 +44,6 @@
   ORC_BEGIN_CATCH_NOT_OK(_s); \
   ORC_END_CATCH_NOT_OK
 
-// clang-format on
 namespace DB
 {
 namespace ErrorCodes

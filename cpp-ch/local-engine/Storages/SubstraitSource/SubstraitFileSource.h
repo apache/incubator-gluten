@@ -87,6 +87,13 @@ private:
     DB::Block flatten_output_header; // Sample header after flatten, include partition keys
     DB::Block to_read_header; // Sample header after flatten, not include partition keys
     FormatFiles files;
+    DB::NamesAndTypesList file_schema; /// The column names and types in the file
+
+    /// The columns to skip flatten based on output_header
+    /// Notice that not all tuple type columns need to be flatten.
+    /// E.g. if parquet file schema is `info struct<name string, age int>`, and output_header is `info Tuple(name String, age Int32)`
+    /// then there is not need to flatten `info` column, because null value of `info` column will be represented as null value of `info.name` and `info.age`, which is obviously wrong.
+    std::unordered_set<size_t> columns_to_skip_flatten;
 
     UInt32 current_file_index = 0;
     std::unique_ptr<FileReaderWrapper> file_reader;
@@ -99,7 +106,9 @@ private:
     // {a:int, b: {x: {i: int, j: string}, y: string}}
     // Notice, don't support list with named struct. ClickHouse may take advantage of this to support
     // nested table, but not the case in spark.
-    static DB::Block foldFlattenColumns(const DB::Columns & cols, const DB::Block & header);
+    static DB::Block
+    foldFlattenColumns(const DB::Columns & cols, const DB::Block & header, const std::unordered_set<size_t> & columns_to_skip_flatten);
+
     static DB::ColumnWithTypeAndName
     foldFlattenColumn(DB::DataTypePtr col_type, const std::string & col_name, size_t & pos, const DB::Columns & cols);
 };

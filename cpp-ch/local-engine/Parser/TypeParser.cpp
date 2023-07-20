@@ -146,19 +146,22 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
     }
     else if (substrait_type.has_struct_())
     {
-        DB::DataTypes struct_field_types(substrait_type.struct_().types().size());
+        const auto & types = substrait_type.struct_().types();
+        DB::DataTypes struct_field_types(types.size());
         DB::Strings struct_field_names;
-        for (int i = 0; i < static_cast<int>(struct_field_types.size()); ++i)
+        for (int i = 0; i < types.size(); ++i)
         {
             if (field_names)
                 struct_field_names.push_back(field_names->front());
 
-            struct_field_types[i] = parseType(substrait_type.struct_().types()[i], field_names);
+            struct_field_types[i] = parseType(types[i], field_names);
         }
+
         if (!struct_field_names.empty())
             ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types, struct_field_names);
         else
             ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types);
+
         ch_type = tryWrapNullable(substrait_type.struct_().nullability(), ch_type);
     }
     else if (substrait_type.has_list())
@@ -202,26 +205,23 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
     internal_cols.reserve(struct_.names_size());
     std::list<std::string> field_names;
     for (int i = 0; i < struct_.names_size(); ++i)
-    {
         field_names.emplace_back(struct_.names(i));
-    }
 
     for (int i = 0; i < struct_.struct_().types_size(); ++i)
     {
         auto name = field_names.front();
-        const auto & type = struct_.struct_().types(i);
-        auto data_type = parseType(type, &field_names);
+        const auto & substrait_type = struct_.struct_().types(i);
+        auto ch_type = parseType(substrait_type, &field_names);
+
         // This is a partial aggregate data column.
         // It's type is special, must be a struct type contains all arguments types.
         Poco::StringTokenizer name_parts(name, "#");
         if (name_parts.count() >= 4)
         {
-            auto nested_data_type = DB::removeNullable(data_type);
+            auto nested_data_type = DB::removeNullable(ch_type);
             const auto * tuple_type = typeid_cast<const DB::DataTypeTuple *>(nested_data_type.get());
             if (!tuple_type)
-            {
-                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", data_type->getName());
-            }
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", ch_type->getName());
 
             auto args_types = tuple_type->getElements();
             AggregateFunctionProperties properties;
@@ -229,12 +229,14 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             SerializedPlanParser tmp_plan_parser(tmp_ctx);
             auto function_parser = FunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
-            data_type = AggregateFunctionFactory::instance()
+            ch_type = AggregateFunctionFactory::instance()
                             .get(agg_function_name, args_types, function_parser->getDefaultFunctionParameters(), properties)
                             ->getStateType();
         }
-        internal_cols.push_back(ColumnWithTypeAndName(data_type, name));
+
+        internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));
     }
+
     DB::Block res(std::move(internal_cols));
     return res;
 }

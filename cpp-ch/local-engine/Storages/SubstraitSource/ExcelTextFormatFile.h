@@ -22,7 +22,10 @@ public:
         : FormatFile(context_, file_info_, read_buffer_builder_){}
 
     ~ExcelTextFormatFile() override = default;
+
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+
+    DB::NamesAndTypesList getSchema() const override;
 
 private:
     DB::FormatSettings createFormatSettings();

@@ -11,7 +11,7 @@
 #include <Formats/FormatSettings.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#include <Storages/SubstraitSource/OrcFormatFile.h>
+#include <Storages/SubstraitSource/ORCFormatFile.h>
 #include <Storages/SubstraitSource/OrcUtil.h>
 #include <gtest/gtest.h>
 #include <Common/Config.h>

@@ -11,6 +11,7 @@
 #include <Formats/FormatSettings.h>
 #include <IO/PeekableReadBuffer.h>
 #include <IO/SeekableReadBuffer.h>
+#include <Parser/TypeParser.h>
 #include <Processors/Formats/IRowInputFormat.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/Serializations/ExcelDecimalSerialization.h>
@@ -50,6 +51,13 @@ FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Bloc
         header, buffer, params, format_settings, column_names, file_info.text().escape());
     res->input = txt_input_format;
     return res;
+}
+
+DB::NamesAndTypesList ExcelTextFormatFile::getSchema() const
+{
+    const auto & schema = file_info.text().schema();
+    auto header = TypeParser::buildBlockFromNamedStruct(schema);
+    return header.getNamesAndTypesList();
 }
 
 DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
