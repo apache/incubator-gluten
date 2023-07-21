@@ -682,6 +682,7 @@ class GlutenClickHouseHiveTableSuite()
 
       spark.sql(create_sql)
       spark.sql(insert_sql)
+
       compareResultsAgainstVanillaSpark(select1_sql, true, _ => {})
       compareResultsAgainstVanillaSpark(select2_sql, true, _ => {})
       compareResultsAgainstVanillaSpark(select3_sql, true, _ => {})
@@ -729,11 +730,8 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_4, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_5, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_6, true, _ => {})
-    }
   }
 
-  test("GLUTEN-: Test data field too much/few") {
-    val test_table_name = "test_table_2001"
   test("GLUTEN-2180: Test data field too much/few") {
     val test_table_name = "test_table_2180"
     val drop_table_sql = "drop table if exists %s".format(test_table_name)
