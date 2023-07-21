@@ -62,7 +62,7 @@ private:
 
 using SparkRowInfoPtr = std::unique_ptr<local_engine::SparkRowInfo>;
 
-class CHColumnToSparkRow : private Allocator<false, true>
+class CHColumnToSparkRow : private Allocator<false/* clear_memory */>
 // class CHColumnToSparkRow : public DB::Arena
 {
 public:
