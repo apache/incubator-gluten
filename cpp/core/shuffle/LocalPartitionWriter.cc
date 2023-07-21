@@ -382,7 +382,9 @@ arrow::Status PreferCachePartitionWriter::stop() {
     }
     // 8. Write EOS if any payload written.
     if (!firstWrite) {
-      RETURN_NOT_OK(writeEos(dataFileOs_.get()));
+      if (shuffleWriter_->options().write_eos) {
+        RETURN_NOT_OK(writeEos(dataFileOs_.get()));
+      }
     }
     ARROW_ASSIGN_OR_RAISE(auto endInFinalFile, dataFileOs_->Tell());
 
