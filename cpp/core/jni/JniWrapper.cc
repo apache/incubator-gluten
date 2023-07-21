@@ -1121,7 +1121,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   if (delegatedAllocator == nullptr) {
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
-  auto listener = std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 8L<<20);
+  auto listener =
+      std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 8L << 20);
   std::shared_ptr<MemoryAllocator>* allocator = new std::shared_ptr<MemoryAllocator>;
   *allocator = std::make_shared<ListenableMemoryAllocator>((*delegatedAllocator).get(), listener);
   return reinterpret_cast<jlong>(allocator);

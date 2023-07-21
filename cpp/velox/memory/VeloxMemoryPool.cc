@@ -168,8 +168,6 @@ class VeloxMemoryPool : public velox::memory::MemoryPoolImpl {
   std::shared_ptr<velox::memory::MemoryAllocator> sharedAlloc_; // workaround to keep the allocator instance alive
 };
 
-
-
 static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
   static auto options = gluten::VeloxInitializer::get()->getMemoryPoolOptions();
   static int64_t spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
