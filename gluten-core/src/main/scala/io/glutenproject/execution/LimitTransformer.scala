@@ -14,30 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.util
-import com.google.protobuf.Any
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class LimitTransformer(child: SparkPlan,
-                            offset: Long,
-                            count: Long)
-    extends UnaryExecNode with TransformSupport {
+import com.google.protobuf.Any
+
+import java.util
+
+case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
+  extends UnaryExecNode
+  with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -111,13 +111,14 @@ case class LimitTransformer(child: SparkPlan,
     TransformContext(child.output, child.output, relNode)
   }
 
-  def getRelNode(context: SubstraitContext,
-                 operatorId: Long,
-                 offset: Long,
-                 count: Long,
-                 inputAttributes: Seq[Attribute],
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      operatorId: Long,
+      offset: Long,
+      count: Long,
+      inputAttributes: Seq[Attribute],
+      input: RelNode,
+      validation: Boolean): RelNode = {
     if (!validation) {
       RelBuilder.makeFetchRel(input, offset, count, context, operatorId)
     } else {
@@ -131,5 +132,3 @@ case class LimitTransformer(child: SparkPlan,
     }
   }
 }
-
-

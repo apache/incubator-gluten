@@ -14,19 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.expression.IfThenNode
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
 import java.util
 
-class IfTransformer(predicate: ExpressionTransformer, trueValue: ExpressionTransformer,
-                    falseValue: ExpressionTransformer, original: Expression)
-  extends ExpressionTransformer with Logging {
+class IfTransformer(
+    predicate: ExpressionTransformer,
+    trueValue: ExpressionTransformer,
+    falseValue: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val ifNodes: util.ArrayList[ExpressionNode] = new util.ArrayList[ExpressionNode]
@@ -42,9 +46,11 @@ class IfTransformer(predicate: ExpressionTransformer, trueValue: ExpressionTrans
 
 object IfTransformer {
 
-  def create(predicate: ExpressionTransformer, trueValue: ExpressionTransformer,
-             falseValue: ExpressionTransformer, original: Expression
-            ): ExpressionTransformer = original match {
+  def create(
+      predicate: ExpressionTransformer,
+      trueValue: ExpressionTransformer,
+      falseValue: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = original match {
     case i: If =>
       new IfTransformer(predicate, trueValue, falseValue, original)
     case other =>

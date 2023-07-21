@@ -29,9 +29,10 @@ public class IfThenNode implements ExpressionNode, Serializable {
 
   private final ExpressionNode elseValue;
 
-  public IfThenNode(ArrayList<ExpressionNode> ifNodes,
-                    ArrayList<ExpressionNode> thenNodes,
-                    ExpressionNode elseValue) {
+  public IfThenNode(
+      ArrayList<ExpressionNode> ifNodes,
+      ArrayList<ExpressionNode> thenNodes,
+      ExpressionNode elseValue) {
     this.ifNodes.addAll(ifNodes);
     this.thenNodes.addAll(thenNodes);
     this.elseValue = elseValue;

@@ -18,10 +18,10 @@
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.*;
-import org.apache.spark.sql.catalyst.InternalRow;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
+import org.apache.spark.sql.catalyst.InternalRow;
 
 public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
   public StructLiteralNode(InternalRow row, TypeNode typeNode) {
@@ -67,9 +67,9 @@ public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
     }
     if (type instanceof DecimalTypeNode) {
       return ExpressionBuilder.makeLiteral(
-              value.getDecimal(index, ((DecimalTypeNode) type).precision,
-                      ((DecimalTypeNode) type).scale),
-              type);
+          value.getDecimal(
+              index, ((DecimalTypeNode) type).precision, ((DecimalTypeNode) type).scale),
+          type);
     }
     if (type instanceof ListNode) {
       return ExpressionBuilder.makeLiteral(value.getArray(index), type);
@@ -78,14 +78,14 @@ public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
       return ExpressionBuilder.makeLiteral(value.getMap(index), type);
     }
     if (type instanceof StructNode) {
-      return ExpressionBuilder.makeLiteral(value.getStruct(index,
-              ((StructNode) type).getFieldTypes().size()), type);
+      return ExpressionBuilder.makeLiteral(
+          value.getStruct(index, ((StructNode) type).getFieldTypes().size()), type);
     }
     if (type instanceof NothingNode) {
       return ExpressionBuilder.makeNullLiteral(type);
     }
     throw new UnsupportedOperationException(
-            type.toString() + " is not supported in getFieldLiteral.");
+        type.toString() + " is not supported in getFieldLiteral.");
   }
 
   @Override
@@ -97,4 +97,3 @@ public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
     literalBuilder.setStruct(structBuilder.build());
   }
 }
-

@@ -1,8 +1,8 @@
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
-
 import io.glutenproject.substrait.type.*;
+
+import io.substrait.proto.Expression;
 
 public abstract class LiteralNodeWithValue<T> extends LiteralNode {
   private final T value;

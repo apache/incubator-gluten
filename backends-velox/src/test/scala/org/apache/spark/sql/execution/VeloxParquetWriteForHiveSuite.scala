@@ -14,23 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
+import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.test.SQLTestUtils
-import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 
 class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
   private var _spark: SparkSession = null
 
-  protected override def beforeAll(): Unit = {
+  override protected def beforeAll(): Unit = {
     super.beforeAll()
 
     if (_spark == null) {
@@ -49,7 +48,8 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       .set("spark.sql.testkey", "true")
       .set(SQLConf.CODEGEN_FALLBACK.key, "false")
       .set(SQLConf.CODEGEN_FACTORY_MODE.key, CodegenObjectFactoryMode.CODEGEN_ONLY.toString)
-      .set(HiveUtils.HIVE_METASTORE_BARRIER_PREFIXES.key,
+      .set(
+        HiveUtils.HIVE_METASTORE_BARRIER_PREFIXES.key,
         "org.apache.spark.sql.hive.execution.PairSerDe")
       // SPARK-8910
       .set(UI_ENABLED, false)
@@ -64,8 +64,8 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
 
     conf.set(
-        StaticSQLConf.WAREHOUSE_PATH,
-        conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
+      StaticSQLConf.WAREHOUSE_PATH,
+      conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
   }
 
   protected def sparkConf: SparkConf = {
@@ -81,8 +81,9 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     withLogAppender(testAppender) {
       spark.sql(sqlStr)
     }
-    assert(testAppender.loggingEvents.exists(_.getMessage.toString.contains(
-      "Use Gluten parquet write for hive")) == native)
+    assert(
+      testAppender.loggingEvents.exists(
+        _.getMessage.toString.contains("Use Gluten parquet write for hive")) == native)
   }
 
   test("test hive write table") {
@@ -96,17 +97,18 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
   }
 
   test("test hive write dir") {
-    withTempPath { f =>
-      // compatible with Spark3.3 and later
-      withSQLConf("spark.sql.hive.convertMetastoreInsertDir" -> "false") {
-        checkNativeWrite(
-          s"""
-             |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
-             |""".stripMargin,
-          native = true
-        )
-        checkAnswer(spark.read.parquet(f.getCanonicalPath), Row(1))
-      }
+    withTempPath {
+      f =>
+        // compatible with Spark3.3 and later
+        withSQLConf("spark.sql.hive.convertMetastoreInsertDir" -> "false") {
+          checkNativeWrite(
+            s"""
+               |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
+               |""".stripMargin,
+            native = true
+          )
+          checkAnswer(spark.read.parquet(f.getCanonicalPath), Row(1))
+        }
     }
   }
 }

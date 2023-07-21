@@ -14,19 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.types.pojo.Schema
+
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.types.pojo.Schema
 
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 
 class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
-  extends Iterator[Long] with AutoCloseable {
+  extends Iterator[Long]
+  with AutoCloseable {
   private val writeQueue = new ArrayBlockingQueue[ColumnarBatch](64)
   private var currentBatch: Option[ColumnarBatch] = None
   private var preCurrentBatch: Option[ColumnarBatch] = None
@@ -40,13 +42,14 @@ class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
     if (preCurrentBatch.nonEmpty) {
       preCurrentBatch.get.close()
     }
-    val batch = try {
-      writeQueue.poll(30L, TimeUnit.MINUTES)
-    } catch {
-      case _: InterruptedException =>
-        Thread.currentThread().interrupt()
-        EOS_BATCH
-    }
+    val batch =
+      try {
+        writeQueue.poll(30L, TimeUnit.MINUTES)
+      } catch {
+        case _: InterruptedException =>
+          Thread.currentThread().interrupt()
+          EOS_BATCH
+      }
     if (batch == null) {
       throw new RuntimeException("VeloxParquetWriter: Timeout waiting for data")
     }

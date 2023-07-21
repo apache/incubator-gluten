@@ -14,21 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
-
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.internal.Logging
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-/**
- * Transformer for the normal leaf expression
- */
-class LeafExpressionTransformer(
-    substraitExprName: String,
-    original: Expression)
-  extends ExpressionTransformer with Logging {
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.Expression
+
+/** Transformer for the normal leaf expression */
+class LeafExpressionTransformer(substraitExprName: String, original: Expression)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
@@ -42,8 +38,7 @@ class LeafExpressionTransformer(
 }
 
 object LeafExpressionTransformer {
-  def apply(substraitExprName: String,
-            original: Expression): ExpressionTransformer = {
+  def apply(substraitExprName: String, original: Expression): ExpressionTransformer = {
     new LeafExpressionTransformer(substraitExprName, original)
   }
 }

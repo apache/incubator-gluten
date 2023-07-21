@@ -29,9 +29,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
- * This implementation is targeted to optimize against Spark's
- * {@link org.apache.spark.network.buffer.FileSegmentManagedBuffer} to make sure shuffle data
- * is shared over JNI without unnecessary copy.
+ * This implementation is targeted to optimize against Spark's {@link
+ * org.apache.spark.network.buffer.FileSegmentManagedBuffer} to make sure shuffle data is shared
+ * over JNI without unnecessary copy.
  */
 public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream {
   private static final Field FIELD_FilterInputStream_in;

@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.shuffle.utils
 
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, ColumnarShuffleWriter, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{ColumnarShuffleWriter, GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 
 object ShuffleUtil {
 
-  def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V]
-                                    ): GlutenShuffleWriterWrapper[K, V] = {
-    GlutenShuffleWriterWrapper(new ColumnarShuffleWriter[K, V](
-      parameters.shuffleBlockResolver,
-      parameters.columnarShuffleHandle,
-      parameters.mapId,
-      parameters.metrics))
+  def genColumnarShuffleWriter[K, V](
+      parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V] = {
+    GlutenShuffleWriterWrapper(
+      new ColumnarShuffleWriter[K, V](
+        parameters.shuffleBlockResolver,
+        parameters.columnarShuffleHandle,
+        parameters.mapId,
+        parameters.metrics))
   }
 }

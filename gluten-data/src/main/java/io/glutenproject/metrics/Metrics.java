@@ -45,9 +45,7 @@ public class Metrics implements IMetrics {
   public long[] processedStrides;
   public SingleMetric singleMetric = new SingleMetric();
 
-  /**
-   * Create an instance for native metrics.
-   */
+  /** Create an instance for native metrics. */
   public Metrics(
       long[] inputRows,
       long[] inputVectors,

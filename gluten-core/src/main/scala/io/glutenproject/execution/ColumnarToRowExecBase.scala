@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -25,7 +24,8 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
 abstract class ColumnarToRowExecBase(child: SparkPlan)
-  extends ColumnarToRowTransition with GlutenPlan {
+  extends ColumnarToRowTransition
+  with GlutenPlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -44,4 +44,3 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
     doExecuteInternal()
   }
 }
-

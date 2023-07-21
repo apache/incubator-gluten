@@ -22,8 +22,7 @@ import io.glutenproject.init.JniInitialized;
 public class ColumnarBatchJniWrapper extends JniInitialized {
   public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
 
-  private ColumnarBatchJniWrapper() {
-  }
+  private ColumnarBatchJniWrapper() {}
 
   public native String getType(long handle);
 

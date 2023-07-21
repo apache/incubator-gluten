@@ -16,44 +16,51 @@
  */
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.sql.catalyst.expressions.Expression
 
-class BasicCollectionOperationTransfomer(substraitExprName: String,
-                                     children: Seq[ExpressionTransformer],
-                                 original: Expression) extends ExpressionTransformer {
+import com.google.common.collect.Lists
+
+class BasicCollectionOperationTransfomer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: Expression)
+  extends ExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
     val exprNodes = Lists.newArrayList[ExpressionNode]()
     children.foreach(expr => exprNodes.add(expr.doTransform(args)))
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(
-      substraitExprName,
-      Seq(original.dataType),
-      FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(substraitExprName, Seq(original.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
   }
 }
 
-class BinaryArgumentsCollectionOperationTransformer(substraitExprName: String,
-                            left: ExpressionTransformer,
-                            right: ExpressionTransformer,
-                            original: Expression) extends ExpressionTransformer{
+class BinaryArgumentsCollectionOperationTransformer(
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
     val children = Seq[ExpressionTransformer](left, right)
     new BasicCollectionOperationTransfomer(substraitExprName, children, original).doTransform(args)
   }
 }
 
-class UnaryArgumentCollectionOperationTransformer(substraitExprName: String,
-                                                  child: ExpressionTransformer,
-                                                  original: Expression) extends
-  ExpressionTransformer {
+class UnaryArgumentCollectionOperationTransformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
-    new BasicCollectionOperationTransfomer(substraitExprName, Seq[ExpressionTransformer](child),
+    new BasicCollectionOperationTransfomer(
+      substraitExprName,
+      Seq[ExpressionTransformer](child),
       original).doTransform(args)
   }
 }

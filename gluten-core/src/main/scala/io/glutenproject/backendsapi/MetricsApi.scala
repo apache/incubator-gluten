@@ -19,15 +19,14 @@ package io.glutenproject.backendsapi
 import io.glutenproject.metrics.{IMetrics, MetricsUpdater}
 import io.glutenproject.substrait.{AggregationParams, JoinParams}
 
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 trait MetricsApi extends Serializable {
 
   def genWholeStageTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map(
-      "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
+    Map("pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
 
   def metricsUpdatingFunction(
       child: SparkPlan,
@@ -96,6 +95,5 @@ trait MetricsApi extends Serializable {
   def genHashJoinTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
   def genColumnarInMemoryTableMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
+    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 }

@@ -23,16 +23,12 @@ import java.io.IOException;
 
 public class NativeColumnarToRowJniWrapper extends JniInitialized {
 
-  public NativeColumnarToRowJniWrapper() throws IOException {
-  }
+  public NativeColumnarToRowJniWrapper() throws IOException {}
 
-  public native long nativeColumnarToRowInit(long allocatorId)
-      throws RuntimeException;
+  public native long nativeColumnarToRowInit(long allocatorId) throws RuntimeException;
 
-  public native NativeColumnarToRowInfo nativeColumnarToRowWrite(
-      long batchHandle, long instanceId)
+  public native NativeColumnarToRowInfo nativeColumnarToRowWrite(long batchHandle, long instanceId)
       throws RuntimeException;
 
   public native void nativeClose(long instanceID);
-
 }

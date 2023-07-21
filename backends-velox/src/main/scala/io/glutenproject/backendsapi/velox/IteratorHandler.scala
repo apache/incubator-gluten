@@ -14,15 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.velox
-
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
-import java.util
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
@@ -47,6 +39,13 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{ExecutorManager, TaskResources}
 
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.util
+import java.util.concurrent.TimeUnit
+
+import scala.collection.JavaConverters._
+
 class IteratorHandler extends IteratorApi with Logging {
 
   /**
@@ -54,27 +53,28 @@ class IteratorHandler extends IteratorApi with Logging {
    *
    * @return
    */
-  override def genFilePartition(index: Int,
-                                partitions: Seq[InputPartition],
-                                wsCxt: WholestageTransformContext
-                               ): BaseGlutenPartition = {
-    val localFilesNodesWithLocations = partitions.indices.map(i =>
-      partitions(i) match {
-        case f: FilePartition =>
-          val paths = new java.util.ArrayList[String]()
-          val starts = new java.util.ArrayList[java.lang.Long]()
-          val lengths = new java.util.ArrayList[java.lang.Long]()
-          val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
-          f.files.foreach { file =>
-            paths.add(URLDecoder.decode(file.filePath, StandardCharsets.UTF_8.name()))
-            starts.add(java.lang.Long.valueOf(file.start))
-            lengths.add(java.lang.Long.valueOf(file.length))
-          }
-          (LocalFilesBuilder.makeLocalFiles(
-            f.index, paths, starts, lengths, fileFormat),
-            SoftAffinityUtil.getFilePartitionLocations(f))
-      }
-    )
+  override def genFilePartition(
+      index: Int,
+      partitions: Seq[InputPartition],
+      wsCxt: WholestageTransformContext): BaseGlutenPartition = {
+    val localFilesNodesWithLocations = partitions.indices.map(
+      i =>
+        partitions(i) match {
+          case f: FilePartition =>
+            val paths = new java.util.ArrayList[String]()
+            val starts = new java.util.ArrayList[java.lang.Long]()
+            val lengths = new java.util.ArrayList[java.lang.Long]()
+            val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
+            f.files.foreach {
+              file =>
+                paths.add(URLDecoder.decode(file.filePath, StandardCharsets.UTF_8.name()))
+                starts.add(java.lang.Long.valueOf(file.start))
+                lengths.add(java.lang.Long.valueOf(file.length))
+            }
+            (
+              LocalFilesBuilder.makeLocalFiles(f.index, paths, starts, lengths, fileFormat),
+              SoftAffinityUtil.getFilePartitionLocations(f))
+        })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
@@ -87,8 +87,8 @@ class IteratorHandler extends IteratorApi with Logging {
    * @param iter
    * @return
    */
-  override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch])
-  : Iterator[ColumnarBatch] = {
+  override def genCloseableColumnBatchIterator(
+      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     new CloseableColumnBatchIterator(iter)
   }
 
@@ -97,24 +97,26 @@ class IteratorHandler extends IteratorApi with Logging {
    *
    * @return
    */
-  override def genFirstStageIterator(inputPartition: BaseGlutenPartition,
-                                     outputAttributes: Seq[Attribute],
-                                     context: TaskContext,
-                                     pipelineTime: SQLMetric,
-                                     updateInputMetrics: (InputMetricsWrapper) => Unit,
-                                     updateNativeMetrics: IMetrics => Unit,
-                                     inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
-  : Iterator[ColumnarBatch] = {
+  override def genFirstStageIterator(
+      inputPartition: BaseGlutenPartition,
+      outputAttributes: Seq[Attribute],
+      context: TaskContext,
+      pipelineTime: SQLMetric,
+      updateInputMetrics: (InputMetricsWrapper) => Unit,
+      updateNativeMetrics: IMetrics => Unit,
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
-      new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ColumnarBatchInIterator(iter.asJava)
+      new util.ArrayList[GeneralInIterator](inputIterators.map {
+        iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val transKernel = new NativePlanEvaluator()
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
-      inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
+      inputPartition.plan,
+      columnarNativeIterators,
+      outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    TaskResources.addRecycler(100) { resIter.close() }
+    TaskResources.addRecycler(100)(resIter.close())
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
@@ -140,7 +142,8 @@ class IteratorHandler extends IteratorApi with Logging {
     new InterruptibleIterator(
       context,
       new CloseableColumnBatchIterator(
-        iter.asInstanceOf[Iterator[ColumnarBatch]], Some(pipelineTime)))
+        iter.asInstanceOf[Iterator[ColumnarBatch]],
+        Some(pipelineTime)))
   }
 
   // scalastyle:off argcount
@@ -150,15 +153,15 @@ class IteratorHandler extends IteratorApi with Logging {
    *
    * @return
    */
-  override def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
-                                     numaBindingInfo: GlutenNumaBindingInfo,
-                                     sparkConf: SparkConf,
-                                     outputAttributes: Seq[Attribute],
-                                     rootNode: PlanNode,
-                                     pipelineTime: SQLMetric,
-                                     updateNativeMetrics: IMetrics => Unit,
-                                     buildRelationBatchHolder: Seq[ColumnarBatch])
-  : Iterator[ColumnarBatch] = {
+  override def genFinalStageIterator(
+      inputIterators: Seq[Iterator[ColumnarBatch]],
+      numaBindingInfo: GlutenNumaBindingInfo,
+      sparkConf: SparkConf,
+      outputAttributes: Seq[Attribute],
+      rootNode: PlanNode,
+      pipelineTime: SQLMetric,
+      updateNativeMetrics: IMetrics => Unit,
+      buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
@@ -166,11 +169,13 @@ class IteratorHandler extends IteratorApi with Logging {
 
     val transKernel = new NativePlanEvaluator()
     val columnarNativeIterator =
-      new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ColumnarBatchInIterator(iter.asJava)
+      new util.ArrayList[GeneralInIterator](inputIterators.map {
+        iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
-      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator,
+      transKernel.createKernelWithBatchIterator(
+        rootNode.toProtobuf,
+        columnarNativeIterator,
         outputAttributes.asJava)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
@@ -198,28 +203,24 @@ class IteratorHandler extends IteratorApi with Logging {
   }
   // scalastyle:on argcount
 
-  /**
-   * Generate Native FileScanRDD, currently only for ClickHouse Backend.
-   */
-  override def genNativeFileScanRDD(sparkContext: SparkContext,
-                                    wsCxt: WholestageTransformContext,
-                                    fileFormat: ReadFileFormat,
-                                    inputPartitions: Seq[InputPartition],
-                                    numOutputRows: SQLMetric,
-                                    numOutputBatches: SQLMetric,
-                                    scanTime: SQLMetric): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(
-      "Cannot support to generate Native FileScanRDD.")
+  /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
+  override def genNativeFileScanRDD(
+      sparkContext: SparkContext,
+      wsCxt: WholestageTransformContext,
+      fileFormat: ReadFileFormat,
+      inputPartitions: Seq[InputPartition],
+      numOutputRows: SQLMetric,
+      numOutputBatches: SQLMetric,
+      scanTime: SQLMetric): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException("Cannot support to generate Native FileScanRDD.")
   }
 
-  /**
-   * Compute for BroadcastBuildSideRDD
-   */
-  override def genBroadcastBuildSideIterator(split: Partition,
-                                             context: TaskContext,
-                                             broadcasted: Broadcast[BuildSideRelation],
-                                             broadCastContext: BroadCastHashJoinContext
-                                            ): Iterator[ColumnarBatch] = {
+  /** Compute for BroadcastBuildSideRDD */
+  override def genBroadcastBuildSideIterator(
+      split: Partition,
+      context: TaskContext,
+      broadcasted: Broadcast[BuildSideRelation],
+      broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
     new CloseableColumnBatchIterator(relation.deserialized)
   }

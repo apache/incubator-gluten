@@ -14,36 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import java.util.ArrayList
-
-import io.glutenproject.substrait.expression.{ExpressionNode, ExpressionBuilder, IfThenNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
-/**
- * A version of substring that supports columnar processing for utf8.
- */
+import java.util.ArrayList
+
+/** A version of substring that supports columnar processing for utf8. */
 class CaseWhenTransformer(
-                           branches: Seq[(ExpressionTransformer, ExpressionTransformer)],
-                           elseValue: Option[ExpressionTransformer],
-                           original: Expression)
-  extends ExpressionTransformer with Logging {
+    branches: Seq[(ExpressionTransformer, ExpressionTransformer)],
+    elseValue: Option[ExpressionTransformer],
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // generate branches nodes
     val ifNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
     val thenNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
-    branches.foreach(branch => {
-      ifNodes.add(branch._1.doTransform(args))
-      thenNodes.add(branch._2.doTransform(args))
-    })
+    branches.foreach(
+      branch => {
+        ifNodes.add(branch._1.doTransform(args))
+        thenNodes.add(branch._2.doTransform(args))
+      })
     val branchDataType = original.asInstanceOf[CaseWhen].inputTypesForMerging(0)
     // generate else value node, maybe null
-    val elseValueNode = elseValue.map(_.doTransform(args))
+    val elseValueNode = elseValue
+      .map(_.doTransform(args))
       .getOrElse(ExpressionBuilder.makeLiteral(null, branchDataType, true))
     new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
@@ -51,9 +51,10 @@ class CaseWhenTransformer(
 
 object CaseWhenOperatorTransformer {
 
-  def create(branches: Seq[(ExpressionTransformer, ExpressionTransformer)],
-             elseValue: Option[ExpressionTransformer],
-             original: Expression): ExpressionTransformer = {
+  def create(
+      branches: Seq[(ExpressionTransformer, ExpressionTransformer)],
+      elseValue: Option[ExpressionTransformer],
+      original: Expression): ExpressionTransformer = {
     new CaseWhenTransformer(branches, elseValue, original)
   }
 }

@@ -14,9 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.utils
-
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
@@ -29,8 +27,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
@@ -82,29 +80,31 @@ object ExecUtil {
   }
 
   // scalastyle:off argcount
-  def genShuffleDependency(rdd: RDD[ColumnarBatch],
-                           outputAttributes: Seq[Attribute],
-                           newPartitioning: Partitioning,
-                           serializer: Serializer,
-                           writeMetrics: Map[String, SQLMetric],
-                           metrics: Map[String, SQLMetric]
-                          ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+  def genShuffleDependency(
+      rdd: RDD[ColumnarBatch],
+      outputAttributes: Seq[Attribute],
+      newPartitioning: Partitioning,
+      serializer: Serializer,
+      writeMetrics: Map[String, SQLMetric],
+      metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     // only used for fallback range partitioning
     val rangePartitioner: Option[Partitioner] = newPartitioning match {
       case RangePartitioning(sortingExpressions, numPartitions) =>
         // Extract only fields used for sorting to avoid collecting large fields that does not
         // affect sorting result when deciding partition bounds in RangePartitioner
-        val rddForSampling = rdd.mapPartitionsInternal { iter =>
-          // Internally, RangePartitioner runs a job on the RDD that samples keys to compute
-          // partition bounds. To get accurate samples, we need to copy the mutable keys.
-          iter.flatMap(batch => {
-            val rows = convertColumnarToRow(batch)
-            val projection =
-              UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
-            val mutablePair = new MutablePair[InternalRow, Null]()
-            rows.map(row => mutablePair.update(projection(row).copy(), null))
-          })
+        val rddForSampling = rdd.mapPartitionsInternal {
+          iter =>
+            // Internally, RangePartitioner runs a job on the RDD that samples keys to compute
+            // partition bounds. To get accurate samples, we need to copy the mutable keys.
+            iter.flatMap(
+              batch => {
+                val rows = convertColumnarToRow(batch)
+                val projection =
+                  UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
+                val mutablePair = new MutablePair[InternalRow, Null]()
+                rows.map(row => mutablePair.update(projection(row).copy(), null))
+              })
         }
         // Construct ordering on extracted sort key.
         val orderingAttributes = sortingExpressions.zipWithIndex.map {
@@ -122,26 +122,27 @@ object ExecUtil {
     }
 
     // only used for fallback range partitioning
-    def computeAndAddPartitionId(cbIter: Iterator[ColumnarBatch],
-                                 partitionKeyExtractor: InternalRow => Any
-                                ): CloseablePairedColumnarBatchIterator = {
+    def computeAndAddPartitionId(
+        cbIter: Iterator[ColumnarBatch],
+        partitionKeyExtractor: InternalRow => Any): CloseablePairedColumnarBatchIterator = {
       CloseablePairedColumnarBatchIterator {
         cbIter
           .filter(cb => cb.numRows != 0 && cb.numCols != 0)
-          .map { cb =>
-            val pidVec = ArrowWritableColumnVector
-              .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
-              .head
-            convertColumnarToRow(cb).zipWithIndex.foreach {
-              case (row, i) =>
-                val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-                pidVec.putInt(i, pid)
-            }
-            val pidBatch = ColumnarBatches.ensureOffloaded(
-              ArrowBufferAllocators.contextInstance(),
-              new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
-            val newHandle = ColumnarBatches.compose(pidBatch, cb)
-            (0, ColumnarBatches.create(newHandle))
+          .map {
+            cb =>
+              val pidVec = ArrowWritableColumnVector
+                .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
+                .head
+              convertColumnarToRow(cb).zipWithIndex.foreach {
+                case (row, i) =>
+                  val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
+                  pidVec.putInt(i, pid)
+              }
+              val pidBatch = ColumnarBatches.ensureOffloaded(
+                ArrowBufferAllocators.contextInstance(),
+                new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
+              val newHandle = ColumnarBatches.compose(pidBatch, cb)
+              (0, ColumnarBatches.create(newHandle))
           }
       }
     }
@@ -169,26 +170,26 @@ object ExecUtil {
 
     val rddWithDummyKey: RDD[Product2[Int, ColumnarBatch]] = newPartitioning match {
       case RangePartitioning(sortingExpressions, _) =>
-        rdd.mapPartitionsWithIndexInternal((_, cbIter) => {
-          val partitionKeyExtractor: InternalRow => Any = {
-            val projection =
-              UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
-            row => projection(row)
-          }
-          val newIter = computeAndAddPartitionId(cbIter, partitionKeyExtractor)
+        rdd.mapPartitionsWithIndexInternal(
+          (_, cbIter) => {
+            val partitionKeyExtractor: InternalRow => Any = {
+              val projection =
+                UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
+              row => projection(row)
+            }
+            val newIter = computeAndAddPartitionId(cbIter, partitionKeyExtractor)
 
-          TaskResources.addRecycler(100) {
-            newIter.closeColumnBatch()
-          }
+            TaskResources.addRecycler(100) {
+              newIter.closeColumnBatch()
+            }
 
-          newIter
-        }, isOrderSensitive = isOrderSensitive)
+            newIter
+          },
+          isOrderSensitive = isOrderSensitive
+        )
       case _ =>
         rdd.mapPartitionsWithIndexInternal(
-          (_, cbIter) =>
-            cbIter.map { cb =>
-              (0, cb)
-            },
+          (_, cbIter) => cbIter.map(cb => (0, cb)),
           isOrderSensitive = isOrderSensitive)
     }
 
@@ -197,19 +198,18 @@ object ExecUtil {
         rddWithDummyKey,
         new PartitionIdPassthrough(newPartitioning.numPartitions),
         serializer,
-        shuffleWriterProcessor =
-          ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
+        shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
-        metrics = metrics)
+        metrics = metrics
+      )
 
     dependency
   }
 }
 
-
 case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBatch)])
   extends Iterator[(Int, ColumnarBatch)]
-    with Logging {
+  with Logging {
 
   private var cur: (Int, ColumnarBatch) = _
 

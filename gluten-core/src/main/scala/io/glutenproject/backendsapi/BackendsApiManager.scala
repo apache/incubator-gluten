@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
@@ -58,7 +57,8 @@ object BackendsApiManager {
       backend.transformerApi(),
       backend.validatorApi(),
       backend.metricsApi(),
-      backend.settings())
+      backend.settings()
+    )
   }
 
   /**

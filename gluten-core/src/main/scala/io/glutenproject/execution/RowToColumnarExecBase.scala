@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -33,7 +32,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * [[ColumnarBatch]]. This is inserted whenever such a transition is determined to be needed.
  */
 abstract class RowToColumnarExecBase(child: SparkPlan)
-  extends RowToColumnarTransition with GlutenPlan {
+  extends RowToColumnarTransition
+  with GlutenPlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =

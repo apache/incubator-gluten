@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
-
-import com.google.common.collect.Lists
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
+
+import com.google.common.collect.Lists
 
 case class AliasTransformerBase(
     substraitExprName: String,
@@ -34,7 +33,8 @@ case class AliasTransformerBase(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.doTransform(args)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(
         substraitExprName,
         original.children.map(_.dataType),
@@ -45,13 +45,14 @@ case class AliasTransformerBase(
   }
 }
 
-case class AttributeReferenceTransformer(name: String,
-                                         ordinal: Int,
-                                         dataType: DataType,
-                                         nullable: Boolean = true,
-                                         exprId: ExprId,
-                                         qualifier: Seq[String],
-                                         metadata: Metadata = Metadata.empty)
+case class AttributeReferenceTransformer(
+    name: String,
+    ordinal: Int,
+    dataType: DataType,
+    nullable: Boolean = true,
+    exprId: ExprId,
+    qualifier: Seq[String],
+    metadata: Metadata = Metadata.empty)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

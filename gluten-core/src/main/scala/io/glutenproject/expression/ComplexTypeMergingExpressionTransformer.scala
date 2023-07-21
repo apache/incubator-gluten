@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -25,38 +24,36 @@ import org.apache.spark.sql.catalyst.expressions._
 
 import java.util.ArrayList
 
-/**
- * Transformer for the normal complex type merging expression
- */
+/** Transformer for the normal complex type merging expression */
 class ComplexTypeMergingExpressionTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer with Logging {
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childrenNodes = new ArrayList[ExpressionNode]
-    children.foreach(child => {
-      childrenNodes.add(child.doTransform(args))
-    })
+    children.foreach(
+      child => {
+        childrenNodes.add(child.doTransform(args))
+      })
 
     val childrenTypes = original.children.map(child => child.dataType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        childrenTypes,
-        FunctionConfig.OPT))
+      ConverterUtils.makeFuncName(substraitExprName, childrenTypes, FunctionConfig.OPT))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, childrenNodes, typeNode)
   }
 }
 
 object ComplexTypeMergingExpressionTransformer {
-  def apply(substraitExprName: String,
-            children: Seq[ExpressionTransformer],
-            original: Expression): ExpressionTransformer = {
+  def apply(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression): ExpressionTransformer = {
     new ComplexTypeMergingExpressionTransformer(substraitExprName, children, original)
   }
 }

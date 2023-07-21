@@ -14,24 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import com.google.common.collect.Lists
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.ColumnTypeNode
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InSubqueryExec
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import com.google.common.collect.Lists
 
 trait BasicScanExecTransformer extends TransformSupport {
 
@@ -66,7 +66,8 @@ trait BasicScanExecTransformer extends TransformSupport {
 
     BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       sparkContext,
-      WholestageTransformContext(outputAttributes(),
+      WholestageTransformContext(
+        outputAttributes(),
         outputAttributes(),
         planNode,
         substraitContext),
@@ -80,9 +81,14 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
-    if (!BackendsApiManager.getTransformerApiInstance
-      .supportsReadFileFormat(
-        fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
+    if (
+      !BackendsApiManager.getTransformerApiInstance
+        .supportsReadFileFormat(
+          fileFormat,
+          schema.fields,
+          getPartitionSchemas.nonEmpty,
+          getInputFilePaths)
+    ) {
       return ValidationResult.notOk(s"Not supported file format for scan: $fileFormat")
     }
 

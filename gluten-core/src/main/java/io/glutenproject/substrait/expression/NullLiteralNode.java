@@ -18,6 +18,7 @@
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.Expression;
 
 public class NullLiteralNode extends LiteralNode {

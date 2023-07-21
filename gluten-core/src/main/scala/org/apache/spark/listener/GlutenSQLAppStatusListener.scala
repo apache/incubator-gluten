@@ -14,22 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.listener
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.rpc.GlutenRpcMessages._
+import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.scheduler._
 import org.apache.spark.sql.execution.ui._
 
 /** Gluten SQL listener. Used for monitor sql on whole life cycle.Create and release resource. */
 class GlutenSQLAppStatusListener(val driverEndpointRef: RpcEndpointRef)
-  extends SparkListener with Logging {
+  extends SparkListener
+  with Logging {
+
   /**
    * If executor was removed, driver endpoint need to remove executor endpoint ref.\n When execution
    * was end, Can't call executor ref again.
-   * @param executorRemoved execution eemoved event
+   * @param executorRemoved
+   *   execution eemoved event
    */
   override def onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit = {
     driverEndpointRef.send(GlutenExecutorRemoved(executorRemoved.executorId))
@@ -43,10 +45,10 @@ class GlutenSQLAppStatusListener(val driverEndpointRef: RpcEndpointRef)
   }
 
   /**
-   * If execution is start, notice gluten executor with some prepare.
-   * execution.
+   * If execution is start, notice gluten executor with some prepare. execution.
    *
-   * @param event execution start event
+   * @param event
+   *   execution start event
    */
   private def onExecutionStart(event: SparkListenerSQLExecutionStart): Unit = {
     val executionId = event.executionId.toString
@@ -57,7 +59,8 @@ class GlutenSQLAppStatusListener(val driverEndpointRef: RpcEndpointRef)
   /**
    * If execution was end, some backend like CH need to clean resource which is relation to this
    * execution.
-   * @param event execution end event
+   * @param event
+   *   execution end event
    */
   private def onExecutionEnd(event: SparkListenerSQLExecutionEnd): Unit = {
     val executionId = event.executionId.toString

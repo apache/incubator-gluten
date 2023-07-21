@@ -295,8 +295,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
     expr match {
       case extendedExpr
-        if ExpressionMappings.expressionExtensionTransformer
-          .extensionExpressionsMapping.contains(extendedExpr.getClass) =>
+          if ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+            extendedExpr.getClass) =>
         // Use extended expression transformer to replace custom expression first
         ExpressionMappings.expressionExtensionTransformer
           .replaceWithExtensionExpressionTransformer(
@@ -590,8 +590,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           seq
         )
       case j: JsonTuple =>
-        val children = j.children.map(child =>
-          replaceWithExpressionTransformer(child, attributeSeq))
+        val children =
+          j.children.map(child => replaceWithExpressionTransformer(child, attributeSeq))
         JsonTupleExpressionTransformer(substraitExprName.get, children.toArray, j)
       // The other expression case must be put before LeafExpression, UnaryExpression,
       // BinaryExpression, TernaryExpression, QuaternaryExpression
@@ -658,8 +658,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
    * @return
    */
   def transformDynamicPruningExpr(
-    partitionFilters: Seq[Expression],
-    reuseSubquery: Boolean): Seq[Expression] = {
+      partitionFilters: Seq[Expression],
+      reuseSubquery: Boolean): Seq[Expression] = {
 
     def convertBroadcastExchangeToColumnar(
         exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
@@ -693,10 +693,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             case in: InSubqueryExec =>
               in.plan match {
                 case s: SubqueryBroadcastExec =>
-                  val newIn = s.transform {
+                  val newIn = s
+                    .transform {
                       case exchange: BroadcastExchangeExec =>
                         convertBroadcastExchangeToColumnar(exchange)
-                    }.asInstanceOf[SubqueryBroadcastExec]
+                    }
+                    .asInstanceOf[SubqueryBroadcastExec]
                   val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
                     newIn.name,
                     newIn.index,
@@ -716,15 +718,20 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                   // for each query.
                   if (newIn.child.isInstanceOf[AdaptiveSparkPlanExec] && reuseSubquery) {
                     // When AQE is on and reuseSubquery is on.
-                    newIn.child.asInstanceOf[AdaptiveSparkPlanExec].context
-                      .subqueryCache.update(newIn.canonicalized, transformSubqueryBroadcast)
+                    newIn.child
+                      .asInstanceOf[AdaptiveSparkPlanExec]
+                      .context
+                      .subqueryCache
+                      .update(newIn.canonicalized, transformSubqueryBroadcast)
                   }
                   in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
                 case r: ReusedSubqueryExec if r.child.isInstanceOf[SubqueryBroadcastExec] =>
-                  val newIn = r.child.transform {
+                  val newIn = r.child
+                    .transform {
                       case exchange: BroadcastExchangeExec =>
                         convertBroadcastExchangeToColumnar(exchange)
-                    }.asInstanceOf[SubqueryBroadcastExec]
+                    }
+                    .asInstanceOf[SubqueryBroadcastExec]
                   newIn.child match {
                     case a: AdaptiveSparkPlanExec =>
                       // Only when AQE is on, it needs to replace SubqueryBroadcastExec

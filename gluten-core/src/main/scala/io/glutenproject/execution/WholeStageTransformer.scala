@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import com.google.common.collect.Lists
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -38,6 +35,8 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.common.collect.Lists
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -53,6 +52,7 @@ case class WholestageTransformContext(
     substraitContext: SubstraitContext = null)
 
 trait TransformSupport extends GlutenPlan {
+
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
    *
@@ -83,7 +83,8 @@ trait TransformSupport extends GlutenPlan {
 }
 
 case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode
+  with TransformSupport {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
@@ -176,7 +177,8 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
 
       // Fixes issue-1874
       val outputSchema = TypeBuilder.makeStruct(false, outputTypeNodeList)
-      PlanBuilder.makePlan(substraitContext,
+      PlanBuilder.makePlan(
+        substraitContext,
         Lists.newArrayList(childCtx.root),
         outNames,
         outputSchema,
@@ -293,7 +295,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       val startTime = System.nanoTime()
       val resCtx = doWholestageTransform()
 
-      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n${planJson}")
+      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
       logOnLevel(
         substraitPlanLogLevel,
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")

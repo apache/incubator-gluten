@@ -18,6 +18,7 @@
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.Expression;
 
 import java.io.Serializable;
@@ -50,5 +51,4 @@ public class CastNode implements ExpressionNode, Serializable {
     builder.setCast(castBuilder.build());
     return builder.build();
   }
-
 }

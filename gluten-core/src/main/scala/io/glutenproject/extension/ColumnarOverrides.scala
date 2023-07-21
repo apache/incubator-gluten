@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
@@ -23,9 +22,11 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
+
+import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.GlutenRemoveRedundantSorts
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.GlutenRemoveRedundantSorts
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, Expression, Murmur3Hash, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
@@ -38,14 +39,14 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.api.python.EvalPythonExecTransformer
+import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
-case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkPlan]
+case class TransformPreOverrides(isAdaptiveContext: Boolean)
+  extends Rule[SparkPlan]
   with LogLevelUtil {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
@@ -54,12 +55,14 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
 
   /**
    * Insert a Project as the new child of Shuffle to calculate the hash expressions.
-   * @param exprs hash expressions in Shuffle HashPartitioning.
-   * @param child the original child of Shuffle.
-   * @return a new Spark plan with Project inserted.
+   * @param exprs
+   *   hash expressions in Shuffle HashPartitioning.
+   * @param child
+   *   the original child of Shuffle.
+   * @return
+   *   a new Spark plan with Project inserted.
    */
-  private def getProjectWithHash(exprs: Seq[Expression], child: SparkPlan)
-  : SparkPlan = {
+  private def getProjectWithHash(exprs: Seq[Expression], child: SparkPlan): SparkPlan = {
     val hashExpression = new Murmur3Hash(exprs)
     hashExpression.withNewChildren(exprs)
     // If the child of shuffle is also a Project, we do not merge them together here.
@@ -69,8 +72,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
     //     => Project1(a as c, b as d)
     //     => Project2(hash(c), c, d)
     //     => Shuffle => ...
-    val project = ProjectExec(
-      Seq(Alias(hashExpression, "hash_partition_key")()) ++ child.output, child)
+    val project =
+      ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++ child.output, child)
     AddTransformHintRule().apply(project)
     TransformHints.getHint(project) match {
       case _: TRANSFORM_SUPPORTED => replaceWithTransformerPlan(project)
@@ -80,8 +83,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
 
   /**
    * Generate a plan for hash aggregation.
-   * @param plan: the original Spark plan.
-   * @return the actually used plan for execution.
+   * @param plan:
+   *   the original Spark plan.
+   * @return
+   *   the actually used plan for execution.
    */
   private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
     val newChild = replaceWithTransformerPlan(plan.child)
@@ -99,10 +104,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
               plan.aggregateAttributes,
               plan.initialInputBufferOffset,
               plan.resultExpressions,
-              newChild)
+              newChild
+            )
         case _ =>
           // If the child is not transformable, transform the grandchildren only.
-          logOnLevel(columnarConf.validationLogLevel,
+          logOnLevel(
+            columnarConf.validationLogLevel,
             s"Validation failed for plan: ${plan.nodeName}, due to: empty child output.")
           val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
           plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
@@ -117,42 +124,45 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
           plan.aggregateAttributes,
           plan.initialInputBufferOffset,
           plan.resultExpressions,
-          newChild)
+          newChild
+        )
     }
   }
 
   /**
    * Generate a plan for filter.
-   * @param plan: the original Spark plan.
-   * @return the actually used plan for execution.
+   * @param plan:
+   *   the original Spark plan.
+   * @return
+   *   the actually used plan for execution.
    */
   private def genFilterExec(plan: FilterExec): SparkPlan = {
     // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
     //  a individual rule.
     // Push down the left conditions in Filter into Scan.
     val newChild: SparkPlan =
-    if (plan.child.isInstanceOf[FileSourceScanExec] ||
-      plan.child.isInstanceOf[BatchScanExec]) {
-      TransformHints.getHint(plan.child) match {
-        case TRANSFORM_SUPPORTED() =>
-          val newScan = FilterHandler.applyFilterPushdownToScan(
-            plan,
-            reuseSubquery)
-          newScan match {
-            case ts: TransformSupport =>
-              if (ts.doValidate().isValid) {
-                ts
-              } else {
-                replaceWithTransformerPlan(plan.child)
-              }
-            case p: SparkPlan => p
-          }
-        case _ =>
-          replaceWithTransformerPlan(plan.child)
+      if (
+        plan.child.isInstanceOf[FileSourceScanExec] ||
+        plan.child.isInstanceOf[BatchScanExec]
+      ) {
+        TransformHints.getHint(plan.child) match {
+          case TRANSFORM_SUPPORTED() =>
+            val newScan = FilterHandler.applyFilterPushdownToScan(plan, reuseSubquery)
+            newScan match {
+              case ts: TransformSupport =>
+                if (ts.doValidate().isValid) {
+                  ts
+                } else {
+                  replaceWithTransformerPlan(plan.child)
+                }
+              case p: SparkPlan => p
+            }
+          case _ =>
+            replaceWithTransformerPlan(plan.child)
+        }
+      } else {
+        replaceWithTransformerPlan(plan.child)
       }
-    } else {
-      replaceWithTransformerPlan(plan.child)
-    }
     logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
     BackendsApiManager.getSparkPlanExecApiInstance
       .genFilterExecTransformer(plan.condition, newChild)
@@ -162,11 +172,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
    * If there are expressions (not field reference) in the partitioning's children, add a projection
    * before shuffle exchange and make a new partitioning with the old expressions replaced by the
    * result columns from the projection.
-   * */
-  private def addProjectionForShuffleExchange(plan: ShuffleExchangeExec): (Int, Partitioning,
-    SparkPlan) = {
-    def selectExpressions(exprs: Seq[Expression], attributes: Seq[Attribute])
-    : (Seq[NamedExpression], Seq[Int]) = {
+   */
+  private def addProjectionForShuffleExchange(
+      plan: ShuffleExchangeExec): (Int, Partitioning, SparkPlan) = {
+    def selectExpressions(
+        exprs: Seq[Expression],
+        attributes: Seq[Attribute]): (Seq[NamedExpression], Seq[Int]) = {
       var expressionPos = Seq[Int]()
       var projectExpressions = Seq[NamedExpression]()
 
@@ -179,25 +190,28 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
             expressionPos = expressionPos :+ (attributes.size + n)
           } else {
             // the new projected columns are appended at the end
-            expressionPos = expressionPos :+ BindReferences.bindReference(
-              expr, attributes).asInstanceOf[BoundReference].ordinal
+            expressionPos = expressionPos :+ BindReferences
+              .bindReference(expr, attributes)
+              .asInstanceOf[BoundReference]
+              .ordinal
           }
-        }
-      )
+        })
       (projectExpressions, expressionPos)
     }
     plan.outputPartitioning match {
       case HashPartitioning(exprs, numPartitions) =>
         val (projectExpressions, newExpressionsPosition) = {
-          selectExpressions(exprs,
+          selectExpressions(
+            exprs,
             BackendsApiManager.getTransformerApiInstance
               .getPlanOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
         }
-        val project = replaceWithTransformerPlan(AddTransformHintRule().apply(
-          ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        val project = replaceWithTransformerPlan(
+          AddTransformHintRule().apply(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newExprs = Seq[Expression]()
         for (i <- 0 to exprs.size - 1) {
           val pos = newExpressionsPosition(i)
@@ -207,21 +221,26 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
       case RangePartitioning(orderings, numPartitions) =>
         val exprs = orderings.map(ordering => ordering.child)
         val (projectExpressions, newExpressionsPosition) = {
-          selectExpressions(exprs,
+          selectExpressions(
+            exprs,
             BackendsApiManager.getTransformerApiInstance
               .getPlanOutput(plan.child))
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
         }
-        val project = replaceWithTransformerPlan(AddTransformHintRule().apply(
-          ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        val project = replaceWithTransformerPlan(
+          AddTransformHintRule().apply(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newOrderings = Seq[SortOrder]()
         for (i <- 0 to orderings.size - 1) {
           val oldOrdering = orderings(i)
           val pos = newExpressionsPosition(i)
-          val ordering = SortOrder(project.output(pos), oldOrdering.direction, oldOrdering
-            .nullOrdering, oldOrdering.sameOrderExpressions)
+          val ordering = SortOrder(
+            project.output(pos),
+            oldOrdering.direction,
+            oldOrdering.nullOrdering,
+            oldOrdering.sameOrderExpressions)
           newOrderings = newOrderings :+ ordering
         }
         (projectExpressions.size, RangePartitioning(newOrderings, numPartitions), project)
@@ -251,7 +270,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
                 shj.condition,
                 replaceWithTransformerPlan(shj.left),
                 replaceWithTransformerPlan(shj.right),
-                shj.isSkewJoin)
+                shj.isSkewJoin
+              )
             } else {
               return shj.withNewChildren(shj.children.map(replaceWithTransformerPlan))
             }
@@ -266,8 +286,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
         applyScanTransformer(plan)
       case plan: CoalesceExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        CoalesceExecTransformer(
-          plan.numPartitions, replaceWithTransformerPlan(plan.child))
+        CoalesceExecTransformer(plan.numPartitions, replaceWithTransformerPlan(plan.child))
       case plan: InMemoryTableScanExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         ColumnarInMemoryTableScanExec(plan.attributes, plan.predicates, plan.relation)
@@ -284,26 +303,28 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
           val child = replaceWithTransformerPlan(plan.child)
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           BackendsApiManager.getSparkPlanExecApiInstance
-              .genHashAggregateExecTransformer(
-            plan.requiredChildDistributionExpressions,
-            plan.groupingExpressions,
-            plan.aggregateExpressions,
-            plan.aggregateAttributes,
-            plan.initialInputBufferOffset,
-            plan.resultExpressions,
-            // If SortAggregateExec is forcibly replaced by HashAggregateExecTransformer,
-            // Sort operator is useless. So just use its child to initialize.
-            child match {
-              case sort: SortExecTransformer =>
-                sort.child
-              case sort: SortExec =>
-                sort.child
-              case other =>
-                other
-            })
+            .genHashAggregateExecTransformer(
+              plan.requiredChildDistributionExpressions,
+              plan.groupingExpressions,
+              plan.aggregateExpressions,
+              plan.aggregateAttributes,
+              plan.initialInputBufferOffset,
+              plan.resultExpressions,
+              // If SortAggregateExec is forcibly replaced by HashAggregateExecTransformer,
+              // Sort operator is useless. So just use its child to initialize.
+              child match {
+                case sort: SortExecTransformer =>
+                  sort.child
+                case sort: SortExec =>
+                  sort.child
+                case other =>
+                  other
+              }
+            )
         } catch {
           case _: Throwable =>
-            logInfo("Fallback to SortAggregateExec instead of forcibly" +
+            logInfo(
+              "Fallback to SortAggregateExec instead of forcibly" +
                 " using HashAggregateExecTransformer!")
             plan
         }
@@ -318,7 +339,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
             plan.aggregateAttributes,
             plan.initialInputBufferOffset,
             plan.resultExpressions,
-            child)
+            child
+          )
       case plan: UnionExec =>
         val children = plan.children.map(replaceWithTransformerPlan)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -338,23 +360,30 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
-        if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
-          BackendsApiManager.getSettings.supportColumnarShuffleExec()) {
+        if (
+          (child.supportsColumnar || columnarConf.enablePreferColumnar) &&
+          BackendsApiManager.getSettings.supportColumnarShuffleExec()
+        ) {
           if (BackendsApiManager.getSettings.removeHashColumnFromColumnarShuffleExchangeExec()) {
             plan.outputPartitioning match {
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
                   ColumnarShuffleUtil.genColumnarShuffleExchange(
-                    plan, projectChild, projectChild.output.drop(1))
+                    plan,
+                    projectChild,
+                    projectChild.output.drop(1))
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
                 ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
             }
-          } else if (BackendsApiManager.getSettings.supportShuffleWithProject(plan
-            .outputPartitioning, plan.child)) {
+          } else if (
+            BackendsApiManager.getSettings.supportShuffleWithProject(
+              plan.outputPartitioning,
+              plan.child)
+          ) {
             val (projectColumnNumber, newPartitioning, newChild) =
               addProjectionForShuffleExchange(plan)
 
@@ -363,13 +392,14 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
                 val newPlan = ShuffleExchangeExec(newPartitioning, newChild, plan.shuffleOrigin)
                 // the new projections columns are appended at the end.
                 ColumnarShuffleUtil.genColumnarShuffleExchange(
-                  newPlan, newChild, newChild.output.dropRight(projectColumnNumber))
+                  newPlan,
+                  newChild,
+                  newChild.output.dropRight(projectColumnNumber))
               } else {
                 // It's the case that partitioning expressions could be offloaded into native.
                 plan.withNewChildren(Seq(child))
               }
-            }
-            else {
+            } else {
               ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
             }
           } else {
@@ -421,8 +451,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
             left,
             right,
             isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-      case plan: AQEShuffleReadExec if
-          BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
+      case plan: AQEShuffleReadExec
+          if BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
         plan.child match {
           case _: ColumnarShuffleExchangeExec =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -458,8 +488,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
       case plan: GenerateExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
-        GenerateExecTransformer(plan.generator, plan.requiredChildOutput,
-          plan.outer, plan.generatorOutput, child)
+        GenerateExecTransformer(
+          plan.generator,
+          plan.requiredChildOutput,
+          plan.outer,
+          plan.generatorOutput,
+          child)
       case plan: EvalPythonExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
@@ -477,8 +511,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
   /**
    * Get the build side supported by the execution of vanilla Spark.
    *
-   * @param plan: shuffled hash join plan
-   * @return the supported build side
+   * @param plan:
+   *   shuffled hash join plan
+   * @return
+   *   the supported build side
    */
   private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
     plan.joinType match {
@@ -490,15 +526,13 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
 
   /**
    * Apply scan transformer for file source and batch source,
-   * 1. create new filter and scan transformer,
-   * 2. validate, tag new scan as unsupported if failed,
-   * 3. return new source.
+   *   1. create new filter and scan transformer, 2. validate, tag new scan as unsupported if
+   *      failed, 3. return new source.
    */
   def applyScanTransformer(plan: SparkPlan): SparkPlan = plan match {
     case plan: FileSourceScanExec =>
-      val newPartitionFilters = ExpressionConverter.transformDynamicPruningExpr(
-        plan.partitionFilters,
-        reuseSubquery)
+      val newPartitionFilters =
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters, reuseSubquery)
       val transformer = new FileSourceScanExecTransformer(
         plan.relation,
         plan.output,
@@ -508,7 +542,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
         plan.optionalNumCoalescedBuckets,
         plan.dataFilters,
         plan.tableIdentifier,
-        plan.disableBucketedScan)
+        plan.disableBucketedScan
+      )
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -521,15 +556,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
       }
     case plan: BatchScanExec =>
       val newPartitionFilters: Seq[Expression] = plan.scan match {
-        case scan: FileScan => ExpressionConverter.transformDynamicPruningExpr(
-          scan.partitionFilters,
-          reuseSubquery)
-        case _ => ExpressionConverter.transformDynamicPruningExpr(
-          plan.runtimeFilters,
-          reuseSubquery)
+        case scan: FileScan =>
+          ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
+        case _ =>
+          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
       }
-      val transformer = new BatchScanExecTransformer(plan.output,
-        plan.scan, newPartitionFilters)
+      val transformer = new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -554,7 +586,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean) extends Rule[SparkP
 // This rule will try to convert the row-to-columnar and columnar-to-row
 // into native implementations.
 case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Boolean)
-    extends Rule[SparkPlan] {
+  extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
@@ -581,12 +613,11 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides RowToColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-      // The ColumnarShuffleExchangeExec node may be the top node, so we cannot remove it.
-      // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
-      // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE
-      // mode have tested gluten-it TPCH when AQE OFF
-    case ColumnarToRowExec(child: ColumnarShuffleExchangeExec)
-      if isAdaptiveContext =>
+    // The ColumnarShuffleExchangeExec node may be the top node, so we cannot remove it.
+    // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
+    // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE
+    // mode have tested gluten-it TPCH when AQE OFF
+    case ColumnarToRowExec(child: ColumnarShuffleExchangeExec) if isAdaptiveContext =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>
       replaceWithTransformerPlan(child)
@@ -595,8 +626,8 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
     case plan: ColumnarToRowExec =>
       transformColumnarToRowExec(plan)
     case r: SparkPlan
-      if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar &&
-        r.children.exists(_.isInstanceOf[ColumnarToRowExec]) =>
+        if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar &&
+          r.children.exists(_.isInstanceOf[ColumnarToRowExec]) =>
       // This is a fix for when DPP and AQE both enabled,
       // ColumnarExchange maybe child as a Row SparkPlan
       r.withNewChildren(r.children.map {
@@ -619,8 +650,7 @@ case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Bool
 
 // This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
 // to support vanilla columnar scan.
-case class VanillaColumnarPlanOverrides(session: SparkSession)
-  extends Rule[SparkPlan] {
+case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[SparkPlan] {
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
@@ -651,7 +681,9 @@ case class VanillaColumnarPlanOverrides(session: SparkSession)
 }
 
 case class ColumnarOverrideRules(session: SparkSession)
-  extends ColumnarRule with Logging with LogLevelUtil {
+  extends ColumnarRule
+  with Logging
+  with LogLevelUtil {
 
   lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
@@ -680,35 +712,34 @@ case class ColumnarOverrideRules(session: SparkSession)
       TagBeforeTransformHits.ruleBuilders
     }
     tagBeforeTransformHitsRules :::
-    List(
-      (spark: SparkSession) => PlanOneRowRelation(spark),
-      (_: SparkSession) => FallbackEmptySchemaRelation(),
-      (_: SparkSession) => AddTransformHintRule(),
-      (_: SparkSession) => TransformPreOverrides(this.isAdaptiveContext),
-      (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-      (_: SparkSession) => RemoveTransformHintRule(),
-      (_: SparkSession) => GlutenRemoveRedundantSorts) :::
+      List(
+        (spark: SparkSession) => PlanOneRowRelation(spark),
+        (_: SparkSession) => FallbackEmptySchemaRelation(),
+        (_: SparkSession) => AddTransformHintRule(),
+        (_: SparkSession) => TransformPreOverrides(this.isAdaptiveContext),
+        (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
+        (_: SparkSession) => RemoveTransformHintRule(),
+        (_: SparkSession) => GlutenRemoveRedundantSorts
+      ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
-      SparkUtil.extendedColumnarRules(
-        session,
-        GlutenConfig.getConf.extendedColumnarPreRules)
+      SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
   }
 
   def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
-    List((s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext),
+    List(
+      (s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext),
       (s: SparkSession) => VanillaColumnarPlanOverrides(s)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
-      SparkUtil.extendedColumnarRules(
-        session,
-        GlutenConfig.getConf.extendedColumnarPostRules)
+      SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)
 
-  override def preColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
-    maybe(session, plan) {
+  override def preColumnarTransitions: Rule[SparkPlan] = plan =>
+    PhysicalPlanSelector.maybe(session, plan) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
       val traceElements = Thread.currentThread.getStackTrace
-      assert(traceElements.length > aqeStackTraceIndex,
+      assert(
+        traceElements.length > aqeStackTraceIndex,
         s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
       // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
       // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
@@ -722,9 +753,10 @@ case class ColumnarOverrideRules(session: SparkSession)
       logOnLevel(
         transformPlanLogLevel,
         s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
-      preOverrides().foreach { r =>
-        overridden = r(session)(overridden)
-        planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+      preOverrides().foreach {
+        r =>
+          overridden = r(session)(overridden)
+          planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
       logOnLevel(
         transformPlanLogLevel,
@@ -772,8 +804,8 @@ case class ColumnarOverrideRules(session: SparkSession)
 
 
   /**
-   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
-   * Inserts an transition to columnar formatted data.
+   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark. Inserts an transition to columnar
+   * formatted data.
    */
   def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
     if (!plan.supportsColumnar) {
@@ -788,8 +820,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   /**
-   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
-   * Inserts RowToColumnarExecs and ColumnarToRowExecs where needed.
+   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark. Inserts RowToColumnarExecs and
+   * ColumnarToRowExecs where needed.
    */
   def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
     if (outputsColumnar) {
@@ -824,9 +856,10 @@ case class ColumnarOverrideRules(session: SparkSession)
           s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
         var overridden: SparkPlan = plan
         val startTime = System.nanoTime()
-        postOverrides().foreach { r =>
-          overridden = r(session)(overridden)
-          planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+        postOverrides().foreach {
+          r =>
+            overridden = r(session)(overridden)
+            planChangeLogger.logRule(r(session).ruleName, plan, overridden)
         }
         logOnLevel(
           transformPlanLogLevel,

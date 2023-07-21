@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.shuffle
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -23,18 +22,21 @@ import org.apache.spark.shuffle.sort.ColumnarShuffleHandle
 
 case class GlutenShuffleWriterWrapper[K, V](shuffleWriter: ShuffleWriter[K, V])
 
-case class GenShuffleWriterParameters[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
-                                            columnarShuffleHandle: ColumnarShuffleHandle[K, V],
-                                            mapId: Long, metrics: ShuffleWriteMetricsReporter)
+case class GenShuffleWriterParameters[K, V](
+    shuffleBlockResolver: IndexShuffleBlockResolver,
+    columnarShuffleHandle: ColumnarShuffleHandle[K, V],
+    mapId: Long,
+    metrics: ShuffleWriteMetricsReporter)
 
 object GlutenShuffleWriterWrapper {
 
-  def genColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
-                                     columnarShuffleHandle: ColumnarShuffleHandle[K, V],
-                                     mapId: Long, metrics: ShuffleWriteMetricsReporter
-                                    ): ShuffleWriter[K, V] =
+  def genColumnarShuffleWriter[K, V](
+      shuffleBlockResolver: IndexShuffleBlockResolver,
+      columnarShuffleHandle: ColumnarShuffleHandle[K, V],
+      mapId: Long,
+      metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] =
     BackendsApiManager.getSparkPlanExecApiInstance
-      .genColumnarShuffleWriter(GenShuffleWriterParameters(shuffleBlockResolver,
-        columnarShuffleHandle, mapId, metrics))
+      .genColumnarShuffleWriter(
+        GenShuffleWriterParameters(shuffleBlockResolver, columnarShuffleHandle, mapId, metrics))
       .shuffleWriter
 }

@@ -18,6 +18,7 @@ package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.SortExecTransformer
+
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{SortExec, SparkPlan}
@@ -26,9 +27,9 @@ import org.apache.spark.sql.execution.{SortExec, SparkPlan}
  * This rule is used to to remove redundant SortExec or SortExecTransformer, similar to vanilla
  * spark's RemoveRedundantSorts. As the use of hash agg to replace sort agg will remove pre-node
  * SortExec, to avoid the caused potential order issue for latter node, we disable vanilla spark's
- * RemoveRedundantSorts which is applied before columnar rule.
- * See the setting for "spark.sql.execution.removeRedundantSorts" in GlutenPlugin.scala.
- * And instead, we have this similar rule applied after columnar rule's TransformPreOverrides.
+ * RemoveRedundantSorts which is applied before columnar rule. See the setting for
+ * "spark.sql.execution.removeRedundantSorts" in GlutenPlugin.scala. And instead, we have this
+ * similar rule applied after columnar rule's TransformPreOverrides.
  */
 object GlutenRemoveRedundantSorts extends Rule[SparkPlan] {
   lazy val forceToUseHashAgg =
@@ -41,13 +42,13 @@ object GlutenRemoveRedundantSorts extends Rule[SparkPlan] {
     }
   }
 
-  private def removeSorts(plan: SparkPlan): SparkPlan = plan transform {
-    case s@SortExec(orders, _, child, _)
-      if SortOrder.orderingSatisfies(child.outputOrdering, orders) &&
+  private def removeSorts(plan: SparkPlan): SparkPlan = plan.transform {
+    case s @ SortExec(orders, _, child, _)
+        if SortOrder.orderingSatisfies(child.outputOrdering, orders) &&
           child.outputPartitioning.satisfies(s.requiredChildDistribution.head) =>
       child
-    case st@SortExecTransformer(orders, _, child, _)
-      if SortOrder.orderingSatisfies(child.outputOrdering, orders) &&
+    case st @ SortExecTransformer(orders, _, child, _)
+        if SortOrder.orderingSatisfies(child.outputOrdering, orders) &&
           child.outputPartitioning.satisfies(st.requiredChildDistribution.head) =>
       child
   }

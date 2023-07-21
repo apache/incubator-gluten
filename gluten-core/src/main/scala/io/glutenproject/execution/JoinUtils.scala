@@ -14,39 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import com.google.protobuf.Any
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
-import io.substrait.proto.JoinRel
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
 import org.apache.spark.sql.types.DataType
 
+import com.google.protobuf.Any
+import io.substrait.proto.JoinRel
+
 import java.util
+
 import scala.collection.JavaConverters._
 
 object JoinUtils {
   private def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
-    val inputTypeNodes = output.map { attr =>
-      ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
+    val inputTypeNodes = output.map {
+      attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
     }
     // Normally the enhancement node is only used for plan validation. But here the enhancement
     // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
     // so that it can be correctly parsed into json string on the cpp side.
-    Any.pack(TypeBuilder.makeStruct(false,
-      new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf,
-      /* typeUrlPrefix */"")
+    Any.pack(
+      TypeBuilder.makeStruct(false, new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf,
+      /* typeUrlPrefix */ "")
   }
 
-  def createExtensionNode(output: Seq[Attribute],
-                          validation: Boolean): AdvancedExtensionNode = {
+  def createExtensionNode(output: Seq[Attribute], validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.
     if (validation) {
       ExtensionBuilder.makeAdvancedExtension(createEnhancement(output))
@@ -59,21 +60,25 @@ object JoinUtils {
     !keyExprs.forall(_.isInstanceOf[AttributeReference])
   }
 
-  def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
-                                  inputNode: RelNode,
-                                  inputNodeOutput: Seq[Attribute],
-                                  joinOutput: Seq[Attribute],
-                                  substraitContext: SubstraitContext,
-                                  operatorId: java.lang.Long,
-                                  validation: Boolean)
-  : (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
+  def createPreProjectionIfNeeded(
+      keyExprs: Seq[Expression],
+      inputNode: RelNode,
+      inputNodeOutput: Seq[Attribute],
+      joinOutput: Seq[Attribute],
+      substraitContext: SubstraitContext,
+      operatorId: java.lang.Long,
+      validation: Boolean): (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
     if (!preProjectionNeeded(keyExprs)) {
       // Skip pre-projection if all keys are [AttributeReference]s,
       // which can be directly converted into SelectionNode.
-      val keys = keyExprs.map { expr =>
-        (ExpressionConverter.replaceWithExpressionTransformer(expr, joinOutput)
-          .asInstanceOf[AttributeReferenceTransformer]
-          .doTransform(substraitContext.registeredFunction), expr.dataType)
+      val keys = keyExprs.map {
+        expr =>
+          (
+            ExpressionConverter
+              .replaceWithExpressionTransformer(expr, joinOutput)
+              .asInstanceOf[AttributeReferenceTransformer]
+              .doTransform(substraitContext.registeredFunction),
+            expr.dataType)
       }
       (keys, inputNode, inputNodeOutput)
     } else {
@@ -83,18 +88,20 @@ object JoinUtils {
         case _: AttributeReference => None
         case expr =>
           Some(
-            (ExpressionConverter
-              .replaceWithExpressionTransformer(expr, inputNodeOutput)
-              .doTransform(substraitContext.registeredFunction), expr.dataType))
+            (
+              ExpressionConverter
+                .replaceWithExpressionTransformer(expr, inputNodeOutput)
+                .doTransform(substraitContext.registeredFunction),
+              expr.dataType))
       }
       val preProjectNode = RelBuilder.makeProjectRel(
         inputNode,
-        new java.util.ArrayList[ExpressionNode](
-          (selectOrigins ++ appendedKeys.map(_._1)).asJava),
+        new java.util.ArrayList[ExpressionNode]((selectOrigins ++ appendedKeys.map(_._1)).asJava),
         createExtensionNode(inputNodeOutput, validation),
         substraitContext,
         operatorId,
-        inputNodeOutput.size)
+        inputNodeOutput.size
+      )
 
       // Compute index for join keys in join outputs.
       val offset = joinOutput.size - inputNodeOutput.size + selectOrigins.size
@@ -102,25 +109,32 @@ object JoinUtils {
       val keys = keyExprs.map {
         case a: AttributeReference =>
           // The selection index for original AttributeReference is unchanged.
-          (ExpressionConverter.replaceWithExpressionTransformer(a, joinOutput)
-            .asInstanceOf[AttributeReferenceTransformer]
-            .doTransform(substraitContext.registeredFunction), a.dataType)
+          (
+            ExpressionConverter
+              .replaceWithExpressionTransformer(a, joinOutput)
+              .asInstanceOf[AttributeReferenceTransformer]
+              .doTransform(substraitContext.registeredFunction),
+            a.dataType)
         case _ =>
           val (key, idx) = appendedKeysAndIndices.next()
           (ExpressionBuilder.makeSelection(idx + offset), key._2)
       }
-      (keys, preProjectNode, inputNodeOutput ++
-        appendedKeys.zipWithIndex.map { case (key, idx) =>
-          // Create output attributes for appended keys.
-          // This is used as place holder for finding the right column indexes in post-join filters.
-          AttributeReference(s"col_${idx + offset}", key._2)()
-        }
-      )
+      (
+        keys,
+        preProjectNode,
+        inputNodeOutput ++
+          appendedKeys.zipWithIndex.map {
+            case (key, idx) =>
+              // Create output attributes for appended keys.
+              // This is used as place holder for finding the right column indexes in post-join filters.
+              AttributeReference(s"col_${idx + offset}", key._2)()
+          })
     }
   }
 
-  def createJoinExtensionNode(joinParameters: Any.Builder,
-                              output: Seq[Attribute]): AdvancedExtensionNode = {
+  def createJoinExtensionNode(
+      joinParameters: Any.Builder,
+      output: Seq[Attribute]): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
     val enhancement = createEnhancement(output)
@@ -128,10 +142,10 @@ object JoinUtils {
   }
 
   // Return the direct join output.
-  protected def getDirectJoinOutput(joinType: JoinType,
-                                     leftOutput: Seq[Attribute],
-                                    rightOutput: Seq[Attribute])
-  : (Seq[Attribute], Seq[Attribute]) = {
+  protected def getDirectJoinOutput(
+      joinType: JoinType,
+      leftOutput: Seq[Attribute],
+      rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
         (leftOutput, rightOutput)
@@ -147,35 +161,34 @@ object JoinUtils {
         // LeftSemi | LeftAnti | ExistenceJoin.
         (leftOutput, Nil)
       case x =>
-        throw new IllegalArgumentException(
-          s"${
-            getClass.getSimpleName
-          } not take $x as the JoinType")
+        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
     }
   }
 
-  protected def getDirectJoinOutputSeq(joinType: JoinType,
-                                        leftOutput: Seq[Attribute],
-                                       rightOutput: Seq[Attribute]): Seq[Attribute] = {
+  protected def getDirectJoinOutputSeq(
+      joinType: JoinType,
+      leftOutput: Seq[Attribute],
+      rightOutput: Seq[Attribute]): Seq[Attribute] = {
     val (left, right) = getDirectJoinOutput(joinType, leftOutput, rightOutput)
     left ++ right
   }
 
   // scalastyle:off argcount
-  def createJoinRel(streamedKeyExprs: Seq[Expression],
-                    buildKeyExprs: Seq[Expression],
-                    condition: Option[Expression],
-                    substraitJoinType: JoinRel.JoinType,
-                    exchangeTable: Boolean,
-                    joinType: JoinType,
-                    joinParameters: Any.Builder,
-                    inputStreamedRelNode: RelNode,
-                    inputBuildRelNode: RelNode,
-                    inputStreamedOutput: Seq[Attribute],
-                    inputBuildOutput: Seq[Attribute],
-                    substraitContext: SubstraitContext,
-                    operatorId: java.lang.Long,
-                    validation: Boolean = false): RelNode = {
+  def createJoinRel(
+      streamedKeyExprs: Seq[Expression],
+      buildKeyExprs: Seq[Expression],
+      condition: Option[Expression],
+      substraitJoinType: JoinRel.JoinType,
+      exchangeTable: Boolean,
+      joinType: JoinType,
+      joinParameters: Any.Builder,
+      inputStreamedRelNode: RelNode,
+      inputBuildRelNode: RelNode,
+      inputStreamedOutput: Seq[Attribute],
+      inputBuildOutput: Seq[Attribute],
+      substraitContext: SubstraitContext,
+      operatorId: java.lang.Long,
+      validation: Boolean = false): RelNode = {
     // scalastyle:on argcount
     // Create pre-projection for build/streamed plan. Append projected keys to each side.
     val (streamedKeys, streamedRelNode, streamedOutput) = createPreProjectionIfNeeded(
@@ -197,12 +210,20 @@ object JoinUtils {
       validation)
 
     // Combine join keys to make a single expression.
-    val joinExpressionNode = (streamedKeys zip buildKeys).map {
-      case ((leftKey, leftType), (rightKey, rightType)) =>
-        HashJoinLikeExecTransformer.makeEqualToExpression(
-          leftKey, leftType, rightKey, rightType, substraitContext.registeredFunction)
-    }.reduce((l, r) =>
-      HashJoinLikeExecTransformer.makeAndExpression(l, r, substraitContext.registeredFunction))
+    val joinExpressionNode = (streamedKeys
+      .zip(buildKeys))
+      .map {
+        case ((leftKey, leftType), (rightKey, rightType)) =>
+          HashJoinLikeExecTransformer.makeEqualToExpression(
+            leftKey,
+            leftType,
+            rightKey,
+            rightType,
+            substraitContext.registeredFunction)
+      }
+      .reduce(
+        (l, r) =>
+          HashJoinLikeExecTransformer.makeAndExpression(l, r, substraitContext.registeredFunction))
 
     // Create post-join filter, which will be computed in hash join.
     val postJoinFilter = condition.map {
@@ -221,7 +242,8 @@ object JoinUtils {
       postJoinFilter.orNull,
       createJoinExtensionNode(joinParameters, streamedOutput ++ buildOutput),
       substraitContext,
-      operatorId)
+      operatorId
+    )
 
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
     val resultProjection = if (exchangeTable) {
@@ -235,8 +257,8 @@ object JoinUtils {
           leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
         case _ =>
           // Exchange the order of build and streamed.
-          leftOutput.indices.map(idx =>
-            ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
+          leftOutput.indices.map(
+            idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
             rightOutput.indices
               .map(ExpressionBuilder.makeSelection(_))
       }
@@ -253,26 +275,26 @@ object JoinUtils {
     }
 
     val directJoinOutputs = if (exchangeTable) {
-        getDirectJoinOutputSeq(joinType, buildOutput, streamedOutput)
+      getDirectJoinOutputSeq(joinType, buildOutput, streamedOutput)
     } else {
-        getDirectJoinOutputSeq(joinType, streamedOutput, buildOutput)
+      getDirectJoinOutputSeq(joinType, streamedOutput, buildOutput)
     }
     RelBuilder.makeProjectRel(
       joinRel,
       new java.util.ArrayList[ExpressionNode](resultProjection.asJava),
-      createExtensionNode(
-        directJoinOutputs,
-        validation),
+      createExtensionNode(directJoinOutputs, validation),
       substraitContext,
       operatorId,
-      directJoinOutputs.size)
+      directJoinOutputs.size
+    )
   }
 
-  def createTransformContext(exchangeTable: Boolean,
-                             output: Seq[Attribute],
-                              rel: RelNode,
-                             inputStreamedOutput: Seq[Attribute],
-                             inputBuildOutput: Seq[Attribute]): TransformContext = {
+  def createTransformContext(
+      exchangeTable: Boolean,
+      output: Seq[Attribute],
+      rel: RelNode,
+      inputStreamedOutput: Seq[Attribute],
+      inputBuildOutput: Seq[Attribute]): TransformContext = {
     val inputAttributes = if (exchangeTable) {
       inputBuildOutput ++ inputStreamedOutput
     } else {

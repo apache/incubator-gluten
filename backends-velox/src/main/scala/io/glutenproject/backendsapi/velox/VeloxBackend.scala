@@ -21,8 +21,9 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
+
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -44,10 +45,11 @@ class VeloxBackend extends Backend {
 object BackendSettings extends BackendSettingsApi {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
-  override def supportFileFormatRead(format: ReadFileFormat,
-                                     fields: Array[StructField],
-                                     partTable: Boolean,
-                                     paths: Seq[String]): Boolean = {
+  override def supportFileFormatRead(
+      format: ReadFileFormat,
+      fields: Array[StructField],
+      partTable: Boolean,
+      paths: Seq[String]): Boolean = {
     // Validate if all types are supported.
     def validateTypes: Boolean = {
       // Collect unsupported types.
@@ -93,9 +95,8 @@ object BackendSettings extends BackendSettingsApi {
       case ParquetReadFormat => validateTypes && validateFilePath
       case DwrfReadFormat => true
       case OrcReadFormat =>
-        val unsupportedDataTypes = fields.map(_.dataType).collect {
-          case _: TimestampType => "TimestampType"
-        }
+        val unsupportedDataTypes =
+          fields.map(_.dataType).collect { case _: TimestampType => "TimestampType" }
         for (unsupportedDataType <- unsupportedDataTypes) {
           // scalastyle:off println
           println(
@@ -119,69 +120,77 @@ object BackendSettings extends BackendSettingsApi {
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     var allSupported = true
     breakable {
-      windowFunctions.foreach(func => {
-        val windowExpression = func match {
-          case alias: Alias => WindowFunctionsBuilder.extractWindowExpression(alias.child)
-          case _ => throw new UnsupportedOperationException(s"$func is not supported.")
-        }
-
-        // Block the offloading by checking Velox's current limitations
-        // when literal bound type is used for RangeFrame.
-        def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
-          def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
-            bound match {
-              case _: SpecialFrameBoundary =>
-              case e if e.foldable =>
-                orderSpec foreach (order =>
-                  order.direction match {
-                    case Descending =>
-                      throw new UnsupportedOperationException("DESC order is not supported when" +
-                          " literal bound type is used!")
-                    case _ =>
-                  })
-                orderSpec foreach (order =>
-                  order.dataType match {
-                    case ByteType | ShortType | IntegerType | LongType | DateType =>
-                    case _ =>
-                      throw new UnsupportedOperationException("Only integral type & date type are" +
-                          " supported for sort key when literal bound type is used!")
-                  })
-                val rawValue = e.eval().toString.toLong
-                if (isUpperBound && rawValue < 0) {
-                  throw new UnsupportedOperationException("Negative upper bound is not supported!")
-                } else if (!isUpperBound && rawValue > 0) {
-                  throw new UnsupportedOperationException("Positive lower bound is not supported!")
-                }
-              case _ =>
-            }
+      windowFunctions.foreach(
+        func => {
+          val windowExpression = func match {
+            case alias: Alias => WindowFunctionsBuilder.extractWindowExpression(alias.child)
+            case _ => throw new UnsupportedOperationException(s"$func is not supported.")
           }
-          doCheck(swf.upper, true)
-          doCheck(swf.lower, false)
-        }
 
-        windowExpression.windowSpec.frameSpecification match {
-          case swf: SpecifiedWindowFrame =>
-            swf.frameType match {
-              case RangeFrame =>
-                checkLimitations(swf, windowExpression.windowSpec.orderSpec)
-              case _ =>
+          // Block the offloading by checking Velox's current limitations
+          // when literal bound type is used for RangeFrame.
+          def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
+            def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
+              bound match {
+                case _: SpecialFrameBoundary =>
+                case e if e.foldable =>
+                  orderSpec.foreach(
+                    order =>
+                      order.direction match {
+                        case Descending =>
+                          throw new UnsupportedOperationException(
+                            "DESC order is not supported when" +
+                              " literal bound type is used!")
+                        case _ =>
+                      })
+                  orderSpec.foreach(
+                    order =>
+                      order.dataType match {
+                        case ByteType | ShortType | IntegerType | LongType | DateType =>
+                        case _ =>
+                          throw new UnsupportedOperationException(
+                            "Only integral type & date type are" +
+                              " supported for sort key when literal bound type is used!")
+                      })
+                  val rawValue = e.eval().toString.toLong
+                  if (isUpperBound && rawValue < 0) {
+                    throw new UnsupportedOperationException(
+                      "Negative upper bound is not supported!")
+                  } else if (!isUpperBound && rawValue > 0) {
+                    throw new UnsupportedOperationException(
+                      "Positive lower bound is not supported!")
+                  }
+                case _ =>
+              }
             }
-          case _ =>
-        }
-        windowExpression.windowFunction match {
-          // 'ignoreNulls=true' is not supported in Velox for 'NthValue'.
-          case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-               _: PercentRank | _@NthValue(_, _, false) =>
-          case _ =>
-            allSupported = false
-        }})
+            doCheck(swf.upper, true)
+            doCheck(swf.lower, false)
+          }
+
+          windowExpression.windowSpec.frameSpecification match {
+            case swf: SpecifiedWindowFrame =>
+              swf.frameType match {
+                case RangeFrame =>
+                  checkLimitations(swf, windowExpression.windowSpec.orderSpec)
+                case _ =>
+              }
+            case _ =>
+          }
+          windowExpression.windowFunction match {
+            // 'ignoreNulls=true' is not supported in Velox for 'NthValue'.
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
+                _: PercentRank | _ @NthValue(_, _, false) =>
+            case _ =>
+              allSupported = false
+          }
+        })
     }
     allSupported
   }
 
   override def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getConf.isUseColumnarShuffleManager ||
-      GlutenConfig.getConf.isUseCelebornShuffleManager
+    GlutenConfig.getConf.isUseCelebornShuffleManager
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
@@ -224,17 +233,23 @@ object BackendSettings extends BackendSettingsApi {
 
   /**
    * Check whether plan is Count(1).
-   * @param plan: The Spark plan to check.
-   * @return Whether plan is an Aggregation of Count(1).
+   * @param plan:
+   *   The Spark plan to check.
+   * @return
+   *   Whether plan is an Aggregation of Count(1).
    */
   private def isCount1(plan: SparkPlan): Boolean = {
     plan match {
-      case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty &&
-        exec.aggregateExpressions.forall(expression => {
-          expression.aggregateFunction match {
-            case c: Count => c.children.size == 1 && c.children.head.equals(Literal(1))
-            case _ => false
-          }}) => true
+      case exec: HashAggregateExec
+          if exec.aggregateExpressions.nonEmpty &&
+            exec.aggregateExpressions.forall(
+              expression => {
+                expression.aggregateFunction match {
+                  case c: Count => c.children.size == 1 && c.children.head.equals(Literal(1))
+                  case _ => false
+                }
+              }) =>
+        true
       case _ =>
         false
     }
@@ -242,18 +257,23 @@ object BackendSettings extends BackendSettingsApi {
 
   /**
    * Check whether plan is Sum(1).
-   * @param plan: The Spark plan to check.
-   * @return Whether plan is an Aggregation of Sum(1).
+   * @param plan:
+   *   The Spark plan to check.
+   * @return
+   *   Whether plan is an Aggregation of Sum(1).
    */
   private def isSum1(plan: SparkPlan): Boolean = {
     plan match {
-      case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty &&
-        exec.aggregateExpressions.forall(expression => {
-          expression.aggregateFunction match {
-            case s: Sum => s.children.size == 1 && s.children.head.equals(Literal(1))
-            case _ => false
-          }
-        }) => true
+      case exec: HashAggregateExec
+          if exec.aggregateExpressions.nonEmpty &&
+            exec.aggregateExpressions.forall(
+              expression => {
+                expression.aggregateFunction match {
+                  case s: Sum => s.children.size == 1 && s.children.head.equals(Literal(1))
+                  case _ => false
+                }
+              }) =>
+        true
       case _ =>
         false
     }
@@ -273,9 +293,7 @@ object BackendSettings extends BackendSettingsApi {
 
   override def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
-  /**
-   * Get the config prefix for each backend
-   */
+  /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
 

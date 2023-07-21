@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
@@ -22,6 +21,7 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.Spiller
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS

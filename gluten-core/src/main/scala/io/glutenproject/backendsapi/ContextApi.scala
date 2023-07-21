@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
 
 import org.apache.spark.SparkConf
@@ -30,26 +29,24 @@ trait ContextApi {
   def taskResourceFactories(): Seq[() => TaskResource] = Seq()
 
   /**
-   * Should call by driver.
-   * Collect Broadcast Hash Table Ids.
+   * Should call by driver. Collect Broadcast Hash Table Ids.
    *
    * @param executionId
    *   execution id
    * @param buildHashTableId
    *   build hashtable id
    */
-  def collectExecutionBroadcastHashTableId(executionId: String,
-                                           buildHashTableId: String): Unit = {}
+  def collectExecutionBroadcastHashTableId(executionId: String, buildHashTableId: String): Unit = {}
 
   /**
-   * Should call by executor.
-   * On execution end. Clean executor broadcast build hashtable.
+   * Should call by executor. On execution end. Clean executor broadcast build hashtable.
    *
    * @param executionId
    *   execution id
    * @param broadcastHashIds
    *   broadcast hashtable ids
    */
-  def cleanExecutionBroadcastHashtable(executionId: String,
-                                       broadcastHashIds: util.Set[String]): Unit = {}
+  def cleanExecutionBroadcastHashtable(
+      executionId: String,
+      broadcastHashIds: util.Set[String]): Unit = {}
 }

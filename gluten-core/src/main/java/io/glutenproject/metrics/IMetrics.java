@@ -16,5 +16,4 @@
  */
 package io.glutenproject.metrics;
 
-public interface IMetrics {
-}
+public interface IMetrics {}

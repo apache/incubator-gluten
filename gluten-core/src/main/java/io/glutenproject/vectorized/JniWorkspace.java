@@ -12,8 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class JniWorkspace {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(JniWorkspace.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JniWorkspace.class);
   private static final Map<String, JniWorkspace> INSTANCES = new ConcurrentHashMap<>();
   private static final JniWorkspace DEFAULT_INSTANCE = createDefault();
 
@@ -37,9 +36,10 @@ public class JniWorkspace {
 
   private static JniWorkspace createDefault() {
     try {
-      final String tempRoot = SparkDirectoryUtil.namespace("jni")
-          .mkChildDirRandomly(UUID.randomUUID().toString())
-          .getAbsolutePath();
+      final String tempRoot =
+          SparkDirectoryUtil.namespace("jni")
+              .mkChildDirRandomly(UUID.randomUUID().toString())
+              .getAbsolutePath();
       return createOrGet(tempRoot);
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -52,7 +52,6 @@ public class JniWorkspace {
 
   public static JniWorkspace createOrGet(String rootDir) {
     return INSTANCES.computeIfAbsent(rootDir, JniWorkspace::new);
-
   }
 
   public String getWorkDir() {

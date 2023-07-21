@@ -19,6 +19,7 @@ package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;

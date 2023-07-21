@@ -17,9 +17,9 @@
 
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
-
 import io.glutenproject.substrait.type.TypeNode;
+
+import io.substrait.proto.Expression;
 
 import java.io.Serializable;
 

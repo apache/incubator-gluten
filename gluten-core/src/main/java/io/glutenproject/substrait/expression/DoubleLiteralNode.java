@@ -19,6 +19,7 @@ package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.FP64TypeNode;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.Expression.Literal.Builder;
 
 public class DoubleLiteralNode extends LiteralNodeWithValue<Double> {

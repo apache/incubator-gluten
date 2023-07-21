@@ -17,47 +17,36 @@
 package io.glutenproject.extension
 
 import io.glutenproject.expression.{ExpressionTransformer, Sig}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 
 trait ExpressionExtensionTrait {
 
-  /**
-   * Generate the extension expressions list,
-   * format: Sig[XXXExpression]("XXXExpressionName")
-   */
+  /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
   def expressionSigList: Seq[Sig]
 
-  /**
-   * Generate the extension expressions mapping map
-   */
+  /** Generate the extension expressions mapping map */
   def extensionExpressionsMapping: Map[Class[_], String] =
     expressionSigList.map(s => (s.expClass, s.name)).toMap[Class[_], String]
 
-  /**
-   * Replace extension expression to transformer.
-   */
+  /** Replace extension expression to transformer. */
   def replaceWithExtensionExpressionTransformer(
-    substraitExprName: String,
-    expr: Expression,
-    attributeSeq: Seq[Attribute]): ExpressionTransformer
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer
 }
 
 case class DefaultExpressionExtensionTransformer() extends ExpressionExtensionTrait with Logging {
 
-  /**
-   * Generate the extension expressions list,
-   * format: Sig[XXXExpression]("XXXExpressionName")
-   */
+  /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
   override def expressionSigList: Seq[Sig] = Seq.empty[Sig]
 
-  /**
-   * Replace extension expression to transformer.
-   */
+  /** Replace extension expression to transformer. */
   override def replaceWithExtensionExpressionTransformer(
-    substraitExprName: String,
-    expr: Expression,
-    attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     logWarning(s"${expr.getClass} or $expr is not currently supported.")
     throw new UnsupportedOperationException(
       s"${expr.getClass} or $expr is not currently supported.")

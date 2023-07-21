@@ -17,21 +17,18 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.validate.NativePlanValidationInfo;
 import io.glutenproject.init.JniInitialized;
+import io.glutenproject.validate.NativePlanValidationInfo;
 
 /**
- * This class is implemented in JNI. This provides the Java interface to invoke
- * functions in JNI. This file is used to generate the .h files required for
- * jni. Avoid all external dependencies in this file.
+ * This class is implemented in JNI. This provides the Java interface to invoke functions in JNI.
+ * This file is used to generate the .h files required for jni. Avoid all external dependencies in
+ * this file.
  */
 public class PlanEvaluatorJniWrapper extends JniInitialized {
 
-  /**
-   * Wrapper for native API.
-   */
-  public PlanEvaluatorJniWrapper() {
-  }
+  /** Wrapper for native API. */
+  public PlanEvaluatorJniWrapper() {}
 
   /**
    * Validate the Substrait plan in native compute engine.
@@ -56,11 +53,10 @@ public class PlanEvaluatorJniWrapper extends JniInitialized {
       long taskId,
       boolean saveInputToFile,
       String spillDir,
-      byte[] confPlan) throws RuntimeException;
+      byte[] confPlan)
+      throws RuntimeException;
 
-  /**
-   * Create a native compute kernel and return a row iterator.
-   */
+  /** Create a native compute kernel and return a row iterator. */
   native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
 
   /**

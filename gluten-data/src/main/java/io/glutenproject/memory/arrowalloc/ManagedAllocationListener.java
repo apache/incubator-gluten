@@ -19,6 +19,7 @@ package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
+
 import org.apache.arrow.memory.AllocationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ManagedAllocationListener implements AllocationListener, AutoCloseable {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ManagedAllocationListener.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ManagedAllocationListener.class);
 
   public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
@@ -39,8 +39,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public ManagedAllocationListener(GlutenMemoryConsumer consumer,
-                                        TaskMemoryMetrics metrics) {
+  public ManagedAllocationListener(GlutenMemoryConsumer consumer, TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }
@@ -62,10 +61,15 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
     long granted = consumer.acquire(toBeAcquired);
     if (granted < toBeAcquired) {
       consumer.free(granted);
-      throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
-          "Acquired: " + size + ", granted: " + granted + ". " +
-          "Try tweaking config option spark.memory.offHeap.size to " +
-          "get larger space to run this application. ");
+      throw new UnsupportedOperationException(
+          "Not enough spark off-heap execution memory. "
+              + "Acquired: "
+              + size
+              + ", granted: "
+              + granted
+              + ". "
+              + "Try tweaking config option spark.memory.offHeap.size to "
+              + "get larger space to run this application. ");
     }
     metrics.inc(granted);
   }

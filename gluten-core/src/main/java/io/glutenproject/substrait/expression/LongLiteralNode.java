@@ -19,6 +19,7 @@ package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.I64TypeNode;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.Expression.Literal.Builder;
 
 public class LongLiteralNode extends LiteralNodeWithValue<Long> {
@@ -35,4 +36,3 @@ public class LongLiteralNode extends LiteralNodeWithValue<Long> {
     literalBuilder.setI64(value);
   }
 }
-

@@ -17,26 +17,22 @@
 
 package io.glutenproject.memory.alloc;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 
-/**
- * Reserve Spark managed memory.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** Reserve Spark managed memory. */
 public class ManagedReservationListener implements ReservationListener {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ManagedReservationListener.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
 
   private GlutenMemoryConsumer consumer;
   private TaskMemoryMetrics metrics;
   private volatile boolean open = true;
 
-  public ManagedReservationListener(GlutenMemoryConsumer consumer,
-                                          TaskMemoryMetrics metrics) {
+  public ManagedReservationListener(GlutenMemoryConsumer consumer, TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }
@@ -50,10 +46,15 @@ public class ManagedReservationListener implements ReservationListener {
       long granted = consumer.acquire(size);
       if (granted < size) {
         consumer.free(granted);
-        throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
-            "Acquired: " + size + ", granted: " + granted + ". " +
-            "Try tweaking config option spark.memory.offHeap.size to " +
-            "get larger space to run this application. ");
+        throw new UnsupportedOperationException(
+            "Not enough spark off-heap execution memory. "
+                + "Acquired: "
+                + size
+                + ", granted: "
+                + granted
+                + ". "
+                + "Try tweaking config option spark.memory.offHeap.size to "
+                + "get larger space to run this application. ");
       }
       metrics.inc(size);
     }
@@ -67,10 +68,15 @@ public class ManagedReservationListener implements ReservationListener {
       }
       long granted = consumer.acquire(size);
       if (granted < size) {
-        LOG.warn("Not enough spark off-heap execution memory. " +
-            "Acquired: " + size + ", granted: " + granted + ". " +
-            "Try tweaking config option spark.memory.offHeap.size to " +
-            "get larger space to run this application. ");
+        LOG.warn(
+            "Not enough spark off-heap execution memory. "
+                + "Acquired: "
+                + size
+                + ", granted: "
+                + granted
+                + ". "
+                + "Try tweaking config option spark.memory.offHeap.size to "
+                + "get larger space to run this application. ");
       }
       metrics.inc(granted);
       return granted;

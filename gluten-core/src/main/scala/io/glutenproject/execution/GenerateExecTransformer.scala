@@ -14,42 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.UnaryExecNode
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.rdd.RDD
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.rel.RelNode
-import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.`type`.TypeBuilder
-import io.glutenproject.substrait.`type`.TypeNode
-import io.glutenproject.substrait.expression.ExpressionBuilder
-
-import java.util.ArrayList
-import com.google.protobuf.Any
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.`type`.TypeNode
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.ExpressionBuilder
+import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.substrait.rel.RelNode
+
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.UnaryExecNode
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import com.google.protobuf.Any
+
+import java.util.ArrayList
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
 // For clickhouse backend, it will transform Spark explode lateral view to CH array join.
 case class GenerateExecTransformer(
-  generator: Generator,
-  requiredChildOutput: Seq[Attribute],
-  outer: Boolean,
-  generatorOutput: Seq[Attribute],
-  child: SparkPlan)
+    generator: Generator,
+    requiredChildOutput: Seq[Attribute],
+    outer: Boolean,
+    generatorOutput: Seq[Attribute],
+    child: SparkPlan)
   extends UnaryExecNode
   with TransformSupport {
 
@@ -90,15 +90,15 @@ case class GenerateExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (BackendsApiManager.isVeloxBackend) {
-      return ValidationResult.notOk(s"Velox backend does not support this operator: ${nodeName}")
+      return ValidationResult.notOk(s"Velox backend does not support this operator: $nodeName")
     }
 
     val context = new SubstraitContext
     val args = context.registeredFunction
 
     val operatorId = context.nextOperatorId(this.nodeName)
-    val generatorExpr = ExpressionConverter.replaceWithExpressionTransformer(
-      generator, child.output)
+    val generatorExpr =
+      ExpressionConverter.replaceWithExpressionTransformer(generator, child.output)
     val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
     val childOutputNodes = new java.util.ArrayList[ExpressionNode]
     for (target <- requiredChildOutput) {
@@ -111,8 +111,8 @@ case class GenerateExecTransformer(
       }
     }
 
-    val relNode = getRelNode(context, operatorId, child.output, null, generatorNode,
-      childOutputNodes, true)
+    val relNode =
+      getRelNode(context, operatorId, child.output, null, generatorNode, childOutputNodes, true)
 
     doNativeValidation(context, relNode)
   }
@@ -125,8 +125,8 @@ case class GenerateExecTransformer(
 
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
-    val generatorExpr = ExpressionConverter.replaceWithExpressionTransformer(
-      generator, child.output)
+    val generatorExpr =
+      ExpressionConverter.replaceWithExpressionTransformer(generator, child.output)
     val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
     val childOutputNodes = new java.util.ArrayList[ExpressionNode]
     for (target <- requiredChildOutput) {
@@ -140,8 +140,14 @@ case class GenerateExecTransformer(
     }
 
     val relNode = if (childCtx != null) {
-      getRelNode(context, operatorId, child.output, childCtx.root, generatorNode,
-        childOutputNodes, false)
+      getRelNode(
+        context,
+        operatorId,
+        child.output,
+        childCtx.root,
+        generatorNode,
+        childOutputNodes,
+        false)
     } else {
       val attrList = new java.util.ArrayList[Attribute]()
       for (attr <- child.output) {
@@ -153,13 +159,14 @@ case class GenerateExecTransformer(
     TransformContext(child.output, output, relNode)
   }
 
-  def getRelNode(context: SubstraitContext,
-    operatorId: Long,
-    inputAttributes: Seq[Attribute],
-    input: RelNode,
-    generator: ExpressionNode,
-    childOuput: ArrayList[ExpressionNode],
-    validation: Boolean) : RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      operatorId: Long,
+      inputAttributes: Seq[Attribute],
+      input: RelNode,
+      generator: ExpressionNode,
+      childOuput: ArrayList[ExpressionNode],
+      validation: Boolean): RelNode = {
     if (!validation) {
       RelBuilder.makeGenerateRel(input, generator, childOuput, context, operatorId)
     } else {
@@ -170,8 +177,7 @@ case class GenerateExecTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-        RelBuilder.makeGenerateRel(input, generator, childOuput, extensionNode,
-          context, operatorId)
+      RelBuilder.makeGenerateRel(input, generator, childOuput, extensionNode, context, operatorId)
     }
   }
 

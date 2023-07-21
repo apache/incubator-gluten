@@ -18,8 +18,8 @@
 package io.glutenproject.memory.alloc;
 
 /**
- * This along with {@link NativeMemoryAllocators},
- * as built-in toolkit for managing native memory allocations.
+ * This along with {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory
+ * allocations.
  */
 public class NativeMemoryAllocator {
   enum Type {
@@ -35,10 +35,7 @@ public class NativeMemoryAllocator {
   }
 
   public static NativeMemoryAllocator create(Type type) {
-    return
-        new NativeMemoryAllocator(
-            getAllocator(type.name()),
-            ReservationListener.NOOP);
+    return new NativeMemoryAllocator(getAllocator(type.name()), ReservationListener.NOOP);
   }
 
   public static NativeMemoryAllocator createListenable(

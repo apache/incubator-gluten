@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.vectorized.JniLibLoader
 
 class SharedLibraryLoaderCentos7 extends SharedLibraryLoader {
-  override def loadLib(loader: JniLibLoader) : Unit = {
-    loader.newTransaction()
+  override def loadLib(loader: JniLibLoader): Unit = {
+    loader
+      .newTransaction()
       .loadAndCreateLink("libboost_thread.so.1.72.0", "libboost_thread.so", false)
       .loadAndCreateLink("libboost_system.so.1.72.0", "libboost_system.so", false)
       .loadAndCreateLink("libboost_regex.so.1.72.0", "libboost_regex.so", false)
@@ -42,4 +42,3 @@ class SharedLibraryLoaderCentos7 extends SharedLibraryLoader {
       .commit()
   }
 }
-

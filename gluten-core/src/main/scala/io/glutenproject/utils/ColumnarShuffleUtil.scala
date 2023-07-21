@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -26,15 +25,21 @@ object ColumnarShuffleUtil {
   /**
    * Generate a columnar plan for shuffle exchange.
    *
-   * @param plan             the spark plan of shuffle exchange.
-   * @param child            the child of shuffle exchange.
-   * @return a columnar shuffle exchange.
+   * @param plan
+   *   the spark plan of shuffle exchange.
+   * @param child
+   *   the child of shuffle exchange.
+   * @return
+   *   a columnar shuffle exchange.
    */
   def genColumnarShuffleExchange(
       plan: ShuffleExchangeExec,
       child: SparkPlan,
       shuffleOutputAttributes: Seq[Attribute]): SparkPlan = {
-    ColumnarShuffleExchangeExec(plan.outputPartitioning, child, plan.shuffleOrigin,
+    ColumnarShuffleExchangeExec(
+      plan.outputPartitioning,
+      child,
+      plan.shuffleOrigin,
       shuffleOutputAttributes)
   }
 }

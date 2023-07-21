@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import org.apache.spark.sql.catalyst.expressions.PythonUDF
-import org.apache.spark.internal.Logging
-
-import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.expression.ExpressionBuilder
+import io.glutenproject.substrait.expression.ExpressionNode
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.PythonUDF
 
 import java.util.ArrayList
 case class PythonUDFTransformer(

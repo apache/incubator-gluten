@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.columnarbatch.ColumnarBatches
@@ -27,10 +26,13 @@ object ImplicitClass {
 
   implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
     def retain(): Unit = {
-      (0 until cb.numCols).toList.foreach(i =>
-        ColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-          .column(i).asInstanceOf[ArrowWritableColumnVector].retain())
+      (0 until cb.numCols).toList.foreach(
+        i =>
+          ColumnarBatches
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
+            .column(i)
+            .asInstanceOf[ArrowWritableColumnVector]
+            .retain())
     }
   }
 }

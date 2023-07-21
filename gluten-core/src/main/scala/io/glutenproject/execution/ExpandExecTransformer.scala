@@ -14,20 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import com.google.protobuf.Any
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, LiteralTransformer}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -35,13 +33,18 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartit
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.Any
+
 import java.util
+
 import scala.collection.mutable.ArrayBuffer
 
-case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
-                                 output: Seq[Attribute],
-                                 child: SparkPlan)
-  extends UnaryExecNode with TransformSupport {
+case class ExpandExecTransformer(
+    projections: Seq[Seq[Expression]],
+    output: Seq[Attribute],
+    child: SparkPlan)
+  extends UnaryExecNode
+  with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -76,12 +79,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       this
   }
 
-  def getRelNode(context: SubstraitContext,
-                 projections: Seq[Seq[Expression]],
-                 originalInputAttributes: Seq[Attribute],
-                 operatorId: Long,
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      projections: Seq[Seq[Expression]],
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     def needsPreProjection(projections: Seq[Seq[Expression]]): Boolean = {
       projections
@@ -114,22 +118,17 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       }
       // make project
       val preExprNodes = new util.ArrayList[ExpressionNode]()
-      preExprs.foreach { expr =>
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(
-            expr,
-            originalInputAttributes).doTransform(args)
-        preExprNodes.add(exprNode)
+      preExprs.foreach {
+        expr =>
+          val exprNode = ExpressionConverter
+            .replaceWithExpressionTransformer(expr, originalInputAttributes)
+            .doTransform(args)
+          preExprNodes.add(exprNode)
       }
 
       val emitStartIndex = originalInputAttributes.size
       val inputRel = if (!validation) {
-        RelBuilder.makeProjectRel(
-          input,
-          preExprNodes,
-          context,
-          operatorId,
-          emitStartIndex)
+        RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId, emitStartIndex)
       } else {
         // Use a extension node to send the input types through Substrait plan for a validation.
         val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -163,43 +162,34 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         }
         projectSetExprNodes.add(porjectExprNodes)
       }
-      RelBuilder.makeExpandRel(
-        inputRel,
-        projectSetExprNodes,
-        context,
-        operatorId)
+      RelBuilder.makeExpandRel(inputRel, projectSetExprNodes, context, operatorId)
     } else {
       val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
-      projections.foreach { projectSet =>
-        val porjectExprNodes = new util.ArrayList[ExpressionNode]()
-        projectSet.foreach { project =>
-          var projectExprNode = ExpressionConverter
-            .replaceWithExpressionTransformer(
-              project,
-              originalInputAttributes).doTransform(args)
-          porjectExprNodes.add(projectExprNode)
-        }
-        projectSetExprNodes.add(porjectExprNodes)
+      projections.foreach {
+        projectSet =>
+          val porjectExprNodes = new util.ArrayList[ExpressionNode]()
+          projectSet.foreach {
+            project =>
+              var projectExprNode = ExpressionConverter
+                .replaceWithExpressionTransformer(project, originalInputAttributes)
+                .doTransform(args)
+              porjectExprNodes.add(projectExprNode)
+          }
+          projectSetExprNodes.add(porjectExprNodes)
       }
 
       if (!validation) {
-        RelBuilder.makeExpandRel(
-          input,
-          projectSetExprNodes,
-          context, operatorId)
+        RelBuilder.makeExpandRel(input, projectSetExprNodes, context, operatorId)
       } else {
         // Use a extension node to send the input types through Substrait plan for a validation.
         val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
         for (attr <- originalInputAttributes) {
-          inputTypeNodeList.add(
-            ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         }
 
         val extensionNode = ExtensionBuilder.makeAdvancedExtension(
           Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-        RelBuilder.makeExpandRel(input,
-          projectSetExprNodes,
-          extensionNode, context, operatorId)
+        RelBuilder.makeExpandRel(input, projectSetExprNodes, extensionNode, context, operatorId)
       }
     }
   }
@@ -215,10 +205,8 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
-    val relNode = getRelNode(
-      substraitContext,
-      projections,
-      child.output, operatorId, null, validation = true)
+    val relNode =
+      getRelNode(substraitContext, projections, child.output, operatorId, null, validation = true)
 
     doNativeValidation(substraitContext, relNode)
   }
@@ -239,10 +227,14 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     }
 
     val (currRel, inputAttributes) = if (childCtx != null) {
-      (getRelNode(
-        context,
-        projections,
-        child.output, operatorId, childCtx.root, validation = false),
+      (
+        getRelNode(
+          context,
+          projections,
+          child.output,
+          operatorId,
+          childCtx.root,
+          validation = false),
         childCtx.outputAttributes)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
@@ -252,20 +244,18 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      (getRelNode(
-        context,
-        projections,
-        child.output, operatorId, readRel, validation = false),
+      (
+        getRelNode(context, projections, child.output, operatorId, readRel, validation = false),
         child.output)
     }
     assert(currRel != null, "Expand Rel should be valid")
     TransformContext(inputAttributes, output, currRel)
   }
 
-  protected override def doExecute(): RDD[InternalRow] =
+  override protected def doExecute(): RDD[InternalRow] =
     throw new UnsupportedOperationException("doExecute is not supported in ColumnarExpandExec.")
 
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 

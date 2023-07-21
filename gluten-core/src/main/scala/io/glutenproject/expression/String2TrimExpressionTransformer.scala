@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
-
-import com.google.common.collect.Lists
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression._
@@ -25,12 +22,15 @@ import io.glutenproject.substrait.expression._
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 
+import com.google.common.collect.Lists
+
 class String2TrimExpressionTransformer(
     substraitExprName: String,
     trimStr: Option[ExpressionTransformer],
     srcStr: ExpressionTransformer,
     original: Expression)
-    extends ExpressionTransformer with Logging {
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val trimStrNode = trimStr.map(_.doTransform(args))

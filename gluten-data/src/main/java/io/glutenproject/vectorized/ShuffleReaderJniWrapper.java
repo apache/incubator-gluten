@@ -22,15 +22,18 @@ import io.glutenproject.init.JniInitialized;
 public class ShuffleReaderJniWrapper extends JniInitialized {
   public static final ShuffleReaderJniWrapper INSTANCE = new ShuffleReaderJniWrapper();
 
-  private ShuffleReaderJniWrapper() {
-  }
+  private ShuffleReaderJniWrapper() {}
 
-  public native long make(JniByteInputStream jniIn, long cSchema, long allocatorId,
-                          String compressionType, String compressionCodecBackend);
+  public native long make(
+      JniByteInputStream jniIn,
+      long cSchema,
+      long allocatorId,
+      String compressionType,
+      String compressionCodecBackend);
 
   public native long next(long handle);
 
   public native void populateMetrics(long handle, ShuffleReaderMetrics metrics);
-  public native void close(long handle);
 
+  public native void close(long handle);
 }

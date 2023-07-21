@@ -24,23 +24,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SingularOrListNode implements ExpressionNode, Serializable {
-    private final ExpressionNode value;
-    private final List<ExpressionNode> listNodes = new ArrayList<>();
+  private final ExpressionNode value;
+  private final List<ExpressionNode> listNodes = new ArrayList<>();
 
-    SingularOrListNode(ExpressionNode value, List<ExpressionNode> listNodes) {
-        this.value = value;
-        this.listNodes.addAll(listNodes);
-    }
+  SingularOrListNode(ExpressionNode value, List<ExpressionNode> listNodes) {
+    this.value = value;
+    this.listNodes.addAll(listNodes);
+  }
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.SingularOrList.Builder builder = Expression.SingularOrList.newBuilder();
-        builder.setValue(value.toProtobuf());
-        for (ExpressionNode expressionNode : listNodes) {
-            builder.addOptions(expressionNode.toProtobuf());
-        }
-        Expression.Builder expressionBuilder = Expression.newBuilder();
-        expressionBuilder.setSingularOrList(builder);
-        return expressionBuilder.build();
+  @Override
+  public Expression toProtobuf() {
+    Expression.SingularOrList.Builder builder = Expression.SingularOrList.newBuilder();
+    builder.setValue(value.toProtobuf());
+    for (ExpressionNode expressionNode : listNodes) {
+      builder.addOptions(expressionNode.toProtobuf());
     }
+    Expression.Builder expressionBuilder = Expression.newBuilder();
+    expressionBuilder.setSingularOrList(builder);
+    return expressionBuilder.build();
+  }
 }

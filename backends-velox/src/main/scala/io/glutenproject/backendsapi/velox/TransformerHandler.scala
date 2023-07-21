@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.InputPartitionsUtil
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
@@ -36,35 +36,37 @@ class TransformerHandler extends TransformerApi with Logging {
    *
    * @return
    */
-  override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
-                                                   child: SparkPlan)
-  : Boolean = {
+  override def validateColumnarShuffleExchangeExec(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean = {
     new Validator().doSchemaValidate(child.schema)
   }
 
   /**
    * Used for table scan validation.
    *
-   * @return true if backend supports reading the file format.
+   * @return
+   *   true if backend supports reading the file format.
    */
-  override def supportsReadFileFormat(fileFormat: ReadFileFormat,
-                                      fields: Array[StructField],
-                                      partTable: Boolean,
-                                      paths: Seq[String]): Boolean = {
+  override def supportsReadFileFormat(
+      fileFormat: ReadFileFormat,
+      fields: Array[StructField],
+      partTable: Boolean,
+      paths: Seq[String]): Boolean = {
     BackendsApiManager.getSettings
       .supportFileFormatRead(fileFormat, fields, partTable, paths)
   }
 
-  /**
-   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-   */
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
+  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
+  def genInputPartitionSeq(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
   }
 
-  override def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
-    backendPrefix: String): Unit = {
+  override def postProcessNativeConfig(
+      nativeConfMap: util.Map[String, String],
+      backendPrefix: String): Unit = {
     // TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
   }
 }

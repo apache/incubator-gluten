@@ -18,6 +18,7 @@
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
 import io.substrait.proto.WindowType;
@@ -38,11 +39,14 @@ public class WindowFunctionNode implements Serializable {
 
   private final String frameType;
 
-  WindowFunctionNode(Integer functionId, ArrayList<ExpressionNode> expressionNodes,
-                        String columnName, TypeNode outputTypeNode,
-                     String upperBound,
-                     String lowerBound,
-                     String frameType) {
+  WindowFunctionNode(
+      Integer functionId,
+      ArrayList<ExpressionNode> expressionNodes,
+      String columnName,
+      TypeNode outputTypeNode,
+      String upperBound,
+      String lowerBound,
+      String frameType) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.columnName = columnName;
@@ -53,20 +57,19 @@ public class WindowFunctionNode implements Serializable {
   }
 
   private Expression.WindowFunction.Bound.Builder setBound(
-      Expression.WindowFunction.Bound.Builder builder,
-      String boundType, boolean isLowerBound) {
+      Expression.WindowFunction.Bound.Builder builder, String boundType, boolean isLowerBound) {
     switch (boundType) {
-      case("CURRENT ROW"):
+      case ("CURRENT ROW"):
         Expression.WindowFunction.Bound.CurrentRow.Builder currentRowBuilder =
             Expression.WindowFunction.Bound.CurrentRow.newBuilder();
         builder.setCurrentRow(currentRowBuilder.build());
         break;
-      case ("UNBOUNDED PRECEDING") :
+      case ("UNBOUNDED PRECEDING"):
         Expression.WindowFunction.Bound.Unbounded_Preceding.Builder precedingBuilder =
             Expression.WindowFunction.Bound.Unbounded_Preceding.newBuilder();
         builder.setUnboundedPreceding(precedingBuilder.build());
         break;
-      case ("UNBOUNDED FOLLOWING") :
+      case ("UNBOUNDED FOLLOWING"):
         Expression.WindowFunction.Bound.Unbounded_Following.Builder followingBuilder =
             Expression.WindowFunction.Bound.Unbounded_Following.newBuilder();
         builder.setUnboundedFollowing(followingBuilder.build());
@@ -76,20 +79,18 @@ public class WindowFunctionNode implements Serializable {
           Long offset = Long.valueOf(boundType);
           if (isLowerBound) {
             Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
-                    Expression.WindowFunction.Bound.Preceding.newBuilder();
+                Expression.WindowFunction.Bound.Preceding.newBuilder();
             offsetPrecedingBuilder.setOffset(0 - offset);
             builder.setPreceding(offsetPrecedingBuilder.build());
-          }
-          else {
+          } else {
             Expression.WindowFunction.Bound.Following.Builder offsetFollowingBuilder =
-                    Expression.WindowFunction.Bound.Following.newBuilder();
+                Expression.WindowFunction.Bound.Following.newBuilder();
             offsetFollowingBuilder.setOffset(offset);
             builder.setFollowing(offsetFollowingBuilder.build());
           }
-        }
-        catch (NumberFormatException e) {
+        } catch (NumberFormatException e) {
           throw new UnsupportedOperationException(
-                  "Unsupported Window Function Frame Type:" + boundType);
+              "Unsupported Window Function Frame Type:" + boundType);
         }
     }
     return builder;

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -29,6 +28,7 @@ import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
 
 import java.io.File
+
 import scala.io.Source
 import scala.reflect.ClassTag
 
@@ -45,11 +45,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     sparkContext.setLogLevel("WARN")
   }
 
-  protected override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     if (TPCHTables != null) {
-      TPCHTables.keys.foreach { v =>
-        spark.sessionState.catalog.dropTempView(v)
-      }
+      TPCHTables.keys.foreach(v => spark.sessionState.catalog.dropTempView(v))
     }
     super.afterAll()
   }
@@ -63,12 +61,13 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       "part",
       "partsupp",
       "region",
-      "supplier").map { table =>
-      val tableDir = getClass.getResource(resourcePath).getFile
-      val tablePath = new File(tableDir, table).getAbsolutePath
-      val tableDF = spark.read.format(fileFormat).load(tablePath)
-      tableDF.createOrReplaceTempView(table)
-      (table, tableDF)
+      "supplier").map {
+      table =>
+        val tableDir = getClass.getResource(resourcePath).getFile
+        val tablePath = new File(tableDir, table).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+        tableDF.createOrReplaceTempView(table)
+        (table, tableDF)
     }.toMap
   }
 
@@ -105,31 +104,32 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       assert(queryResults.hasNext)
       val result = queryResults.next().split("\\|-\\|")
       var i = 0
-      row.schema.foreach(s => {
-        s match {
-          case d if d.dataType == DoubleType =>
-            // handle null value
-            if (row.isNullAt(i)) {
-              assert(result(i).equals("null"))
-            } else {
-              val v1 = row.getDouble(i)
-              assert(!result(i).equals("null"))
-              val v2 = result(i).toDouble
-              assert(Math.abs(v1 - v2) < 0.00001)
-            }
-          case _ =>
-            // handle null value
-            if (row.isNullAt(i)) {
-              assert(result(i).equals("null"))
-            } else {
-              val v1 = row.get(i)
-              assert(!result(i).equals("null"))
-              val v2 = result(i)
-              assert(v1.toString.equals(v2))
-            }
-        }
-        i += 1
-      })
+      row.schema.foreach(
+        s => {
+          s match {
+            case d if d.dataType == DoubleType =>
+              // handle null value
+              if (row.isNullAt(i)) {
+                assert(result(i).equals("null"))
+              } else {
+                val v1 = row.getDouble(i)
+                assert(!result(i).equals("null"))
+                val v2 = result(i).toDouble
+                assert(Math.abs(v1 - v2) < 0.00001)
+              }
+            case _ =>
+              // handle null value
+              if (row.isNullAt(i)) {
+                assert(result(i).equals("null"))
+              } else {
+                val v1 = row.get(i)
+                assert(!result(i).equals("null"))
+                val v2 = result(i)
+                assert(v1.toString.equals(v2))
+              }
+          }
+          i += 1
+        })
     }
   }
 
@@ -158,10 +158,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     customCheck(df)
   }
 
-
-  protected def runSql(
-    sql: String,
-    noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Seq[Row] = {
+  protected def runSql(sql: String, noFallBack: Boolean = true)(
+      customCheck: DataFrame => Unit): Seq[Row] = {
     val df = spark.sql(sql)
     val result = df.collect()
     WholeStageTransformerSuite.checkFallBack(df, noFallBack)
@@ -177,7 +175,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
 
   /**
    * Get all the children plan of plans.
-   * @param plans: the input plans.
+   * @param plans:
+   *   the input plans.
    * @return
    */
   def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
@@ -185,26 +184,29 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       return Seq()
     }
 
-    val inputPlans : Seq[SparkPlan] = plans.map {
+    val inputPlans: Seq[SparkPlan] = plans.map {
       case stage: ShuffleQueryStageExec => stage.plan
       case plan => plan
     }
 
     var newChildren: Seq[SparkPlan] = Seq()
-    inputPlans.foreach { plan =>
-      newChildren = newChildren ++ getChildrenPlan(plan.children)
-      // To avoid duplication of WholeStageCodegenXXX and its children.
-      if (!plan.nodeName.startsWith("WholeStageCodegen")) {
-        newChildren = newChildren :+ plan
-      }
+    inputPlans.foreach {
+      plan =>
+        newChildren = newChildren ++ getChildrenPlan(plan.children)
+        // To avoid duplication of WholeStageCodegenXXX and its children.
+        if (!plan.nodeName.startsWith("WholeStageCodegen")) {
+          newChildren = newChildren :+ plan
+        }
     }
     newChildren
   }
 
   /**
    * Get the executed plan of a data frame.
-   * @param df: dataframe.
-   * @return A sequence of executed plans.
+   * @param df:
+   *   dataframe.
+   * @return
+   *   A sequence of executed plans.
    */
   def getExecutedPlan(df: DataFrame): Seq[SparkPlan] = {
     df.queryExecution.executedPlan match {
@@ -217,9 +219,12 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
 
   /**
    * Check whether the executed plan of a dataframe contains the expected plan.
-   * @param df: the input dataframe.
-   * @param tag: class of the expected plan.
-   * @tparam T: type of the expected plan.
+   * @param df:
+   *   the input dataframe.
+   * @param tag:
+   *   class of the expected plan.
+   * @tparam T:
+   *   type of the expected plan.
    */
   def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
@@ -227,8 +232,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   }
 
   /**
-   * run a query with native engine as well as vanilla spark
-   * then compare the result set for correctness check
+   * run a query with native engine as well as vanilla spark then compare the result set for
+   * correctness check
    */
   protected def compareResultsAgainstVanillaSpark(
       sqlStr: String,
@@ -259,8 +264,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   }
 
   /**
-   * run a query with native engine as well as vanilla spark
-   * then compare the result set for correctness check
+   * run a query with native engine as well as vanilla spark then compare the result set for
+   * correctness check
    *
    * @param queryNum
    * @param tpchQueries
@@ -284,24 +289,22 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
 
 object WholeStageTransformerSuite extends Logging {
 
-  /**
-   * Check whether the sql is fallback
-   */
+  /** Check whether the sql is fallback */
   def checkFallBack(
-    df: DataFrame,
-    noFallBack: Boolean = true,
-    skipAssert: Boolean = false): Unit = {
+      df: DataFrame,
+      noFallBack: Boolean = true,
+      skipAssert: Boolean = false): Unit = {
     if (BackendsApiManager.isCHBackend) {
       // When noFallBack is true, it means there is no fallback plan,
       // otherwise there must be some fallback plans.
       val isFallBack = FallbackUtil.isFallback(df.queryExecution.executedPlan)
       if (!skipAssert) {
-        assert(!isFallBack == noFallBack,
-          s"FallBack ${noFallBack} check error: ${df.queryExecution.executedPlan}")
+        assert(
+          !isFallBack == noFallBack,
+          s"FallBack $noFallBack check error: ${df.queryExecution.executedPlan}")
       } else {
-        logWarning(s"FallBack ${noFallBack} check error: ${df.queryExecution.executedPlan}")
+        logWarning(s"FallBack $noFallBack check error: ${df.queryExecution.executedPlan}")
       }
     }
   }
 }
-

@@ -18,9 +18,11 @@
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.AggregateFunction;
 import io.substrait.proto.AggregationPhase;
 import io.substrait.proto.FunctionArgument;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -30,8 +32,11 @@ public class AggregateFunctionNode implements Serializable {
   private final String phase;
   private final TypeNode outputTypeNode;
 
-  AggregateFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
-                        String phase, TypeNode outputTypeNode) {
+  AggregateFunctionNode(
+      Long functionId,
+      ArrayList<ExpressionNode> expressionNodes,
+      String phase,
+      TypeNode outputTypeNode) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.phase = phase;

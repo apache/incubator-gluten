@@ -18,6 +18,7 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.metrics.IMetrics;
+
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -59,5 +60,4 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
   protected abstract ColumnarBatch nextInternal() throws Exception;
 
   protected abstract IMetrics getMetricsInternal() throws Exception;
-
 }

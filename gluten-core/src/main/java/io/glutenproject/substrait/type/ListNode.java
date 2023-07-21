@@ -1,6 +1,7 @@
 package io.glutenproject.substrait.type;
 
 import io.substrait.proto.Type;
+
 import java.io.Serializable;
 
 public class ListNode implements TypeNode, Serializable {

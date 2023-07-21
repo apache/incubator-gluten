@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.ui
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import org.apache.spark.status.KVUtils.KVIndexParam
 import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.{KVIndex, KVStore, KVStoreView}
+
+import com.fasterxml.jackson.annotation.JsonIgnore
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
@@ -31,9 +31,7 @@ import scala.collection.JavaConverters.asScalaIteratorConverter
 class GlutenSQLAppStatusStore(store: KVStore) {
 
   private def viewToSeq[T](view: KVStoreView[T]): Seq[T] = {
-    Utils.tryWithResource(view.closeableIterator()) { iter =>
-      iter.asScala.toList
-    }
+    Utils.tryWithResource(view.closeableIterator())(iter => iter.asScala.toList)
   }
 
   def buildInfo(): GlutenBuildInfoUIData = {
@@ -68,8 +66,7 @@ class GlutenSQLExecutionUIData(
     val numGlutenNodes: Int,
     val numFallbackNodes: Int,
     val fallbackDescription: String,
-    val fallbackNodeToReason: Seq[(String, String)]) {
-}
+    val fallbackNodeToReason: Seq[(String, String)]) {}
 
 class GlutenBuildInfoUIData(val info: Seq[(String, String)]) {
   @JsonIgnore

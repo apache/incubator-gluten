@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import java.util.Objects
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.metrics.MetricsUpdater
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
@@ -29,10 +28,15 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileSca
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
-                               runtimeFilters: Seq[Expression],
-                               pushdownFilters: Seq[Expression] = Seq())
-  extends BatchScanExecShim(output, scan, runtimeFilters) with BasicScanExecTransformer {
+import java.util.Objects
+
+class BatchScanExecTransformer(
+    output: Seq[AttributeReference],
+    @transient scan: Scan,
+    runtimeFilters: Seq[Expression],
+    pushdownFilters: Seq[Expression] = Seq())
+  extends BatchScanExecShim(output, scan, runtimeFilters)
+  with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -69,8 +73,8 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
-      (that canEqual this) && super.equals(that) &&
-        this.pushdownFilters == that.getPushdownFilters()
+      (that.canEqual(this)) && super.equals(that) &&
+      this.pushdownFilters == that.getPushdownFilters()
     case _ => false
   }
 

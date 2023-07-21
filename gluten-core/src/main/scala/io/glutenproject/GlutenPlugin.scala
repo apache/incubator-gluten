@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject
 
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
@@ -24,6 +23,7 @@ import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.TaskListener
+
 import org.apache.spark.{SparkConf, SparkContext, TaskFailedReason}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
@@ -38,6 +38,7 @@ import org.apache.spark.util.{SparkResourcesUtil, TaskResources}
 
 import java.util
 import java.util.{Collections, Objects}
+
 import scala.collection.mutable
 import scala.language.implicitConversions
 
@@ -80,9 +81,10 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
 
   override def registerMetrics(appId: String, pluginContext: PluginContext): Unit = {
     if (pluginContext.conf().getBoolean("spark.gluten.ui.enabled", true)) {
-      _sc.foreach { sc =>
-        GlutenEventUtils.attachUI(sc)
-        logInfo("Gluten SQL Tab has attached.")
+      _sc.foreach {
+        sc =>
+          GlutenEventUtils.attachUI(sc)
+          logInfo("Gluten SQL Tab has attached.")
       }
     }
   }
@@ -118,12 +120,17 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     glutenBuildInfo.put("Backend Revision", backendRevision)
     glutenBuildInfo.put("Backend Revision Time", backendRevisionTime)
     val infoMap = glutenBuildInfo.toMap
-    val loggingInfo = infoMap.toSeq.sortBy(_._1).map { case (name, value) =>
-      s"$name: $value"
-    }.mkString(
-      "Gluten build info:\n==============================================================\n",
-      "\n",
-      "\n==============================================================")
+    val loggingInfo = infoMap.toSeq
+      .sortBy(_._1)
+      .map {
+        case (name, value) =>
+          s"$name: $value"
+      }
+      .mkString(
+        "Gluten build info:\n==============================================================\n",
+        "\n",
+        "\n=============================================================="
+      )
     logInfo(loggingInfo)
     val event = GlutenBuildInfoEvent(infoMap)
     GlutenEventUtils.post(sc, event)
@@ -132,9 +139,9 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
     // extensions
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
-      s"${conf.get(SPARK_SESSION_EXTS_KEY)},${GLUTEN_SESSION_EXTENSION_NAME}"
+      s"${conf.get(SPARK_SESSION_EXTS_KEY)},$GLUTEN_SESSION_EXTENSION_NAME"
     } else {
-      s"${GLUTEN_SESSION_EXTENSION_NAME}"
+      s"$GLUTEN_SESSION_EXTENSION_NAME"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
 
@@ -175,18 +182,19 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
   private var executorEndpoint: GlutenExecutorEndpoint = _
   private val taskListeners: Seq[TaskListener] = Array(TaskResources)
 
-  /**
-   * Initialize the executor plugin.
-   */
+  /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val conf = ctx.conf()
 
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
-    if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||
+    if (
+      !conf.getBoolean("spark.memory.offHeap.enabled", false) ||
       (JavaUtils.byteStringAsBytes(
-        conf.get("spark.memory.offHeap.size").toString) / 1024 / 1024).toInt <= 0) {
-      throw new IllegalArgumentException(s"Must set 'spark.memory.offHeap.enabled' to true" +
-        s" and set off heap memory size by option 'spark.memory.offHeap.size'")
+        conf.get("spark.memory.offHeap.size").toString) / 1024 / 1024).toInt <= 0
+    ) {
+      throw new IllegalArgumentException(
+        s"Must set 'spark.memory.offHeap.enabled' to true" +
+          s" and set off heap memory size by option 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
     // TODO categorize the APIs by driver's or executor's
@@ -196,10 +204,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     executorEndpoint = new GlutenExecutorEndpoint(ctx.executorID(), conf)
   }
 
-  /**
-   * Clean up and terminate this plugin.
-   * For example: close the native engine.
-   */
+  /** Clean up and terminate this plugin. For example: close the native engine. */
   override def shutdown(): Unit = {
     BackendsApiManager.getContextApiInstance.shutdown()
     super.shutdown()
@@ -227,8 +232,9 @@ private[glutenproject] class GlutenSessionExtensions extends (SparkSessionExtens
 private[glutenproject] class SparkConfImplicits(conf: SparkConf) {
   def enableGlutenPlugin(): SparkConf = {
     if (conf.contains(GlutenPlugin.SPARK_SQL_PLUGINS_KEY)) {
-      throw new IllegalArgumentException("A Spark plugin is already specified before enabling " +
-        "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
+      throw new IllegalArgumentException(
+        "A Spark plugin is already specified before enabling " +
+          "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
     }
     conf.set(GlutenPlugin.SPARK_SQL_PLUGINS_KEY, GlutenPlugin.GLUTEN_PLUGIN_NAME)
   }
@@ -241,15 +247,12 @@ private[glutenproject] trait GlutenSparkExtensionsInjector {
 private[glutenproject] object GlutenPlugin {
   // To enable GlutenPlugin in production, set "spark.plugins=io.glutenproject.GlutenPlugin"
   val SPARK_SQL_PLUGINS_KEY: String = "spark.plugins"
-  val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin]
-    .getCanonicalName)
+  val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin].getCanonicalName)
   val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
-  val GLUTEN_SESSION_EXTENSION_NAME: String = Objects.requireNonNull(
-    classOf[GlutenSessionExtensions].getCanonicalName)
+  val GLUTEN_SESSION_EXTENSION_NAME: String =
+    Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
 
-  /**
-   * Specify all injectors that Gluten is using in following list.
-   */
+  /** Specify all injectors that Gluten is using in following list. */
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
     ColumnarQueryStagePrepOverrides,
     ColumnarOverrides,

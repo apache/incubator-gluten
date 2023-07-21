@@ -19,6 +19,7 @@ package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.Spiller;
+
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -32,8 +33,7 @@ import java.util.Vector;
 
 public class ArrowBufferAllocators {
 
-  private ArrowBufferAllocators() {
-  }
+  private ArrowBufferAllocators() {}
 
   private static final BufferAllocator GLOBAL = new RootAllocator(Long.MAX_VALUE);
 
@@ -46,21 +46,20 @@ public class ArrowBufferAllocators {
       return globalInstance();
     }
     String id = ArrowBufferAllocatorManager.class.toString();
-    return TaskResources.addResourceIfNotRegistered(
-        id, ArrowBufferAllocatorManager::new).managed;
+    return TaskResources.addResourceIfNotRegistered(id, ArrowBufferAllocatorManager::new).managed;
   }
 
   public static class ArrowBufferAllocatorManager implements TaskResource {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
-    private final AllocationListener listener = new ManagedAllocationListener(
-        new GlutenMemoryConsumer(TaskResources.getLocalTaskContext().taskMemoryManager(),
-            Spiller.NO_OP),
-        TaskResources.getSharedMetrics());
+    private final AllocationListener listener =
+        new ManagedAllocationListener(
+            new GlutenMemoryConsumer(
+                TaskResources.getLocalTaskContext().taskMemoryManager(), Spiller.NO_OP),
+            TaskResources.getSharedMetrics());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 
-    public ArrowBufferAllocatorManager() {
-    }
+    public ArrowBufferAllocatorManager() {}
 
     private void close() {
       managed.close();
@@ -70,8 +69,11 @@ public class ArrowBufferAllocators {
       // move to leaked list
       long leakBytes = managed.getAllocatedMemory();
       long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
-      LOGGER.warn(String.format("Detected leaked Arrow allocator, size: %d, " +
-          "process accumulated leaked size: %d...", leakBytes, accumulated));
+      LOGGER.warn(
+          String.format(
+              "Detected leaked Arrow allocator, size: %d, "
+                  + "process accumulated leaked size: %d...",
+              leakBytes, accumulated));
       if (TaskResources.DEBUG()) {
         LOGGER.warn(String.format("Leaked allocator stack %s", managed.toVerboseString()));
         LEAKED.add(managed);

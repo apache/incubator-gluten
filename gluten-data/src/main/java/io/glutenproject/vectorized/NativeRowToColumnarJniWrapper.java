@@ -20,10 +20,11 @@ package io.glutenproject.vectorized;
 import io.glutenproject.init.JniInitialized;
 
 public class NativeRowToColumnarJniWrapper extends JniInitialized {
-    public NativeRowToColumnarJniWrapper() {}
+  public NativeRowToColumnarJniWrapper() {}
 
-    public native long init(long cSchema, long allocId);
-    public native long nativeConvertRowToColumnar(long r2CId, long[] rowLength, long bufferAddress);
+  public native long init(long cSchema, long allocId);
 
-    public native void close(long r2cId);
+  public native long nativeConvertRowToColumnar(long r2CId, long[] rowLength, long bufferAddress);
+
+  public native void close(long r2cId);
 }
