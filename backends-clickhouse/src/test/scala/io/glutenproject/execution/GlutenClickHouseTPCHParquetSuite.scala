@@ -1642,6 +1642,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-2422 range bound with nan/inf") {
+    val sql =
+      """
+        |select a from values (1.0), (2.1), (null), (cast('NaN' as double)), (cast('inf' as double)),
+        | (cast('-inf' as double)) as data(a) order by a asc nulls last
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[SortExecTransformer])
+  }
+
   test("GLUTEN-2243 empty projection") {
     val sql =
       """

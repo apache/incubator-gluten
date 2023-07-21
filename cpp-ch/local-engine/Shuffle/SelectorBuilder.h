@@ -76,6 +76,9 @@ private:
     void initRangeBlock(Poco::JSON::Array::Ptr range_bounds);
     void initActionsDAG(const DB::Block & block);
 
+    template <typename T>
+    void safeInsertFloatValue(const Poco::Dynamic::Var & field_value, DB::MutableColumnPtr & col);
+
     void computePartitionIdByBinarySearch(DB::Block & block, DB::IColumn::Selector & selector);
     int compareRow(
         const DB::Columns & columns,

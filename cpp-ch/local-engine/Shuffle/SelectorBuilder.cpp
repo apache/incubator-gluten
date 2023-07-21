@@ -1,4 +1,5 @@
 #include "SelectorBuilder.h"
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <Functions/FunctionFactory.h>
@@ -140,6 +141,26 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
     }
 }
 
+template <typename T>
+void RangeSelectorBuilder::safeInsertFloatValue(const Poco::Dynamic::Var & field_value, DB::MutableColumnPtr & col)
+{
+    try {
+        col->insert(field_value.convert<T>());
+    } catch (const std::exception &) {
+        String val = Poco::toLower(field_value.convert<std::string>());
+        T res;
+        if (val == "nan")
+            res = std::numeric_limits<T>::quiet_NaN();
+        else if (val == "infinity")
+            res = std::numeric_limits<T>::infinity();
+        else if (val == "-infinity")
+            res = -std::numeric_limits<T>::infinity();
+        else
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported value: {}", val);
+        col->insert(res);
+    }
+}
+
 void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
 {
     DB::ColumnsWithTypeAndName columns;
@@ -188,11 +209,11 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 }
                 else if (type_name == "Float32")
                 {
-                    col->insert(field_value.convert<DB::Float32>());
+                    safeInsertFloatValue<DB::Float32>(field_value, col);
                 }
                 else if (type_name == "Float64")
                 {
-                    col->insert(field_value.convert<DB::Float64>());
+                    safeInsertFloatValue<DB::Float64>(field_value, col);
                 }
                 else if (type_name == "String")
                 {
