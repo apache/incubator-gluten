@@ -1,0 +1,3 @@
+
+clickhouse_add_executable (signal_demo signal_demo.cpp)
+target_link_libraries(signal_demo PRIVATE gluten_clickhouse_backend_libs loggers)
