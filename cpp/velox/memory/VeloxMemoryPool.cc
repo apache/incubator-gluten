@@ -170,7 +170,7 @@ class VeloxMemoryPool : public velox::memory::MemoryPoolImpl {
 
 static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
   static auto options = gluten::VeloxInitializer::get()->getMemoryPoolOptions();
-  int64_t spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
+  static int64_t spillThreshold = gluten::VeloxInitializer::get()->getSpillThreshold();
   static std::shared_ptr<VeloxMemoryPool> defaultPoolRoot = std::make_shared<VeloxMemoryPool>(
       nullptr,
       "root",
@@ -179,9 +179,17 @@ static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
       facebook::velox::memory::MemoryReclaimer::create(),
       nullptr,
       options);
-  defaultPoolRoot->setHighUsageCallback(
-      [=](velox::memory::MemoryPool& pool) { return pool.reservedBytes() >= spillThreshold; });
-  defaultPoolRoot->testingSetCapacity(facebook::velox::memory::kMaxMemory);
+
+  auto f = [&]() {
+    defaultPoolRoot->setHighUsageCallback(
+        [=](velox::memory::MemoryPool& pool) { return pool.reservedBytes() >= spillThreshold; });
+    defaultPoolRoot->testingSetCapacity(facebook::velox::memory::kMaxMemory);
+    return true;
+  };
+
+  static bool do_once = f();
+  (void)do_once; // suppress warning
+
   return defaultPoolRoot;
 }
 
