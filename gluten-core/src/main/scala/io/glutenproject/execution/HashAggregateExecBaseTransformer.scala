@@ -566,7 +566,7 @@ abstract class HashAggregateExecBaseTransformer(
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
-      case _: CovPopulation | _: CovSample =>
+      case _: CovPopulation | _: CovSample | _: Skewness =>
         mode match {
           case Partial | PartialMerge =>
             val expectedBufferSize = 4

@@ -91,8 +91,8 @@ bool SubstraitToVeloxPlanValidator::validateRound(
     case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
       return (arguments[1].value().literal().i64() >= 0);
     default:
-      logValidateMsg(
-          "native validation failed due to: Round scale validation is not supported for type case '{}'" + typeCase);
+      logValidateMsg(fmt::format(
+          "native validation failed due to: Round scale validation is not supported for type case '{}'", typeCase));
       return false;
   }
 }
@@ -766,7 +766,7 @@ TypePtr SubstraitToVeloxPlanValidator::getRowType(const std::string& structType)
   // TODO: nested struct is not supported.
   auto structStart = structType.find_first_of('<');
   auto structEnd = structType.find_last_of('>');
-  if (structEnd - structStart > 1) {
+  if (structEnd - structStart <= 1) {
     logValidateMsg("native validation failed due to: More information is needed to create RowType");
   }
   VELOX_CHECK(
@@ -978,7 +978,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "covar_pop_merge",
       "covar_samp",
       "covar_samp_merge",
-      "approx_distinct"};
+      "approx_distinct",
+      "skewness",
+      "skewness_merge"};
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = subParser_->getSubFunctionName(funcSpec);
     if (supportedAggFuncs.find(funcName) == supportedAggFuncs.end()) {
