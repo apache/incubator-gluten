@@ -82,7 +82,12 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     format_settings.skip_unknown_fields = true;
     std::string delimiter = file_info.text().field_delimiter();
     format_settings.csv.delimiter = *delimiter.data();
-    format_settings.csv.skip_first_lines = file_info.text().header();
+
+    if (file_info.start() == 0)
+    {
+        format_settings.csv.skip_first_lines = file_info.text().header();
+    }
+
     format_settings.csv.null_representation = file_info.text().null_value();
 
     if (delimiter == "\t" || delimiter == " ")
