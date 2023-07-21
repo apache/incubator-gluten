@@ -585,15 +585,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ProjectRel& proj
     return false;
   }
 
-  for (auto i = 0; i < types.size(); i++) {
-    switch (types[i]->kind()) {
-      case TypeKind::ARRAY:
-        logValidateMsg("native validation failed due to: unsupported input type ARRAY in ProjectRel.");
-        return false;
-      default:;
-    }
-  }
-
   int32_t inputPlanNodeId = 0;
   // Create the fake input names to be used in row type.
   std::vector<std::string> names;
