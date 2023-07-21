@@ -122,7 +122,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
 
     char maybe_quote = *buf.position();
     bool has_quote = false;
-    if (maybe_quote == '\'' || maybe_quote == '\"')
+   if ((settings.csv.allow_single_quotes && maybe_quote == '\'') || (settings.csv.allow_double_quotes && maybe_quote == '\"'))
     {
         has_quote = true;
         ++buf.position();
@@ -137,7 +137,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
     if (!result)
         return false;
 
-    if (maybe_quote == '\'' || maybe_quote == '\"')
+    if (has_quote)
         assertChar(maybe_quote, buf);
 
     while (!buf.eof() && *buf.position() == ' ')
