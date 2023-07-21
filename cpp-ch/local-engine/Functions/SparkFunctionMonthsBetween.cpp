@@ -112,19 +112,15 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
         DB::Field y_value;
         x.get(i, x_value);
         y.get(i, y_value);
-        if (x_value.isNull() || y_value.isNull())
-        {
+        if (x_value.isNull() || y_value.isNull()) [[unlikely]]
             res->insertDefault();
-        }
         else
-        {
             res->insert(monthsBetween(
                 static_cast<DateTime64>(x_value.safeGet<DateTime64>()),
                 static_cast<DateTime64>(y_value.safeGet<DateTime64>()),
                 timezone_x,
                 timezone_y,
                 round_off));
-        }
     }
     return res;
 }
