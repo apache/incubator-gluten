@@ -1,13 +1,11 @@
 ---
 layout: page
-title: Supported Operators and Functions
-nav_order: 5
+title: Velox Backend's Supported Operators & Functions
+nav_order: 4
 ---
 # The Operators and Functions Support Progress
 
 Gluten is still in active development. Here is a list of supported operators and functions.
-
-## Velox backend
 
 Since the same function may have different semantics between Presto and Spark, Velox implement the functions in Presto category, if we note a different sematics from Spark, then the function is implemented in Spark category. So Gluten firstly will use Velox's spark category, if a function isn't implemented there then refer to Presto category.
 
@@ -15,18 +13,19 @@ The total supported functions' number for [Spark3.3 is 387](https://spark.apache
 Gluten supported frequently used 164, shown as below picture.
 ![support](./image/support.png)
 
-| Value         | Description                                                  |
-| ------------- | ------------------------------------------------------------ |
-| S             | (Supported)  Gluten or Velox support fully.                  |
-| <Blanck Cell> | (Not  Applicable) Neither Gluten not Velox support this type in  this situation. |
-| PS            | (Partial  Support) Apache Spark supports this type, but Velox only  partially supports it. |
-| NS            | (Not Supported) Apache Spark supports this  type but Velox backend does not. |
+| Value        | Description                                                                               |
+|--------------|-------------------------------------------------------------------------------------------|
+| S            | Supported. Gluten or Velox supports fully.                                                |
+| S*           | Mark for foldable expression that will be converted to alias after spark's optimization.  |
+| [Blank Cell] | Not applicable case or needs to confirm.                                                  |
+| PS           | Partial Support. Velox only partially supports it.                                        |
+| NS           | Not Supported. Velox backend does not support it.                                         |
 
 
-| Value      | Description                                                  |
-| ---------- | ------------------------------------------------------------ |
-| Mismatched | Some functions implimented by Velox, which return results mismatched with Apache Spark. So we marked then as "Mismatched" |
-| Ansi OFF   | Velox's doesn't fully support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)). Once Ansi is enabled, Gluten will fallback to Vanilla Spark. |
+| Value      | Description                                                                                                                                                      |
+| ---------- |------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Mismatched | Some functions are implemented by Velox, which return results mismatched with Apache Spark. So we marked then as "Mismatched".                                   |
+| Ansi OFF   | Gluten doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html). If it is enabled, Gluten will fall back to Vanilla Spark. |
 
 ### Operator Map
 
@@ -105,8 +104,8 @@ Gluten supports 164 functions. (Draw to right to see all data types)
 | >                              | gt                     | greaterthan           | S          |                        | S       | S    | S     | S   | S    | S     | S      |      |           | S      |         |      |        |          |       |      |        |      |
 | >=                             | gte                    | greaterthanorequal    | S          |                        | S       | S    | S     | S   | S    | S     | S      |      |           | S      |         |      |        |          |       |      |        |      |
 | ^                              | bitwise_xor            |                       | S          |                        |         |      | S     | S   | S    |       |        |      |           |        |         |      |        |          |       |      |        |      |
-| \|                              | bitwise_or             | bitwise_or            | S          |                        |         |      | S     | S   | S    |       |        |      |           |        |         |      |        |          |       |      |        |      |
-| \|\|                             |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
+| \|                             | bitwise_or             | bitwise_or            | S          |                        |         |      | S     | S   | S    |       |        |      |           |        |         |      |        |          |       |      |        |      |
+| \|\|                           |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | ~                              | bitwise_not            |                       | S          |                        |         |      | S     | S   | S    |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | and                            |                        |                       | S          |                        | S       | S    | S     | S   | S    | S     | S      |      |           | S      |         |      |        |          |       |      |        |      |
 | between                        | between                | between               | S          |                        | S       | S    | S     | S   | S    | S     | S      | S    |           | S      |         |      |        |          |       |      |        |      |
@@ -280,9 +279,9 @@ Gluten supports 164 functions. (Draw to right to see all data types)
 | sort_array                     |                        | sort_array            |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | struct, named_struct           |                        |                       | S          |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      | S      |      |
 | add_months                     |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
-| current_date                   | current_date           |                       | S          |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
-| current_timestamp              |                        |                       | S          |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
-| current_timezone               |                        |                       | S          |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
+| current_date                   |                        |                       | S*         |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
+| current_timestamp              |                        |                       | S*         |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
+| current_timezone               |                        |                       | S*         |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | date                           | date                   |                       | S          |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | date_add                       | date_add               | date_add              | S          |                        |         | S    | S     | S   |      |       |        | S    | S         |        |         |      |        |          |       |      |        |      |
 | date_format                    | date_format            |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
@@ -317,9 +316,9 @@ Gluten supports 164 functions. (Draw to right to see all data types)
 | year                           | year                   | year                  | S          |                        |         |      |       |     |      |       |        | S    | S         |        |         |      |        |          |       |      |        |      |
 | approx_count_distinct          | approx_distinct        |                       | S          |                        | S       | S    | S     | S   | S    | S     | S      | S    |           | S      |         |      |        |          |       |      |        |      |
 | avg                            | avg                    |                       | S          | Ansi Off               |         | S    | S     | S   | S    | S     |        |      |           |        |         |      |        |          |       |      |        |      |
-|                                | bitwise_and_agg        |                       | S          |                        |         | S    | S     | S   | S    | S     |        |      |           |        |         |      |        |          |       |      |        |      |
-|                                | bitwise_or_agg         |                       | S          |                        |         | S    | S     | S   | S    | S     |        |      |           |        |         |      |        |          |       |      |        |      |
-|                                |                        | bit_xor               | S          |                        |         | S    | S     | S   | S    | S     |        |      |           |        |         |      |        |          |       |      |        |      |
+| bit_and                        | bitwise_and_agg        |                       | S          |                        |         | S    | S     | S   | S    | S     |        |      |           |        |         |      |        |          |       |      |        |      |
+| bit_or                         | bitwise_or_agg         |                       | S          |                        |         | S    | S     | S   | S    | S     |        |      |           |        |         |      |        |          |       |      |        |      |
+| bit_xor                        |                        | bit_xor               | S          |                        |         | S    | S     | S   | S    | S     |        |      |           |        |         |      |        |          |       |      |        |      |
 | collect_list                   |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | collect_set                    |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | corr                           | corr                   |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
@@ -361,7 +360,7 @@ Gluten supports 164 functions. (Draw to right to see all data types)
 | schema_of_json                 |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | to_json                        |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | crc32                          | crc32                  |                       | S          |                        |         |      |       |     |      |       |        |      |           | S      |         |      |        |          |       |      |        |      |
-| current_user                   |                        |                       | S          |                        |         |      |       |     |      |       |        |      |           | S      |         |      |        |          |       |      |        |      |
+| current_user                   |                        |                       | S*         |                        |         |      |       |     |      |       |        |      |           | S      |         |      |        |          |       |      |        |      |
 | greatest                       | greatest               | greatest              | S          |                        |         |      |       |     | S    | S     | S      | S    | S         |        |         |      |        |          |       |      |        |      |
 | hash                           | hash                   | hash                  | S          |                        | S       | S    | S     | S   | S    | S     | S      |      |           |        |         |      |        |          |       |      |        |      |
 | input_file_name                |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
@@ -373,7 +372,3 @@ Gluten supports 164 functions. (Draw to right to see all data types)
 | sha2                           |                        | sha2                  | S          |                        |         |      |       |     |      |       |        |      |           | S      |         |      |        |          |       |      |        |      |
 | spark_partition_id             |                        |                       |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | xxhash64                       | xxhash64               | xxhash64              |            |                        |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
-
-## Clickhouse Backed
-
-To be added
