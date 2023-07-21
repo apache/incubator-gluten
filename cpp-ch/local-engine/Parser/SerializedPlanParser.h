@@ -168,7 +168,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"trunc", ""}, /// dummy mapping
        {"date_trunc", "dateTrunc"},
        {"floor_datetime", "dateTrunc"},
-       {"months_between", "date_diff"},
+       {"months_between", "sparkMonthsBetween"},
 
        // array functions
        {"array", "array"},
