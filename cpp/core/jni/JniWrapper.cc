@@ -380,8 +380,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     inputIters.push_back(std::move(resultIter));
   }
 
-  std::shared_ptr<ResultIterator> resIter =
-      backend->getResultIterator((*allocator).get(), spillDirStr, inputIters, confs);
+  auto resIter = backend->getResultIterator((*allocator).get(), spillDirStr, inputIters, confs);
   return resultIteratorHolder.insert(std::move(resIter));
   JNI_METHOD_END(-1)
 }
@@ -1100,6 +1099,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   if (typeName == "DEFAULT") {
     *allocator = defaultMemoryAllocator();
   } else {
+    delete allocator;
+    allocator = nullptr;
     throw GlutenException("Unexpected allocator type name: " + typeName);
   }
   return reinterpret_cast<jlong>(allocator);
@@ -1120,8 +1121,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   if (delegatedAllocator == nullptr) {
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
-  std::shared_ptr<AllocationListener> listener = std::make_shared<SparkAllocationListener>(
-      vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 8L << 10 << 10);
+  auto listener = std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 8L<<20);
   std::shared_ptr<MemoryAllocator>* allocator = new std::shared_ptr<MemoryAllocator>;
   *allocator = std::make_shared<ListenableMemoryAllocator>((*delegatedAllocator).get(), listener);
   return reinterpret_cast<jlong>(allocator);
