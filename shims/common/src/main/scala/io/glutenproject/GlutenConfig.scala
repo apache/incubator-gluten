@@ -125,6 +125,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleWriteSchema: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED)
 
+  def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
+
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
   def columnarShuffleCodecBackend: Option[String] = conf
@@ -707,6 +709,12 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED =
+    buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
+      .internal()
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_SHUFFLE_CODEC =
     buildConf("spark.gluten.sql.columnar.shuffle.codec")

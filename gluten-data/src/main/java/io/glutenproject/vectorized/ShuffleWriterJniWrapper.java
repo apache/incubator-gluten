@@ -44,12 +44,12 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
                    int bufferCompressThreshold, String dataFile,
                    int subDirsPerLocalDir, String localDirs,
                    boolean preferEvict, long memoryPoolId, boolean writeSchema,
-                   long handle, long taskAttemptId) {
+                   boolean writeEOS, long handle, long taskAttemptId) {
     return nativeMake(part.getShortName(), part.getNumPartitions(),
                       offheapPerTask, bufferSize, codec, codecBackend,
                       bufferCompressThreshold, dataFile, subDirsPerLocalDir,
-                      localDirs, preferEvict, memoryPoolId, writeSchema, handle,
-                      taskAttemptId, 0, null, "local");
+                      localDirs, preferEvict, memoryPoolId, writeSchema, writeEOS,
+                      handle, taskAttemptId, 0, null, "local");
   }
 
   /**
@@ -70,7 +70,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
     return nativeMake(part.getShortName(), part.getNumPartitions(),
                       offheapPerTask, bufferSize, codec, null,
                       bufferCompressThreshold, null, 0, null, true,
-                      memoryPoolId, false, handle, taskAttemptId,
+                      memoryPoolId, false, true, handle, taskAttemptId,
                       pushBufferMaxSize, pusher, partitionWriterType);
   }
 
@@ -80,8 +80,8 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
                                 int bufferCompressThreshold, String dataFile,
                                 int subDirsPerLocalDir, String localDirs,
                                 boolean preferEvict, long memoryPoolId,
-                                boolean writeSchema, long handle,
-                                long taskAttemptId, int pushBufferMaxSize,
+                                boolean writeSchema, boolean writeEOS,
+                                long handle, long taskAttemptId, int pushBufferMaxSize,
                                 Object pusher, String partitionWriterType);
 
   /**

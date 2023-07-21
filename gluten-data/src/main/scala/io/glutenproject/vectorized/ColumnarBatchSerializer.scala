@@ -17,6 +17,8 @@
 
 package io.glutenproject.vectorized
 
+import io.glutenproject.GlutenConfig
+
 import java.io._
 import java.nio.ByteBuffer
 
@@ -50,10 +52,17 @@ class ColumnarBatchSerializer(
   extends Serializer
   with Serializable {
 
+  // if don't write schema and EOS in shuffle writer, then the erializer supports relocation
+  private val supportsRelocation =
+    !GlutenConfig.getConf.columnarShuffleWriteSchema &&
+    !GlutenConfig.getConf.columnarShuffleWriteEOS
+
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
     new ColumnarBatchSerializerInstance(schema, readBatchNumRows, numOutputRows, decompressTime)
   }
+
+  override def supportsRelocationOfSerializedObjects: Boolean = supportsRelocation
 }
 
 private class ColumnarBatchSerializerInstance(
