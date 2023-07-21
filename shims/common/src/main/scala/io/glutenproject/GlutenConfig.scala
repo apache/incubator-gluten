@@ -789,10 +789,11 @@ object GlutenConfig {
       .doc(
         "The fallback policy in gluten. 'operator' means fallback the " +
           "operator if unsupported. 'stage' means fallback each stage if " +
-          "the number of unsupported operator/expressions > " +
-          "COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD, note this only works with AQE enabled" +
+          "the number of unsupported operator/expressions >= " +
+          "${COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key}, note this only works with AQE enabled" +
           " , 'query' means fallback the whole query " +
-          "if number of unsupported operator > COLUMNAR_QUERY_FALLBACK_THRESHOLD")
+          "if number of unsupported operator >= ${COLUMNAR_QUERY_FALLBACK_THRESHOLD.key}" +
+          ", note this only works with AQE disabled")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .checkValues(Set("operator", "stage", "query"))
