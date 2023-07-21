@@ -22,15 +22,12 @@
 #    include <memory>
 #    include <IO/ReadBuffer.h>
 #    include <Storages/SubstraitSource/FormatFile.h>
+#    include <parquet/metadata.h>
+#    include <parquet/statistics.h>
+#    include <DataTypes/DataTypesNumber.h>
+#    include <DataTypes/DataTypeString.h>
+#    include <DataTypes/DataTypeFixedString.h>
 
-// clang-format off
-#include <memory>
-#include <IO/ReadBuffer.h>
-#include <parquet/metadata.h>
-#include <parquet/statistics.h>
-#include <Storages/SubstraitSource/FormatFile.h>
-// clang-format on
->>>>>>> support push down filter
 namespace local_engine
 {
 struct RowGroupInfomation
@@ -53,56 +50,19 @@ public:
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }
+    DB::String getFileFormat() const override { return "parquet"; }
 
 private:
     std::mutex mutex;
     std::optional<size_t> total_rows;
+    bool enable_row_group_maxmin_index;
     std::vector<RowGroupInfomation> collectRequiredRowGroups(int & total_row_groups);
     std::vector<RowGroupInfomation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups);
-
-    bool checkRowGroupIfNeed(std::unique_ptr<parquet::RowGroupMetaData> meta, std::vector<std::string> & columns, std::vector<DB::DataTypePtr> & column_types)
-    {
-        std::vector<DB::Range> column_max_mins;
-        const parquet::SchemaDescriptor* schema_desc = meta->schema();
-        int num_columns = meta->num_columns();
-        for (int i=0; i < num_columns; ++i)
-        {
-            auto column_chunk_meta = meta->ColumnChunk(i);
-            const parquet::ColumnDescriptor * desc = schema_desc->Column(i);
-            bool column_need = false;
-            for (size_t j = 0; j < columns.size(); ++j)
-            {
-                if (columns[j] == desc->name())
-                {
-                    column_need = true;
-                    break;
-                }
-            }
-            if (column_need && column_chunk_meta->is_stats_set())
-            {
-                auto stats = std::dynamic_pointer_cast<parquet::Int32Statistics>(column_chunk_meta->statistics());
-                if (stats && stats->HasMinMax())
-                {
-                    Int32 min_val = stats->min();
-                    Int32 max_val = stats->max();
-                    std::cout << "min_val:" << min_val << " max_val:" << max_val << std::endl;
-                    DB::Range range(min_val, true, max_val, true);
-                    column_max_mins.push_back(range);
-                }
-            }
-        }
-        bool row_group_need = true;
-        for (size_t j=0; j < filters.size(); ++j)
-        {
-            if (column_max_mins.size() > 0 && !filters[j].checkInHyperrectangle(column_max_mins, column_types).can_be_true)
-            {
-                row_group_need = false;
-                break;
-            }
-        }
-        
-        return row_group_need;
-    }
+    bool checkRowGroupIfRequired(std::unique_ptr<parquet::RowGroupMetaData> meta);
+    DB::Range getColumnMaxMin(std::shared_ptr<parquet::Statistics> statistics,
+                    parquet::Type::type parquet_data_type,
+                    DB::DataTypePtr data_type,
+                    Int32 column_type_length);
 };
 
 }

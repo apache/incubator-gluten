@@ -129,7 +129,9 @@ message ReadRel {
       // The length in byte to read from this item
       uint64 length = 8;
 
-      message ParquetReadOptions {}
+      message ParquetReadOptions {
+        bool enable_row_group_maxmin_index = 1;
+      }
       message ArrowReadOptions {}
       message OrcReadOptions {}
       message DwrfReadOptions {}

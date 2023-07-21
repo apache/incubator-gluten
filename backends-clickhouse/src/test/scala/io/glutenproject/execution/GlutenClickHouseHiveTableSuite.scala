@@ -92,6 +92,7 @@ class GlutenClickHouseHiveTableSuite()
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
+      .set("spark.gluten.sql.parquet.maxmin.index", "true")
       .set(
         "spark.sql.warehouse.dir",
         getClass.getResource("/").getPath + "unit-tests-working-home/spark-warehouse")
@@ -118,23 +119,10 @@ class GlutenClickHouseHiveTableSuite()
   private val txt_table_name = "hive_txt_test"
   private val txt_user_define_input = "hive_txt_user_define_input"
   private val json_table_name = "hive_json_test"
+  private val parquet_table_name = "hive_parquet_test"
 
-  private val txt_table_create_sql = "create table if not exists %s (".format(txt_table_name) +
-    "string_field string," +
-    "int_field int," +
-    "long_field long," +
-    "float_field float," +
-    "double_field double," +
-    "short_field short," +
-    "byte_field byte," +
-    "bool_field boolean," +
-    "decimal_field decimal(23, 12)," +
-    "date_field date," +
-    "timestamp_field timestamp," +
-    "array_field array<int>," +
-    "array_field_with_null array<int>," +
-    "map_field map<int, long>," +
-    "map_field_with_null map<int, long>) stored as textfile"
+  private val txt_table_create_sql = genTableCreateSql(txt_table_name, "textfile")
+  private val parquet_table_create_sql = genTableCreateSql(parquet_table_name, "parquet");
   private val json_table_create_sql = "create table if not exists %s (".format(json_table_name) +
     "string_field string," +
     "int_field int," +
@@ -174,6 +162,24 @@ class GlutenClickHouseHiveTableSuite()
       "map_field_with_null map<int, long>) " +
       "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.UserDefineTextInputFormat'" +
       "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+
+  def genTableCreateSql(tableName: String, fileFormat: String): String =
+    "create table if not exists %s (".format(tableName) +
+      "string_field string," +
+      "int_field int," +
+      "long_field long," +
+      "float_field float," +
+      "double_field double," +
+      "short_field short," +
+      "byte_field byte," +
+      "bool_field boolean," +
+      "decimal_field decimal(23, 12)," +
+      "date_field date," +
+      "timestamp_field timestamp," +
+      "array_field array<int>," +
+      "array_field_with_null array<int>," +
+      "map_field map<int, long>," +
+      "map_field_with_null map<int, long>) stored as %s".format(fileFormat)
 
   def genTestData(): Seq[AllDataTypesWithComplextType] = {
     (0 to 199).map {
@@ -233,6 +239,7 @@ class GlutenClickHouseHiveTableSuite()
     initializeTable(txt_table_name, txt_table_create_sql, null)
     initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
     initializeTable(json_table_name, json_table_create_sql, "2023-06-05")
+    initializeTable(parquet_table_name, parquet_table_create_sql, null)
   }
 
   override protected def afterAll(): Unit = {
@@ -732,6 +739,7 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_6, true, _ => {})
   }
 
+<<<<<<< HEAD
   test("GLUTEN-2180: Test data field too much/few") {
     val test_table_name = "test_table_2180"
     val drop_table_sql = "drop table if exists %s".format(test_table_name)
@@ -777,4 +785,89 @@ class GlutenClickHouseHiveTableSuite()
         assert(txtFileScan.size == 1)
       })
   }
+
+  test("test parquet push down filter skip row groups") {
+    val currentTimestamp = System.currentTimeMillis() / 1000
+    val sql =
+      s"""
+         | select count(1) from $parquet_table_name
+         | where int_field > 1 and string_field > '1' and
+         | bool_field = true and float_field > 3 and double_field > 5
+         | and short_field > 1 and byte_field > 3
+         | and timestamp_field <= to_timestamp($currentTimestamp)
+         | and array_field[0] > 0 and map_field[9] >= 0 and decimal_field > 5
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+  }
+
+  test("test parquet push down filter with null value") {
+    val create_table_sql =
+      """
+        | create table test_tbl_2456(
+        | id bigint,
+        | name string,
+        | age int,
+        | day string,
+        | hour string) partitioned by(day, hour) stored as parquet
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        | insert into test_tbl_2456 values
+        | (1, 'a', 12, '2023-08-01', '12'),
+        | (2, 'b', null, '2023-08-01', '12'),
+        | (3, 'c', null, '2023-08-01', '12'),
+        | (4, 'd', null, '2023-08-01', '12'),
+        | (5, null, 22, '2023-08-01', '12'),
+        | (6, null, 23, '2023-08-01', '12'),
+        | (7, 'e', 24, '2023-08-01', '12')
+        |""".stripMargin
+
+    val select_sql_1 = "select count(1) from test_tbl_2456 where name is null or age is null";
+    val select_sql_2 = "select count(1) from test_tbl_2456 where age > 0 and day = '2023-08-01'"
+
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    compareResultsAgainstVanillaSpark(select_sql_1, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_2, true, _ => {})
+  }
+
+  test("test parquet push down filter with multi-nested column types") {
+    val create_table_sql =
+      """
+        | create table test_tbl_2457(
+        | id bigint,
+        | d1 array<array<int>>,
+        | d2 array<Map<string, string>>,
+        | d3 struct<a:int, b:array<map<string, string>>, c:map<string, array<map<string, string>>>>,
+        | d4 struct<a:int, b:string, c:struct<d:string, e:string>>,
+        | d5 map<string, array<int>>,
+        | d6 map<string, map<string, string>>) stored as parquet
+        |""".stripMargin
+
+    val insert_data_sql =
+      """
+        | insert into test_tbl_2457 values
+        | (1,
+        |  array(array(1,2), array(3,4)),
+        |  array(map('a', 'b', 'c', 'd'), map('e', 'f')),
+        |  named_struct('a', 1, 'b', array(map('e', 'f')),
+        |  'c', map('a', array(map('b', 'c'), map('d', 'e')), 'f', array(map('k', 'l')))),
+        |  named_struct('a', 1, 'b', 'b1', 'c', named_struct('d', 'd1', 'e', 'e1')),
+        |  map('f', array(3,4,5,6)),
+        |  map('f', map('a', 'b'), 'g', map('d', 'e')))
+        |""".stripMargin
+
+    val select_sql_1 =
+      """
+        | select count(1) from test_tbl_2457
+        | where d1[0][1]=2 and d2[1]['e'] = 'f'
+        | and d3.c['a'][1]['d'] = 'e'
+        | and d4.c.d = 'd1' and d5['f'][2] = 5
+        | and d6['g']['d'] = 'e'
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    compareResultsAgainstVanillaSpark(select_sql_1, true, _ => {})
+  }
+
 }

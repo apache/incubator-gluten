@@ -36,6 +36,7 @@
 #include <QueryPipeline/Pipe.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
@@ -122,13 +123,23 @@ SubstraitFileSource::SubstraitFileSource(
     }
 }
 
-void SubstraitFileSource::applyFilters(std::vector<DB::KeyCondition> filters_) const
+void SubstraitFileSource::applyFilters(std::vector<SourceFilter> filters_) const
 {
-    for (size_t i=0; i < files.size(); ++i)
+    for (size_t i = 0; i < files.size(); ++i)
     {
         FormatFilePtr file = files[i];
         file->setFilters(filters_);
     }
+}
+
+std::vector<String> SubstraitFileSource::getPartitionKeys() const
+{
+    return files.size() > 0 ? files[0]->getFilePartitionKeys() : std::vector<String>();
+}
+
+DB::String SubstraitFileSource::getFileFormat() const
+{
+    return files.size() > 0 ? files[0]->getFileFormat() : "unknown";
 }
 
 DB::Chunk SubstraitFileSource::generate()
@@ -197,7 +208,6 @@ bool SubstraitFileSource::tryPrepareReader()
     }
     else
         file_reader = std::make_unique<NormalFileReader>(current_file, context, to_read_header, flatten_output_header);
-    }
     return true;
 }
 

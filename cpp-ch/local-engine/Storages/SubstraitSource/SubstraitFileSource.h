@@ -27,6 +27,7 @@
 #include <QueryPipeline/QueryPipeline.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <base/types.h>
 
 namespace local_engine
@@ -94,7 +95,9 @@ public:
 
     String getName() const override { return "SubstraitFileSource"; }
 
-    void applyFilters(std::vector<DB::KeyCondition> filters_) const;
+    void applyFilters(std::vector<SourceFilter> filters) const;
+    std::vector<String> getPartitionKeys() const;
+    DB::String getFileFormat() const;
 
 protected:
     DB::Chunk generate() override;

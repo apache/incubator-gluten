@@ -241,8 +241,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
-  def getInputRowMaxBlockSize: Long =
-    conf.getConfString("spark.gluten.sql.input.row.max.block.size", "8192").toLong
+  def textInputMaxBlockSize: Long = conf.getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
+  def enableParquetRowGroupMaxMinIndex: Boolean =
+    conf.getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 }
@@ -1090,4 +1091,18 @@ object GlutenConfig {
       .doc("Enable the stacktrace for user type of VeloxException")
       .booleanConf
       .createWithDefault(true)
+
+  val TEXT_INPUT_ROW_MAX_BLOCK_SIZE =
+    buildConf("spark.gluten.sql.text.input.max.block.size")
+      .internal()
+      .doc("the max block size for text input rows")
+      .longConf
+      .createWithDefault(8192);
+
+  val ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX =
+    buildConf("spark.gluten.sql.parquet.maxmin.index")
+      .internal()
+      .doc("Enable row group max min index for parquet file scan")
+      .booleanConf
+      .createWithDefault(false)
 }
