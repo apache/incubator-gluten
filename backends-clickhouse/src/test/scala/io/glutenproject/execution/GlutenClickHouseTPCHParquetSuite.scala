@@ -446,6 +446,24 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test sort_array") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select sort_array(split(n_comment, ' ')) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select sort_array(split(n_comment, ' '), false) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select sort_array(array(1,3,2,null)), sort_array(array(1,2,3,null),false)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("test coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
