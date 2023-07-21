@@ -92,12 +92,7 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
 {
     const IColumn & x = *arguments[0].column;
     const IColumn & y = *arguments[1].column;
-    const ColumnConst * round_off_column = checkAndGetColumnConst<ColumnUInt8>(arguments[2].column.get());
-    if (!round_off_column)
-        throw Exception(ErrorCodes::ILLEGAL_COLUMN,
-                        "Illegal column {} of round_off argument of function, must be a constant boolean",
-                        arguments[2].name);
-    bool round_off = round_off_column->getBool(0);
+    const IColumn & round_off = *arguments[2].column;
 
     size_t rows = input_rows_count;
     auto res = result_type->createColumn();
@@ -110,8 +105,10 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
     {
         DB::Field x_value;
         DB::Field y_value;
+        DB::Field round_value;
         x.get(i, x_value);
         y.get(i, y_value);
+        round_off.get(i, round_value);
         if (x_value.isNull() || y_value.isNull()) [[unlikely]]
             res->insertDefault();
         else
@@ -120,7 +117,7 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
                 static_cast<DateTime64>(y_value.safeGet<DateTime64>()),
                 timezone_x,
                 timezone_y,
-                round_off));
+                static_cast<bool>(round_value.safeGet<DB::UInt8>())));
     }
     return res;
 }
