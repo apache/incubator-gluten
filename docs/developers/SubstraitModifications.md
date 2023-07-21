@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Substrait Modifications
-nav_order: 4
+nav_order: 9
 parent: Developer Overview
 ---
 # Substrait Modifications in Gluten
