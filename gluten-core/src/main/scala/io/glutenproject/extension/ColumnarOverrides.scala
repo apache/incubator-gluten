@@ -739,29 +739,17 @@ case class ColumnarOverrideRules(session: SparkSession)
     if (wholeStageFallbackThreshold < 0) {
       return false
     }
-    var fallbacks = 0
-    def countFallback(plan: SparkPlan): Unit = {
-      plan match {
-        // Another stage.
-        case _: QueryStageExec =>
-          return
-        case ColumnarToRowExec(_: GlutenPlan) =>
-          fallbacks = fallbacks + 1
-        // Possible fallback for leaf node.
-        case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
-          fallbacks = fallbacks + 1
-        case _ =>
-      }
-      plan.children.map(p => countFallback(p))
-    }
-    countFallback(plan)
-    fallbacks >= wholeStageFallbackThreshold
+    countFallbacks(plan) >= wholeStageFallbackThreshold
   }
 
   def fallbackWholeQuery(plan: SparkPlan): Boolean = {
     if (queryFallbackThreshold < 0) {
       return false
     }
+    countFallbacks(plan) >= queryFallbackThreshold
+  }
+
+  def countFallbacks(plan: SparkPlan): Int = {
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
       plan match {
@@ -779,8 +767,9 @@ case class ColumnarOverrideRules(session: SparkSession)
       plan.children.map(p => countFallback(p))
     }
     countFallback(plan)
-    fallbacks >= queryFallbackThreshold
+    fallbacks
   }
+
 
   /**
    * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
@@ -823,7 +812,7 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
-      if (fallbackPolicy == "query"&& !isAdaptiveContext  && fallbackWholeQuery(plan)) {
+      if (fallbackPolicy == "query" && !isAdaptiveContext  && fallbackWholeQuery(plan)) {
         logWarning("Fall back to run the query due to unsupported operator!")
         insertTransitions(originalPlan, false)
       } else if (fallbackPolicy == "stage" && isAdaptiveContext && fallbackWholeStage(plan)) {
