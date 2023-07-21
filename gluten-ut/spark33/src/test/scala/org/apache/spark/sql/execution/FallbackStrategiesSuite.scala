@@ -26,13 +26,11 @@ import org.apache.spark.sql.GlutenSQLTestsTrait
 class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
   test("Fall back the whole query if one unsupported") {
-    withSQLConf(("spark.gluten.sql.columnar.query.fallback.threshold", "1")),
-                ("spark.sql.adaptive.enabled", "false")),
+    withSQLConf(("spark.gluten.sql.columnar.query.fallback.threshold", "1"),
                 ("spark.gluten.sql.columnar.fallback.policy", "query")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
       rule.preColumnarTransitions(originalPlan)
-      rule.enableAdaptiveContext
       // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer.
       val planAfterPreOverride =
         UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
