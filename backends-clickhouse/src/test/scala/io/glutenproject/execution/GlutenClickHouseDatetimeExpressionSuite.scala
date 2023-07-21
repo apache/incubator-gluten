@@ -156,7 +156,7 @@ class GlutenClickHouseDatetimeExpressionSuite
          |       months_between('1991-01-01', l_shipdate) a,
          |       months_between('1991-01-01', l_shipdate, False) b,
          |       months_between(l_shipdate, '1991-01-01') c,
-         |       months_between(l_shipdate, '1991-01-01', False) d,
+         |       months_between(l_shipdate, '1991-01-01', False) d
          |from lineitem
          |order by l_shipdate
          |limit 50
