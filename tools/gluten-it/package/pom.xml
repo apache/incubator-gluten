@@ -32,6 +32,18 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>gluten-package</artifactId>
+      <version>${gluten.version}</version>
+      <scope>runtime</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.glutenproject</groupId>
+          <artifactId>gluten-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.spark</groupId>
