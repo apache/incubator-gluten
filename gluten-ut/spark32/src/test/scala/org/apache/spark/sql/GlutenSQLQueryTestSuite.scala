@@ -35,6 +35,7 @@ import org.apache.spark.util.Utils
 
 import java.io.File
 import java.net.URI
+import java.nio.file.{Files, Paths}
 import java.util.Locale
 
 import scala.collection.mutable.ArrayBuffer
@@ -152,9 +153,15 @@ class GlutenSQLQueryTestSuite
     getWorkspaceFilePath("sql", "core", "src", "test", "resources").toFile
   }
 
+  protected val glutenBaseResourcePath = {
+    val res = getClass.getClassLoader.getResource("sql-tests")
+    Paths.get(res.toURI).toFile
+  }
+
   protected val inputFilePath = new File(baseResourcePath, "inputs").getAbsolutePath
   protected val goldenFilePath = new File(baseResourcePath, "results").getAbsolutePath
   protected val testDataPath = new File(resourcesPath, "test-data").getAbsolutePath
+  protected val glutenGoldenFilePath = new File(glutenBaseResourcePath, "results").getAbsolutePath
 
   protected val validFileExtensions = ".sql"
 
@@ -395,8 +402,7 @@ class GlutenSQLQueryTestSuite
     // result match, but the order is not right
     // "window.sql",
     "udf-union.sql",
-    // double precision errors are currently not tolerated
-    // "udf-window.sql"
+    "udf-window.sql"
   )
 
   /**
@@ -770,7 +776,13 @@ class GlutenSQLQueryTestSuite
   protected lazy val listTestCases: Seq[TestCase] = {
     listFilesRecursively(new File(inputFilePath)).flatMap {
       file =>
-        val resultFile = file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
+        val fixedResultFile = file.getAbsolutePath
+          .replace(inputFilePath, glutenGoldenFilePath) + ".out"
+        val resultFile = if (Files.exists(Paths.get(fixedResultFile))) {
+          fixedResultFile
+        } else {
+          file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
+        }
         val absPath = file.getAbsolutePath
         val testCaseName = absPath.stripPrefix(inputFilePath).stripPrefix(File.separator)
 
