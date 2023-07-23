@@ -64,6 +64,7 @@ object CHExpressionUtil {
     MIGHT_CONTAIN -> DefaultValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
     ARRAYS_OVERLAP -> DefaultValidator(),
-    SORT_ARRAY -> DefaultValidator()
+    SORT_ARRAY -> DefaultValidator(),
+    SKEWNESS -> DefaultValidator()
   )
 }
