@@ -662,6 +662,12 @@ case class ColumnarOverrideRules(session: SparkSession)
   private val aqeStackTraceIndex = 13
 
   lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
+
+  lazy val queryFallbackThreshold = GlutenConfig.getConf.queryFallbackThreshold
+
+  // for fallback policy
+  lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
+
   private var originalPlan: SparkPlan = _
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -733,13 +739,25 @@ case class ColumnarOverrideRules(session: SparkSession)
     if (wholeStageFallbackThreshold < 0) {
       return false
     }
+    countFallbacks(plan) >= wholeStageFallbackThreshold
+  }
+
+  def fallbackWholeQuery(plan: SparkPlan): Boolean = {
+    if (queryFallbackThreshold < 0) {
+      return false
+    }
+    countFallbacks(plan) >= queryFallbackThreshold
+  }
+
+  def countFallbacks(plan: SparkPlan): Int = {
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
       plan match {
         // Another stage.
         case _: QueryStageExec =>
           return
-        case ColumnarToRowExec(_: GlutenPlan) =>
+        case ColumnarToRowExec(p: GlutenPlan) =>
+          logDebug(s"c2r: ${p}")
           fallbacks = fallbacks + 1
         // Possible fallback for leaf node.
         case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
@@ -749,8 +767,9 @@ case class ColumnarOverrideRules(session: SparkSession)
       plan.children.map(p => countFallback(p))
     }
     countFallback(plan)
-    fallbacks >= wholeStageFallbackThreshold
+    fallbacks
   }
+
 
   /**
    * Ported from ApplyColumnarRulesAndInsertTransitions of Spark.
@@ -793,7 +812,10 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
-      if (isAdaptiveContext && fallbackWholeStage(plan)) {
+      if (fallbackPolicy == "query" && !isAdaptiveContext  && fallbackWholeQuery(plan)) {
+        logWarning("Fall back to run the query due to unsupported operator!")
+        insertTransitions(originalPlan, false)
+      } else if (fallbackPolicy == "stage" && isAdaptiveContext && fallbackWholeStage(plan)) {
         logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
         insertTransitions(originalPlan, false)
       } else {
