@@ -515,23 +515,21 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
     setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
 }
 
-std::unique_ptr<DB::Settings> BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map)
+void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings)
 {
-    std::unique_ptr<DB::Settings> settings = std::make_unique<DB::Settings>();
-
     /// Initialize default setting.
-    settings->set("date_time_input_format", "best_effort");
+    settings.set("date_time_input_format", "best_effort");
 
     for (const auto & pair : backend_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
         if (pair.first.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
         {
-            settings->set(pair.first.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), pair.second);
+            settings.set(pair.first.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), pair.second);
         }
         else if (pair.first.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
-            settings->set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
+            settings.set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
         }
         else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX + "bucket"))
         {
@@ -551,32 +549,30 @@ std::unique_ptr<DB::Settings> BackendInitializerUtil::initSettings(std::map<std:
             {
                 std::string bucket_name = base_match[1].str();
                 new_key.replace(base_match[0].first - new_key.begin(), base_match[0].second - base_match[0].first, "");
-                settings->set(bucket_name + "." + new_key, pair.second);
+                settings.set(bucket_name + "." + new_key, pair.second);
             }
         }
         else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
         {
             // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
-            settings->set(pair.first.substr(SPARK_HADOOP_PREFIX.length()), pair.second);
+            settings.set(pair.first.substr(SPARK_HADOOP_PREFIX.length()), pair.second);
         }
     }
 
     /// Finally apply some fixed kvs to settings.
-    settings->set("join_use_nulls", true);
-    settings->set("input_format_orc_allow_missing_columns", true);
-    settings->set("input_format_orc_case_insensitive_column_matching", true);
-    settings->set("input_format_orc_import_nested", true);
-    settings->set("input_format_parquet_allow_missing_columns", true);
-    settings->set("input_format_parquet_case_insensitive_column_matching", true);
-    settings->set("input_format_parquet_import_nested", true);
-    settings->set("output_format_parquet_version", "1.0");
-    settings->set("output_format_parquet_compression_method", "snappy");
-    settings->set("output_format_parquet_string_as_string", true);
-    settings->set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
-    settings->set("function_json_value_return_type_allow_complex", true);
-    settings->set("function_json_value_return_type_allow_nullable", true);
-
-    return settings;
+    settings.set("join_use_nulls", true);
+    settings.set("input_format_orc_allow_missing_columns", true);
+    settings.set("input_format_orc_case_insensitive_column_matching", true);
+    settings.set("input_format_orc_import_nested", true);
+    settings.set("input_format_parquet_allow_missing_columns", true);
+    settings.set("input_format_parquet_case_insensitive_column_matching", true);
+    settings.set("input_format_parquet_import_nested", true);
+    settings.set("output_format_parquet_version", "1.0");
+    settings.set("output_format_parquet_compression_method", "snappy");
+    settings.set("output_format_parquet_string_as_string", true);
+    settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
+    settings.set("function_json_value_return_type_allow_complex", true);
+    settings.set("function_json_value_return_type_allow_nullable", true);
 }
 
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
@@ -610,17 +606,17 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
     }
 }
 
-void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr config, std::unique_ptr<DB::Settings> & settings)
+void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr config, DB::Settings & settings)
 {
     auto & global_context = SerializedPlanParser::global_context;
     global_context->setConfig(config);
-    global_context->setSettings(*settings);
+    global_context->setSettings(settings);
 }
 
 void BackendInitializerUtil::updateNewSettings(
-    DB::ContextMutablePtr context, std::unique_ptr<DB::Settings> & settings)
+    DB::ContextMutablePtr context, DB::Settings & settings)
 {
-    context->setSettings(*settings);
+    context->setSettings(settings);
 }
 
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
@@ -677,7 +673,8 @@ void BackendInitializerUtil::init(std::string * plan)
     initEnvs(config);
     LOG_INFO(logger, "Init environment variables.");
 
-    std::unique_ptr<DB::Settings> settings = initSettings(backend_conf_map);
+    DB::Settings settings;
+    initSettings(backend_conf_map, settings);
     LOG_INFO(logger, "Init settings.");
 
     initContexts(config);
@@ -715,8 +712,9 @@ void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::st
     // configs cannot be updated per query
     // settings can be updated per query
 
-    std::unique_ptr<DB::Settings> settings = initSettings(backend_conf_map);
-    updateNewSettings(context, settings);
+    auto ctx = context->getSettings(); // make a copy
+    initSettings(backend_conf_map, ctx);
+    updateNewSettings(context, ctx);
 }
 
 void BackendFinalizerUtil::finalizeGlobally()

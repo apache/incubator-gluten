@@ -136,12 +136,14 @@ private:
     static DB::Context::ConfigurationPtr initConfig(std::map<std::string, std::string> & backend_conf_map);
     static void initLoggers(DB::Context::ConfigurationPtr config);
     static void initEnvs(DB::Context::ConfigurationPtr config);
-    static std::unique_ptr<DB::Settings> initSettings(std::map<std::string, std::string> & backend_conf_map);
+    static void initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings);
+
     static void initContexts(DB::Context::ConfigurationPtr config);
     static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
     static void registerAllFactories();
-    static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, std::unique_ptr<DB::Settings> &);
-    static void updateNewSettings(DB::ContextMutablePtr, std::unique_ptr<DB::Settings> &);
+    static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
+    static void updateNewSettings(DB::ContextMutablePtr, DB::Settings &);
+
 
     static std::map<std::string, std::string> getBackendConfMap(std::string * plan);
 
