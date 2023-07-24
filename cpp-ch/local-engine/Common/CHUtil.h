@@ -101,6 +101,9 @@ public:
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(std::string * plan);
 
+    static void updateConfig(DB::ContextMutablePtr , std::string *);
+
+
    // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
@@ -112,8 +115,8 @@ public:
     inline static const String CH_RUNTIME_SETTINGS = "runtime_settings";
     inline static const String CH_RUNTIME_SETTINGS_PREFIX = CH_BACKEND_PREFIX + "." + CH_RUNTIME_SETTINGS + ".";
 
+    inline static const String SETTINGS_PATH = "local_engine.settings";
     inline static const String LIBHDFS3_CONF_KEY = "hdfs.libhdfs3_conf";
-    inline static const String SETTINGs_PATH = "local_engine.settings";
     inline static const std::string HADOOP_S3_ACCESS_KEY = "fs.s3a.access.key";
     inline static const std::string HADOOP_S3_SECRET_KEY = "fs.s3a.secret.key";
     inline static const std::string HADOOP_S3_ENDPOINT = "fs.s3a.endpoint";
@@ -130,23 +133,22 @@ private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
 
-    static void initConfig(std::string * plan);
-    static void initConfig();
-    static void initLoggers();
-    static void initEnvs();
-    static void initSettings();
-    static void initContexts();
-    static void registerAllFactories();
-    static void applyConfigAndSettings();
-    static void initCompiledExpressionCache();
+    static DB::Context::ConfigurationPtr initConfig(std::map<std::string, std::string> & backend_conf_map);
+    static void initLoggers(DB::Context::ConfigurationPtr config);
+    static void initEnvs(DB::Context::ConfigurationPtr config);
+    static void initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings);
 
-    static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
+    static void initContexts(DB::Context::ConfigurationPtr config);
+    static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
+    static void registerAllFactories();
+    static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
+    static void updateNewSettings(DB::ContextMutablePtr, DB::Settings &);
+
+
+    static std::map<std::string, std::string> getBackendConfMap(std::string * plan);
 
     inline static std::once_flag init_flag;
-    inline static std::map<std::string, std::string> backend_conf_map;
-    inline static DB::Context::ConfigurationPtr config;
     inline static Poco::Logger * logger;
-    inline static DB::Settings settings;
 };
 
 class BackendFinalizerUtil

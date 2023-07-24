@@ -56,7 +56,7 @@ public:
         Poco::URI file_uri(file_uri_);
         std::unique_ptr<DB::WriteBuffer> write_buffer;
 
-        auto builder = DB::createHDFSBuilder(file_uri_, context->getGlobalContext()->getConfigRef());
+        auto builder = DB::createHDFSBuilder(file_uri_, context->getConfigRef());
         auto fs = DB::createHDFSFS(builder.get());
         auto first = file_uri_.find('/', file_uri_.find("//") + 2);
         auto last = file_uri_.find_last_of('/');
@@ -68,7 +68,7 @@ public:
         }
 
         DB::WriteSettings write_settings;
-        write_buffer = std::make_unique<DB::WriteBufferFromHDFS>(file_uri_, context->getGlobalContext()->getConfigRef(), 0, write_settings);
+        write_buffer = std::make_unique<DB::WriteBufferFromHDFS>(file_uri_, context->getConfigRef(), 0, write_settings);
         return write_buffer;
     }
 };
