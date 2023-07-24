@@ -25,6 +25,15 @@ const ::substrait::Type& VeloxToSubstraitTypeConvertor::toSubstraitType(
     google::protobuf::Arena& arena,
     const velox::TypePtr& type) {
   ::substrait::Type* substraitType = google::protobuf::Arena::CreateMessage<::substrait::Type>(&arena);
+  if (type->isDate()) {
+    auto substraitDate =
+        google::protobuf::Arena::CreateMessage<::substrait::Type_Date>(&arena);
+    substraitDate->set_nullability(
+        ::substrait::Type_Nullability_NULLABILITY_NULLABLE);
+    substraitType->set_allocated_date(substraitDate);
+    return *substraitType;
+  }
+  
   switch (type->kind()) {
     case velox::TypeKind::BOOLEAN: {
       auto substraitBool = google::protobuf::Arena::CreateMessage<::substrait::Type_Boolean>(&arena);
@@ -126,12 +135,6 @@ const ::substrait::Type& VeloxToSubstraitTypeConvertor::toSubstraitType(
       substraitUserDefined->set_type_reference(0);
       substraitUserDefined->set_nullability(::substrait::Type_Nullability_NULLABILITY_NULLABLE);
       substraitType->set_allocated_user_defined(substraitUserDefined);
-      break;
-    }
-    case velox::TypeKind::DATE: {
-      auto substraitDate = google::protobuf::Arena::CreateMessage<::substrait::Type_Date>(&arena);
-      substraitDate->set_nullability(::substrait::Type_Nullability_NULLABILITY_NULLABLE);
-      substraitType->set_allocated_date(substraitDate);
       break;
     }
     case velox::TypeKind::FUNCTION:

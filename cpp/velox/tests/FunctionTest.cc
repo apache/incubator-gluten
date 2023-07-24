@@ -169,9 +169,9 @@ TEST_F(FunctionTest, setVectorFromVariants) {
   ASSERT_EQ("1970-01-01T02:30:20.000000000", resultVec->asFlatVector<Timestamp>()->valueAt(0).toString());
   ASSERT_EQ("1970-01-01T02:27:55.000000000", resultVec->asFlatVector<Timestamp>()->valueAt(1).toString());
 
-  resultVec = setVectorFromVariants(DATE(), {variant(Date(9020)), variant(Date(8875))}, pool_.get());
-  ASSERT_EQ("1994-09-12", resultVec->asFlatVector<Date>()->valueAt(0).toString());
-  ASSERT_EQ("1994-04-20", resultVec->asFlatVector<Date>()->valueAt(1).toString());
+  resultVec = setVectorFromVariants(DATE(), {variant(9020), variant(8875)}, pool_.get());
+  ASSERT_EQ("1994-09-12", DATE()->toString(resultVec->asFlatVector<int32_t>()->valueAt(0)));
+  ASSERT_EQ("1994-04-20", DATE()->toString(resultVec->asFlatVector<int32_t>()->valueAt(1)));
 
   resultVec = setVectorFromVariants(INTERVAL_DAY_TIME(), {variant(9020LL), variant(8875LL)}, pool_.get());
   ASSERT_TRUE(isIntervalDayTimeType(resultVec->type()));

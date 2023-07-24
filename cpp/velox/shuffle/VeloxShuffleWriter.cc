@@ -445,7 +445,7 @@ std::shared_ptr<arrow::Buffer> VeloxShuffleWriter::generateComplexTypeBuffers(ve
       serde_->createSerializer(asRowType(vector->type()), vector->size(), arena.get(), /* serdeOptions */ nullptr);
   const IndexRange allRows{0, vector->size()};
   serializer->append(vector, folly::Range(&allRows, 1));
-  auto serializedSize = serializer->maxSerializedSize();
+  auto serializedSize = serializer->serializedSize();
   auto flushBuffer = complexTypeFlushBuffer_[0];
   if (flushBuffer == nullptr) {
     GLUTEN_ASSIGN_OR_THROW(flushBuffer, arrow::AllocateResizableBuffer(serializedSize, options_.memory_pool.get()));
@@ -1330,7 +1330,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     }
     if (hasComplexType && complexTypeData_[partitionId] != nullptr) {
       auto flushBuffer = complexTypeFlushBuffer_[partitionId];
-      auto serializedSize = complexTypeData_[partitionId]->maxSerializedSize();
+      auto serializedSize = complexTypeData_[partitionId]->serializedSize();
       if (flushBuffer == nullptr) {
         GLUTEN_ASSIGN_OR_THROW(flushBuffer, arrow::AllocateResizableBuffer(serializedSize, options_.memory_pool.get()));
       } else if (serializedSize > flushBuffer->capacity()) {

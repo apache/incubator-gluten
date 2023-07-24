@@ -43,7 +43,8 @@ std::shared_ptr<ResultIterator> getResultIterator(
       "query_benchmark_result_iterator", facebook::velox::memory::MemoryReclaimer::create());
 
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter);
+  std::unordered_map<std::string, std::string> sessionConf = {};
+  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, sessionConf);
   veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.

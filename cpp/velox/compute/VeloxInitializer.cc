@@ -39,13 +39,14 @@
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
 #include "jni/JniFileSystem.h"
+#include "utils/ConfigExtractor.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 
 DECLARE_int32(split_preload_per_driver);
-DECLARE_bool(SkipRowSortInWindowOp);
+// DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 
 using namespace facebook;
@@ -97,7 +98,7 @@ void VeloxInitializer::printConf(const std::unordered_map<std::string, std::stri
 void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& conf) {
   // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
-  FLAGS_SkipRowSortInWindowOp = true;
+  // FLAGS_SkipRowSortInWindowOp = true;
   // Set velox_exception_user_stacktrace_enabled.
   {
     auto got = conf.find(kEnableUserExceptionStacktrace);
@@ -187,9 +188,8 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
 
   registerConnector(hiveConnector);
-  velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
+  velox::parquet::registerParquetReaderFactory();
   velox::dwrf::registerDwrfReaderFactory();
-  velox::dwrf::registerOrcReaderFactory();
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {
@@ -261,16 +261,9 @@ void VeloxInitializer::initCache(const std::unordered_map<std::string, std::stri
 }
 
 void VeloxInitializer::initIOExecutor(const std::unordered_map<std::string, std::string>& conf) {
-  int32_t ioThreads = std::stoi(kVeloxIOThreadsDefault);
-  auto got = conf.find(kVeloxIOThreads);
-  if (got != conf.end()) {
-    ioThreads = std::stoi(got->second);
-  }
-  int32_t splitPreloadPerDriver = std::stoi(kVeloxSplitPreloadPerDriverDefault);
-  got = conf.find(kVeloxSplitPreloadPerDriver);
-  if (got != conf.end()) {
-    splitPreloadPerDriver = std::stoi(got->second);
-  }
+  int32_t ioThreads = std::stoi(getConfigValue(conf, kVeloxIOThreads, kVeloxIOThreadsDefault));
+  int32_t splitPreloadPerDriver =
+      std::stoi(getConfigValue(conf, kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault));
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
     FLAGS_split_preload_per_driver = splitPreloadPerDriver;

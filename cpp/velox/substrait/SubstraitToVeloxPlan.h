@@ -49,10 +49,11 @@ struct SplitInfo {
 /// This class is used to convert the Substrait plan into Velox plan.
 class SubstraitVeloxPlanConverter {
  public:
-  SubstraitVeloxPlanConverter(memory::MemoryPool* pool, bool validationMode = false)
-      : pool_(pool), validationMode_(validationMode) {}
-  /// Used to convert Substrait ExpandRel into Velox PlanNode.
-  core::PlanNodePtr toVeloxPlan(const ::substrait::ExpandRel& expandRel);
+  SubstraitVeloxPlanConverter(
+      memory::MemoryPool* pool,
+      const std::unordered_map<std::string, std::string>& confMap,
+      bool validationMode = false)
+      : pool_(pool), confMap_(confMap), validationMode_(validationMode) {}
 
   /// Used to convert Substrait SortRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::WindowRel& windowRel);
@@ -502,6 +503,9 @@ class SubstraitVeloxPlanConverter {
 
   /// Memory pool.
   memory::MemoryPool* pool_;
+
+  /// A map of custom configs.
+  std::unordered_map<std::string, std::string> confMap_;
 
   /// A flag used to specify validation.
   bool validationMode_ = false;

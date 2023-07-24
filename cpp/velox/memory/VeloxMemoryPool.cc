@@ -56,12 +56,20 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
       velox::memory::MachinePageCount numPages,
       velox::memory::Allocation* collateral,
       velox::memory::ContiguousAllocation& allocation,
-      ReservationCallback reservationCB) override {
-    return veloxAlloc_->allocateContiguous(numPages, collateral, allocation, reservationCB);
+      ReservationCallback reservationCB,
+      velox::memory::MachinePageCount maxPages) override {
+    return veloxAlloc_->allocateContiguous(numPages, collateral, allocation, reservationCB, maxPages);
   }
 
   void freeContiguous(velox::memory::ContiguousAllocation& allocation) override {
     veloxAlloc_->freeContiguous(allocation);
+  }
+
+  bool growContiguous(
+      velox::memory::MachinePageCount increment,
+      velox::memory::ContiguousAllocation& allocation,
+      ReservationCallback reservationCB) override {
+    return veloxAlloc_->growContiguous(increment, allocation, reservationCB);
   }
 
   void* allocateBytes(uint64_t bytes, uint16_t alignment) override {
@@ -76,6 +84,14 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
 
   bool checkConsistency() const override {
     return veloxAlloc_->checkConsistency();
+  }
+
+  size_t totalUsedBytes() const override {
+    return veloxAlloc_->totalUsedBytes();
+  }
+
+  size_t capacity() const override {
+    return veloxAlloc_->capacity();
   }
 
   velox::memory::MachinePageCount numAllocated() const override {
@@ -101,7 +117,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   ListenableArbitrator(const Config& config, AllocationListener* listener)
       : MemoryArbitrator(config), listener_(listener) {}
 
-  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t bytes) override {
+  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
+    uint64_t bytes = initMemoryPoolCapacity_;
     listener_->allocationChanged(bytes);
     pool->grow(bytes);
   }
@@ -157,7 +174,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   gluten::AllocationListener* listener_;
 };
 
-velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
+velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
   return &(facebook::velox::memory::defaultMemoryManager());
 }
 
@@ -200,10 +217,11 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
       128 << 20,
       32 << 20,
       true};
-  velox::memory::IMemoryManager::Options mmOptions{
+  velox::memory::MemoryManagerOptions mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
       true,
+      false,
       wrappedAlloc.get(), // the allocator is tracked by Spark
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener); },
   };
@@ -211,7 +229,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
   bindToTask(mm);
   auto pool = mm->addRootPool(
       "wrapped_root_" + std::to_string(id++),
-      0L, // the 3rd capacity
+      velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
   return pool;
 }

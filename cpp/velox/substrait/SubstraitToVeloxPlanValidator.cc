@@ -220,6 +220,12 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
   // Casting from some types is not supported. See CastExpr::applyCast.
+  if (input->type()->isDate()) {
+    if (toType->kind() == TypeKind::TIMESTAMP) {
+      logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
+      return false;
+    }
+  }
   switch (input->type()->kind()) {
     case TypeKind::ARRAY:
     case TypeKind::MAP:
@@ -227,12 +233,6 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     case TypeKind::VARBINARY:
       logValidateMsg("native validation failed due to: Invalid input type in casting: ARRAY/MAP/ROW/VARBINARY");
       return false;
-    case TypeKind::DATE: {
-      if (toType->kind() == TypeKind::TIMESTAMP) {
-        logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
-        return false;
-      }
-    }
     case TypeKind::TIMESTAMP: {
       logValidateMsg(
           "native validation failed due to: Casting from TIMESTAMP is not supported or has incorrect result.");

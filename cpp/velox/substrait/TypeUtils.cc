@@ -74,10 +74,13 @@ std::pair<int32_t, int32_t> getPrecisionAndScale(const std::string& typeName) {
   return std::make_pair(precision, scale);
 }
 
-TypePtr toVeloxType(const std::string& typeName) {
+TypePtr toVeloxType(const std::string& typeName, bool asLowerCase) {
   VELOX_CHECK(!typeName.empty(), "Cannot convert empty string to Velox type.");
-  auto type = getNameBeforeDelimiter(typeName, "<");
-  auto typeKind = mapNameToTypeKind(std::string(type));
+  auto type = std::string(getNameBeforeDelimiter(typeName, "<"));
+  if (DATE()->toString() == type) {
+    return DATE();
+  }
+  auto typeKind = mapNameToTypeKind(type);
   switch (typeKind) {
     case TypeKind::BOOLEAN:
       return BOOLEAN();
@@ -109,13 +112,13 @@ TypePtr toVeloxType(const std::string& typeName) {
     case TypeKind::ARRAY: {
       auto fieldTypes = getTypesFromCompoundName(typeName);
       VELOX_CHECK_EQ(fieldTypes.size(), 1, "The size of ARRAY type should be only one.");
-      return ARRAY(toVeloxType(std::string(fieldTypes[0])));
+      return ARRAY(toVeloxType(std::string(fieldTypes[0]), asLowerCase));
     }
     case TypeKind::MAP: {
       auto fieldTypes = getTypesFromCompoundName(typeName);
       VELOX_CHECK_EQ(fieldTypes.size(), 2, "The size of MAP type should be two.");
-      auto keyType = toVeloxType(std::string(fieldTypes[0]));
-      auto valueType = toVeloxType(std::string(fieldTypes[1]));
+      auto keyType = toVeloxType(std::string(fieldTypes[0]), asLowerCase);
+      auto valueType = toVeloxType(std::string(fieldTypes[1]), asLowerCase);
       return MAP(keyType, valueType);
     }
     case TypeKind::ROW: {
@@ -129,17 +132,18 @@ TypePtr toVeloxType(const std::string& typeName) {
         size_t pos = fieldTypeAndName.find_last_of(':');
         if (pos == std::string::npos) {
           // Name does not exist.
-          types.emplace_back(toVeloxType(fieldTypeAndName));
+          types.emplace_back(toVeloxType(fieldTypeAndName, asLowerCase));
           names.emplace_back("col_" + std::to_string(idx));
         } else {
-          types.emplace_back(toVeloxType(fieldTypeAndName.substr(0, pos)));
-          names.emplace_back(fieldTypeAndName.substr(pos + 1, fieldTypeAndName.length()));
+          types.emplace_back(toVeloxType(fieldTypeAndName.substr(0, pos), asLowerCase));
+          std::string fieldName = fieldTypeAndName.substr(pos + 1, fieldTypeAndName.length());
+          if (asLowerCase) {
+            folly::toLowerAscii(fieldName);
+          }
+          names.emplace_back(fieldName);
         }
       }
       return ROW(std::move(names), std::move(types));
-    }
-    case TypeKind::DATE: {
-      return DATE();
     }
     case TypeKind::TIMESTAMP: {
       return TIMESTAMP();

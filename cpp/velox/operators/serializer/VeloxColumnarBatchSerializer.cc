@@ -72,7 +72,7 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
 
   std::shared_ptr<arrow::Buffer> valueBuffer;
   GLUTEN_ASSIGN_OR_THROW(
-      valueBuffer, arrow::AllocateResizableBuffer(serializer->maxSerializedSize(), arrowPool_.get()));
+      valueBuffer, arrow::AllocateResizableBuffer(serializer->serializedSize(), arrowPool_.get()));
   auto output = std::make_shared<arrow::io::FixedSizeBufferWriter>(valueBuffer);
   serializer::presto::PrestoOutputStreamListener listener;
   ArrowFixedSizeBufferOutputStream out(output, &listener);

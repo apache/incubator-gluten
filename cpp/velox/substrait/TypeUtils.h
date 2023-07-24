@@ -23,8 +23,13 @@ using namespace facebook::velox;
 
 namespace gluten {
 
+#ifndef TOVELOXTYPE_H
+#define TOVELOXTYPE_H
+
 /// Return the Velox type according to the typename.
-TypePtr toVeloxType(const std::string& typeName);
+TypePtr toVeloxType(const std::string& typeName, bool asLowerCase = false);
+
+#endif /* TOVELOXTYPE_H */
 
 std::string_view getNameBeforeDelimiter(const std::string& compoundName, const std::string& delimiter);
 #ifndef RANGETRAITS_H
@@ -81,13 +86,6 @@ struct RangeTraits<TypeKind::VARCHAR> {
   using RangeType = common::BytesRange;
   using MultiRangeType = common::MultiRange;
   using NativeType = std::string;
-};
-
-template <>
-struct RangeTraits<TypeKind::DATE> {
-  using RangeType = common::BigintRange;
-  using MultiRangeType = common::BigintMultiRange;
-  using NativeType = int32_t;
 };
 
 template <>
