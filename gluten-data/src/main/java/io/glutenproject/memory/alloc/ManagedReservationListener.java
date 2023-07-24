@@ -49,7 +49,9 @@ public class ManagedReservationListener implements ReservationListener {
       reserved += granted;
       metrics.inc(granted);
       if (granted < size) {
-        target.repay(granted);
+        if (granted != 0L) {
+          target.repay(granted);
+        }
         onOom.accept(
             "Not enough spark off-heap execution memory. "
                 + "Acquired: "

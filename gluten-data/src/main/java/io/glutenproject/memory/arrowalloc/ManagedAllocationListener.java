@@ -60,7 +60,9 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
     long granted = target.borrow(toBeAcquired);
     if (granted < toBeAcquired) {
-      target.repay(granted);
+      if (granted != 0L) {
+        target.repay(granted);
+      }
       throw new UnsupportedOperationException(
           "Not enough spark off-heap execution memory. "
               + "Acquired: "
