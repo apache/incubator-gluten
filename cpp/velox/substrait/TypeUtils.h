@@ -102,13 +102,6 @@ struct RangeTraits<TypeKind::VARCHAR> {
 };
 
 template <>
-struct RangeTraits<TypeKind::DATE> {
-  using RangeType = common::BigintRange;
-  using MultiRangeType = common::BigintMultiRange;
-  using NativeType = int32_t;
-};
-
-template <>
 struct RangeTraits<TypeKind::HUGEINT> {
   using NativeType = int128_t;
 };
