@@ -72,7 +72,6 @@
     <junit.version>4.13.1</junit.version>
 
     <substrait.version>0.5.0</substrait.version>
-    <guava.version>32.0.1-jre</guava.version>
     <protobuf.version>3.16.3</protobuf.version>
     <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
     <!--spotless-->
@@ -326,12 +325,6 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-yarn_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
         <scope>provided</scope>
       </dependency>
       <dependency>
