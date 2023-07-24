@@ -33,7 +33,7 @@ public:
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly one arguments", getName());
 
         const auto * array_distinct_node = toFunctionNode(actions_dag, "arrayDistinctSpark", {parsed_args[0]});
-        /// We cann not call convertNodeTypeIfNeeded which will fail when cast Array(Array(xx)) to Array(Nullable(Array(xx)))
+        /// We can not call convertNodeTypeIfNeeded which will fail when cast Array(Array(xx)) to Array(Nullable(Array(xx)))
         return array_distinct_node;
     }
 };

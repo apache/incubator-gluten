@@ -38,7 +38,7 @@ public:
 
         const auto * array_concat_node = toFunctionNode(actions_dag, "arrayConcat", {left_arg, right_arg});
         const auto * result_node = toFunctionNode(actions_dag, "arrayDistinctSpark", {array_concat_node});
-        /// We cann not call convertNodeTypeIfNeeded which will fail when cast Array(Array(xx)) to Array(Nullable(Array(xx)))
+        /// We can not call convertNodeTypeIfNeeded which will fail when cast Array(Array(xx)) to Array(Nullable(Array(xx)))
         return result_node;
     }
 };
