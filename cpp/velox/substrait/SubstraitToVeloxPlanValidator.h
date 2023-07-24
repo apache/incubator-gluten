@@ -18,6 +18,7 @@
 #pragma once
 
 #include "SubstraitToVeloxPlan.h"
+#include "velox/core/QueryCtx.h"
 
 namespace gluten {
 
