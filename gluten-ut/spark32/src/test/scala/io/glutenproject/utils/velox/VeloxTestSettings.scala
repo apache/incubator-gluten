@@ -234,6 +234,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
   enableSuite[GlutenDataFrameFunctionsSuite]
+    // blocked by Velox-5768
+    .exclude("aggregate function - array for primitive type containing null")
+    .exclude("aggregate function - array for non-primitive type")
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
   enableSuite[GlutenDataFrameStatSuite]

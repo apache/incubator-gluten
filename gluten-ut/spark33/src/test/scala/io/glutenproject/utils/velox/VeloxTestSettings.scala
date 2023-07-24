@@ -970,6 +970,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
+    // blocked by Velox-5768
+    .exclude("aggregate function - array for primitive type containing null")
+    .exclude("aggregate function - array for non-primitive type")
   enableSuite[GlutenDataFrameHintSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenDataFrameJoinSuite]
