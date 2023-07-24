@@ -17,9 +17,9 @@
 
 #include <dlfcn.h>
 #include <google/protobuf/arena.h>
-#include <velox/dwio/type/fbhive/HiveTypeParser.h>
 #include <velox/expression/SignatureBinder.h>
 #include <velox/expression/VectorFunction.h>
+#include <velox/type/fbhive/HiveTypeParser.h>
 #include <vector>
 #include "substrait/VeloxToSubstraitType.h"
 
@@ -71,7 +71,7 @@ std::unordered_map<std::string, std::string> gluten::UdfLoader::getUdfMap() {
     auto getUdfEntries = reinterpret_cast<void (*)(UdfEntry*)>(getUdfEntriesSym);
     getUdfEntries(udfEntry);
 
-    facebook::velox::dwio::type::fbhive::HiveTypeParser parser;
+    facebook::velox::type::fbhive::HiveTypeParser parser;
     google::protobuf::Arena arena;
     auto typeConverter = VeloxToSubstraitTypeConvertor();
     for (auto i = 0; i < numUdf; ++i) {
