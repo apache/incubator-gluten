@@ -29,25 +29,35 @@ DB::ActionsDAG::NodeRawConstPtrs CountParser::parseFunctionArguments(
     {
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} requires at least one argument", getName());
     }
-
+    
     const DB::ActionsDAG::Node * last_arg_node = nullptr;
-    for (const auto & arg : func_info.arguments)
+    if (func_info.arguments.size() == 1)
     {
-        auto arg_value = arg.value();
-        const DB::ActionsDAG::Node * current_arg_node = parseExpression(actions_dag, arg_value);
-        if (!last_arg_node)
+        last_arg_node = parseExpression(actions_dag, func_info.arguments[0].value());
+    }
+    else
+    {
+        auto uint8_type = std::make_shared<DB::DataTypeUInt8>();
+        DB::Field null_field;
+        auto nullable_uint8_type = std::make_shared<DB::DataTypeNullable>(uint8_type);
+        auto nullable_uint_col = nullable_uint8_type->createColumn();
+        nullable_uint_col->insertDefault();
+        const auto * const_1_node
+            = &actions_dag->addColumn(DB::ColumnWithTypeAndName(uint8_type->createColumnConst(1, 1), uint8_type, getUniqueName("1")));
+        const auto * null_node
+            = &actions_dag->addColumn(DB::ColumnWithTypeAndName(std::move(nullable_uint_col), nullable_uint8_type, getUniqueName("null")));
+
+        DB::ActionsDAG::NodeRawConstPtrs multi_if_args;
+        for (const auto & arg : func_info.arguments)
         {
-            last_arg_node = current_arg_node;
-            continue;
+            auto arg_value = arg.value();
+            const DB::ActionsDAG::Node * current_arg_node = parseExpression(actions_dag, arg_value);
+            const auto * cond_node = toFunctionNode(actions_dag, "isNull", {current_arg_node});
+            multi_if_args.emplace_back(cond_node);
+            multi_if_args.emplace_back(null_node);
         }
-        else
-        {
-            if (current_arg_node->result_type->isNullable())
-            {
-                const auto * not_null_node = toFunctionNode(actions_dag, "isNotNull", {current_arg_node});
-                last_arg_node = toFunctionNode(actions_dag, "if", {not_null_node, last_arg_node, current_arg_node});     
-            }
-        }
+        multi_if_args.emplace_back(const_1_node);
+        last_arg_node = toFunctionNode(actions_dag, "multiIf", multi_if_args);
     }
     if (func_info.has_filter)
     {

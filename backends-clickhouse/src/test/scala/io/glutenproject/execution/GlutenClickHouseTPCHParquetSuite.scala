@@ -1402,6 +1402,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         | select count(a, b) from values(null,1),(2, 2) as data(a,b)
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+
+    val sql4 =
+      """
+        | select count(n_regionkey, n_name) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
   }
 
   test("GLUTEN-2028: struct as join key") {
