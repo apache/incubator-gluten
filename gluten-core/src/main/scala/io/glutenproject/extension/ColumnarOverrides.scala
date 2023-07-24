@@ -789,7 +789,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         case _: QueryStageExec =>
           return
         case ColumnarToRowExec(p: GlutenPlan) =>
-          logDebug(s"c2r: ${p}")
+          logDebug(s"c2r: $p")
           fallbacks = fallbacks + 1
         // Possible fallback for leaf node.
         case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
@@ -801,7 +801,6 @@ case class ColumnarOverrideRules(session: SparkSession)
     countFallback(plan)
     fallbacks
   }
-
 
   /**
    * Ported from ApplyColumnarRulesAndInsertTransitions of Spark. Inserts an transition to columnar
@@ -842,9 +841,9 @@ case class ColumnarOverrideRules(session: SparkSession)
     isAdaptiveContext = true
   }
 
-  override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
-    maybe(session, plan) {
-      if (fallbackPolicy == "query" && !isAdaptiveContext  && fallbackWholeQuery(plan)) {
+  override def postColumnarTransitions: Rule[SparkPlan] = plan =>
+    PhysicalPlanSelector.maybe(session, plan) {
+      if (fallbackPolicy == "query" && !isAdaptiveContext && fallbackWholeQuery(plan)) {
         logWarning("Fall back to run the query due to unsupported operator!")
         insertTransitions(originalPlan, false)
       } else if (fallbackPolicy == "stage" && isAdaptiveContext && fallbackWholeStage(plan)) {
