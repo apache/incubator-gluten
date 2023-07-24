@@ -16,22 +16,18 @@
  */
 package io.glutenproject.execution
 
+import com.google.protobuf.Any
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
-import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
+import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.types.DataType
 
-import com.google.protobuf.Any
-import io.substrait.proto.JoinRel
-
 import java.util
-
 import scala.collection.JavaConverters._
 
 object JoinUtils {

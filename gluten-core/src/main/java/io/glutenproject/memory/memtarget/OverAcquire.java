@@ -63,7 +63,8 @@ public class OverAcquire implements MemoryTarget {
     long majorSize = target.bytes();
     long expectedOverAcquired = (long) (ratio * majorSize);
     long overAcquired = overTarget.bytes();
-    Preconditions.checkArgument(expectedOverAcquired >= overAcquired,
+    Preconditions.checkArgument(
+        expectedOverAcquired >= overAcquired,
         "Expected over acquired size larger than its old value");
     long diff = expectedOverAcquired - overAcquired;
     overTarget.borrow(diff); // we don't have to check the returned value
@@ -78,7 +79,8 @@ public class OverAcquire implements MemoryTarget {
     // clean up the over-acquired target
     long overAcquired = overTarget.bytes();
     long freedOverAcquired = overTarget.repay(overAcquired);
-    Preconditions.checkArgument(freedOverAcquired == overAcquired,
+    Preconditions.checkArgument(
+        freedOverAcquired == overAcquired,
         "Freed over-acquired size is not equal to requested size");
     Preconditions.checkArgument(overTarget.bytes() == 0, "Over-acquired target was not cleaned up");
     return size;

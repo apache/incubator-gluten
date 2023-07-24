@@ -61,6 +61,10 @@
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
+          <configuration>
+            <scala>
+            </scala>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>

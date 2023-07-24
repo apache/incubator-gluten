@@ -17,8 +17,9 @@
 
 package io.glutenproject.memory.memtarget.spark;
 
-import com.google.common.base.Preconditions;
 import io.glutenproject.memory.memtarget.MemoryTarget;
+
+import com.google.common.base.Preconditions;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;

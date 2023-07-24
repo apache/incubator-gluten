@@ -14,26 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.util
+
+import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.internal.SQLConf
 
 import _root_.io.glutenproject.backendsapi.BackendsApiManager
 import _root_.io.glutenproject.memory.TaskMemoryMetrics
 import _root_.io.glutenproject.utils.TaskListener
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 
 import java.util
-import java.util.concurrent.atomic.AtomicLong
 import java.util.{Collections, UUID}
+import java.util.concurrent.atomic.AtomicLong
+
 import scala.collection.JavaConverters._
 
 object TaskResources extends TaskListener with Logging {
   // And open java assert mode to get memory stack
   val DEBUG: Boolean = {
     SQLConf.get
-      .getConfString("spark.gluten.sql.memory.debug", "true").toBoolean
+      .getConfString("spark.gluten.sql.memory.debug", "true")
+      .toBoolean
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
@@ -43,9 +45,10 @@ object TaskResources extends TaskListener with Logging {
   // The fallback registry handles the case that the caller is not in a Spark task.
   private val FALLBACK_REGISTRY = new TaskResourceRegistry()
 
-  GlutenShutdownManager.addHook(() => {
-    FALLBACK_REGISTRY.releaseAll()
-  })
+  GlutenShutdownManager.addHook(
+    () => {
+      FALLBACK_REGISTRY.releaseAll()
+    })
 
   def getLocalTaskContext(): TaskContext = {
     TaskContext.get()
@@ -65,9 +68,10 @@ object TaskResources extends TaskListener with Logging {
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
       if (!RESOURCE_REGISTRIES.containsKey(tc)) {
-        throw new IllegalStateException("" +
-          "TaskMemoryResourceRegistry is not initialized, please ensure TaskResources " +
-          "is added to GlutenExecutorPlugin's task listener list")
+        throw new IllegalStateException(
+          "" +
+            "TaskMemoryResourceRegistry is not initialized, please ensure TaskResources " +
+            "is added to GlutenExecutorPlugin's task listener list")
       }
       return RESOURCE_REGISTRIES.get(tc)
     }
@@ -84,8 +88,7 @@ object TaskResources extends TaskListener with Logging {
     getTaskResourceRegistry().addResource(id, resource)
   }
 
-  def addResourceIfNotRegistered[T <: TaskResource](id: String,
-                                                    factory: () => T): T = {
+  def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T = {
     getTaskResourceRegistry().addResourceIfNotRegistered(id, factory)
   }
 
@@ -112,8 +115,9 @@ object TaskResources extends TaskListener with Logging {
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
       if (RESOURCE_REGISTRIES.containsKey(tc)) {
-        throw new IllegalStateException("" +
-          "TaskMemoryResourceRegistry is already initialized, this should not happen")
+        throw new IllegalStateException(
+          "" +
+            "TaskMemoryResourceRegistry is already initialized, this should not happen")
       }
       val registry = new TaskResourceRegistry
       RESOURCE_REGISTRIES.put(tc, registry)
@@ -129,20 +133,20 @@ object TaskResources extends TaskListener with Logging {
             }
           }
         })
-      tc.addTaskCompletionListener(
-        new TaskCompletionListener {
-          override def onTaskCompletion(context: TaskContext): Unit = {
-            RESOURCE_REGISTRIES.synchronized {
-              if (!RESOURCE_REGISTRIES.containsKey(tc)) {
-                throw new IllegalStateException("" +
+      tc.addTaskCompletionListener(new TaskCompletionListener {
+        override def onTaskCompletion(context: TaskContext): Unit = {
+          RESOURCE_REGISTRIES.synchronized {
+            if (!RESOURCE_REGISTRIES.containsKey(tc)) {
+              throw new IllegalStateException(
+                "" +
                   "TaskMemoryResourceRegistry is not initialized, this should not happen")
-              }
-              val registry = RESOURCE_REGISTRIES.remove(context)
-              registry.releaseAll()
-              context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
             }
+            val registry = RESOURCE_REGISTRIES.remove(context)
+            registry.releaseAll()
+            context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
           }
-        })
+        }
+      })
     }
     // Register resources from context API
     val resourceFactories = BackendsApiManager.getContextApiInstance.taskResourceFactories()
@@ -181,34 +185,39 @@ class TaskResourceRegistry extends Logging {
   }
 
   private[util] def releaseAll(): Unit = synchronized {
-    val resourceTable: java.util.List[
-      java.util.Map.Entry[Long, java.util.List[TaskResource]]] =
+    val resourceTable: java.util.List[java.util.Map.Entry[Long, java.util.List[TaskResource]]] =
       new java.util.ArrayList(resourcesPriorityMapping.entrySet())
-    Collections.sort(resourceTable,
-      (o1: java.util.Map.Entry[Long, java.util.List[TaskResource]],
-       o2: java.util.Map.Entry[Long, java.util.List[TaskResource]]) => {
+    Collections.sort(
+      resourceTable,
+      (
+          o1: java.util.Map.Entry[Long, java.util.List[TaskResource]],
+          o2: java.util.Map.Entry[Long, java.util.List[TaskResource]]) => {
         val diff = o2.getKey - o1.getKey // descending by priority
         if (diff > 0) 1 else if (diff < 0) -1 else 0
-      })
-    resourceTable.forEach { e =>
-      e.getValue.asScala.reverse.foreach(m => try { // LIFO
-        m.release()
-      } catch {
-        case e: Throwable =>
-          logWarning("Failed to call release() on resource instance", e)
-      })
+      }
+    )
+    resourceTable.forEach {
+      e =>
+        e.getValue.asScala.reverse.foreach(
+          m =>
+            try { // LIFO
+              m.release()
+            } catch {
+              case e: Throwable =>
+                logWarning("Failed to call release() on resource instance", e)
+            })
     }
   }
 
-  private[util] def addResourceIfNotRegistered[T <: TaskResource](
-      id: String, factory: () => T): T = synchronized {
-    if (resources.containsKey(id)) {
-      return resources.get(id).asInstanceOf[T]
+  private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
+    synchronized {
+      if (resources.containsKey(id)) {
+        return resources.get(id).asInstanceOf[T]
+      }
+      val resource = factory.apply()
+      addResource0(id, resource)
+      resource
     }
-    val resource = factory.apply()
-    addResource0(id, resource)
-    resource
-  }
 
   private[util] def addResource[T <: TaskResource](id: String, resource: T): T = synchronized {
     if (resources.containsKey(id)) {

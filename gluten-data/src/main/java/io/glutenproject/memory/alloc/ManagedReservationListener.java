@@ -19,18 +19,16 @@ package io.glutenproject.memory.alloc;
 
 import io.glutenproject.memory.TaskMemoryMetrics;
 import io.glutenproject.memory.memtarget.MemoryTarget;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.function.Consumer;
 
-/**
- * Reserve Spark managed memory.
- */
+/** Reserve Spark managed memory. */
 public class ManagedReservationListener implements ReservationListener {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ManagedReservationListener.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
 
   private MemoryTarget target;
   private final TaskMemoryMetrics metrics;
@@ -52,10 +50,15 @@ public class ManagedReservationListener implements ReservationListener {
       metrics.inc(granted);
       if (granted < size) {
         target.repay(granted);
-        onOom.accept("Not enough spark off-heap execution memory. " +
-            "Acquired: " + size + ", granted: " + granted + ". " +
-            "Try tweaking config option spark.memory.offHeap.size to " +
-            "get larger space to run this application. ");
+        onOom.accept(
+            "Not enough spark off-heap execution memory. "
+                + "Acquired: "
+                + size
+                + ", granted: "
+                + granted
+                + ". "
+                + "Try tweaking config option spark.memory.offHeap.size to "
+                + "get larger space to run this application. ");
       }
       return granted;
     }
@@ -63,14 +66,16 @@ public class ManagedReservationListener implements ReservationListener {
 
   @Override
   public void reserveOrThrow(long size) {
-    reserve0(size, s -> {
-      throw new UnsupportedOperationException(s);
-    });
+    reserve0(
+        size,
+        s -> {
+          throw new UnsupportedOperationException(s);
+        });
   }
 
   @Override
   public long reserve(long size) {
-   return reserve0(size, LOG::warn);
+    return reserve0(size, LOG::warn);
   }
 
   @Override

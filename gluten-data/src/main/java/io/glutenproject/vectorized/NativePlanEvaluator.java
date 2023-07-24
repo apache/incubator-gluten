@@ -17,10 +17,8 @@
 
 package io.glutenproject.vectorized;
 
-import com.google.protobuf.Any;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.validate.NativePlanValidationInfo;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
@@ -29,6 +27,9 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder;
 import io.glutenproject.substrait.plan.PlanBuilder;
 import io.glutenproject.substrait.plan.PlanNode;
 import io.glutenproject.utils.DebugUtil;
+import io.glutenproject.validate.NativePlanValidationInfo;
+
+import com.google.protobuf.Any;
 import io.substrait.proto.Plan;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
@@ -56,8 +57,8 @@ public class NativePlanEvaluator {
 
   private PlanNode buildNativeConfNode(Map<String, String> confs) {
     StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
-    AdvancedExtensionNode extensionNode = ExtensionBuilder
-        .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
+    AdvancedExtensionNode extensionNode =
+        ExtensionBuilder.makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
     return PlanBuilder.makePlan(extensionNode);
   }
 
@@ -67,29 +68,40 @@ public class NativePlanEvaluator {
       Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
       throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
-    final long allocId = NativeMemoryAllocators.getDefault().create(
-        GlutenConfig.getConf().veloxOverAcquiredMemoryRatio(),
-        (size, trigger) -> {
-          ColumnarBatchOutIterator instance = Optional.of(outIterator.get()).orElseThrow(
-              () -> new IllegalStateException(
-                  "Fatal: spill() called before a output iterator " +
-                      "is created. This behavior should be optimized by moving memory " +
-                      "allocations from create() to hasNext()/next()"));
-          return instance.spill(size);
-        }).getNativeInstanceId();
-    long handle = jniWrapper.nativeCreateKernelWithIterator(allocId, getPlanBytesBuf(wsPlan),
-        iterList.toArray(new GeneralInIterator[0]), TaskContext.get().stageId(),
-        TaskContext.getPartitionId(), TaskContext.get().taskAttemptId(),
-        DebugUtil.saveInputToFile(),
-        SparkDirectoryUtil
-            .namespace("gluten-spill")
-            .mkChildDirRoundRobin(UUID.randomUUID().toString())
-            .getAbsolutePath(),
-        buildNativeConfNode(
-            GlutenConfig.getNativeSessionConf(
-                BackendsApiManager.getSettings().getBackendConfigPrefix(),
-                SQLConf.get().getAllConfs()
-            )).toProtobuf().toByteArray());
+    final long allocId =
+        NativeMemoryAllocators.getDefault()
+            .create(
+                GlutenConfig.getConf().veloxOverAcquiredMemoryRatio(),
+                (size, trigger) -> {
+                  ColumnarBatchOutIterator instance =
+                      Optional.of(outIterator.get())
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Fatal: spill() called before a output iterator "
+                                          + "is created. This behavior should be optimized by moving memory "
+                                          + "allocations from create() to hasNext()/next()"));
+                  return instance.spill(size);
+                })
+            .getNativeInstanceId();
+    long handle =
+        jniWrapper.nativeCreateKernelWithIterator(
+            allocId,
+            getPlanBytesBuf(wsPlan),
+            iterList.toArray(new GeneralInIterator[0]),
+            TaskContext.get().stageId(),
+            TaskContext.getPartitionId(),
+            TaskContext.get().taskAttemptId(),
+            DebugUtil.saveInputToFile(),
+            SparkDirectoryUtil.namespace("gluten-spill")
+                .mkChildDirRoundRobin(UUID.randomUUID().toString())
+                .getAbsolutePath(),
+            buildNativeConfNode(
+                    GlutenConfig.getNativeSessionConf(
+                        BackendsApiManager.getSettings().getBackendConfigPrefix(),
+                        SQLConf.get().getAllConfs()))
+                .toProtobuf()
+                .toByteArray());
     outIterator.set(createOutIterator(handle, outAttrs));
     return outIterator.get();
   }

@@ -23,6 +23,8 @@ package io.glutenproject.memory.memtarget;
 // Implementations are not necessary to be thread-safe
 public interface MemoryTarget {
   long borrow(long size);
+
   long repay(long size);
+
   long bytes();
 }
