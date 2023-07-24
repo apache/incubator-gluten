@@ -51,7 +51,7 @@ class SubstraitVeloxPlanConverter {
  public:
   SubstraitVeloxPlanConverter(
       memory::MemoryPool* pool,
-      const std::unordered_map<std::string, std::string>& confMap,
+      const std::unordered_map<std::string, std::string>& confMap = {},
       bool validationMode = false)
       : pool_(pool), confMap_(confMap), validationMode_(validationMode) {}
   /// Used to convert Substrait ExpandRel into Velox PlanNode.

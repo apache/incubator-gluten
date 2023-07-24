@@ -33,9 +33,6 @@ using namespace facebook::velox::exec::test;
 
 namespace gluten {
 class Substrait2VeloxValuesNodeConversionTest : public OperatorTestBase {
- protected:
-  std::shared_ptr<SubstraitVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(pool_.get(), true);
 };
 
 // SELECT * FROM tmp
@@ -44,7 +41,9 @@ TEST_F(Substrait2VeloxValuesNodeConversionTest, valuesNode) {
 
   ::substrait::Plan substraitPlan;
   JsonToProtoConverter::readFromFile(planPath, substraitPlan);
-
+  std::unordered_map<std::string, std::string> sessionConf = {};
+  std::shared_ptr<SubstraitVeloxPlanConverter> planConverter_ =
+      std::make_shared<SubstraitVeloxPlanConverter>(pool_.get(), sessionConf, true);
   auto veloxPlan = planConverter_->toVeloxPlan(substraitPlan);
 
   RowVectorPtr expectedData = makeRowVector(
