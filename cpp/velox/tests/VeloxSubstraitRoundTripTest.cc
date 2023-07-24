@@ -67,7 +67,7 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
     auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
     std::unordered_map<std::string, std::string> sessionConf = {};
     std::shared_ptr<SubstraitVeloxPlanConverter> substraitConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(pool_.get(), sessionConf, true);
+        std::make_shared<SubstraitVeloxPlanConverter>(pool_.get(), sessionConf, true);
 
     // Convert Substrait Plan to the same Velox Plan.
     auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
@@ -88,7 +88,7 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
     auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
     std::unordered_map<std::string, std::string> sessionConf = {};
     std::shared_ptr<SubstraitVeloxPlanConverter> substraitConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(pool_.get(), sessionConf, true);
+        std::make_shared<SubstraitVeloxPlanConverter>(pool_.get(), sessionConf, true);
     // Convert Substrait Plan to the same Velox Plan.
     auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
 
