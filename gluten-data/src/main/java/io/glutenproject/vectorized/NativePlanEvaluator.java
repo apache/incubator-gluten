@@ -79,8 +79,9 @@ public class NativePlanEvaluator {
                               () ->
                                   new IllegalStateException(
                                       "Fatal: spill() called before a output iterator "
-                                          + "is created. This behavior should be optimized by moving memory "
-                                          + "allocations from create() to hasNext()/next()"));
+                                          + "is created. This behavior should be optimized "
+                                          + "by moving memory allocations from create() to "
+                                          + "hasNext()/next()"));
                   return instance.spill(size);
                 })
             .getNativeInstanceId();
