@@ -20,7 +20,9 @@
 #include "SubstraitToVeloxExpr.h"
 #include "TypeUtils.h"
 #include "velox/connectors/hive/HiveConnector.h"
+#include "velox/connectors/hive/TableHandle.h"
 #include "velox/core/PlanNode.h"
+#include "velox/dwio/common/Options.h"
 
 namespace gluten {
 

@@ -311,7 +311,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     // To align with Spark's behavior, set casting to int to be truncating.
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
-    configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
+    // configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
     auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, "");
     configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
@@ -356,7 +356,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         getConfigValue(confMap_, kMinSpillRunSize, std::to_string(256 << 20));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
         getConfigValue(confMap_, kSpillStartPartitionBit, "29");
-    configs[velox::core::QueryConfig::kSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
+    configs[velox::core::QueryConfig::kAggregationSpillPartitionBits] =
+        getConfigValue(confMap_, kSpillPartitionBits, "2");
+    configs[velox::core::QueryConfig::kJoinSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         getConfigValue(confMap_, kSpillableReservationGrowthPct, "25");
   } catch (const std::invalid_argument& err) {
@@ -478,7 +480,7 @@ void WholeStageResultIteratorFirstStage::constructPartitionColumns(
   for (const auto& partitionColumn : map) {
     auto key = partitionColumn.first;
     const auto value = partitionColumn.second;
-    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "true"))) {
+    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "false"))) {
       folly::toLowerAscii(key);
     }
     if (value == kHiveDefaultPartition) {

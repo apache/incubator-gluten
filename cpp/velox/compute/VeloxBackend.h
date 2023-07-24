@@ -48,7 +48,7 @@ class VeloxBackend {
 
   static VeloxBackend* get();
 
-  facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
+  facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
 
  private:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
@@ -71,8 +71,7 @@ class VeloxBackend {
   static std::unique_ptr<VeloxBackend> instance_;
 
   // Instance of AsyncDataCache used for all large allocations.
-  std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =
-      facebook::velox::memory::MemoryAllocator::createDefaultInstance();
+  std::shared_ptr<facebook::velox::cache::AsyncDataCache> asyncDataCache_;
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
