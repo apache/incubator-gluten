@@ -14,37 +14,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.DataType
 
 import scala.collection.JavaConverters._
 
-class InTransformer(value: ExpressionTransformer,
-                    list: Seq[Expression],
-                    valueType: DataType,
-                    original: Expression)
-  extends ExpressionTransformer with Logging {
+class InTransformer(
+    value: ExpressionTransformer,
+    list: Seq[Expression],
+    valueType: DataType,
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // Stores the values in a List Literal.
-    val values: Set[Any] = list.map(v => {
-      v.asInstanceOf[Literal].value
-    }).toSet
+    val values: Set[Any] = list
+      .map(
+        v => {
+          v.asInstanceOf[Literal].value
+        })
+      .toSet
 
     InExpressionTransformer.toTransformer(value, value.doTransform(args), values, valueType)
   }
 }
 
-class InSetTransformer(value: ExpressionTransformer,
-                       hset: Set[Any],
-                       valueType: DataType,
-                       original: Expression)
-  extends ExpressionTransformer with Logging {
+class InSetTransformer(
+    value: ExpressionTransformer,
+    hset: Set[Any],
+    valueType: DataType,
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     InExpressionTransformer.toTransformer(value, value.doTransform(args), hset, valueType)
@@ -53,14 +60,15 @@ class InSetTransformer(value: ExpressionTransformer,
 
 object InExpressionTransformer {
 
-  def toTransformer(value: ExpressionTransformer,
-                    leftNode: ExpressionNode,
-                    values: Set[Any],
-                    valueType: DataType): ExpressionNode = {
-    val expressionNodes = new java.util.ArrayList[ExpressionNode](values.map({
-      value =>
-        ExpressionBuilder.makeLiteral(value, valueType, value == null)
-    }).asJava)
+  def toTransformer(
+      value: ExpressionTransformer,
+      leftNode: ExpressionNode,
+      values: Set[Any],
+      valueType: DataType): ExpressionNode = {
+    val expressionNodes = new java.util.ArrayList[ExpressionNode](
+      values
+        .map({ value => ExpressionBuilder.makeLiteral(value, valueType, value == null) })
+        .asJava)
 
     ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
   }

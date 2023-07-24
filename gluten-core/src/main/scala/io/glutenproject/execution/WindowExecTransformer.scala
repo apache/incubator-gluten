@@ -14,21 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import com.google.protobuf.Any
-
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.substrait.proto.SortField
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -38,13 +34,18 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.Any
+import io.substrait.proto.SortField
+
 import java.util
 
-case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
-                                 partitionSpec: Seq[Expression],
-                                 orderSpec: Seq[SortOrder],
-                                 child: SparkPlan)
-    extends WindowExecBase with TransformSupport {
+case class WindowExecTransformer(
+    windowExpression: Seq[NamedExpression],
+    partitionSpec: Seq[Expression],
+    orderSpec: Seq[SortOrder],
+    child: SparkPlan)
+  extends WindowExecBase
+  with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -60,8 +61,9 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
   override def requiredChildDistribution: Seq[Distribution] = {
     if (partitionSpec.isEmpty) {
       // Only show warning when the number of bytes is larger than 100 MiB?
-      logWarning("No Partition Defined for Window operation! Moving all data to a single "
-        + "partition, this can cause serious performance degradation.")
+      logWarning(
+        "No Partition Defined for Window operation! Moving all data to a single "
+          + "partition, this can cause serious performance degradation.")
       AllTuples :: Nil
     } else ClusteredDistribution(partitionSpec) :: Nil
   }
@@ -91,14 +93,15 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
       this
   }
 
-  def getRelNode(context: SubstraitContext,
-                 windowExpression: Seq[NamedExpression],
-                 partitionSpec: Seq[Expression],
-                 sortOrder: Seq[SortOrder],
-                 originalInputAttributes: Seq[Attribute],
-                 operatorId: Long,
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      windowExpression: Seq[NamedExpression],
+      partitionSpec: Seq[Expression],
+      sortOrder: Seq[SortOrder],
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // WindowFunction Expressions
     val windowExpressions = new util.ArrayList[WindowFunctionNode]()
@@ -111,36 +114,38 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
     // Partition By Expressions
     val partitionsExpressions = new util.ArrayList[ExpressionNode]()
-    partitionSpec.map { partitionExpr =>
-      val exprNode = ExpressionConverter
-        .replaceWithExpressionTransformer(partitionExpr, attributeSeq = child.output)
-        .doTransform(args)
-      partitionsExpressions.add(exprNode)
+    partitionSpec.map {
+      partitionExpr =>
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(partitionExpr, attributeSeq = child.output)
+          .doTransform(args)
+        partitionsExpressions.add(exprNode)
     }
 
     // Sort By Expressions
     val sortFieldList = new util.ArrayList[SortField]()
-    sortOrder.map(order => {
-      val builder = SortField.newBuilder()
-      val exprNode = ExpressionConverter
-        .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-        .doTransform(args)
-      builder.setExpr(exprNode.toProtobuf)
+    sortOrder.map(
+      order => {
+        val builder = SortField.newBuilder()
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
+          .doTransform(args)
+        builder.setExpr(exprNode.toProtobuf)
 
-      (order.direction.sql, order.nullOrdering.sql) match {
-        case ("ASC", "NULLS FIRST") =>
-          builder.setDirectionValue(1);
-        case ("ASC", "NULLS LAST") =>
-          builder.setDirectionValue(2);
-        case ("DESC", "NULLS FIRST") =>
-          builder.setDirectionValue(3);
-        case ("DESC", "NULLS LAST") =>
-          builder.setDirectionValue(4);
-        case _ =>
-          builder.setDirectionValue(0);
-      }
-      sortFieldList.add(builder.build())
-    })
+        (order.direction.sql, order.nullOrdering.sql) match {
+          case ("ASC", "NULLS FIRST") =>
+            builder.setDirectionValue(1);
+          case ("ASC", "NULLS LAST") =>
+            builder.setDirectionValue(2);
+          case ("DESC", "NULLS FIRST") =>
+            builder.setDirectionValue(3);
+          case ("DESC", "NULLS LAST") =>
+            builder.setDirectionValue(4);
+          case _ =>
+            builder.setDirectionValue(0);
+        }
+        sortFieldList.add(builder.build())
+      })
     if (!validation) {
       RelBuilder.makeWindowRel(
         input,
@@ -179,8 +184,13 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
     val relNode = getRelNode(
       substraitContext,
-      windowExpression, partitionSpec,
-      orderSpec, child.output, operatorId, null, validation = true)
+      windowExpression,
+      partitionSpec,
+      orderSpec,
+      child.output,
+      operatorId,
+      null,
+      validation = true)
 
     doNativeValidation(substraitContext, relNode)
   }
@@ -201,10 +211,16 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     }
 
     val (currRel, inputAttributes) = if (childCtx != null) {
-      (getRelNode(
-        context, windowExpression,
-        partitionSpec, orderSpec, child.output,
-        operatorId, childCtx.root, validation = false),
+      (
+        getRelNode(
+          context,
+          windowExpression,
+          partitionSpec,
+          orderSpec,
+          child.output,
+          operatorId,
+          childCtx.root,
+          validation = false),
         childCtx.outputAttributes)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
@@ -214,10 +230,16 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      (getRelNode(
-        context, windowExpression,
-        partitionSpec, orderSpec,
-        child.output, operatorId, readRel, validation = false),
+      (
+        getRelNode(
+          context,
+          windowExpression,
+          partitionSpec,
+          orderSpec,
+          child.output,
+          operatorId,
+          readRel,
+          validation = false),
         child.output)
     }
     assert(currRel != null, "Window Rel should be valid")
@@ -237,9 +259,8 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 }
 
 object WindowExecTransformer {
-  /**
-   * Gets lower/upper bound represented in string.
-   */
+
+  /** Gets lower/upper bound represented in string. */
   def getFrameBound(bound: Expression): String = {
     // The lower/upper can be either a foldable Expression or a SpecialFrameBoundary.
     if (bound.foldable) {

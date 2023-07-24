@@ -14,20 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.rpc
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import org.apache.spark.internal.{Logging, config}
+
+import org.apache.spark.{SparkConf, SparkEnv}
+import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.rpc.GlutenRpcMessages._
 import org.apache.spark.util.ThreadUtils
-import org.apache.spark.{SparkConf, SparkEnv}
 
 import scala.util.{Failure, Success}
 
-/**
- * Gluten executor endpoint.
- */
+/** Gluten executor endpoint. */
 class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
   extends IsolatedRpcEndpoint
   with Logging {

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.events
 
 import org.apache.spark.scheduler.SparkListenerEvent
@@ -25,21 +24,26 @@ case class GlutenBuildInfoEvent(info: Map[String, String]) extends GlutenEvent {
 
 /**
  * In AQE this event holds the fragment plan fallback reason, the behavior is similar with
- * `SparkListenerSQLAdaptiveExecutionUpdate`.
- * In non-AQE this event holds the whole plan fallback reason.
+ * `SparkListenerSQLAdaptiveExecutionUpdate`. In non-AQE this event holds the whole plan fallback
+ * reason.
  *
  * Note that, some nodes may have no both `numFallbackNodes` and `numGlutenNodes`, e.g., `set a=b`
  *
- * @param executionId The query execution id.
- * @param numGlutenNodes The number of Gluten plan nodes.
- * @param numFallbackNodes The number of fallback vanilla Spark plan nodes.
- * @param physicalPlanDescription The style is similar with `explain formatted`
- * @param fallbackNodeToReason The fallback reason for each plan node, e.g.,
- *                             001 File Scan -> columnar FileScan is not enabled
+ * @param executionId
+ *   The query execution id.
+ * @param numGlutenNodes
+ *   The number of Gluten plan nodes.
+ * @param numFallbackNodes
+ *   The number of fallback vanilla Spark plan nodes.
+ * @param physicalPlanDescription
+ *   The style is similar with `explain formatted`
+ * @param fallbackNodeToReason
+ *   The fallback reason for each plan node, e.g., 001 File Scan -> columnar FileScan is not enabled
  */
 case class GlutenPlanFallbackEvent(
     executionId: Long,
     numGlutenNodes: Int,
     numFallbackNodes: Int,
     physicalPlanDescription: String,
-    fallbackNodeToReason: Map[String, String]) extends GlutenEvent {}
+    fallbackNodeToReason: Map[String, String])
+  extends GlutenEvent {}

@@ -25,6 +25,4 @@ public abstract class GeneralInIteratorV2 extends GeneralInIterator {
   public GeneralInIteratorV2(Iterator<ColumnarBatch> delegated) {
     super(delegated);
   }
-
-
 }

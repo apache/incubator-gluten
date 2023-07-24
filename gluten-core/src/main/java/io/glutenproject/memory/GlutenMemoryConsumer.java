@@ -26,8 +26,7 @@ import org.slf4j.LoggerFactory;
 
 public class GlutenMemoryConsumer extends MemoryConsumer {
 
-  private static final Logger LOG =
-          LoggerFactory.getLogger(GlutenMemoryConsumer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GlutenMemoryConsumer.class);
   protected final Spiller spiller;
 
   public GlutenMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {

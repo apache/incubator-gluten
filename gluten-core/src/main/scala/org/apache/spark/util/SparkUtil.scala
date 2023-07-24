@@ -17,36 +17,40 @@
 package org.apache.spark.util
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
 object SparkUtil extends Logging {
 
-  /**
-   * Add the extended pre/post column rules
-   */
+  /** Add the extended pre/post column rules */
   def extendedColumnarRules(
-    session: SparkSession,
-    conf: String
-    ): List[SparkSession => Rule[SparkPlan]] = {
+      session: SparkSession,
+      conf: String
+  ): List[SparkSession => Rule[SparkPlan]] = {
     val extendedRules = conf.split(",").filter(!_.isEmpty)
-    extendedRules.map { ruleStr =>
-      try {
-        val extensionConfClass = Utils.classForName(ruleStr)
-        val extensionConf =
-          extensionConfClass.getConstructor(classOf[SparkSession]).newInstance(session)
-            .asInstanceOf[Rule[SparkPlan]]
+    extendedRules
+      .map {
+        ruleStr =>
+          try {
+            val extensionConfClass = Utils.classForName(ruleStr)
+            val extensionConf =
+              extensionConfClass
+                .getConstructor(classOf[SparkSession])
+                .newInstance(session)
+                .asInstanceOf[Rule[SparkPlan]]
 
-        Some((sparkSession: SparkSession) => extensionConf)
-      } catch {
-        // Ignore the error if we cannot find the class or when the class has the wrong type.
-        case e@(_: ClassCastException |
-                _: ClassNotFoundException |
+            Some((sparkSession: SparkSession) => extensionConf)
+          } catch {
+            // Ignore the error if we cannot find the class or when the class has the wrong type.
+            case e @ (_: ClassCastException | _: ClassNotFoundException |
                 _: NoClassDefFoundError) =>
-          logWarning(s"Cannot create extended rule $ruleStr", e)
-        None
+              logWarning(s"Cannot create extended rule $ruleStr", e)
+              None
+          }
       }
-    }.filter(!_.isEmpty).map(_.get).toList
+      .filter(!_.isEmpty)
+      .map(_.get)
+      .toList
   }
 }

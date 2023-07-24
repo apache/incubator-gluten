@@ -14,32 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import com.google.common.collect.Lists
-import com.google.protobuf.{Any, StringValue}
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.{SQLExecution, SparkPlan}
+import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import com.google.common.collect.Lists
+import com.google.protobuf.{Any, StringValue}
+import io.substrait.proto.JoinRel
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
@@ -72,8 +72,7 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
     case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
     case LeftExistence(_) => left.outputPartitioning
     case x =>
-      throw new IllegalArgumentException(
-        s"ShuffledJoin should not take $x as the JoinType")
+      throw new IllegalArgumentException(s"ShuffledJoin should not take $x as the JoinType")
   }
 
   override def output: Seq[Attribute] = {
@@ -91,17 +90,16 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
       case LeftExistence(_) =>
         left.output
       case x =>
-        throw new IllegalArgumentException(
-          s"${getClass.getSimpleName} not take $x as the JoinType")
+        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
     }
   }
 }
 
-/**
- * Performs a hash join of two child relations by first shuffling the data using the join keys.
- */
+/** Performs a hash join of two child relations by first shuffling the data using the join keys. */
 trait HashJoinLikeExecTransformer
-  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin {
+  extends BaseJoinExec
+  with TransformSupport
+  with ColumnarShuffledJoin {
 
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
@@ -112,8 +110,8 @@ trait HashJoinLikeExecTransformer
 
   // Whether the left and right side should be exchanged.
   protected lazy val exchangeTable: Boolean = joinBuildSide match {
-      case BuildLeft => true
-      case BuildRight => false
+    case BuildLeft => true
+    case BuildRight => false
   }
 
   lazy val (buildPlan, streamedPlan) = if (exchangeTable) {
@@ -129,25 +127,29 @@ trait HashJoinLikeExecTransformer
 
       case (MapType(fromKey, fromValue, _), MapType(toKey, toValue, _)) =>
         sameType(fromKey, toKey) &&
-          sameType(fromValue, toValue)
+        sameType(fromValue, toValue)
 
       case (StructType(fromFields), StructType(toFields)) =>
         fromFields.length == toFields.length &&
-          fromFields.zip(toFields).forall { case (l, r) =>
+        fromFields.zip(toFields).forall {
+          case (l, r) =>
             l.name.equalsIgnoreCase(r.name) &&
-              sameType(l.dataType, r.dataType)
-          }
+            sameType(l.dataType, r.dataType)
+        }
 
       case (fromDataType, toDataType) => fromDataType == toDataType
     }
   }
 
   val (buildKeyExprs, streamedKeyExprs) = {
-    require(leftKeys.length == rightKeys.length &&
-      leftKeys.map(_.dataType)
-        .zip(rightKeys.map(_.dataType))
-        .forall(types => sameType(types._1, types._2)),
-      "Join keys from two sides should have same length and types")
+    require(
+      leftKeys.length == rightKeys.length &&
+        leftKeys
+          .map(_.dataType)
+          .zip(rightKeys.map(_.dataType))
+          .forall(types => sameType(types._1, types._2)),
+      "Join keys from two sides should have same length and types"
+    )
     // Spark has an improvement which would patch integer joins keys to a Long value.
     // But this improvement would cause extra projet before hash join in velox, disabling
     // this improvement as below would help reduce the project.
@@ -238,9 +240,14 @@ trait HashJoinLikeExecTransformer
       exchangeTable,
       joinType,
       genJoinParametersBuilder(),
-      null, null, streamedPlan.output,
+      null,
+      null,
+      streamedPlan.output,
       buildPlan.output,
-      substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
+      substraitContext,
+      substraitContext.nextOperatorId(this.nodeName),
+      validation = true
+    )
     // Then, validate the generated plan in native engine.
     doNativeValidation(substraitContext, relNode)
   }
@@ -256,7 +263,8 @@ trait HashJoinLikeExecTransformer
           val readRel = RelBuilder.makeReadRel(
             new JArrayList[Attribute](plan.output.asJava),
             substraitContext,
-            -1) /* A special handling in Join to delay the rel registration. */
+            -1
+          ) /* A special handling in Join to delay the rel registration. */
           (readRel, plan.output, true)
       }
     }
@@ -309,13 +317,17 @@ trait HashJoinLikeExecTransformer
       inputStreamedOutput,
       inputBuildOutput,
       substraitContext,
-      operatorId)
+      operatorId
+    )
 
     substraitContext.registerJoinParam(operatorId, joinParams)
 
     JoinUtils.createTransformContext(
-      exchangeTable, output, joinRel,
-      inputStreamedOutput, inputBuildOutput)
+      exchangeTable,
+      output,
+      joinRel,
+      inputStreamedOutput,
+      inputBuildOutput)
   }
 
   def genJoinParametersBuilder(): Any.Builder = {
@@ -325,11 +337,19 @@ trait HashJoinLikeExecTransformer
     // isBHJ: 0 for SHJ, 1 for BHJ
     // isNullAwareAntiJoin: 0 for false, 1 for true
     // buildHashTableId: the unique id for the hash table of build plan
-    joinParametersStr.append("isBHJ=").append(isBHJ).append("\n")
-      .append("isNullAwareAntiJoin=").append(isNullAwareAntiJoin).append("\n")
-      .append("buildHashTableId=").append(buildHashTableId).append("\n")
-      .append("isExistenceJoin=").append(
-      if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0).append("\n")
+    joinParametersStr
+      .append("isBHJ=")
+      .append(isBHJ)
+      .append("\n")
+      .append("isNullAwareAntiJoin=")
+      .append(isNullAwareAntiJoin)
+      .append("\n")
+      .append("buildHashTableId=")
+      .append(buildHashTableId)
+      .append("\n")
+      .append("isExistenceJoin=")
+      .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
+      .append("\n")
     val message = StringValue
       .newBuilder()
       .setValue(joinParametersStr.toString)
@@ -345,9 +365,7 @@ trait HashJoinLikeExecTransformer
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
-      s"${
-        this.getClass.getSimpleName
-      } doesn't support doExecute")
+      s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 }
 
@@ -358,7 +376,8 @@ object HashJoinLikeExecTransformer {
       rightNode: ExpressionNode,
       rightType: DataType,
       functionMap: JHashMap[String, JLong]): ExpressionNode = {
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ExpressionNames.EQUAL, Seq(leftType, rightType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
@@ -371,7 +390,8 @@ object HashJoinLikeExecTransformer {
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
       functionMap: JHashMap[String, JLong]): ExpressionNode = {
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ExpressionNames.AND, Seq(BooleanType, BooleanType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
@@ -437,8 +457,8 @@ abstract class BroadcastHashJoinExecTransformer(
         right.executeBroadcast[BuildSideRelation]()
     }
 
-    val context = BroadCastHashJoinContext(
-      buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
+    val context =
+      BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
 
     val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     BackendsApiManager.getContextApiInstance
@@ -447,10 +467,7 @@ abstract class BroadcastHashJoinExecTransformer(
     val buildRDD = if (streamedRDD.isEmpty) {
       // Stream plan itself contains scan and has no input rdd,
       // so the number of partitions cannot be decided here.
-      BroadcastBuildSideRDD(
-        sparkContext,
-        broadcasted,
-        context)
+      BroadcastBuildSideRDD(sparkContext, broadcasted, context)
     } else {
       // Try to get the number of partitions from a non-broadcast RDD.
       val nonBroadcastRDD = streamedRDD.find(rdd => !rdd.isInstanceOf[BroadcastBuildSideRDD])
@@ -477,11 +494,7 @@ abstract class BroadcastHashJoinExecTransformer(
         }
         // If all the stream RDDs are broadcast RDD,
         // the number of partitions will be decided later in whole stage transformer.
-        BroadcastBuildSideRDD(
-          sparkContext,
-          broadcasted,
-          context,
-          partitions)
+        BroadcastBuildSideRDD(sparkContext, broadcasted, context, partitions)
       }
     }
     streamedRDD :+ buildRDD

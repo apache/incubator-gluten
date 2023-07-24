@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.nio.file.Files
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.types._
+
+import java.nio.file.Files
 
 import scala.collection.JavaConverters._
 
@@ -45,8 +44,10 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-        NullPropagation.ruleName)
+      .set(
+        "spark.sql.optimizer.excludedRules",
+        ConstantFolding.ruleName + "," +
+          NullPropagation.ruleName)
   }
 
   override def beforeAll(): Unit = {
@@ -57,11 +58,12 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     lfile.deleteOnExit()
     parquetPath = lfile.getAbsolutePath
 
-    val schema = StructType(Array(
-      StructField("double_field1", DoubleType, true),
-      StructField("int_field1", IntegerType, true),
-      StructField("string_field1", StringType, true)
-    ))
+    val schema = StructType(
+      Array(
+        StructField("double_field1", DoubleType, true),
+        StructField("int_field1", IntegerType, true),
+        StructField("string_field1", StringType, true)
+      ))
     val rowData = Seq(
       Row(1.025, 1, "{\"a\":\"b\"}"),
       Row(1.035, 2, null),
@@ -69,7 +71,8 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     )
 
     var dfParquet = spark.createDataFrame(rowData.asJava, schema)
-    dfParquet.coalesce(1)
+    dfParquet
+      .coalesce(1)
       .write
       .format("parquet")
       .mode("overwrite")
@@ -121,22 +124,25 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   ignore("Test round function") {
-    runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
-      "from lineitem limit 1") {
+    runQueryAndCompare(
+      "SELECT round(cast(l_orderkey as int), 2)" +
+        "from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test greatest function") {
-    runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
-      "from lineitem limit 1") {
+    runQueryAndCompare(
+      "SELECT greatest(l_orderkey, l_orderkey)" +
+        "from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test least function") {
-    runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
-      "from lineitem limit 1") {
+    runQueryAndCompare(
+      "SELECT least(l_orderkey, l_orderkey)" +
+        "from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -148,26 +154,31 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("Test get_json_object datatab function") {
-    runQueryAndCompare("SELECT get_json_object(string_field1, '$.a') " +
-      "from datatab limit 1;") {
+    runQueryAndCompare(
+      "SELECT get_json_object(string_field1, '$.a') " +
+        "from datatab limit 1;") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test get_json_object lineitem function") {
-    runQueryAndCompare("SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
-      "from lineitem limit 1;") {
+    runQueryAndCompare(
+      "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
+        "from lineitem limit 1;") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
 
   ignore("json_array_length") {
-    runQueryAndCompare(s"select *, json_array_length(string_field1) " +
-      s"from datatab limit 5") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, json_array_length('[1,2,3,4]') " +
-      s"from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, json_array_length(null) " +
-      s"from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(
+      s"select *, json_array_length(string_field1) " +
+        s"from datatab limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, json_array_length('[1,2,3,4]') " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, json_array_length(null) " +
+        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test acos function") {
@@ -237,40 +248,48 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("date_add") {
-    withTempPath { path =>
-      Seq(
-        (java.sql.Date.valueOf("2022-03-11"), 1: Integer),
-        (java.sql.Date.valueOf("2022-03-12"), 2: Integer),
-        (java.sql.Date.valueOf("2022-03-13"), 3: Integer),
-        (java.sql.Date.valueOf("2022-03-14"), 4: Integer),
-        (java.sql.Date.valueOf("2022-03-15"), 5: Integer),
-        (java.sql.Date.valueOf("2022-03-16"), 6: Integer))
-        .toDF("a", "b").write.parquet(path.getCanonicalPath)
+    withTempPath {
+      path =>
+        Seq(
+          (java.sql.Date.valueOf("2022-03-11"), 1: Integer),
+          (java.sql.Date.valueOf("2022-03-12"), 2: Integer),
+          (java.sql.Date.valueOf("2022-03-13"), 3: Integer),
+          (java.sql.Date.valueOf("2022-03-14"), 4: Integer),
+          (java.sql.Date.valueOf("2022-03-15"), 5: Integer),
+          (java.sql.Date.valueOf("2022-03-16"), 6: Integer)
+        )
+          .toDF("a", "b")
+          .write
+          .parquet(path.getCanonicalPath)
 
-      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
-      runQueryAndCompare("SELECT date_add(a, b) from view") {
-        checkOperatorMatch[ProjectExecTransformer]
-      }
+        runQueryAndCompare("SELECT date_add(a, b) from view") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
   test("date_diff") {
-    withTempPath { path =>
-      Seq(
-        (java.sql.Date.valueOf("2022-03-11"), java.sql.Date.valueOf("2022-02-11")),
-        (java.sql.Date.valueOf("2022-03-12"), java.sql.Date.valueOf("2022-01-12")),
-        (java.sql.Date.valueOf("2022-09-13"), java.sql.Date.valueOf("2022-05-12")),
-        (java.sql.Date.valueOf("2022-07-14"), java.sql.Date.valueOf("2022-03-12")),
-        (java.sql.Date.valueOf("2022-06-15"), java.sql.Date.valueOf("2022-01-12")),
-        (java.sql.Date.valueOf("2022-05-16"), java.sql.Date.valueOf("2022-06-12")))
-        .toDF("a", "b").write.parquet(path.getCanonicalPath)
+    withTempPath {
+      path =>
+        Seq(
+          (java.sql.Date.valueOf("2022-03-11"), java.sql.Date.valueOf("2022-02-11")),
+          (java.sql.Date.valueOf("2022-03-12"), java.sql.Date.valueOf("2022-01-12")),
+          (java.sql.Date.valueOf("2022-09-13"), java.sql.Date.valueOf("2022-05-12")),
+          (java.sql.Date.valueOf("2022-07-14"), java.sql.Date.valueOf("2022-03-12")),
+          (java.sql.Date.valueOf("2022-06-15"), java.sql.Date.valueOf("2022-01-12")),
+          (java.sql.Date.valueOf("2022-05-16"), java.sql.Date.valueOf("2022-06-12"))
+        )
+          .toDF("a", "b")
+          .write
+          .parquet(path.getCanonicalPath)
 
-      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
-      runQueryAndCompare("SELECT datediff(a, b) from view") {
-        checkOperatorMatch[ProjectExecTransformer]
-      }
+        runQueryAndCompare("SELECT datediff(a, b) from view") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 }

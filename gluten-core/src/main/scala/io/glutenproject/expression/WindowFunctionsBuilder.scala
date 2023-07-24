@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
+
 import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression, WindowFunction}
 
 import scala.util.control.Breaks.{break, breakable}
@@ -32,10 +32,8 @@ object WindowFunctionsBuilder {
         s"not currently supported: ${windowFunc.getClass.getName}.")
     }
 
-    val functionName = ConverterUtils.makeFuncName(
-      substraitFunc.get,
-      Seq(windowFunc.dataType),
-      FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(substraitFunc.get, Seq(windowFunc.dataType), FunctionConfig.OPT)
     ExpressionBuilder.newScalarFunction(functionMap, functionName)
   }
 

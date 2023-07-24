@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
 
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
@@ -34,32 +34,34 @@ trait TransformerApi {
    *
    * @return
    */
-  def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning, child: SparkPlan)
-  : Boolean
+  def validateColumnarShuffleExchangeExec(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean
 
   /**
    * Used for table scan validation.
    *
-   * @return true if backend supports reading the file format.
+   * @return
+   *   true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(fileFormat: ReadFileFormat,
-                             fields: Array[StructField],
-                             partTable: Boolean,
-                             paths: Seq[String]): Boolean
+  def supportsReadFileFormat(
+      fileFormat: ReadFileFormat,
+      fields: Array[StructField],
+      partTable: Boolean,
+      paths: Seq[String]): Boolean
+
+  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
+  def genInputPartitionSeq(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
 
   /**
-   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-   */
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
-
-  /**
-   * Post process native config
-   * For example, for ClickHouse backend, sync 'spark.executor.cores' to
+   * Post process native config For example, for ClickHouse backend, sync 'spark.executor.cores' to
    * 'spark.gluten.sql.columnar.backend.ch.runtime_settings.max_threads'
    */
-  def postProcessNativeConfig(nativeConfMap: util.Map[String, String],
-    backendPrefix: String): Unit = {}
+  def postProcessNativeConfig(
+      nativeConfMap: util.Map[String, String],
+      backendPrefix: String): Unit = {}
 
   def getSupportExpressionClassName: util.Set[String] = {
     util.Collections.emptySet()

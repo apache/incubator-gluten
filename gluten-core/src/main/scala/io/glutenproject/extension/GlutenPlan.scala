@@ -14,12 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
-import com.google.common.collect.Lists
-
-import scala.collection.JavaConverters._
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.TransformerState
@@ -29,11 +25,14 @@ import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.LogLevelUtil
 import io.glutenproject.validate.NativePlanValidationInfo
+
 import org.apache.spark.sql.execution.SparkPlan
 
-case class ValidationResult(
-    isValid: Boolean,
-    reason: Option[String])
+import com.google.common.collect.Lists
+
+import scala.collection.JavaConverters._
+
+case class ValidationResult(isValid: Boolean, reason: Option[String])
 
 object ValidationResult {
   def ok: ValidationResult = ValidationResult(isValid = true, None)
@@ -49,9 +48,7 @@ object ValidationResult {
   }
 }
 
-/**
- * Every Gluten Operator should extend this trait.
- */
+/** Every Gluten Operator should extend this trait. */
 trait GlutenPlan extends SparkPlan with LogLevelUtil {
 
   private lazy val validationLogLevel = glutenConf.validationLogLevel

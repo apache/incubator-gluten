@@ -35,7 +35,7 @@ object DebugUtil {
       true
     } else if (GlutenConfig.getConf.taskPartitionId == -1) {
       TaskContext.get().taskAttemptId() == GlutenConfig.getConf.taskId ||
-        GlutenConfig.getConf.taskId == -1
+      GlutenConfig.getConf.taskId == -1
     } else {
       false
     }

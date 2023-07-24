@@ -22,9 +22,7 @@ import org.apache.spark.sql.internal.SQLConf
 
 object SparkResourcesUtil extends Logging {
 
-  /**
-   * Get the total cores of the Spark application
-   */
+  /** Get the total cores of the Spark application */
   def getTotalCores(sqlConf: SQLConf): Int = {
     sqlConf.getConfString("spark.master") match {
       case local if local.startsWith("local") =>
@@ -34,19 +32,21 @@ object SparkResourcesUtil extends Logging {
         val cores = sqlConf.getConfString("spark.executor.cores", "1").toInt
         Math.max(instances * cores, sqlConf.getConfString("spark.default.parallelism", "1").toInt)
       case standalone if standalone.startsWith("spark:") =>
-        Math.max(sqlConf.getConfString("spark.cores.max", "1").toInt,
+        Math.max(
+          sqlConf.getConfString("spark.cores.max", "1").toInt,
           sqlConf.getConfString("spark.default.parallelism", "1").toInt)
     }
   }
 
-  /**
-   * Get the executor number for yarn
-   */
+  /** Get the executor number for yarn */
   def getExecutorNum(sqlConf: SQLConf): Int = {
     if (sqlConf.getConfString("spark.dynamicAllocation.enabled", "false").toBoolean) {
       val maxExecutors =
-        sqlConf.getConfString("spark.dynamicAllocation.maxExecutors",
-          sqlConf.getConfString("spark.default.parallelism", "1")).toInt
+        sqlConf
+          .getConfString(
+            "spark.dynamicAllocation.maxExecutors",
+            sqlConf.getConfString("spark.default.parallelism", "1"))
+          .toInt
       maxExecutors
     } else {
       sqlConf.getConfString("spark.executor.instances", "1").toInt

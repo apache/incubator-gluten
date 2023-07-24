@@ -18,16 +18,18 @@ package io.glutenproject.metrics
 
 import io.glutenproject.metrics.Metrics.SingleMetric
 import io.glutenproject.substrait.JoinParams
+
 import org.apache.spark.sql.execution.metric.SQLMetric
 
 trait HashJoinMetricsUpdater extends MetricsUpdater {
-  def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
-                        singleMetrics: SingleMetric,
-                        joinParams: JoinParams): Unit
+  def updateJoinMetrics(
+      joinMetrics: java.util.ArrayList[OperatorMetrics],
+      singleMetrics: SingleMetric,
+      joinParams: JoinParams): Unit
 }
 
-class HashJoinMetricsUpdaterImpl(
-    val metrics: Map[String, SQLMetric]) extends HashJoinMetricsUpdater {
+class HashJoinMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
+  extends HashJoinMetricsUpdater {
   val hashBuildInputRows: SQLMetric = metrics("hashBuildInputRows")
   val hashBuildOutputRows: SQLMetric = metrics("hashBuildOutputRows")
   val hashBuildOutputVectors: SQLMetric = metrics("hashBuildOutputVectors")
@@ -57,7 +59,7 @@ class HashJoinMetricsUpdaterImpl(
   // The number of rows which were passed through without any processing
   // after filter was pushed down.
   val hashProbeReplacedWithDynamicFilterRows: SQLMetric =
-  metrics("hashProbeReplacedWithDynamicFilterRows")
+    metrics("hashProbeReplacedWithDynamicFilterRows")
 
   // The number of dynamic filters this join generated for push down.
   val hashProbeDynamicFiltersProduced: SQLMetric =
@@ -84,9 +86,10 @@ class HashJoinMetricsUpdaterImpl(
   val finalOutputRows: SQLMetric = metrics("finalOutputRows")
   val finalOutputVectors: SQLMetric = metrics("finalOutputVectors")
 
-  override def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
-                                 singleMetrics: SingleMetric,
-                                 joinParams: JoinParams): Unit = {
+  override def updateJoinMetrics(
+      joinMetrics: java.util.ArrayList[OperatorMetrics],
+      singleMetrics: SingleMetric,
+      joinParams: JoinParams): Unit = {
     var idx = 0
     if (joinParams.postProjectionNeeded) {
       val postProjectMetrics = joinMetrics.get(idx)

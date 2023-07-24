@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io
 
 import java.util.Properties
+
 import scala.util.Try
 
 package object glutenproject {

@@ -24,8 +24,8 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarInputAdapter, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -35,7 +35,8 @@ case class TakeOrderedAndProjectExecTransformer(
     sortOrder: Seq[SortOrder],
     projectList: Seq[NamedExpression],
     child: SparkPlan)
-  extends UnaryExecNode with GlutenPlan {
+  extends UnaryExecNode
+  with GlutenPlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
   override def supportsColumnar: Boolean = true
@@ -56,11 +57,11 @@ case class TakeOrderedAndProjectExecTransformer(
     copy(child = newChild)
   }
 
-  protected override def doExecute(): RDD[InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     // No real computation here
     val childRDD = child.executeColumnar()
     val childRDDPartsNum = childRDD.getNumPartitions
@@ -91,15 +92,17 @@ case class TakeOrderedAndProjectExecTransformer(
       val transformStageCounter: AtomicInteger =
         ColumnarCollapseTransformStages.transformStageCounter
       val finalLimitPlan = if (childRDDPartsNum == 1) {
-          limitBeforeShuffle
+        limitBeforeShuffle
       } else {
-        val limitStagePlan = WholeStageTransformer(limitBeforeShuffle)(
-          transformStageCounter.incrementAndGet())
+        val limitStagePlan =
+          WholeStageTransformer(limitBeforeShuffle)(transformStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, limitStagePlan)
         val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(
-          shuffleExec, limitStagePlan, shuffleExec.child.output)
-        val localSortPlan = SortExecTransformer(sortOrder, false,
-          new ColumnarInputAdapter(transformedShuffleExec))
+          shuffleExec,
+          limitStagePlan,
+          shuffleExec.child.output)
+        val localSortPlan =
+          SortExecTransformer(sortOrder, false, new ColumnarInputAdapter(transformedShuffleExec))
         LimitTransformer(localSortPlan, 0, limit)
       }
 

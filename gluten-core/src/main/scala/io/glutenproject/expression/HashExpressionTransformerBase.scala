@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -23,23 +22,25 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
-class HashExpressionTransformerBase(substraitExprName: String,
-                                    exps: Seq[ExpressionTransformer],
-                                    original: Expression)
-  extends ExpressionTransformer with Logging {
+class HashExpressionTransformerBase(
+    substraitExprName: String,
+    exps: Seq[ExpressionTransformer],
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val nodes = new java.util.ArrayList[ExpressionNode]()
-    exps.foreach(expression => {
-      nodes.add(expression.doTransform(args))
-    })
+    exps.foreach(
+      expression => {
+        nodes.add(expression.doTransform(args))
+      })
     val childrenTypes = original.children.map(child => child.dataType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(substraitExprName,
-      childrenTypes, FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(substraitExprName, childrenTypes, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }
-

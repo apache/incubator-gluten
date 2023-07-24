@@ -42,8 +42,11 @@ public class NativeMemoryAllocatorManagerImpl implements NativeMemoryAllocatorMa
     // move to leaked list
     long leakBytes = managed.getBytesAllocated();
     long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
-    LOGGER.warn(String.format("Detected leaked native allocator, size: %d, " +
-        "process accumulated leaked size: %d...", leakBytes, accumulated));
+    LOGGER.warn(
+        String.format(
+            "Detected leaked native allocator, size: %d, "
+                + "process accumulated leaked size: %d...",
+            leakBytes, accumulated));
     managed.listener().inactivate();
     if (TaskResources.DEBUG()) {
       LEAKED.add(managed);

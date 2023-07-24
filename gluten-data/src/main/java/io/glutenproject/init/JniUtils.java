@@ -17,21 +17,22 @@
 
 package io.glutenproject.init;
 
-import java.util.Map;
-
-import com.google.protobuf.Any;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.extensions.ExtensionBuilder;
 import io.glutenproject.substrait.plan.PlanBuilder;
 
+import com.google.protobuf.Any;
+
+import java.util.Map;
+
 public class JniUtils {
 
-    public static byte[] toNativeConf(Map<String, String> confs) {
-        StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
-        AdvancedExtensionNode extensionNode = ExtensionBuilder
-                .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
-        return PlanBuilder.makePlan(extensionNode).toProtobuf().toByteArray();
-    }
+  public static byte[] toNativeConf(Map<String, String> confs) {
+    StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
+    AdvancedExtensionNode extensionNode =
+        ExtensionBuilder.makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
+    return PlanBuilder.makePlan(extensionNode).toProtobuf().toByteArray();
+  }
 }

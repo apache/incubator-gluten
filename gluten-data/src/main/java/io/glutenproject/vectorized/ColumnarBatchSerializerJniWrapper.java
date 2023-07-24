@@ -24,7 +24,7 @@ public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
   public static final ColumnarBatchSerializerJniWrapper INSTANCE =
       new ColumnarBatchSerializerJniWrapper();
 
-  private ColumnarBatchSerializerJniWrapper()  {}
+  private ColumnarBatchSerializerJniWrapper() {}
 
   public native ColumnarBatchSerializeResult serialize(long[] handles, long allocId);
 

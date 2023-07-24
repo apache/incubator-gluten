@@ -19,10 +19,10 @@ package io.glutenproject.substrait.rel;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.expression.ConverterUtils;
+
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Type;
-
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
@@ -53,9 +53,12 @@ public class LocalFilesNode implements Serializable {
   private StructType fileSchema;
   private Map<String, String> fileReadProperties;
 
-  LocalFilesNode(Integer index, ArrayList<String> paths,
-                 ArrayList<Long> starts, ArrayList<Long> lengths,
-                 ReadFileFormat fileFormat) {
+  LocalFilesNode(
+      Integer index,
+      ArrayList<String> paths,
+      ArrayList<Long> starts,
+      ArrayList<Long> lengths,
+      ReadFileFormat fileFormat) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
@@ -139,25 +142,25 @@ public class LocalFilesNode implements Serializable {
           NamedStruct textSchema = buildNamedStruct();
 
           ReadRel.LocalFiles.FileOrFiles.TextReadOptions textReadOptions =
-                  ReadRel.LocalFiles.FileOrFiles.TextReadOptions.newBuilder()
-                          .setFieldDelimiter(field_delimiter)
-                          .setQuote(quote)
-                          .setHeader(Long.parseLong(header))
-                          .setEscape(escape)
-                          .setNullValue(nullValue)
-                          .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
-                          .setSchema(textSchema)
-                          .build();
+              ReadRel.LocalFiles.FileOrFiles.TextReadOptions.newBuilder()
+                  .setFieldDelimiter(field_delimiter)
+                  .setQuote(quote)
+                  .setHeader(Long.parseLong(header))
+                  .setEscape(escape)
+                  .setNullValue(nullValue)
+                  .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                  .setSchema(textSchema)
+                  .build();
           fileBuilder.setText(textReadOptions);
           break;
         case JsonReadFormat:
           NamedStruct jsonSchema = buildNamedStruct();
 
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
-                  ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
-                          .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
-                          .setSchema(jsonSchema)
-                          .build();
+              ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
+                  .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                  .setSchema(jsonSchema)
+                  .build();
           fileBuilder.setJson(jsonReadOptions);
           break;
         default:

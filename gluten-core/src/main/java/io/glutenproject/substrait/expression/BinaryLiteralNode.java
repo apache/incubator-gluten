@@ -19,9 +19,9 @@ package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.BinaryTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
-import io.substrait.proto.Expression.Literal.Builder;
 
 import com.google.protobuf.ByteString;
+import io.substrait.proto.Expression.Literal.Builder;
 
 public class BinaryLiteralNode extends LiteralNodeWithValue<byte[]> {
   public BinaryLiteralNode(byte[] value) {

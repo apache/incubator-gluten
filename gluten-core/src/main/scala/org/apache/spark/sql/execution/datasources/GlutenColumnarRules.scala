@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -106,8 +105,8 @@ object GlutenColumnarRules {
         }
         true
       case command: InsertIntoHiveDirCommand =>
-        command.storage.outputFormat.get.equals(
-          "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
+        command.storage.outputFormat.get
+          .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
       case _ => false
     }
   }

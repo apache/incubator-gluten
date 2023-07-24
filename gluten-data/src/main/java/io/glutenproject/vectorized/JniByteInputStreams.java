@@ -26,13 +26,9 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.zip.CheckedInputStream;
 
-/**
- * Create optimal {@link JniByteInputStream} implementation from Java {@link InputStream}.
- */
+/** Create optimal {@link JniByteInputStream} implementation from Java {@link InputStream}. */
 public final class JniByteInputStreams {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(JniByteInputStreams.class);
-
+  private static final Logger LOG = LoggerFactory.getLogger(JniByteInputStreams.class);
 
   private static final Field FIELD_FilterInputStream_in;
 
@@ -45,8 +41,7 @@ public final class JniByteInputStreams {
     }
   }
 
-  private JniByteInputStreams() {
-  }
+  private JniByteInputStreams() {}
 
   public static JniByteInputStream create(InputStream in) {
     // Unwrap BufferReleasingInputStream

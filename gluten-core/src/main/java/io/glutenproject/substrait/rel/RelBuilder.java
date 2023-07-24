@@ -32,110 +32,113 @@ import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.util.ArrayList;
 
-/**
- * Contains helper functions for constructing substrait relations.
- */
+/** Contains helper functions for constructing substrait relations. */
 public class RelBuilder {
-  private RelBuilder() {
-  }
+  private RelBuilder() {}
 
-  public static RelNode makeFilterRel(RelNode input,
-                                      ExpressionNode condition,
-                                      SubstraitContext context,
-                                      Long operatorId) {
+  public static RelNode makeFilterRel(
+      RelNode input, ExpressionNode condition, SubstraitContext context, Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new FilterRelNode(input, condition);
   }
 
-  public static RelNode makeFilterRel(RelNode input,
-                                      ExpressionNode condition,
-                                      AdvancedExtensionNode extensionNode,
-                                      SubstraitContext context,
-                                      Long operatorId) {
+  public static RelNode makeFilterRel(
+      RelNode input,
+      ExpressionNode condition,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new FilterRelNode(input, condition, extensionNode);
   }
 
-  public static RelNode makeProjectRel(RelNode input,
-                                       ArrayList<ExpressionNode> expressionNodes,
-                                       SubstraitContext context,
-                                       Long operatorId) {
+  public static RelNode makeProjectRel(
+      RelNode input,
+      ArrayList<ExpressionNode> expressionNodes,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new ProjectRelNode(input, expressionNodes, -1);
   }
 
-  public static RelNode makeProjectRel(RelNode input,
-                                       ArrayList<ExpressionNode> expressionNodes,
-                                       SubstraitContext context,
-                                       Long operatorId,
-                                       int emitStartIndex) {
+  public static RelNode makeProjectRel(
+      RelNode input,
+      ArrayList<ExpressionNode> expressionNodes,
+      SubstraitContext context,
+      Long operatorId,
+      int emitStartIndex) {
     context.registerRelToOperator(operatorId);
     return new ProjectRelNode(input, expressionNodes, emitStartIndex);
   }
 
-  public static RelNode makeProjectRel(RelNode input,
-                                       ArrayList<ExpressionNode> expressionNodes,
-                                       AdvancedExtensionNode extensionNode,
-                                       SubstraitContext context,
-                                       Long operatorId,
-                                       int emitStartIndex) {
+  public static RelNode makeProjectRel(
+      RelNode input,
+      ArrayList<ExpressionNode> expressionNodes,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId,
+      int emitStartIndex) {
     context.registerRelToOperator(operatorId);
     return new ProjectRelNode(input, expressionNodes, extensionNode, emitStartIndex);
   }
 
-  public static RelNode makeAggregateRel(RelNode input,
-                                         ArrayList<ExpressionNode> groupings,
-                                         ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                                         ArrayList<ExpressionNode> filters,
-                                         SubstraitContext context,
-                                         Long operatorId) {
+  public static RelNode makeAggregateRel(
+      RelNode input,
+      ArrayList<ExpressionNode> groupings,
+      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+      ArrayList<ExpressionNode> filters,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters);
   }
 
-  public static RelNode makeAggregateRel(RelNode input,
-                                         ArrayList<ExpressionNode> groupings,
-                                         ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                                         ArrayList<ExpressionNode> filters,
-                                         AdvancedExtensionNode extensionNode,
-                                         SubstraitContext context,
-                                         Long operatorId) {
+  public static RelNode makeAggregateRel(
+      RelNode input,
+      ArrayList<ExpressionNode> groupings,
+      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+      ArrayList<ExpressionNode> filters,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters, extensionNode);
   }
 
-  public static RelNode makeReadRel(ArrayList<TypeNode> types,
-                                    ArrayList<String> names,
-                                    ExpressionNode filter,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeReadRel(
+      ArrayList<TypeNode> types,
+      ArrayList<String> names,
+      ExpressionNode filter,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new ReadRelNode(types, names, context, filter, null);
   }
 
-  public static RelNode makeReadRel(ArrayList<TypeNode> types,
-                                    ArrayList<String> names,
-                                    ArrayList<ColumnTypeNode> columnTypeNodes,
-                                    ExpressionNode filter,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeReadRel(
+      ArrayList<TypeNode> types,
+      ArrayList<String> names,
+      ArrayList<ColumnTypeNode> columnTypeNodes,
+      ExpressionNode filter,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new ReadRelNode(types, names, context, filter, null, columnTypeNodes);
   }
 
-  public static RelNode makeReadRel(ArrayList<TypeNode> types,
-                                    ArrayList<String> names,
-                                    ExpressionNode filter,
-                                    Long iteratorIndex,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeReadRel(
+      ArrayList<TypeNode> types,
+      ArrayList<String> names,
+      ExpressionNode filter,
+      Long iteratorIndex,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new ReadRelNode(types, names, context, filter, iteratorIndex);
   }
 
-  public static RelNode makeReadRel(ArrayList<Attribute> attributes,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeReadRel(
+      ArrayList<Attribute> attributes, SubstraitContext context, Long operatorId) {
     if (operatorId >= 0) {
       // If the operator id is negative, will not register the rel to operator.
       // Currently, only for the special handling in join.
@@ -154,118 +157,127 @@ public class RelBuilder {
     return new ReadRelNode(typeList, nameList, context, null, iteratorIndex);
   }
 
-  public static RelNode makeJoinRel(RelNode left,
-                                    RelNode right,
-                                    JoinRel.JoinType joinType,
-                                    ExpressionNode expression,
-                                    ExpressionNode postJoinFilter,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeJoinRel(
+      RelNode left,
+      RelNode right,
+      JoinRel.JoinType joinType,
+      ExpressionNode expression,
+      ExpressionNode postJoinFilter,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return makeJoinRel(left, right, joinType, expression,
-            postJoinFilter, null, context, operatorId);
+    return makeJoinRel(
+        left, right, joinType, expression, postJoinFilter, null, context, operatorId);
   }
 
-  public static RelNode makeJoinRel(RelNode left,
-                                    RelNode right,
-                                    JoinRel.JoinType joinType,
-                                    ExpressionNode expression,
-                                    ExpressionNode postJoinFilter,
-                                    AdvancedExtensionNode extensionNode,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeJoinRel(
+      RelNode left,
+      RelNode right,
+      JoinRel.JoinType joinType,
+      ExpressionNode expression,
+      ExpressionNode postJoinFilter,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
   }
 
-  public static RelNode makeExpandRel(RelNode input,
-    ArrayList<ArrayList<ExpressionNode>> projections,
-    AdvancedExtensionNode extensionNode,
-    SubstraitContext context,
-    Long operatorId) {
+  public static RelNode makeExpandRel(
+      RelNode input,
+      ArrayList<ArrayList<ExpressionNode>> projections,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new ExpandRelNode(input, projections, extensionNode);
   }
 
-  public static RelNode makeExpandRel(RelNode input,
-    ArrayList<ArrayList<ExpressionNode>> projections,
-    SubstraitContext context,
-    Long operatorId) {
+  public static RelNode makeExpandRel(
+      RelNode input,
+      ArrayList<ArrayList<ExpressionNode>> projections,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new ExpandRelNode(input, projections);
   }
 
-  public static RelNode makeSortRel(RelNode input,
-                                    ArrayList<SortField> sorts,
-                                    AdvancedExtensionNode extensionNode,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeSortRel(
+      RelNode input,
+      ArrayList<SortField> sorts,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new SortRelNode(input, sorts, extensionNode);
   }
 
-  public static RelNode makeSortRel(RelNode input,
-                                    ArrayList<SortField> sorts,
-                                    SubstraitContext context,
-                                    Long operatorId) {
+  public static RelNode makeSortRel(
+      RelNode input, ArrayList<SortField> sorts, SubstraitContext context, Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new SortRelNode(input, sorts);
   }
 
-  public static RelNode makeFetchRel(RelNode input,
-                                     Long offset,
-                                     Long count,
-                                     SubstraitContext context,
-                                     Long operatorId) {
+  public static RelNode makeFetchRel(
+      RelNode input, Long offset, Long count, SubstraitContext context, Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new FetchRelNode(input, offset, count);
   }
 
-  public static RelNode makeFetchRel(RelNode input,
-                                     Long offset,
-                                     Long count,
-                                     AdvancedExtensionNode extensionNode,
-                                     SubstraitContext context,
-                                     Long operatorId) {
+  public static RelNode makeFetchRel(
+      RelNode input,
+      Long offset,
+      Long count,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new FetchRelNode(input, offset, count, extensionNode);
   }
 
-  public static RelNode makeWindowRel(RelNode input,
-                                      ArrayList<WindowFunctionNode> windowFunctionNodes,
-                                      ArrayList<ExpressionNode> partitionExpressions,
-                                      ArrayList<SortField> sorts,
-                                      AdvancedExtensionNode extensionNode,
-                                      SubstraitContext context,
-                                      Long operatorId) {
+  public static RelNode makeWindowRel(
+      RelNode input,
+      ArrayList<WindowFunctionNode> windowFunctionNodes,
+      ArrayList<ExpressionNode> partitionExpressions,
+      ArrayList<SortField> sorts,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new WindowRelNode(
-        input, windowFunctionNodes,
-        partitionExpressions, sorts, extensionNode);
+        input, windowFunctionNodes, partitionExpressions, sorts, extensionNode);
   }
 
-  public static RelNode makeWindowRel(RelNode input,
-                                      ArrayList<WindowFunctionNode> windowFunctionNodes,
-                                      ArrayList<ExpressionNode> partitionExpressions,
-                                      ArrayList<SortField> sorts,
-                                      SubstraitContext context,
-                                      Long operatorId) {
+  public static RelNode makeWindowRel(
+      RelNode input,
+      ArrayList<WindowFunctionNode> windowFunctionNodes,
+      ArrayList<ExpressionNode> partitionExpressions,
+      ArrayList<SortField> sorts,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new WindowRelNode(
         input, windowFunctionNodes,
         partitionExpressions, sorts);
   }
 
-  public static RelNode makeGenerateRel(RelNode input, ExpressionNode generator,
-      ArrayList<ExpressionNode> childOutput, SubstraitContext context,
+  public static RelNode makeGenerateRel(
+      RelNode input,
+      ExpressionNode generator,
+      ArrayList<ExpressionNode> childOutput,
+      SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new GenerateRelNode(input, generator, childOutput);
   }
 
-  public static RelNode makeGenerateRel(RelNode input, ExpressionNode generator,
-      ArrayList<ExpressionNode> childOutput, AdvancedExtensionNode extensionNode,
-      SubstraitContext context, Long operatorId) {
+  public static RelNode makeGenerateRel(
+      RelNode input,
+      ExpressionNode generator,
+      ArrayList<ExpressionNode> childOutput,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new GenerateRelNode(input, generator, childOutput, extensionNode);
   }

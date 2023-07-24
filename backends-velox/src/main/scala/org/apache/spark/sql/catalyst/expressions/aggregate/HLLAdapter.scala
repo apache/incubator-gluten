@@ -29,7 +29,8 @@ case class HLLAdapter(
     relativeSDExpr: Expression,
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
-  extends TypedImperativeAggregate[GenericInternalRow] with BinaryLike[Expression] {
+  extends TypedImperativeAggregate[GenericInternalRow]
+  with BinaryLike[Expression] {
 
   def this(child: Expression, relativeSDExpr: Expression) = {
     this(
@@ -44,9 +45,7 @@ case class HLLAdapter(
   private lazy val hllppHelper = new HyperLogLogPlusPlusHelper(relativeSD)
 
   private lazy val aggBufferDataType: Array[DataType] = {
-    Seq.tabulate(hllppHelper.numWords) { i =>
-      LongType
-    }.toArray
+    Seq.tabulate(hllppHelper.numWords)(i => LongType).toArray
   }
 
   private lazy val projection = UnsafeProjection.create(aggBufferDataType)
@@ -110,6 +109,7 @@ case class HLLAdapter(
   override def right: Expression = relativeSDExpr
 
   override protected def withNewChildrenInternal(
-      newLeft: Expression, newRight: Expression): HLLAdapter =
+      newLeft: Expression,
+      newRight: Expression): HLLAdapter =
     this.copy(child = newLeft, relativeSDExpr = newRight)
 }

@@ -18,8 +18,10 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.columnarbatch.ColumnarBatches;
-import java.util.Iterator;
+
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+
+import java.util.Iterator;
 
 public class ColumnarBatchInIterator extends GeneralInIterator {
   public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {

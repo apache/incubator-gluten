@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.ui
 
 import org.apache.spark.internal.Logging
@@ -23,14 +22,15 @@ import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.ui.{PagedDataSource, PagedTable, UIUtils, WebUIPage}
 import org.apache.spark.util.Utils
 
+import javax.servlet.http.HttpServletRequest
+
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
-import javax.servlet.http.HttpServletRequest
+
 import scala.collection.mutable
 import scala.xml.{Node, NodeSeq}
 
-private[ui] class GlutenAllExecutionsPage(parent: GlutenSQLTab)
-  extends WebUIPage("") with Logging {
+private[ui] class GlutenAllExecutionsPage(parent: GlutenSQLTab) extends WebUIPage("") with Logging {
 
   private val sqlStore = parent.sqlStore
 
@@ -105,9 +105,9 @@ private[ui] class GlutenAllExecutionsPage(parent: GlutenSQLTab)
   </tr>
 
   private def executionsTable(
-    request: HttpServletRequest,
-    executionTag: String,
-    executionData: Seq[GlutenSQLExecutionUIData]): Seq[Node] = {
+      request: HttpServletRequest,
+      executionTag: String,
+      executionData: Seq[GlutenSQLExecutionUIData]): Seq[Node] = {
 
     val executionPage =
       Option(request.getParameter(s"$executionTag.page")).map(_.toInt).getOrElse(1)
@@ -149,11 +149,7 @@ private[ui] class GlutenExecutionPagedTable(
 
   private val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
 
-  override val dataSource = new GlutenExecutionDataSource(
-    data,
-    pageSize,
-    sortColumn,
-    desc)
+  override val dataSource = new GlutenExecutionDataSource(data, pageSize, sortColumn, desc)
 
   private val parameterPath =
     s"$basePath/$subPath/?${getParameterOtherTable(request, executionTag)}"
@@ -191,8 +187,7 @@ private[ui] class GlutenExecutionPagedTable(
   override def headers: Seq[Node] = {
     isSortColumnValid(headerInfo, sortColumn)
 
-    headerRow(headerInfo, desc, pageSize, sortColumn, parameterPath,
-      executionTag, tableHeaderId)
+    headerRow(headerInfo, desc, pageSize, sortColumn, parameterPath, executionTag, tableHeaderId)
   }
 
   override def row(executionTableRow: GlutenExecutionTableRowData): Seq[Node] = {
@@ -218,11 +213,14 @@ private[ui] class GlutenExecutionPagedTable(
     val details = if (execution.description != null && execution.description.nonEmpty) {
       val concat = new PlanStringConcat()
       concat.append("== Fallback Summary ==\n")
-      val fallbackSummary = execution.fallbackNodeToReason.map { case (name, reason) =>
-        val id = name.substring(0, 3)
-        val nodeName = name.substring(4)
-        s"(${id.toInt}) $nodeName: $reason"
-      }.mkString("\n")
+      val fallbackSummary = execution.fallbackNodeToReason
+        .map {
+          case (name, reason) =>
+            val id = name.substring(0, 3)
+            val nodeName = name.substring(4)
+            s"(${id.toInt}) $nodeName: $reason"
+        }
+        .mkString("\n")
       concat.append(fallbackSummary)
       if (execution.fallbackNodeToReason.isEmpty) {
         concat.append("No fallback nodes")
@@ -234,7 +232,7 @@ private[ui] class GlutenExecutionPagedTable(
             class="expand-details">
         +details
       </span> ++
-      <div class="stage-details collapsed">
+        <div class="stage-details collapsed">
         <pre>{concat.toString()}</pre>
       </div>
     } else {
@@ -252,13 +250,10 @@ private[ui] class GlutenExecutionPagedTable(
   }
 
   private def executionURL(executionID: Long): String =
-    s"${UIUtils.prependBaseUri(
-      request, parent.basePath)}/SQL/execution/?id=$executionID"
+    s"${UIUtils.prependBaseUri(request, parent.basePath)}/SQL/execution/?id=$executionID"
 }
 
-
-private[ui] class GlutenExecutionTableRowData(
-    val executionUIData: GlutenSQLExecutionUIData)
+private[ui] class GlutenExecutionTableRowData(val executionUIData: GlutenSQLExecutionUIData)
 
 private[ui] class GlutenExecutionDataSource(
     executionData: Seq[GlutenSQLExecutionUIData],

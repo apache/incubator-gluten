@@ -19,9 +19,7 @@ package io.glutenproject.substrait.ddlplan;
 
 import io.substrait.proto.DllPlan;
 
-/**
- * Contains helper functions for constructing substrait relations.
- */
+/** Contains helper functions for constructing substrait relations. */
 public interface DllPlanNode {
   /**
    * Converts a Expression into a protobuf.

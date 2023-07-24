@@ -20,11 +20,11 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 
 /**
- * Note: "val metrics" is made transient to avoid sending driver-side metrics to tasks,
- * e.g. "pruning time" from scan.
+ * Note: "val metrics" is made transient to avoid sending driver-side metrics to tasks, e.g.
+ * "pruning time" from scan.
  */
-class FileSourceScanMetricsUpdater(
-    @transient val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric])
+  extends MetricsUpdater {
 
   val rawInputRows: SQLMetric = metrics("rawInputRows")
   val rawInputBytes: SQLMetric = metrics("rawInputBytes")

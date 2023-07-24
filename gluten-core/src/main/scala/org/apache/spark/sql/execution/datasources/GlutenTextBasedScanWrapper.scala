@@ -17,22 +17,24 @@
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.CompressionCodecFactory
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.PartitionReaderFactory
+import org.apache.spark.sql.execution.datasources.v2.{FileScan, TextBasedFileScan}
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
-import org.apache.spark.sql.execution.datasources.v2.{FileScan, TextBasedFileScan}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.io.compress.CompressionCodecFactory
+
 class GlutenTextBasedScanWrapper(
-        scan: TextBasedFileScan,
-        schema: StructType,
-        session: SparkSession,
-        options: CaseInsensitiveStringMap)
+    scan: TextBasedFileScan,
+    schema: StructType,
+    session: SparkSession,
+    options: CaseInsensitiveStringMap)
   extends TextBasedFileScan(session, options) {
 
   lazy val codecFactory: CompressionCodecFactory =
@@ -57,13 +59,12 @@ class GlutenTextBasedScanWrapper(
 
   def dataSchema: StructType = schema
 
-  def withFilters(partitionFilters: Seq[Expression], dataFilters: Seq[Expression]):
-    FileScan = {
-      scan match {
-        case t: TextScan => t.copy(partitionFilters = partitionFilters, dataFilters = dataFilters)
-        case j: JsonScan => j.copy(partitionFilters = partitionFilters, dataFilters = dataFilters)
-        case _ => scan
-      }
+  def withFilters(partitionFilters: Seq[Expression], dataFilters: Seq[Expression]): FileScan = {
+    scan match {
+      case t: TextScan => t.copy(partitionFilters = partitionFilters, dataFilters = dataFilters)
+      case j: JsonScan => j.copy(partitionFilters = partitionFilters, dataFilters = dataFilters)
+      case _ => scan
+    }
   }
 
   def compressionSplittable(path: Path): Boolean = {
@@ -76,7 +77,7 @@ class GlutenTextBasedScanWrapper(
     }
   }
 
-  def getScan : TextBasedFileScan = scan
+  def getScan: TextBasedFileScan = scan
 }
 
 object GlutenTextBasedScanWrapper {

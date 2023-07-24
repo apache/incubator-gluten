@@ -18,8 +18,10 @@
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -28,8 +30,8 @@ public class ScalarFunctionNode implements ExpressionNode, Serializable {
   private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
   private final TypeNode typeNode;
 
-  ScalarFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
-                     TypeNode typeNode) {
+  ScalarFunctionNode(
+      Long functionId, ArrayList<ExpressionNode> expressionNodes, TypeNode typeNode) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.typeNode = typeNode;
@@ -37,8 +39,7 @@ public class ScalarFunctionNode implements ExpressionNode, Serializable {
 
   @Override
   public Expression toProtobuf() {
-    Expression.ScalarFunction.Builder scalarBuilder =
-        Expression.ScalarFunction.newBuilder();
+    Expression.ScalarFunction.Builder scalarBuilder = Expression.ScalarFunction.newBuilder();
     scalarBuilder.setFunctionReference(functionId.intValue());
     for (ExpressionNode expressionNode : expressionNodes) {
       FunctionArgument.Builder functionArgument = FunctionArgument.newBuilder();

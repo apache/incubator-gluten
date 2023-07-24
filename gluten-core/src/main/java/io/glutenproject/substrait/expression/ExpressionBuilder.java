@@ -207,7 +207,8 @@ public class ExpressionBuilder {
       return makeStructLiteral((InternalRow) obj, typeNode);
     }
     throw new UnsupportedOperationException(
-        String.format("Type not supported: %s, obj: %s, class: %s",
+        String.format(
+            "Type not supported: %s, obj: %s, class: %s",
             typeNode.toString(), obj.toString(), obj.getClass().toString()));
   }
 
@@ -219,8 +220,8 @@ public class ExpressionBuilder {
   public static void checkDecimalScale(int scale) {
     if (scale < 0) {
       // Substrait don't support decimal type with negative scale.
-      throw new UnsupportedOperationException(String.format(
-        "DecimalType with negative scale not supported: %s.", scale));
+      throw new UnsupportedOperationException(
+          String.format("DecimalType with negative scale not supported: %s.", scale));
     }
   }
 
@@ -245,8 +246,8 @@ public class ExpressionBuilder {
     return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
   }
 
-  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode,
-                                  boolean ansiEnabled) {
+  public static CastNode makeCast(
+      TypeNode typeNode, ExpressionNode expressionNode, boolean ansiEnabled) {
     return new CastNode(typeNode, expressionNode, ansiEnabled);
   }
 
@@ -254,8 +255,8 @@ public class ExpressionBuilder {
     return new StringMapNode(values);
   }
 
-  public static SingularOrListNode makeSingularOrListNode(ExpressionNode value,
-                                                          List<ExpressionNode> expressionNodes) {
+  public static SingularOrListNode makeSingularOrListNode(
+      ExpressionNode value, List<ExpressionNode> expressionNodes) {
     return new SingularOrListNode(value, expressionNodes);
   }
 
@@ -267,7 +268,7 @@ public class ExpressionBuilder {
       String upperBound,
       String lowerBound,
       String frameType) {
-    return new WindowFunctionNode(functionId, expressionNodes, columnName,
-        outputTypeNode, upperBound, lowerBound, frameType);
+    return new WindowFunctionNode(
+        functionId, expressionNodes, columnName, outputTypeNode, upperBound, lowerBound, frameType);
   }
 }

@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait
-
-import java.security.InvalidParameterException
-import java.lang.{Long => JLong, Integer => JInt}
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
 
 import io.glutenproject.substrait.ddlplan.InsertOutputNode
 import io.glutenproject.substrait.rel.LocalFilesNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+
+import java.lang.{Integer => JInt, Long => JLong}
+import java.security.InvalidParameterException
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
 
 case class JoinParams() {
   // Whether the input of streamed side is a ReadRel represented iterator.
@@ -97,7 +96,7 @@ class SubstraitContext extends Serializable {
 
   def setIteratorNode(index: JLong, localFilesNode: LocalFilesNode): Unit = {
     if (iteratorNodes.containsKey(index)) {
-      throw new IllegalStateException(s"Iterator index ${index} has been used.")
+      throw new IllegalStateException(s"Iterator index $index has been used.")
     }
     iteratorNodes.put(index, localFilesNode)
   }
@@ -118,7 +117,7 @@ class SubstraitContext extends Serializable {
       res
     } else {
       throw new IllegalStateException(
-        s"LocalFilesNodes index ${localFilesNodesIndex} exceeds the size of the LocalFilesNodes.")
+        s"LocalFilesNodes index $localFilesNodesIndex exceeds the size of the LocalFilesNodes.")
     }
   }
 
@@ -141,8 +140,7 @@ class SubstraitContext extends Serializable {
       val newFunctionId: JLong = functionMap.size.toLong
       functionMap.put(funcName, newFunctionId)
       newFunctionId
-    }
-    else {
+    } else {
       functionMap.get(funcName)
     }
   }
@@ -157,7 +155,8 @@ class SubstraitContext extends Serializable {
 
   /**
    * Register a rel to certain operator id.
-   * @param operatorId operator id
+   * @param operatorId
+   *   operator id
    */
   def registerRelToOperator(operatorId: JLong): Unit = {
     if (operatorToRelsMap.containsKey(operatorId)) {
@@ -174,7 +173,8 @@ class SubstraitContext extends Serializable {
   /**
    * Register empty rel list to certain operator id. Used when the computing of a Spark transformer
    * is omitted.
-   * @param operatorId operator id
+   * @param operatorId
+   *   operator id
    */
   def registerEmptyRelToOperator(operatorId: JLong): Unit = {
     if (!operatorToRelsMap.containsKey(operatorId)) {
@@ -191,8 +191,10 @@ class SubstraitContext extends Serializable {
 
   /**
    * Register the join params to certain operator id.
-   * @param operatorId operator id
-   * @param param join params
+   * @param operatorId
+   *   operator id
+   * @param param
+   *   join params
    */
   def registerJoinParam(operatorId: JLong, param: JoinParams): Unit = {
     if (joinParamsMap.containsKey(operatorId)) {
@@ -210,8 +212,10 @@ class SubstraitContext extends Serializable {
 
   /**
    * Register the aggregation params to certain operator id.
-   * @param operatorId operator id
-   * @param param aggregation params
+   * @param operatorId
+   *   operator id
+   * @param param
+   *   aggregation params
    */
   def registerAggregationParam(operatorId: JLong, param: AggregationParams): Unit = {
     if (aggregationParamsMap.containsKey(operatorId)) {
@@ -234,8 +238,6 @@ class SubstraitContext extends Serializable {
     id
   }
 
-  /**
-   * Only for debug the plan id and plan name in `operatorToRelsMap`
-   */
+  /** Only for debug the plan id and plan name in `operatorToRelsMap` */
   def getOperatorToPlanNameMap: JHashMap[JLong, String] = operatorToPlanNameMap
 }

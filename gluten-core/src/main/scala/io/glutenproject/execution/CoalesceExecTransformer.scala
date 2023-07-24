@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
+
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -29,7 +29,8 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode
+  with TransformSupport {
 
   override def supportsColumnar: Boolean = true
 
@@ -61,7 +62,7 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     throw new UnsupportedOperationException(s"$nodeName doesn't support doTransform.")
   }
 
-  protected override def doExecute(): RDD[InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()
   }
 
@@ -76,8 +77,8 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
 }
 
 object CoalesceExecTransformer {
-  class EmptyRDDWithPartitions(@transient private val sc: SparkContext,
-                               numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
+  class EmptyRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
+    extends RDD[ColumnarBatch](sc, Nil) {
 
     override def getPartitions: Array[Partition] =
       Array.tabulate(numPartitions)(i => EmptyPartition(i))

@@ -27,6 +27,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression._
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel._
+
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -35,6 +36,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import com.google.protobuf.Any
 
 import java.util.ArrayList

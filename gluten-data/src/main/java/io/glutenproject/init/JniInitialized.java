@@ -19,6 +19,7 @@ package io.glutenproject.init;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
+
 import org.apache.spark.sql.internal.SQLConf;
 
 import java.util.Map;
@@ -27,8 +28,8 @@ import java.util.Map;
 public abstract class JniInitialized {
   static {
     String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
-    Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(
-        prefix, SQLConf.get().getAllConfs());
+    Map<String, String> nativeConfMap =
+        GlutenConfig.getNativeBackendConf(prefix, SQLConf.get().getAllConfs());
     InitializerJniWrapper.initialize(JniUtils.toNativeConf(nativeConfMap));
   }
 

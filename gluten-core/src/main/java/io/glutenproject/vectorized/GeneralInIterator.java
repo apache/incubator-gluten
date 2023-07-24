@@ -41,8 +41,7 @@ public abstract class GeneralInIterator implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   public ColumnarBatch nextColumnarBatch() {
     return nextBatch;

@@ -25,8 +25,8 @@ public class SparkRowInfo {
   public long totalSize;
   public long fieldsNum;
 
-  public SparkRowInfo(long[] offsets, long[] lengths, long memoryAddress, long fieldsNum,
-                      long totalSize) {
+  public SparkRowInfo(
+      long[] offsets, long[] lengths, long memoryAddress, long fieldsNum, long totalSize) {
     this.offsets = offsets;
     this.lengths = lengths;
     this.memoryAddress = memoryAddress;

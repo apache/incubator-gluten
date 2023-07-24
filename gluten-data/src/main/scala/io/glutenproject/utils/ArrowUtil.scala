@@ -14,21 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
-import java.util
-
-import scala.collection.JavaConverters._
 import io.glutenproject.vectorized.ArrowWritableColumnVector
-import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
-import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+
+import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
+
+import java.util
+
+import scala.collection.JavaConverters._
 
 object ArrowUtil extends Logging {
 

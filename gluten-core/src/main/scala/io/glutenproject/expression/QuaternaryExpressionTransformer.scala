@@ -14,24 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
-
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.IntLiteralNode
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.RegExpReplace
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.substrait.expression.IntLiteralNode
 
-class RegExpReplaceTransformer(substraitExprName: String, subject: ExpressionTransformer,
-  regexp: ExpressionTransformer, rep: ExpressionTransformer, pos: ExpressionTransformer,
-  original: RegExpReplace)
-  extends ExpressionTransformer with Logging {
+import com.google.common.collect.Lists
+
+class RegExpReplaceTransformer(
+    substraitExprName: String,
+    subject: ExpressionTransformer,
+    regexp: ExpressionTransformer,
+    rep: ExpressionTransformer,
+    pos: ExpressionTransformer,
+    original: RegExpReplace)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (BackendsApiManager.isVeloxBackend) {
@@ -42,9 +46,11 @@ class RegExpReplaceTransformer(substraitExprName: String, subject: ExpressionTra
     // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent
     // In Spark: regexp_replace(subject, regexp, rep, pos=1)
     val posNode = pos.doTransform(args)
-    if (!posNode.isInstanceOf[IntLiteralNode] ||
-      posNode.asInstanceOf[IntLiteralNode].getValue() != 1) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
+    if (
+      !posNode.isInstanceOf[IntLiteralNode] ||
+      posNode.asInstanceOf[IntLiteralNode].getValue() != 1
+    ) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
     TernaryExpressionTransformer(substraitExprName, subject, regexp, rep, original)
@@ -52,9 +58,7 @@ class RegExpReplaceTransformer(substraitExprName: String, subject: ExpressionTra
   }
 }
 
-/**
- * Transformer for the normal quaternary expression
- */
+/** Transformer for the normal quaternary expression */
 class QuaternaryExpressionTransformer(
     substraitExprName: String,
     first: ExpressionTransformer,
@@ -62,7 +66,8 @@ class QuaternaryExpressionTransformer(
     third: ExpressionTransformer,
     forth: ExpressionTransformer,
     original: Expression)
-    extends ExpressionTransformer with Logging {
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val firstNode = first.doTransform(args)

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.ui
 
 import org.apache.spark.SparkConf
@@ -22,7 +21,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.ui.{SparkUI, SparkUITab}
 
 class GlutenSQLTab(val sqlStore: GlutenSQLAppStatusStore, sparkUI: SparkUI)
-  extends SparkUITab(sparkUI, "gluten") with Logging {
+  extends SparkUITab(sparkUI, "gluten")
+  with Logging {
 
   def conf: SparkConf = sparkUI.conf
 

@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import scala.collection.mutable
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -28,8 +25,11 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-private[glutenproject] class ZippedPartitionsPartition(idx: Int,
-                                                       @transient private val rdds: Seq[RDD[_]])
+import scala.collection.mutable
+
+private[glutenproject] class ZippedPartitionsPartition(
+    idx: Int,
+    @transient private val rdds: Seq[RDD[_]])
   extends Partition {
 
   override val index: Int = idx
@@ -38,7 +38,8 @@ private[glutenproject] class ZippedPartitionsPartition(idx: Int,
   def partitions: Seq[Partition] = partitionValues
 }
 
-class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
+class WholeStageZippedPartitionsRDD(
+    @transient private val sc: SparkContext,
     var rdds: Seq[RDD[ColumnarBatch]],
     numaBindingInfo: GlutenNumaBindingInfo,
     sparkConf: SparkConf,
@@ -64,9 +65,8 @@ class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val partitions = split.asInstanceOf[ZippedPartitionsPartition].partitions
-    val inputIterators: Seq[Iterator[ColumnarBatch]] = (rdds zip partitions).map {
-      case (rdd, partition) => rdd.iterator(partition, context)
-    }
+    val inputIterators: Seq[Iterator[ColumnarBatch]] =
+      (rdds.zip(partitions)).map { case (rdd, partition) => rdd.iterator(partition, context) }
     genFinalStageIterator(inputIterators)
   }
 
@@ -76,7 +76,7 @@ class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
       throw new IllegalArgumentException(
         s"Can't zip RDDs with unequal numbers of partitions: ${rdds.map(_.partitions.length)}")
     }
-    Array.tabulate[Partition](numParts) { i => new ZippedPartitionsPartition(i, rdds) }
+    Array.tabulate[Partition](numParts)(i => new ZippedPartitionsPartition(i, rdds))
   }
 
   override def clearDependencies(): Unit = {

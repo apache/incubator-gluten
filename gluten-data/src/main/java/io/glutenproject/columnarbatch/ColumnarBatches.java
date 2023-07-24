@@ -22,6 +22,7 @@ import io.glutenproject.utils.ArrowAbiUtil;
 import io.glutenproject.utils.ArrowUtil;
 import io.glutenproject.utils.ImplicitClass;
 import io.glutenproject.vectorized.ArrowWritableColumnVector;
+
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
@@ -50,9 +51,7 @@ public class ColumnarBatches {
     }
   }
 
-  private ColumnarBatches() {
-
-  }
+  private ColumnarBatches() {}
 
   private static void transferVectors(ColumnarBatch from, ColumnarBatch target) {
     try {
@@ -68,13 +67,11 @@ public class ColumnarBatches {
     }
   }
 
-  /**
-   * Heavy batch: Data is readable from JVM and formatted as Arrow data.
-   */
+  /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
   public static boolean isHeavyBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
-      throw new IllegalArgumentException("Cannot decide if a batch that " +
-          "has no column is Arrow columnar batch or not");
+      throw new IllegalArgumentException(
+          "Cannot decide if a batch that " + "has no column is Arrow columnar batch or not");
     }
     for (int i = 0; i < batch.numCols(); i++) {
       ColumnVector col = batch.column(i);
@@ -86,13 +83,13 @@ public class ColumnarBatches {
   }
 
   /**
-   * Light batch: Data is not readable from JVM, a long int handle (which is a pointer usually)
-   * is used to bind the batch to a native side implementation.
+   * Light batch: Data is not readable from JVM, a long int handle (which is a pointer usually) is
+   * used to bind the batch to a native side implementation.
    */
   public static boolean isLightBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
-      throw new IllegalArgumentException("Cannot decide if a batch that has " +
-          "no column is light columnar batch or not");
+      throw new IllegalArgumentException(
+          "Cannot decide if a batch that has " + "no column is light columnar batch or not");
     }
     ColumnVector col0 = batch.column(0);
     if (!(col0 instanceof IndicatorVector)) {
@@ -108,8 +105,8 @@ public class ColumnarBatches {
   }
 
   /**
-   * Ensure the input batch is offloaded as native-based columnar batch
-   * (See {@link IndicatorVector} and {@link PlaceholderVector}).
+   * Ensure the input batch is offloaded as native-based columnar batch (See {@link IndicatorVector}
+   * and {@link PlaceholderVector}).
    */
   public static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (ColumnarBatches.isLightBatch(batch)) {
@@ -119,8 +116,8 @@ public class ColumnarBatches {
   }
 
   /**
-   * Ensure the input batch is loaded as Arrow-based Java columnar batch. ABI-based sharing
-   * will take place if loading is required, which means when the input batch is not loaded yet.
+   * Ensure the input batch is loaded as Arrow-based Java columnar batch. ABI-based sharing will
+   * take place if loading is required, which means when the input batch is not loaded yet.
    */
   public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (batch.numCols() == 0) {
@@ -135,27 +132,28 @@ public class ColumnarBatches {
 
   private static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
     if (!ColumnarBatches.isLightBatch(input)) {
-      throw new IllegalArgumentException("Input is not light columnar batch. " +
-          "Please consider to use vanilla spark's row based input by setting one of the below" +
-          " configs: \n" +
-          "spark.sql.parquet.enableVectorizedReader=false\n" +
-          "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n" +
-          "spark.sql.orc.enableVectorizedReader=false\n");
+      throw new IllegalArgumentException(
+          "Input is not light columnar batch. "
+              + "Please consider to use vanilla spark's row based input by setting one of the below"
+              + " configs: \n"
+              + "spark.sql.parquet.enableVectorizedReader=false\n"
+              + "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n"
+              + "spark.sql.orc.enableVectorizedReader=false\n");
     }
     IndicatorVector iv = (IndicatorVector) input.column(0);
     final long handle = iv.getNativeHandle();
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
-         ArrowArray cArray = ArrowArray.allocateNew(allocator);
-         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
-         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.INSTANCE.exportToArrow(handle, cSchema.memoryAddress(),
-          cArray.memoryAddress());
+        ArrowArray cArray = ArrowArray.allocateNew(allocator);
+        ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
+        CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
+      ColumnarBatchJniWrapper.INSTANCE.exportToArrow(
+          handle, cSchema.memoryAddress(), cArray.memoryAddress());
 
-      Data.exportSchema(allocator,
-          ArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+      Data.exportSchema(
+          allocator, ArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
 
-      ColumnarBatch output = ArrowAbiUtil.importToSparkColumnarBatch(
-          allocator, arrowSchema, cArray);
+      ColumnarBatch output =
+          ArrowAbiUtil.importToSparkColumnarBatch(allocator, arrowSchema, cArray);
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
@@ -182,11 +180,12 @@ public class ColumnarBatches {
       throw new IllegalArgumentException("batch is not Arrow columnar batch");
     }
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
-         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
+        ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
-      long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),
-          cArray.memoryAddress());
+      long handle =
+          ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(
+              cSchema.memoryAddress(), cArray.memoryAddress());
       ColumnarBatch output = ColumnarBatches.create(handle);
 
       // Follow input's reference count. This might be optimized using
@@ -307,8 +306,9 @@ public class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     if (!isLightBatch(batch)) {
-      throw new UnsupportedOperationException("Cannot get native batch handle due to " +
-          "input batch is not intermediate Gluten batch");
+      throw new UnsupportedOperationException(
+          "Cannot get native batch handle due to "
+              + "input batch is not intermediate Gluten batch");
     }
     IndicatorVector iv = (IndicatorVector) batch.column(0);
     return iv.getNativeHandle();

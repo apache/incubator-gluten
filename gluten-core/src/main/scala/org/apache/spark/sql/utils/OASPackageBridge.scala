@@ -14,14 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.utils
 
 import org.apache.spark.executor.InputMetrics
 
-/**
- * Bridge to package org.apache.spark.
- */
+/** Bridge to package org.apache.spark. */
 object OASPackageBridge {
   implicit class InputMetricsWrapper(val m: InputMetrics) {
     def bridgeIncBytesRead(v: Long): Unit = {

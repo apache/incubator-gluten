@@ -27,9 +27,9 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 
 /**
- * This implementation is targeted to optimize against Spark's
- * {@link org.apache.spark.network.buffer.NettyManagedBuffer} to make sure shuffle data is shared
- * over JNI without unnecessary copy.
+ * This implementation is targeted to optimize against Spark's {@link
+ * org.apache.spark.network.buffer.NettyManagedBuffer} to make sure shuffle data is shared over JNI
+ * without unnecessary copy.
  */
 public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 

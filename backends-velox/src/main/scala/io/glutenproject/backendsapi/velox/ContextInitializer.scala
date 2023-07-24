@@ -18,13 +18,15 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
-import io.glutenproject.utils._
-import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 import io.glutenproject.expression.UDFMappings
 import io.glutenproject.init.JniTaskContext
-import org.apache.commons.lang3.StringUtils
+import io.glutenproject.utils._
+import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.util.TaskResource
+
+import org.apache.commons.lang3.StringUtils
 
 import scala.sys.process._
 
@@ -56,11 +58,15 @@ class ContextInitializer extends ContextApi {
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    if (conf.getBoolean(
-      GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR, GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)) {
+    if (
+      conf.getBoolean(
+        GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR,
+        GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)
+    ) {
       loadLibFromJar(loader)
     }
-    loader.newTransaction()
+    loader
+      .newTransaction()
       .loadAndCreateLink("libarrow.so.1200.0.0", "libarrow.so.1200", false)
       .loadAndCreateLink("libparquet.so.1200.0.0", "libparquet.so.1200", false)
       .commit()

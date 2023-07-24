@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 
-import io.glutenproject.GlutenConfig
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -36,10 +35,7 @@ object LogicalPlanSelector extends QueryPlanSelector[LogicalPlan] {
   override protected def validate(plan: LogicalPlan): Boolean = true
 }
 
-/**
- * Select to decide whether a Spark plan can be accepted by Gluten for further
- * execution.
- */
+/** Select to decide whether a Spark plan can be accepted by Gluten for further execution. */
 abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
 
   private[this] def stackTrace(max: Int = 5): String = {
@@ -57,8 +53,9 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }
-    val glutenEnabled = session.conf.
-      get(GlutenConfig.GLUTEN_ENABLE_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString).toBoolean
+    val glutenEnabled = session.conf
+      .get(GlutenConfig.GLUTEN_ENABLE_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
+      .toBoolean
     logInfo(s"shouldUseGluten: $glutenEnabled")
 
     glutenEnabled & validate(plan)

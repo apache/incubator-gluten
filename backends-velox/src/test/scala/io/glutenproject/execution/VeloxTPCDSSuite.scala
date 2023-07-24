@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import java.io.File
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
 
-import scala.io.Source
+import java.io.File
 import java.util
 
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.SparkConf
+import scala.io.Source
 
 // just used to test TPCDS locally
 // Usage: please export SPARK_TPCDS_DATA to your local TPCDS absolute path
@@ -32,8 +31,8 @@ import org.apache.spark.SparkConf
 class VeloxTPCDSSuite extends WholeStageTransformerSuite {
 
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = sys.env.getOrElse("SPARK_TPCDS_DATA",
-  "/tmp/tpcds-generated")
+  override protected val resourcePath: String =
+    sys.env.getOrElse("SPARK_TPCDS_DATA", "/tmp/tpcds-generated")
   override protected val fileFormat: String = "parquet"
 
   private val queryPath = System.getProperty("user.dir") +
@@ -91,11 +90,12 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
       "web_returns",
       "web_sales",
       "web_site"
-    ).map { table =>
-      val tablePath = new File(resourcePath, table).getAbsolutePath
-      val tableDF = spark.read.format(fileFormat).load(tablePath)
-      tableDF.createOrReplaceTempView(table)
-      (table, tableDF)
+    ).map {
+      table =>
+        val tablePath = new File(resourcePath, table).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+        tableDF.createOrReplaceTempView(table)
+        (table, tableDF)
     }.toMap
   }
 
@@ -103,24 +103,27 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
     val source = Source.fromFile(queryPath + "q7.sql")
     val sql = source.mkString
     source.close()
-    runQueryAndCompare(sql) (_ => {})
+    runQueryAndCompare(sql)(_ => {})
   }
 
   ignore("all query") {
     val s = new util.ArrayList[String]()
-    new File(queryPath).listFiles().foreach(f => {
-      val source = Source.fromFile(f.getAbsolutePath)
-      val sql = source.mkString
-      source.close()
-      print("query " + f.getName + "\n")
-      try {
-        runQueryAndCompare(sql)  { _ => }
-      } catch {
-        case e: Exception =>
-          s.add(f.getName)
-          print("query failed " + f.getName +  " by " + e.getMessage + "\n")
-      }
-    })
+    new File(queryPath)
+      .listFiles()
+      .foreach(
+        f => {
+          val source = Source.fromFile(f.getAbsolutePath)
+          val sql = source.mkString
+          source.close()
+          print("query " + f.getName + "\n")
+          try {
+            runQueryAndCompare(sql) { _ => }
+          } catch {
+            case e: Exception =>
+              s.add(f.getName)
+              print("query failed " + f.getName + " by " + e.getMessage + "\n")
+          }
+        })
     print("All failed queries \n" + s)
   }
 

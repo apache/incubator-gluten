@@ -14,20 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import io.glutenproject.backendsapi.BackendsApiManager
 
 import com.google.common.collect.Lists
 
-class CreateMapTransformer(substraitExprName: String, children: Seq[ExpressionTransformer],
-  useStringTypeWhenEmpty: Boolean, original: CreateMap)
+class CreateMapTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    useStringTypeWhenEmpty: Boolean,
+    original: CreateMap)
   extends ExpressionTransformer
   with Logging {
 
@@ -40,22 +42,29 @@ class CreateMapTransformer(substraitExprName: String, children: Seq[ExpressionTr
     }
 
     val childNodes = new java.util.ArrayList[ExpressionNode]()
-    children.foreach(child => {
-      val childNode = child.doTransform(args)
-      childNodes.add(childNode)
-    })
+    children.foreach(
+      child => {
+        val childNode = child.doTransform(args)
+        childNodes.add(childNode)
+      })
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(substraitExprName,
-      original.children.map(_.dataType), FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      original.children.map(_.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
   }
 }
 
-class GetMapValueTransformer(substraitExprName: String, child: ExpressionTransformer,
-  key: ExpressionTransformer, failOnError: Boolean, original: GetMapValue)
+class GetMapValueTransformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    key: ExpressionTransformer,
+    failOnError: Boolean,
+    original: GetMapValue)
   extends ExpressionTransformer
   with Logging {
 
@@ -74,8 +83,10 @@ class GetMapValueTransformer(substraitExprName: String, child: ExpressionTransfo
     val keyNode = key.doTransform(args)
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(substraitExprName,
-      Seq(original.child.dataType, original.key.dataType), FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      Seq(original.child.dataType, original.key.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val exprNodes = Lists.newArrayList(
       childNode.asInstanceOf[ExpressionNode],

@@ -14,16 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.Spiller
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized._
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
@@ -31,6 +29,9 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.RssShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourcesUtil
+
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 
@@ -57,8 +58,15 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   private val mapId = context.partitionId()
 
-  private val celebornPartitionPusher = new CelebornPartitionPusher(appId, shuffleId, numMappers,
-    numPartitions, context, mapId, client, celebornConf)
+  private val celebornPartitionPusher = new CelebornPartitionPusher(
+    appId,
+    shuffleId,
+    numMappers,
+    numPartitions,
+    context,
+    mapId,
+    client,
+    celebornConf)
 
   private val blockManager = SparkEnv.get.blockManager
 
@@ -118,7 +126,8 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             celebornConf.pushBufferMaxSize,
             celebornPartitionPusher,
             NativeMemoryAllocators
-              .getDefault().createSpillable(new Spiller() {
+              .getDefault()
+              .createSpillable(new Spiller() {
                 override def spill(size: Long, trigger: MemoryConsumer): Long = {
                   if (nativeShuffleWriter == -1L) {
                     throw new IllegalStateException(
@@ -156,10 +165,12 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
       splitResult = jniWrapper.stop(nativeShuffleWriter)
     }
 
-    dep.metrics("splitTime").add(
-      System.nanoTime() - startTime - splitResult.getTotalPushTime -
-        splitResult.getTotalWriteTime -
-        splitResult.getTotalCompressTime)
+    dep
+      .metrics("splitTime")
+      .add(
+        System.nanoTime() - startTime - splitResult.getTotalPushTime -
+          splitResult.getTotalWriteTime -
+          splitResult.getTotalCompressTime)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalPushTime)
 

@@ -4,8 +4,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 
 public class JniExceptionDescriber {
-  private JniExceptionDescriber() {
-  }
+  private JniExceptionDescriber() {}
 
   static String describe(Throwable throwable) {
     StringWriter sw = new StringWriter();

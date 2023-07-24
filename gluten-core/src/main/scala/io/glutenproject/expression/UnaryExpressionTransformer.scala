@@ -155,10 +155,7 @@ class PosExplodeTransformer(
     // posexplode(map_from_arrays(sequence(1, size(array_or_map)), array_or_map))
     val funcId = ExpressionBuilder.newScalarFunction(
       funcMap,
-      ConverterUtils.makeFuncName(
-        ExpressionNames.POSEXPLODE,
-        Seq(outputType),
-        FunctionConfig.OPT))
+      ConverterUtils.makeFuncName(ExpressionNames.POSEXPLODE, Seq(outputType), FunctionConfig.OPT))
 
     val childType = original.child.dataType
     childType match {

@@ -17,12 +17,12 @@
 
 package io.glutenproject.substrait.expression;
 
-import org.apache.spark.sql.catalyst.util.ArrayData;
+import io.glutenproject.substrait.type.ListNode;
+import io.glutenproject.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
-import io.glutenproject.substrait.type.TypeNode;
-import io.glutenproject.substrait.type.ListNode;
+import org.apache.spark.sql.catalyst.util.ArrayData;
 
 public class ListLiteralNode extends LiteralNodeWithValue<ArrayData> {
   public ListLiteralNode(ArrayData array, TypeNode typeNode) {
