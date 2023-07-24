@@ -99,8 +99,8 @@ function compile {
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
+  export simdjson_SOURCE=BUNDLED
   make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
-
   # Install deps to system as needed
   if [ -d "_build/$COMPILE_TYPE/_deps" ]; then
     cd _build/$COMPILE_TYPE/_deps
@@ -111,10 +111,6 @@ function compile {
     if [ -d gtest-build ]; then
       echo "INSTALL gtest."
       sudo cmake --install gtest-build/
-    fi
-    if [ -d simdjson-build ]; then
-      echo "INSTALL simdjson."
-      sudo cmake --install simdjson-build/
     fi
   fi
 }
