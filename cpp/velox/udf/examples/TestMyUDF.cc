@@ -29,7 +29,9 @@ int main() {
   const std::string funcName = "myudf1";
   auto f = map.withRLock([&funcName](auto& self) -> std::shared_ptr<facebook::velox::exec::VectorFunction> {
     auto iter = self.find(funcName);
-    return iter->second.factory(funcName, {});
+    std::unordered_map<std::string, std::string> values;
+    const facebook::velox::core::QueryConfig config(std::move(values));
+    return iter->second.factory(funcName, {}, config);
   });
 
   if (!f) {
