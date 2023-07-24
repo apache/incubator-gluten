@@ -47,7 +47,7 @@
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 
 DECLARE_int32(split_preload_per_driver);
-DECLARE_bool(SkipRowSortInWindowOp);
+// DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 
 using namespace facebook;
@@ -109,7 +109,7 @@ void VeloxInitializer::printConf(const std::unordered_map<std::string, std::stri
 void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& conf) {
   // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
-  FLAGS_SkipRowSortInWindowOp = true;
+  // FLAGS_SkipRowSortInWindowOp = true;
   // Set velox_exception_user_stacktrace_enabled.
   {
     auto got = conf.find(kEnableUserExceptionStacktrace);
@@ -210,9 +210,8 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
 
   registerConnector(hiveConnector);
-  velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
+  velox::parquet::registerParquetReaderFactory();
   velox::dwrf::registerDwrfReaderFactory();
-  velox::dwrf::registerOrcReaderFactory();
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {
@@ -224,7 +223,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   initUdf(conf);
 }
 
-velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
+facebook::velox::cache::AsyncDataCache* VeloxInitializer::getAsyncDataCache() const {
   return asyncDataCache_.get();
 }
 
@@ -286,9 +285,11 @@ void VeloxInitializer::initCache(const std::unordered_map<std::string, std::stri
     auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
-      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, nullptr);
+      // FIXME this is not tracked by Spark
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get());
     } else {
-      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+      // FIXME this is not tracked by Spark
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get(), std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))

@@ -72,11 +72,6 @@ Timestamp getLiteralValue(const ::substrait::Expression::Literal& literal) {
   return Timestamp::fromMicros(literal.timestamp());
 }
 
-template <>
-Date getLiteralValue(const ::substrait::Expression::Literal& literal) {
-  return Date(literal.date());
-}
-
 ArrayVectorPtr makeArrayVector(const VectorPtr& elements) {
   BufferPtr offsets = allocateOffsets(1, elements->pool());
   BufferPtr sizes = allocateOffsets(1, elements->pool());
@@ -142,6 +137,9 @@ void setLiteralValue(const ::substrait::Expression::Literal& literal, FlatVector
     } else {
       VELOX_FAIL("Unexpected string or binary literal");
     }
+  } else if (vector->type()->isDate()) {
+    auto dateVector = vector->template asFlatVector<int32_t>();
+    dateVector->set(index, int(literal.date()));
   } else {
     vector->set(index, getLiteralValue<T>(literal));
   }
@@ -375,7 +373,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
     case ::substrait::Expression_Literal::LiteralTypeCase::kString:
       return std::make_shared<core::ConstantTypedExpr>(VARCHAR(), variant(substraitLit.string()));
     case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return std::make_shared<core::ConstantTypedExpr>(DATE(), variant(Date(substraitLit.date())));
+      return std::make_shared<core::ConstantTypedExpr>(DATE(), variant(int(substraitLit.date())));
     case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
       return std::make_shared<core::ConstantTypedExpr>(
           TIMESTAMP(), variant(Timestamp::fromMicros(substraitLit.timestamp())));
@@ -480,7 +478,7 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
       return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return constructFlatVector<TypeKind::DATE>(elementAtFunc, childSize, DATE(), pool_);
+      return constructFlatVector<TypeKind::INTEGER>(elementAtFunc, childSize, DATE(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
       return constructFlatVector<TypeKind::TIMESTAMP>(elementAtFunc, childSize, TIMESTAMP(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:

@@ -127,6 +127,8 @@ function compile {
     exit 1
   fi
 
+  export simdjson_SOURCE=BUNDLED
+  make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   # Install deps to system as needed
   if [ -d "_build/$COMPILE_TYPE/_deps" ]; then
     cd _build/$COMPILE_TYPE/_deps
@@ -144,14 +146,6 @@ function compile {
         sudo cmake --install gtest-build/
       elif [ $OS == 'Darwin' ]; then
         cmake --install gtest-build/
-      fi
-    fi
-    if [ -d simdjson-build ]; then
-      echo "INSTALL simdjson."
-      if [ $OS == 'Linux' ]; then
-        sudo cmake --install simdjson-build/
-      elif [ $OS == 'Darwin' ]; then
-        cmake --install simdjson-build/
       fi
     fi
   fi
