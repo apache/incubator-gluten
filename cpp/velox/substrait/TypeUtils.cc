@@ -76,8 +76,11 @@ std::pair<int32_t, int32_t> getPrecisionAndScale(const std::string& typeName) {
 
 TypePtr toVeloxType(const std::string& typeName, bool asLowerCase) {
   VELOX_CHECK(!typeName.empty(), "Cannot convert empty string to Velox type.");
-  auto type = getNameBeforeDelimiter(typeName, "<");
-  auto typeKind = mapNameToTypeKind(std::string(type));
+  auto type = std::string(getNameBeforeDelimiter(typeName, "<"));
+  if (DATE()->toString() == type) {
+    return DATE();
+  }
+  auto typeKind = mapNameToTypeKind(type);
   switch (typeKind) {
     case TypeKind::BOOLEAN:
       return BOOLEAN();
@@ -141,9 +144,6 @@ TypePtr toVeloxType(const std::string& typeName, bool asLowerCase) {
         }
       }
       return ROW(std::move(names), std::move(types));
-    }
-    case TypeKind::DATE: {
-      return DATE();
     }
     case TypeKind::TIMESTAMP: {
       return TIMESTAMP();
