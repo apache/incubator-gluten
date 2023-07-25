@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.errors
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenQueryExecutionErrorsSuite extends
-  QueryExecutionErrorsSuite with GlutenSQLTestsBaseTrait{
+class GlutenQueryExecutionErrorsSuite
+  extends QueryExecutionErrorsSuite
+  with GlutenSQLTestsBaseTrait {
   override protected def getResourceParquetFilePath(name: String): String = {
-    getWorkspaceFilePath(
-      "sql", "core", "src", "test", "resources").toString + "/" + name
+    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name
   }
 }

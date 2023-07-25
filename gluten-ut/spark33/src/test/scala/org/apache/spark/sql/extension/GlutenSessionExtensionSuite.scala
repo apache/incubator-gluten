@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.extension
 
 import io.glutenproject.extension.{ColumnarOverrideRules, FallbackBroadcastExchange, JoinSelectionOverrides}
@@ -44,9 +43,12 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
     assert(spark.sessionState.analyzer.extendedCheckRules.contains(MyCheckRule(spark)))
     assert(spark.sessionState.optimizer.batches.flatMap(_.rules).contains(MyRule(spark)))
     assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
-    assert(spark.sessionState.functionRegistry
-      .lookupFunction(MyExtensions.myFunction._1).isDefined)
-    assert(spark.sessionState.columnarRules.contains(
-      MyColumnarRule(PreRuleReplaceAddWithBrokenVersion(), MyPostRule())))
+    assert(
+      spark.sessionState.functionRegistry
+        .lookupFunction(MyExtensions.myFunction._1)
+        .isDefined)
+    assert(
+      spark.sessionState.columnarRules.contains(
+        MyColumnarRule(PreRuleReplaceAddWithBrokenVersion(), MyPostRule())))
   }
 }

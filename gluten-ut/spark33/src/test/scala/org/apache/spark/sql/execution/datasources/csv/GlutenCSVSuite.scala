@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.csv
 
 import org.apache.spark.SparkConf
@@ -22,32 +21,27 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenCSVSuite extends CSVSuite with GlutenSQLTestsBaseTrait {
-  /**
-   * Returns full path to the given file in the resource folder
-   */
+
+  /** Returns full path to the given file in the resource folder */
   override protected def testFile(fileName: String): String = {
-    getWorkspaceFilePath(
-      "sql", "core", "src", "test", "resources").toString + "/" + fileName
+    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
   }
 }
 
-class GlutenCSVv1Suite extends GlutenCSVSuite  {
+class GlutenCSVv1Suite extends GlutenCSVSuite {
   override def sparkConf: SparkConf =
-    super
-      .sparkConf
+    super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "csv")
 }
 
 class GlutenCSVv2Suite extends GlutenCSVSuite {
   override def sparkConf: SparkConf =
-    super
-      .sparkConf
+    super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 }
 
 class GlutenCSVLegacyTimeParserSuite extends GlutenCSVSuite {
   override def sparkConf: SparkConf =
-    super
-      .sparkConf
+    super.sparkConf
       .set(SQLConf.LEGACY_TIME_PARSER_POLICY, "legacy")
 }

@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.joins
 
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.SystemParameters
+
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
@@ -31,7 +31,8 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
    */
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val sparkBuilder = SparkSession.builder()
+    val sparkBuilder = SparkSession
+      .builder()
       .master("local-cluster[2,1,1024]")
       .appName("Gluten-UT")
       .master(s"local[2]")
@@ -46,8 +47,10 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .config("spark.sql.warehouse.dir", warehouse)
       // Avoid static evaluation for literal input by spark catalyst.
-      .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-        NullPropagation.ruleName)
+      .config(
+        "spark.sql.optimizer.excludedRules",
+        ConstantFolding.ruleName + "," +
+          NullPropagation.ruleName)
       // Avoid the code size overflow error in Spark code generation.
       .config("spark.sql.codegen.wholeStage", "false")
 

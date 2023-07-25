@@ -14,12 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.errors
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenQueryCompilationErrorsDSv2Suite extends QueryCompilationErrorsDSv2Suite
-  with GlutenSQLTestsBaseTrait{
-
-}
+class GlutenQueryCompilationErrorsDSv2Suite
+  extends QueryCompilationErrorsDSv2Suite
+  with GlutenSQLTestsBaseTrait {}

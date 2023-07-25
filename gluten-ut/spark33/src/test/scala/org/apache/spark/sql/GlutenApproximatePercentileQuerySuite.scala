@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenApproximatePercentileQuerySuite extends ApproximatePercentileQuerySuite
+class GlutenApproximatePercentileQuerySuite
+  extends ApproximatePercentileQuerySuite
   with GlutenSQLTestsTrait {
 
   override def testFile(fileName: String): String = {
-    Thread.currentThread().getContextClassLoader.getResource(fileName)
-      .toString
+    Thread.currentThread().getContextClassLoader.getResource(fileName).toString
   }
 }

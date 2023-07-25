@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
 
-class GlutenParquetProtobufCompatibilitySuite extends ParquetProtobufCompatibilitySuite
+class GlutenParquetProtobufCompatibilitySuite
+  extends ParquetProtobufCompatibilitySuite
   with GlutenSQLTestsBaseTrait {
   override protected def readResourceParquetFile(name: String): DataFrame = {
-    spark.read.parquet(getWorkspaceFilePath(
-      "sql", "core", "src", "test", "resources").toString + "/" + name)
+    spark.read.parquet(
+      getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name)
   }
 }
