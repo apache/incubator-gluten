@@ -222,8 +222,8 @@ class GlutenCoalesceShufflePartitionsSuite
                 shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 3))
             }
         }
-        // Change the original value 2000 to 6000 for gluten. The test depends on the calculation for
-        // bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
+        // Change the original value 2000 to 6000 for gluten. The test depends on the calculation
+        // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
         // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
         withSparkSession(test, 6000, minNumPostShufflePartitions)
       }

@@ -105,7 +105,8 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
             val dfStruct2 = sparkContext.parallelize(Seq((null, 1, 1))).toDF("a", "b", "c")
             dfStruct2.select(struct("c").as("s")).write.parquet(path4)
 
-            // No matter "s.c = 1" gets pushed down or not, this query should work without exception.
+            // No matter "s.c = 1" gets pushed down or not, this query
+            // should work without exception.
             val dfStruct3 = spark.read
               .parquet(path3, path4)
               .filter("s.c = 1")

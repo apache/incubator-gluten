@@ -497,7 +497,7 @@ class GlutenSQLQueryTestSuite
     ) {
       // Create a test case to ignore this case.
       ignore(testCase.name) { /* Do nothing */ }
-    } else
+    } else {
       testCase match {
         case udfTestCase: UDFTest
             if udfTestCase.udf.isInstanceOf[TestPythonUDF] && !shouldTestPythonUDFs =>
@@ -519,6 +519,7 @@ class GlutenSQLQueryTestSuite
             runTest(testCase)
           }
       }
+    }
   }
 
   /** Run a test case. */

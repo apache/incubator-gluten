@@ -64,7 +64,8 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     ) {
       val df = sql(s"""
                       |SELECT * FROM product p WHERE p.store_id NOT IN
-                      | (SELECT f.store_id FROM fact_sk f JOIN dim_store d ON f.store_id = d.store_id
+                      | (SELECT f.store_id FROM fact_sk f JOIN dim_store d ON
+                      |  f.store_id = d.store_id
                       |    WHERE d.state_province = 'NL'
                       | )
        """.stripMargin)

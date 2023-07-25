@@ -61,7 +61,8 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
       withTempDir {
         dir =>
           sql(
-            s"CREATE TABLE t USING PARQUET LOCATION '${dir.toURI}' AS SELECT map('k1', 'v1') m, 'k1' k")
+            s"CREATE TABLE t USING PARQUET LOCATION '${dir.toURI}' AS SELECT map('k1', 'v1') m," +
+              s" 'k1' k")
           Seq(
             "SELECT map('k1', 'v1')[k] FROM t GROUP BY 1",
             "SELECT map('k1', 'v1')[k] FROM t GROUP BY map('k1', 'v1')[k]",

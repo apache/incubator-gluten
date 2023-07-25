@@ -117,8 +117,9 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
             }
             previousValue = v
         }
-        if (!allSequential)
+        if (!allSequential) {
           throw new SparkException("Partition should contain all sequential values")
+        }
     }
 
     /** partitionNum = 5 */

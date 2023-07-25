@@ -81,8 +81,8 @@ class GlutenParquetRebaseDatetimeV1Suite
                     Seq.tabulate(N)(_ => Row(Date.valueOf("1001-01-01"))))
               }
 
-              // Force to not rebase to prove the written datetime values are rebased and we will get
-              // wrong result if we don't rebase while reading.
+              // Force to not rebase to prove the written datetime values are rebased
+              // and we will get wrong result if we don't rebase while reading.
               // gluten not support this mode
 //          withSQLConf("spark.test.forceNoRebase" -> "true") {
 //            checkAnswer(
