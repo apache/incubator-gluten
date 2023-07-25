@@ -220,7 +220,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
   bindToTask(mm);
   auto pool = mm->addRootPool(
       "wrapped_root_" + std::to_string(id++),
-      1024 * 1024 * 1024, // the 3rd capacity
+      200 * 1024 * 1024, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
   return pool;
 }
