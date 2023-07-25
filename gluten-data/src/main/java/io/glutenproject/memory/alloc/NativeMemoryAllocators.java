@@ -17,9 +17,11 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.Spiller;
 import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.memtarget.MemoryTarget;
+import io.glutenproject.memory.memtarget.OverAcquire;
+import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.Spiller;
 
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
@@ -67,12 +69,13 @@ public final class NativeMemoryAllocators {
                 createNativeMemoryAllocatorManager(
                     TaskResources.getLocalTaskContext().taskMemoryManager(),
                     TaskResources.getSharedMetrics(),
+                    0.0D,
                     Spiller.NO_OP,
                     global))
         .getManaged();
   }
 
-  public NativeMemoryAllocator createSpillable(Spiller spiller) {
+  public NativeMemoryAllocator create(double overAcquiredRatio, Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
@@ -81,6 +84,7 @@ public final class NativeMemoryAllocators {
         createNativeMemoryAllocatorManager(
             TaskResources.getLocalTaskContext().taskMemoryManager(),
             TaskResources.getSharedMetrics(),
+            overAcquiredRatio,
             spiller,
             global);
     return TaskResources.addAnonymousResource(manager).getManaged();
@@ -93,12 +97,16 @@ public final class NativeMemoryAllocators {
   private static NativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
       TaskMemoryManager taskMemoryManager,
       TaskMemoryMetrics taskMemoryMetrics,
+      double overAcquiredRatio,
       Spiller spiller,
       NativeMemoryAllocator delegated) {
-
-    ManagedReservationListener rl =
-        new ManagedReservationListener(
-            new GlutenMemoryConsumer(taskMemoryManager, spiller), taskMemoryMetrics);
+    MemoryTarget target = new GlutenMemoryConsumer(taskMemoryManager, spiller);
+    if (overAcquiredRatio != 0.0D) {
+      target =
+          new OverAcquire(
+              target, new OverAcquire.DummyTarget(taskMemoryManager), overAcquiredRatio);
+    }
+    ManagedReservationListener rl = new ManagedReservationListener(target, taskMemoryMetrics);
     return new NativeMemoryAllocatorManagerImpl(
         NativeMemoryAllocator.createListenable(rl, delegated));
   }

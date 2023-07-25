@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package io.glutenproject.memory.memtarget;
 
-import org.apache.spark.memory.MemoryConsumer;
+// The naming convention "borrow" and "repay" are for preventing collisions with
+//   other APIs.
+//
+// Implementations are not necessary to be thread-safe
+public interface MemoryTarget {
+  long borrow(long size);
 
-public interface Spiller {
-  Spiller NO_OP =
-      new Spiller() {
-        @Override
-        public long spill(long size, MemoryConsumer trigger) {
-          return 0L;
-        }
-      };
+  long repay(long size);
 
-  long spill(long size, MemoryConsumer trigger);
+  long bytes();
 }

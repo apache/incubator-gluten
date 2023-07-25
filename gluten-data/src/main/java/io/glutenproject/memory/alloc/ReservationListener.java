@@ -35,11 +35,6 @@ public interface ReservationListener {
 
         @Override
         public void inactivate() {}
-
-        @Override
-        public long currentMemory() {
-          return 0L;
-        }
       };
 
   long reserve(long size);
@@ -49,6 +44,4 @@ public interface ReservationListener {
   long unreserve(long size);
 
   void inactivate();
-
-  long currentMemory();
 }

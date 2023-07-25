@@ -17,12 +17,12 @@
 
 package org.apache.spark.memory;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.Spiller;
 import io.glutenproject.memory.TaskMemoryMetrics;
 import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
+import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.Spiller;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.internal.config.package$;

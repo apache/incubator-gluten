@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.Spiller
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
@@ -137,21 +137,24 @@ class ColumnarShuffleWriter[K, V](
             preferSpill,
             NativeMemoryAllocators
               .getDefault()
-              .createSpillable(new Spiller() {
-                override def spill(size: Long, trigger: MemoryConsumer): Long = {
-                  if (nativeShuffleWriter == -1L) {
-                    throw new IllegalStateException(
-                      "Fatal: spill() called before a shuffle writer " +
-                        "is created. This behavior should be optimized by moving memory " +
-                        "allocations from make() to split()")
+              .create(
+                0.0d,
+                new Spiller() {
+                  override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                    if (nativeShuffleWriter == -1L) {
+                      throw new IllegalStateException(
+                        "Fatal: spill() called before a shuffle writer " +
+                          "is created. This behavior should be optimized by moving memory " +
+                          "allocations from make() to split()")
+                    }
+                    logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+                    // fixme pass true when being called by self
+                    val spilled = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                    logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+                    spilled
                   }
-                  logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-                  // fixme pass true when being called by self
-                  val spilled = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-                  logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-                  spilled
                 }
-              })
+              )
               .getNativeInstanceId,
             writeSchema,
             writeEOS,

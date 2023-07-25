@@ -20,25 +20,11 @@
 #include <memory>
 #include <vector>
 
-namespace {
-class TaskContextStorage {
- public:
-  void bind(std::shared_ptr<void> object) {
-    objects_.push_back(object);
-  }
-
- private:
-  std::vector<std::shared_ptr<void>> objects_;
-};
-} // namespace
-
 namespace gluten {
 
-extern thread_local std::unique_ptr<TaskContextStorage> taskContextStorage;
+bool isOnSparkTaskMainThread();
 
 void bindToTask(std::shared_ptr<void> object);
-
-void bindToTaskIfPossible(std::shared_ptr<void> object);
 
 void createTaskContextStorage();
 

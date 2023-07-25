@@ -70,16 +70,18 @@ public class NativePlanEvaluator {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
     final long allocId =
         NativeMemoryAllocators.getDefault()
-            .createSpillable(
+            .create(
+                GlutenConfig.getConf().veloxOverAcquiredMemoryRatio(),
                 (size, trigger) -> {
                   ColumnarBatchOutIterator instance =
                       Optional.of(outIterator.get())
                           .orElseThrow(
                               () ->
                                   new IllegalStateException(
-                                      "Fatal: spill() called before a output iterator is created."
-                                          + " This behavior should be optimized by moving memory"
-                                          + " allocations from create() to hasNext()/next()"));
+                                      "Fatal: spill() called before a output iterator "
+                                          + "is created. This behavior should be optimized "
+                                          + "by moving memory allocations from create() to "
+                                          + "hasNext()/next()"));
                   return instance.spill(size);
                 })
             .getNativeInstanceId();

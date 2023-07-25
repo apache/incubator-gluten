@@ -19,20 +19,49 @@
 #include <folly/Likely.h>
 #include "utils/exception.h"
 
-namespace gluten {
+#include <iostream>
+#include <mutex>
+
+namespace {
+class TaskContextStorage {
+ public:
+  virtual ~TaskContextStorage() {
+    for (auto itr = objects_.rbegin(); itr != objects_.rend(); itr++) {
+      itr->reset();
+    }
+  }
+
+  void bind(std::shared_ptr<void> object) {
+    objects_.push_back(object);
+  }
+
+ private:
+  std::vector<std::shared_ptr<void>> objects_;
+};
 
 thread_local std::unique_ptr<TaskContextStorage> taskContextStorage = nullptr;
+std::unique_ptr<TaskContextStorage> fallbackStorage = std::make_unique<TaskContextStorage>();
+std::mutex fallbackStorageMutex;
+} // namespace
 
-void bindToTask(std::shared_ptr<void> object) {
-  GLUTEN_CHECK(taskContextStorage != nullptr, "Not in a Spark task");
-  taskContextStorage->bind(object);
+namespace gluten {
+
+bool isOnSparkTaskMainThread() {
+  return taskContextStorage != nullptr;
 }
 
-void bindToTaskIfPossible(std::shared_ptr<void> object) {
-  if (taskContextStorage == nullptr) {
-    return; // it's likely that we are not in a Spark task
+void bindToTask(std::shared_ptr<void> object) {
+  if (isOnSparkTaskMainThread()) {
+    taskContextStorage->bind(object);
+    return;
   }
-  taskContextStorage->bind(object);
+  // The fallback storage is used. Spark sometimes creates sub-threads from a task thread. For example,
+  //   PythonRunner.scala:183 @ Spark3.2.2
+  //   GlutenSubqueryBroadcastExec.scala:73 @6bce2c33
+  std::lock_guard<std::mutex> guard(fallbackStorageMutex);
+  std::cout << "Binding a shared object to fallback storage. This should only happen on sub-thread of a Spark task. "
+            << std::endl;
+  fallbackStorage->bind(object);
 }
 
 void createTaskContextStorage() {
@@ -42,6 +71,6 @@ void createTaskContextStorage() {
 
 void deleteTaskContextStorage() {
   GLUTEN_CHECK(taskContextStorage != nullptr, "Task context storage is not created");
-  taskContextStorage = nullptr;
+  taskContextStorage.reset();
 }
 } // namespace gluten

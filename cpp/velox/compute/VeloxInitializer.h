@@ -50,14 +50,6 @@ class VeloxInitializer {
 
   facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
 
-  const facebook::velox::memory::MemoryPool::Options& getMemoryPoolOptions() const {
-    return memPoolOptions_;
-  }
-
-  int64_t getSpillThreshold() const {
-    return spillThreshold_;
-  }
-
  private:
   explicit VeloxInitializer(const std::unordered_map<std::string, std::string>& conf) {
     init(conf);
@@ -80,10 +72,6 @@ class VeloxInitializer {
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =
       facebook::velox::memory::MemoryAllocator::createDefaultInstance();
-
-  // Memory pool options used to create mem pool for iterators.
-  facebook::velox::memory::MemoryPool::Options memPoolOptions_{};
-  int64_t spillThreshold_ = std::numeric_limits<int64_t>::max();
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;

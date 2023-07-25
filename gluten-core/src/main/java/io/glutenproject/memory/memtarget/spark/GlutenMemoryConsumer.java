@@ -15,19 +15,18 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package io.glutenproject.memory.memtarget.spark;
 
+import io.glutenproject.memory.memtarget.MemoryTarget;
+
+import com.google.common.base.Preconditions;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class GlutenMemoryConsumer extends MemoryConsumer {
-
-  private static final Logger LOG = LoggerFactory.getLogger(GlutenMemoryConsumer.class);
-  protected final Spiller spiller;
+public class GlutenMemoryConsumer extends MemoryConsumer implements MemoryTarget {
+  private final Spiller spiller;
 
   public GlutenMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
@@ -51,6 +50,22 @@ public class GlutenMemoryConsumer extends MemoryConsumer {
   public long free(long size) {
     assert size > 0;
     freeMemory(size);
+    Preconditions.checkArgument(getUsed() >= 0);
     return size;
+  }
+
+  @Override
+  public long borrow(long size) {
+    return acquire(size);
+  }
+
+  @Override
+  public long repay(long size) {
+    return free(size);
+  }
+
+  @Override
+  public long bytes() {
+    return getUsed();
   }
 }

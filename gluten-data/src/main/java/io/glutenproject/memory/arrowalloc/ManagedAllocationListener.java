@@ -17,8 +17,8 @@
 
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.slf4j.Logger;
@@ -31,7 +31,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
 
   public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
-  private final GlutenMemoryConsumer consumer;
+  private final MemoryTarget target;
   private final TaskMemoryMetrics metrics;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -39,8 +39,8 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public ManagedAllocationListener(GlutenMemoryConsumer consumer, TaskMemoryMetrics metrics) {
-    this.consumer = consumer;
+  public ManagedAllocationListener(MemoryTarget target, TaskMemoryMetrics metrics) {
+    this.target = target;
     this.metrics = metrics;
   }
 
@@ -58,9 +58,11 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
       return;
     }
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
-    long granted = consumer.acquire(toBeAcquired);
+    long granted = target.borrow(toBeAcquired);
     if (granted < toBeAcquired) {
-      consumer.free(granted);
+      if (granted != 0L) {
+        target.repay(granted);
+      }
       throw new UnsupportedOperationException(
           "Not enough spark off-heap execution memory. "
               + "Acquired: "
@@ -88,7 +90,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
       return;
     }
     long toBeReleased = -requiredBlocks * BLOCK_SIZE;
-    consumer.free(toBeReleased);
+    target.repay(toBeReleased);
     metrics.inc(-toBeReleased);
   }
 

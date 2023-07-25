@@ -62,7 +62,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 #ifdef ENABLE_HDFS
   updateHdfsTokens();
 #endif
-  spillStrategy_ = getConfigValue(kSpillStrategy, "threshold");
+  spillStrategy_ = getConfigValue(kSpillStrategy, "auto");
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
 
@@ -101,9 +101,44 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
 }
 
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
+  std::string poolName{pool_->root()->name() + "/" + pool_->name()};
+  std::string logPrefix{"Spill[" + poolName + "]: "};
+  LOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
+  LOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
+            << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
+  LOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunk = pool_->shrinkManaged(pool_.get(), size);
+  LOG(INFO) << logPrefix << shrunk << " bytes released from shrinking.";
+
+  // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
-    return pool_->reclaim(size);
+    int64_t remaining = size - shrunk;
+    LOG(INFO) << logPrefix << "Trying to request spilling for remaining " << remaining << " bytes...";
+    // if we are on one of the driver of the spilled task, suspend it
+    velox::exec::Driver* thisDriver = nullptr;
+    task_->testingVisitDrivers([&](velox::exec::Driver* driver) {
+      if (driver->isOnThread()) {
+        thisDriver = driver;
+      }
+    });
+    if (thisDriver == nullptr) {
+      // not the driver, no need to suspend
+      uint64_t spilledOut = pool_->reclaim(remaining);
+      LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
+      uint64_t total = shrunk + spilledOut;
+      LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+      return spilledOut;
+    }
+    // suspend since we are on driver
+    velox::exec::SuspendedSection noCancel(thisDriver);
+    uint64_t spilledOut = pool_->reclaim(remaining);
+    LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
+    uint64_t total = shrunk + spilledOut;
+    LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    return spilledOut;
   }
+
+  LOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunk << " bytes.";
   return 0;
 }
 

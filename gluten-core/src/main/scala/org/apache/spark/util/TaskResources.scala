@@ -19,7 +19,6 @@ package org.apache.spark.util
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.util.TaskResources.inSparkTask
 
 import _root_.io.glutenproject.backendsapi.BackendsApiManager
 import _root_.io.glutenproject.memory.TaskMemoryMetrics
@@ -43,6 +42,14 @@ object TaskResources extends TaskListener with Logging {
   private val RESOURCE_REGISTRIES =
     new java.util.IdentityHashMap[TaskContext, TaskResourceRegistry]()
 
+  // The fallback registry handles the case that the caller is not in a Spark task.
+  private val FALLBACK_REGISTRY = new TaskResourceRegistry()
+
+  GlutenShutdownManager.addHook(
+    () => {
+      FALLBACK_REGISTRY.releaseAll()
+    })
+
   def getLocalTaskContext(): TaskContext = {
     TaskContext.get()
   }
@@ -53,7 +60,10 @@ object TaskResources extends TaskListener with Logging {
 
   private def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
-      throw new IllegalStateException("Not in a Spark task")
+      logInfo(
+        "Using the fallback instance of TaskResourceRegistry. " +
+          "This should only happen when call is not from Spark task.")
+      return FALLBACK_REGISTRY
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
@@ -68,9 +78,6 @@ object TaskResources extends TaskListener with Logging {
   }
 
   def addRecycler(prio: Long)(f: => Unit): Unit = {
-    if (!inSparkTask()) {
-      throw new IllegalStateException("Not in a Spark task")
-    }
     addAnonymousResource(new TaskResource {
       override def release(): Unit = f
       override def priority(): Long = prio
@@ -161,19 +168,14 @@ object TaskResources extends TaskListener with Logging {
   }
 }
 
+// thread safe
 class TaskResourceRegistry extends Logging {
-  if (!inSparkTask()) {
-    throw new IllegalStateException("Creating TaskResourceRegistry instance out of Spark task")
-  }
-
   private val sharedMetrics = new TaskMemoryMetrics()
-
   private val resources = new java.util.LinkedHashMap[String, TaskResource]()
-
   private val resourcesPriorityMapping =
     new java.util.HashMap[Long, java.util.List[TaskResource]]()
 
-  private def addResource0(id: String, resource: TaskResource): Unit = {
+  private def addResource0(id: String, resource: TaskResource): Unit = synchronized {
     resources.put(id, resource)
     if (!resourcesPriorityMapping.containsKey(resource.priority())) {
       resourcesPriorityMapping.put(resource.priority(), new util.ArrayList[TaskResource]())
@@ -182,7 +184,7 @@ class TaskResourceRegistry extends Logging {
     list.add(resource)
   }
 
-  private[util] def releaseAll(): Unit = {
+  private[util] def releaseAll(): Unit = synchronized {
     val resourceTable: java.util.List[java.util.Map.Entry[Long, java.util.List[TaskResource]]] =
       new java.util.ArrayList(resourcesPriorityMapping.entrySet())
     Collections.sort(
@@ -207,18 +209,17 @@ class TaskResourceRegistry extends Logging {
     }
   }
 
-  private[util] def addResourceIfNotRegistered[T <: TaskResource](
-      id: String,
-      factory: () => T): T = {
-    if (resources.containsKey(id)) {
-      return resources.get(id).asInstanceOf[T]
+  private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
+    synchronized {
+      if (resources.containsKey(id)) {
+        return resources.get(id).asInstanceOf[T]
+      }
+      val resource = factory.apply()
+      addResource0(id, resource)
+      resource
     }
-    val resource = factory.apply()
-    addResource0(id, resource)
-    resource
-  }
 
-  private[util] def addResource[T <: TaskResource](id: String, resource: T): T = {
+  private[util] def addResource[T <: TaskResource](id: String, resource: T): T = synchronized {
     if (resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is already registered", id))
@@ -227,11 +228,11 @@ class TaskResourceRegistry extends Logging {
     resource
   }
 
-  private[util] def isResourceRegistered(id: String): Boolean = {
+  private[util] def isResourceRegistered(id: String): Boolean = synchronized {
     resources.containsKey(id)
   }
 
-  private[util] def getResource[T <: TaskResource](id: String): T = {
+  private[util] def getResource[T <: TaskResource](id: String): T = synchronized {
     if (!resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
@@ -239,7 +240,7 @@ class TaskResourceRegistry extends Logging {
     resources.get(id).asInstanceOf[T]
   }
 
-  private[util] def getSharedMetrics(): TaskMemoryMetrics = {
+  private[util] def getSharedMetrics(): TaskMemoryMetrics = synchronized {
     sharedMetrics
   }
 }

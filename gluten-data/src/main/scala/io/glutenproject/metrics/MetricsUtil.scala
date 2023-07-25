@@ -59,7 +59,7 @@ object MetricsUtil extends Logging {
     updateTransformerMetrics(
       mut,
       relMap,
-      new java.lang.Long(relMap.size() - 1),
+      java.lang.Long.valueOf(relMap.size() - 1),
       joinParamsMap,
       aggParamsMap)
   }

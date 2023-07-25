@@ -62,13 +62,14 @@ case class ColumnarBuildSideRelation(
         handle
       }
 
+      TaskResources.addRecycler(50) {
+        ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
+      }
+
       override def hasNext: Boolean = {
         val has = batchId < batches.length
         if (!has && !closed) {
           ColumnarBatches.close(finalBatch)
-          TaskResources.addRecycler(50) {
-            ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
-          }
           closed = true
         }
         has
@@ -109,11 +110,18 @@ case class ColumnarBuildSideRelation(
       handle
     }
 
+    var closed = false
+    TaskResources.addRecycler(50) {
+      if (!closed) {
+        ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
+        closed = true
+      }
+    }
+
     // Convert columnar to Row.
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     val c2rId = jniWrapper.nativeColumnarToRowInit(
       NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
-    var closed = false
     var batchId = 0
     val iterator = if (batches.length > 0) {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {

@@ -117,17 +117,17 @@ class ColumnarToRowRDD(
       val c2rId = jniWrapper.nativeColumnarToRowInit(
         NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
 
+      TaskResources.addRecycler(100) {
+        if (!closed) {
+          jniWrapper.nativeClose(c2rId)
+          closed = true
+        }
+      }
+
       if (batches.isEmpty) {
         Iterator.empty
       } else {
         val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
-
-          TaskResources.addRecycler(100) {
-            if (!closed) {
-              jniWrapper.nativeClose(c2rId)
-              closed = true
-            }
-          }
 
           override def hasNext: Boolean = {
             val hasNext = batches.hasNext

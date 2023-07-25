@@ -15,32 +15,18 @@
  * limitations under the License.
  */
 
-#pragma once
+package io.glutenproject.memory.memtarget.spark;
 
-#include "MemoryAllocator.h"
+import org.apache.spark.memory.MemoryConsumer;
 
-namespace gluten {
+public interface Spiller {
+  Spiller NO_OP =
+      new Spiller() {
+        @Override
+        public long spill(long size, MemoryConsumer trigger) {
+          return 0L;
+        }
+      };
 
-class HbwMemoryAllocator final : public MemoryAllocator {
- public:
-  static std::shared_ptr<MemoryAllocator> newInstance();
-
-  bool allocate(int64_t size, void** out) override;
-
-  bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
-
-  bool allocateAligned(uint64_t alignment, int64_t size, void** out) override;
-
-  bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
-
-  bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) override;
-
-  bool free(void* p, int64_t size) override;
-
-  int64_t getBytes() const override;
-
- private:
-  std::atomic_int64_t bytes_{0};
-};
-
-} // namespace gluten
+  long spill(long size, MemoryConsumer trigger);
+}
