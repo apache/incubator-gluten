@@ -212,6 +212,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
       true,
+      false,
       wrappedAlloc.get(), // the allocator is tracked by Spark
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener); },
   };
