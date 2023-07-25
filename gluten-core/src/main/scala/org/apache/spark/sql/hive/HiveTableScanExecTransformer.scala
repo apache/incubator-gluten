@@ -104,7 +104,7 @@ class HiveTableScanExecTransformer(
     doExecuteColumnarInternal()
   }
 
-  private val filteredPartitions: Seq[Seq[InputPartition]] = {
+  private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
     scan match {
       case Some(fileScan) =>
         val dataSourceFilters = partitionPruningPred.flatMap {
@@ -136,17 +136,11 @@ class HiveTableScanExecTransformer(
     val fileIndex = catalogFileIndex.filterPartitions(partitionPruningPred)
 
     val planOutput = output.asInstanceOf[Seq[AttributeReference]]
-    var hasComplexType = false
     val outputFieldTypes = new ArrayBuffer[StructField]()
     planOutput.foreach(
-      x => {
-        hasComplexType = if (!hasComplexType) {
-          x.dataType.isInstanceOf[StructType] ||
-          x.dataType.isInstanceOf[MapType] ||
-          x.dataType.isInstanceOf[ArrayType]
-        } else hasComplexType
+      x =>
         outputFieldTypes.append(StructField(x.name, x.dataType, x.nullable))
-      })
+    )
 
     tableMeta.storage.inputFormat match {
       case Some(inputFormat)
@@ -177,13 +171,40 @@ class HiveTableScanExecTransformer(
               partitionPruningPred,
               Seq.empty
             )
-            if (!hasComplexType) {
-              Some(GlutenTextBasedScanWrapper.wrap(scan, tableMeta.dataSchema))
-            } else {
-              None
-            }
+            Some(GlutenTextBasedScanWrapper.wrap(scan, tableMeta.dataSchema))
         }
       case _ => None
+    }
+  }
+
+  override protected def doValidateInternal(): ValidationResult = {
+    val tableMeta = relation.tableMeta
+    val planOutput = output.asInstanceOf[Seq[AttributeReference]]
+    var hasComplexType = false
+    planOutput.foreach(
+      x => {
+        hasComplexType = if (!hasComplexType) {
+          x.dataType.isInstanceOf[StructType] ||
+            x.dataType.isInstanceOf[MapType] ||
+            x.dataType.isInstanceOf[ArrayType]
+        } else hasComplexType
+      })
+
+    tableMeta.storage.inputFormat match {
+      case Some(inputFormat)
+        if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+        tableMeta.storage.serde match {
+          case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
+          "org.apache.hive.hcatalog.data.JsonSerDe") =>
+            ValidationResult.ok
+          case _ =>
+            if (!hasComplexType) {
+              ValidationResult.ok
+            } else {
+              ValidationResult.notOk("Hive scan is not defined")
+            }
+        }
+      case _ => ValidationResult.notOk("Hive scan is not defined")
     }
   }
 
@@ -260,11 +281,7 @@ object HiveTableScanExecTransformer {
           hiveTableScan.requestedAttributes,
           hiveTableScan.relation,
           hiveTableScan.partitionPruningPred)(hiveTableScan.session)
-        if (hiveTableScanTransformer.scan.isDefined) {
-          hiveTableScanTransformer.doValidate()
-        } else {
-          ValidationResult.notOk("Hive scan is not defined")
-        }
+        hiveTableScanTransformer.doValidate()
       case _ => ValidationResult.notOk("Is not a Hive scan")
     }
   }
