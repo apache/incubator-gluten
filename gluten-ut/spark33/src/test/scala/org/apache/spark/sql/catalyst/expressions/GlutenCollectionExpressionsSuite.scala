@@ -29,7 +29,7 @@ class GlutenCollectionExpressionsSuite extends CollectionExpressionsSuite with G
     val ai3 = Literal.create(Seq(null, null), ArrayType(IntegerType, containsNull = true))
     val ai4 = Literal.create(null, ArrayType(IntegerType, containsNull = false))
 
-    //checkEvaluation(Concat(Seq(ai0)), Seq(1, 2, 3))
+    // checkEvaluation(Concat(Seq(ai0)), Seq(1, 2, 3))
     checkEvaluation(Concat(Seq(ai0, ai1)), Seq(1, 2, 3))
     checkEvaluation(Concat(Seq(ai1, ai0)), Seq(1, 2, 3))
     checkEvaluation(Concat(Seq(ai0, ai0)), Seq(1, 2, 3, 1, 2, 3))
@@ -53,7 +53,7 @@ class GlutenCollectionExpressionsSuite extends CollectionExpressionsSuite with G
     val aa2 = Literal.create(Seq(Seq("g", null), null),
       ArrayType(ArrayType(StringType, containsNull = true), containsNull = true))
 
-    //checkEvaluation(Concat(Seq(as0)), Seq("a", "b", "c"))
+    // checkEvaluation(Concat(Seq(as0)), Seq("a", "b", "c"))
     checkEvaluation(Concat(Seq(as0, as1)), Seq("a", "b", "c"))
     checkEvaluation(Concat(Seq(as1, as0)), Seq("a", "b", "c"))
     checkEvaluation(Concat(Seq(as0, as0)), Seq("a", "b", "c", "a", "b", "c"))
