@@ -14,30 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-import org.apache.hadoop.fs.LocalFileSystem
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher.NONE
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
-import org.apache.spark.{SparkConf, SparkContext}
+
+import org.apache.hadoop.fs.LocalFileSystem
 
 class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends AutoCloseable {
   private val sessionMap: java.util.Map[SessionToken, SparkConf] =
     new java.util.HashMap[SessionToken, SparkConf]
 
   private val testDefaults = new SparkConf(false)
-      .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[LocalFileSystem].getName)
-      .setWarningOnOverriding(SQLConf.CODEGEN_FALLBACK.key, "false")
-      .setWarningOnOverriding(SQLConf.CODEGEN_FACTORY_MODE.key, CodegenObjectFactoryMode.CODEGEN_ONLY.toString)
-      // Disable ConvertToLocalRelation for better test coverage. Test cases built on
-      // LocalRelation will exercise the optimization rules better by disabling it as
-      // this rule may potentially block testing of other optimization rules such as
-      // ConstantPropagation etc.
-      .setWarningOnOverriding(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+    .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[LocalFileSystem].getName)
+    .setWarningOnOverriding(SQLConf.CODEGEN_FALLBACK.key, "false")
+    .setWarningOnOverriding(
+      SQLConf.CODEGEN_FACTORY_MODE.key,
+      CodegenObjectFactoryMode.CODEGEN_ONLY.toString)
+    // Disable ConvertToLocalRelation for better test coverage. Test cases built on
+    // LocalRelation will exercise the optimization rules better by disabling it as
+    // this rule may potentially block testing of other optimization rules such as
+    // ConstantPropagation etc.
+    .setWarningOnOverriding(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
 
   testDefaults.setWarningOnOverriding(
     StaticSQLConf.WAREHOUSE_PATH.key,
@@ -70,11 +72,11 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     if (!sessionMap.containsKey(desc.sessionToken)) {
       throw new IllegalArgumentException(s"Session doesn't exist: $desc")
     }
-    println(s"Switching to ${desc} session... ")
+    println(s"Switching to $desc session... ")
     stopActiveSession()
     val conf = new SparkConf(false)
-        .setAllWarningOnOverriding(testDefaults.getAll)
-        .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
+      .setAllWarningOnOverriding(testDefaults.getAll)
+      .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
     activateSession(conf, desc.appName)
     _activeSessionDesc = desc
     println(s"Successfully switched to $desc session. ")

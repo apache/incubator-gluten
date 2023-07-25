@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.integration.tpc
 
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
@@ -23,7 +22,8 @@ trait DataGen {
   def gen(): Unit
 }
 
-abstract class TypeModifier(val predicate: DataType => Boolean, val to: DataType) extends Serializable {
+abstract class TypeModifier(val predicate: DataType => Boolean, val to: DataType)
+  extends Serializable {
   def modValue(value: Any): Any
 }
 
@@ -33,33 +33,36 @@ class NoopModifier(t: DataType) extends TypeModifier(_ => true, t) {
 
 object DataGen {
   def getRowModifier(schema: StructType, typeModifiers: List[TypeModifier]): Int => TypeModifier = {
-    val modifiers = schema.fields.map { f =>
-      val matchedModifiers = typeModifiers.flatMap { m =>
-        if (m.predicate.apply(f.dataType)) {
-          Some(m)
+    val modifiers = schema.fields.map {
+      f =>
+        val matchedModifiers = typeModifiers.flatMap {
+          m =>
+            if (m.predicate.apply(f.dataType)) {
+              Some(m)
+            } else {
+              None
+            }
+        }
+        if (matchedModifiers.isEmpty) {
+          new NoopModifier(f.dataType)
         } else {
-          None
+          if (matchedModifiers.size > 1) {
+            println(
+              s"More than one type modifiers specified for type ${f.dataType}, " +
+                s"use first one in the list")
+          }
+          matchedModifiers.head // use the first one that matches
         }
-      }
-      if (matchedModifiers.isEmpty) {
-        new NoopModifier(f.dataType)
-      } else {
-        if (matchedModifiers.size > 1) {
-          println(s"More than one type modifiers specified for type ${f.dataType}, " +
-            s"use first one in the list")
-        }
-        matchedModifiers.head // use the first one that matches
-      }
     }
     i => modifiers(i)
   }
 
   def modifySchema(schema: StructType, rowModifier: Int => TypeModifier): StructType = {
-    val modifiedSchema = new StructType(
-      schema.fields.zipWithIndex.map { case (f, i) =>
+    val modifiedSchema = new StructType(schema.fields.zipWithIndex.map {
+      case (f, i) =>
         val modifier = rowModifier.apply(i)
         StructField(f.name, modifier.to, f.nullable, f.metadata)
-      })
+    })
     modifiedSchema
   }
 }

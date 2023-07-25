@@ -7,11 +7,7 @@ import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-case class QueriesCompare(
-    scale: Double,
-    queryIds: Array[String],
-    explain: Boolean,
-    iterations: Int)
+case class QueriesCompare(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
@@ -163,11 +159,11 @@ object QueriesCompare {
   }
 
   private[tpc] def runTpcQuery(
-                                id: String,
-                                explain: Boolean,
-                                desc: String,
-                                sessionSwitcher: SparkSessionSwitcher,
-                                runner: TpcRunner): TestResultLine = {
+      id: String,
+      explain: Boolean,
+      desc: String,
+      sessionSwitcher: SparkSessionSwitcher,
+      runner: TpcRunner): TestResultLine = {
     println(s"Running query: $id...")
     try {
       val baseLineDesc = "Vanilla Spark %s %s".format(desc, id)

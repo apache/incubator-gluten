@@ -2,8 +2,10 @@ package io.glutenproject.integration.tpc.action
 
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
-import org.apache.commons.lang3.exception.ExceptionUtils
+
 import org.apache.spark.sql.SparkSessionSwitcher
+
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
   extends Action {
@@ -26,12 +28,7 @@ case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, ite
             if (!allQueriesSet.contains(queryId)) {
               throw new IllegalArgumentException(s"Query ID doesn't exist: $queryId")
             }
-            Queries.runTpcQuery(
-              queryId,
-              explain,
-              tpcSuite.desc(),
-              tpcSuite.sessionSwitcher,
-              runner)
+            Queries.runTpcQuery(queryId, explain, tpcSuite.desc(), tpcSuite.sessionSwitcher, runner)
         }
     }.toList
 
@@ -135,11 +132,11 @@ object Queries {
   }
 
   private[tpc] def runTpcQuery(
-                                id: String,
-                                explain: Boolean,
-                                desc: String,
-                                sessionSwitcher: SparkSessionSwitcher,
-                                runner: TpcRunner): TestResultLine = {
+      id: String,
+      explain: Boolean,
+      desc: String,
+      sessionSwitcher: SparkSessionSwitcher,
+      runner: TpcRunner): TestResultLine = {
     println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s".format(desc, id)
