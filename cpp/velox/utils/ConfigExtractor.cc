@@ -18,6 +18,7 @@
 // This File includes common helper functions with Arrow dependency.
 
 #include "ConfigExtractor.h"
+#include <stdexcept>
 
 namespace gluten {
 
