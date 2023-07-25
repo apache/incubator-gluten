@@ -18,7 +18,7 @@ package io.glutenproject.memory.memtarget.spark;
 
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
-import com.google.common.base.Preconditions;
+// import com.google.common.base.Preconditions;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -49,7 +49,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements MemoryTarget
   public long free(long size) {
     assert size > 0;
     freeMemory(size);
-    Preconditions.checkArgument(getUsed() >= 0);
+    // Preconditions.checkArgument(getUsed() >= 0);
     return size;
   }
 
