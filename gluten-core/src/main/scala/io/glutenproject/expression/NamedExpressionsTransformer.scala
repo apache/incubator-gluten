@@ -46,18 +46,18 @@ case class AliasTransformerBase(
 }
 
 case class NamedLambdaVariableTransformer(
-   substraitExprName: String,
-   name: String,
-   dataType: DataType,
-   nullable: Boolean,
-   exprId: ExprId)
+    substraitExprName: String,
+    name: String,
+    dataType: DataType,
+    nullable: Boolean,
+    exprId: ExprId)
   extends ExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val namedLambdaVarFunctionName = ConverterUtils.makeFuncName(substraitExprName,
-      Seq(dataType), FunctionConfig.OPT)
-    val arrayAggFunctionId = ExpressionBuilder.newScalarFunction(
-      functionMap, namedLambdaVarFunctionName)
+    val namedLambdaVarFunctionName =
+      ConverterUtils.makeFuncName(substraitExprName, Seq(dataType), FunctionConfig.OPT)
+    val arrayAggFunctionId =
+      ExpressionBuilder.newScalarFunction(functionMap, namedLambdaVarFunctionName)
     val exprNodes = Lists.newArrayList(
       ExpressionBuilder.makeLiteral(name, StringType, false).asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(dataType, nullable)

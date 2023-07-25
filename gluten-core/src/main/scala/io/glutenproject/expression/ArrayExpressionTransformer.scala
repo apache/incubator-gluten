@@ -113,19 +113,25 @@ class ArrayAggregateTransformer(
     merge: ExpressionTransformer,
     finish: ExpressionTransformer,
     original: ArrayAggregate)
-  extends ExpressionTransformer with Logging {
+  extends ExpressionTransformer
+  with Logging {
   override def doTransform(args: Object): ExpressionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val argumentNode = argument.doTransform(args)
     val zeroNode = zero.doTransform(args)
     val mergeNode = merge.doTransform(args)
     val finishNode = finish.doTransform(args)
-    val arrayAggFunctionName = ConverterUtils.makeFuncName(substraitExprName,
-      Seq(original.argument.dataType), FunctionConfig.OPT)
+    val arrayAggFunctionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      Seq(original.argument.dataType),
+      FunctionConfig.OPT)
     val arrayAggFunctionId = ExpressionBuilder.newScalarFunction(functionMap, arrayAggFunctionName)
-    val exprNodes = Lists.newArrayList(argumentNode.asInstanceOf[ExpressionNode],
-      zeroNode.asInstanceOf[ExpressionNode], mergeNode.asInstanceOf[ExpressionNode],
-      finishNode.asInstanceOf[ExpressionNode])
+    val exprNodes = Lists.newArrayList(
+      argumentNode.asInstanceOf[ExpressionNode],
+      zeroNode.asInstanceOf[ExpressionNode],
+      mergeNode.asInstanceOf[ExpressionNode],
+      finishNode.asInstanceOf[ExpressionNode]
+    )
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(arrayAggFunctionId, exprNodes, typeNode)
   }

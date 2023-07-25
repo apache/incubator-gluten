@@ -84,7 +84,6 @@ class SubstraitVeloxExprConverter {
       const ::substrait::Expression::ScalarFunction& substraitFunc,
       const RowTypePtr& inputType);
 
-
  private:
   /// Convert list literal to ArrayVector.
   ArrayVectorPtr literalsToArrayVector(const ::substrait::Expression::Literal& listLiteral);

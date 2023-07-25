@@ -396,6 +396,7 @@ class GlutenSQLQueryTestSuite
     "udf-union.sql",
     "udf-window.sql"
   )
+
   /**
    * List of supported cases to run with Clickhouse backend, in lower case. Please add to the
    * supported list after enabling a sql test.

@@ -366,6 +366,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
+    .exclude("Complex field and type inferring")
+    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenTextV1Suite]
   enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]

@@ -642,8 +642,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         new LambdaFunctionTransformer(
           substraitExprName.get,
           function = replaceWithExpressionTransformer(lambdaFunction.function, attributeSeq),
-          arguments = lambdaFunction.arguments.map(
-            replaceWithExpressionTransformer(_, attributeSeq)),
+          arguments =
+            lambdaFunction.arguments.map(replaceWithExpressionTransformer(_, attributeSeq)),
           hidden = false,
           original = lambdaFunction
         )

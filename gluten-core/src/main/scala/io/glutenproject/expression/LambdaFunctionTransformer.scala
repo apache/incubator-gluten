@@ -14,21 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.LambdaFunction
 
 import java.util.ArrayList
 
-class LambdaFunctionTransformer(substraitExprName: String,
-                                function: ExpressionTransformer,
-                                arguments: Seq[ExpressionTransformer],
-                                hidden: Boolean = false,
-                                original: LambdaFunction)
-  extends ExpressionTransformer with Logging{
+class LambdaFunctionTransformer(
+    substraitExprName: String,
+    function: ExpressionTransformer,
+    arguments: Seq[ExpressionTransformer],
+    hidden: Boolean = false,
+    original: LambdaFunction)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: Object): ExpressionNode = {
     // hidden not used as not supported in Velox
