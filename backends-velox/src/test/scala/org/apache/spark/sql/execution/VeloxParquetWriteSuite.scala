@@ -14,7 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution
+package org.apache.spark.sql.execution
+
+import io.glutenproject.execution.WholeStageTransformerSuite
+
+import org.apache.spark.sql.functions.lit
 
 class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
@@ -98,6 +102,17 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
           .bucketBy(7, "p")
           .saveAsTable("bucket")
       }
+    }
+  }
+
+  test("parquet write with empty dataframe") {
+    withTempPath {
+      f =>
+        val df = spark.emptyDataFrame.select(lit(1).as("i"))
+        df.write.format("velox").save(f.getCanonicalPath)
+        val res = spark.read.parquet(f.getCanonicalPath)
+        checkAnswer(res, Nil)
+        assert(res.schema.asNullable == df.schema.asNullable)
     }
   }
 }
