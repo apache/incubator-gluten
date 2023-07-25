@@ -16,39 +16,25 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.execution.WholeStageTransformerSuite
-
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.GlutenQueryTest
+import org.apache.spark.sql.test.SharedSparkSession
 
-class VeloxUdfSuite extends WholeStageTransformerSuite {
-  override protected val backend: String = "velox"
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
-  override protected val fileFormat: String = "parquet"
+class VeloxUdfSuite extends GlutenQueryTest with SharedSparkSession {
 
-  private val udfExampleLibrary =
-    this.getClass.getResource("/").getPath + "../../../../cpp/build/velox/udf/examples/libmyudf.so"
-
-  override def beforeAll(): Unit = {
+  override protected def beforeAll(): Unit = {
     super.beforeAll()
+    sparkContext.setLogLevel("INFO")
   }
-
-  override protected def sparkConf: SparkConf = super.sparkConf
-    .set("spark.unsafe.exceptionOnMemoryLeak", "true")
-    .set(
-      "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths",
-      System.getProperty("velox.udf.lib.path", udfExampleLibrary))
+  override protected def sparkConf: SparkConf =
+    super.sparkConf
+      .set("spark.plugins", "io.glutenproject.GlutenPlugin")
+      .set("spark.default.parallelism", "1")
+      .set("spark.memory.offHeap.enabled", "true")
+      .set("spark.memory.offHeap.size", "1024MB")
 
   test("test udf") {
-    withSQLConf(
-      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.sql.adaptive.enabled", "true"),
-      ("spark.gluten.sql.columnar.forceShuffledHashJoin", "true"),
-      ("spark.sql.sources.useV1SourceList", "avro")
-    ) {
-      createTPCHNotNullTables()
-
-      val df = spark.sql("""select myudf1(1), myudf2(100L)""")
-      df.collect().sameElements(Array(6, 105))
-    }
+    val df = spark.sql("""select myudf1(1), myudf2(100L)""")
+    df.collect().sameElements(Array(6, 105))
   }
 }

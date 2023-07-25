@@ -81,9 +81,13 @@ object UDFResolver extends Logging {
   }
 
   def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
-    SparkContext.getActive.get.conf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS).foreach {
-      libPaths => new UdfJniWrapper().nativeLoadUdfLibraries(libPaths)
-    }
+    val libPaths =
+      SparkContext.getActive.get.conf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS) match {
+        // This property is used for unit tests.
+        case None => Option(System.getProperty("velox.udf.lib.path"))
+        case other => other
+      }
+    libPaths.foreach(new UdfJniWrapper().nativeLoadUdfLibraries(_))
 
     UDFMap.map {
       case (name, t) =>
