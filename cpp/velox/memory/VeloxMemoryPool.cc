@@ -157,10 +157,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   gluten::AllocationListener* listener_;
 };
 
-velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
-  static velox::memory::IMemoryManager::Options mmOptions{};
-  static velox::memory::MemoryManager mm{mmOptions};
-  return &mm;
+velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
+  return &(facebook::velox::memory::defaultMemoryManager());
 }
 
 static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {

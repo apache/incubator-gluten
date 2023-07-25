@@ -40,18 +40,18 @@ class TaskContextStorage {
 };
 
 thread_local std::unique_ptr<TaskContextStorage> taskContextStorage = nullptr;
-static std::unique_ptr<TaskContextStorage> fallbackStorage = std::make_unique<TaskContextStorage>();
-static std::mutex fallbackStorageMutex;
+std::unique_ptr<TaskContextStorage> fallbackStorage = std::make_unique<TaskContextStorage>();
+std::mutex fallbackStorageMutex;
 } // namespace
 
 namespace gluten {
 
-bool onSparkTaskMainThread() {
+bool isOnSparkTaskMainThread() {
   return taskContextStorage != nullptr;
 }
 
 void bindToTask(std::shared_ptr<void> object) {
-  if (onSparkTaskMainThread()) {
+  if (isOnSparkTaskMainThread()) {
     taskContextStorage->bind(object);
     return;
   }

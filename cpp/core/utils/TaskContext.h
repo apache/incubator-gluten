@@ -22,7 +22,7 @@
 
 namespace gluten {
 
-bool onSparkTaskMainThread();
+bool isOnSparkTaskMainThread();
 
 void bindToTask(std::shared_ptr<void> object);
 
