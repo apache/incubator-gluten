@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.WholeStageTransformerSuite
+
 import org.apache.spark.sql.functions.lit
 
 class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
@@ -105,12 +106,13 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   }
 
   test("parquet write with empty dataframe") {
-    withTempPath { f =>
-      val df = spark.emptyDataFrame.select(lit(1).as("i"))
-      df.write.format("velox").save(f.getCanonicalPath)
-      val res = spark.read.parquet(f.getCanonicalPath)
-      checkAnswer(res, Nil)
-      assert(res.schema.asNullable == df.schema.asNullable)
+    withTempPath {
+      f =>
+        val df = spark.emptyDataFrame.select(lit(1).as("i"))
+        df.write.format("velox").save(f.getCanonicalPath)
+        val res = spark.read.parquet(f.getCanonicalPath)
+        checkAnswer(res, Nil)
+        assert(res.schema.asNullable == df.schema.asNullable)
     }
   }
 }
