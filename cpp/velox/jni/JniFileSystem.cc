@@ -53,6 +53,228 @@ jstring createJString(JNIEnv* env, const std::string_view& path) {
   return env->NewStringUTF(std::string(path).c_str());
 }
 
+class JniReadFile : public facebook::velox::ReadFile {
+ public:
+  explicit JniReadFile(jobject obj) {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    obj_ = env->NewGlobalRef(obj);
+    checkException(env);
+  }
+
+  ~JniReadFile() override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->DeleteGlobalRef(obj_);
+    checkException(env);
+  }
+
+  std::string_view pread(uint64_t offset, uint64_t length, void* buf) const override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(
+        obj_, jniReadFilePread, static_cast<jlong>(offset), static_cast<jlong>(length), reinterpret_cast<jlong>(buf));
+    checkException(env);
+    return std::string_view(reinterpret_cast<const char*>(buf));
+  }
+
+  bool shouldCoalesce() const override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    jboolean out = env->CallBooleanMethod(obj_, jniReadFileShouldCoalesce);
+    checkException(env);
+    return out;
+  }
+
+  uint64_t size() const override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    jlong out = env->CallLongMethod(obj_, jniReadFileSize);
+    checkException(env);
+    return static_cast<uint64_t>(out);
+  }
+
+  uint64_t memoryUsage() const override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    jlong out = env->CallLongMethod(obj_, jniReadFileMemoryUsage);
+    checkException(env);
+    return static_cast<uint64_t>(out);
+  }
+
+  std::string getName() const override {
+    return "<JniReadFile>";
+  }
+
+  uint64_t getNaturalReadSize() const override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    jlong out = env->CallLongMethod(obj_, jniReadFileGetNaturalReadSize);
+    checkException(env);
+    return static_cast<uint64_t>(out);
+  }
+
+ private:
+  jobject obj_;
+};
+
+class JniWriteFile : public facebook::velox::WriteFile {
+ public:
+  explicit JniWriteFile(jobject obj) {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    obj_ = env->NewGlobalRef(obj);
+    checkException(env);
+  }
+
+  ~JniWriteFile() override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->DeleteGlobalRef(obj_);
+    checkException(env);
+  }
+
+  void append(std::string_view data) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniWriteFileAppend);
+    checkException(env);
+  }
+
+  void flush() override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniWriteFileFlush);
+    checkException(env);
+  }
+
+  void close() override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniWriteFileClose);
+    checkException(env);
+  }
+
+  uint64_t size() const override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    jlong out = env->CallLongMethod(obj_, jniWriteFileSize);
+    checkException(env);
+    return static_cast<uint64_t>(out);
+  }
+
+ private:
+  jobject obj_;
+};
+
+class JniFileSystem : public facebook::velox::filesystems::FileSystem {
+ public:
+  explicit JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::Config> config) : FileSystem(config) {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    obj_ = env->NewGlobalRef(obj);
+    checkException(env);
+  }
+
+  ~JniFileSystem() override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->DeleteGlobalRef(obj_);
+    checkException(env);
+  }
+
+  std::string name() const override {
+    return "JNI FS";
+  }
+
+  std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
+      std::string_view path,
+      const facebook::velox::filesystems::FileOptions& options) override {
+    GLUTEN_CHECK(
+        !options.values.empty(),
+        "JniFileSystem::openFileForRead: file options is not empty, this is not currently supported");
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    jobject obj = env->CallObjectMethod(obj_, jniFileSystemOpenFileForRead, createJString(env, path));
+    auto out = std::make_unique<JniReadFile>(obj);
+    checkException(env);
+    return out;
+  }
+
+  std::unique_ptr<facebook::velox::WriteFile> openFileForWrite(
+      std::string_view path,
+      const facebook::velox::filesystems::FileOptions& options) override {
+    GLUTEN_CHECK(
+        !options.values.empty(),
+        "JniFileSystem::openFileForWrite: file options is not empty, this is not currently supported");
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    jobject obj = env->CallObjectMethod(obj_, jniFileSystemOpenFileForWrite, createJString(env, path));
+    auto out = std::make_unique<JniWriteFile>(obj);
+    checkException(env);
+    return out;
+  }
+
+  void remove(std::string_view path) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniFileSystemRemove, createJString(env, path));
+    checkException(env);
+  }
+
+  void rename(std::string_view oldPath, std::string_view newPath, bool overwrite) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniFileSystemRename, createJString(env, oldPath), createJString(env, newPath), overwrite);
+    checkException(env);
+  }
+
+  bool exists(std::string_view path) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    bool out = env->CallBooleanMethod(obj_, jniFileSystemExists, createJString(env, path));
+    checkException(env);
+    return out;
+  }
+
+  std::vector<std::string> list(std::string_view path) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    std::vector<std::string> out;
+    jobjectArray jarray = (jobjectArray)env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path));
+    jsize length = env->GetArrayLength(jarray);
+    for (jsize i = 0; i < length; ++i) {
+      jstring element = (jstring)env->GetObjectArrayElement(jarray, i);
+      std::string cElement = jStringToCString(env, element);
+      out.push_back(cElement);
+    }
+    checkException(env);
+    return out;
+  }
+
+  void mkdir(std::string_view path) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniFileSystemMkdir, createJString(env, path));
+    checkException(env);
+  }
+
+  void rmdir(std::string_view path) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniFileSystemRmdir, createJString(env, path));
+    checkException(env);
+  }
+
+  static std::function<bool(std::string_view)> schemeMatcher();
+
+  static std::function<std::shared_ptr<FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
+  fileSystemGenerator();
+
+ private:
+  jobject obj_;
+};
+
 } // namespace
 
 void gluten::initVeloxJniFileSystem(JNIEnv* env) {
@@ -103,198 +325,13 @@ void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {
   vm = nullptr;
 }
 
-std::string_view gluten::JniReadFile::pread(uint64_t offset, uint64_t length, void* buf) const {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(
-      obj_, jniReadFilePread, static_cast<jlong>(offset), static_cast<jlong>(length), reinterpret_cast<jlong>(buf));
-  checkException(env);
-  return std::string_view(reinterpret_cast<const char*>(buf));
-}
-
-bool gluten::JniReadFile::shouldCoalesce() const {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  jboolean out = env->CallBooleanMethod(obj_, jniReadFileShouldCoalesce);
-  checkException(env);
-  return out;
-}
-
-uint64_t gluten::JniReadFile::size() const {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  jlong out = env->CallLongMethod(obj_, jniReadFileSize);
-  checkException(env);
-  return static_cast<uint64_t>(out);
-}
-
-uint64_t gluten::JniReadFile::memoryUsage() const {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  jlong out = env->CallLongMethod(obj_, jniReadFileMemoryUsage);
-  checkException(env);
-  return static_cast<uint64_t>(out);
-}
-
-uint64_t gluten::JniReadFile::getNaturalReadSize() const {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  jlong out = env->CallLongMethod(obj_, jniReadFileGetNaturalReadSize);
-  checkException(env);
-  return static_cast<uint64_t>(out);
-}
-
-std::string gluten::JniReadFile::getName() const {
-  return "<JniReadFile>";
-}
-
-gluten::JniReadFile::JniReadFile(jobject obj) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  obj_ = env->NewGlobalRef(obj);
-  checkException(env);
-}
-
-gluten::JniReadFile::~JniReadFile() {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->DeleteGlobalRef(obj_);
-  checkException(env);
-}
-
-void gluten::JniWriteFile::append(std::string_view data) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(obj_, jniWriteFileAppend);
-  checkException(env);
-}
-
-void gluten::JniWriteFile::flush() {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(obj_, jniWriteFileFlush);
-  checkException(env);
-}
-
-void gluten::JniWriteFile::close() {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(obj_, jniWriteFileClose);
-  checkException(env);
-}
-
-uint64_t gluten::JniWriteFile::size() const {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  jlong out = env->CallLongMethod(obj_, jniWriteFileSize);
-  checkException(env);
-  return static_cast<uint64_t>(out);
-}
-
-gluten::JniWriteFile::JniWriteFile(jobject obj) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  obj_ = env->NewGlobalRef(obj);
-  checkException(env);
-}
-
-gluten::JniWriteFile::~JniWriteFile() {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->DeleteGlobalRef(obj_);
-  checkException(env);
-}
-
-std::string gluten::JniFileSystem::name() const {
-  return "JNI FS";
-}
-
-std::unique_ptr<facebook::velox::ReadFile> gluten::JniFileSystem::openFileForRead(
-    std::string_view path,
-    const facebook::velox::filesystems::FileOptions& options) {
-  GLUTEN_CHECK(
-      !options.values.empty(),
-      "JniFileSystem::openFileForRead: file options is not empty, this is not currently supported");
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  jobject obj = env->CallObjectMethod(obj_, jniFileSystemOpenFileForRead, createJString(env, path));
-  auto out = std::make_unique<JniReadFile>(obj);
-  checkException(env);
-  return out;
-}
-
-std::unique_ptr<facebook::velox::WriteFile> gluten::JniFileSystem::openFileForWrite(
-    std::string_view path,
-    const facebook::velox::filesystems::FileOptions& options) {
-  GLUTEN_CHECK(
-      !options.values.empty(),
-      "JniFileSystem::openFileForWrite: file options is not empty, this is not currently supported");
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  jobject obj = env->CallObjectMethod(obj_, jniFileSystemOpenFileForWrite, createJString(env, path));
-  auto out = std::make_unique<JniWriteFile>(obj);
-  checkException(env);
-  return out;
-}
-
-void gluten::JniFileSystem::remove(std::string_view path) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(obj_, jniFileSystemRemove, createJString(env, path));
-  checkException(env);
-}
-
-void gluten::JniFileSystem::rename(std::string_view oldPath, std::string_view newPath, bool overwrite) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(obj_, jniFileSystemRename, createJString(env, oldPath), createJString(env, newPath), overwrite);
-  checkException(env);
-}
-
-bool gluten::JniFileSystem::exists(std::string_view path) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  bool out = env->CallBooleanMethod(obj_, jniFileSystemExists, createJString(env, path));
-  checkException(env);
-  return out;
-}
-
-std::vector<std::string> gluten::JniFileSystem::list(std::string_view path) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  std::vector<std::string> out;
-  jobjectArray jarray = (jobjectArray)env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path));
-  jsize length = env->GetArrayLength(jarray);
-  for (jsize i = 0; i < length; ++i) {
-    jstring element = (jstring)env->GetObjectArrayElement(jarray, i);
-    std::string cElement = jStringToCString(env, element);
-    out.push_back(cElement);
-  }
-  checkException(env);
-  return out;
-}
-
-void gluten::JniFileSystem::mkdir(std::string_view path) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(obj_, jniFileSystemMkdir, createJString(env, path));
-  checkException(env);
-}
-
-void gluten::JniFileSystem::rmdir(std::string_view path) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->CallVoidMethod(obj_, jniFileSystemRmdir, createJString(env, path));
-  checkException(env);
-}
-
-std::function<bool(std::string_view)> gluten::JniFileSystem::schemeMatcher() {
+std::function<bool(std::string_view)> JniFileSystem::schemeMatcher() {
   return [](std::string_view filePath) { return filePath.find(kFileScheme) == 0; };
 }
 
 std::function<std::shared_ptr<
     facebook::velox::filesystems::FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
-gluten::JniFileSystem::fileSystemGenerator() {
+JniFileSystem::fileSystemGenerator() {
   return [](std::shared_ptr<const facebook::velox::Config> properties, std::string_view filePath) {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
@@ -308,19 +345,4 @@ gluten::JniFileSystem::fileSystemGenerator() {
 void gluten::registerJniFileSystem() {
   facebook::velox::filesystems::registerFileSystem(
       JniFileSystem::schemeMatcher(), JniFileSystem::fileSystemGenerator());
-}
-
-gluten::JniFileSystem::JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::Config> config)
-    : FileSystem(config) {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  obj_ = env->NewGlobalRef(obj);
-  checkException(env);
-}
-
-gluten::JniFileSystem::~JniFileSystem() {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm, &env);
-  env->DeleteGlobalRef(obj_);
-  checkException(env);
 }
