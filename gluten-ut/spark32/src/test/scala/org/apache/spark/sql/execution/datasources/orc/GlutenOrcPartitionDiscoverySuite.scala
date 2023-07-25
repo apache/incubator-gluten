@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.orc
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenOrcPartitionDiscoverySuite extends OrcPartitionDiscoveryTest
-  with GlutenSQLTestsBaseTrait {
-}
+class GlutenOrcPartitionDiscoverySuite
+  extends OrcPartitionDiscoveryTest
+  with GlutenSQLTestsBaseTrait {}
 
-class GlutenOrcV1PartitionDiscoverySuite extends OrcV1PartitionDiscoverySuite
-  with GlutenSQLTestsBaseTrait {
-}
+class GlutenOrcV1PartitionDiscoverySuite
+  extends OrcV1PartitionDiscoverySuite
+  with GlutenSQLTestsBaseTrait {}

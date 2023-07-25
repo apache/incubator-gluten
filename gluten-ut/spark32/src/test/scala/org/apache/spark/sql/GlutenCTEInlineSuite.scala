@@ -14,11 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenCTEInlineSuiteAEOff extends CTEInlineSuiteAEOff
-  with GlutenSQLTestsTrait
+class GlutenCTEInlineSuiteAEOff extends CTEInlineSuiteAEOff with GlutenSQLTestsTrait
 
-class GlutenCTEInlineSuiteAEOn extends CTEInlineSuiteAEOn
-  with GlutenSQLTestsTrait
+class GlutenCTEInlineSuiteAEOn extends CTEInlineSuiteAEOn with GlutenSQLTestsTrait

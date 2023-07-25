@@ -100,19 +100,15 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     val (parquetDir, scanSchema, executedCnt, executedVanilla) =
       if (mainArgs.isEmpty) {
-        (
-          "/data/tpch-data-sf10/lineitem",
-          "l_orderkey,l_receiptdate",
-          5,
-          true)
+        ("/data/tpch-data-sf10/lineitem", "l_orderkey,l_receiptdate", 5, true)
       } else {
         (mainArgs(0), mainArgs(1), mainArgs(2).toInt, mainArgs(3).toBoolean)
       }
 
     val parquetReadDf = spark.sql(s"""
-                                 |select $scanSchema from parquet.`$parquetDir`
-                                 |
-                                 |""".stripMargin)
+                                     |select $scanSchema from parquet.`$parquetDir`
+                                     |
+                                     |""".stripMargin)
     // Get the `FileSourceScanExecTransformer`
     val fileScan = parquetReadDf.queryExecution.executedPlan.collect {
       case scan: FileSourceScanExecTransformer => scan
@@ -137,9 +133,10 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
 
     // Get the total row count
     val totalRowCnt = newWholeStageRDD
-      .mapPartitionsInternal(batches => {
-        batches.map(batch => batch.numRows().toLong)
-      })
+      .mapPartitionsInternal(
+        batches => {
+          batches.map(batch => batch.numRows().toLong)
+        })
       .collect()
       .sum
 
@@ -231,10 +228,8 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
 
   override def afterAll(): Unit = {
     if (BackendsApiManager.isCHBackend) {
-      val libPath = spark.conf.get(
-        GlutenConfig.GLUTEN_LIB_PATH,
-        SystemParameters
-          .getClickHouseLibPath)
+      val libPath =
+        spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
       JniLibLoader.unloadFromPath(libPath)
     }
     super.afterAll()

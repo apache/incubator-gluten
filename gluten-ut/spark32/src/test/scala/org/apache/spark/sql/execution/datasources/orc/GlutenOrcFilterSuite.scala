@@ -14,14 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.orc
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-/**
- * A test suite that tests Apache ORC filter API based filter pushdown optimization.
- */
-class GlutenOrcFilterSuite extends OrcFilterSuite with GlutenSQLTestsBaseTrait {
-}
-
+/** A test suite that tests Apache ORC filter API based filter pushdown optimization. */
+class GlutenOrcFilterSuite extends OrcFilterSuite with GlutenSQLTestsBaseTrait {}

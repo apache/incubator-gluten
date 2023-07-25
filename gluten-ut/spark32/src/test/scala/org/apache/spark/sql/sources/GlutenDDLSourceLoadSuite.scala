@@ -14,12 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.sources
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-
 // please note that the META-INF/services had to be modified for the test directory for this to work
-class GlutenDDLSourceLoadSuite extends DDLSourceLoadSuite with GlutenSQLTestsBaseTrait {
-}
+class GlutenDDLSourceLoadSuite extends DDLSourceLoadSuite with GlutenSQLTestsBaseTrait {}

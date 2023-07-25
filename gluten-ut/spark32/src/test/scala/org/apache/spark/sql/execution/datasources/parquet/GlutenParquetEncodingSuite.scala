@@ -20,5 +20,4 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 // TODO: this needs a lot more testing but it's currently not easy to test with the parquet
 // writer abstractions. Revisit.
-class GlutenParquetEncodingSuite extends ParquetEncodingSuite with GlutenSQLTestsBaseTrait {
-}
+class GlutenParquetEncodingSuite extends ParquetEncodingSuite with GlutenSQLTestsBaseTrait {}
