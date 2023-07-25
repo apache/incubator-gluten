@@ -144,11 +144,12 @@ class GlutenOrcSourceSuite extends OrcSourceSuite with GlutenSQLTestsBaseTrait {
     Seq(false).foreach {
       vecReaderNestedColEnabled =>
         val vecReaderEnabled = SQLConf.get.orcVectorizedReaderEnabled
-        test(GlutenTestConstants.GLUTEN_TEST +
-          "SPARK-36931: Support reading and writing ANSI intervals (" +
-          s"${SQLConf.ORC_VECTORIZED_READER_ENABLED.key}=$vecReaderEnabled, " +
-          s"${SQLConf.ORC_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key}" +
-          s"=$vecReaderNestedColEnabled)") {
+        test(
+          GlutenTestConstants.GLUTEN_TEST +
+            "SPARK-36931: Support reading and writing ANSI intervals (" +
+            s"${SQLConf.ORC_VECTORIZED_READER_ENABLED.key}=$vecReaderEnabled, " +
+            s"${SQLConf.ORC_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key}" +
+            s"=$vecReaderNestedColEnabled)") {
 
           withSQLConf(
             SQLConf.ORC_VECTORIZED_READER_ENABLED.key ->
