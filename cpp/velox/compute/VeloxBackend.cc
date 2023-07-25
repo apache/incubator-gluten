@@ -32,7 +32,19 @@ using namespace facebook;
 
 namespace gluten {
 
-namespace {} // namespace
+namespace {
+
+void printSessionConf(const std::unordered_map<std::string, std::string>& conf) {
+  std::ostringstream oss;
+  oss << "session conf = {\n";
+  for (auto& [k, v] : conf) {
+    oss << " {" << k << " = " << v << "}\n";
+  }
+  oss << "}\n";
+  LOG(INFO) << oss.str();
+}
+
+} // namespace
 
 VeloxBackend::VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {}
 
@@ -65,6 +77,9 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
+#ifdef GLUTEN_PRINT_DEBUG
+  printSessionConf(sessionConf);
+#endif
   if (inputs.size() > 0) {
     inputIters_ = std::move(inputs);
   }
