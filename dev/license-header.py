@@ -37,7 +37,7 @@ class attrdict(dict):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Update license headers")
-    parser.add_argument("--header_intel", default=f"{SCRIPTS}/license.header.intel", help="intel header file")
+    parser.add_argument("--header", default=f"{SCRIPTS}/license.header", help="license header file")
     parser.add_argument(
         "--extra",
         default=80,
@@ -250,15 +250,15 @@ def process_license_header(files, args):
         with open(args.excluded_copyright_files) as f:
             excluded_copyright_files_globs.extend(line.strip() for line in f)
 
-    intel_copyright_files = []
+    need_check_copyright_files = []
     for file in files:
         if any([fnmatch.fnmatch(file, glob) for glob in excluded_copyright_files_globs]):
             continue
         else:
-            intel_copyright_files.append(file)
+            need_check_copyright_files.append(file)
 
-    license_header_intel = file_lines(args.header_intel)
-    check_license_header(intel_copyright_files, license_header_intel, args)
+    license_header = file_lines(args.header)
+    check_license_header(need_check_copyright_files, license_header, args)
 
 fail = False
 log_to = None
