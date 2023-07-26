@@ -191,13 +191,14 @@ class TruncTimestampTransformer(
 }
 
 class MonthsBetweenTransformer(
-  substraitExprName: String,
-  date1: ExpressionTransformer,
-  date2: ExpressionTransformer,
-  roundOff: ExpressionTransformer,
-  timeZoneId: Option[String] = None,
-  original: MonthsBetween)
-  extends ExpressionTransformer with Logging {
+    substraitExprName: String,
+    date1: ExpressionTransformer,
+    date2: ExpressionTransformer,
+    roundOff: ExpressionTransformer,
+    timeZoneId: Option[String] = None,
+    original: MonthsBetween)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val date1Node = date1.doTransform(args)
@@ -211,7 +212,8 @@ class MonthsBetweenTransformer(
       Seq(original.date1.dataType, original.date2.dataType, original.roundOff.dataType)
     }
 
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
