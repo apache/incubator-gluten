@@ -176,6 +176,65 @@ class JniWriteFile : public facebook::velox::WriteFile {
   jobject obj_;
 };
 
+// Convert "xxx:/a/b/c" to "/a/b/c". Probably it's Velox's job to remove the protocol when calling the member
+// functions?
+class RemovePathProtocol : public facebook::velox::filesystems::FileSystem {
+ public:
+  static std::shared_ptr<facebook::velox::filesystems::FileSystem> wrap(
+      std::shared_ptr<facebook::velox::filesystems::FileSystem> fs) {
+    return std::shared_ptr<facebook::velox::filesystems::FileSystem>(new RemovePathProtocol(fs));
+  }
+
+  std::string name() const override {
+    return fs_->name();
+  }
+
+  std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
+      std::string_view path,
+      const facebook::velox::filesystems::FileOptions& options) override {
+    return fs_->openFileForRead(rewrite(path), options);
+  }
+
+  std::unique_ptr<facebook::velox::WriteFile> openFileForWrite(
+      std::string_view path,
+      const facebook::velox::filesystems::FileOptions& options) override {
+    return fs_->openFileForWrite(rewrite(path), options);
+  }
+
+  void remove(std::string_view path) override {
+    fs_->remove(rewrite(path));
+  }
+
+  void rename(std::string_view oldPath, std::string_view newPath, bool overwrite) override {
+    fs_->rename(rewrite(oldPath), rewrite(newPath), overwrite);
+  }
+
+  bool exists(std::string_view path) override {
+    return fs_->exists(rewrite(path));
+  }
+
+  std::vector<std::string> list(std::string_view path) override {
+    return fs_->list(rewrite(path));
+  }
+
+  void mkdir(std::string_view path) override {
+    fs_->mkdir(rewrite(path));
+  }
+
+  void rmdir(std::string_view path) override {
+    fs_->rmdir(rewrite(path));
+  }
+
+ private:
+  RemovePathProtocol(std::shared_ptr<facebook::velox::filesystems::FileSystem> fs) : FileSystem({}), fs_(fs) {}
+
+  std::string_view rewrite(std::string_view path) {
+    return removePathProtocol(path);
+  }
+
+  std::shared_ptr<facebook::velox::filesystems::FileSystem> fs_;
+};
+
 class JniFileSystem : public facebook::velox::filesystems::FileSystem {
  public:
   explicit JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::Config> config) : FileSystem(config) {
@@ -293,7 +352,8 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
       JNIEnv* env;
       attachCurrentThreadAsDaemonOrThrow(vm, &env);
       jobject obj = env->CallStaticObjectMethod(jniFileSystemClass, jniGetFileSystem);
-      std::shared_ptr<FileSystem> lfs = std::make_shared<JniFileSystem>(obj, properties);
+      // remove "jni:" or "jol:" prefix.
+      std::shared_ptr<FileSystem> lfs = RemovePathProtocol::wrap(std::make_shared<JniFileSystem>(obj, properties));
       checkException(env);
       return lfs;
     };
@@ -301,60 +361,6 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
 
  private:
   jobject obj_;
-};
-
-// Convert "jni:/a/b/c" to "/a/b/c". Probably it's Velox's job to remove the protocol when calling the member
-// functions?
-class RemovePathProtocol : public facebook::velox::filesystems::FileSystem {
- public:
-  RemovePathProtocol(std::shared_ptr<facebook::velox::filesystems::FileSystem> fs) : FileSystem({}), fs_(fs) {}
-
-  std::string name() const override {
-    return fs_->name();
-  }
-
-  std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
-      std::string_view path,
-      const facebook::velox::filesystems::FileOptions& options) override {
-    return fs_->openFileForRead(rewrite(path), options);
-  }
-
-  std::unique_ptr<facebook::velox::WriteFile> openFileForWrite(
-      std::string_view path,
-      const facebook::velox::filesystems::FileOptions& options) override {
-    return fs_->openFileForWrite(rewrite(path), options);
-  }
-
-  void remove(std::string_view path) override {
-    fs_->remove(rewrite(path));
-  }
-
-  void rename(std::string_view oldPath, std::string_view newPath, bool overwrite) override {
-    fs_->rename(rewrite(oldPath), rewrite(newPath), overwrite);
-  }
-
-  bool exists(std::string_view path) override {
-    return fs_->exists(rewrite(path));
-  }
-
-  std::vector<std::string> list(std::string_view path) override {
-    return fs_->list(rewrite(path));
-  }
-
-  void mkdir(std::string_view path) override {
-    fs_->mkdir(rewrite(path));
-  }
-
-  void rmdir(std::string_view path) override {
-    fs_->rmdir(rewrite(path));
-  }
-
- private:
-  std::string_view rewrite(std::string_view path) {
-    return removePathProtocol(path);
-  }
-
-  std::shared_ptr<facebook::velox::filesystems::FileSystem> fs_;
 };
 
 // "jol" stands for letting Gluten choose between jni fs and local fs.
@@ -380,7 +386,9 @@ class JolFileSystem {
       }
       const std::string_view& localFilePath =
           removePathProtocol(filePath); // remove "jol:" to make Velox choose local fs.
-      return facebook::velox::filesystems::getFileSystem(localFilePath, properties);
+      auto fs = RemovePathProtocol::wrap(facebook::velox::filesystems::getFileSystem(
+          localFilePath, properties)); // remove all the "jol:"s in calls to local fs
+      return fs;
     };
   }
 
