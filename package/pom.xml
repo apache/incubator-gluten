@@ -236,6 +236,9 @@
                     <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.ExecutedWriteSummary$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec$</ignoreClass>
+
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>
