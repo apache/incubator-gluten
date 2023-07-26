@@ -14,8 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.execution
 
-package io.glutenproject.execution
+import io.glutenproject.execution.WholeStageTransformerSuite
+
+import org.apache.spark.sql.functions.lit
 
 class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"

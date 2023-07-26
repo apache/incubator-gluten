@@ -14,13 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.velox
 
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.sources.DataSourceRegister
 
 class VeloxParquetFileFormat extends ParquetFileFormat with DataSourceRegister with Serializable {
-
   override def shortName(): String = "velox"
 }
