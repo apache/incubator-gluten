@@ -86,7 +86,7 @@ const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.vel
 
 // spill
 const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
-const std::string kMaxSpillFileSizeDefault = "0";
+const std::string kMaxSpillFileSizeDefault = std::to_string(20L * 1024 * 1024);
 
 } // namespace
 

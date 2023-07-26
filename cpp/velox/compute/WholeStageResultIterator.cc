@@ -324,7 +324,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
         getConfigValue(kOrderBySpillMemoryThreshold, "0"); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kMaxSpillLevel] = getConfigValue(kMaxSpillLevel, "4");
-    configs[velox::core::QueryConfig::kMaxSpillFileSize] = getConfigValue(kMaxSpillFileSize, "0");
+    configs[velox::core::QueryConfig::kMaxSpillFileSize] = getConfigValue(kMaxSpillFileSize, std::to_string(20L * 1024 * 1024));
     configs[velox::core::QueryConfig::kMinSpillRunSize] = getConfigValue(kMinSpillRunSize, std::to_string(256 << 20));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] = getConfigValue(kSpillStartPartitionBit, "29");
     configs[velox::core::QueryConfig::kSpillPartitionBits] = getConfigValue(kSpillPartitionBits, "2");
