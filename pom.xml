@@ -53,7 +53,7 @@
     <scala.version>${spark32.scala}</scala.version>
     <spark.version>${spark32.version}</spark.version>
     <spark.major.version>3</spark.major.version>
-    <celeborn.version>0.2.1-incubating</celeborn.version>
+    <celeborn.version>0.3.0-incubating</celeborn.version>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
     <arrow.version>12.0.0</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>

@@ -26,7 +26,7 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.shuffle.celeborn.RssShuffleHandle
+import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourcesUtil
 
@@ -36,15 +36,13 @@ import org.apache.celeborn.common.CelebornConf
 import java.io.IOException
 
 class CelebornHashBasedColumnarShuffleWriter[K, V](
-    handle: RssShuffleHandle[K, V, V],
+    handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,
     client: ShuffleClient,
     writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
   with Logging {
-
-  private val appId: String = handle.newAppId
 
   private val shuffleId = handle.dependency.shuffleId
 
@@ -59,7 +57,6 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   private val mapId = context.partitionId()
 
   private val celebornPartitionPusher = new CelebornPartitionPusher(
-    appId,
     shuffleId,
     numMappers,
     numPartitions,
@@ -105,7 +102,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      client.mapperEnd(appId, shuffleId, mapId, context.attemptNumber, numMappers)
+      client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }
@@ -123,7 +120,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             nativeBufferSize,
             customizedCompressionCodec,
             bufferCompressThreshold,
-            celebornConf.pushBufferMaxSize,
+            celebornConf.clientPushBufferMaxSize,
             celebornPartitionPusher,
             NativeMemoryAllocators
               .getDefault()
@@ -181,8 +178,8 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
 
     val pushMergedDataTime = System.nanoTime
     client.prepareForMergeData(shuffleId, mapId, context.attemptNumber())
-    client.pushMergedData(appId, shuffleId, mapId, context.attemptNumber)
-    client.mapperEnd(appId, shuffleId, mapId, context.attemptNumber, numMappers)
+    client.pushMergedData(shuffleId, mapId, context.attemptNumber)
+    client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
     writeMetrics.incWriteTime(System.nanoTime - pushMergedDataTime)
     mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
   }
@@ -203,7 +200,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
         closeShuffleWriter()
         nativeShuffleWriter = -1L
       }
-      client.cleanup(appId, shuffleId, mapId, context.attemptNumber)
+      client.cleanup(shuffleId, mapId, context.attemptNumber)
     }
   }
 
