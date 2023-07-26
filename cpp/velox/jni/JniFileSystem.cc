@@ -17,40 +17,49 @@
 
 #include "JniFileSystem.h"
 #include "jni/JniCommon.h"
-#include "jni/JniErrors.h"
 
 namespace {
-constexpr std::string_view kFileScheme("jni:");
+constexpr std::string_view kJniFsScheme("jni:");
+constexpr std::string_view kJolFsScheme("jol:");
 
-static JavaVM* vm;
+JavaVM* vm;
 
-static jclass jniFileSystemClass;
-static jclass jniReadFileClass;
-static jclass jniWriteFileClass;
+jclass jniFileSystemClass;
+jclass jniReadFileClass;
+jclass jniWriteFileClass;
 
-static jmethodID jniGetFileSystem;
-static jmethodID jniFileSystemOpenFileForRead;
-static jmethodID jniFileSystemOpenFileForWrite;
-static jmethodID jniFileSystemRemove;
-static jmethodID jniFileSystemRename;
-static jmethodID jniFileSystemExists;
-static jmethodID jniFileSystemList;
-static jmethodID jniFileSystemMkdir;
-static jmethodID jniFileSystemRmdir;
+jmethodID jniGetFileSystem;
+jmethodID jniIsCapableForNewFile;
+jmethodID jniFileSystemOpenFileForRead;
+jmethodID jniFileSystemOpenFileForWrite;
+jmethodID jniFileSystemRemove;
+jmethodID jniFileSystemRename;
+jmethodID jniFileSystemExists;
+jmethodID jniFileSystemList;
+jmethodID jniFileSystemMkdir;
+jmethodID jniFileSystemRmdir;
 
-static jmethodID jniReadFilePread;
-static jmethodID jniReadFileShouldCoalesce;
-static jmethodID jniReadFileSize;
-static jmethodID jniReadFileMemoryUsage;
-static jmethodID jniReadFileGetNaturalReadSize;
+jmethodID jniReadFilePread;
+jmethodID jniReadFileShouldCoalesce;
+jmethodID jniReadFileSize;
+jmethodID jniReadFileMemoryUsage;
+jmethodID jniReadFileGetNaturalReadSize;
 
-static jmethodID jniWriteFileAppend;
-static jmethodID jniWriteFileFlush;
-static jmethodID jniWriteFileClose;
-static jmethodID jniWriteFileSize;
+jmethodID jniWriteFileAppend;
+jmethodID jniWriteFileFlush;
+jmethodID jniWriteFileClose;
+jmethodID jniWriteFileSize;
 
 jstring createJString(JNIEnv* env, const std::string_view& path) {
   return env->NewStringUTF(std::string(path).c_str());
+}
+
+std::string_view removePathProtocol(std::string_view path) {
+  unsigned long pos = path.find(':');
+  if (pos == std::string::npos) {
+    return path;
+  }
+  return path.substr(pos + 1);
 }
 
 class JniReadFile : public facebook::velox::ReadFile {
@@ -266,15 +275,119 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     checkException(env);
   }
 
-  static std::function<bool(std::string_view)> schemeMatcher();
+  static bool isCapableForNewFile(uint64_t size) {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    bool out = env->CallStaticBooleanMethod(jniFileSystemClass, jniIsCapableForNewFile, static_cast<jlong>(size));
+    checkException(env);
+    return out;
+  }
+
+  static std::function<bool(std::string_view)> schemeMatcher() {
+    return [](std::string_view filePath) { return filePath.find(kJniFsScheme) == 0; };
+  }
 
   static std::function<std::shared_ptr<FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
-  fileSystemGenerator();
+  fileSystemGenerator() {
+    return [](std::shared_ptr<const facebook::velox::Config> properties, std::string_view filePath) {
+      JNIEnv* env;
+      attachCurrentThreadAsDaemonOrThrow(vm, &env);
+      jobject obj = env->CallStaticObjectMethod(jniFileSystemClass, jniGetFileSystem);
+      std::shared_ptr<FileSystem> lfs = std::make_shared<JniFileSystem>(obj, properties);
+      checkException(env);
+      return lfs;
+    };
+  }
 
  private:
   jobject obj_;
 };
 
+// Convert "jni:/a/b/c" to "/a/b/c". Probably it's Velox's job to remove the protocol when calling the member
+// functions?
+class RemovePathProtocol : public facebook::velox::filesystems::FileSystem {
+ public:
+  RemovePathProtocol(std::shared_ptr<facebook::velox::filesystems::FileSystem> fs) : FileSystem({}), fs_(fs) {}
+
+  std::string name() const override {
+    return fs_->name();
+  }
+
+  std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
+      std::string_view path,
+      const facebook::velox::filesystems::FileOptions& options) override {
+    return fs_->openFileForRead(rewrite(path), options);
+  }
+
+  std::unique_ptr<facebook::velox::WriteFile> openFileForWrite(
+      std::string_view path,
+      const facebook::velox::filesystems::FileOptions& options) override {
+    return fs_->openFileForWrite(rewrite(path), options);
+  }
+
+  void remove(std::string_view path) override {
+    fs_->remove(rewrite(path));
+  }
+
+  void rename(std::string_view oldPath, std::string_view newPath, bool overwrite) override {
+    fs_->rename(rewrite(oldPath), rewrite(newPath), overwrite);
+  }
+
+  bool exists(std::string_view path) override {
+    return fs_->exists(rewrite(path));
+  }
+
+  std::vector<std::string> list(std::string_view path) override {
+    return fs_->list(rewrite(path));
+  }
+
+  void mkdir(std::string_view path) override {
+    fs_->mkdir(rewrite(path));
+  }
+
+  void rmdir(std::string_view path) override {
+    fs_->rmdir(rewrite(path));
+  }
+
+ private:
+  std::string_view rewrite(std::string_view path) {
+    return removePathProtocol(path);
+  }
+
+  std::shared_ptr<facebook::velox::filesystems::FileSystem> fs_;
+};
+
+// "jol" stands for letting Gluten choose between jni fs and local fs.
+// This doesn't implement facebook::velox::filesystems::FileSystem since it just
+// act as a entry-side router to create JniFilesystem and LocalFilesystem
+class JolFileSystem {
+  static class std::shared_ptr<JolFileSystem> create(uint64_t maxFileSize) {
+    return std::shared_ptr<JolFileSystem>(new JolFileSystem(maxFileSize));
+  }
+
+  std::function<bool(std::string_view)>
+  schemeMatcher() {
+    return [](std::string_view filePath) { return filePath.find(kJolFsScheme) == 0; };
+  }
+
+  std::function<std::shared_ptr<
+      facebook::velox::filesystems::FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
+  fileSystemGenerator() {
+    return [=](std::shared_ptr<const facebook::velox::Config> properties,
+               std::string_view filePath) -> std::shared_ptr<facebook::velox::filesystems::FileSystem> {
+      if (JniFileSystem::isCapableForNewFile(maxFileSize_)) {
+        return JniFileSystem::fileSystemGenerator()(properties, filePath);
+      }
+      const std::string_view& localFilePath =
+          removePathProtocol(filePath); // remove "jol:" to make Velox choose local fs.
+      return facebook::velox::filesystems::getFileSystem(localFilePath, properties);
+    };
+  }
+
+ private:
+  JolFileSystem(uint64_t maxFileSize) : maxFileSize_(maxFileSize){};
+  uint64_t maxFileSize_;
+};
 } // namespace
 
 void gluten::initVeloxJniFileSystem(JNIEnv* env) {
@@ -289,8 +402,9 @@ void gluten::initVeloxJniFileSystem(JNIEnv* env) {
   jniWriteFileClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/fs/JniFilesystem$WriteFile;");
 
   // methods in JniFilesystem
-  jniGetFileSystem = getStaticMethodIdOrError(
-      env, jniFileSystemClass, "getFileSystem", "(Ljava/lang/String;)Lio/glutenproject/fs/JniFilesystem;");
+  jniGetFileSystem =
+      getStaticMethodIdOrError(env, jniFileSystemClass, "getFileSystem", "()Lio/glutenproject/fs/JniFilesystem;");
+  jniIsCapableForNewFile = getStaticMethodIdOrError(env, jniFileSystemClass, "isCapableForNewFile", "(J)Z");
   jniFileSystemOpenFileForRead = getMethodIdOrError(
       env, jniFileSystemClass, "openFileForRead", "(Ljava/lang/String;)Lio/glutenproject/fs/JniFilesystem$ReadFile;");
   jniFileSystemOpenFileForWrite = getMethodIdOrError(
@@ -323,23 +437,6 @@ void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {
   env->DeleteGlobalRef(jniFileSystemClass);
 
   vm = nullptr;
-}
-
-std::function<bool(std::string_view)> JniFileSystem::schemeMatcher() {
-  return [](std::string_view filePath) { return filePath.find(kFileScheme) == 0; };
-}
-
-std::function<std::shared_ptr<
-    facebook::velox::filesystems::FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
-JniFileSystem::fileSystemGenerator() {
-  return [](std::shared_ptr<const facebook::velox::Config> properties, std::string_view filePath) {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm, &env);
-    jobject obj = env->CallStaticObjectMethod(jniFileSystemClass, jniGetFileSystem, createJString(env, filePath));
-    std::shared_ptr<FileSystem> lfs = std::make_shared<JniFileSystem>(obj, properties);
-    checkException(env);
-    return lfs;
-  };
 }
 
 void gluten::registerJniFileSystem() {
