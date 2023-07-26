@@ -1,4 +1,5 @@
 #include "SparkFunctionMonthsBetween.h"
+#include <string>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime.h>
 #include <DataTypes/DataTypeDateTime64.h>
@@ -60,7 +61,7 @@ ALWAYS_INLINE Float64 roundTo8IfNeed(bool round, Float64 res)
 
 Float64 monthsBetween(DateTime64 x, DateTime64 y, const DateLUTImpl & timezone, bool round)
 {
-    // we know that spark use microseconds, maybe round to 8 digits after point
+    // We know that spark use microseconds, maybe round to 8 digits after point
     x /= 1000000;
     y /= 1000000;
     int x_year = timezone.toYear(x);
@@ -98,6 +99,10 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
     size_t rows = input_rows_count;
     auto res = result_type->createColumn();
     res->reserve(rows);
+    std::string timezone_str = "";
+    if (arguments.size() == 4 && rows) // Assume that timezone is constant
+        timezone_str = arguments[3].column->getDataAt(0).toString();
+    auto & timezone = DateLUT::instance(timezone_str);
 
     for (size_t i = 0; i < rows; ++i)
     {
@@ -111,9 +116,6 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
         {
             DB::Field round_value;
             round_off.get(i, round_value);
-            DB::Field timezone_value;
-            arguments[3].column->get(i, timezone_value);
-            auto & timezone = DateLUT::instance(timezone_value.safeGet<DB::String>());
             res->insert(monthsBetween(
                 static_cast<DateTime64>(x_value.safeGet<DateTime64>()),
                 static_cast<DateTime64>(y_value.safeGet<DateTime64>()),
