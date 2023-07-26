@@ -227,12 +227,19 @@ case class ClickHouseAppendDataExec(
         val paths = new java.util.ArrayList[String]()
         val starts = new java.util.ArrayList[java.lang.Long]()
         val lengths = new java.util.ArrayList[java.lang.Long]()
+        val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
         paths.add(files.head.filePath)
         starts.add(files.head.start)
         lengths.add(files.head.length)
         val localFilesNode =
           LocalFilesBuilder
-            .makeLocalFiles(index, paths, starts, lengths, ReadFileFormat.UnknownFormat)
+            .makeLocalFiles(
+              index,
+              paths,
+              starts,
+              lengths,
+              partitionColumns.map(_.asJava).asJava,
+              ReadFileFormat.UnknownFormat)
         val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
           SnowflakeIdWorker.getInstance().nextId(),
           database,

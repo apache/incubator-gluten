@@ -68,9 +68,6 @@
                                               }
                                           }
                                       ]
-                                  },
-                                  "partitionColumns": {
-                                      "columnType": ["NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL"]
                                   }
                               },
                               "filter": {

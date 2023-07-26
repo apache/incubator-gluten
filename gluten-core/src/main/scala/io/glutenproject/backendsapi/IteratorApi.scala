@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -41,6 +42,7 @@ trait IteratorApi {
   def genFilePartition(
       index: Int,
       partitions: Seq[InputPartition],
+      partitionSchema: StructType,
       wsCxt: WholestageTransformContext): BaseGlutenPartition
 
   /**

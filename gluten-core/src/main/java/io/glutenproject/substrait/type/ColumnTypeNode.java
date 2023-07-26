@@ -17,7 +17,7 @@
 
 package io.glutenproject.substrait.type;
 
-import io.substrait.proto.PartitionColumns.ColumnType;
+import io.substrait.proto.NamedStruct.ColumnType;
 
 import java.io.Serializable;
 

@@ -108,10 +108,9 @@ class WholeStageResultIteratorFirstStage final : public WholeStageResultIterator
   std::vector<std::vector<facebook::velox::exec::Split>> splits_;
   bool noMoreSplits_ = false;
 
-  // Extract the partition column and value from a path of split.
-  // The split path is like .../my_dataset/year=2022/month=July/split_file.
-  std::unordered_map<std::string, std::optional<std::string>> extractPartitionColumnAndValue(
-      const std::string& filePath);
+  void constructPartitionColumns(
+      std::unordered_map<std::string, std::optional<std::string>>&,
+      const std::unordered_map<std::string, std::string>&);
 };
 
 class WholeStageResultIteratorMiddleStage final : public WholeStageResultIterator {

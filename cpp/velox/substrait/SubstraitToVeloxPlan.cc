@@ -757,9 +757,17 @@ core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::Re
     splitInfo->paths.reserve(fileList.size());
     splitInfo->starts.reserve(fileList.size());
     splitInfo->lengths.reserve(fileList.size());
+    splitInfo->partitionColumns.reserve(fileList.size());
     for (const auto& file : fileList) {
       // Expect all Partitions share the same index.
       splitInfo->partitionIndex = file.partition_index();
+
+      std::unordered_map<std::string, std::string> partitionColumnMap;
+      for (const auto& partitionColumn : file.partition_columns()) {
+        partitionColumnMap[partitionColumn.key()] = partitionColumn.value();
+      }
+      splitInfo->partitionColumns.emplace_back(partitionColumnMap);
+
       splitInfo->paths.emplace_back(file.uri_file());
       splitInfo->starts.emplace_back(file.start());
       splitInfo->lengths.emplace_back(file.length());

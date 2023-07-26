@@ -30,6 +30,9 @@ struct SplitInfo {
   /// The Partition index.
   u_int32_t partitionIndex;
 
+  /// The partition columns associated with partitioned table.
+  std::vector<std::unordered_map<std::string, std::string>> partitionColumns;
+
   /// The file paths to be scanned.
   std::vector<std::string> paths;
 

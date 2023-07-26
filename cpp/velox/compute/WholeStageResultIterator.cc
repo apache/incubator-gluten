@@ -369,11 +369,14 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     const auto& starts = scanInfo->starts;
     const auto& lengths = scanInfo->lengths;
     const auto& format = scanInfo->format;
+    const auto& partitionColumns = scanInfo->partitionColumns;
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
-      auto partitionKeys = extractPartitionColumnAndValue(paths[idx]);
+      auto partitionColumn = partitionColumns[idx];
+      std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
+      constructPartitionColumns(partitionKeys, partitionColumn);
       auto split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
           kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys);
       connectorSplits.emplace_back(split);
@@ -418,47 +421,21 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   };
 }
 
-std::unordered_map<std::string, std::optional<std::string>>
-WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::string& filePath) {
-  std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
-
-  // Column name with '=' is not supported now.
-  std::string delimiter = "=";
-  std::string str = filePath;
-  std::size_t pos = str.find(delimiter);
-
-  while (pos != std::string::npos) {
-    // Split the string with delimiter.
-    std::string prePart = str.substr(0, pos);
-    std::string latterPart = str.substr(pos + 1);
-    // Extract the partition column.
-    pos = prePart.find_last_of('/');
-    std::string partitionColumn;
-    if (pos == std::string::npos) {
-      partitionColumn = prePart;
-    } else {
-      partitionColumn = prePart.substr(pos + 1);
-    }
-    // Extract the partition value.
-    pos = latterPart.find('/');
-    if (pos == std::string::npos) {
-      throw std::runtime_error("No value found for partition key: " + partitionColumn + " in path: " + filePath);
-    }
-    std::string partitionValue = latterPart.substr(0, pos);
+void WholeStageResultIteratorFirstStage::constructPartitionColumns(
+    std::unordered_map<std::string, std::optional<std::string>>& partitionKeys,
+    const std::unordered_map<std::string, std::string>& map) {
+  for (const auto& partitionColumn : map) {
+    auto key = partitionColumn.first;
+    const auto value = partitionColumn.second;
     if (!folly::to<bool>(getConfigValue(kCaseSensitive, "true"))) {
-      folly::toLowerAscii(partitionColumn);
+      folly::toLowerAscii(key);
     }
-    if (partitionValue == kHiveDefaultPartition) {
-      partitionKeys[partitionColumn] = std::nullopt;
+    if (value == kHiveDefaultPartition) {
+      partitionKeys[key] = std::nullopt;
     } else {
-      // Set to the map of partition keys. Timestamp could be URL encoded.
-      partitionKeys[partitionColumn] = urlDecode(partitionValue);
+      partitionKeys[key] = value;
     }
-    // For processing the remaining keys.
-    str = latterPart.substr(pos + 1);
-    pos = str.find(delimiter);
   }
-  return partitionKeys;
 }
 
 WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(

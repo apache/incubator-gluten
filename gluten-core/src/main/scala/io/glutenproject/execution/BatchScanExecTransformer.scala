@@ -60,9 +60,15 @@ class BatchScanExecTransformer(
     case _ => new StructType()
   }
 
-  override def getInputFilePaths: Seq[String] = scan match {
-    case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
-    case _ => Seq.empty
+  override def getInputFilePaths: Seq[String] = {
+    if (BackendsApiManager.isVeloxBackend) {
+      Seq.empty[String]
+    } else {
+      scan match {
+        case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
+        case _ => Seq.empty
+      }
+    }
   }
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator

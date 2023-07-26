@@ -23,7 +23,6 @@ import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
 
 import io.substrait.proto.NamedStruct;
-import io.substrait.proto.PartitionColumns;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
@@ -115,11 +114,9 @@ public class ReadRelNode implements RelNode, Serializable {
     }
 
     if (!columnTypeNodes.isEmpty()) {
-      PartitionColumns.Builder partitionColumnsBuilder = PartitionColumns.newBuilder();
       for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
-        partitionColumnsBuilder.addColumnType(columnTypeNode.toProtobuf());
+        nStructBuilder.addColumnTypes(columnTypeNode.toProtobuf());
       }
-      nStructBuilder.setPartitionColumns(partitionColumnsBuilder.build());
     }
 
     ReadRel.Builder readBuilder = ReadRel.newBuilder();

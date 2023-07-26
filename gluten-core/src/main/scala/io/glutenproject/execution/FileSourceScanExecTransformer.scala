@@ -103,7 +103,13 @@ class FileSourceScanExecTransformer(
 
   override def getPartitionSchemas: StructType = relation.partitionSchema
 
-  override def getInputFilePaths: Seq[String] = relation.location.inputFiles.toSeq
+  override def getInputFilePaths: Seq[String] = {
+    if (BackendsApiManager.isVeloxBackend) {
+      Seq.empty[String]
+    } else {
+      relation.location.inputFiles.toSeq
+    }
+  }
 
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecTransformer =>

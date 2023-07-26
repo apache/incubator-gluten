@@ -48,6 +48,7 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def getPartitionSchemas: StructType
 
+  // TODO: Remove this expensive call when CH support scan custom partition location.
   def getInputFilePaths: Seq[String]
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
