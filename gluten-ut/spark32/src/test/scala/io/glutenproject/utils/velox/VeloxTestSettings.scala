@@ -286,9 +286,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
     .exclude("SPARK-28156: self-join should not miss cached view")
     .exclude("SPARK-33338: GROUP BY using literal map should not fail")
-    // Rewrite from ORC scan to Parquet scan because ORC is not well supported. Also disabled
-    // Spark vectorized reading because Spark's columnar output is not compatible with Velox's.
-    // .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
     // Rewrite to disable plan check for SMJ because SHJ is preferred in Gluten.
     .exclude("SPARK-11111 null-safe join should not use cartesian product")
     // Rewrite to change the information of a caught exception.
@@ -842,11 +839,7 @@ class VeloxTestSettings extends BackendTestSettings {
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
   enableSuite[GlutenParquetV1SchemaPruningSuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    // .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    // .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
