@@ -33,7 +33,8 @@ case class CustomerColumnarPreRules(session: SparkSession) extends Rule[SparkPla
         fileSourceScan.optionalNumCoalescedBuckets,
         fileSourceScan.dataFilters,
         fileSourceScan.tableIdentifier,
-        fileSourceScan.disableBucketedScan)
+        fileSourceScan.disableBucketedScan
+      )
       if (transformer.doValidate().isValid) {
         transformer
       } else {

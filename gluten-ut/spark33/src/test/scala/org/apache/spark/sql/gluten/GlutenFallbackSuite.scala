@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.gluten
 
 import io.glutenproject.{GlutenConfig, VERSION}
+
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusStore, SparkListenerSQLExecutionStart}
@@ -36,9 +36,11 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
           sql("SELECT * FROM t").collect()
         }
       }
-      assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.contains(
-        "Validation failed for plan: Scan parquet default.t, " +
-          "due to: columnar FileScan is not enabled in FileSourceScanExec")))
+      assert(
+        testAppender.loggingEvents.exists(
+          _.getMessage.getFormattedMessage.contains(
+            "Validation failed for plan: Scan parquet default.t, " +
+              "due to: columnar FileScan is not enabled in FileSourceScanExec")))
     }
   }
 
@@ -96,8 +98,9 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
       val execution = glutenStore.execution(id)
       // broadcast exchange and broadcast nested loop join
       assert(execution.get.numFallbackNodes == 2)
-      assert(execution.get.fallbackNodeToReason.head._2.contains(
-        "Gluten does not touch it or does not support it"))
+      assert(
+        execution.get.fallbackNodeToReason.head._2
+          .contains("Gluten does not touch it or does not support it"))
     }
   }
 }

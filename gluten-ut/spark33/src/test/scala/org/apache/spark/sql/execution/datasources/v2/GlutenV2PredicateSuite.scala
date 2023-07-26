@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenV2PredicateSuite extends V2PredicateSuite with GlutenSQLTestsBaseTrait{}
+class GlutenV2PredicateSuite extends V2PredicateSuite with GlutenSQLTestsBaseTrait {}

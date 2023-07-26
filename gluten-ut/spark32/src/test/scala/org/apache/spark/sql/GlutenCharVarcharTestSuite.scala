@@ -14,13 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenFileSourceCharVarcharTestSuite extends FileSourceCharVarcharTestSuite
-  with GlutenSQLTestsTrait {
-}
+class GlutenFileSourceCharVarcharTestSuite
+  extends FileSourceCharVarcharTestSuite
+  with GlutenSQLTestsTrait {}
 
-class GlutenDSV2CharVarcharTestSuite extends DSV2CharVarcharTestSuite
-  with GlutenSQLTestsTrait {
-}
+class GlutenDSV2CharVarcharTestSuite extends DSV2CharVarcharTestSuite with GlutenSQLTestsTrait {}

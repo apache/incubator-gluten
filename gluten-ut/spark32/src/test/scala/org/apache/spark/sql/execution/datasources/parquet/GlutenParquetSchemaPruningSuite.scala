@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.tags.ExtendedSQLTest
 
 @ExtendedSQLTest
-class GlutenParquetV1SchemaPruningSuite extends ParquetV1SchemaPruningSuite
-  with GlutenSQLTestsBaseTrait {
-}
+class GlutenParquetV1SchemaPruningSuite
+  extends ParquetV1SchemaPruningSuite
+  with GlutenSQLTestsBaseTrait {}
 
 @ExtendedSQLTest
-class GlutenParquetV2SchemaPruningSuite extends ParquetV2SchemaPruningSuite
-  with GlutenSQLTestsBaseTrait {
-}
+class GlutenParquetV2SchemaPruningSuite
+  extends ParquetV2SchemaPruningSuite
+  with GlutenSQLTestsBaseTrait {}

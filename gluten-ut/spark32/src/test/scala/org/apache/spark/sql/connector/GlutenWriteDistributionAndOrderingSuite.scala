@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.connector
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenWriteDistributionAndOrderingSuite
-  extends WriteDistributionAndOrderingSuite with GlutenSQLTestsBaseTrait {
+  extends WriteDistributionAndOrderingSuite
+  with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     // Native SQL configs
     super.sparkConf

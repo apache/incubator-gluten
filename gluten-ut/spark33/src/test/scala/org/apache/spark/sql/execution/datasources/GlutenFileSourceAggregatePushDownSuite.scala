@@ -14,19 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenParquetV1AggregatePushDownSuite extends
-  ParquetV1AggregatePushDownSuite with GlutenSQLTestsBaseTrait{}
+class GlutenParquetV1AggregatePushDownSuite
+  extends ParquetV1AggregatePushDownSuite
+  with GlutenSQLTestsBaseTrait {}
 
-class GlutenParquetV2AggregatePushDownSuite extends
-  ParquetV2AggregatePushDownSuite with GlutenSQLTestsBaseTrait{}
+class GlutenParquetV2AggregatePushDownSuite
+  extends ParquetV2AggregatePushDownSuite
+  with GlutenSQLTestsBaseTrait {}
 
-class GlutenOrcV1AggregatePushDownSuite extends
-  OrcV1AggregatePushDownSuite with GlutenSQLTestsBaseTrait{}
+class GlutenOrcV1AggregatePushDownSuite
+  extends OrcV1AggregatePushDownSuite
+  with GlutenSQLTestsBaseTrait {}
 
-class GlutenOrcV2AggregatePushDownSuite extends
-  OrcV2AggregatePushDownSuite with GlutenSQLTestsBaseTrait{}
+class GlutenOrcV2AggregatePushDownSuite
+  extends OrcV2AggregatePushDownSuite
+  with GlutenSQLTestsBaseTrait {}

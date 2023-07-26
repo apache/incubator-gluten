@@ -14,25 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.text
 
-import org.apache.hadoop.io.SequenceFile.CompressionType
-import org.apache.hadoop.io.compress.GzipCodec
-import org.apache.spark.sql.execution.datasources.CommonFileDataSourceSuite
 import org.apache.spark.{SparkConf, TestUtils}
 import org.apache.spark.sql.{AnalysisException, DataFrame, GlutenSQLTestsBaseTrait, QueryTest, Row, SaveMode}
+import org.apache.spark.sql.execution.datasources.CommonFileDataSourceSuite
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{StringType, StructType}
 import org.apache.spark.util.Utils
 
+import org.apache.hadoop.io.SequenceFile.CompressionType
+import org.apache.hadoop.io.compress.GzipCodec
+
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 
-abstract class GlutenTextSuite extends QueryTest
-  with SharedSparkSession with CommonFileDataSourceSuite {
+abstract class GlutenTextSuite
+  extends QueryTest
+  with SharedSparkSession
+  with CommonFileDataSourceSuite {
   import testImplicits._
 
   override protected def dataSourceFormat = "text"
@@ -103,8 +105,9 @@ abstract class GlutenTextSuite extends QueryTest
       val tempDirPath = Utils.createTempDir().getAbsolutePath
       testDf.write.option("compression", "illegal").mode(SaveMode.Overwrite).text(tempDirPath)
     }
-    assert(errMsg.getMessage.contains("Codec [illegal] is not available. " +
-      "Known codecs are"))
+    assert(
+      errMsg.getMessage.contains("Codec [illegal] is not available. " +
+        "Known codecs are"))
   }
 
   test("SPARK-13543 Write the output as uncompressed via option()") {
@@ -115,14 +118,18 @@ abstract class GlutenTextSuite extends QueryTest
       "mapreduce.output.fileoutputformat.compress.codec" -> classOf[GzipCodec].getName,
       "mapreduce.map.output.compress.codec" -> classOf[GzipCodec].getName
     )
-    withTempDir { dir =>
-      val testDf = spark.read.text(testFile)
-      val tempDirPath = dir.getAbsolutePath
-      testDf.write.option("compression", "none")
-        .options(extraOptions).mode(SaveMode.Overwrite).text(tempDirPath)
-      val compressedFiles = new File(tempDirPath).listFiles()
-      assert(compressedFiles.exists(!_.getName.endsWith(".txt.gz")))
-      verifyFrame(spark.read.options(extraOptions).text(tempDirPath))
+    withTempDir {
+      dir =>
+        val testDf = spark.read.text(testFile)
+        val tempDirPath = dir.getAbsolutePath
+        testDf.write
+          .option("compression", "none")
+          .options(extraOptions)
+          .mode(SaveMode.Overwrite)
+          .text(tempDirPath)
+        val compressedFiles = new File(tempDirPath).listFiles()
+        assert(compressedFiles.exists(!_.getName.endsWith(".txt.gz")))
+        verifyFrame(spark.read.options(extraOptions).text(tempDirPath))
     }
   }
 
@@ -134,43 +141,50 @@ abstract class GlutenTextSuite extends QueryTest
       "mApReDuCe.output.fileoutputformat.compress.codec" -> classOf[GzipCodec].getName,
       "mApReDuCe.map.output.compress.codec" -> classOf[GzipCodec].getName
     )
-    withTempDir { dir =>
-      val testDf = spark.read.text(testFile)
-      val tempDirPath = dir.getAbsolutePath
-      testDf.write.option("CoMpReSsIoN", "none")
-        .options(extraOptions).mode(SaveMode.Overwrite).text(tempDirPath)
-      val compressedFiles = new File(tempDirPath).listFiles()
-      assert(compressedFiles.exists(!_.getName.endsWith(".txt.gz")))
-      verifyFrame(spark.read.options(extraOptions).text(tempDirPath))
+    withTempDir {
+      dir =>
+        val testDf = spark.read.text(testFile)
+        val tempDirPath = dir.getAbsolutePath
+        testDf.write
+          .option("CoMpReSsIoN", "none")
+          .options(extraOptions)
+          .mode(SaveMode.Overwrite)
+          .text(tempDirPath)
+        val compressedFiles = new File(tempDirPath).listFiles()
+        assert(compressedFiles.exists(!_.getName.endsWith(".txt.gz")))
+        verifyFrame(spark.read.options(extraOptions).text(tempDirPath))
     }
   }
 
   test("SPARK-14343: select partitioning column") {
-    withTempPath { dir =>
-      val path = dir.getCanonicalPath
-      val ds1 = spark.range(1).selectExpr("CONCAT('val_', id)")
-      ds1.write.text(s"$path/part=a")
-      ds1.write.text(s"$path/part=b")
+    withTempPath {
+      dir =>
+        val path = dir.getCanonicalPath
+        val ds1 = spark.range(1).selectExpr("CONCAT('val_', id)")
+        ds1.write.text(s"$path/part=a")
+        ds1.write.text(s"$path/part=b")
 
-      checkAnswer(
-        spark.read.format("text").load(path).select($"part"),
-        Row("a") :: Row("b") :: Nil)
+        checkAnswer(
+          spark.read.format("text").load(path).select($"part"),
+          Row("a") :: Row("b") :: Nil)
     }
   }
 
   test("SPARK-15654: should not split gz files") {
-    withTempDir { dir =>
-      val path = dir.getCanonicalPath
-      val df1 = spark.range(0, 1000).selectExpr("CAST(id AS STRING) AS s")
-      df1.write.option("compression", "gzip").mode("overwrite").text(path)
+    withTempDir {
+      dir =>
+        val path = dir.getCanonicalPath
+        val df1 = spark.range(0, 1000).selectExpr("CAST(id AS STRING) AS s")
+        df1.write.option("compression", "gzip").mode("overwrite").text(path)
 
-      val expected = df1.collect()
-      Seq(10, 100, 1000).foreach { bytes =>
-        withSQLConf(SQLConf.FILES_MAX_PARTITION_BYTES.key -> bytes.toString) {
-          val df2 = spark.read.format("text").load(path)
-          checkAnswer(df2, expected)
+        val expected = df1.collect()
+        Seq(10, 100, 1000).foreach {
+          bytes =>
+            withSQLConf(SQLConf.FILES_MAX_PARTITION_BYTES.key -> bytes.toString) {
+              val df2 = spark.read.format("text").load(path)
+              checkAnswer(df2, expected)
+            }
         }
-      }
     }
   }
 
@@ -180,49 +194,61 @@ abstract class GlutenTextSuite extends QueryTest
       val values = Seq("a", "b", "\nc")
       val data = values.mkString(lineSep)
       val dataWithTrailingLineSep = s"$data$lineSep"
-      Seq(data, dataWithTrailingLineSep).foreach { lines =>
-        withTempPath { path =>
-          Files.write(path.toPath, lines.getBytes(StandardCharsets.UTF_8))
-          val df = spark.read.option("lineSep", lineSep).text(path.getAbsolutePath)
-          checkAnswer(df, Seq("a", "b", "\nc").toDF())
-        }
+      Seq(data, dataWithTrailingLineSep).foreach {
+        lines =>
+          withTempPath {
+            path =>
+              Files.write(path.toPath, lines.getBytes(StandardCharsets.UTF_8))
+              val df = spark.read.option("lineSep", lineSep).text(path.getAbsolutePath)
+              checkAnswer(df, Seq("a", "b", "\nc").toDF())
+          }
       }
 
       // Write
-      withTempPath { path =>
-        values.toDF().coalesce(1)
-          .write.option("lineSep", lineSep).text(path.getAbsolutePath)
-        val partFile = TestUtils.recursiveList(path).filter(f => f.getName.startsWith("part-")).head
-        val readBack = new String(Files.readAllBytes(partFile.toPath), StandardCharsets.UTF_8)
-        assert(readBack === s"a${lineSep}b${lineSep}\nc${lineSep}")
+      withTempPath {
+        path =>
+          values.toDF().coalesce(1).write.option("lineSep", lineSep).text(path.getAbsolutePath)
+          val partFile =
+            TestUtils.recursiveList(path).filter(f => f.getName.startsWith("part-")).head
+          val readBack = new String(Files.readAllBytes(partFile.toPath), StandardCharsets.UTF_8)
+          assert(readBack === s"a${lineSep}b$lineSep\nc$lineSep")
       }
 
       // Roundtrip
-      withTempPath { path =>
-        val df = values.toDF()
-        df.write.option("lineSep", lineSep).text(path.getAbsolutePath)
-        val readBack = spark.read.option("lineSep", lineSep).text(path.getAbsolutePath)
-        checkAnswer(df, readBack)
+      withTempPath {
+        path =>
+          val df = values.toDF()
+          df.write.option("lineSep", lineSep).text(path.getAbsolutePath)
+          val readBack = spark.read.option("lineSep", lineSep).text(path.getAbsolutePath)
+          checkAnswer(df, readBack)
       }
     }
   }
 
   // scalastyle:off nonascii
-  Seq("|", "^", "::", "!!!@3", 0x1E.toChar.toString, "아").foreach { lineSep =>
-    testLineSeparator(lineSep)
+  Seq("|", "^", "::", "!!!@3", 0x1e.toChar.toString, "아").foreach {
+    lineSep => testLineSeparator(lineSep)
   }
   // scalastyle:on nonascii
 
   // Rewrite for file locating.
   private def testFile: String = {
     getWorkspaceFilePath(
-      "sql", "core", "src", "test", "resources").toString + "/test-data/text-suite.txt"
+      "sql",
+      "core",
+      "src",
+      "test",
+      "resources").toString + "/test-data/text-suite.txt"
   }
 
   // Added for file locating.
   private def textPartitioned: String = {
     getWorkspaceFilePath(
-      "sql", "core", "src", "test", "resources").toString + "/test-data/text-partitioned"
+      "sql",
+      "core",
+      "src",
+      "test",
+      "resources").toString + "/test-data/text-partitioned"
   }
 
   /** Verifies data and schema. */
@@ -244,14 +270,12 @@ abstract class GlutenTextSuite extends QueryTest
 
 class GlutenTextV1Suite extends GlutenTextSuite with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf =
-    super
-      .sparkConf
+    super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "text")
 }
 
 class GlutenTextV2Suite extends GlutenTextSuite with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf =
-    super
-      .sparkConf
+    super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 }

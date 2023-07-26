@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.GlutenTestsTrait
@@ -28,8 +27,8 @@ class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTes
     checkEvaluation(Ascii(Literal("®")), 174, create_row("®"))
     checkEvaluation(Ascii(Literal("©")), 169, create_row("©"))
     // scalastyle:on
-    (128 until 256).foreach { c =>
-      checkEvaluation(Ascii(Chr(Literal(c.toLong))), c, create_row(c.toLong))
+    (128 until 256).foreach {
+      c => checkEvaluation(Ascii(Chr(Literal(c.toLong))), c, create_row(c.toLong))
     }
   }
 

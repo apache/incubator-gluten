@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.sources
 
 import org.apache.spark.sql._
 
-class GlutenFilteredScanSuite extends FilteredScanSuite with GlutenSQLTestsBaseTrait {
-}
+class GlutenFilteredScanSuite extends FilteredScanSuite with GlutenSQLTestsBaseTrait {}

@@ -18,5 +18,4 @@ package org.apache.spark.sql.execution.datasources.orc
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenOrcV1FilterSuite extends OrcV1FilterSuite with GlutenSQLTestsBaseTrait {
-}
+class GlutenOrcV1FilterSuite extends OrcV1FilterSuite with GlutenSQLTestsBaseTrait {}

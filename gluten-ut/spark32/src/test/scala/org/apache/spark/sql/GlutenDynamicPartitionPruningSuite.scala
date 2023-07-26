@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
+
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
+import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
 import org.apache.spark.sql.catalyst.plans.ExistenceJoin
 import org.apache.spark.sql.connector.catalog.InMemoryTableCatalog
 import org.apache.spark.sql.execution._
@@ -32,7 +32,8 @@ import org.apache.spark.sql.execution.streaming.{MemoryStream, StreamingQueryWra
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.internal.SQLConf
 
-abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPruningSuiteBase
+abstract class GlutenDynamicPartitionPruningSuiteBase
+  extends DynamicPartitionPruningSuiteBase
   with GlutenSQLTestsTrait {
 
   import testImplicits._
@@ -55,20 +56,22 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
 
   ignore(GLUTEN_TEST + "DPP should not be rewritten as an existential join") {
     // ignored: BroadcastHashJoinExec is from Vanilla Spark
-    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
+    withSQLConf(
+      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_FALLBACK_FILTER_RATIO.key -> "1.5",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
-      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
-      val df = sql(
-        s"""
-           |SELECT * FROM product p WHERE p.store_id NOT IN
-           | (SELECT f.store_id FROM fact_sk f JOIN dim_store d ON f.store_id = d.store_id
-           |    WHERE d.state_province = 'NL'
-           | )
+      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false"
+    ) {
+      val df = sql(s"""
+                      |SELECT * FROM product p WHERE p.store_id NOT IN
+                      | (SELECT f.store_id FROM fact_sk f JOIN dim_store d ON
+                      |  f.store_id = d.store_id
+                      |    WHERE d.state_province = 'NL'
+                      | )
        """.stripMargin)
 
       val found = df.queryExecution.executedPlan.find {
-        case _ @ BroadcastHashJoinExec(_, _, _: ExistenceJoin, _, _, _, _, _) => true
+        case _ @BroadcastHashJoinExec(_, _, _: ExistenceJoin, _, _, _, _, _) => true
         case _ => false
       }
 
@@ -79,14 +82,15 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
   test(GLUTEN_TEST + "no partition pruning when the build side is a stream") {
     withTable("fact") {
       val input = MemoryStream[Int]
-      val stream = input.toDF.select($"value" as "one", ($"value" * 3) as "code")
-      spark.range(100).select(
-        $"id",
-        ($"id" + 1).as("one"),
-        ($"id" + 2).as("two"),
-        ($"id" + 3).as("three"))
-        .write.partitionBy("one")
-        .format(tableFormat).mode("overwrite").saveAsTable("fact")
+      val stream = input.toDF.select($"value".as("one"), ($"value" * 3).as("code"))
+      spark
+        .range(100)
+        .select($"id", ($"id" + 1).as("one"), ($"id" + 2).as("two"), ($"id" + 3).as("three"))
+        .write
+        .partitionBy("one")
+        .format(tableFormat)
+        .mode("overwrite")
+        .saveAsTable("fact")
       val table = sql("SELECT * from fact f")
 
       // join a partitioned table with a stream
@@ -101,14 +105,16 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
       // search dynamic pruning predicates on the executed plan
       val plan = query.asInstanceOf[StreamingQueryWrapper].streamingQuery.lastExecution.executedPlan
       val ret = plan.find {
-        case s: FileSourceScanExecTransformer => s.partitionFilters.exists {
-          case _: DynamicPruningExpression => true
-          case _ => false
-        }
-        case s: FileSourceScanExec => s.partitionFilters.exists {
-          case _: DynamicPruningExpression => true
-          case _ => false
-        }
+        case s: FileSourceScanExecTransformer =>
+          s.partitionFilters.exists {
+            case _: DynamicPruningExpression => true
+            case _ => false
+          }
+        case s: FileSourceScanExec =>
+          s.partitionFilters.exists {
+            case _: DynamicPruningExpression => true
+            case _ => false
+          }
         case _ => false
       }
       assert(ret.isDefined == false)
@@ -117,55 +123,56 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
 
   test(GLUTEN_TEST + "Make sure dynamic pruning works on uncorrelated queries") {
     withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
-      val df = sql(
-        """
-          |SELECT d.store_id,
-          |       SUM(f.units_sold),
-          |       (SELECT SUM(f.units_sold)
-          |        FROM fact_stats f JOIN dim_stats d ON d.store_id = f.store_id
-          |        WHERE d.country = 'US') AS total_prod
-          |FROM fact_stats f JOIN dim_stats d ON d.store_id = f.store_id
-          |WHERE d.country = 'US'
-          |GROUP BY 1
+      val df = sql("""
+                     |SELECT d.store_id,
+                     |       SUM(f.units_sold),
+                     |       (SELECT SUM(f.units_sold)
+                     |        FROM fact_stats f JOIN dim_stats d ON d.store_id = f.store_id
+                     |        WHERE d.country = 'US') AS total_prod
+                     |FROM fact_stats f JOIN dim_stats d ON d.store_id = f.store_id
+                     |WHERE d.country = 'US'
+                     |GROUP BY 1
         """.stripMargin)
       checkAnswer(df, Row(4, 50, 70) :: Row(5, 10, 70) :: Row(6, 10, 70) :: Nil)
 
       val plan = df.queryExecution.executedPlan
       val countSubqueryBroadcasts =
-        collectWithSubqueries(plan)({
+        collectWithSubqueries(plan) {
           case _: SubqueryBroadcastExec => 1
           case _: ColumnarSubqueryBroadcastExec => 1
-        }).sum
+        }.sum
 
       val countReusedSubqueryBroadcasts =
-        collectWithSubqueries(plan)({
+        collectWithSubqueries(plan) {
           case ReusedSubqueryExec(_: SubqueryBroadcastExec) => 1
           case ReusedSubqueryExec(_: ColumnarSubqueryBroadcastExec) => 1
-        }).sum
+        }.sum
 
       assert(countSubqueryBroadcasts == 1)
       assert(countReusedSubqueryBroadcasts == 1)
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
-    "canonicalization and exchange reuse") {
+  test(
+    GLUTEN_TEST + "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
+      "canonicalization and exchange reuse") {
     withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
-        val df = sql(
-          """ WITH view1 as (
-            |   SELECT f.store_id FROM fact_stats f WHERE f.units_sold = 70
-            | )
-            |
-            | SELECT * FROM view1 v1 join view1 v2 WHERE v1.store_id = v2.store_id
+        val df = sql(""" WITH view1 as (
+                       |   SELECT f.store_id FROM fact_stats f WHERE f.units_sold = 70
+                       | )
+                       |
+                       | SELECT * FROM view1 v1 join view1 v2 WHERE v1.store_id = v2.store_id
           """.stripMargin)
 
         checkPartitionPruningPredicate(df, false, false)
         val reuseExchangeNodes = collect(df.queryExecution.executedPlan) {
           case se: ReusedExchangeExec => se
         }
-        assert(reuseExchangeNodes.size == 1, "Expected plan to contain 1 ReusedExchangeExec " +
-          s"nodes. Found ${reuseExchangeNodes.size}")
+        assert(
+          reuseExchangeNodes.size == 1,
+          "Expected plan to contain 1 ReusedExchangeExec " +
+            s"nodes. Found ${reuseExchangeNodes.size}")
 
         checkAnswer(df, Row(15, 15) :: Nil)
       }
@@ -173,116 +180,125 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
   }
 
   test(GLUTEN_TEST + "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type") {
-    Seq(NO_CODEGEN, CODEGEN_ONLY).foreach { mode =>
-      Seq(true, false).foreach { pruning =>
-        withSQLConf(
-          SQLConf.CODEGEN_FACTORY_MODE.key -> mode.toString,
-          SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> s"$pruning") {
-          Seq("struct", "array").foreach { dataType =>
-            val df = sql(
-              s"""
-                 |SELECT f.date_id, f.product_id, f.units_sold, f.store_id FROM fact_stats f
-                 |JOIN dim_stats s
-                 |ON $dataType(f.store_id) = $dataType(s.store_id) WHERE s.country = 'DE'
+    Seq(NO_CODEGEN, CODEGEN_ONLY).foreach {
+      mode =>
+        Seq(true, false).foreach {
+          pruning =>
+            withSQLConf(
+              SQLConf.CODEGEN_FACTORY_MODE.key -> mode.toString,
+              SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> s"$pruning") {
+              Seq("struct", "array").foreach {
+                dataType =>
+                  val df = sql(
+                    s"""
+                       |SELECT f.date_id, f.product_id, f.units_sold, f.store_id FROM fact_stats f
+                       |JOIN dim_stats s
+                       |ON $dataType(f.store_id) = $dataType(s.store_id) WHERE s.country = 'DE'
               """.stripMargin)
 
-            if (pruning) {
-              df.collect()
+                  if (pruning) {
+                    df.collect()
 
-              val plan = df.queryExecution.executedPlan
-              val dpExprs = collectDynamicPruningExpressions(plan)
-              val hasSubquery = dpExprs.exists {
-                case InSubqueryExec(_, _: SubqueryExec, _, _) => true
-                case _ => false
-              }
-              val subqueryBroadcast = dpExprs.collect {
-                case InSubqueryExec(_, b: SubqueryBroadcastExec, _, _) => b
-                case InSubqueryExec(_, b: ColumnarSubqueryBroadcastExec, _, _) => b
-              }
-
-              val hasFilter = if (false) "Should" else "Shouldn't"
-              assert(!hasSubquery,
-                s"$hasFilter trigger DPP with a subquery duplicate:\n${df.queryExecution}")
-              val hasBroadcast = if (true) "Should" else "Shouldn't"
-              assert(subqueryBroadcast.nonEmpty, s"$hasBroadcast trigger DPP " +
-                s"with a reused broadcast exchange:\n${df.queryExecution}")
-
-              subqueryBroadcast.foreach { s =>
-                s.child match {
-                  case _: ReusedExchangeExec => // reuse check ok.
-                  case BroadcastQueryStageExec(_, _: ReusedExchangeExec, _) => // reuse check ok.
-                  case b: BroadcastExchangeLike =>
-                    val hasReuse = plan.find {
-                      case ReusedExchangeExec(_, e) => e eq b
+                    val plan = df.queryExecution.executedPlan
+                    val dpExprs = collectDynamicPruningExpressions(plan)
+                    val hasSubquery = dpExprs.exists {
+                      case InSubqueryExec(_, _: SubqueryExec, _, _) => true
                       case _ => false
-                    }.isDefined
-                    // assert(hasReuse, s"$s\nshould have been reused in\n$plan")
-                  case a: AdaptiveSparkPlanExec =>
-                    val broadcastQueryStage = collectFirst(a) {
-                      case b: BroadcastQueryStageExec => b
                     }
-                    val broadcastPlan = broadcastQueryStage.get.broadcast
-                    val hasReuse = find(plan) {
-                      case ReusedExchangeExec(_, e) => e eq broadcastPlan
-                      case b: BroadcastExchangeLike => b eq broadcastPlan
-                      case _ => false
-                    }.isDefined
-                    // assert(hasReuse, s"$s\nshould have been reused in\n$plan")
-                  case _ =>
-                    fail(s"Invalid child node found in\n$s")
-                }
-              }
+                    val subqueryBroadcast = dpExprs.collect {
+                      case InSubqueryExec(_, b: SubqueryBroadcastExec, _, _) => b
+                      case InSubqueryExec(_, b: ColumnarSubqueryBroadcastExec, _, _) => b
+                    }
 
-              val isMainQueryAdaptive = plan.isInstanceOf[AdaptiveSparkPlanExec]
-              subqueriesAll(plan).filterNot(subqueryBroadcast.contains).foreach { s =>
-                val subquery = s match {
-                  case r: ReusedSubqueryExec => r.child
-                  case o => o
-                }
-                assert(subquery.find(_.isInstanceOf[AdaptiveSparkPlanExec])
-                  .isDefined == isMainQueryAdaptive)
+                    val hasFilter = if (false) "Should" else "Shouldn't"
+                    assert(
+                      !hasSubquery,
+                      s"$hasFilter trigger DPP with a subquery duplicate:\n${df.queryExecution}")
+                    val hasBroadcast = if (true) "Should" else "Shouldn't"
+                    assert(
+                      subqueryBroadcast.nonEmpty,
+                      s"$hasBroadcast trigger DPP " +
+                        s"with a reused broadcast exchange:\n${df.queryExecution}")
+
+                    subqueryBroadcast.foreach {
+                      s =>
+                        s.child match {
+                          case _: ReusedExchangeExec => // reuse check ok.
+                          case BroadcastQueryStageExec(
+                                _,
+                                _: ReusedExchangeExec,
+                                _
+                              ) => // reuse check ok.
+                          case b: BroadcastExchangeLike =>
+                            val hasReuse = plan.find {
+                              case ReusedExchangeExec(_, e) => e eq b
+                              case _ => false
+                            }.isDefined
+                          // assert(hasReuse, s"$s\nshould have been reused in\n$plan")
+                          case a: AdaptiveSparkPlanExec =>
+                            val broadcastQueryStage = collectFirst(a) {
+                              case b: BroadcastQueryStageExec => b
+                            }
+                            val broadcastPlan = broadcastQueryStage.get.broadcast
+                            val hasReuse = find(plan) {
+                              case ReusedExchangeExec(_, e) => e eq broadcastPlan
+                              case b: BroadcastExchangeLike => b eq broadcastPlan
+                              case _ => false
+                            }.isDefined
+                          // assert(hasReuse, s"$s\nshould have been reused in\n$plan")
+                          case _ =>
+                            fail(s"Invalid child node found in\n$s")
+                        }
+                    }
+
+                    val isMainQueryAdaptive = plan.isInstanceOf[AdaptiveSparkPlanExec]
+                    subqueriesAll(plan).filterNot(subqueryBroadcast.contains).foreach {
+                      s =>
+                        val subquery = s match {
+                          case r: ReusedSubqueryExec => r.child
+                          case o => o
+                        }
+                        assert(
+                          subquery
+                            .find(_.isInstanceOf[AdaptiveSparkPlanExec])
+                            .isDefined == isMainQueryAdaptive)
+                    }
+                  } else {
+                    checkPartitionPruningPredicate(df, false, false)
+                  }
+
+                  checkAnswer(
+                    df,
+                    Row(1030, 2, 10, 3) ::
+                      Row(1040, 2, 50, 3) ::
+                      Row(1050, 2, 50, 3) ::
+                      Row(1060, 2, 50, 3) :: Nil)
               }
-            } else {
-              checkPartitionPruningPredicate(df, false, false)
             }
-
-            checkAnswer(df,
-              Row(1030, 2, 10, 3) ::
-                Row(1040, 2, 50, 3) ::
-                Row(1050, 2, 50, 3) ::
-                Row(1060, 2, 50, 3) :: Nil
-            )
-          }
         }
-      }
     }
   }
-
 
   // === Following methods override super class's methods ===
 
   private def collectDynamicPruningExpressions(plan: SparkPlan): Seq[Expression] = {
     flatMap(plan) {
-      case s: FileSourceScanExecTransformer => s.partitionFilters.collect {
-        case d: DynamicPruningExpression => d.child
-      }
-      case s: FileSourceScanExec => s.partitionFilters.collect {
-        case d: DynamicPruningExpression => d.child
-      }
-      case s: BatchScanExecTransformer => s.runtimeFilters.collect {
-        case d: DynamicPruningExpression => d.child
-      }
-      case s: BatchScanExec => s.runtimeFilters.collect {
-        case d: DynamicPruningExpression => d.child
-      }
+      case s: FileSourceScanExecTransformer =>
+        s.partitionFilters.collect { case d: DynamicPruningExpression => d.child }
+      case s: FileSourceScanExec =>
+        s.partitionFilters.collect { case d: DynamicPruningExpression => d.child }
+      case s: BatchScanExecTransformer =>
+        s.runtimeFilters.collect { case d: DynamicPruningExpression => d.child }
+      case s: BatchScanExec =>
+        s.runtimeFilters.collect { case d: DynamicPruningExpression => d.child }
       case _ => Nil
     }
   }
 
   override def checkPartitionPruningPredicate(
-                                               df: DataFrame,
-                                               withSubquery: Boolean,
-                                               withBroadcast: Boolean): Unit = {
+      df: DataFrame,
+      withSubquery: Boolean,
+      withBroadcast: Boolean): Unit = {
     df.collect()
 
     val plan = df.queryExecution.executedPlan
@@ -297,45 +313,48 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
     }
 
     val hasFilter = if (withSubquery) "Should" else "Shouldn't"
-    assert(hasSubquery == withSubquery,
+    assert(
+      hasSubquery == withSubquery,
       s"$hasFilter trigger DPP with a subquery duplicate:\n${df.queryExecution}")
     val hasBroadcast = if (withBroadcast) "Should" else "Shouldn't"
-    assert(subqueryBroadcast.nonEmpty == withBroadcast,
+    assert(
+      subqueryBroadcast.nonEmpty == withBroadcast,
       s"$hasBroadcast trigger DPP with a reused broadcast exchange:\n${df.queryExecution}")
 
-    subqueryBroadcast.foreach { s =>
-      s.child match {
-        case _: ReusedExchangeExec => // reuse check ok.
-        case BroadcastQueryStageExec(_, _: ReusedExchangeExec, _) => // reuse check ok.
-        case b: BroadcastExchangeLike =>
-          val hasReuse = plan.find {
-            case ReusedExchangeExec(_, e) => e eq b
-            case _ => false
-          }.isDefined
-          assert(hasReuse, s"$s\nshould have been reused in\n$plan")
-        case a: AdaptiveSparkPlanExec =>
-          val broadcastQueryStage = collectFirst(a) {
-            case b: BroadcastQueryStageExec => b
-          }
-          val broadcastPlan = broadcastQueryStage.get.broadcast
-          val hasReuse = find(plan) {
-            case ReusedExchangeExec(_, e) => e eq broadcastPlan
-            case b: BroadcastExchangeLike => b eq broadcastPlan
-            case _ => false
-          }.isDefined
-          assert(hasReuse, s"$s\nshould have been reused in\n$plan")
-        case _ =>
-          fail(s"Invalid child node found in\n$s")
-      }
+    subqueryBroadcast.foreach {
+      s =>
+        s.child match {
+          case _: ReusedExchangeExec => // reuse check ok.
+          case BroadcastQueryStageExec(_, _: ReusedExchangeExec, _) => // reuse check ok.
+          case b: BroadcastExchangeLike =>
+            val hasReuse = plan.find {
+              case ReusedExchangeExec(_, e) => e eq b
+              case _ => false
+            }.isDefined
+            assert(hasReuse, s"$s\nshould have been reused in\n$plan")
+          case a: AdaptiveSparkPlanExec =>
+            val broadcastQueryStage = collectFirst(a) { case b: BroadcastQueryStageExec => b }
+            val broadcastPlan = broadcastQueryStage.get.broadcast
+            val hasReuse = find(plan) {
+              case ReusedExchangeExec(_, e) => e eq broadcastPlan
+              case b: BroadcastExchangeLike => b eq broadcastPlan
+              case _ => false
+            }.isDefined
+            assert(hasReuse, s"$s\nshould have been reused in\n$plan")
+          case _ =>
+            fail(s"Invalid child node found in\n$s")
+        }
     }
 
     val isMainQueryAdaptive = plan.isInstanceOf[AdaptiveSparkPlanExec]
-    subqueriesAll(plan).filterNot(subqueryBroadcast.contains).foreach { s =>
-      val subquery = s match {
-        case r: ReusedSubqueryExec => r.child
-        case o => o
-      }
-      assert(subquery.find(_.isInstanceOf[AdaptiveSparkPlanExec]).isDefined == isMainQueryAdaptive)
+    subqueriesAll(plan).filterNot(subqueryBroadcast.contains).foreach {
+      s =>
+        val subquery = s match {
+          case r: ReusedSubqueryExec => r.child
+          case o => o
+        }
+        assert(
+          subquery.find(_.isInstanceOf[AdaptiveSparkPlanExec]).isDefined == isMainQueryAdaptive)
     }
   }
 
@@ -382,29 +401,31 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
 
   import testImplicits._
 
-  /**
-   * Check the static scan metrics with and without DPP
-   */
-  test("static scan metrics",
-    DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
-    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
+  /** Check the static scan metrics with and without DPP */
+  test("static scan metrics", DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
+    withSQLConf(
+      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
-      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
+      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false"
+    ) {
       withTable("fact", "dim") {
         val numPartitions = 10
 
-        spark.range(10)
-          .map { x => Tuple3(x, x + 1, 0) }
+        spark
+          .range(10)
+          .map(x => Tuple3(x, x + 1, 0))
           .toDF("did", "d1", "d2")
           .write
           .format(tableFormat)
           .mode("overwrite")
           .saveAsTable("dim")
 
-        spark.range(100)
-          .map { x => Tuple2(x, x % numPartitions) }
+        spark
+          .range(100)
+          .map(x => Tuple2(x, x % numPartitions))
           .toDF("f1", "fid")
-          .write.partitionBy("fid")
+          .write
+          .partitionBy("fid")
           .format(tableFormat)
           .mode("overwrite")
           .saveAsTable("fact")
@@ -466,32 +487,39 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
   }
 }
 
-class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPruningV1Suite
+class GlutenDynamicPartitionPruningV1SuiteAEOff
+  extends GlutenDynamicPartitionPruningV1Suite
   with DisableAdaptiveExecutionSuite {
 
   import testImplicits._
 
-  test(GLUTEN_TEST + "static scan metrics",
+  test(
+    GLUTEN_TEST + "static scan metrics",
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
-    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
+    withSQLConf(
+      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
       //      "spark.gluten.enabled" -> "false",
-      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
+      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false"
+    ) {
       withTable("fact", "dim") {
         val numPartitions = 10
 
-        spark.range(10)
-          .map { x => Tuple3(x, x + 1, 0) }
+        spark
+          .range(10)
+          .map(x => Tuple3(x, x + 1, 0))
           .toDF("did", "d1", "d2")
           .write
           .format(tableFormat)
           .mode("overwrite")
           .saveAsTable("dim")
 
-        spark.range(100)
-          .map { x => Tuple2(x, x % numPartitions) }
+        spark
+          .range(100)
+          .map(x => Tuple2(x, x % numPartitions))
           .toDF("f1", "fid")
-          .write.partitionBy("fid")
+          .write
+          .partitionBy("fid")
           .format(tableFormat)
           .mode("overwrite")
           .saveAsTable("fact")
@@ -557,13 +585,17 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPr
     }
   }
 
-  test(GLUTEN_TEST + "Subquery reuse across the whole plan",
+  test(
+    GLUTEN_TEST + "Subquery reuse across the whole plan",
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
-    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
+    withSQLConf(
+      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
-      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
+      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false"
+    ) {
       withTable("df1", "df2") {
-        spark.range(100)
+        spark
+          .range(100)
           .select(col("id"), col("id").as("k"))
           .write
           .partitionBy("k")
@@ -571,7 +603,8 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPr
           .mode("overwrite")
           .saveAsTable("df1")
 
-        spark.range(10)
+        spark
+          .range(10)
           .select(col("id"), col("id").as("k"))
           .write
           .partitionBy("k")
@@ -579,12 +612,11 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPr
           .mode("overwrite")
           .saveAsTable("df2")
 
-        val df = sql(
-          """
-            |SELECT df1.id, df2.k
-            |FROM df1 JOIN df2 ON df1.k = df2.k
-            |WHERE df2.id < (SELECT max(id) FROM df2 WHERE id <= 2)
-            |""".stripMargin)
+        val df = sql("""
+                       |SELECT df1.id, df2.k
+                       |FROM df1 JOIN df2 ON df1.k = df2.k
+                       |WHERE df2.id < (SELECT max(id) FROM df2 WHERE id <= 2)
+                       |""".stripMargin)
 
         checkPartitionPruningPredicate(df, true, false)
 
@@ -603,45 +635,48 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPr
         // See also DynamicPartitionPruningSuite.scala:1362
         assert(subqueryIds.size == 3, "Whole plan subquery reusing not working correctly")
         assert(reusedSubqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
-        assert(reusedSubqueryIds.forall(subqueryIds.contains(_)),
+        assert(
+          reusedSubqueryIds.forall(subqueryIds.contains(_)),
           "ReusedSubqueryExec should reuse an existing subquery")
       }
     }
   }
 }
 
-class GlutenDynamicPartitionPruningV1SuiteAEOn extends GlutenDynamicPartitionPruningV1Suite
+class GlutenDynamicPartitionPruningV1SuiteAEOn
+  extends GlutenDynamicPartitionPruningV1Suite
   with EnableAdaptiveExecutionSuite {
 
   test("SPARK-39447: Avoid AssertionError in AdaptiveSparkPlanExec.doExecuteBroadcast") {
-    val df = sql(
-      """
-        |WITH empty_result AS (
-        |  SELECT * FROM fact_stats WHERE product_id < 0
-        |)
-        |SELECT *
-        |FROM   (SELECT /*+ SHUFFLE_MERGE(fact_sk) */ empty_result.store_id
-        |        FROM   fact_sk
-        |               JOIN empty_result
-        |                 ON fact_sk.product_id = empty_result.product_id) t2
-        |       JOIN empty_result
-        |         ON t2.store_id = empty_result.store_id
+    val df = sql("""
+                   |WITH empty_result AS (
+                   |  SELECT * FROM fact_stats WHERE product_id < 0
+                   |)
+                   |SELECT *
+                   |FROM   (SELECT /*+ SHUFFLE_MERGE(fact_sk) */ empty_result.store_id
+                   |        FROM   fact_sk
+                   |               JOIN empty_result
+                   |                 ON fact_sk.product_id = empty_result.product_id) t2
+                   |       JOIN empty_result
+                   |         ON t2.store_id = empty_result.store_id
       """.stripMargin)
 
     checkPartitionPruningPredicate(df, false, false)
     checkAnswer(df, Nil)
   }
 
-  test("SPARK-37995: PlanAdaptiveDynamicPruningFilters should use prepareExecutedPlan " +
-    "rather than createSparkPlan to re-plan subquery") {
-    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
+  test(
+    "SPARK-37995: PlanAdaptiveDynamicPruningFilters should use prepareExecutedPlan " +
+      "rather than createSparkPlan to re-plan subquery") {
+    withSQLConf(
+      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
-      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
-      val df = sql(
-        """
-          |SELECT f.date_id, f.store_id FROM fact_sk f
-          |JOIN dim_store s ON f.store_id = s.store_id AND s.country = 'NL'
-          |WHERE s.state_province != (SELECT max(state_province) FROM dim_stats)
+      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false"
+    ) {
+      val df = sql("""
+                     |SELECT f.date_id, f.store_id FROM fact_sk f
+                     |JOIN dim_store s ON f.store_id = s.store_id AND s.country = 'NL'
+                     |WHERE s.state_province != (SELECT max(state_province) FROM dim_stats)
         """.stripMargin)
 
       checkPartitionPruningPredicate(df, true, false)
@@ -659,8 +694,10 @@ abstract class GlutenDynamicPartitionPruningV2Suite extends GlutenDynamicPartiti
   }
 }
 
-class GlutenDynamicPartitionPruningV2SuiteAEOff extends GlutenDynamicPartitionPruningV2Suite
+class GlutenDynamicPartitionPruningV2SuiteAEOff
+  extends GlutenDynamicPartitionPruningV2Suite
   with DisableAdaptiveExecutionSuite
 
-class GlutenDynamicPartitionPruningV2SuiteAEOn extends GlutenDynamicPartitionPruningV2Suite
+class GlutenDynamicPartitionPruningV2SuiteAEOn
+  extends GlutenDynamicPartitionPruningV2Suite
   with EnableAdaptiveExecutionSuite

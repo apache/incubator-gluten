@@ -14,29 +14,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.integration.tpc.h
 
-import io.glutenproject.integration.tpc.{NoopModifier, DataGen, TypeModifier}
-import io.trino.tpch._
+import io.glutenproject.integration.tpc.{DataGen, NoopModifier, TypeModifier}
 
+import org.apache.spark.sql.{Row, SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Row, SaveMode, SparkSession}
+
+import io.trino.tpch._
+
 import java.io.File
 import java.sql.Date
 
 import scala.collection.JavaConverters._
 
-class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path: String,
+class TpchDataGen(
+    val spark: SparkSession,
+    scale: Double,
+    partitions: Int,
+    path: String,
     typeModifiers: List[TypeModifier] = List())
-    extends Serializable with DataGen {
+  extends Serializable
+  with DataGen {
 
   override def gen(): Unit = {
     generate(path, "lineitem", lineItemSchema, partitions, lineItemGenerator, lineItemParser)
     generate(path, "customer", customerSchema, partitions, customerGenerator, customerParser)
     generate(path, "orders", orderSchema, partitions, orderGenerator, orderParser)
-    generate(path, "partsupp", partSupplierSchema, partitions, partSupplierGenerator, partSupplierParser)
+    generate(
+      path,
+      "partsupp",
+      partSupplierSchema,
+      partitions,
+      partSupplierGenerator,
+      partSupplierParser)
     generate(path, "supplier", supplierSchema, partitions, supplierGenerator, supplierParser)
     generate(path, "nation", nationSchema, nationGenerator, nationParser)
     generate(path, "part", partSchema, partitions, partGenerator, partParser)
@@ -44,29 +56,30 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
   }
 
   // lineitem
-  private def lineItemGenerator = { (part: Int, partCount: Int) =>
-    new LineItemGenerator(scale, part, partCount)
+  private def lineItemGenerator = {
+    (part: Int, partCount: Int) => new LineItemGenerator(scale, part, partCount)
   }
 
   private def lineItemSchema = {
-    StructType(Seq(
-      StructField("l_orderkey", LongType),
-      StructField("l_partkey", LongType),
-      StructField("l_suppkey", LongType),
-      StructField("l_linenumber", IntegerType),
-      StructField("l_quantity", DecimalType(12, 2)),
-      StructField("l_extendedprice", DecimalType(12, 2)),
-      StructField("l_discount", DecimalType(12, 2)),
-      StructField("l_tax", DecimalType(12, 2)),
-      StructField("l_returnflag", StringType),
-      StructField("l_linestatus", StringType),
-      StructField("l_commitdate", DateType),
-      StructField("l_receiptdate", DateType),
-      StructField("l_shipinstruct", StringType),
-      StructField("l_shipmode", StringType),
-      StructField("l_comment", StringType),
-      StructField("l_shipdate", DateType)
-    ))
+    StructType(
+      Seq(
+        StructField("l_orderkey", LongType),
+        StructField("l_partkey", LongType),
+        StructField("l_suppkey", LongType),
+        StructField("l_linenumber", IntegerType),
+        StructField("l_quantity", DecimalType(12, 2)),
+        StructField("l_extendedprice", DecimalType(12, 2)),
+        StructField("l_discount", DecimalType(12, 2)),
+        StructField("l_tax", DecimalType(12, 2)),
+        StructField("l_returnflag", StringType),
+        StructField("l_linestatus", StringType),
+        StructField("l_commitdate", DateType),
+        StructField("l_receiptdate", DateType),
+        StructField("l_shipinstruct", StringType),
+        StructField("l_shipmode", StringType),
+        StructField("l_comment", StringType),
+        StructField("l_shipdate", DateType)
+      ))
   }
 
   private def lineItemParser: LineItem => Row =
@@ -91,21 +104,22 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       )
 
   // customer
-  private def customerGenerator = { (part: Int, partCount: Int) =>
-    new CustomerGenerator(scale, part, partCount)
+  private def customerGenerator = {
+    (part: Int, partCount: Int) => new CustomerGenerator(scale, part, partCount)
   }
 
   private def customerSchema = {
-    StructType(Seq(
-      StructField("c_custkey", LongType),
-      StructField("c_name", StringType),
-      StructField("c_address", StringType),
-      StructField("c_nationkey", LongType),
-      StructField("c_phone", StringType),
-      StructField("c_acctbal", DecimalType(12, 2)),
-      StructField("c_comment", StringType),
-      StructField("c_mktsegment", StringType)
-    ))
+    StructType(
+      Seq(
+        StructField("c_custkey", LongType),
+        StructField("c_name", StringType),
+        StructField("c_address", StringType),
+        StructField("c_nationkey", LongType),
+        StructField("c_phone", StringType),
+        StructField("c_acctbal", DecimalType(12, 2)),
+        StructField("c_comment", StringType),
+        StructField("c_mktsegment", StringType)
+      ))
   }
 
   private def customerParser: Customer => Row =
@@ -118,26 +132,27 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
         customer.getPhone,
         BigDecimal.valueOf(customer.getAccountBalance),
         customer.getComment,
-        customer.getMarketSegment,
+        customer.getMarketSegment
       )
 
   // orders
-  private def orderGenerator = { (part: Int, partCount: Int) =>
-    new OrderGenerator(scale, part, partCount)
+  private def orderGenerator = {
+    (part: Int, partCount: Int) => new OrderGenerator(scale, part, partCount)
   }
 
   private def orderSchema = {
-    StructType(Seq(
-      StructField("o_orderkey", LongType),
-      StructField("o_custkey", LongType),
-      StructField("o_orderstatus", StringType),
-      StructField("o_totalprice", DecimalType(12, 2)),
-      StructField("o_orderpriority", StringType),
-      StructField("o_clerk", StringType),
-      StructField("o_shippriority", IntegerType),
-      StructField("o_comment", StringType),
-      StructField("o_orderdate", DateType)
-    ))
+    StructType(
+      Seq(
+        StructField("o_orderkey", LongType),
+        StructField("o_custkey", LongType),
+        StructField("o_orderstatus", StringType),
+        StructField("o_totalprice", DecimalType(12, 2)),
+        StructField("o_orderpriority", StringType),
+        StructField("o_clerk", StringType),
+        StructField("o_shippriority", IntegerType),
+        StructField("o_comment", StringType),
+        StructField("o_orderdate", DateType)
+      ))
   }
 
   private def orderParser: Order => Row =
@@ -155,18 +170,19 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       )
 
   // partsupp
-  private def partSupplierGenerator = { (part: Int, partCount: Int) =>
-    new PartSupplierGenerator(scale, part, partCount)
+  private def partSupplierGenerator = {
+    (part: Int, partCount: Int) => new PartSupplierGenerator(scale, part, partCount)
   }
 
   private def partSupplierSchema = {
-    StructType(Seq(
-      StructField("ps_partkey", LongType),
-      StructField("ps_suppkey", LongType),
-      StructField("ps_availqty", IntegerType),
-      StructField("ps_supplycost", DecimalType(12, 2)),
-      StructField("ps_comment", StringType)
-    ))
+    StructType(
+      Seq(
+        StructField("ps_partkey", LongType),
+        StructField("ps_suppkey", LongType),
+        StructField("ps_availqty", IntegerType),
+        StructField("ps_supplycost", DecimalType(12, 2)),
+        StructField("ps_comment", StringType)
+      ))
   }
 
   private def partSupplierParser: PartSupplier => Row =
@@ -180,20 +196,21 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       )
 
   // supplier
-  private def supplierGenerator = { (part: Int, partCount: Int) =>
-    new SupplierGenerator(scale, part, partCount)
+  private def supplierGenerator = {
+    (part: Int, partCount: Int) => new SupplierGenerator(scale, part, partCount)
   }
 
   private def supplierSchema = {
-    StructType(Seq(
-      StructField("s_suppkey", LongType),
-      StructField("s_name", StringType),
-      StructField("s_address", StringType),
-      StructField("s_nationkey", LongType),
-      StructField("s_phone", StringType),
-      StructField("s_acctbal", DecimalType(12, 2)),
-      StructField("s_comment", StringType)
-    ))
+    StructType(
+      Seq(
+        StructField("s_suppkey", LongType),
+        StructField("s_name", StringType),
+        StructField("s_address", StringType),
+        StructField("s_nationkey", LongType),
+        StructField("s_phone", StringType),
+        StructField("s_acctbal", DecimalType(12, 2)),
+        StructField("s_comment", StringType)
+      ))
   }
 
   private def supplierParser: Supplier => Row =
@@ -209,17 +226,16 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       )
 
   // nation
-  private def nationGenerator = { () =>
-    new NationGenerator()
-  }
+  private def nationGenerator = { () => new NationGenerator() }
 
   private def nationSchema = {
-    StructType(Seq(
-      StructField("n_nationkey", LongType),
-      StructField("n_name", StringType),
-      StructField("n_regionkey", LongType),
-      StructField("n_comment", StringType)
-    ))
+    StructType(
+      Seq(
+        StructField("n_nationkey", LongType),
+        StructField("n_name", StringType),
+        StructField("n_regionkey", LongType),
+        StructField("n_comment", StringType)
+      ))
   }
 
   private def nationParser: Nation => Row =
@@ -232,22 +248,23 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       )
 
   // part
-  private def partGenerator = { (part: Int, partCount: Int) =>
-    new PartGenerator(scale, part, partCount)
+  private def partGenerator = {
+    (part: Int, partCount: Int) => new PartGenerator(scale, part, partCount)
   }
 
   private def partSchema = {
-    StructType(Seq(
-      StructField("p_partkey", LongType),
-      StructField("p_name", StringType),
-      StructField("p_mfgr", StringType),
-      StructField("p_type", StringType),
-      StructField("p_size", IntegerType),
-      StructField("p_container", StringType),
-      StructField("p_retailprice", DecimalType(12, 2)),
-      StructField("p_comment", StringType),
-      StructField("p_brand", StringType)
-    ))
+    StructType(
+      Seq(
+        StructField("p_partkey", LongType),
+        StructField("p_name", StringType),
+        StructField("p_mfgr", StringType),
+        StructField("p_type", StringType),
+        StructField("p_size", IntegerType),
+        StructField("p_container", StringType),
+        StructField("p_retailprice", DecimalType(12, 2)),
+        StructField("p_comment", StringType),
+        StructField("p_brand", StringType)
+      ))
   }
 
   private def partParser: Part => Row =
@@ -265,16 +282,15 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       )
 
   // region
-  private def regionGenerator = { () =>
-    new RegionGenerator()
-  }
+  private def regionGenerator = { () => new RegionGenerator() }
 
   private def regionSchema = {
-    StructType(Seq(
-      StructField("r_regionkey", LongType),
-      StructField("r_name", StringType),
-      StructField("r_comment", StringType)
-    ))
+    StructType(
+      Seq(
+        StructField("r_regionkey", LongType),
+        StructField("r_name", StringType),
+        StructField("r_comment", StringType)
+      ))
   }
 
   private def regionParser: Region => Row =
@@ -286,41 +302,57 @@ class TpchDataGen(val spark: SparkSession, scale: Double, partitions: Int, path:
       )
 
   // gen tpc-h data
-  private def generate[U](dir: String, tableName: String, schema: StructType,
+  private def generate[U](
+      dir: String,
+      tableName: String,
+      schema: StructType,
       gen: () => java.lang.Iterable[U],
       parser: U => Row): Unit = {
-    generate(dir, tableName, schema, 1, (_: Int, _: Int) => {
-      gen.apply()
-    }, parser)
+    generate(
+      dir,
+      tableName,
+      schema,
+      1,
+      (_: Int, _: Int) => {
+        gen.apply()
+      },
+      parser)
   }
 
-  private def generate[U](dir: String, tableName: String, schema: StructType,
+  private def generate[U](
+      dir: String,
+      tableName: String,
+      schema: StructType,
       partitions: Int,
       gen: (Int, Int) => java.lang.Iterable[U],
       parser: U => Row): Unit = {
     println(s"Generating table $tableName...")
     val rowModifier = DataGen.getRowModifier(schema, typeModifiers)
     val modifiedSchema = DataGen.modifySchema(schema, rowModifier)
-    spark.range(0, partitions, 1L, partitions)
-        .mapPartitions { itr =>
+    spark
+      .range(0, partitions, 1L, partitions)
+      .mapPartitions {
+        itr =>
           val id = itr.toArray
           if (id.length != 1) {
             throw new IllegalStateException()
           }
           val data = gen.apply(id(0).toInt + 1, partitions)
           val dataItr = data.iterator()
-          val rows = dataItr.asScala.map { item =>
-            val row = parser(item)
-            val modifiedRow = Row(row.toSeq.zipWithIndex.map { case (v, i) =>
-              val modifier = rowModifier.apply(i)
-              modifier.modValue(v)
-            }.toArray: _*)
-            modifiedRow
+          val rows = dataItr.asScala.map {
+            item =>
+              val row = parser(item)
+              val modifiedRow = Row(row.toSeq.zipWithIndex.map {
+                case (v, i) =>
+                  val modifier = rowModifier.apply(i)
+                  modifier.modValue(v)
+              }.toArray: _*)
+              modifiedRow
           }
           rows
-        }(RowEncoder(modifiedSchema))
-        .write
-        .mode(SaveMode.Overwrite)
-        .parquet(dir + File.separator + tableName)
+      }(RowEncoder(modifiedSchema))
+      .write
+      .mode(SaveMode.Overwrite)
+      .parquet(dir + File.separator + tableName)
   }
 }

@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenPathFilterSuite extends PathFilterSuite with GlutenSQLTestsBaseTrait {
-}
+class GlutenPathFilterSuite extends PathFilterSuite with GlutenSQLTestsBaseTrait {}

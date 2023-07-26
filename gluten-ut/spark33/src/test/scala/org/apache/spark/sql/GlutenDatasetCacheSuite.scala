@@ -14,9 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenDatasetCacheSuite extends DatasetCacheSuite
-  with GlutenSQLTestsTrait {
-}
+class GlutenDatasetCacheSuite extends DatasetCacheSuite with GlutenSQLTestsTrait {}

@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-import com.google.common.base.Preconditions
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate}
+
+import com.google.common.base.Preconditions
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
@@ -44,18 +44,26 @@ object QueryRunner {
     "ProcessTreeOtherRSSMemory"
   )
 
-  def runTpcQuery(spark: SparkSession, desc: String, queryPath: String, explain: Boolean, metrics: Array[String]): RunResult = {
+  def runTpcQuery(
+      spark: SparkSession,
+      desc: String,
+      queryPath: String,
+      explain: Boolean,
+      metrics: Array[String]): RunResult = {
     val unrecognizableMetrics = metrics.filter(!availableExecutorMetrics.contains(_))
     if (unrecognizableMetrics.nonEmpty) {
-      throw new IllegalArgumentException("Unrecognizable metric names: " + unrecognizableMetrics.mkString("Array(", ", ", ")"))
+      throw new IllegalArgumentException(
+        "Unrecognizable metric names: " + unrecognizableMetrics.mkString("Array(", ", ", ")"))
     }
     val sc = spark.sparkContext
     sc.setJobDescription(desc)
     val em = new ExecutorMetrics()
     val metricsListener = new SparkListener {
-      override def onExecutorMetricsUpdate(executorMetricsUpdate: SparkListenerExecutorMetricsUpdate): Unit = {
-        executorMetricsUpdate.executorUpdates.foreach { case (_, peakUpdates) =>
-          em.compareAndUpdatePeakValues(peakUpdates)
+      override def onExecutorMetricsUpdate(
+          executorMetricsUpdate: SparkListenerExecutorMetricsUpdate): Unit = {
+        executorMetricsUpdate.executorUpdates.foreach {
+          case (_, peakUpdates) =>
+            em.compareAndUpdatePeakValues(peakUpdates)
         }
         super.onExecutorMetricsUpdate(executorMetricsUpdate)
       }
@@ -71,9 +79,7 @@ object QueryRunner {
       }
       val rows = df.collect()
       val millis = (System.nanoTime() - prev) / 1000000L
-      val collectedMetrics = metrics.map { name =>
-        (name, em.getMetricValue(name))
-      }.toMap
+      val collectedMetrics = metrics.map(name => (name, em.getMetricValue(name))).toMap
       RunResult(rows, millis, collectedMetrics)
     } finally {
       sc.removeSparkListener(metricsListener)
@@ -94,8 +100,7 @@ object QueryRunner {
         }
       }
       outStream.flush()
-    }
-    finally {
+    } finally {
       inStream.close()
     }
     new String(outStream.toByteArray, StandardCharsets.UTF_8)

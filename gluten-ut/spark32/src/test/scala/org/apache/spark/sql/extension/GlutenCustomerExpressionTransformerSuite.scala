@@ -30,9 +30,10 @@ import org.apache.spark.sql.types.{AbstractDataType, CalendarIntervalType, DayTi
 import org.apache.spark.unsafe.types.CalendarInterval
 
 case class CustomAdd(
-  left: Expression,
-  right: Expression,
-  failOnError: Boolean = SQLConf.get.ansiEnabled) extends BinaryArithmetic {
+    left: Expression,
+    right: Expression,
+    failOnError: Boolean = SQLConf.get.ansiEnabled)
+  extends BinaryArithmetic {
 
   def this(left: Expression, right: Expression) = this(left, right, SQLConf.get.ansiEnabled)
 
@@ -46,13 +47,15 @@ case class CustomAdd(
 
   private lazy val numeric = TypeUtils.getNumeric(dataType, failOnError)
 
-  protected override def nullSafeEval(input1: Any, input2: Any): Any = dataType match {
+  override protected def nullSafeEval(input1: Any, input2: Any): Any = dataType match {
     case CalendarIntervalType if failOnError =>
       IntervalUtils.addExact(
-        input1.asInstanceOf[CalendarInterval], input2.asInstanceOf[CalendarInterval])
+        input1.asInstanceOf[CalendarInterval],
+        input2.asInstanceOf[CalendarInterval])
     case CalendarIntervalType =>
       IntervalUtils.add(
-        input1.asInstanceOf[CalendarInterval], input2.asInstanceOf[CalendarInterval])
+        input1.asInstanceOf[CalendarInterval],
+        input2.asInstanceOf[CalendarInterval])
     case _: DayTimeIntervalType =>
       Math.addExact(input1.asInstanceOf[Long], input2.asInstanceOf[Long])
     case _: YearMonthIntervalType =>
@@ -63,9 +66,9 @@ case class CustomAdd(
   override def exactMathMethod: Option[String] = Some("addExact")
 
   override protected def withNewChildrenInternal(
-    newLeft: Expression,
-    newRight: Expression
-    ): CustomAdd = copy(left = newLeft, right = newRight)
+      newLeft: Expression,
+      newRight: Expression
+  ): CustomAdd = copy(left = newLeft, right = newRight)
 }
 
 class GlutenCustomerExpressionTransformerSuite extends GlutenSQLTestsTrait {
@@ -73,7 +76,8 @@ class GlutenCustomerExpressionTransformerSuite extends GlutenSQLTestsTrait {
   override def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "false")
-      .set("spark.gluten.sql.columnar.extended.expressions.transformer",
+      .set(
+        "spark.gluten.sql.columnar.extended.expressions.transformer",
         "org.apache.spark.sql.extension.CustomerExpressionTransformer")
   }
 
@@ -89,16 +93,14 @@ class GlutenCustomerExpressionTransformerSuite extends GlutenSQLTestsTrait {
   }
 
   test("test custom expression transformer") {
-    spark.createDataFrame(
-      Seq((1, 1.1), (2, 2.2)))
+    spark
+      .createDataFrame(Seq((1, 1.1), (2, 2.2)))
       .createOrReplaceTempView("custom_table")
 
-    val df = spark.sql(
-      s"""
-        |select custom_add(_1, 100), custom_add(_2, 200) from custom_table
-        |""".stripMargin)
-    checkAnswer(df,
-      Seq(Row(101, 201.1), Row(102, 202.2)))
+    val df = spark.sql(s"""
+                          |select custom_add(_1, 100), custom_add(_2, 200) from custom_table
+                          |""".stripMargin)
+    checkAnswer(df, Seq(Row(101, 201.1), Row(102, 202.2)))
 
     val projectTransformers = df.queryExecution.executedPlan.collect {
       case p: ProjectExecTransformer => p

@@ -14,11 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenNestedDataSourceV1Suite extends NestedDataSourceV1Suite with GlutenSQLTestsTrait {
-}
+class GlutenNestedDataSourceV1Suite extends NestedDataSourceV1Suite with GlutenSQLTestsTrait {}
 
-class GlutenNestedDataSourceV2Suite extends NestedDataSourceV2Suite with GlutenSQLTestsTrait {
-}
+class GlutenNestedDataSourceV2Suite extends NestedDataSourceV2Suite with GlutenSQLTestsTrait {}

@@ -14,12 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-/**
- * End-to-end test suite for count_min_sketch.
- */
-class GlutenCountMinSketchAggQuerySuite extends CountMinSketchAggQuerySuite
-  with GlutenSQLTestsTrait {
-}
+/** End-to-end test suite for count_min_sketch. */
+class GlutenCountMinSketchAggQuerySuite
+  extends CountMinSketchAggQuerySuite
+  with GlutenSQLTestsTrait {}

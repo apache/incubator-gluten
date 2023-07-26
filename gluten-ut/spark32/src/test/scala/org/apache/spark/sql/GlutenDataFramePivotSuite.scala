@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import org.apache.spark.sql.functions._
@@ -25,14 +24,18 @@ class GlutenDataFramePivotSuite extends DataFramePivotSuite with GlutenSQLTestsT
   // substring. In vanilla spark, pos=0 has same effectiveness as pos=1. But in velox, pos=0
   // will return an empty string as substring result.
   test("pivot with column definition in groupby - using pos=1") {
-    val df = courseSales.groupBy(substring(col("course"), 1, 1).as("foo"))
-        .pivot("year", Seq(2012, 2013))
-        .sum("earnings").queryExecution.executedPlan
+    val df = courseSales
+      .groupBy(substring(col("course"), 1, 1).as("foo"))
+      .pivot("year", Seq(2012, 2013))
+      .sum("earnings")
+      .queryExecution
+      .executedPlan
 
     checkAnswer(
-      courseSales.groupBy(substring(col("course"), 1, 1).as("foo"))
-          .pivot("year", Seq(2012, 2013))
-          .sum("earnings"),
+      courseSales
+        .groupBy(substring(col("course"), 1, 1).as("foo"))
+        .pivot("year", Seq(2012, 2013))
+        .sum("earnings"),
       Row("d", 15000.0, 48000.0) :: Row("J", 20000.0, 30000.0) :: Nil
     )
   }

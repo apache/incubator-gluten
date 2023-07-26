@@ -16,5 +16,4 @@
  */
 package org.apache.spark.sql
 
-class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTrait {
-}
+class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTrait {}

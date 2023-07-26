@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
@@ -27,9 +26,7 @@ import org.apache.spark.sql.extension.{GlutenCustomerExpressionTransformerSuite,
 
 class ClickHouseTestSettings extends BackendTestSettings {
 
-  /**
-   * Enable All expression UT.
-   */
+  /** Enable All expression UT. */
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude(
       "SPARK-35711: cast timestamp without time zone to timestamp with local time zone",
@@ -467,4 +464,3 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameRangeSuite]
     .includeByPrefix("SPARK-21041")
 }
-

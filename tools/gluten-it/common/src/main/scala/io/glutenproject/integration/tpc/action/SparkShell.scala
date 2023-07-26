@@ -1,6 +1,7 @@
 package io.glutenproject.integration.tpc.action
 
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
+
 import org.apache.spark.repl.Main
 
 case class SparkShell(scale: Double) extends Action {

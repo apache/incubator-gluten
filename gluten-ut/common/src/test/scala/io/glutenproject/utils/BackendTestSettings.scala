@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.GlutenConfig
@@ -23,8 +22,8 @@ import io.glutenproject.test.TestStats
 
 import java.util
 
-import scala.reflect.ClassTag
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 abstract class BackendTestSettings {
 
@@ -76,7 +75,7 @@ abstract class BackendTestSettings {
     throw new IllegalStateException("Unreachable code")
   }
 
-  protected final class TestNameFilters {
+  final protected class TestNameFilters {
     private[utils] val inclusion: util.List[IncludeBase] = new util.ArrayList()
     private[utils] val exclusion: util.List[ExcludeBase] = new util.ArrayList()
 
@@ -114,9 +113,7 @@ abstract class BackendTestSettings {
   }
   private case class IncludeByPrefix(prefixes: String*) extends IncludeBase {
     override def isIncluded(testName: String): Boolean = {
-      if (prefixes.exists(
-        prefix => testName.startsWith(prefix)
-      )) {
+      if (prefixes.exists(prefix => testName.startsWith(prefix))) {
         return true
       }
       false
@@ -124,9 +121,7 @@ abstract class BackendTestSettings {
   }
   private case class ExcludeByPrefix(prefixes: String*) extends ExcludeBase {
     override def isExcluded(testName: String): Boolean = {
-      if (prefixes.exists(
-        prefix => testName.startsWith(prefix)
-      )) {
+      if (prefixes.exists(prefix => testName.startsWith(prefix))) {
         return true
       }
       false
@@ -138,14 +133,18 @@ object BackendTestSettings {
   val instance: BackendTestSettings = BackendsApiManager.getBackendName match {
     case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
       // scalastyle:off classforname
-      Class.forName("io.glutenproject.utils.clickhouse.ClickHouseTestSettings")
-        .getDeclaredConstructor().newInstance()
+      Class
+        .forName("io.glutenproject.utils.clickhouse.ClickHouseTestSettings")
+        .getDeclaredConstructor()
+        .newInstance()
         .asInstanceOf[BackendTestSettings]
     case GlutenConfig.GLUTEN_VELOX_BACKEND =>
-      Class.forName("io.glutenproject.utils.velox.VeloxTestSettings")
-        .getDeclaredConstructor().newInstance()
+      Class
+        .forName("io.glutenproject.utils.velox.VeloxTestSettings")
+        .getDeclaredConstructor()
+        .newInstance()
         .asInstanceOf[BackendTestSettings]
-     // scalastyle:on classforname
+    // scalastyle:on classforname
     case other =>
       throw new IllegalStateException(other)
   }

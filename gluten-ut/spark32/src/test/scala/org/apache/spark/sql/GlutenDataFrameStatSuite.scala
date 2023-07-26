@@ -14,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenDataFrameStatSuite extends DataFrameStatSuite with GlutenSQLTestsTrait {
-}
+class GlutenDataFrameStatSuite extends DataFrameStatSuite with GlutenSQLTestsTrait {}

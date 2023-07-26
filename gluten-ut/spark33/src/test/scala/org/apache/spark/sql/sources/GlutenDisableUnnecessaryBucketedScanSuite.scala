@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.sources
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite
   extends DisableUnnecessaryBucketedScanWithoutHiveSupportSuite
-  with GlutenSQLTestsBaseTrait {
-}
+  with GlutenSQLTestsBaseTrait {}
 
 class GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE
   extends DisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE
-  with GlutenSQLTestsBaseTrait {
-}
+  with GlutenSQLTestsBaseTrait {}

@@ -226,9 +226,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]
-      // The below two are replaced by two modified versions.
-      .exclude("unix_timestamp")
-      .exclude("to_unix_timestamp")
+    // The below two are replaced by two modified versions.
+    .exclude("unix_timestamp")
+    .exclude("to_unix_timestamp")
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]

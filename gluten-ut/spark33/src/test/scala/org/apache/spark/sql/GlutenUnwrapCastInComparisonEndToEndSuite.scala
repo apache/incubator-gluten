@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 
 import scala.collection.immutable.Seq
 
-class GlutenUnwrapCastInComparisonEndToEndSuite extends UnwrapCastInComparisonEndToEndSuite
+class GlutenUnwrapCastInComparisonEndToEndSuite
+  extends UnwrapCastInComparisonEndToEndSuite
   with GlutenSQLTestsTrait {
 
   import testImplicits._
@@ -34,7 +34,9 @@ class GlutenUnwrapCastInComparisonEndToEndSuite extends UnwrapCastInComparisonEn
         (3, Short.MinValue, Float.PositiveInfinity),
         (4, 0.toShort, Float.MaxValue),
         (5, null, null))
-          .toDF("c1", "c2", "c3").write.saveAsTable(t)
+        .toDF("c1", "c2", "c3")
+        .write
+        .saveAsTable(t)
       val df = spark.table(t)
 
       val lit = Short.MaxValue.toInt
@@ -45,7 +47,6 @@ class GlutenUnwrapCastInComparisonEndToEndSuite extends UnwrapCastInComparisonEn
       checkAnswer(df.where(s"c2 != $lit").select("c1"), Row(1) :: Row(3) :: Row(4) :: Nil)
       checkAnswer(df.where(s"c2 <= $lit").select("c1"), Row(1) :: Row(2) :: Row(3) :: Row(4) :: Nil)
       checkAnswer(df.where(s"c2 < $lit").select("c1"), Row(1) :: Row(3) :: Row(4) :: Nil)
-
 
       // NaN is not supported in velox, so unexpected result will be obtained.
 //      checkAnswer(df.where(s"c3 > double('nan')").select("c1"), Seq.empty)

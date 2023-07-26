@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.sources
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenBucketedWriteWithoutHiveSupportSuite extends BucketedWriteWithoutHiveSupportSuite
-  with GlutenSQLTestsBaseTrait {
-}
+class GlutenBucketedWriteWithoutHiveSupportSuite
+  extends BucketedWriteWithoutHiveSupportSuite
+  with GlutenSQLTestsBaseTrait {}
