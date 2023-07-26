@@ -21,6 +21,7 @@ import io.glutenproject.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.commons.io.FileUtils
@@ -150,6 +151,28 @@ class GlutenClickHouseWriteParquetTableSuite
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
+  }
+
+  override protected def afterAll(): Unit = {
+    ClickHouseLog.clearCache()
+
+    try {
+      super.afterAll()
+    } finally {
+      try {
+        if (_hiveSpark != null) {
+          try {
+            _hiveSpark.sessionState.catalog.reset()
+          } finally {
+            _hiveSpark.stop()
+            _hiveSpark = null
+          }
+        }
+      } finally {
+        SparkSession.clearActiveSession()
+        SparkSession.clearDefaultSession()
+      }
+    }
   }
 
   def getColumnName(s: String): String = {
