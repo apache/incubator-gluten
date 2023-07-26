@@ -30,21 +30,26 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinityUtil
+import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.types.{BinaryType, DateType, StructType, TimestampType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{ExecutorManager, TaskResources}
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.time.ZoneOffset
 import java.util
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class IteratorHandler extends IteratorApi with Logging {
 
@@ -56,23 +61,59 @@ class IteratorHandler extends IteratorApi with Logging {
   override def genFilePartition(
       index: Int,
       partitions: Seq[InputPartition],
+      partitionSchema: StructType,
       wsCxt: WholestageTransformContext): BaseGlutenPartition = {
+
+    def constructSplitInfo(files: Array[PartitionedFile]) = {
+      val paths = mutable.ArrayBuffer.empty[String]
+      val starts = mutable.ArrayBuffer.empty[java.lang.Long]
+      val lengths = mutable.ArrayBuffer.empty[java.lang.Long]
+      val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
+      files.foreach {
+        file =>
+          paths.append(URLDecoder.decode(file.filePath, StandardCharsets.UTF_8.name()))
+          starts.append(java.lang.Long.valueOf(file.start))
+          lengths.append(java.lang.Long.valueOf(file.length))
+
+          val partitionColumn = mutable.Map.empty[String, String]
+          for (i <- 0 until file.partitionValues.numFields) {
+            val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
+              ExternalCatalogUtils.DEFAULT_PARTITION_NAME
+            } else {
+              val pn = file.partitionValues.get(i, partitionSchema.fields(i).dataType)
+              partitionSchema.fields(i).dataType match {
+                case _: BinaryType =>
+                  new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
+                case _: DateType =>
+                  DateFormatter.apply().format(pn.asInstanceOf[Integer])
+                case _: TimestampType =>
+                  TimestampFormatter
+                    .getFractionFormatter(ZoneOffset.UTC)
+                    .format(pn.asInstanceOf[java.lang.Long])
+                case _ => pn.toString
+              }
+            }
+            partitionColumn.put(partitionSchema.names(i), partitionColumnValue)
+          }
+          partitionColumns.append(partitionColumn.toMap)
+      }
+      (paths, starts, lengths, partitionColumns)
+    }
+
     val localFilesNodesWithLocations = partitions.indices.map(
       i =>
         partitions(i) match {
           case f: FilePartition =>
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
             val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
-            f.files.foreach {
-              file =>
-                paths.add(URLDecoder.decode(file.filePath, StandardCharsets.UTF_8.name()))
-                starts.add(java.lang.Long.valueOf(file.start))
-                lengths.add(java.lang.Long.valueOf(file.length))
-            }
+            val (paths, starts, lengths, partitionColumns) = constructSplitInfo(f.files)
             (
-              LocalFilesBuilder.makeLocalFiles(f.index, paths, starts, lengths, fileFormat),
+              LocalFilesBuilder.makeLocalFiles(
+                f.index,
+                paths.asJava,
+                starts.asJava,
+                lengths.asJava,
+                partitionColumns.map(_.asJava).asJava,
+                fileFormat),
               SoftAffinityUtil.getFilePartitionLocations(f))
         })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)

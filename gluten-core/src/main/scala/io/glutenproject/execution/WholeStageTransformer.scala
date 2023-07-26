@@ -245,6 +245,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
        */
       // the partition size of the all BasicScanExecTransformer must be the same
       val allScanPartitions = basicScanExecTransformers.map(_.getFlattenPartitions)
+      val allScanPartitionSchemas = basicScanExecTransformers.map(_.getPartitionSchemas)
       val partitionLength = allScanPartitions.head.size
       if (allScanPartitions.exists(_.size != partitionLength)) {
         throw new RuntimeException(
@@ -257,12 +258,13 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       wsCxt.substraitContext.setFileFormat(
         basicScanExecTransformers.map(ConverterUtils.getFileFormat).asJava)
 
+      val partitionSchema = allScanPartitionSchemas.head
       // generate each partition of all scan exec
       val substraitPlanPartitions = (0 until partitionLength).map(
         i => {
           val currentPartitions = allScanPartitions.map(_(i))
           BackendsApiManager.getIteratorApiInstance
-            .genFilePartition(i, currentPartitions, wsCxt)
+            .genFilePartition(i, currentPartitions, partitionSchema, wsCxt)
         })
 
       logOnLevel(

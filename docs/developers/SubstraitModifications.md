@@ -24,9 +24,11 @@ changed `Unbounded` in `WindowFunction` into `Unbounded_Preceding` and `Unbounde
 * Added `output_schema` in RelRoot([#1901](https://github.com/oap-project/gluten/pull/1901)).
 * Added `ExpandRel`([#1361](https://github.com/oap-project/gluten/pull/1361)).
 * Added `GenerateRel`([#574](https://github.com/oap-project/gluten/pull/574)).
+* Added `PartitionColumn` in `LocalFiles`([#2405](https://github.com/oap-project/gluten/pull/2405)).
 
 ## Modifications to type.proto
 
 * Added `Nothing` in `Type`([#791](https://github.com/oap-project/gluten/pull/791)).
 * Added `names` in `Struct`([#1878](https://github.com/oap-project/gluten/pull/1878)).
 * Added `PartitionColumns` in `NamedStruct`([#320](https://github.com/oap-project/gluten/pull/320)).
+* Remove `PartitionColumns` and add `column_types` in `NamedStruct`([#2405](https://github.com/oap-project/gluten/pull/2405)).

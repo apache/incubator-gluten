@@ -229,9 +229,6 @@
                                                                                                                                   "nullability": "NULLABILITY_REQUIRED"
                                                                                                                                 }
                                                                                                                               }]
-                                                                                                                            },
-                                                                                                                            "partitionColumns": {
-                                                                                                                              "columnType": ["NORMAL_COL", "NORMAL_COL", "NORMAL_COL"]
                                                                                                                             }
                                                                                                                           },
                                                                                                                           "extensionTable": {
@@ -260,9 +257,6 @@
                                                                                                                                   "nullability": "NULLABILITY_REQUIRED"
                                                                                                                                 }
                                                                                                                               }]
-                                                                                                                            },
-                                                                                                                            "partitionColumns": {
-                                                                                                                              "columnType": ["NORMAL_COL", "NORMAL_COL"]
                                                                                                                             }
                                                                                                                           },
                                                                                                                           "extensionTable": {
@@ -425,9 +419,6 @@
                                                                                                                       "nullability": "NULLABILITY_REQUIRED"
                                                                                                                     }
                                                                                                                   }]
-                                                                                                                },
-                                                                                                                "partitionColumns": {
-                                                                                                                  "columnType": ["NORMAL_COL", "NORMAL_COL"]
                                                                                                                 }
                                                                                                               },
                                                                                                               "extensionTable": {
@@ -597,9 +588,6 @@
                                                                                                               "nullability": "NULLABILITY_REQUIRED"
                                                                                                             }
                                                                                                           }]
-                                                                                                        },
-                                                                                                        "partitionColumns": {
-                                                                                                          "columnType": ["NORMAL_COL", "NORMAL_COL"]
                                                                                                         }
                                                                                                       },
                                                                                                       "filter": {
@@ -951,9 +939,6 @@
                                                                                           "nullability": "NULLABILITY_REQUIRED"
                                                                                         }
                                                                                       }]
-                                                                                    },
-                                                                                    "partitionColumns": {
-                                                                                      "columnType": ["NORMAL_COL", "NORMAL_COL", "NORMAL_COL"]
                                                                                     }
                                                                                   },
                                                                                   "extensionTable": {
@@ -997,9 +982,6 @@
                                                                                               "nullability": "NULLABILITY_REQUIRED"
                                                                                             }
                                                                                           }]
-                                                                                        },
-                                                                                        "partitionColumns": {
-                                                                                          "columnType": ["NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL"]
                                                                                         }
                                                                                       },
                                                                                       "filter": {
@@ -1514,9 +1496,6 @@
                                                               "nullability": "NULLABILITY_REQUIRED"
                                                             }
                                                           }]
-                                                        },
-                                                        "partitionColumns": {
-                                                          "columnType": ["NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL"]
                                                         }
                                                       },
                                                       "extensionTable": {
@@ -1783,9 +1762,6 @@
                                                   "nullability": "NULLABILITY_REQUIRED"
                                                 }
                                               }]
-                                            },
-                                            "partitionColumns": {
-                                              "columnType": ["NORMAL_COL", "NORMAL_COL", "NORMAL_COL"]
                                             }
                                           },
                                           "extensionTable": {
@@ -2075,9 +2051,6 @@
                                           "nullability": "NULLABILITY_REQUIRED"
                                         }
                                       }]
-                                    },
-                                    "partitionColumns": {
-                                      "columnType": ["NORMAL_COL", "NORMAL_COL"]
                                     }
                                   },
                                   "filter": {

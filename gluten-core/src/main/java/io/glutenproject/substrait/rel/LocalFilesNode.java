@@ -28,13 +28,15 @@ import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class LocalFilesNode implements Serializable {
   private final Integer index;
-  private final ArrayList<String> paths = new ArrayList<>();
-  private final ArrayList<Long> starts = new ArrayList<>();
-  private final ArrayList<Long> lengths = new ArrayList<>();
+  private final List<String> paths = new ArrayList<>();
+  private final List<Long> starts = new ArrayList<>();
+  private final List<Long> lengths = new ArrayList<>();
+  private final List<Map<String, String>> partitionColumns = new ArrayList<>();
 
   // The format of file to read.
   public enum ReadFileFormat {
@@ -55,15 +57,17 @@ public class LocalFilesNode implements Serializable {
 
   LocalFilesNode(
       Integer index,
-      ArrayList<String> paths,
-      ArrayList<Long> starts,
-      ArrayList<Long> lengths,
+      List<String> paths,
+      List<Long> starts,
+      List<Long> lengths,
+      List<Map<String, String>> partitionColumns,
       ReadFileFormat fileFormat) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
     this.lengths.addAll(lengths);
     this.fileFormat = fileFormat;
+    this.partitionColumns.addAll(partitionColumns);
   }
 
   LocalFilesNode(String iterPath) {
@@ -114,6 +118,16 @@ public class LocalFilesNode implements Serializable {
       fileBuilder.setUriFile(paths.get(i));
       if (index != null) {
         fileBuilder.setPartitionIndex(index);
+      }
+      Map<String, String> partitionColumn = partitionColumns.get(i);
+      if (!partitionColumn.isEmpty()) {
+        partitionColumn.forEach(
+            (key, value) -> {
+              ReadRel.LocalFiles.FileOrFiles.partitionColumn.Builder pcBuilder =
+                  ReadRel.LocalFiles.FileOrFiles.partitionColumn.newBuilder();
+              pcBuilder.setKey(key).setValue(value);
+              fileBuilder.addPartitionColumns(pcBuilder.build());
+            });
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));

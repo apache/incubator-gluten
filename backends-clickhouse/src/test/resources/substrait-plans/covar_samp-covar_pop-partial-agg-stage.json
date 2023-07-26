@@ -106,9 +106,6 @@
                                   "nullability": "NULLABILITY_NULLABLE"
                                 }
                               }]
-                            },
-                            "partitionColumns": {
-                              "columnType": ["NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL", "NORMAL_COL"]
                             }
                           },
                           "filter": {

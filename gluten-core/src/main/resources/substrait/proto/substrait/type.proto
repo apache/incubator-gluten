@@ -233,11 +233,7 @@ message NamedStruct {
   // list of names in dfs order
   repeated string names = 1;
   Type.Struct struct = 2;
-  PartitionColumns partition_columns = 3;
-}
-
-message PartitionColumns {
-  repeated ColumnType column_type = 1;
+  repeated ColumnType column_types = 3;
   enum ColumnType {
     NORMAL_COL = 0;
     PARTITION_COL = 1;

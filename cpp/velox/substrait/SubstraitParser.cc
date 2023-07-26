@@ -186,27 +186,27 @@ std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> SubstraitParser::pa
 }
 
 std::vector<bool> SubstraitParser::parsePartitionColumns(const ::substrait::NamedStruct& namedStruct) {
-  const auto& columnsTypes = namedStruct.partition_columns().column_type();
+  const auto& columnsTypes = namedStruct.column_types();
   std::vector<bool> isPartitionColumns;
   if (columnsTypes.size() == 0) {
     // Regard all columns as non-partitioned columns.
     isPartitionColumns.resize(namedStruct.names().size(), false);
     return isPartitionColumns;
   } else {
-    VELOX_CHECK(columnsTypes.size() == namedStruct.names().size(), "Invalid partion columns.");
+    VELOX_CHECK_EQ(columnsTypes.size(), namedStruct.names().size(), "Wrong size for column types and column names.");
   }
 
   isPartitionColumns.reserve(columnsTypes.size());
   for (const auto& columnType : columnsTypes) {
     switch (columnType) {
-      case ::substrait::PartitionColumns::NORMAL_COL:
+      case ::substrait::NamedStruct::NORMAL_COL:
         isPartitionColumns.emplace_back(false);
         break;
-      case ::substrait::PartitionColumns::PARTITION_COL:
+      case ::substrait::NamedStruct::PARTITION_COL:
         isPartitionColumns.emplace_back(true);
         break;
       default:
-        VELOX_FAIL("Patition column type is not supported.");
+        VELOX_FAIL("Unspecified column type.");
     }
   }
   return isPartitionColumns;

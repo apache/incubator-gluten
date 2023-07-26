@@ -121,6 +121,12 @@ message ReadRel {
       // The index of the partition this item belongs to
       uint64 partition_index = 6;
 
+      repeated partitionColumn partition_columns = 16;
+      message partitionColumn {
+        string key = 1;
+        string value = 2;
+      }
+
       // The start position in byte to read from this item
       uint64 start = 7;
 
