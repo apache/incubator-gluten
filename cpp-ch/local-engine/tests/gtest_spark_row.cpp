@@ -246,14 +246,6 @@ TEST(SparkRow, StructTypes)
          }()},
     };
 
-    /*
-    for (size_t i=0; i<type_and_fields.size(); ++i)
-    {
-        std::cerr << "i:" << i << ",field:" << type_and_fields[i].type->getName() << ",field:" << toString(type_and_fields[i].field)
-                  << std::endl;
-    }
-    */
-
     SparkRowInfoPtr spark_row_info;
     BlockPtr block;
     std::tie(spark_row_info, block) = mockSparkRowInfoAndBlock(type_and_fields);
