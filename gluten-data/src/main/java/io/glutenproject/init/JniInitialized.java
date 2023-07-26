@@ -19,18 +19,27 @@ package io.glutenproject.init;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-
 import org.apache.spark.sql.internal.SQLConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
 // Initialize global contexts before calling any native methods from Java side.
 public abstract class JniInitialized {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JniInitialized.class);
+
   static {
-    String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
-    Map<String, String> nativeConfMap =
-        GlutenConfig.getNativeBackendConf(prefix, SQLConf.get().getAllConfs());
-    InitializerJniWrapper.initialize(JniUtils.toNativeConf(nativeConfMap));
+    try {
+      String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
+      Map<String, String> nativeConfMap =
+          GlutenConfig.getNativeBackendConf(prefix, SQLConf.get().getAllConfs());
+      InitializerJniWrapper.initialize(JniUtils.toNativeConf(nativeConfMap));
+    } catch (Exception e) {
+      LOG.error("Error calling InitializerJniWrapper.initialize(...)", e);
+      throw e;
+    }
   }
 
   protected JniInitialized() {}
