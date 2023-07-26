@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   velox-ubuntu2004-test-spark32:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -98,7 +98,7 @@ jobs:
           docker stop velox-ubuntu2004-test-$GITHUB_RUN_ID || true
 
   velox-ubuntu2004-test-slow-spark32:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -144,7 +144,7 @@ jobs:
           docker stop velox-ubuntu2004-test-slow-$GITHUB_RUN_ID || true
 
   velox-ubuntu2004-test-spark33-slow:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -195,7 +195,7 @@ jobs:
           docker stop velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID || true
 
   velox-ubuntu2004-test-spark33:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -239,7 +239,7 @@ jobs:
           docker stop velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID || true
          
   velox-ubuntu2204-test:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -315,7 +315,7 @@ jobs:
           docker stop velox-ubuntu2204-test-$GITHUB_RUN_ID || true
 
   velox-centos8-test:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -364,7 +364,7 @@ jobs:
           docker stop velox-centos8-test-$GITHUB_RUN_ID || true
 
   velox-centos7-test:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
@@ -413,7 +413,7 @@ jobs:
           docker stop velox-centos7-test-$GITHUB_RUN_ID || true
 
   velox-static-build-test:
-    runs-on: velox-self-hosted
+    runs-on: k8s_runner
     steps:
       - uses: actions/checkout@v2
       - name: Setup docker container
