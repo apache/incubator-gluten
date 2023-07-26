@@ -688,8 +688,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(("Various inferred partition value types"))
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    // .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
+    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
+     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
     // decimal failed ut
@@ -706,8 +707,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV2QuerySuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    // .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
+    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
+     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
     // decimal failed ut
