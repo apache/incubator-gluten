@@ -207,6 +207,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
 
+  def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
+
   def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
 
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
@@ -942,6 +944,13 @@ object GlutenConfig {
       .transform(_.toLowerCase(Locale.ROOT))
       .checkValues(Set("none", "auto"))
       .createWithDefault("auto")
+
+  val COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillFileSize")
+      .internal()
+      .doc("The maximum size of a single spill file created")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("10MB")
 
   val COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.overAcquiredMemoryRatio")

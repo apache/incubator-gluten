@@ -367,12 +367,12 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
 // This doesn't implement facebook::velox::filesystems::FileSystem since it just
 // act as a entry-side router to create JniFilesystem and LocalFilesystem
 class JolFileSystem {
-  static class std::shared_ptr<JolFileSystem> create(uint64_t maxFileSize) {
+ public:
+  static std::shared_ptr<JolFileSystem> create(uint64_t maxFileSize) {
     return std::shared_ptr<JolFileSystem>(new JolFileSystem(maxFileSize));
   }
 
-  std::function<bool(std::string_view)>
-  schemeMatcher() {
+  std::function<bool(std::string_view)> schemeMatcher() {
     return [](std::string_view filePath) { return filePath.find(kJolFsScheme) == 0; };
   }
 
@@ -450,4 +450,10 @@ void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {
 void gluten::registerJniFileSystem() {
   facebook::velox::filesystems::registerFileSystem(
       JniFileSystem::schemeMatcher(), JniFileSystem::fileSystemGenerator());
+}
+
+void gluten::registerJolFileSystem(uint64_t maxFileSize) {
+  GLUTEN_CHECK(maxFileSize > 0, "Unexpected max file size for jol fs: " + std::to_string(maxFileSize));
+  auto fs = JolFileSystem::create(maxFileSize);
+  facebook::velox::filesystems::registerFileSystem(fs->schemeMatcher(), fs->fileSystemGenerator());
 }

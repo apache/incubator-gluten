@@ -26,6 +26,8 @@ namespace gluten {
 
 void registerJniFileSystem();
 
+void registerJolFileSystem(uint64_t maxFileSize);
+
 void initVeloxJniFileSystem(JNIEnv* env);
 
 void finalizeVeloxJniFileSystem(JNIEnv* env);

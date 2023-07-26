@@ -81,7 +81,12 @@ const std::string kVeloxIOThreadsDefault = "0";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
 
+// udf
 const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths";
+
+// spill
+const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
+const std::string kMaxSpillFileSizeDefault = "0";
 
 } // namespace
 
@@ -113,7 +118,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
-  gluten::registerJniFileSystem(); // JNI filesystem, for spilling-to-heap if we have extra JVM heap spaces
+  initJolFilesystem(conf);
 
 #ifdef ENABLE_HDFS
   velox::filesystems::registerHdfsFileSystem();
@@ -206,6 +211,16 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
   return asyncDataCache_.get();
+}
+
+// JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
+void VeloxInitializer::initJolFilesystem(const std::unordered_map<std::string, std::string>& conf) {
+  int64_t maxSpillFileSize = std::stol(kMaxSpillFileSizeDefault);
+  auto got = conf.find(kMaxSpillFileSize);
+  if (got != conf.end()) {
+    maxSpillFileSize = std::stol(got->second);
+  }
+  gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
 void VeloxInitializer::initCache(const std::unordered_map<std::string, std::string>& conf) {
