@@ -31,6 +31,8 @@
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
+#include "shuffle/LocalPartitionWriter.h"
+#include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ArrowTypeUtils.h"
 #include "utils/exception.h"
 
@@ -38,11 +40,59 @@
 
 using namespace gluten;
 
+namespace {
 DEFINE_bool(skip_input, false, "Skip specifying input files.");
 DEFINE_bool(gen_orc_input, false, "Generate orc files from parquet as input files.");
+DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
+DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 
 static const std::string kParquetSuffix = ".parquet";
 static const std::string kOrcSuffix = ".orc";
+
+struct WriterMetrics {
+  int64_t splitTime;
+  int64_t evictTime;
+  int64_t writeTime;
+  int64_t compressTime;
+};
+
+std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() {
+  std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
+      std::make_shared<LocalPartitionWriterCreator>(false);
+
+  auto options = ShuffleWriterOptions::defaults();
+  options.buffered_write = true;
+  options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
+  options.prefer_evict = false;
+  options.partitioning_name = "rr";
+
+  GLUTEN_ASSIGN_OR_THROW(
+      auto shuffleWriter,
+      VeloxShuffleWriter::create(FLAGS_shuffle_partitions, std::move(partitionWriterCreator), std::move(options)));
+
+  return shuffleWriter;
+}
+
+void cleanup(const std::shared_ptr<VeloxShuffleWriter>& shuffleWriter) {
+  auto dataFile = std::filesystem::path(shuffleWriter->dataFile());
+  const auto& parentDir = dataFile.parent_path();
+  std::filesystem::remove(dataFile);
+  std::filesystem::remove(parentDir);
+}
+
+void populateWriterMetrics(
+    const std::shared_ptr<VeloxShuffleWriter>& shuffleWriter,
+    int64_t shuffleWriteTime,
+    WriterMetrics& metrics) {
+  metrics.compressTime += shuffleWriter->totalCompressTime();
+  metrics.evictTime += shuffleWriter->totalEvictTime();
+  metrics.writeTime += shuffleWriter->totalWriteTime();
+  metrics.evictTime +=
+      (shuffleWriteTime - shuffleWriter->totalCompressTime() - shuffleWriter->totalEvictTime() -
+       shuffleWriter->totalWriteTime());
+}
+
+} // namespace
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
@@ -59,6 +109,7 @@ auto BM_Generic = [](::benchmark::State& state,
   auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
   int64_t collectBatchTime = 0;
+  WriterMetrics writerMetrics{};
 
   for (auto _ : state) {
     auto backend = gluten::createBackend();
@@ -79,36 +130,49 @@ auto BM_Generic = [](::benchmark::State& state,
     auto resultIter = backend->getResultIterator(
         gluten::defaultMemoryAllocator().get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
-    ArrowSchema cSchema;
-    toArrowSchema(veloxPlan->outputType(), &cSchema);
-    GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
-    ArrowWriter writer{FLAGS_write_file};
-    state.PauseTiming();
-    if (!FLAGS_write_file.empty()) {
-      GLUTEN_THROW_NOT_OK(writer.initWriter(*(outputSchema.get())));
-    }
-    state.ResumeTiming();
-    while (resultIter->hasNext()) {
-      auto array = resultIter->next()->exportArrowArray();
+    if (FLAGS_with_shuffle) {
+      int64_t shuffleWriteTime;
+      TIME_NANO_START(shuffleWriteTime);
+      const auto& shuffleWriter = createShuffleWriter();
+      while (resultIter->hasNext()) {
+        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next()));
+      }
+      GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
+      TIME_NANO_END(shuffleWriteTime);
+      populateWriterMetrics(shuffleWriter, shuffleWriteTime, writerMetrics);
+      // Cleanup shuffle outputs
+      cleanup(shuffleWriter);
+    } else {
+      // May write the output into file.
+      ArrowSchema cSchema;
+      toArrowSchema(veloxPlan->outputType(), &cSchema);
+      GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
+      ArrowWriter writer{FLAGS_write_file};
       state.PauseTiming();
-      auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-      if (!maybeBatch.ok()) {
-        state.SkipWithError(maybeBatch.status().message().c_str());
-        return;
-      }
-      if (FLAGS_print_result) {
-        std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
-      }
       if (!FLAGS_write_file.empty()) {
-        GLUTEN_THROW_NOT_OK(writer.writeInBatches(maybeBatch.ValueOrDie()));
+        GLUTEN_THROW_NOT_OK(writer.initWriter(*(outputSchema.get())));
+      }
+      state.ResumeTiming();
+
+      while (resultIter->hasNext()) {
+        auto array = resultIter->next()->exportArrowArray();
+        state.PauseTiming();
+        auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+        if (!maybeBatch.ok()) {
+          state.SkipWithError(maybeBatch.status().message().c_str());
+          return;
+        }
+        if (FLAGS_print_result) {
+          std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
+        }
+      }
+
+      state.PauseTiming();
+      if (!FLAGS_write_file.empty()) {
+        GLUTEN_THROW_NOT_OK(writer.closeWriter());
       }
       state.ResumeTiming();
     }
-    state.PauseTiming();
-    if (!FLAGS_write_file.empty()) {
-      GLUTEN_THROW_NOT_OK(writer.closeWriter());
-    }
-    state.ResumeTiming();
 
     collectBatchTime +=
         std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIterator* iter) {
@@ -129,6 +193,14 @@ auto BM_Generic = [](::benchmark::State& state,
       benchmark::Counter(collectBatchTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
   state.counters["elapsed_time"] =
       benchmark::Counter(duration, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  state.counters["shuffle_write_time"] = benchmark::Counter(
+      writerMetrics.writeTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  state.counters["shuffle_spill_time"] = benchmark::Counter(
+      writerMetrics.evictTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  state.counters["shuffle_split_time"] = benchmark::Counter(
+      writerMetrics.splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  state.counters["shuffle_compress_time"] = benchmark::Counter(
+      writerMetrics.compressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 };
 
 class OrcFileGuard {

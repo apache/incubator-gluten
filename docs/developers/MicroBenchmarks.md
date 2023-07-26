@@ -187,3 +187,14 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 /tmp/save/input_1.parquet /tmp/save/input_2.parquet \
 --threads 1 --noprint-result --write-file=/path/to/result.parquet
 ```
+
+## Add shuffle write process
+
+You can add the shuffle write process at the end of this stage. Note that this will ignore the `--write-file` option.
+
+```shell
+cd /path/to/gluten/cpp/build/velox/benchmarks
+./generic_benchmark \
+/plan/to/plan.json \
+--threads 1 --noprint-result --with-shuffle
+```

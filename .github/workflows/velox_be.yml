@@ -85,7 +85,7 @@ jobs:
       - name: Run micro benchmarks
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build/velox/benchmarks && \
-          ./generic_benchmark --threads 1 --iterations 1'
+          ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
       - name: Run HBM CPP unit test
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
