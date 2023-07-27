@@ -363,7 +363,7 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
         {
             if (has_number)
             {
-                break;
+               break;
             }
             ++buf.position();
         }
