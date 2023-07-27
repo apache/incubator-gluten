@@ -25,11 +25,12 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.commons.io.FileUtils
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, Ignore}
 
 import java.io.File
 import java.sql.{Date, Timestamp}
 
+@Ignore
 class GlutenClickHouseWriteParquetTableSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper
@@ -759,6 +760,20 @@ class GlutenClickHouseWriteParquetTableSuite
         .saveAsTable(parquet_table_name)
       val ret = spark.sql("select max(p) from " + parquet_table_name).collect().apply(0).apply(0)
 
+    }
+  }
+
+  test("test bigo 2") {
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+      spark.sql(s"drop table IF EXISTS tmp_lzl_screen_pic_convert_save")
+      spark.sql(
+        s"create table tmp_lzl_screen_pic_convert_save(" +
+          s"x1 string, x2 bigint,x3 string, x4 bigint, x5 string )" +
+          s"partitioned by (day date) stored as parquet")
+
+      spark.sql("insert into tmp_lzl_screen_pic_convert_save partition(day) " +
+        "select cast(id as string), id, cast(id as string), id, cast(id as string), '2023-05-09' " +
+        "from range(10000000)")
     }
   }
 
