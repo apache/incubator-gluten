@@ -42,9 +42,8 @@ class NativeFileScanColumnarRDD(
     val startNs = System.nanoTime()
     val transKernel = new CHNativeExpressionEvaluator()
     val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
-    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
-      inputPartition.plan,
-      inBatchIters)
+    val resIter: GeneralOutIterator =
+      transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters)
     scanTime += NANOSECONDS.toMillis(System.nanoTime() - startNs)
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {

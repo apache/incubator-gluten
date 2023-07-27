@@ -19,13 +19,11 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.metrics.IMetrics;
 
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
-import java.util.List;
 
 public class BatchIterator extends GeneralOutIterator {
   private final long handle;
