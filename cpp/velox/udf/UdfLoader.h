@@ -29,7 +29,7 @@ class UdfLoader {
 
   void loadUdfLibraries(const std::string& libPaths);
 
-  const std::unordered_map<std::string, std::string>& getUdfMap();
+  std::unordered_map<std::string, std::string> getUdfMap();
 
   void registerUdf();
 

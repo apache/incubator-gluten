@@ -56,7 +56,7 @@ void gluten::UdfLoader::loadUdfLibraries0(const std::vector<std::string>& libPat
   }
 }
 
-const std::unordered_map<std::string, std::string>& gluten::UdfLoader::getUdfMap() {
+std::unordered_map<std::string, std::string> gluten::UdfLoader::getUdfMap() {
   std::unordered_map<std::string, std::string> udfMap;
   for (const auto& item : handles_) {
     const auto& libPath = item.first;
@@ -86,6 +86,7 @@ const std::unordered_map<std::string, std::string>& gluten::UdfLoader::getUdfMap
     }
     free(udfEntry);
   }
+  return udfMap;
 }
 
 void gluten::UdfLoader::registerUdf() {
