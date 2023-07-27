@@ -182,6 +182,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Map Concat")
     // Random.
     .exclude("Shuffle")
+    // TODO: ArrayDistinct should handle duplicated Double.NaN
+    .excludeByPrefix("SPARK-36741")
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
