@@ -50,8 +50,7 @@ object GlutenClickHouseMetricsUTUtils {
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       mockMemoryAllocator.getNativeInstanceId,
       substraitPlan.toByteArray,
-      inBatchIters,
-      outputAttributes)
+      inBatchIters)
     val iter = new Iterator[Any] {
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
@@ -99,7 +98,7 @@ object GlutenClickHouseMetricsUTUtils {
   /** Execute metrics updater by metrics json file */
   def executeMetricsUpdater(wholeStageTransformer: WholeStageTransformer, metricsJsonFile: String)(
       customCheck: () => Unit): Unit = {
-    val wholeStageTransformContext = wholeStageTransformer.doWholestageTransform()
+    val wholeStageTransformContext = wholeStageTransformer.doWholeStageTransform()
 
     val wholeStageTransformerUpdaterTree =
       MetricsUtil.treeifyMetricsUpdaters(wholeStageTransformer.child)

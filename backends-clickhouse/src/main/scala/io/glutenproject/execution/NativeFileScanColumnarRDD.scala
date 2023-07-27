@@ -26,8 +26,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
-import scala.collection.JavaConverters._
-
 class NativeFileScanColumnarRDD(
     @transient sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
