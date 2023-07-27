@@ -46,11 +46,14 @@ class GlutenCollectionExpressionsSuite extends CollectionExpressionsSuite with G
     val as3 = Literal.create(Seq(null, null), ArrayType(StringType, containsNull = true))
     val as4 = Literal.create(null, ArrayType(StringType, containsNull = false))
 
-    val aa0 = Literal.create(Seq(Seq("a", "b"), Seq("c")),
+    val aa0 = Literal.create(
+      Seq(Seq("a", "b"), Seq("c")),
       ArrayType(ArrayType(StringType, containsNull = false), containsNull = false))
-    val aa1 = Literal.create(Seq(Seq("d"), Seq("e", "f")),
+    val aa1 = Literal.create(
+      Seq(Seq("d"), Seq("e", "f")),
       ArrayType(ArrayType(StringType, containsNull = false), containsNull = false))
-    val aa2 = Literal.create(Seq(Seq("g", null), null),
+    val aa2 = Literal.create(
+      Seq(Seq("g", null), null),
       ArrayType(ArrayType(StringType, containsNull = true), containsNull = true))
 
     // checkEvaluation(Concat(Seq(as0)), Seq("a", "b", "c"))
@@ -69,10 +72,12 @@ class GlutenCollectionExpressionsSuite extends CollectionExpressionsSuite with G
     assert(Concat(Seq(ai0, ai2)).dataType.asInstanceOf[ArrayType].containsNull)
     assert(Concat(Seq(as0, as1)).dataType.asInstanceOf[ArrayType].containsNull === false)
     assert(Concat(Seq(as0, as2)).dataType.asInstanceOf[ArrayType].containsNull)
-    assert(Concat(Seq(aa0, aa1)).dataType ===
-      ArrayType(ArrayType(StringType, containsNull = false), containsNull = false))
-    assert(Concat(Seq(aa0, aa2)).dataType ===
-      ArrayType(ArrayType(StringType, containsNull = true), containsNull = true))
+    assert(
+      Concat(Seq(aa0, aa1)).dataType ===
+        ArrayType(ArrayType(StringType, containsNull = false), containsNull = false))
+    assert(
+      Concat(Seq(aa0, aa2)).dataType ===
+        ArrayType(ArrayType(StringType, containsNull = true), containsNull = true))
 
     // force split expressions for input in generated code
     checkEvaluation(Concat(Seq.fill(100)(ai0)), Seq.fill(100)(Seq(1, 2, 3)).flatten)
