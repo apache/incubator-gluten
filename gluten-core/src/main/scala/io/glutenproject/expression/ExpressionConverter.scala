@@ -438,6 +438,15 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           truncTimestamp.timeZoneId,
           truncTimestamp
         )
+      case m: MonthsBetween =>
+        new MonthsBetweenTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(m.date1, attributeSeq),
+          replaceWithExpressionTransformer(m.date2, attributeSeq),
+          replaceWithExpressionTransformer(m.roundOff, attributeSeq),
+          m.timeZoneId,
+          m
+        )
       case r: RegExpReplace =>
         new RegExpReplaceTransformer(
           substraitExprName.get,

@@ -148,4 +148,19 @@ class GlutenClickHouseDatetimeExpressionSuite
       compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
     }
   }
+
+  test("test months_between function") {
+    val sql =
+      s"""
+         |select l_shipdate,
+         |       months_between('1991-01-01', l_shipdate) a,
+         |       months_between('1991-01-01', l_shipdate, False) b,
+         |       months_between(l_shipdate, '1991-01-01') c,
+         |       months_between(l_shipdate, '1991-01-01', False) d
+         |from lineitem
+         |order by l_shipdate
+         |limit 50
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }

@@ -167,6 +167,7 @@ object ExpressionNames {
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
   final val NEXT_DAY = "next_day"
   final val LAST_DAY = "last_day"
+  final val MONTHS_BETWEEN = "months_between"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
