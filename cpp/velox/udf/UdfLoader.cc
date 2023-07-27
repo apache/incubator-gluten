@@ -42,53 +42,55 @@ void* loadSymFromLibrary(void* handle, const std::string& libPath, const std::st
 } // namespace
 
 void gluten::UdfLoader::loadUdfLibraries(const std::string& libPaths) {
-  loadUdfLibraries0(splitPaths(libPaths));
+  const auto& paths = splitPaths(libPaths);
+  loadUdfLibraries0(paths);
 }
 
 void gluten::UdfLoader::loadUdfLibraries0(const std::vector<std::string>& libPaths) {
   for (const auto& libPath : libPaths) {
     if (handles_.find(libPath) == handles_.end()) {
-      handles_[libPath] = loadUdfLibrary(libPath);
+      void* handle = dlopen(libPath.c_str(), RTLD_LAZY);
+      handles_[libPath] = handle;
     }
     LOG(INFO) << "Successfully loaded udf library: " << libPath;
   }
 }
 
-void* gluten::UdfLoader::loadUdfLibrary(const std::string& libPath) {
-  void* handle = dlopen(libPath.c_str(), RTLD_LAZY);
+const std::unordered_map<std::string, std::string>& gluten::UdfLoader::getUdfMap() {
+  std::unordered_map<std::string, std::string> udfMap;
+  for (const auto& item : handles_) {
+    const auto& libPath = item.first;
+    const auto& handle = item.second;
+    void* getNumUdfSym = loadSymFromLibrary(handle, libPath, GLUTEN_TOSTRING(GLUTEN_GET_NUM_UDF));
+    auto getNumUdf = reinterpret_cast<int (*)()>(getNumUdfSym);
+    // allocate
+    int numUdf = getNumUdf();
+    UdfEntry* udfEntry = static_cast<UdfEntry*>(malloc(sizeof(UdfEntry) * numUdf));
 
-  void* getNumUdfSym = loadSymFromLibrary(handle, libPath, GLUTEN_TOSTRING(GLUTEN_GET_NUM_UDF));
-  auto getNumUdf = reinterpret_cast<int (*)()>(getNumUdfSym);
-  // allocate
-  int numUdf = getNumUdf();
-  UdfEntry* udfEntry = static_cast<UdfEntry*>(malloc(sizeof(UdfEntry) * numUdf));
+    void* getUdfEntriesSym = loadSymFromLibrary(handle, libPath, GLUTEN_TOSTRING(GLUTEN_GET_UDF_ENTRIES));
+    auto getUdfEntries = reinterpret_cast<void (*)(UdfEntry*)>(getUdfEntriesSym);
+    getUdfEntries(udfEntry);
 
-  void* getUdfEntriesSym = loadSymFromLibrary(handle, libPath, GLUTEN_TOSTRING(GLUTEN_GET_UDF_ENTRIES));
-  auto getUdfEntries = reinterpret_cast<void (*)(UdfEntry*)>(getUdfEntriesSym);
-  getUdfEntries(udfEntry);
+    facebook::velox::dwio::type::fbhive::HiveTypeParser parser;
+    google::protobuf::Arena arena;
+    auto typeConverter = VeloxToSubstraitTypeConvertor();
+    for (auto i = 0; i < numUdf; ++i) {
+      const auto& entry = udfEntry[i];
+      auto returnType = parser.parse(udfEntry[i].dataType);
+      auto substraitType = typeConverter.toSubstraitType(arena, returnType);
 
-  facebook::velox::dwio::type::fbhive::HiveTypeParser parser;
-  google::protobuf::Arena arena;
-  auto typeConverter = VeloxToSubstraitTypeConvertor();
-  for (auto i = 0; i < numUdf; ++i) {
-    const auto& entry = udfEntry[i];
-    auto returnType = parser.parse(udfEntry[i].dataType);
-    auto substraitType = typeConverter.toSubstraitType(arena, returnType);
-
-    std::string output;
-    substraitType.SerializeToString(&output);
-    // overwrite
-    udfMap_[entry.name] = std::move(output);
+      std::string output;
+      substraitType.SerializeToString(&output);
+      // overwrite
+      udfMap[entry.name] = std::move(output);
+    }
+    free(udfEntry);
   }
-
-  free(udfEntry);
-
-  return handle;
 }
 
 void gluten::UdfLoader::registerUdf() {
-  for (const auto& entry : handles_) {
-    void* sym = loadSymFromLibrary(entry.second, entry.first, GLUTEN_TOSTRING(GLUTEN_REGISTER_UDF));
+  for (const auto& item : handles_) {
+    void* sym = loadSymFromLibrary(item.second, item.first, GLUTEN_TOSTRING(GLUTEN_REGISTER_UDF));
     auto registerUdf = reinterpret_cast<void (*)()>(sym);
     registerUdf();
   }
@@ -112,8 +114,4 @@ bool gluten::UdfLoader::validateUdf(const std::string& name, const std::vector<f
 std::shared_ptr<gluten::UdfLoader> gluten::UdfLoader::getInstance() {
   static auto instance = std::make_shared<UdfLoader>();
   return instance;
-}
-
-const std::unordered_map<std::string, std::string>& gluten::UdfLoader::getUdfMap() {
-  return udfMap_;
 }

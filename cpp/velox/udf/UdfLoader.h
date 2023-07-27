@@ -39,9 +39,6 @@ class UdfLoader {
  private:
   void loadUdfLibraries0(const std::vector<std::string>& libPaths);
 
-  void* loadUdfLibrary(const std::string& libPath);
-
-  std::unordered_map<std::string, std::string> udfMap_;
   std::unordered_map<std::string, void*> handles_;
 };
 } // namespace gluten

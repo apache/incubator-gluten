@@ -81,6 +81,8 @@ const std::string kVeloxIOThreadsDefault = "0";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
 
+const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths";
+
 } // namespace
 
 namespace gluten {
@@ -199,7 +201,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
-  UdfLoader::getInstance()->registerUdf();
+  initUdf(conf);
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
@@ -305,6 +307,15 @@ void VeloxInitializer::initHWAccelerators(const std::unordered_map<std::string, 
       }
     }
 #endif
+  }
+}
+
+void VeloxInitializer::initUdf(const std::unordered_map<std::string, std::string>& conf) {
+  auto got = conf.find(kVeloxUdfLibraryPaths);
+  if (got != conf.end() && !got->second.empty()) {
+    auto udfLoader = gluten::UdfLoader::getInstance();
+    udfLoader->loadUdfLibraries(got->second);
+    udfLoader->registerUdf();
   }
 }
 
