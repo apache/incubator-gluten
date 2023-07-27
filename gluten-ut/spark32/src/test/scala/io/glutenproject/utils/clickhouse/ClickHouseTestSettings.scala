@@ -132,7 +132,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "to_timestamp exception mode",
       "SPARK-31896: Handle am-pm timestamp parsing when hour is missing",
       "TIMESTAMP_MICROS",
-      "SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError"
+      "SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError",
+      "months_between" // Clickhouse donot support timezone string like "-8:00, +2:00, etc" for now
     )
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]

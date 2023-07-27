@@ -100,7 +100,7 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
     auto res = result_type->createColumn();
     res->reserve(rows);
     std::string timezone_str = "";
-    if (arguments.size() == 4 && rows) // Assume that timezone is constant
+    if (arguments.size() == 4 && rows) // We know that timezone is constant
         timezone_str = arguments[3].column->getDataAt(0).toString();
     auto & timezone = DateLUT::instance(timezone_str);
 
