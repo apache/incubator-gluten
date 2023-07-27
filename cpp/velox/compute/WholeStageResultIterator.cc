@@ -143,7 +143,7 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
       LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
       uint64_t total = shrunk + spilledOut;
       LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-      return spilledOut;
+      return shrunk + spilledOut;
     }
     // suspend since we are on driver
     velox::exec::SuspendedSection noCancel(thisDriver);
@@ -151,11 +151,11 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunk + spilledOut;
     LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-    return spilledOut;
+    return shrunk + spilledOut;
   }
 
   LOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunk << " bytes.";
-  return 0;
+  return shrunk;
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(
