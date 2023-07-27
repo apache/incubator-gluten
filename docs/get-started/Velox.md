@@ -268,6 +268,111 @@ Using the following configuration options to customize spilling:
 | spark.gluten.sql.columnar.backend.velox.spillPartitionBits               | 2              | The number of bits used to calculate the spilling partition number. The number of spilling partitions will be power of two                      |
 | spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct    | 25             | The spillable memory reservation growth percentage of the previous memory reservation size                                                      |
 
+# Velox User-Defined Functions (UDF)
+
+## Introduction
+
+Velox backend supports User-Defined Functions (UDF). Users can create their own functions using the UDF interface provided in Velox backend and build libraries for these functions. At runtime, the UDF are registered at the start of applications. Once registered, Gluten will be able to parse and offload these UDF into Velox during execution.
+
+## Creating a UDF library
+
+The following steps demonstrate how to set up a UDF library project:
+
+- **Include the UDF Interface Header:** First, include the UDF interface header file [Udf.h](../../cpp/velox/udf/Udf.h) in the project file. The header file defines the `UdfEntry` struct, along with the macros for declaring the necessary functions to integrate the UDF into Gluten and Velox.
+
+- **Implement the UDF:** Implement UDF. These functions should be able to register to Velox.
+
+- **Implement the Interface Functions:** Implement the following interface functions that integrate UDF into Project Gluten:
+
+  - `getNumUdf()`: This function should return the number of UDF in the library. This is used to allocating udfEntries array as the argument for the next function `getUdfEntries`.
+
+  - `getUdfEntries(gluten::UdfEntry* udfEntries)`: This function should populate the provided udfEntries array with the details of the UDF, including function names and return types.
+
+  - `registerUdf()`: This function is called to register the UDF to Velox function registry. This is where users should register functions by calling `facebook::velox::exec::registerVecotorFunction` or other Velox APIs.
+
+  - The interface functions are mapping to marcos in [Udf.h](../../cpp/velox/udf/Udf.h). Here's an example of how to implement these functions:
+
+  ```
+  // Filename MyUDF.cpp
+
+  #include <velox/expression/VectorFunction.h>
+  #include <velox/udf/Udf.h>
+
+  const int kNumMyUdf = 1;
+
+  gluten::UdfEntry myUdf[kNumMyUdf] = {{"myudf1", "integer"}};
+
+  class MyUdf : public facebook::velox::exec::VectorFunction {
+    ... // Omit concrete implementation
+  }
+
+  static std::vector<std::shared_ptr<exec::FunctionSignature>>
+  myUdfSignatures() {
+    return {facebook::velox::exec::FunctionSignatureBuilder()
+                .returnType(myUdf[0].dataType)
+                .argumentType("integer")
+                .build()};
+  }
+
+  DEFINE_GET_NUM_UDF { return kNumMyUdf; }
+
+  DEFINE_GET_UDF_ENTRIES { udfEntries[0] = myUdf[0]; }
+
+  DEFINE_REGISTER_UDF {
+    facebook::velox::exec::registerVectorFunction(
+        myUdf[0].name, myUdfSignatures(), std::make_unique<MyUdf>());
+  }
+
+  ```
+
+## Building the UDF library
+
+To build the UDF library, users need to compile the C++ code and link to `libvelox.so`. It's recommended to create a CMakeLists.txt for the project. Here's an example:
+```
+project(myudf)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(GLUTEN_HOME /path/to/gluten)
+
+add_library(myudf SHARED "MyUDF.cpp")
+
+find_library(VELOX_LIBRARY REQUIRED NAMES velox HINTS ${GLUTEN_HOME}/cpp/build/releases NO_DEFAULT_PATH)
+
+target_include_directories(myudf PRIVATE ${GLUTEN_HOME}/cpp ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
+target_link_libraries(myudf PRIVATE ${VELOX_LIBRARY})
+```
+
+## Using UDF in Gluten
+
+Gluten loads the UDF libraries at runtime. Users need to configure the libray paths using the provided Spark configuration, which accepts comma separated list of library paths
+
+```
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=/path/to/libmyudf1.so,/path/to/libmyudf2.so
+```
+
+## Try the example
+
+We provided an Velox UDF example file [MyUDF.cpp](../../cpp/velox/udf/examples/MyUDF.cpp). After building gluten cpp, you can find the example library at /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
+
+Start spark-shell or spark-sql with below configuration 
+```
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=/path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
+```
+Run query. The functions `myudf1` and `myudf2` increment the input value by a constant of 5
+```
+select myudf1(1), myudf2(100L)
+```
+The output from spark-shell will be like
+```
++----------------+------------------+
+|udfexpression(1)|udfexpression(100)|
++----------------+------------------+
+|               6|               105|
++----------------+------------------+
+```
+
 # High-Bandwidth Memory (HBM) support
 
 Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It is implemented on top of [Memkind library](http://memkind.github.io/memkind/). You can refer to memkind's [readme](https://github.com/memkind/memkind#memkind) for more details.
