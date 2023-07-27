@@ -359,14 +359,6 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
             else
                 return false;
         }
-        else if (*buf.position() == ' ' || *buf.position() == '\t')
-        {
-            if (has_number)
-            {
-               break;
-            }
-            ++buf.position();
-        }
         else if (*buf.position() >= '0' && *buf.position() <= '9')
         {
             has_number = true;
