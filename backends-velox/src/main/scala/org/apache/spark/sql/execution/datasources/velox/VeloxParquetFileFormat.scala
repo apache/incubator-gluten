@@ -22,6 +22,7 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
@@ -34,8 +35,9 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-import org.apache.parquet.hadoop.ParquetOutputFormat
+import org.apache.hadoop.mapreduce.{Job, OutputCommitter, TaskAttemptContext}
+import org.apache.parquet.hadoop.{ParquetOutputCommitter, ParquetOutputFormat}
+import org.apache.parquet.hadoop.ParquetOutputFormat.JobSummaryLevel
 import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.parquet.hadoop.util.ContextUtil
 
@@ -48,7 +50,8 @@ import scala.collection.mutable
 class VeloxParquetFileFormat
   extends GlutenParquetFileFormat
   with DataSourceRegister
-  with Serializable {
+  with Serializable
+  with Logging {
 
   override def inferSchema(
       sparkSession: SparkSession,
@@ -64,11 +67,47 @@ class VeloxParquetFileFormat
       dataSchema: StructType): OutputWriterFactory = {
     // pass compression to job conf so that the file extension can be aware of it.
     val conf = ContextUtil.getConfiguration(job)
+
+    val committerClass =
+      conf.getClass(
+        SQLConf.PARQUET_OUTPUT_COMMITTER_CLASS.key,
+        classOf[ParquetOutputCommitter],
+        classOf[OutputCommitter])
+
+    if (conf.get(SQLConf.PARQUET_OUTPUT_COMMITTER_CLASS.key) == null) {
+      logInfo(
+        "Using default output committer for Parquet: " +
+          classOf[ParquetOutputCommitter].getCanonicalName)
+    } else {
+      logInfo("Using user defined output committer for Parquet: " + committerClass.getCanonicalName)
+    }
+
+    conf.setClass(SQLConf.OUTPUT_COMMITTER_CLASS.key, committerClass, classOf[OutputCommitter])
+
+    // SPARK-15719: Disables writing Parquet summary files by default.
+    if (
+      conf.get(ParquetOutputFormat.JOB_SUMMARY_LEVEL) == null
+      && conf.get("parquet.enable.summary-metadata") == null
+    ) {
+      conf.setEnum(ParquetOutputFormat.JOB_SUMMARY_LEVEL, JobSummaryLevel.NONE)
+    }
+
+    if (
+      ParquetOutputFormat.getJobSummaryLevel(conf) != JobSummaryLevel.NONE
+      && !classOf[ParquetOutputCommitter].isAssignableFrom(committerClass)
+    ) {
+      // output summary is requested, but the class is not a Parquet Committer
+      logWarning(
+        s"Committer $committerClass is not a ParquetOutputCommitter and cannot" +
+          s" create job summaries. " +
+          s"Set Parquet option ${ParquetOutputFormat.JOB_SUMMARY_LEVEL} to NONE.")
+    }
+
     val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
     conf.set(ParquetOutputFormat.COMPRESSION, parquetOptions.compressionCodecClassName)
     val nativeConf =
       VeloxParquetFileFormat.nativeConf(options, parquetOptions.compressionCodecClassName)
-
+    logInfo(s"Use Gluten parquet write, native conf: $nativeConf")
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
         CodecConfig.from(context).getCodec.getExtension + ".parquet"

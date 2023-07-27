@@ -40,7 +40,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
-import org.apache.spark.sql.execution.datasources.ColumnarToFakeRowStrategy
+import org.apache.spark.sql.execution.datasources.{ColumnarToFakeRowStrategy, VeloxConversion}
 import org.apache.spark.sql.execution.datasources.GlutenColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -353,6 +353,15 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = List()
+
+  /**
+   * Generate extended Post-Resolution. Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedPostResolution(): List[SparkSession => Rule[LogicalPlan]] = {
+    List(VeloxConversion)
+  }
 
   /**
    * Generate extended Optimizer. Currently only for Velox backend.

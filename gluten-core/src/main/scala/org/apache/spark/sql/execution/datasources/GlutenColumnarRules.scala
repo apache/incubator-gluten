@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreserving
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec}
+import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec, InsertIntoDataSourceDirCommand}
 import org.apache.spark.sql.hive.execution.InsertIntoHiveDirCommand
 
 case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy {
@@ -107,6 +107,8 @@ object GlutenColumnarRules {
       case command: InsertIntoHiveDirCommand =>
         command.storage.outputFormat.get
           .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
+      case command: InsertIntoDataSourceDirCommand =>
+        command.provider == "velox"
       case _ => false
     }
   }

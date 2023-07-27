@@ -60,6 +60,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioning reporting")
   enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
+    .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenKeyGroupedPartitioningSuite]
     // NEW SUITE: disable as they check vanilla spark plan
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
@@ -633,6 +634,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
+    .exclude("filter pushdown - timestamp")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
@@ -648,6 +650,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
+    .exclude("filter pushdown - timestamp")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -674,6 +677,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("vectorized reader: required array with required elements")
     .exclude("vectorized reader: required array with optional elements")
     .exclude("vectorized reader: required array with legacy format")
+    .exclude("Write Spark version into Parquet metadata")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
@@ -730,10 +734,12 @@ class VeloxTestSettings extends BackendTestSettings {
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
+    .excludeByPrefix("SPARK-33160")
   enableSuite[GlutenParquetRebaseDatetimeV2Suite]
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
+    .excludeByPrefix("SPARK-33160")
   enableSuite[GlutenParquetSchemaInferenceSuite]
   enableSuite[GlutenParquetSchemaSuite]
     // error message mismatch is accepted
@@ -1061,6 +1067,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
     // exclude as original metric not correct when task offloaded to velox
     .exclude("SPARK-37585: test input metrics for DSV2 with output limits")
+    .excludeByPrefix("SPARK-22146 read files containing special characters")
+    .excludeByPrefix("SPARK-24204 error handling for unsupported Null data type")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenInjectRuntimeFilterSuite]

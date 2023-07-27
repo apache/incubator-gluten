@@ -118,7 +118,6 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
     val fileSinkConfSer = fileSinkConf
 
     if (isGlutenHiveWrite(sparkSession)) {
-      logInfo("Use Gluten parquet write for hive")
       val compressionCodec = if (fileSinkConf.compressed) {
         // hive related configurations
         fileSinkConf.compressCodec
@@ -127,7 +126,7 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
         parquetOptions.compressionCodecClassName
       }
       val nativeConf = VeloxParquetFileFormat.nativeConf(options, compressionCodec)
-
+      logInfo(s"Use Gluten parquet write for hive, native conf: $nativeConf")
       // Only offload parquet write to velox backend.
       new OutputWriterFactory {
         private val jobConf = new SerializableJobConf(new JobConf(job.getConfiguration))

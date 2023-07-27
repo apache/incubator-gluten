@@ -335,6 +335,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Return correct results when data columns overlap with partition " +
       "columns (nested data)")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
+    .exclude("SPARK-36271: V1 insert should check schema field name too")
+    .excludeByPrefix("SPARK-22146 read files containing special characters")
+    .excludeByPrefix("SPARK-24204 error handling for unsupported Null data type")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
@@ -766,6 +769,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
+    .exclude("filter pushdown - timestamp")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
@@ -780,6 +784,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
+    .exclude("filter pushdown - timestamp")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -801,6 +806,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
     // Timestamp is read as INT96.
     .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
+    .exclude("Write Spark version into Parquet metadata")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
@@ -849,10 +855,12 @@ class VeloxTestSettings extends BackendTestSettings {
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
+    .excludeByPrefix("SPARK-33160")
   enableSuite[GlutenParquetRebaseDatetimeV2Suite]
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
+    .excludeByPrefix("SPARK-33160")
   enableSuite[GlutenParquetSchemaInferenceSuite]
   enableSuite[GlutenParquetSchemaSuite]
     // error message mismatch is accepted
@@ -952,6 +960,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
+    .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]

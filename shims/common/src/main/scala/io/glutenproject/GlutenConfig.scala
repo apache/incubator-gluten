@@ -1045,4 +1045,10 @@ object GlutenConfig {
       .doc("Enable the stacktrace for user type of VeloxException")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_PARQUET_WRITE_ENABLED =
+    buildConf("spark.gluten.sql.columnar.parquet.write")
+      .doc("When true, enable convert Spark datasource parquet write to native write")
+      .booleanConf
+      .createWithDefault(true)
 }

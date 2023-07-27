@@ -179,6 +179,13 @@ trait SparkPlanExecApi {
   def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]]
 
   /**
+   * Generate extended Post-Resolution. Currently only for Velox backend.
+   *
+   * @return
+   */
+  def genExtendedPostResolution(): List[SparkSession => Rule[LogicalPlan]]
+
+  /**
    * Generate extended Optimizers. Currently only for Velox backend.
    *
    * @return

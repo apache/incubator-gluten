@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions._
@@ -282,13 +284,16 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     // page-4                         0  850                                       899
     withTempPath {
       path =>
-        spark
-          .range(900)
-          .repartition(1)
-          .write
-          .option(ParquetOutputFormat.PAGE_SIZE, "500")
-          .option(ParquetOutputFormat.BLOCK_SIZE, "2000")
-          .parquet(path.getCanonicalPath)
+        // use vanilla spark parquet writer
+        withSQLConf(GlutenConfig.COLUMNAR_PARQUET_WRITE_ENABLED.key -> "false") {
+          spark
+            .range(900)
+            .repartition(1)
+            .write
+            .option(ParquetOutputFormat.PAGE_SIZE, "500")
+            .option(ParquetOutputFormat.BLOCK_SIZE, "2000")
+            .parquet(path.getCanonicalPath)
+        }
 
         val parquetFile = path.listFiles().filter(_.getName.startsWith("part")).last
         val in = HadoopInputFile.fromPath(
@@ -519,7 +524,9 @@ class GlutenParquetV2FilterSuite extends GltuenParquetFilterSuite with GlutenSQL
           rebaseMode =>
             withSQLConf(
               SQLConf.DATETIME_JAVA8API_ENABLED.key -> java8Api.toString,
-              SQLConf.PARQUET_REBASE_MODE_IN_WRITE.key -> rebaseMode.toString) {
+              SQLConf.PARQUET_REBASE_MODE_IN_WRITE.key -> rebaseMode.toString,
+              SQLConf.PARQUET_REBASE_MODE_IN_READ.key -> rebaseMode.toString
+            ) {
               val dates = data.map(i => Tuple1(Date.valueOf(i))).toDF()
               withNestedParquetDataFrame(dates) {
                 case (inputDF, colName, fun) =>

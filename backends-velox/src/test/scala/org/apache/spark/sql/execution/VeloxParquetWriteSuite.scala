@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.WholeStageTransformerSuite
 
 import org.apache.spark.sql.functions.lit
@@ -113,6 +114,34 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
         val res = spark.read.parquet(f.getCanonicalPath)
         checkAnswer(res, Nil)
         assert(res.schema.asNullable == df.schema.asNullable)
+    }
+  }
+
+  private def checkNativeWrite(sqlStr: String, native: Boolean): Unit = {
+    val testAppender = new LogAppender("native write tracker")
+    withLogAppender(testAppender) {
+      spark.sql(sqlStr)
+    }
+    assert(
+      testAppender.loggingEvents.exists(
+        _.getMessage.toString.contains("Use Gluten parquet write")) == native)
+  }
+
+  test("convert datasource parquet write to velox parquet write") {
+    spark.sparkContext.setLogLevel("info")
+
+    withSQLConf(GlutenConfig.COLUMNAR_PARQUET_WRITE_ENABLED.key -> "true") {
+      withTable("tmp") {
+        spark.table("customer").limit(0).write.saveAsTable("tmp")
+        checkNativeWrite("INSERT OVERWRITE TABLE tmp SELECT * FROM customer", native = true)
+      }
+
+      withTable("tmp_pt") {
+        spark.sql("CREATE TABLE tmp_pt (c int) USING PARQUET PARTITIONED BY(p string)")
+        checkNativeWrite(
+          "INSERT OVERWRITE TABLE tmp_pt PARTITION(p='a') SELECT 1 as c",
+          native = false)
+      }
     }
   }
 }

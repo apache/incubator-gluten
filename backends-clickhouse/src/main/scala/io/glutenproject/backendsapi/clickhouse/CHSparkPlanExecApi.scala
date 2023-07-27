@@ -328,6 +328,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
   }
 
+  override def genExtendedPostResolution(): List[SparkSession => Rule[LogicalPlan]] = List.empty
+
   /**
    * Generate extended Optimizers.
    *

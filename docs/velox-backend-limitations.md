@@ -90,7 +90,19 @@ Exception occurs when Velox TableScan is used to read files with unsupported com
 
 #### Offload hive file format to velox (offload)
 
-We implemented the insert into command by overriding HiveFileFormat in Vanilla spark. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/developers/NewToGluten.md). It should be noted that if the user also modifies the HiveFileFormat, the user's changes may be overwritten.
+Gluten supports convert Spark parquet write to velox write in these cases:
+
+- Insert into a Spark datasource table
+
+  The table can not be a partitioned table or bucketed table. Set `spark.gluten.sql.columnar.parquet.write=false` to disable the conversion.
+
+- Insert into a Spark datasource directory
+
+  Set `spark.gluten.sql.columnar.parquet.write=false` to disable the conversion.
+
+- Insert into a Hive directory
+
+  You need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/developers/NewToGluten.md). It should be noted that if the user also modifies the HiveFileFormat, the user's changes may be overwritten.
 
 ### Velox Parquet Write
 

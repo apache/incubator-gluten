@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
@@ -83,7 +85,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     }
     assert(
       testAppender.loggingEvents.exists(
-        _.getMessage.toString.contains("Use Gluten parquet write for hive")) == native)
+        _.getMessage.toString.contains("Use Gluten parquet write")) == native)
   }
 
   test("test hive write table") {
@@ -99,15 +101,22 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
   test("test hive write dir") {
     withTempPath {
       f =>
-        // compatible with Spark3.3 and later
-        withSQLConf("spark.sql.hive.convertMetastoreInsertDir" -> "false") {
-          checkNativeWrite(
-            s"""
-               |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
-               |""".stripMargin,
-            native = true
-          )
-          checkAnswer(spark.read.parquet(f.getCanonicalPath), Row(1))
+        withSQLConf(GlutenConfig.COLUMNAR_PARQUET_WRITE_ENABLED.key -> "true") {
+          // compatible with Spark3.3 and later
+          Seq(true, false).foreach {
+            convertToDatasource =>
+              withSQLConf(
+                "spark.sql.hive.convertMetastoreInsertDir" -> convertToDatasource.toString) {
+                checkNativeWrite(
+                  s"""
+                     |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET
+                     |SELECT 1 as c
+                     |""".stripMargin,
+                  native = true
+                )
+                checkAnswer(spark.read.parquet(f.getCanonicalPath), Row(1))
+              }
+          }
         }
     }
   }
