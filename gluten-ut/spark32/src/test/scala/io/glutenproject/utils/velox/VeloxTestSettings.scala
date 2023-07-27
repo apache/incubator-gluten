@@ -286,9 +286,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
     .exclude("SPARK-28156: self-join should not miss cached view")
     .exclude("SPARK-33338: GROUP BY using literal map should not fail")
-    // Rewrite from ORC scan to Parquet scan because ORC is not well supported. Also disabled
-    // Spark vectorized reading because Spark's columnar output is not compatible with Velox's.
-    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
     // Rewrite to disable plan check for SMJ because SHJ is preferred in Gluten.
     .exclude("SPARK-11111 null-safe join should not use cartesian product")
     // Rewrite to change the information of a caught exception.
@@ -809,7 +806,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
+    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
+    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
@@ -823,7 +821,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV2QuerySuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
+    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
+    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
@@ -840,11 +839,7 @@ class VeloxTestSettings extends BackendTestSettings {
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
   enableSuite[GlutenParquetV1SchemaPruningSuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
@@ -997,9 +992,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSaveLoadSuite]
   enableSuite[GlutenTableScanSuite]
   enableSuite[GlutenDataSourceV2Suite]
-    // Gluten does not support the convert from spark columnar data
-    // to velox columnar data.
-    .exclude("columnar batch scan implementation")
     // Rewrite the following test in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
