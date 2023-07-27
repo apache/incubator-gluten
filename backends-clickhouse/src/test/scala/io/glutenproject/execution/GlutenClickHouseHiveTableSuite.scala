@@ -664,19 +664,29 @@ class GlutenClickHouseHiveTableSuite()
         |   (6, null, null, null),
         |   (7, struct('Tank', 20), map('X', null, 'Y', null), array(1.0, 2.0, 3.0));
         |""".stripMargin
-    val select_template = "select id, info, info.age, data, values from test_%s"
+
+    val select1_template = "select id, info, info.age, data, values from test_%s"
+    val select2_template = "select id, info.name from test_%s"
+    val select3_template = "select id from test_%s where info.name = 'Bob'"
+
     val drop_template = "DROP TABLE test_%s"
 
     val formats = Array("orc", "parquet")
     for (format <- formats) {
       val create_sql = create_template.format(format, format)
       val insert_sql = insert_template.format(format)
-      val select_sql = select_template.format(format)
+      val select1_sql = select1_template.format(format)
+      val select2_sql = select2_template.format(format)
+      val select3_sql = select3_template.format(format)
       val drop_sql = drop_template.format(format)
 
       spark.sql(create_sql)
       spark.sql(insert_sql)
-      compareResultsAgainstVanillaSpark(select_sql, true, _ => {})
+
+      compareResultsAgainstVanillaSpark(select1_sql, true, _ => {})
+      compareResultsAgainstVanillaSpark(select2_sql, true, _ => {})
+      compareResultsAgainstVanillaSpark(select3_sql, true, _ => {})
+
       spark.sql(drop_sql)
     }
   }
