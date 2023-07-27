@@ -18,20 +18,31 @@ package io.glutenproject.expression
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenQueryTest
+import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.test.SharedSparkSession
 
 class VeloxUdfSuite extends GlutenQueryTest with SharedSparkSession {
+
+  private lazy val udfLibPath: String = System.getProperty(UDFResolver.UDFLibPathProperty)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     sparkContext.setLogLevel("INFO")
   }
-  override protected def sparkConf: SparkConf =
+  override protected def sparkConf: SparkConf = {
+    if (udfLibPath == null) {
+      throw new IllegalArgumentException(
+        UDFResolver.UDFLibPathProperty + s" cannot be null. You may set it by adding " +
+          s"-D${UDFResolver.UDFLibPathProperty}=" +
+          "/path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so")
+    }
     super.sparkConf
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibPath)
+  }
 
   test("test udf") {
     val df = spark.sql("""select myudf1(1), myudf2(100L)""")

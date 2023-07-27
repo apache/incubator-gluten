@@ -77,7 +77,7 @@ function compile {
   fi
   # create libvelox_hive_connector.a for VeloxInitializer.cc
   sed -i 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_ENABLE_DUCKDB=ON"
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON"
   if [ $ENABLE_BENCHMARK == "OFF" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=ON"
   fi

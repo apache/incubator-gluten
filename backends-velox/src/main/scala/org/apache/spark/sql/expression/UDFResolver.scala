@@ -71,6 +71,9 @@ case class UDFExpression(
 object UDFResolver extends Logging {
   val UDFMap: mutable.Map[String, ExpressionType] = mutable.Map()
 
+  // This property is used for unit tests.
+  val UDFLibPathProperty: String = "velox.udf.lib.path"
+
   def registerUDF(name: String, bytes: Array[Byte]): Unit = {
     registerUDF(name, TypeConverter.from(bytes))
   }
@@ -83,8 +86,7 @@ object UDFResolver extends Logging {
   def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val libPaths =
       SparkContext.getActive.get.conf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS) match {
-        // This property is used for unit tests.
-        case None => Option(System.getProperty("velox.udf.lib.path"))
+        case None => Option(System.getProperty(UDFLibPathProperty))
         case other => other
       }
     libPaths.foreach(new UdfJniWrapper().nativeLoadUdfLibraries(_))
