@@ -20,7 +20,6 @@ import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColu
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -32,7 +31,6 @@ import scala.collection.JavaConverters._
 class NativeFileScanColumnarRDD(
     @transient sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
-    outputAttributes: Seq[Attribute],
     numOutputRows: SQLMetric,
     numOutputBatches: SQLMetric,
     scanTime: SQLMetric)
@@ -46,8 +44,7 @@ class NativeFileScanColumnarRDD(
     val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       inputPartition.plan,
-      inBatchIters,
-      outputAttributes.asJava)
+      inBatchIters)
     scanTime += NANOSECONDS.toMillis(System.nanoTime() - startNs)
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {

@@ -67,11 +67,7 @@ trait BasicScanExecTransformer extends TransformSupport {
 
     BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       sparkContext,
-      WholestageTransformContext(
-        outputAttributes(),
-        outputAttributes(),
-        planNode,
-        substraitContext),
+      WholeStageTransformContext(planNode, substraitContext),
       fileFormat,
       getFlattenPartitions,
       numOutputRows,

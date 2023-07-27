@@ -23,7 +23,6 @@ import io.glutenproject.substrait.plan.PlanBuilder
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -104,7 +103,6 @@ case class FirstZippedPartitionsPartition(
 class GlutenWholeStageColumnarRDD(
     @transient sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
-    outputAttributes: Seq[Attribute],
     var rdds: Seq[RDD[ColumnarBatch]],
     pipelineTime: SQLMetric,
     updateInputMetrics: (InputMetricsWrapper) => Unit,
@@ -119,7 +117,6 @@ class GlutenWholeStageColumnarRDD(
     if (rdds.isEmpty) {
       BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
         inputPartition,
-        outputAttributes,
         context,
         pipelineTime,
         updateInputMetrics,
@@ -130,7 +127,6 @@ class GlutenWholeStageColumnarRDD(
         (rdds.zip(partitions)).map { case (rdd, partition) => rdd.iterator(partition, context) }
       BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
         inputPartition,
-        outputAttributes,
         context,
         pipelineTime,
         updateInputMetrics,

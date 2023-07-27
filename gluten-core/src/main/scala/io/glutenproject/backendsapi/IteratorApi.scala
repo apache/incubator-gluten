@@ -17,14 +17,13 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseGlutenPartition, BroadCastHashJoinContext, WholestageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, BroadCastHashJoinContext, WholeStageTransformContext}
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -43,7 +42,7 @@ trait IteratorApi {
       index: Int,
       partitions: Seq[InputPartition],
       partitionSchema: StructType,
-      wsCxt: WholestageTransformContext): BaseGlutenPartition
+      wsCxt: WholeStageTransformContext): BaseGlutenPartition
 
   /**
    * Generate closeable ColumnBatch iterator.
@@ -60,7 +59,6 @@ trait IteratorApi {
    */
   def genFirstStageIterator(
       inputPartition: BaseGlutenPartition,
-      outputAttributes: Seq[Attribute],
       context: TaskContext,
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
@@ -78,7 +76,6 @@ trait IteratorApi {
       inputIterators: Seq[Iterator[ColumnarBatch]],
       numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
-      outputAttributes: Seq[Attribute],
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
@@ -88,7 +85,7 @@ trait IteratorApi {
   /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
   def genNativeFileScanRDD(
       sparkContext: SparkContext,
-      wsCxt: WholestageTransformContext,
+      wsCxt: WholeStageTransformContext,
       fileFormat: ReadFileFormat,
       inputPartitions: Seq[InputPartition],
       numOutputRows: SQLMetric,

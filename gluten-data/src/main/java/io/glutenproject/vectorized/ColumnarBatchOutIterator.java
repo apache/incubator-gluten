@@ -20,17 +20,15 @@ package io.glutenproject.vectorized;
 import io.glutenproject.columnarbatch.ColumnarBatches;
 import io.glutenproject.metrics.IMetrics;
 
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
-import java.util.List;
 
 public class ColumnarBatchOutIterator extends GeneralOutIterator {
   private final long handle;
 
-  public ColumnarBatchOutIterator(long handle, List<Attribute> outAttrs) throws IOException {
-    super(outAttrs);
+  public ColumnarBatchOutIterator(long handle) throws IOException {
+    super();
     this.handle = handle;
   }
 

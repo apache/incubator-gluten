@@ -32,7 +32,6 @@ import io.glutenproject.validate.NativePlanValidationInfo;
 import com.google.protobuf.Any;
 import io.substrait.proto.Plan;
 import org.apache.spark.TaskContext;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.SparkDirectoryUtil;
 
@@ -65,8 +64,7 @@ public class NativePlanEvaluator {
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
-      throws RuntimeException, IOException {
+      Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
     final long allocId =
         NativeMemoryAllocators.getDefault()
@@ -103,13 +101,12 @@ public class NativePlanEvaluator {
                         SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray());
-    outIterator.set(createOutIterator(handle, outAttrs));
+    outIterator.set(createOutIterator(handle));
     return outIterator.get();
   }
 
-  private ColumnarBatchOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs)
-      throws IOException {
-    return new ColumnarBatchOutIterator(nativeHandle, outAttrs);
+  private ColumnarBatchOutIterator createOutIterator(long nativeHandle) throws IOException {
+    return new ColumnarBatchOutIterator(nativeHandle);
   }
 
   private byte[] getPlanBytesBuf(Plan planNode) {

@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.benchmarks
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{FileSourceScanExecTransformer, WholestageTransformContext}
+import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformContext}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
@@ -137,7 +137,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
 
     val nativeFileScanRDD = BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       spark.sparkContext,
-      WholestageTransformContext(outputAttrs, outputAttrs, planNode, substraitContext),
+      WholeStageTransformContext(planNode, substraitContext),
       fileFormat,
       filePartitions,
       numOutputRows,

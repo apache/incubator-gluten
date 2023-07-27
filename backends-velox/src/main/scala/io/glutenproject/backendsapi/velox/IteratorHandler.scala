@@ -31,7 +31,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
@@ -62,7 +61,7 @@ class IteratorHandler extends IteratorApi with Logging {
       index: Int,
       partitions: Seq[InputPartition],
       partitionSchema: StructType,
-      wsCxt: WholestageTransformContext): BaseGlutenPartition = {
+      wsCxt: WholeStageTransformContext): BaseGlutenPartition = {
 
     def constructSplitInfo(files: Array[PartitionedFile]) = {
       val paths = mutable.ArrayBuffer.empty[String]
@@ -140,7 +139,6 @@ class IteratorHandler extends IteratorApi with Logging {
    */
   override def genFirstStageIterator(
       inputPartition: BaseGlutenPartition,
-      outputAttributes: Seq[Attribute],
       context: TaskContext,
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
@@ -152,10 +150,8 @@ class IteratorHandler extends IteratorApi with Logging {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val transKernel = new NativePlanEvaluator()
-    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
-      inputPartition.plan,
-      columnarNativeIterators,
-      outputAttributes.asJava)
+    val resIter: GeneralOutIterator =
+      transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     TaskResources.addRecycler(100)(resIter.close())
     val iter = new Iterator[Any] {
@@ -198,7 +194,6 @@ class IteratorHandler extends IteratorApi with Logging {
       inputIterators: Seq[Iterator[ColumnarBatch]],
       numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
-      outputAttributes: Seq[Attribute],
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
@@ -214,10 +209,7 @@ class IteratorHandler extends IteratorApi with Logging {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
-      transKernel.createKernelWithBatchIterator(
-        rootNode.toProtobuf,
-        columnarNativeIterator,
-        outputAttributes.asJava)
+      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
@@ -247,7 +239,7 @@ class IteratorHandler extends IteratorApi with Logging {
   /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
   override def genNativeFileScanRDD(
       sparkContext: SparkContext,
-      wsCxt: WholestageTransformContext,
+      wsCxt: WholeStageTransformContext,
       fileFormat: ReadFileFormat,
       inputPartitions: Seq[InputPartition],
       numOutputRows: SQLMetric,

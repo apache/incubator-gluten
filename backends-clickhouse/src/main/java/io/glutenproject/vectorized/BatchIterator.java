@@ -30,8 +30,8 @@ import java.util.List;
 public class BatchIterator extends GeneralOutIterator {
   private final long handle;
 
-  public BatchIterator(long handle, List<Attribute> outAttrs) {
-    super(outAttrs);
+  public BatchIterator(long handle) {
+    super();
     this.handle = handle;
   }
 
