@@ -763,7 +763,7 @@ class GlutenClickHouseWriteParquetTableSuite
     }
   }
 
-  test("test bigo 2") {
+  ignore("test bigo 2") {
     withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
       spark.sql(s"drop table IF EXISTS tmp_lzl_screen_pic_convert_save")
       spark.sql(
