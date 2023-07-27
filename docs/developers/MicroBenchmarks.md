@@ -108,7 +108,7 @@ InputFromBatchVector/iterations:1/process_time/real_time/threads:1   41304520 ns
 
 ```
 
-## Generate Substrait plan and input for any quey
+## Generate Substrait plan and input for any query
 
 Build the gluten debug version.
 
