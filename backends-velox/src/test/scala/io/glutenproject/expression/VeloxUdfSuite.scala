@@ -16,14 +16,19 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.tags.UDFTest
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenQueryTest
-import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.test.SharedSparkSession
 
+@UDFTest
 class VeloxUdfSuite extends GlutenQueryTest with SharedSparkSession {
 
-  private lazy val udfLibPath: String = System.getProperty(UDFResolver.UDFLibPathProperty)
+  // This property is used for unit tests.
+  val UDFLibPathProperty: String = "velox.udf.lib.path"
+
+  private lazy val udfLibPath: String = System.getProperty(UDFLibPathProperty)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -32,8 +37,8 @@ class VeloxUdfSuite extends GlutenQueryTest with SharedSparkSession {
   override protected def sparkConf: SparkConf = {
     if (udfLibPath == null) {
       throw new IllegalArgumentException(
-        UDFResolver.UDFLibPathProperty + s" cannot be null. You may set it by adding " +
-          s"-D${UDFResolver.UDFLibPathProperty}=" +
+        UDFLibPathProperty + s" cannot be null. You may set it by adding " +
+          s"-D$UDFLibPathProperty=" +
           "/path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so")
     }
     super.sparkConf

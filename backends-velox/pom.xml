@@ -34,6 +34,15 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>udf</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <udfTagsToExclude>io.glutenproject.tags.UDFTest</udfTagsToExclude>
+      </properties>
+    </profile>
   </profiles>
 
   <dependencies>
@@ -206,6 +215,7 @@
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
         <configuration>
+          <tagsToExclude>${udfTagsToExclude}</tagsToExclude>
           <systemProperties>
             <velox.udf.lib.path>${cpp.build.dir}/velox/udf/examples/libmyudf.so</velox.udf.lib.path>
           </systemProperties>
