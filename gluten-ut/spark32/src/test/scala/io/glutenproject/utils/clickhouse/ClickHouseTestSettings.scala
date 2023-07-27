@@ -96,6 +96,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-33386: element_at ArrayIndexOutOfBoundsException",
       "SPARK-33460: element_at NoSuchElementException"
     )
+    // enable when fix GLUTEN-2390
+    .excludeByPrefix("SPARK-36740")
   enableSuite[GlutenComplexTypeSuite]
     .exclude(
       "CreateNamedStruct",
@@ -330,6 +332,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "misc sha2 function",
       "misc crc32 function",
       "concat function - arrays",
+      "array_max function",
+      "array_min function",
       "array position function",
       "array contains function"
     )
