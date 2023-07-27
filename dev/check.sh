@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,12 +13,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# shellcheck disable=SC1091,SC2155
 
-if [ -f "/opt/rh/gcc-toolset-9/enable" ]; then
-    . /opt/rh/gcc-toolset-9/enable
-elif [ -f "/opt/rh/devtoolset-9/enable" ]; then # CentOS 7
-    . /opt/rh/devtoolset-9/enable
+export BASE_COMMIT=$1
+dev/check.py header branch
+if [ $? -ne 0 ]; then
+  dev/check.py header branch --fix
+  echo -e "\n==== Apply using:"
+  echo "patch -p1 \<<EOF"
+  git --no-pager diff
+  echo "EOF"
+  false
 fi
 
-export MAKEFLAGS="-j$(nproc)"
