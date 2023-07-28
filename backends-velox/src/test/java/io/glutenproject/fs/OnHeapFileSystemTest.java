@@ -35,9 +35,13 @@ public class OnHeapFileSystemTest {
     final long fileSize;
     JniFilesystem.WriteFile writeFile = fs.openFileForWrite(path);
     try {
-      writeFile.append(text.getBytes(StandardCharsets.UTF_8));
+      byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+      ByteBuffer buf = PlatformDependent.allocateDirectNoCleaner(bytes.length);
+      buf.put(buf);
+      writeFile.append(bytes.length, PlatformDependent.directBufferAddress(buf));
       writeFile.flush();
       fileSize = writeFile.size();
+      Assert.assertEquals(bytes.length, fileSize);
     } finally {
       writeFile.close();
     }
