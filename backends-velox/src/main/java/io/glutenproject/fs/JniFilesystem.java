@@ -61,7 +61,7 @@ public interface JniFilesystem {
   }
 
   interface WriteFile {
-    void append(byte[] data);
+    void append(long length, long buf);
 
     void flush();
 

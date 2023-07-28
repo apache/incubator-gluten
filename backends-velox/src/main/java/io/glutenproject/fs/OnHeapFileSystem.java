@@ -24,9 +24,11 @@ import io.netty.util.internal.PlatformDependent;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.CopyOption;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -214,25 +216,26 @@ public class OnHeapFileSystem implements JniFilesystem {
 
   private static class WriteFile implements JniFilesystem.WriteFile {
     private final Path path;
-    private final BufferedOutputStream out;
+    private final OutputStream out;
     private final AtomicInteger writtenBytes = new AtomicInteger(0);
+    private final WritableByteChannel channel;
 
     private WriteFile(Path path) {
       this.path = path;
       try {
-        out =
-            new BufferedOutputStream(
-                Files.newOutputStream(this.path, StandardOpenOption.CREATE_NEW));
+        out = Files.newOutputStream(this.path, StandardOpenOption.CREATE_NEW);
+        channel = Channels.newChannel(out);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
 
     @Override
-    public void append(byte[] data) {
+    public void append(long length, long buf) {
       try {
-        out.write(data);
-        writtenBytes.getAndAdd(data.length);
+        ByteBuffer in = PlatformDependent.directBuffer(buf, (int) length);
+        channel.write(in);
+        writtenBytes.getAndAdd((int) length);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -250,6 +253,7 @@ public class OnHeapFileSystem implements JniFilesystem {
     @Override
     public void close() {
       try {
+        channel.close();
         out.close();
       } catch (IOException e) {
         throw new RuntimeException(e);

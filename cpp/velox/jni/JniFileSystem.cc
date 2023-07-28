@@ -164,7 +164,9 @@ class JniWriteFile : public facebook::velox::WriteFile {
   void append(std::string_view data) override {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
-    env->CallVoidMethod(obj_, jniWriteFileAppend);
+    const void* bytes = data.data();
+    unsigned long len = data.size();
+    env->CallVoidMethod(obj_, jniWriteFileAppend, static_cast<jlong>(len), reinterpret_cast<jlong>(bytes));
     checkException(env);
   }
 
@@ -457,7 +459,7 @@ void gluten::initVeloxJniFileSystem(JNIEnv* env) {
   jniReadFileClose = getMethodIdOrError(env, jniReadFileClass, "close", "()V");
 
   // methods in JniFilesystem$WriteFile
-  jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", "([B)V");
+  jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", "(JJ)V");
   jniWriteFileFlush = getMethodIdOrError(env, jniWriteFileClass, "flush", "()V");
   jniWriteFileClose = getMethodIdOrError(env, jniWriteFileClass, "close", "()V");
   jniWriteFileSize = getMethodIdOrError(env, jniWriteFileClass, "size", "()J");
