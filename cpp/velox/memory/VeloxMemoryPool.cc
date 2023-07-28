@@ -101,9 +101,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   ListenableArbitrator(const Config& config, AllocationListener* listener)
       : MemoryArbitrator(config), listener_(listener) {}
 
-  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t bytes) override {
-    listener_->allocationChanged(bytes);
-    pool->grow(bytes);
+  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
+    growPool(pool, initMemoryPoolCapacity_);
   }
 
   uint64_t releaseMemory(velox::memory::MemoryPool* pool, uint64_t bytes) override {
@@ -127,7 +126,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
     auto candidate = candidatePools.back();
     GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    reserveMemory(pool, targetBytes);
+    growPool(pool, targetBytes);
     return true;
   }
 
@@ -142,6 +141,11 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
+  void growPool(memory::MemoryPool* pool, uint64_t bytes) {
+    listener_->allocationChanged(bytes);
+    pool->grow(bytes);
+  }
+
   void abort(velox::memory::MemoryPool* pool) {
     try {
       pool->abort();
@@ -197,7 +201,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
       velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
                                                     // contexts (one Spark task reclaims memory from another)
       velox::memory::kMaxMemory, // the 2nd capacity
-      128 << 20,
+      0,
       32 << 20,
       true};
   velox::memory::IMemoryManager::Options mmOptions{
@@ -211,7 +215,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
   bindToTask(mm);
   auto pool = mm->addRootPool(
       "wrapped_root_" + std::to_string(id++),
-      0L, // the 3rd capacity
+      velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
   return pool;
 }
