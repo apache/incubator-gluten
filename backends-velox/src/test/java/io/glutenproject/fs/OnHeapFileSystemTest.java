@@ -37,7 +37,7 @@ public class OnHeapFileSystemTest {
     try {
       byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
       ByteBuffer buf = PlatformDependent.allocateDirectNoCleaner(bytes.length);
-      buf.put(buf);
+      buf.put(bytes);
       writeFile.append(bytes.length, PlatformDependent.directBufferAddress(buf));
       writeFile.flush();
       fileSize = writeFile.size();
