@@ -43,6 +43,7 @@ public class OnHeapFileSystemTest {
     }
 
     JniFilesystem.ReadFile readFile = fs.openFileForRead(path);
+    Assert.assertEquals(fileSize, readFile.size());
     ByteBuffer buf = PlatformDependent.allocateDirectNoCleaner((int) fileSize);
     readFile.pread(0, fileSize, PlatformDependent.directBufferAddress(buf));
     byte[] out = new byte[(int) fileSize];
