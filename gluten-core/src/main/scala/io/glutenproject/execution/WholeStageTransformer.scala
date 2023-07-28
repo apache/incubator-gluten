@@ -95,6 +95,14 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
 
   private var planJson: String = ""
 
+  private[this] var _materializeAtLast: Boolean = false
+
+  def materializeAtLast: Boolean = _materializeAtLast
+
+  def materializeAtLast_=(value: Boolean): Unit = {
+    _materializeAtLast = value
+  }
+
   def getPlanJson: String = {
     if (planJson.isEmpty) {
       logWarning("Plan in JSON string is empty. This may due to the plan has not been executed.")
@@ -275,7 +283,8 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
           wsCxt.substraitContext.registeredRelMap,
           wsCxt.substraitContext.registeredJoinParams,
           wsCxt.substraitContext.registeredAggregationParams
-        )
+        ),
+        materializeAtLast
       )
     } else {
 
@@ -307,7 +316,8 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
           resCtx.substraitContext.registeredRelMap,
           resCtx.substraitContext.registeredJoinParams,
           resCtx.substraitContext.registeredAggregationParams
-        )
+        ),
+        materializeAtLast
       )
     }
   }

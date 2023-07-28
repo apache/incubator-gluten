@@ -36,13 +36,19 @@ trait GlutenParquetWriterInjectsBase extends GlutenParquetWriterInjects {
    * @return
    */
   override def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow] = {
+    if (plan.isInstanceOf[FakeRowAdaptor]) {
+      return plan.execute()
+    }
+
     val transformed = TransformPreOverrides(false).apply(AddTransformHintRule().apply(plan))
     if (!transformed.isInstanceOf[TransformSupport]) {
       throw new IllegalStateException(
         "Cannot transform the SparkPlans wrapped by FileFormatWriter, " +
           "consider disabling native parquet writer to workaround this issue.")
     }
-    FakeRowAdaptor(WholeStageTransformer(transformed)(transformStageCounter.incrementAndGet()))
+    val wst = WholeStageTransformer(transformed)(transformStageCounter.incrementAndGet())
+    wst.materializeAtLast = true
+    FakeRowAdaptor(wst)
       .execute()
   }
 }

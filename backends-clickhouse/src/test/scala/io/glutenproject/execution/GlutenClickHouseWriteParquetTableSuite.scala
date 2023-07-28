@@ -403,6 +403,42 @@ class GlutenClickHouseWriteParquetTableSuite
     }
   }
 
+  // even if disable native writer, this UT fail, spark bug???
+  ignore("test 1-col partitioned table, partitioned by already ordered column") {
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "false")) {
+
+      val fields: ListMap[String, String] = ListMap(
+        ("string_field", "string"),
+        ("int_field", "int"),
+        ("long_field", "long"),
+        ("float_field", "float"),
+        ("double_field", "double"),
+        ("short_field", "short"),
+        ("byte_field", "byte"),
+        ("boolean_field", "boolean"),
+        ("decimal_field", "decimal(23,12)"),
+        ("date_field", "date")
+      )
+
+      val parquet_table_create_sql =
+        s"create table if not exists $parquet_table_name (" +
+          fields
+            .filterNot(e => e._1.equals("date_field"))
+            .map(f => s"${f._1} ${f._2}")
+            .mkString(",") +
+          " ) partitioned by (date_field date) " +
+          "stored as parquet"
+
+      val originDF = spark.createDataFrame(genTestData())
+      originDF.createOrReplaceTempView("origin_table")
+      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+      spark.sql(parquet_table_create_sql)
+      spark.sql(
+        s"insert overwrite $parquet_table_name select ${fields.mkString(",")}" +
+          s" from origin_table order by date_field")
+    }
+  }
+
   test("test 2-col partitioned table") {
     withSQLConf(
       ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
@@ -617,7 +653,7 @@ class GlutenClickHouseWriteParquetTableSuite
         )
       }
 
-      withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "false")) {
+      withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
         spark.sql(s"drop table IF EXISTS $parquet_table_name_vanilla")
         spark
           .table("origin_table")
@@ -667,14 +703,13 @@ class GlutenClickHouseWriteParquetTableSuite
             .write
             .partitionBy("date_field")
             .bucketBy(10, "byte_field", "string_field")
-//            .bucketBy(2, "string_field")
             .saveAsTable(parquet_table_name)
         },
         fields.keys.toSeq
       )
     }
 
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "false")) {
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
       spark.sql(s"drop table IF EXISTS $parquet_table_name_vanilla")
       spark
         .table("origin_table")
@@ -716,38 +751,6 @@ class GlutenClickHouseWriteParquetTableSuite
     }
   }
 
-  ignore("test consecutive null values being partitioned, this has constcolumn issue") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
-
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
-
-      spark
-        .range(30000)
-        .selectExpr("id", "cast(null as string) as p")
-        .write
-        .partitionBy("p")
-        .saveAsTable(parquet_table_name)
-
-      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
-    }
-  }
-
-  ignore("test consecutive null values being bucketed, this has constcolumn issue") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
-
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
-
-      spark
-        .range(30000)
-        .selectExpr("id", "cast(null as string) as p")
-        .write
-        .bucketBy(2, "p")
-        .saveAsTable(parquet_table_name)
-
-      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
-    }
-  }
-
   test("test decimal with rand()") {
     withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
       spark.sql(s"drop table IF EXISTS $parquet_table_name")
@@ -763,17 +766,66 @@ class GlutenClickHouseWriteParquetTableSuite
     }
   }
 
-  ignore("test bigo 2") {
+  test("test partitioned by constant") {
     withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+
       spark.sql(s"drop table IF EXISTS tmp_lzl_screen_pic_convert_save")
       spark.sql(
-        s"create table tmp_lzl_screen_pic_convert_save(" +
+        s"create table tmp(" +
           s"x1 string, x2 bigint,x3 string, x4 bigint, x5 string )" +
           s"partitioned by (day date) stored as parquet")
 
-      spark.sql("insert into tmp_lzl_screen_pic_convert_save partition(day) " +
+      spark.sql("insert into tmp partition(day) " +
         "select cast(id as string), id, cast(id as string), id, cast(id as string), '2023-05-09' " +
         "from range(10000000)")
+    }
+  }
+
+  test("test bucketed by constant") {
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+
+      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+
+      spark
+        .range(10000000)
+        .selectExpr("id", "cast('2020-01-01' as date) as p")
+        .write
+        .bucketBy(2, "p")
+        .saveAsTable(parquet_table_name)
+
+      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
+    }
+  }
+
+  test("test consecutive null values being partitioned") {
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+
+      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+
+      spark
+        .range(30000)
+        .selectExpr("id", "cast(null as string) as p")
+        .write
+        .partitionBy("p")
+        .saveAsTable(parquet_table_name)
+
+      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
+    }
+  }
+
+  test("test consecutive null values being bucketed") {
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+
+      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+
+      spark
+        .range(30000)
+        .selectExpr("id", "cast(null as string) as p")
+        .write
+        .bucketBy(2, "p")
+        .saveAsTable(parquet_table_name)
+
+      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
     }
   }
 

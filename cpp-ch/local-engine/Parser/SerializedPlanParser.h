@@ -396,7 +396,7 @@ class LocalExecutor : public BlockIterator
 {
 public:
     LocalExecutor() = default;
-    explicit LocalExecutor(QueryContext & _query_context, ContextPtr context);
+    explicit LocalExecutor(QueryContext & _query_context, ContextPtr context, bool materialize);
     void execute(QueryPlanPtr query_plan);
     SparkRowInfoPtr next();
     Block * nextColumnar();
@@ -419,6 +419,7 @@ private:
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
     ContextPtr context;
+    bool materialize;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
     std::unique_ptr<SparkBuffer> spark_buffer;
     DB::QueryPlanPtr current_query_plan;

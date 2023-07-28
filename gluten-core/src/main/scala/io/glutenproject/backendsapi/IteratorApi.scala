@@ -63,7 +63,9 @@ trait IteratorApi {
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch]
+      materializeAtLast: Boolean = false,
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
+  ): Iterator[ColumnarBatch]
 
   /**
    * Generate Iterator[ColumnarBatch] for final stage. ("Final" means it depends on other SCAN
@@ -79,7 +81,8 @@ trait IteratorApi {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
-      buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch]
+      buildRelationBatchHolder: Seq[ColumnarBatch],
+      materializeAtLast: Boolean = false): Iterator[ColumnarBatch]
   // scalastyle:on argcount
 
   /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
