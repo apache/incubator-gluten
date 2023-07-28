@@ -1624,7 +1624,7 @@ void SubstraitVeloxPlanConverter::setInFilter<TypeKind::BIGINT>(
     int64_t value = variant.value<int64_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName, true)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1641,7 +1641,7 @@ void SubstraitVeloxPlanConverter::setInFilter<TypeKind::INTEGER>(
     int64_t value = variant.value<int32_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName, true)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1658,7 +1658,7 @@ void SubstraitVeloxPlanConverter::setInFilter<TypeKind::SMALLINT>(
     int64_t value = variant.value<int16_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName, true)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1675,7 +1675,7 @@ void SubstraitVeloxPlanConverter::setInFilter<TypeKind::TINYINT>(
     int64_t value = variant.value<int8_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName, true)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1692,7 +1692,7 @@ void SubstraitVeloxPlanConverter::setInFilter<TypeKind::DATE>(
     int64_t value = variant.value<int32_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName, true)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1707,7 +1707,7 @@ void SubstraitVeloxPlanConverter::setInFilter<TypeKind::VARCHAR>(
     std::string value = variant.value<std::string>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName, true)] = std::make_unique<common::BytesValues>(values, nullAllowed);
+  filters[common::Subfield(inputName)] = std::make_unique<common::BytesValues>(values, nullAllowed);
 }
 
 template <TypeKind KIND, typename FilterType>
@@ -1719,7 +1719,7 @@ void SubstraitVeloxPlanConverter::setSubfieldFilter(
   using MultiRangeType = typename RangeTraits<KIND>::MultiRangeType;
 
   if (colFilters.size() == 1) {
-    filters[common::Subfield(inputName, true)] = std::move(colFilters[0]);
+    filters[common::Subfield(inputName)] = std::move(colFilters[0]);
   } else if (colFilters.size() > 1) {
     // BigintMultiRange should have been sorted
     if (colFilters[0]->kind() == common::FilterKind::kBigintRange) {
@@ -1728,7 +1728,7 @@ void SubstraitVeloxPlanConverter::setSubfieldFilter(
             dynamic_cast<common::BigintRange*>(b.get())->lower();
       });
     }
-    filters[common::Subfield(inputName, true)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+    filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
   }
 }
 
@@ -1772,14 +1772,14 @@ void SubstraitVeloxPlanConverter::constructSubfieldFilters(
     // Currently, Not-equal cannot coexist with other filter conditions
     // due to multirange is in 'OR' relation but 'AND' is needed.
     VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
-    filters[common::Subfield(inputName, true)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+    filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
     return;
   }
 
   // Handle null filtering.
   if (rangeSize == 0 && !nullAllowed) {
     std::unique_ptr<common::IsNotNull> filter = std::make_unique<common::IsNotNull>();
-    filters[common::Subfield(inputName, true)] = std::move(filter);
+    filters[common::Subfield(inputName)] = std::move(filter);
     return;
   }
 
