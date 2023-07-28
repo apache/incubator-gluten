@@ -23,7 +23,7 @@ import org.apache.commons.lang3.NotImplementedException;
 public interface JniFilesystem {
 
   static JniFilesystem getFileSystem() {
-    throw new NotImplementedException("TODO"); // implementations on the way
+    return OnHeapFileSystem.INSTANCE;
   }
 
   static boolean isCapableForNewFile(long size) {
@@ -58,6 +58,8 @@ public interface JniFilesystem {
     long memoryUsage();
 
     long getNaturalReadSize();
+
+    void close();
   }
 
   interface WriteFile {

@@ -44,6 +44,7 @@ jmethodID jniReadFileShouldCoalesce;
 jmethodID jniReadFileSize;
 jmethodID jniReadFileMemoryUsage;
 jmethodID jniReadFileGetNaturalReadSize;
+jmethodID jniReadFileClose;
 
 jmethodID jniWriteFileAppend;
 jmethodID jniWriteFileFlush;
@@ -72,6 +73,11 @@ class JniReadFile : public facebook::velox::ReadFile {
   }
 
   ~JniReadFile() override {
+    try {
+      close0();
+    } catch (std::exception e) {
+      LOG(WARNING) << "Error closing jni read file " << e.what();
+    }
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->DeleteGlobalRef(obj_);
@@ -124,6 +130,13 @@ class JniReadFile : public facebook::velox::ReadFile {
   }
 
  private:
+  void close0() {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniReadFileClose);
+    checkException(env);
+  }
+
   jobject obj_;
 };
 
@@ -137,6 +150,11 @@ class JniWriteFile : public facebook::velox::WriteFile {
   }
 
   ~JniWriteFile() override {
+    try {
+      close0();
+    } catch (std::exception e) {
+      LOG(WARNING) << "Error closing jni write file " << e.what();
+    }
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->DeleteGlobalRef(obj_);
@@ -158,10 +176,7 @@ class JniWriteFile : public facebook::velox::WriteFile {
   }
 
   void close() override {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm, &env);
-    env->CallVoidMethod(obj_, jniWriteFileClose);
-    checkException(env);
+    close0();
   }
 
   uint64_t size() const override {
@@ -173,6 +188,13 @@ class JniWriteFile : public facebook::velox::WriteFile {
   }
 
  private:
+  void close0() {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    env->CallVoidMethod(obj_, jniWriteFileClose);
+    checkException(env);
+  }
+
   jobject obj_;
 };
 
@@ -431,6 +453,7 @@ void gluten::initVeloxJniFileSystem(JNIEnv* env) {
   jniReadFileSize = getMethodIdOrError(env, jniReadFileClass, "size", "()J");
   jniReadFileMemoryUsage = getMethodIdOrError(env, jniReadFileClass, "memoryUsage", "()J");
   jniReadFileGetNaturalReadSize = getMethodIdOrError(env, jniReadFileClass, "getNaturalReadSize", "()J");
+  jniReadFileClose = getMethodIdOrError(env, jniReadFileClass, "close", "()V");
 
   // methods in JniFilesystem$WriteFile
   jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", "([B)V");
