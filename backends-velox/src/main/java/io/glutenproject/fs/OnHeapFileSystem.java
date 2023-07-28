@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class OnHeapFileSystem implements JniFilesystem {
@@ -134,7 +135,15 @@ public class OnHeapFileSystem implements JniFilesystem {
   public void rmdir(String path) {
     ensureExist(path);
     try {
-      Files.delete(fs.getPath(path));
+      Files.walk(fs.getPath(path))
+          .sorted(Comparator.reverseOrder())
+          .forEach(p -> {
+            try {
+              Files.delete(p);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          });
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
