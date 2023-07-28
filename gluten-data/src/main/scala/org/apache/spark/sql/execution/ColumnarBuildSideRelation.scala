@@ -163,7 +163,7 @@ case class ColumnarBuildSideRelation(
               throw new IllegalArgumentException(s"Multiple key columns found in expression: $key")
             }
             val columnExpr = columnNames.head
-            val oneColumnWithSameName = output.find(_.name == columnExpr.name).size == 1
+            val oneColumnWithSameName = output.count(_.name == columnExpr.name) == 1
             val columnInOutput = output.zipWithIndex.filter {
               p: (Attribute, Int) =>
                 if (oneColumnWithSameName) {
