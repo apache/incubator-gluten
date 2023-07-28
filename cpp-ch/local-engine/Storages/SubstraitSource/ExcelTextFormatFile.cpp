@@ -84,16 +84,12 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     format_settings.csv.delimiter = *delimiter.data();
 
     if (file_info.start() == 0)
-    {
         format_settings.csv.skip_first_lines = file_info.text().header();
-    }
-
-    format_settings.csv.null_representation = file_info.text().null_value();
 
     if (delimiter == "\t" || delimiter == " ")
-    {
         format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
-    }
+
+    format_settings.csv.null_representation = file_info.text().null_value();
 
     if (format_settings.csv.null_representation.empty())
         format_settings.csv.empty_as_default = true;
@@ -106,13 +102,9 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
         format_settings.csv.allow_single_quotes = true;
         format_settings.csv.allow_double_quotes = false;
     }
-    else if (quote == '"')
-    {
-        format_settings.csv.allow_single_quotes = false;
-        format_settings.csv.allow_double_quotes = true;
-    }
     else
     {
+        /// quote == '"' and default
         format_settings.csv.allow_single_quotes = false;
         format_settings.csv.allow_double_quotes = true;
     }
@@ -204,7 +196,7 @@ bool ExcelTextFormatReader::readField(
     const DB::DataTypePtr & type,
     const DB::SerializationPtr & serialization,
     bool is_last_file_column,
-    const String & )
+    const String &)
 {
     if (isEndOfLine())
     {

@@ -250,17 +250,11 @@ class HiveTableScanExecTransformer(
 
   override def equals(other: Any): Boolean = other match {
     case that: HiveTableScanExecTransformer =>
-      that.canEqual(this) &&
-      scan == that.scan &&
-      metrics == that.metrics &&
-      filteredPartitions == that.filteredPartitions
+      that.canEqual(this) && super.equals(that)
     case _ => false
   }
 
-  override def hashCode(): Int = {
-    val state = Seq(super.hashCode(), scan, metrics, filteredPartitions)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
-  }
+  override def hashCode(): Int = super.hashCode()
 }
 
 object HiveTableScanExecTransformer {
