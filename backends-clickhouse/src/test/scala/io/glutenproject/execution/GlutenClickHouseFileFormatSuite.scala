@@ -324,7 +324,7 @@ class GlutenClickHouseFileFormatSuite
       ))
 
     val options = new util.HashMap[String, String]()
-    options.put("delimiter", ",")
+    options.put("delimiter", "|")
     options.put("header", "false")
 
     val df = spark.read

@@ -344,16 +344,14 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
             {
                 while (!buf.eof())
                 {
-                    if (*buf.position() == ',' || *buf.position() == '\n' || *buf.position() == '\r')
+                    if (!(*buf.position() >= '0' && *buf.position() <= '9'))
                     {
                         break;
                     }
-                    else if (!(*buf.position() >= '0' && *buf.position() <= '9')
-                             && (*buf.position() != '\n' && *buf.position() != '\r' && *buf.position() != '\r'))
+                    else
                     {
-                        return false;
+                        ++buf.position();
                     }
-                    ++buf.position();
                 }
             }
             else
