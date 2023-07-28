@@ -401,9 +401,10 @@ class JolFileSystem {
   std::function<std::shared_ptr<
       facebook::velox::filesystems::FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
   fileSystemGenerator() {
-    return [=](std::shared_ptr<const facebook::velox::Config> properties,
+    return [maxFileSize = this->maxFileSize_](
+               std::shared_ptr<const facebook::velox::Config> properties,
                std::string_view filePath) -> std::shared_ptr<facebook::velox::filesystems::FileSystem> {
-      if (JniFileSystem::isCapableForNewFile(maxFileSize_)) {
+      if (JniFileSystem::isCapableForNewFile(maxFileSize)) {
         return JniFileSystem::fileSystemGenerator()(properties, filePath);
       }
       const std::string_view& localFilePath =
