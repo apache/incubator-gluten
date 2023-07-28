@@ -122,7 +122,7 @@ public class OnHeapFileSystem implements JniFilesystem {
   public void mkdir(String path) {
     ensureNotExist(path);
     try {
-      Files.createDirectory(fs.getPath(path));
+      Files.createDirectories(fs.getPath(path));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
