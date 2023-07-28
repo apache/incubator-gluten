@@ -337,6 +337,28 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
             else
                 break;
         }
+        else if (*buf.position() == '.')
+        {
+            ++buf.position();
+            if (has_number)
+            {
+                while (!buf.eof())
+                {
+                    if (*buf.position() == ',' || *buf.position() == '\n' || *buf.position() == '\r')
+                    {
+                        break;
+                    }
+                    else if (!(*buf.position() >= '0' && *buf.position() <= '9')
+                             && (*buf.position() != '\n' && *buf.position() != '\r' && *buf.position() != '\r'))
+                    {
+                        return false;
+                    }
+                    ++buf.position();
+                }
+            }
+            else
+                return false;
+        }
         else if (*buf.position() >= '0' && *buf.position() <= '9')
         {
             has_number = true;
