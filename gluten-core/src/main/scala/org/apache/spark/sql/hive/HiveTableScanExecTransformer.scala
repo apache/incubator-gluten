@@ -104,7 +104,7 @@ class HiveTableScanExecTransformer(
     doExecuteColumnarInternal()
   }
 
-  private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
+  @transient private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
     scan match {
       case Some(fileScan) =>
         val dataSourceFilters = partitionPruningPred.flatMap {
