@@ -30,8 +30,8 @@ Gluten CPP coding, there are a few Philosophical rules as the following.
 Many aspects of C++ coding style will be covered by clang-format, such as spacing,
 line width, indentation and ordering (for includes, using directives and etc). 
 
-* Always ensure your code is compatible with clang-format.
-* `dev/formatcppcode.sh` is provided for formating CPP code.
+* Always ensure your code is compatible with clang-format-12 for Velox backend.
+* `dev/formatcppcode.sh` is provided for formatting Velox CPP code.
 
 ## Naming Conventions
 
