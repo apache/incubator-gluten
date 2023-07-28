@@ -137,13 +137,14 @@ public class OnHeapFileSystem implements JniFilesystem {
     try {
       Files.walk(fs.getPath(path))
           .sorted(Comparator.reverseOrder())
-          .forEach(p -> {
-            try {
-              Files.delete(p);
-            } catch (IOException e) {
-              throw new RuntimeException(e);
-            }
-          });
+          .forEach(
+              p -> {
+                try {
+                  Files.delete(p);
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                }
+              });
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
