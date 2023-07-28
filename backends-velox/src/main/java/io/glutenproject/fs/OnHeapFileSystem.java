@@ -155,11 +155,11 @@ public class OnHeapFileSystem implements JniFilesystem {
     @Override
     public void pread(long offset, long length, long buf) {
       try {
-        ByteBuffer out = PlatformDependent.directBuffer(buf, (int) length);
         if (offset < cursor.get()) {
           throw new IllegalStateException(
               "ReadFile: Offset to read is in front to the cursor position");
         }
+        ByteBuffer out = PlatformDependent.directBuffer(buf, (int) length);
         if (offset > cursor.get()) {
           long toSkip = offset - cursor.get();
           long skippedBytes = in.skip(toSkip);
@@ -171,7 +171,7 @@ public class OnHeapFileSystem implements JniFilesystem {
           }
         }
         channel.read(out);
-        cursor.getAndAdd((int) length);
+        cursor.set((int) (offset + length));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
