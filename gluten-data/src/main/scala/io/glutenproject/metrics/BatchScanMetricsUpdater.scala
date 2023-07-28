@@ -38,6 +38,7 @@ class BatchScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metri
       metrics("outputVectors") += operatorMetrics.outputVectors
       metrics("outputBytes") += operatorMetrics.outputBytes
       metrics("cpuCount") += operatorMetrics.cpuCount
+      metrics("scanTime") += operatorMetrics.scanTime
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("peakMemoryBytes") += operatorMetrics.peakMemoryBytes
       metrics("numMemoryAllocations") += operatorMetrics.numMemoryAllocations
