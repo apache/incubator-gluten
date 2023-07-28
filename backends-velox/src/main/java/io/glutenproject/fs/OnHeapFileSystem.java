@@ -46,6 +46,8 @@ public class OnHeapFileSystem implements JniFilesystem {
 
   @Override
   public boolean isCapableForNewFile0(long size) {
+    // FIXME: This is rough. JVM heap can still be filled out by other threads
+    //   after passing this check.
     long freeMemory = Runtime.getRuntime().freeMemory();
     return freeMemory > size;
   }
