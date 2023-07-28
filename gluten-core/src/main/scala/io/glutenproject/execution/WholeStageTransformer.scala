@@ -45,11 +45,7 @@ case class TransformContext(
     outputAttributes: Seq[Attribute],
     root: RelNode)
 
-case class WholestageTransformContext(
-    inputAttributes: Seq[Attribute],
-    outputAttributes: Seq[Attribute],
-    root: PlanNode,
-    substraitContext: SubstraitContext = null)
+case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
 
 trait TransformSupport extends GlutenPlan {
 
@@ -156,7 +152,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     throw new UnsupportedOperationException("Row based execution is not supported")
   }
 
-  def doWholestageTransform(): WholestageTransformContext = {
+  def doWholeStageTransform(): WholeStageTransformContext = {
     // invoke SparkPlan.prepare to do subquery preparation etc.
     super.prepare()
 
@@ -165,7 +161,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       .asInstanceOf[TransformSupport]
       .doTransform(substraitContext)
     if (childCtx == null) {
-      throw new NullPointerException(s"ColumnarWholestageTransformer can't doTansform on $child")
+      throw new NullPointerException(s"ColumnarWholeStageTransformer can't doTransform on $child")
     }
     val outNames = new java.util.ArrayList[String]()
     val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
@@ -191,11 +187,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     }
     planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
 
-    WholestageTransformContext(
-      childCtx.inputAttributes,
-      childCtx.outputAttributes,
-      planNode,
-      substraitContext)
+    WholeStageTransformContext(planNode, substraitContext)
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformer */
@@ -252,7 +244,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
           "The partition length of all the scan transformer are not the same.")
       }
       val startTime = System.nanoTime()
-      val wsCxt = doWholestageTransform()
+      val wsCxt = doWholeStageTransform()
 
       // the file format for each scan exec
       wsCxt.substraitContext.setFileFormat(
@@ -274,7 +266,6 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       new GlutenWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartitions,
-        wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
         leafMetricsUpdater().updateInputMetrics,
@@ -295,7 +286,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked
        */
       val startTime = System.nanoTime()
-      val resCtx = doWholestageTransform()
+      val resCtx = doWholeStageTransform()
 
       logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
       logOnLevel(

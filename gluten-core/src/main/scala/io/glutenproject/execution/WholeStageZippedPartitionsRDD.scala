@@ -43,7 +43,7 @@ class WholeStageZippedPartitionsRDD(
     var rdds: Seq[RDD[ColumnarBatch]],
     numaBindingInfo: GlutenNumaBindingInfo,
     sparkConf: SparkConf,
-    resCtx: WholestageTransformContext,
+    resCtx: WholeStageTransformContext,
     pipelineTime: SQLMetric,
     buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch],
     updateNativeMetrics: IMetrics => Unit)
@@ -55,7 +55,6 @@ class WholeStageZippedPartitionsRDD(
         inputIterators,
         numaBindingInfo,
         sparkConf,
-        resCtx.outputAttributes,
         resCtx.root,
         pipelineTime,
         updateNativeMetrics,

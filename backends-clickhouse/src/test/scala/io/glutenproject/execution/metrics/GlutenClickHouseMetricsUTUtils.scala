@@ -50,8 +50,7 @@ object GlutenClickHouseMetricsUTUtils {
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       mockMemoryAllocator.getNativeInstanceId,
       substraitPlan.toByteArray,
-      inBatchIters,
-      outputAttributes)
+      inBatchIters)
     val iter = new Iterator[Any] {
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
@@ -99,17 +98,17 @@ object GlutenClickHouseMetricsUTUtils {
   /** Execute metrics updater by metrics json file */
   def executeMetricsUpdater(wholeStageTransformer: WholeStageTransformer, metricsJsonFile: String)(
       customCheck: () => Unit): Unit = {
-    val wholestageTransformContext = wholeStageTransformer.doWholestageTransform()
+    val wholeStageTransformContext = wholeStageTransformer.doWholeStageTransform()
 
     val wholeStageTransformerUpdaterTree =
       MetricsUtil.treeifyMetricsUpdaters(wholeStageTransformer.child)
-    val relMap = wholestageTransformContext.substraitContext.registeredRelMap
+    val relMap = wholeStageTransformContext.substraitContext.registeredRelMap
     val wholeStageTransformerUpdater = MetricsUtil.updateTransformerMetrics(
       wholeStageTransformerUpdaterTree,
       relMap,
       java.lang.Long.valueOf(relMap.size() - 1),
-      wholestageTransformContext.substraitContext.registeredJoinParams,
-      wholestageTransformContext.substraitContext.registeredAggregationParams
+      wholeStageTransformContext.substraitContext.registeredJoinParams,
+      wholeStageTransformContext.substraitContext.registeredAggregationParams
     )
 
     val nativeMetrics =

@@ -29,7 +29,6 @@ import io.glutenproject.substrait.plan.PlanNode;
 import com.google.protobuf.Any;
 import io.substrait.proto.Plan;
 import org.apache.spark.SparkConf;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.internal.SQLConf;
 
 import java.io.IOException;
@@ -82,8 +81,7 @@ public class CHNativeExpressionEvaluator {
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      Plan wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
-      throws RuntimeException, IOException {
+      Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
     long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
@@ -96,12 +94,12 @@ public class CHNativeExpressionEvaluator {
                         SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray());
-    return createOutIterator(handle, outAttrs);
+    return createOutIterator(handle);
   }
 
   // Only for UT.
   public GeneralOutIterator createKernelWithBatchIterator(
-      long allocId, byte[] wsPlan, List<GeneralInIterator> iterList, List<Attribute> outAttrs)
+      long allocId, byte[] wsPlan, List<GeneralInIterator> iterList)
       throws RuntimeException, IOException {
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
@@ -114,15 +112,14 @@ public class CHNativeExpressionEvaluator {
                         SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray());
-    return createOutIterator(handle, outAttrs);
+    return createOutIterator(handle);
   }
 
   private byte[] getPlanBytesBuf(Plan planNode) {
     return planNode.toByteArray();
   }
 
-  private GeneralOutIterator createOutIterator(long nativeHandle, List<Attribute> outAttrs)
-      throws IOException {
-    return new BatchIterator(nativeHandle, outAttrs);
+  private GeneralOutIterator createOutIterator(long nativeHandle) throws IOException {
+    return new BatchIterator(nativeHandle);
   }
 }
