@@ -220,6 +220,9 @@ void VeloxInitializer::initJolFilesystem(const std::unordered_map<std::string, s
   if (got != conf.end()) {
     maxSpillFileSize = std::stol(got->second);
   }
+  // FIMXE It's known that if spill compression is disabled, the actual spill file size may
+  //   in crease beyond this limit a little (maximum 64 rows which is by default
+  //   one compression page)
   gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
