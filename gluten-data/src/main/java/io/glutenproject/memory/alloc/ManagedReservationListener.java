@@ -64,8 +64,6 @@ public class ManagedReservationListener implements ReservationListener {
                   + "get larger space to run this application. ");
         }
         return granted;
-      } catch (OutOfMemoryException e) {
-        throw e;
       } catch (Exception e) {
         LOG.error("Error reserving memory from target", e);
         throw e;
