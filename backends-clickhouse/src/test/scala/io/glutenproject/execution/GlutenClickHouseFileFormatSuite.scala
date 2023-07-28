@@ -290,6 +290,67 @@ class GlutenClickHouseFileFormatSuite
     checkAnswer(df, expectedAnswer)
   }
 
+  test("issues-2443 test1 for whitespace surrounding data") {
+    val file_path = csvDataPath + "/whitespace_surrounding_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 2.toLong, 3.toShort))
+    dataCorrect.add(Row(1, 2.toLong, null))
+    dataCorrect.add(Row(1, null, 4.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issues-2443 test2 for float to int data") {
+    val file_path = csvDataPath + "/float_to_int_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", "|")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 1.toLong, 10.toShort))
+    dataCorrect.add(Row(null, null, 10.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
   test("read excel export csv base") {
     implicit class StringToDate(s: String) {
       def date: Date = Date.valueOf(s)

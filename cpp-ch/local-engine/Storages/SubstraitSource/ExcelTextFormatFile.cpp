@@ -63,7 +63,7 @@ DB::NamesAndTypesList ExcelTextFormatFile::getSchema() const
 DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
 {
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
-    format_settings.csv.trim_whitespaces = false;
+    format_settings.csv.trim_whitespaces = true;
     format_settings.with_names_use_header = true;
     format_settings.with_types_use_header = false;
     format_settings.skip_unknown_fields = true;
@@ -199,7 +199,7 @@ bool ExcelTextFormatReader::readField(
     size_t column_size = column.size();
     try
     {
-        if (format_settings.csv.trim_whitespaces || isFloat(removeNullable(type))) [[unlikely]]
+        if (format_settings.csv.trim_whitespaces && isNumber(removeNullable(type))) [[unlikely]]
             skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
 
         const bool at_delimiter = !buf->eof() && *buf->position() == format_settings.csv.delimiter;
