@@ -39,6 +39,7 @@
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
 #include "jni/JniFileSystem.h"
+#include "udf/UdfLoader.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
@@ -79,6 +80,8 @@ const std::string kVeloxIOThreadsDefault = "0";
 
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 const std::string kVeloxSplitPreloadPerDriverDefault = "2";
+
+const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths";
 
 } // namespace
 
@@ -197,6 +200,8 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
   }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
+
+  initUdf(conf);
 }
 
 velox::memory::MemoryAllocator* VeloxInitializer::getAsyncDataCache() const {
@@ -302,6 +307,15 @@ void VeloxInitializer::initHWAccelerators(const std::unordered_map<std::string, 
       }
     }
 #endif
+  }
+}
+
+void VeloxInitializer::initUdf(const std::unordered_map<std::string, std::string>& conf) {
+  auto got = conf.find(kVeloxUdfLibraryPaths);
+  if (got != conf.end() && !got->second.empty()) {
+    auto udfLoader = gluten::UdfLoader::getInstance();
+    udfLoader->loadUdfLibraries(got->second);
+    udfLoader->registerUdf();
   }
 }
 

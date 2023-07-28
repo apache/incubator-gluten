@@ -22,9 +22,10 @@ import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.test.TestStats
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.SQLConfHelper
+import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
 import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
@@ -32,6 +33,15 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.hive.HiveSimpleUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+trait Transformable extends Expression {
+  def getTransformer(childrenTransformers: Seq[ExpressionTransformer]): ExpressionTransformer
+
+  override def eval(input: InternalRow): Any = throw new UnsupportedOperationException()
+
+  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode =
+    throw new UnsupportedOperationException()
+}
 
 object ExpressionConverter extends SQLConfHelper with Logging {
 
@@ -691,6 +701,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(q.fourth, attributeSeq),
           q
         )
+      case e: Transformable =>
+        val chidrenTransformers = e.children.map(replaceWithExpressionTransformer(_, attributeSeq))
+        e.getTransformer(chidrenTransformers)
       case expr =>
         normalFunctionExpressionTransform(expr, attributeSeq, substraitExprName.get)
     }
