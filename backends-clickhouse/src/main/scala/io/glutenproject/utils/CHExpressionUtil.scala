@@ -17,16 +17,31 @@
 package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionNames._
+import io.glutenproject.utils.FunctionValidator._
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 trait FunctionValidator {
   def doValidate(expr: Expression): Boolean
 }
 
+object FunctionValidator {
+  def isDateTimeType(dataType: DataType): Boolean = dataType match {
+    case DateType | TimestampType => true
+    case _ => false
+  }
+}
+
 case class DefaultValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = false
+}
+
+case class SequenceValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    !expr.children.exists(x => isDateTimeType(x.dataType))
+  }
 }
 
 case class UnixTimeStampValidator() extends FunctionValidator {
@@ -121,6 +136,7 @@ object CHExpressionUtil {
     SPLIT_PART -> DefaultValidator(),
     TO_UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     UNIX_TIMESTAMP -> UnixTimeStampValidator(),
+    SEQUENCE -> SequenceValidator(),
     MIGHT_CONTAIN -> DefaultValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
     ARRAYS_OVERLAP -> DefaultValidator(),
