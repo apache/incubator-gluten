@@ -91,6 +91,7 @@ object ExpressionMappings {
     Sig[Empty2Null](EMPTY2NULL),
     Sig[InitCap](INITCAP),
     Sig[Overlay](OVERLAY),
+    Sig[Conv](CONV),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),

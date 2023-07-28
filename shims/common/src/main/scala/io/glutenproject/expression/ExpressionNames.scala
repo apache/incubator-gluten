@@ -102,6 +102,7 @@ object ExpressionNames {
   final val EMPTY2NULL = "empty2null"
   final val INITCAP = "initcap"
   final val OVERLAY = "overlay"
+  final val CONV = "conv"
 
   // URL functions
   final val PARSE_URL = "parse_url"

@@ -13,7 +13,7 @@ class SparkFunctionConv: public DB::IFunction
 {
 public:
     static constexpr auto name = "sparkConv";
-    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionMonthsBetween>(); }
+    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConv>(); }
     SparkFunctionConv() = default;
     ~SparkFunctionConv() override = default;
 

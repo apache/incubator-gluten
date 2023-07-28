@@ -38,13 +38,6 @@ namespace local_engine
 
   For conversion to decimal representation (radix is -10 or 10) one should use
   the optimized #longlong10_to_str() function instead.
-
-  @param val the value to convert
-  @param dst the buffer where the string representation should be stored
-  @param radix radix of scale of notation
-  @param upcase true if we should use upper-case digits
-
-  @return pointer to the ending NUL character, or nullptr if radix is bad
 */
 
 constexpr std::array<const char, 37> dig_vec_upper{
@@ -87,22 +80,22 @@ static inline char *longlong2str(int64_t val, char *dst, int radix) {
   return ll2str(val, dst, radix, true);
 }
 
-using namespace DB;
 DB::DataTypePtr SparkFunctionConv::getReturnTypeImpl(const DB::DataTypes & arguments) const
 {
     if (arguments.size() != 3)
-        throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
+        throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
             "Number of arguments for function {} doesn't match: passed {}, should be 3.",
             getName(), arguments.size());
 
     if (!isInteger(arguments[1]))
-        throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+        throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
             "Second argument for function {} must be Int", getName());
     if (!isInteger(arguments[2]))
-        throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+        throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
             "Thrid argument for function {} must be Int", getName());
 
-    return DB::makeNullableSafe(std::make_shared<DataTypeString>());
+    auto arg0_type = DB::removeNullable(arguments[0]);
+    return std::make_shared<DB::DataTypeNullable>(arg0_type);
 }
 
 unsigned long long my_strntoull_8bit(const char *nptr,
@@ -229,7 +222,7 @@ DB::ColumnPtr SparkFunctionConv::executeImpl(
     return result;
 }
 
-REGISTER_FUNCTION(SparkFunctionMonthsBetween)
+REGISTER_FUNCTION(SparkFunctionConv)
 {
     factory.registerFunction<SparkFunctionConv>();
 }
