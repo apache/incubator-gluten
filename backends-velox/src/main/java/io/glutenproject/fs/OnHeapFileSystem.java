@@ -42,7 +42,11 @@ public class OnHeapFileSystem implements JniFilesystem {
   private final FileSystem fs;
 
   private OnHeapFileSystem() {
-    fs = Jimfs.newFileSystem(Configuration.unix());
+    long maxSize = Runtime.getRuntime().maxMemory();
+    fs = Jimfs.newFileSystem(
+        Configuration.unix().toBuilder()
+            .setMaxSize(maxSize)
+            .build());
   }
 
   @Override
