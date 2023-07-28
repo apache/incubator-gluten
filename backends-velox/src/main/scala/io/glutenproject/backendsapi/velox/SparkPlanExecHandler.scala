@@ -412,9 +412,8 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
           .scheme("jol")
           .toString
         rewritten
-      case other => {
+      case other =>
         throw new IllegalStateException(s"Unsupported fs: $other")
-      }
     }
   }
 }
