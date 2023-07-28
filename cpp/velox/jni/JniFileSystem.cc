@@ -281,7 +281,7 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
       std::string_view path,
       const facebook::velox::filesystems::FileOptions& options) override {
     GLUTEN_CHECK(
-        !options.values.empty(),
+        options.values.empty(),
         "JniFileSystem::openFileForRead: file options is not empty, this is not currently supported");
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
@@ -295,7 +295,7 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
       std::string_view path,
       const facebook::velox::filesystems::FileOptions& options) override {
     GLUTEN_CHECK(
-        !options.values.empty(),
+        options.values.empty(),
         "JniFileSystem::openFileForWrite: file options is not empty, this is not currently supported");
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
