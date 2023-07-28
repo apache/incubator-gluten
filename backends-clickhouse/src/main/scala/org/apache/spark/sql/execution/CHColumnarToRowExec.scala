@@ -17,15 +17,16 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.ColumnarToRowExecBase
-import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
+import io.glutenproject.vectorized.CHNativeBlock
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -100,8 +101,6 @@ class CHColumnarToRowRDD(
 
   private def f: Iterator[ColumnarBatch] => Iterator[InternalRow] = {
     batches =>
-      val jniWrapper = new CHBlockConverterJniWrapper()
-
       batches.flatMap {
         batch =>
           numInputBatches += 1
@@ -114,33 +113,10 @@ class CHColumnarToRowRDD(
             val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
             val beforeConvert = System.nanoTime()
             val blockAddress = nativeBlock.blockAddress()
-            val info = jniWrapper.convertColumnarToRow(blockAddress)
 
             convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 
-            new Iterator[InternalRow] {
-              var rowId = 0
-              val row = new UnsafeRow(batch.numCols())
-              var closed = false
-
-              override def hasNext: Boolean = {
-                val result = rowId < batch.numRows()
-                if (!result && !closed) {
-                  jniWrapper.freeMemory(info.memoryAddress, info.totalSize)
-                  closed = true
-                }
-                result
-              }
-
-              override def next: UnsafeRow = {
-                if (rowId >= batch.numRows()) throw new NoSuchElementException
-
-                val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-                row.pointTo(null, info.memoryAddress + offset, length.toInt)
-                rowId += 1
-                row
-              }
-            }
+            CHExecUtil.getRowIterFromSparkRowInfo(blockAddress, batch.numCols(), batch.numRows())
           }
       }
   }

@@ -1,4 +1,6 @@
 #include "FileWriterWrappers.h"
+#include <algorithm>
+#include <regex>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
@@ -29,12 +31,17 @@ void NormalFileWriter::close()
     writer->finish();
 }
 
-FileWriterWrapper * createFileWriterWrapper(std::string file_uri)
+FileWriterWrapper *
+createFileWriterWrapper(std::string file_uri, std::vector<std::string> & preferred_column_names, const std::string & format_hint)
 {
-    Poco::URI poco_uri(file_uri);
+    // the passed in file_uri is exactly what is expected to see in the output folder
+    // e.g /xxx/中文/timestamp_field=2023-07-13 03%3A00%3A17.622/abc.parquet
+    std::string encoded;
+    Poco::URI::encode(file_uri, "", encoded); // encode the space and % seen in the file_uri
+    Poco::URI poco_uri(encoded);
     auto context = DB::Context::createCopy(local_engine::SerializedPlanParser::global_context);
     auto write_buffer_builder = WriteBufferBuilderFactory::instance().createBuilder(poco_uri.getScheme(), context);
-    auto file = OutputFormatFileUtil::createFile(context, write_buffer_builder, file_uri);
+    auto file = OutputFormatFileUtil::createFile(context, write_buffer_builder, encoded, preferred_column_names, format_hint);
     return new NormalFileWriter(file, context);
 }
 

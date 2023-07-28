@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
+import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 
 object ExpressionMappings {
 
@@ -85,6 +86,7 @@ object ExpressionMappings {
     Sig[StringRepeat](REPEAT),
     Sig[StringTranslate](TRANSLATE),
     Sig[StringSpace](SPACE),
+    Sig[Empty2Null](EMPTY2NULL),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),

@@ -16,48 +16,38 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SPECULATION_ENABLED
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
-import org.apache.spark.sql.execution.datasources.velox.VeloxParquetFileFormat
-import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil, HiveUtils}
+import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil}
 import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.util.SerializableJobConf
 
-import com.google.common.base.Preconditions
-import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.hive.ql.exec.Utilities
 import org.apache.hadoop.hive.ql.io.{HiveFileFormatUtils, HiveOutputFormat}
 import org.apache.hadoop.hive.serde2.Serializer
 import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspectorUtils, StructObjectInspector}
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils
 import org.apache.hadoop.io.Writable
 import org.apache.hadoop.mapred.{JobConf, Reporter}
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
-import java.io.IOException
-import java.net.URI
-
 import scala.collection.JavaConverters._
 
 /**
- * This file is copied from Spark
+ * `FileFormat` for writing Hive tables.
  *
- * Offload the parquet write of InsertIntoHiveDirCommand to velox backend when enable gluten plugin.
+ * TODO: implement the read logic.
  */
 class HiveFileFormat(fileSinkConf: FileSinkDesc)
   extends FileFormat
@@ -73,18 +63,6 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
     throw QueryExecutionErrors.inferSchemaUnsupportedForHiveError()
-  }
-
-  /** Gluten only supports convert [[InsertIntoHiveDirCommand]], see [[GlutenColumnarRules]]. */
-  private def isGlutenHiveWrite(sparkSession: SparkSession): Boolean = {
-    fileSinkConf.tableInfo
-      .getOutputFileFormatClassName()
-      .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat") &&
-    sparkSession.sparkContext.conf
-      .getOption("spark.plugins")
-      .contains("io.glutenproject.GlutenPlugin") &&
-    sparkSession.sessionState.conf.getConf(HiveUtils.CONVERT_METASTORE_PARQUET) &&
-    sparkSession.sessionState.conf.getConf(HiveUtils.CONVERT_INSERTING_PARTITIONED_TABLE)
   }
 
   override def prepareWrite(
@@ -117,7 +95,12 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
     // Avoid referencing the outer object.
     val fileSinkConfSer = fileSinkConf
 
-    if (isGlutenHiveWrite(sparkSession)) {
+    if (
+      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeParquetAppliable"))
+      && fileSinkConf.tableInfo.getOutputFileFormatClassName
+        .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
+    ) {
+
       logInfo("Use Gluten parquet write for hive")
       val compressionCodec = if (fileSinkConf.compressed) {
         // hive related configurations
@@ -126,11 +109,11 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
         val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
         parquetOptions.compressionCodecClassName
       }
-      val nativeConf = VeloxParquetFileFormat.nativeConf(options, compressionCodec)
+      val nativeConf =
+        GlutenParquetWriterInjects.getInstance().nativeConf(options, compressionCodec)
 
-      // Only offload parquet write to velox backend.
       new OutputWriterFactory {
-        private val jobConf = new SerializableJobConf(new JobConf(job.getConfiguration))
+        private val jobConf = new SerializableJobConf(new JobConf(conf))
         @transient private lazy val outputFormat =
           jobConf.value.getOutputFormat.asInstanceOf[HiveOutputFormat[AnyRef, Writable]]
 
@@ -142,60 +125,9 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
             path: String,
             dataSchema: StructType,
             context: TaskAttemptContext): OutputWriter = {
-          val originPath = path
-
-          URI.create(originPath) // validate uri
-          val matcher = VeloxWriteQueue.TAILING_FILENAME_REGEX.matcher(originPath)
-          if (!matcher.matches()) {
-            throw new IllegalArgumentException("illegal out put file uri: " + originPath)
-          }
-          val fileName = matcher.group(2)
-
-          val arrowSchema =
-            SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
-          val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
-          var instanceId = -1L
-          val datasourceJniWrapper = new DatasourceJniWrapper()
-          val allocator = ArrowBufferAllocators.contextInstance()
-          try {
-            ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-            instanceId = datasourceJniWrapper.nativeInitDatasource(
-              originPath,
-              cSchema.memoryAddress(),
-              nativeConf)
-          } catch {
-            case e: IOException =>
-              throw new RuntimeException(e)
-          } finally {
-            cSchema.close()
-          }
-
-          val writeQueue =
-            new VeloxWriteQueue(
-              instanceId,
-              arrowSchema,
-              allocator,
-              datasourceJniWrapper,
-              originPath)
-
-          new OutputWriter {
-            override def write(row: InternalRow): Unit = {
-              val batch = row.asInstanceOf[FakeRow].batch
-              Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
-              ColumnarBatches.retain(batch)
-              writeQueue.enqueue(batch)
-            }
-
-            override def close(): Unit = {
-              writeQueue.close()
-              datasourceJniWrapper.close(instanceId)
-            }
-
-            // Do NOT add override keyword for compatibility on spark 3.1.
-            def path(): String = {
-              originPath
-            }
-          }
+          GlutenParquetWriterInjects
+            .getInstance()
+            .createOutputWriter(path, dataSchema, context, nativeConf);
         }
       }
     } else {
@@ -215,6 +147,21 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
           new HiveOutputWriter(path, fileSinkConfSer, jobConf.value, dataSchema)
         }
       }
+    }
+  }
+
+  override def supportFieldName(name: String): Boolean = {
+    fileSinkConf.getTableInfo.getOutputFileFormatClassName match {
+      case "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" =>
+        !name.matches(".*[ ,;{}()\n\t=].*")
+      case "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat" =>
+        try {
+          TypeInfoUtils.getTypeInfoFromTypeString(s"struct<$name:int>")
+          true
+        } catch {
+          case _: IllegalArgumentException => false
+        }
+      case _ => true
     }
   }
 }

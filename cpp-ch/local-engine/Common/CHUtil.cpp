@@ -513,6 +513,11 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
 
     /// Enable logging in libhdfs3, logs will be written to stderr
     setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
+
+    /// Get environment varaible SPARK_USER if possible
+    const char * spark_user_c_str = std::getenv("SPARK_USER");
+    if (spark_user_c_str)
+        spark_user = spark_user_c_str;
 }
 
 void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings)

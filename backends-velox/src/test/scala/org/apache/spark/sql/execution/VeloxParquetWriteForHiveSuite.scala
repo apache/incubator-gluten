@@ -100,7 +100,9 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     withTempPath {
       f =>
         // compatible with Spark3.3 and later
-        withSQLConf("spark.sql.hive.convertMetastoreInsertDir" -> "false") {
+        withSQLConf(
+          ("spark.sql.hive.convertMetastoreInsertDir" -> "false"),
+          ("spark.gluten.sql.native.parquet.writer.enabled" -> "true")) {
           checkNativeWrite(
             s"""
                |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c

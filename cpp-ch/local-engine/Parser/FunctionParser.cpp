@@ -33,9 +33,7 @@ String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunct
 }
 
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func,
-    const String & ch_func_name,
-    ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, const String & ch_func_name, ActionsDAGPtr & actions_dag) const
 {
     ActionsDAG::NodeRawConstPtrs parsed_args;
     const auto & args = substrait_func.arguments();
@@ -45,9 +43,10 @@ ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
     return parsed_args;
 }
 
-const ActionsDAG::Node * FunctionParser::parse(
-    const substrait::Expression_ScalarFunction & substrait_func,
-    ActionsDAGPtr & actions_dag) const
+
+
+const ActionsDAG::Node *
+FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
     auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
@@ -61,7 +60,12 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     const auto & output_type = substrait_func.output_type();
     if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
         return ActionsDAGUtil::convertNodeType(
-            actions_dag, func_node, TypeParser::parseType(output_type)->getName(), func_node->result_name);
+            actions_dag,
+            func_node,
+            // as stated in isTypeMatched， currently we don't change nullability of the result type
+            func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))->getName()
+                                                 : local_engine::removeNullable(TypeParser::parseType(output_type))->getName(),
+            func_node->result_name);
     else
         return func_node;
 }

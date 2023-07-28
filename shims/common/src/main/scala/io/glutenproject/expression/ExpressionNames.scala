@@ -97,6 +97,7 @@ object ExpressionNames {
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
   final val SPACE = "space"
+  final val EMPTY2NULL = "empty2null"
 
   // URL functions
   final val PARSE_URL = "parse_url"

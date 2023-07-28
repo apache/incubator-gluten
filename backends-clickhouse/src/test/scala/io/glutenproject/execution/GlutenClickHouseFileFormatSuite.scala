@@ -75,75 +75,82 @@ class GlutenClickHouseFileFormatSuite
 
   // in this case, FakeRowAdaptor does R2C
   test("parquet native writer writing a in memory DF") {
-    val filePath = basePath + "/native_parquet_test"
-    val format = "parquet"
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+      val filePath = basePath + "/native_parquet_test"
+      val format = "parquet"
 
-    val df1 = spark
-      .createDataFrame(genTestData())
-    df1.write
-      .mode("overwrite")
-      .format("native_parquet")
-      .save(filePath)
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val df1 = spark.createDataFrame(genTestData())
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from file") {
-    val filePath = basePath + "/native_parquet_test"
-    val format = "parquet"
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
 
-    val df1 = spark.read.parquet(tablesPath + "/customer")
-    df1.write
-      .mode("overwrite")
-      .format("native_parquet")
-      .save(filePath)
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val filePath = basePath + "/native_parquet_test"
+      val format = "parquet"
+
+      val df1 = spark.read.parquet(tablesPath + "/customer")
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from an aggregate") {
-    val filePath = basePath + "/native_parquet_test_agg"
-    val format = "parquet"
+    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
 
-    val df0 = spark
-      .createDataFrame(genTestData())
-    val df1 = df0
-      .select("string_field", "int_field", "double_field")
-      .groupBy("string_field")
-      .agg(
-        functions.sum("int_field").as("a"),
-        functions.max("double_field").as("b"),
-        functions.count("*").as("c"))
-    df1.write
-      .mode("overwrite")
-      .format("native_parquet")
-      .save(filePath)
+      val filePath = basePath + "/native_parquet_test_agg"
+      val format = "parquet"
 
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val df0 = spark
+        .createDataFrame(genTestData())
+      val df1 = df0
+        .select("string_field", "int_field", "double_field")
+        .groupBy("string_field")
+        .agg(
+          functions.sum("int_field").as("a"),
+          functions.max("double_field").as("b"),
+          functions.count("*").as("c"))
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   test("read data from csv file format") {
