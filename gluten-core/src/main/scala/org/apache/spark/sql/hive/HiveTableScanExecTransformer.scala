@@ -137,10 +137,7 @@ class HiveTableScanExecTransformer(
 
     val planOutput = output.asInstanceOf[Seq[AttributeReference]]
     val outputFieldTypes = new ArrayBuffer[StructField]()
-    planOutput.foreach(
-      x =>
-        outputFieldTypes.append(StructField(x.name, x.dataType, x.nullable))
-    )
+    planOutput.foreach(x => outputFieldTypes.append(StructField(x.name, x.dataType, x.nullable)))
 
     tableMeta.storage.inputFormat match {
       case Some(inputFormat)
@@ -185,17 +182,17 @@ class HiveTableScanExecTransformer(
       x => {
         hasComplexType = if (!hasComplexType) {
           x.dataType.isInstanceOf[StructType] ||
-            x.dataType.isInstanceOf[MapType] ||
-            x.dataType.isInstanceOf[ArrayType]
+          x.dataType.isInstanceOf[MapType] ||
+          x.dataType.isInstanceOf[ArrayType]
         } else hasComplexType
       })
 
     tableMeta.storage.inputFormat match {
       case Some(inputFormat)
-        if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+          if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
         tableMeta.storage.serde match {
           case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
-          "org.apache.hive.hcatalog.data.JsonSerDe") =>
+                "org.apache.hive.hcatalog.data.JsonSerDe") =>
             ValidationResult.ok
           case _ =>
             if (!hasComplexType) {
