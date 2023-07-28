@@ -472,4 +472,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDataFrameRangeSuite]
     .includeByPrefix("SPARK-21041")
+
+  enableSuite[GlutenStringFunctionsSuite]
+    .include("initcap function")
 }
