@@ -952,7 +952,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum size of a single spill file created")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("10MB")
+      .createWithDefaultString("20MB")
 
   val COLUMNAR_VELOX_SPILL_FILE_SYSTEM =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillFileSystem")
