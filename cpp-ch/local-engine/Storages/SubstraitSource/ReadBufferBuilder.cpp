@@ -120,7 +120,7 @@ public:
         if (S_ISREG(file_stat.st_mode))
             read_buffer = std::make_unique<DB::ReadBufferFromFilePRead>(file_path);
         else
-            read_buffer = std::make_unique<DB::ReadBufferFromFilePRead>(file_path);
+            read_buffer = std::make_unique<DB::ReadBufferFromFile>(file_path);
 
 
         if (set_read_util_position)
