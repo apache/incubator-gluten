@@ -142,7 +142,7 @@ public class OnHeapFileSystem implements JniFilesystem {
     private final AtomicInteger cursor = new AtomicInteger(0);
     private final ReadableByteChannel channel;
 
-    public ReadFile(Path path) {
+    private ReadFile(Path path) {
       this.path = path;
       try {
         in = Files.newInputStream(this.path, StandardOpenOption.READ);
@@ -213,7 +213,7 @@ public class OnHeapFileSystem implements JniFilesystem {
     private final BufferedOutputStream out;
     private final AtomicInteger writtenBytes = new AtomicInteger(0);
 
-    public WriteFile(Path path) {
+    private WriteFile(Path path) {
       this.path = path;
       try {
         out =
