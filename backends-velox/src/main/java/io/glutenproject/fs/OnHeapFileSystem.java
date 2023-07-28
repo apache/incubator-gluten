@@ -110,9 +110,7 @@ public class OnHeapFileSystem implements JniFilesystem {
   public String[] list(String path) {
     ensureExist(path);
     try {
-      return Files.list(fs.getPath(path))
-          .map(Path::toString)
-          .toArray(String[]::new);
+      return Files.list(fs.getPath(path)).map(Path::toString).toArray(String[]::new);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -159,14 +157,16 @@ public class OnHeapFileSystem implements JniFilesystem {
       try {
         ByteBuffer out = PlatformDependent.directBuffer(buf, (int) length);
         if (offset < cursor.get()) {
-          throw new IllegalStateException("ReadFile: Offset to read is in front to the cursor position");
+          throw new IllegalStateException(
+              "ReadFile: Offset to read is in front to the cursor position");
         }
         if (offset > cursor.get()) {
           long toSkip = offset - cursor.get();
           long skippedBytes = in.skip(toSkip);
           if (skippedBytes != toSkip) {
             throw new IllegalStateException(
-                String.format("ReadFile: Skipped size mismatch with expected size to skip: %d != %d",
+                String.format(
+                    "ReadFile: Skipped size mismatch with expected size to skip: %d != %d",
                     skippedBytes, toSkip));
           }
         }
@@ -216,8 +216,9 @@ public class OnHeapFileSystem implements JniFilesystem {
     public WriteFile(Path path) {
       this.path = path;
       try {
-        out = new BufferedOutputStream(
-            Files.newOutputStream(this.path, StandardOpenOption.CREATE_NEW));
+        out =
+            new BufferedOutputStream(
+                Files.newOutputStream(this.path, StandardOpenOption.CREATE_NEW));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

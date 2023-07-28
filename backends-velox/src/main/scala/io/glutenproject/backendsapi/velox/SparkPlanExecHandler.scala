@@ -23,6 +23,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
+
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -47,9 +48,11 @@ import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
+
 import scala.collection.mutable.ArrayBuffer
 
 class SparkPlanExecHandler extends SparkPlanExecApi {
@@ -404,7 +407,8 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       case "local" =>
         path
       case "heap-over-local" =>
-        val rewritten = UriBuilder.fromPath(path)
+        val rewritten = UriBuilder
+          .fromPath(path)
           .scheme("jol")
           .toString
         rewritten

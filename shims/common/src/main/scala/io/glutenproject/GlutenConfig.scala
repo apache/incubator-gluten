@@ -957,9 +957,10 @@ object GlutenConfig {
   val COLUMNAR_VELOX_SPILL_FILE_SYSTEM =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillFileSystem")
       .internal()
-      .doc("The filesystem used to store spill data. local: The local file system. " +
-        "heap-over-local: Write file to JVM heap if having extra heap space. " +
-        "Otherwise write to local file system.")
+      .doc(
+        "The filesystem used to store spill data. local: The local file system. " +
+          "heap-over-local: Write file to JVM heap if having extra heap space. " +
+          "Otherwise write to local file system.")
       .stringConf
       .checkValues(Set("local", "heap-over-local"))
       .createWithDefaultString("local")

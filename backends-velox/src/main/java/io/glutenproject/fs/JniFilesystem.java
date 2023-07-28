@@ -17,8 +17,6 @@
 
 package io.glutenproject.fs;
 
-import org.apache.commons.lang3.NotImplementedException;
-
 // Mirror of C++ side gluten::JniFileSystem, only for handling calls from C++ via JNI
 public interface JniFilesystem {
 
