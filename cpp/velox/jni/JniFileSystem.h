@@ -26,6 +26,9 @@ namespace gluten {
 
 void registerJniFileSystem();
 
+// Register JNI-or-local (or JVM-over-local, as long as it describes what happens here)
+//   maxFileSize is necessary (!= 0) here because we use this size
+//   to decide whether a new file can fit in JVM heap, otherwise we write it via local fs directly.
 void registerJolFileSystem(uint64_t maxFileSize);
 
 void initVeloxJniFileSystem(JNIEnv* env);
