@@ -23,7 +23,6 @@ import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
-
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -48,9 +47,9 @@ import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import org.apache.commons.lang3.ClassUtils
 
+import javax.ws.rs.core.UriBuilder
 import scala.collection.mutable.ArrayBuffer
 
 class SparkPlanExecHandler extends SparkPlanExecApi {
@@ -397,5 +396,21 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
   override def genInjectedFunctions()
       : Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     UDFResolver.loadAndGetFunctionDescriptions
+  }
+
+  override def rewriteSpillPath(path: String): String = {
+    val fs = GlutenConfig.getConf.veloxSpillFileSystem
+    fs match {
+      case "LOCAL" =>
+        path
+      case "HEAP_OVER_LOCAL" =>
+        val rewritten = UriBuilder.fromPath(path)
+          .scheme("jol")
+          .toString
+        rewritten
+      case other => {
+        throw new IllegalStateException(s"Unsupported fs: $other")
+      }
+    }
   }
 }

@@ -75,7 +75,7 @@ class JniReadFile : public facebook::velox::ReadFile {
   ~JniReadFile() override {
     try {
       close0();
-    } catch (std::exception e) {
+    } catch (const std::exception& e) {
       LOG(WARNING) << "Error closing jni read file " << e.what();
     }
     JNIEnv* env;
@@ -152,7 +152,7 @@ class JniWriteFile : public facebook::velox::WriteFile {
   ~JniWriteFile() override {
     try {
       close0();
-    } catch (std::exception e) {
+    } catch (const std::exception& e) {
       LOG(WARNING) << "Error closing jni write file " << e.what();
     }
     JNIEnv* env;

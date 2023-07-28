@@ -35,7 +35,10 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.SparkDirectoryUtil;
 
+import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,6 +86,11 @@ public class NativePlanEvaluator {
                   return instance.spill(size);
                 })
             .getNativeInstanceId();
+
+    final String spillDirPath = SparkDirectoryUtil.namespace("gluten-spill")
+        .mkChildDirRoundRobin(UUID.randomUUID().toString())
+        .getAbsolutePath();
+
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
             allocId,
@@ -92,13 +100,11 @@ public class NativePlanEvaluator {
             TaskContext.getPartitionId(),
             TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
-            SparkDirectoryUtil.namespace("gluten-spill")
-                .mkChildDirRoundRobin(UUID.randomUUID().toString())
-                .getAbsolutePath(),
+            BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath),
             buildNativeConfNode(
-                    GlutenConfig.getNativeSessionConf(
-                        BackendsApiManager.getSettings().getBackendConfigPrefix(),
-                        SQLConf.get().getAllConfs()))
+                GlutenConfig.getNativeSessionConf(
+                    BackendsApiManager.getSettings().getBackendConfigPrefix(),
+                    SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray());
     outIterator.set(createOutIterator(handle));
