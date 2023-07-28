@@ -401,9 +401,9 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
   override def rewriteSpillPath(path: String): String = {
     val fs = GlutenConfig.getConf.veloxSpillFileSystem
     fs match {
-      case "LOCAL" =>
+      case "local" =>
         path
-      case "HEAP_OVER_LOCAL" =>
+      case "heap-over-local" =>
         val rewritten = UriBuilder.fromPath(path)
           .scheme("jol")
           .toString
