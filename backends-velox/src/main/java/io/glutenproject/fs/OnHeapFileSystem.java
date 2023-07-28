@@ -141,11 +141,13 @@ public class OnHeapFileSystem implements JniFilesystem {
     private final InputStream in;
     private final AtomicInteger cursor = new AtomicInteger(0);
     private final ReadableByteChannel channel;
+    private final long size;
 
     private ReadFile(Path path) {
       this.path = path;
       try {
         in = Files.newInputStream(this.path, StandardOpenOption.READ);
+        size = Files.size(this.path);
         channel = Channels.newChannel(in);
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -184,7 +186,7 @@ public class OnHeapFileSystem implements JniFilesystem {
 
     @Override
     public long size() {
-      return cursor.get();
+      return size;
     }
 
     @Override
