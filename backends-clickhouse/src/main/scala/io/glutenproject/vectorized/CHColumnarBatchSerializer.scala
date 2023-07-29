@@ -30,6 +30,7 @@ import java.io._
 import java.nio.ByteBuffer
 import java.util.Locale
 
+import scala.annotation.tailrec
 import scala.reflect.ClassTag
 
 class CHColumnarBatchSerializer(
@@ -89,6 +90,7 @@ private class CHColumnarBatchSerializerInstance(
         null.asInstanceOf[T]
       }
 
+      @tailrec
       @throws(classOf[EOFException])
       override def readValue[T: ClassTag](): T = {
         if (reader != null) {

@@ -39,15 +39,15 @@ public class StorageJoinBuilder implements AutoCloseable {
 
   public static native long nativeCloneBuildHashTable(long hashTableData);
 
-  private ShuffleInputStream in;
+  private final ShuffleInputStream in;
 
-  private int customizeBufferSize;
+  private final int customizeBufferSize;
 
-  private BroadCastHashJoinContext broadCastContext;
+  private final BroadCastHashJoinContext broadCastContext;
 
-  private List<Expression> newBuildKeys;
+  private final List<Expression> newBuildKeys;
 
-  private List<Attribute> newOutput;
+  private final List<Attribute> newOutput;
 
   public StorageJoinBuilder(
       ShuffleInputStream in,
@@ -74,11 +74,11 @@ public class StorageJoinBuilder implements AutoCloseable {
   public long build() {
     ConverterUtils$ converter = ConverterUtils$.MODULE$;
     String join = converter.convertJoinType(broadCastContext.joinType());
-    List<Expression> keys = null;
-    List<Attribute> output = null;
+    List<Expression> keys;
+    List<Attribute> output;
     if (newBuildKeys.isEmpty()) {
-      keys = JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
-      output = JavaConverters.<Attribute>seqAsJavaList(broadCastContext.buildSideStructure());
+      keys = JavaConverters.seqAsJavaList(broadCastContext.buildSideJoinKeys());
+      output = JavaConverters.seqAsJavaList(broadCastContext.buildSideStructure());
     } else {
       keys = newBuildKeys;
       output = newOutput;
@@ -116,10 +116,6 @@ public class StorageJoinBuilder implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    try {
-      in.close();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    in.close();
   }
 }

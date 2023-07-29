@@ -204,7 +204,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 8)
+    assert(result.length == 8)
   }
 
   test("TPCH Q1") {
@@ -601,7 +601,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
-  ignore("TPCH Q22") {
+  test("TPCH Q22") {
     runTPCHQuery(22) { df => }
   }
 
@@ -1009,7 +1009,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |select n_regionkey, collect_list(if(n_regionkey=0, n_name, null)) as t from nation group by n_regionkey
         |order by n_regionkey
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, df => {})
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {})
   }
 
   test("collect_set") {

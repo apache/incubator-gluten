@@ -2606,9 +2606,7 @@ bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool h
         const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
         currentBlock().setColumn(i, default_col);
     }
-    if (cols.size() > 0)
-        return true;
-    return false;
+    return !cols.empty();
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(const DB::Block & header_, SerializedPlanParser & parser_,  const substrait::Expression & cond_rel_)

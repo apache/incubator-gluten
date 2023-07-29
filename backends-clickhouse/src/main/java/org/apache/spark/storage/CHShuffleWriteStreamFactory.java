@@ -16,6 +16,8 @@
  */
 package org.apache.spark.storage;
 
+import io.glutenproject.exception.GlutenRuntimeException;
+
 import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
 import com.ning.compress.lzf.LZFOutputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
@@ -24,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.xerial.snappy.SnappyOutputStream;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 
@@ -53,7 +56,7 @@ public final class CHShuffleWriteStreamFactory {
       FIELD_LZFOutputStream_out = LZFOutputStream.class.getSuperclass().getDeclaredField("out");
       FIELD_LZFOutputStream_out.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
+      throw new GlutenRuntimeException(e);
     }
   }
 
@@ -75,10 +78,12 @@ public final class CHShuffleWriteStreamFactory {
         out = (OutputStream) FIELD_LZ4BlockOutputStream_out.get(os);
       } else if (os instanceof LZFOutputStream) {
         out = (OutputStream) FIELD_LZFOutputStream_out.get(os);
+      } else if (os instanceof ByteArrayOutputStream) {
+        out = os;
       }
     } catch (IllegalAccessException e) {
       LOG.error("Can not get the field 'out' from compression output stream: ", e);
-      return out;
+      return null;
     }
     return out;
   }

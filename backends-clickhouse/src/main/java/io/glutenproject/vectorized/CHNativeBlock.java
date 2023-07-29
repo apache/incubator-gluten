@@ -17,6 +17,8 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenRuntimeException;
+
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -29,15 +31,24 @@ public class CHNativeBlock {
   }
 
   public static CHNativeBlock fromColumnarBatch(ColumnarBatch batch) {
+    return new CHNativeBlock(fromColumnarBatchToAddress(batch));
+  }
+
+  public static long fromColumnarBatchToAddress(ColumnarBatch batch) {
     if (batch.numCols() == 0 || !(batch.column(0) instanceof CHColumnVector)) {
-      throw new RuntimeException(
+      throw new GlutenRuntimeException(
           "Unexpected ColumnarBatch: "
               + (batch.numCols() == 0
                   ? "0 column"
                   : "expected CHColumnVector, but " + batch.column(0).getClass()));
     }
     CHColumnVector columnVector = (CHColumnVector) batch.column(0);
-    return new CHNativeBlock(columnVector.getBlockAddress());
+    return columnVector.getBlockAddress();
+  }
+
+  public static ColumnarBatch toColumnarBatch(long blockAddress) {
+    CHNativeBlock nativeBlock = new CHNativeBlock(blockAddress);
+    return nativeBlock.toColumnarBatch();
   }
 
   private native int nativeNumRows(long blockAddress);

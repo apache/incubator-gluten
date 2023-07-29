@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized
 
+import io.glutenproject.column.ColumnarBatchUtil
+
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -27,7 +29,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatch]])
   extends Iterator[Product2[Int, ColumnarBatch]]
   with Logging {
-  var cb: ColumnarBatch = null
+  var cb: ColumnarBatch = _
 
   override def hasNext: Boolean = {
     itr.hasNext
@@ -36,27 +38,18 @@ class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatc
   TaskContext.get().addTaskCompletionListener[Unit] {
     _ =>
       {
-        closeCurrentBatch()
-        if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
+        ColumnarBatchUtil.disposeBatch(cb)
+        itr match {
+          case closeable: AutoCloseable => closeable.close()
+          case _ =>
+        }
       }
   }
 
   override def next(): Product2[Int, ColumnarBatch] = {
-    closeCurrentBatch()
+    cb = ColumnarBatchUtil.disposeBatch(cb)
     val value = itr.next()
     cb = value._2
     value
-  }
-
-  private def closeCurrentBatch(): Unit = {
-    if (cb != null) {
-      if (cb.numCols() > 0) {
-        val col = cb.column(0).asInstanceOf[CHColumnVector]
-        val block = new CHNativeBlock(col.getBlockAddress)
-        block.close();
-      }
-      cb.close()
-      cb = null;
-    }
   }
 }

@@ -1062,6 +1062,38 @@ JNIEXPORT jlong Java_io_glutenproject_memory_alloc_CHNativeMemoryAllocator_bytes
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
+/* ===================== */
+
+
+JNIEXPORT jlong Java_io_glutenproject_column_ColumnarBatchUtil_cloneBatch(JNIEnv * env, jclass, jlong block_address)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    auto * cloned = new DB::Block(*block);
+    return reinterpret_cast<jlong>(cloned);
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
+}
+
+JNIEXPORT void Java_io_glutenproject_column_ColumnarBatchUtil_disposeBatch(JNIEnv * env, jclass, jlong block_address)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    delete block;
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT void Java_io_glutenproject_column_ColumnarBatchUtil_writeBatch(
+    JNIEnv * env, jclass, jlong block_address, jobject output_stream, jbyteArray buffer, jint customize_buffer_size) {
+    LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::WriteBufferFromJavaOutputStream out(output_stream, buffer, customize_buffer_size);
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    DB::NativeWriter writer(out, 0, block->cloneEmpty());
+    writer.write(*block);
+    writer.flush();
+    out.finalize();
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
 #ifdef __cplusplus
 }
 
