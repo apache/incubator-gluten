@@ -17,6 +17,7 @@
 #include "SerializedPlanParser.h"
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
@@ -2647,7 +2648,7 @@ void NonNullableColumnsResolver::visit(const substrait::Expression & expr)
 
     const auto & scalar_function = expr.scalar_function();
     auto function_signature = parser.function_mapping.at(std::to_string(scalar_function.function_reference()));
-    auto function_name = parser.getFunctionName(function_signature, scalar_function);
+    auto function_name = safeGetFunctionName(function_signature, scalar_function);
 
     // Only some special functions are used to judge whether the column is non-nullable.
     if (function_name == "and")
@@ -2681,7 +2682,7 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
     {
         const auto & scalar_function = expr.scalar_function();
         auto function_signature = parser.function_mapping.at(std::to_string(scalar_function.function_reference()));
-        auto function_name = parser.getFunctionName(function_signature, scalar_function);
+        auto function_name = safeGetFunctionName(function_signature, scalar_function);
         if (function_name == "plus" || function_name == "minus" || function_name == "multiply" || function_name == "divide")
         {
             visitNonNullable(scalar_function.arguments(0).value());
@@ -2696,5 +2697,19 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
         collected_columns.push_back(column_name);
     }
     // else, do nothing.
+}
+
+std::string NonNullableColumnsResolver::safeGetFunctionName(
+    const std::string & function_signature,
+    const substrait::Expression_ScalarFunction & function)
+{
+    try
+    {
+        return parser.getFunctionName(function_signature, function);
+    }
+    catch (const Exception &)
+    {
+        return "";
+    }
 }
 }

@@ -250,6 +250,7 @@ private:
 
     void visit(const substrait::Expression & expr);
     void visitNonNullable(const substrait::Expression & expr);
+    std::string safeGetFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function);
 };
 
 class SerializedPlanParser
