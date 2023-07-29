@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.metrics.{GlutenTimeMetric, MetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.ReadRelNode
@@ -38,8 +38,7 @@ import org.apache.spark.util.collection.BitSet
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
-import scala.collection.JavaConverters
-import scala.collection.mutable.HashMap
+import scala.collection.{mutable, JavaConverters}
 
 class FileSourceScanExecTransformer(
     @transient relation: HadoopFsRelation,
@@ -64,12 +63,12 @@ class FileSourceScanExecTransformer(
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance
       .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetrics
 
   /** SQL metrics generated only for scans using dynamic partition pruning. */
-  protected lazy val staticMetrics =
+  private lazy val staticMetrics =
     if (partitionFilters.exists(FileSourceScanExecTransformer.isDynamicPruningFilter)) {
       Map(
         "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
@@ -113,7 +112,7 @@ class FileSourceScanExecTransformer(
 
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecTransformer =>
-      (that.canEqual(this)) && super.equals(that)
+      that.canEqual(this) && super.equals(that)
     case _ => false
   }
 
@@ -151,7 +150,7 @@ class FileSourceScanExecTransformer(
 
   // The codes below are copied from FileSourceScanExec in Spark,
   // all of them are private.
-  protected lazy val driverMetrics: HashMap[String, Long] = HashMap.empty
+  protected lazy val driverMetrics: mutable.HashMap[String, Long] = mutable.HashMap.empty
 
   /**
    * Send the driver-side metrics. Before calling this function, selectedPartitions has been
@@ -185,16 +184,14 @@ class FileSourceScanExecTransformer(
 
   @transient override lazy val selectedPartitions: Array[PartitionDirectory] = {
     val optimizerMetadataTimeNs = relation.location.metadataOpsTimeNs.getOrElse(0L)
-    val startTime = System.nanoTime()
-    val ret =
-      relation.location.listFiles(
-        partitionFilters.filterNot(FileSourceScanExecTransformer.isDynamicPruningFilter),
-        dataFilters)
-    setFilesNumAndSizeMetric(ret, true)
-    val timeTakenMs =
-      NANOSECONDS.toMillis((System.nanoTime() - startTime) + optimizerMetadataTimeNs)
-    driverMetrics("metadataTime") = timeTakenMs
-    ret
+    GlutenTimeMetric.withNanoTime {
+      val ret =
+        relation.location.listFiles(
+          partitionFilters.filterNot(FileSourceScanExecTransformer.isDynamicPruningFilter),
+          dataFilters)
+      setFilesNumAndSizeMetric(ret, static = true)
+      ret
+    }(t => driverMetrics("metadataTime") = NANOSECONDS.toMillis(t + optimizerMetadataTimeNs))
   }.toArray
 
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
@@ -218,23 +215,22 @@ class FileSourceScanExecTransformer(
           }
         case _ =>
       }
-      val startTime = System.nanoTime()
-      // call the file index for the files matching all filters except dynamic partition filters
-      val predicate = dynamicPartitionFilters.reduce(And)
-      val partitionColumns = relation.partitionSchema
-      val boundPredicate = Predicate.create(
-        predicate.transform {
-          case a: AttributeReference =>
-            val index = partitionColumns.indexWhere(a.name == _.name)
-            BoundReference(index, partitionColumns(index).dataType, nullable = true)
-        },
-        Nil
-      )
-      val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
-      setFilesNumAndSizeMetric(ret, false)
-      val timeTakenMs = (System.nanoTime() - startTime) / 1000 / 1000
-      driverMetrics("pruningTime") = timeTakenMs
-      ret
+      GlutenTimeMetric.withNanoTime {
+        // call the file index for the files matching all filters except dynamic partition filters
+        val predicate = dynamicPartitionFilters.reduce(And)
+        val partitionColumns = relation.partitionSchema
+        val boundPredicate = Predicate.create(
+          predicate.transform {
+            case a: AttributeReference =>
+              val index = partitionColumns.indexWhere(a.name == _.name)
+              BoundReference(index, partitionColumns(index).dataType, nullable = true)
+          },
+          Nil
+        )
+        val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
+        setFilesNumAndSizeMetric(ret, static = false)
+        ret
+      }(t => driverMetrics("pruningTime") = NANOSECONDS.toMillis(t))
     } else {
       selectedPartitions
     }

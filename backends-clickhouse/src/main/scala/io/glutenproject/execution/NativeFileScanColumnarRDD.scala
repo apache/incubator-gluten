@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
@@ -24,6 +25,7 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.util
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
 class NativeFileScanColumnarRDD(
@@ -37,21 +39,21 @@ class NativeFileScanColumnarRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val inputPartition = castNativePartition(split)
 
-    val startNs = System.nanoTime()
-    val transKernel = new CHNativeExpressionEvaluator()
-    val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
-    val resIter: GeneralOutIterator =
-      transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters)
-    scanTime += NANOSECONDS.toMillis(System.nanoTime() - startNs)
+    val resIter: GeneralOutIterator = GlutenTimeMetric.millis(scanTime) {
+      _ =>
+        val transKernel = new CHNativeExpressionEvaluator()
+        val inBatchIters = new util.ArrayList[GeneralInIterator]()
+        transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters)
+    }
+
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
-    val iter = new Iterator[Any] {
+    val iter: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
       var scanTotalTime = 0L
       var scanTimeAdded = false
 
       override def hasNext: Boolean = {
-        val startNs = System.nanoTime()
-        val res = resIter.hasNext
-        scanTotalTime += System.nanoTime() - startNs
+        val res = GlutenTimeMetric.withNanoTime(resIter.hasNext)(t => scanTotalTime += t)
+
         if (!res && !scanTimeAdded) {
           scanTime += NANOSECONDS.toMillis(scanTotalTime)
           scanTimeAdded = true
@@ -59,16 +61,14 @@ class NativeFileScanColumnarRDD(
         res
       }
 
-      override def next(): Any = {
-        val startNs = System.nanoTime()
-        val cb = resIter.next()
+      override def next(): ColumnarBatch = {
+        val cb = GlutenTimeMetric.withNanoTime(resIter.next())(t => scanTotalTime += t)
         numOutputRows += cb.numRows()
         numOutputBatches += 1
-        scanTotalTime += System.nanoTime() - startNs
         cb
       }
     }
-    new CloseableCHColumnBatchIterator(iter.asInstanceOf[Iterator[ColumnarBatch]])
+    new CloseableCHColumnBatchIterator(iter)
   }
 
   private def castNativePartition(split: Partition): BaseGlutenPartition = split match {

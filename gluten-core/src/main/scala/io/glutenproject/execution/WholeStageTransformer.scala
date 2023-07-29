@@ -16,18 +16,19 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
+import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.expression._
 import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.metrics.{GlutenTimeMetric, MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
+import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -86,12 +87,12 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
-  val sparkConf = sparkContext.getConf
-  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val substraitPlanLogLevel = GlutenConfig.getConf.substraitPlanLogLevel
+  val sparkConf: SparkConf = sparkContext.getConf
+  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val substraitPlanLogLevel: String = GlutenConfig.getConf.substraitPlanLogLevel
 
   private var planJson: String = ""
 
@@ -129,9 +130,9 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       append,
       verbose,
       prefix,
-      false,
+      addSuffix = false,
       maxFields,
-      printNodeId,
+      printNodeId = printNodeId,
       indent)
     if (verbose && planJson.nonEmpty) {
       append(prefix + "Substrait plan:\n")
@@ -217,7 +218,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     }
 
     transformChildren(child, basicScanExecTransformers)
-    basicScanExecTransformers.toSeq
+    basicScanExecTransformers
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -244,25 +245,23 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
         throw new GlutenException(
           "The partition length of all the scan transformer are not the same.")
       }
-      val startTime = System.nanoTime()
-      val wsCxt = doWholeStageTransform()
+      val (wsCxt, substraitPlanPartitions) = GlutenTimeMetric.withNanoTime {
+        val wsCxt = doWholeStageTransform()
 
-      // the file format for each scan exec
-      wsCxt.substraitContext.setFileFormat(
-        basicScanExecTransformers.map(ConverterUtils.getFileFormat).asJava)
+        // the file format for each scan exec
+        wsCxt.substraitContext.setFileFormat(
+          basicScanExecTransformers.map(ConverterUtils.getFileFormat).asJava)
 
-      val partitionSchema = allScanPartitionSchemas.head
-      // generate each partition of all scan exec
-      val substraitPlanPartitions = (0 until partitionLength).map(
-        i => {
-          val currentPartitions = allScanPartitions.map(_(i))
-          BackendsApiManager.getIteratorApiInstance
-            .genFilePartition(i, currentPartitions, partitionSchema, wsCxt)
-        })
-
-      logOnLevel(
-        substraitPlanLogLevel,
-        s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
+        val partitionSchema = allScanPartitionSchemas.head
+        // generate each partition of all scan exec
+        val substraitPlanPartitions = (0 until partitionLength).map(
+          i => {
+            val currentPartitions = allScanPartitions.map(_(i))
+            BackendsApiManager.getIteratorApiInstance
+              .genFilePartition(i, currentPartitions, partitionSchema, wsCxt)
+          })
+        (wsCxt, substraitPlanPartitions)
+      }(t => logOnLevel(substraitPlanLogLevel, s"Generating the Substrait plan took: $t ns."))
 
       new GlutenWholeStageColumnarRDD(
         sparkContext,
@@ -286,13 +285,11 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
        *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked
        */
-      val startTime = System.nanoTime()
-      val resCtx = doWholeStageTransform()
-
-      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
-      logOnLevel(
-        substraitPlanLogLevel,
-        s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
+      val resCtx = GlutenTimeMetric.withNanoTime(doWholeStageTransform()) {
+        t =>
+          logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
+          logOnLevel(substraitPlanLogLevel, s"Generating the Substrait plan took: $t ns.")
+      }
 
       new WholeStageZippedPartitionsRDD(
         sparkContext,

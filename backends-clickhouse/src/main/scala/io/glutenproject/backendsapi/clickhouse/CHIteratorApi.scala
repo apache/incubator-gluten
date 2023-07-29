@@ -19,14 +19,14 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
-import io.glutenproject.metrics.{IMetrics, NativeMetrics}
+import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
-import io.glutenproject.vectorized._
+import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark._
+import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -40,7 +40,7 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.net.URI
-import java.util.concurrent.TimeUnit
+import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -113,18 +113,18 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       inputPartition: BaseGlutenPartition,
       context: TaskContext,
       pipelineTime: SQLMetric,
-      updateInputMetrics: (InputMetricsWrapper) => Unit,
+      updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
-    val beforeBuild = System.nanoTime()
-    val transKernel = new CHNativeExpressionEvaluator()
-    val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map {
-      iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-    }.asJava)
-    val resIter: GeneralOutIterator =
-      transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters)
+    val resIter: GeneralOutIterator = GlutenTimeMetric.millis(pipelineTime) {
+      _ =>
+        val transKernel = new CHNativeExpressionEvaluator()
+        val inBatchIters = new util.ArrayList[GeneralInIterator](inputIterators.map {
+          iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+        }.asJava)
+        transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters)
+    }
 
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
@@ -170,17 +170,17 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
-    val beforeBuild = System.nanoTime()
-    val transKernel = new CHNativeExpressionEvaluator()
-    val columnarNativeIterator =
-      new java.util.ArrayList[GeneralInIterator](inputIterators.map {
-        iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-      }.asJava)
-    // we need to complete dependency RDD's firstly
-    val nativeIterator =
-      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator)
+    val nativeIterator = GlutenTimeMetric.millis(pipelineTime) {
+      _ =>
+        val transKernel = new CHNativeExpressionEvaluator()
+        val columnarNativeIterator =
+          new java.util.ArrayList[GeneralInIterator](inputIterators.map {
+            iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+          }.asJava)
+        // we need to complete dependency RDD's firstly
+        transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator)
+    }
 
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = new Iterator[ColumnarBatch] {
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
@@ -204,21 +204,22 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     }
     var closed = false
 
-    def close = {
+    def close(): Unit = {
       closed = true
       buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
       nativeIterator.close()
       // relationHolder.clear()
     }
 
-    TaskContext.get().addTaskCompletionListener[Unit](_ => close)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => close())
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }
 
   /**
    * Generate closeable ColumnBatch iterator.
    *
-   * @param iter
+   * @param iter:
+   *   Iterator[ColumnarBatch]
    * @return
    */
   override def genCloseableColumnBatchIterator(
@@ -236,16 +237,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
-    val startTime = System.nanoTime()
-    // the file format for each scan exec
-    wsCxt.substraitContext.setFileFormat(Seq(fileFormat).asJava)
+    val substraitPlanPartition = GlutenTimeMetric.withNanoTime {
+      // the file format for each scan exec
+      wsCxt.substraitContext.setFileFormat(Seq(fileFormat).asJava)
+      // generate each partition of all scan exec
+      inputPartitions.indices.map(i => genFilePartition(i, Seq(inputPartitions(i)), null, wsCxt))
+    }(t => logInfo(s"Generating the Substrait plan took: $t ns."))
 
-    // generate each partition of all scan exec
-    val substraitPlanPartition = inputPartitions.indices.map(
-      i => {
-        genFilePartition(i, Seq(inputPartitions(i)), null, wsCxt)
-      })
-    logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
     new NativeFileScanColumnarRDD(
       sparkContext,
       substraitPlanPartition,

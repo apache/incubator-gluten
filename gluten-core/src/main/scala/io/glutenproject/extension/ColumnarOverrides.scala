@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
+import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -44,6 +45,8 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkUtil
 
+import java.util.concurrent.TimeUnit.NANOSECONDS
+
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContext: Boolean)
   extends Rule[SparkPlan]
@@ -51,7 +54,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  val reuseSubquery = isAdaptiveContext && conf.subqueryReuseEnabled
+  val reuseSubquery: Boolean = isAdaptiveContext && conf.subqueryReuseEnabled
 
   /**
    * Insert a Project as the new child of Shuffle to calculate the hash expressions.
@@ -213,7 +216,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           AddTransformHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newExprs = Seq[Expression]()
-        for (i <- 0 to exprs.size - 1) {
+        for (i <- exprs.indices) {
           val pos = newExpressionsPosition(i)
           newExprs = newExprs :+ project.output(pos)
         }
@@ -233,7 +236,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           AddTransformHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newOrderings = Seq[SortOrder]()
-        for (i <- 0 to orderings.size - 1) {
+        for (i <- orderings.indices) {
           val oldOrdering = orderings(i)
           val pos = newExpressionsPosition(i)
           val ordering = SortOrder(
@@ -587,7 +590,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
 // into native implementations.
 case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Boolean)
   extends Rule[SparkPlan] {
-  val columnarConf = GlutenConfig.getConf
+  val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   def transformColumnarToRowExec(plan: ColumnarToRowExec): SparkPlan = {
@@ -685,7 +688,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   with Logging
   with LogLevelUtil {
 
-  lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
+  private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   // Tracks whether the columnar rule is called through AQE.
@@ -693,12 +696,12 @@ case class ColumnarOverrideRules(session: SparkSession)
   // This is an empirical value, may need to be changed for supporting other versions of spark.
   private val aqeStackTraceIndex = 13
 
-  lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
+  private lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
 
-  lazy val queryFallbackThreshold = GlutenConfig.getConf.queryFallbackThreshold
+  private lazy val queryFallbackThreshold = GlutenConfig.getConf.queryFallbackThreshold
 
   // for fallback policy
-  lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
+  private lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
 
   private var originalPlan: SparkPlan = _
   // Do not create rules in class initialization as we should access SQLConf
@@ -736,34 +739,37 @@ case class ColumnarOverrideRules(session: SparkSession)
   override def preColumnarTransitions: Rule[SparkPlan] = plan =>
     PhysicalPlanSelector.maybe(session, plan) {
       var overridden: SparkPlan = plan
-      val startTime = System.nanoTime()
-      val traceElements = Thread.currentThread.getStackTrace
-      assert(
-        traceElements.length > aqeStackTraceIndex,
-        s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
-      // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
-      // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
-      // columnar rule will be applied in adaptive execution context. This part of code
-      // needs to be carefully checked when supporting higher versions of spark to make
-      // sure the calling stack has not been changed.
-      this.isAdaptiveContext = traceElements(aqeStackTraceIndex).getClassName.equals(
-        AdaptiveSparkPlanExec.getClass.getName)
-      // Holds the original plan for possible entire fallback.
-      originalPlan = plan
-      logOnLevel(
-        transformPlanLogLevel,
-        s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
-      preOverrides().foreach {
-        r =>
-          overridden = r(session)(overridden)
-          planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+      GlutenTimeMetric.withNanoTime {
+        val traceElements = Thread.currentThread.getStackTrace
+        assert(
+          traceElements.length > aqeStackTraceIndex,
+          s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
+        // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
+        // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
+        // columnar rule will be applied in adaptive execution context. This part of code
+        // needs to be carefully checked when supporting higher versions of spark to make
+        // sure the calling stack has not been changed.
+        this.isAdaptiveContext = traceElements(aqeStackTraceIndex).getClassName.equals(
+          AdaptiveSparkPlanExec.getClass.getName)
+        // Holds the original plan for possible entire fallback.
+        originalPlan = plan
+        logOnLevel(
+          transformPlanLogLevel,
+          s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
+        preOverrides().foreach {
+          r =>
+            overridden = r(session)(overridden)
+            planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+        }
+        logOnLevel(
+          transformPlanLogLevel,
+          s"preColumnarTransitions afterOverriden plan:\n${overridden.toString}")
+      } {
+        t =>
+          logOnLevel(
+            transformPlanLogLevel,
+            s"preTransform SparkPlan took: ${NANOSECONDS.toMillis(t)} ms.")
       }
-      logOnLevel(
-        transformPlanLogLevel,
-        s"preColumnarTransitions afterOverriden plan:\n${overridden.toString}")
-      logOnLevel(
-        transformPlanLogLevel,
-        s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
     }
 
@@ -796,7 +802,7 @@ case class ColumnarOverrideRules(session: SparkSession)
           fallbacks = fallbacks + 1
         case _ =>
       }
-      plan.children.map(p => countFallback(p))
+      plan.children.foreach(p => countFallback(p))
     }
     countFallback(plan)
     fallbacks
@@ -837,7 +843,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   // Just for test use.
-  def enableAdaptiveContext: Unit = {
+  def enableAdaptiveContext(): Unit = {
     isAdaptiveContext = true
   }
 
@@ -845,27 +851,30 @@ case class ColumnarOverrideRules(session: SparkSession)
     PhysicalPlanSelector.maybe(session, plan) {
       if (fallbackPolicy == "query" && !isAdaptiveContext && fallbackWholeQuery(plan)) {
         logWarning("Fall back to run the query due to unsupported operator!")
-        insertTransitions(originalPlan, false)
+        insertTransitions(originalPlan, outputsColumnar = false)
       } else if (fallbackPolicy == "stage" && isAdaptiveContext && fallbackWholeStage(plan)) {
         logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
-        insertTransitions(originalPlan, false)
+        insertTransitions(originalPlan, outputsColumnar = false)
       } else {
         logOnLevel(
           transformPlanLogLevel,
           s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
         var overridden: SparkPlan = plan
-        val startTime = System.nanoTime()
-        postOverrides().foreach {
-          r =>
-            overridden = r(session)(overridden)
-            planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+        GlutenTimeMetric.withNanoTime {
+          postOverrides().foreach {
+            r =>
+              overridden = r(session)(overridden)
+              planChangeLogger.logRule(r(session).ruleName, plan, overridden)
+          }
+          logOnLevel(
+            transformPlanLogLevel,
+            s"postColumnarTransitions afterOverriden plan:\n${overridden.toString}")
+        } {
+          t =>
+            logOnLevel(
+              transformPlanLogLevel,
+              s"postTransform SparkPlan took: ${NANOSECONDS.toMillis(t)} ms.")
         }
-        logOnLevel(
-          transformPlanLogLevel,
-          s"postColumnarTransitions afterOverriden plan:\n${overridden.toString}")
-        logOnLevel(
-          transformPlanLogLevel,
-          s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
         overridden
       }
     }
