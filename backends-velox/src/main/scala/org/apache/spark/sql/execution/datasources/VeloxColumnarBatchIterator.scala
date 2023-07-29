@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exception.GlutenException
 
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -51,7 +52,7 @@ class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
           EOS_BATCH
       }
     if (batch == null) {
-      throw new RuntimeException("VeloxParquetWriter: Timeout waiting for data")
+      throw new GlutenException("VeloxParquetWriter: Timeout waiting for data")
     }
     if (batch == EOS_BATCH) {
       return false

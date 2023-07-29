@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.UDFMappings
 import io.glutenproject.init.JniTaskContext
@@ -50,7 +51,7 @@ class ContextInitializer extends ContextApi {
     } else if (system.contains("Anolis") && system.contains("7")) {
       new SharedLibraryLoaderCentos7
     } else {
-      throw new RuntimeException(
+      throw new GlutenException(
         "Found unsupported OS! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, alinux 3 & Anolis 7/8.")
     }

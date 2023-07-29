@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +29,6 @@ import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
@@ -100,10 +101,10 @@ public class JniResourceHelper {
     }
     final String folderToLoad = "";
     URL url = new URL("jar:file:" + sourceJar + "!/");
-    final URLConnection urlConnection = (JarURLConnection) url.openConnection();
-    File workDir_handler = new File(workDir + "/tmp");
-    if (!workDir_handler.exists()) {
-      workDir_handler.mkdirs();
+    final URLConnection urlConnection = url.openConnection();
+    File workDirHandler = new File(workDir + "/tmp");
+    if (!workDirHandler.exists()) {
+      workDirHandler.mkdirs();
     }
 
     if (urlConnection instanceof JarURLConnection) {
@@ -126,12 +127,11 @@ public class JniResourceHelper {
       if (((Objects.equals(jarPath, "") && !oneEntry.getName().contains("META-INF"))
               || (oneEntry.getName().startsWith(jarPath + "/")))
           && !oneEntry.isDirectory()) {
-        int rm_length = jarPath.length() == 0 ? 0 : jarPath.length() + 1;
-        Path dest_path = Paths.get(destPath + "/" + oneEntry.getName().substring(rm_length));
-        if (Files.exists(dest_path)) {
+        int rmLength = jarPath.isEmpty() ? 0 : jarPath.length() + 1;
+        if (Files.exists(Paths.get(destPath + "/" + oneEntry.getName().substring(rmLength)))) {
           continue;
         }
-        File destFile = new File(destPath + "/" + oneEntry.getName().substring(rm_length));
+        File destFile = new File(destPath + "/" + oneEntry.getName().substring(rmLength));
         File parentFile = destFile.getParentFile();
         if (parentFile != null) {
           parentFile.mkdirs();
@@ -176,7 +176,7 @@ public class JniResourceHelper {
       LOG.info("Successfully extracted headers to work directory {}", workDir);
       headersExtracted = true;
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -198,7 +198,7 @@ public class JniResourceHelper {
                 LOG.info("Successfully extracted jar {} to work directory {}", jar, workDir);
                 jarExtracted.add(jar);
               } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new GlutenException(e);
               }
             });
   }

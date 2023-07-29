@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import io.netty.util.internal.PlatformDependent;
 
 import java.io.IOException;
@@ -57,7 +59,7 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
       bytesRead += read;
       return read;
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -77,7 +79,7 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
       in.close();
       in = null;
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 }

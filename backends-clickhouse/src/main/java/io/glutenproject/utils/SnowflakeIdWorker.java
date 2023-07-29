@@ -16,6 +16,8 @@
  */
 package io.glutenproject.utils;
 
+import io.glutenproject.exception.GlutenException;
+
 import org.apache.spark.SparkEnv;
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig;
 
@@ -71,7 +73,7 @@ public class SnowflakeIdWorker {
     long timestamp = timeGen();
 
     if (timestamp < lastTimestamp) {
-      throw new RuntimeException(
+      throw new GlutenException(
           String.format(
               "Clock moved backwards.  Refusing to generate id for %d milliseconds",
               lastTimestamp - timestamp));

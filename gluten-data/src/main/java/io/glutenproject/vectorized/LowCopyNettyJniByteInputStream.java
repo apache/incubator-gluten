@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.util.internal.PlatformDependent;
@@ -55,7 +57,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
     try {
       this.byteBuf = (ByteBuf) FIELD_ByteBufInputStream_buffer.get(unwrapped);
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -85,7 +87,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
       }
       return true;
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -99,7 +101,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
     try {
       in.close();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 }
