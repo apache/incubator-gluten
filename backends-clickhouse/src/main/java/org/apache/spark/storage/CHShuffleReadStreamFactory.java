@@ -16,6 +16,7 @@
  */
 package org.apache.spark.storage;
 
+import io.glutenproject.exception.GlutenException;
 import io.glutenproject.vectorized.LowCopyFileSegmentShuffleInputStream;
 import io.glutenproject.vectorized.LowCopyNettyShuffleInputStream;
 import io.glutenproject.vectorized.OnHeapCopyShuffleInputStream;
@@ -75,7 +76,7 @@ public final class CHShuffleReadStreamFactory {
       FIELD_LZFInputStream_in = LZFInputStream.class.getDeclaredField("_inputStream");
       FIELD_LZFInputStream_in.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -179,7 +180,6 @@ public final class CHShuffleReadStreamFactory {
     InputStream wrapped;
     try {
       wrapped = (InputStream) FIELD_FilterInputStream_in.get(lin);
-      long left = ((long) FIELD_LimitedInputStream_left.get(lin));
     } catch (IllegalAccessException e) {
       LOG.error("Can not get the fields from LimitedInputStream: ", e);
       return null;

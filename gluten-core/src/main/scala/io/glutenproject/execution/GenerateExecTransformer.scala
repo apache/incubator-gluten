@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
@@ -40,7 +41,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
-import java.util.ArrayList
+import java.util
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
 // For clickhouse backend, it will transform Spark explode lateral view to CH array join.
@@ -104,15 +105,22 @@ case class GenerateExecTransformer(
     for (target <- requiredChildOutput) {
       val found = child.output.zipWithIndex.filter(_._1.name == target.name)
       if (found.nonEmpty) {
-        val exprNode = ExpressionBuilder.makeSelection(found(0)._2)
+        val exprNode = ExpressionBuilder.makeSelection(found.head._2)
         childOutputNodes.add(exprNode)
       } else {
-        throw new RuntimeException(s"Can't found column ${target.name} in child output")
+        throw new GlutenException(s"Can't found column ${target.name} in child output")
       }
     }
 
     val relNode =
-      getRelNode(context, operatorId, child.output, null, generatorNode, childOutputNodes, true)
+      getRelNode(
+        context,
+        operatorId,
+        child.output,
+        null,
+        generatorNode,
+        childOutputNodes,
+        validation = true)
 
     doNativeValidation(context, relNode)
   }
@@ -132,10 +140,10 @@ case class GenerateExecTransformer(
     for (target <- requiredChildOutput) {
       val found = child.output.zipWithIndex.filter(_._1.name == target.name)
       if (found.nonEmpty) {
-        val exprNode = ExpressionBuilder.makeSelection(found(0)._2)
+        val exprNode = ExpressionBuilder.makeSelection(found.head._2)
         childOutputNodes.add(exprNode)
       } else {
-        throw new RuntimeException(s"Can't found column ${target.name} in child output")
+        throw new GlutenException(s"Can't found column ${target.name} in child output")
       }
     }
 
@@ -147,14 +155,21 @@ case class GenerateExecTransformer(
         childCtx.root,
         generatorNode,
         childOutputNodes,
-        false)
+        validation = false)
     } else {
       val attrList = new java.util.ArrayList[Attribute]()
       for (attr <- child.output) {
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      getRelNode(context, operatorId, child.output, readRel, generatorNode, childOutputNodes, false)
+      getRelNode(
+        context,
+        operatorId,
+        child.output,
+        readRel,
+        generatorNode,
+        childOutputNodes,
+        validation = false)
     }
     TransformContext(child.output, output, relNode)
   }
@@ -165,7 +180,7 @@ case class GenerateExecTransformer(
       inputAttributes: Seq[Attribute],
       input: RelNode,
       generator: ExpressionNode,
-      childOuput: ArrayList[ExpressionNode],
+      childOuput: util.ArrayList[ExpressionNode],
       validation: Boolean): RelNode = {
     if (!validation) {
       RelBuilder.makeGenerateRel(input, generator, childOuput, context, operatorId)

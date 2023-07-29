@@ -19,6 +19,7 @@ package org.apache.spark.util
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 
+import _root_.io.glutenproject.exception.GlutenException
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
 
@@ -39,7 +40,7 @@ object SparkDirectoryUtil extends Logging {
             try FileUtils.forceDelete(localDir)
             catch {
               case e: Exception =>
-                throw new RuntimeException(e)
+                throw new GlutenException(e)
             }
           })
         logInfo(s"Created local directory at $localDir")

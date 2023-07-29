@@ -19,13 +19,10 @@ package io.glutenproject.vectorized;
 
 /**
  * This class is implemented in JNI. This provides the Java interface to invoke functions in JNI.
- * This file is used to generated the .h files required for jni. Avoid all external dependencies in
+ * This file is used to generate the .h files required for jni. Avoid all external dependencies in
  * this file.
  */
 public class ExpressionEvaluatorJniWrapper {
-
-  /** Wrapper for native API. */
-  public ExpressionEvaluatorJniWrapper() {}
 
   /** Call initNative to initialize native computing. */
   native void nativeInitNative(byte[] confAsPlan);
@@ -48,8 +45,7 @@ public class ExpressionEvaluatorJniWrapper {
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long allocatorId, byte[] wsPlan, GeneralInIterator[] batchItr, byte[] confArray)
-      throws RuntimeException;
+      long allocatorId, byte[] wsPlan, GeneralInIterator[] batchItr, byte[] confArray);
 
   /**
    * Closes the projector referenced by nativeHandler.

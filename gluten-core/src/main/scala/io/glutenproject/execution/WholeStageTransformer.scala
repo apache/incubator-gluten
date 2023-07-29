@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.expression._
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
@@ -240,7 +241,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       val allScanPartitionSchemas = basicScanExecTransformers.map(_.getPartitionSchemas)
       val partitionLength = allScanPartitions.head.size
       if (allScanPartitions.exists(_.size != partitionLength)) {
-        throw new RuntimeException(
+        throw new GlutenException(
           "The partition length of all the scan transformer are not the same.")
       }
       val startTime = System.nanoTime()
@@ -261,7 +262,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
 
       logOnLevel(
         substraitPlanLogLevel,
-        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
+        s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
 
       new GlutenWholeStageColumnarRDD(
         sparkContext,
@@ -291,7 +292,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
       logOnLevel(
         substraitPlanLogLevel,
-        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
+        s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
 
       new WholeStageZippedPartitionsRDD(
         sparkContext,
@@ -356,7 +357,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     // Get the number of partitions from a non-broadcast RDD.
     val nonBroadcastRDD = rddSeq.find(rdd => !rdd.isInstanceOf[BroadcastBuildSideRDD])
     if (nonBroadcastRDD.isEmpty) {
-      throw new RuntimeException("At least one RDD should not being BroadcastBuildSideRDD")
+      throw new GlutenException("At least one RDD should not being BroadcastBuildSideRDD")
     }
     rddSeq.map {
       case broadcastRDD: BroadcastBuildSideRDD =>

@@ -17,6 +17,7 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
 import io.glutenproject.execution.BroadCastHashJoinContext;
 import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.expression.ConverterUtils$;
@@ -119,7 +120,7 @@ public class StorageJoinBuilder implements AutoCloseable {
     try {
       in.close();
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 }

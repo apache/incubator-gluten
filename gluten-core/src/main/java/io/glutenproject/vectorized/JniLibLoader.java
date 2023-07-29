@@ -17,6 +17,8 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +58,8 @@ import scala.runtime.BoxedUnit;
 public class JniLibLoader {
   private static final Logger LOG = LoggerFactory.getLogger(JniLibLoader.class);
 
-  public static Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
-  public static Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
+  private static final Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
+  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
 
   static {
     GlutenShutdownManager.addHookForLibUnloading(
@@ -97,8 +99,7 @@ public class JniLibLoader {
   public static void loadFromPath(String libPath, boolean requireUnload) {
     final File file = new File(libPath);
     if (!file.isFile() || !file.exists()) {
-      throw new RuntimeException(
-          "library at path: " + libPath + " is not a file or does not exist");
+      throw new GlutenException("library at path: " + libPath + " is not a file or does not exist");
     }
     loadFromPath0(file.getAbsolutePath(), requireUnload);
   }
@@ -208,7 +209,7 @@ public class JniLibLoader {
         return this;
       } catch (Exception e) {
         abort();
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
 
@@ -218,7 +219,7 @@ public class JniLibLoader {
         return this;
       } catch (Exception e) {
         abort();
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
 
@@ -229,7 +230,7 @@ public class JniLibLoader {
         return this;
       } catch (Exception e) {
         abort();
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
 
@@ -250,7 +251,7 @@ public class JniLibLoader {
                     return Stream.of(
                         new LoadAction(req.libName, req.linkName, req.requireUnload, file));
                   } catch (IOException ex) {
-                    throw new RuntimeException(ex);
+                    throw new GlutenException(ex);
                   }
                 })
             .collect(Collectors.toList())
@@ -262,7 +263,7 @@ public class JniLibLoader {
                     loadedLibraries.add(e.libName);
                     LOG.info("Successfully loaded library {}", e.libName);
                   } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+                    throw new GlutenException(ex);
                   }
                 });
       } finally {
@@ -300,7 +301,7 @@ public class JniLibLoader {
         try {
           Files.copy(is, temp.toPath());
         } catch (Exception e) {
-          throw new RuntimeException(e);
+          throw new GlutenException(e);
         }
       }
       return temp;

@@ -31,7 +31,6 @@ import io.substrait.proto.Plan;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.internal.SQLConf;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +80,7 @@ public class CHNativeExpressionEvaluator {
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
+      Plan wsPlan, List<GeneralInIterator> iterList) {
     long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
@@ -99,8 +98,7 @@ public class CHNativeExpressionEvaluator {
 
   // Only for UT.
   public GeneralOutIterator createKernelWithBatchIterator(
-      long allocId, byte[] wsPlan, List<GeneralInIterator> iterList)
-      throws RuntimeException, IOException {
+      long allocId, byte[] wsPlan, List<GeneralInIterator> iterList) {
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
             allocId,
@@ -119,7 +117,7 @@ public class CHNativeExpressionEvaluator {
     return planNode.toByteArray();
   }
 
-  private GeneralOutIterator createOutIterator(long nativeHandle) throws IOException {
+  private GeneralOutIterator createOutIterator(long nativeHandle) {
     return new BatchIterator(nativeHandle);
   }
 }
