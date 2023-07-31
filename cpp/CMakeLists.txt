@@ -86,6 +86,7 @@ add_compile_options(-Wno-error=unused-variable)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-Wno-error=unused-but-set-variable)
+  add_compile_options(-Wno-stringop-overflow)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   # Experimental
   add_compile_options(-Wno-implicit-int-float-conversion)

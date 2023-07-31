@@ -172,16 +172,27 @@ inline void writeInt64(std::shared_ptr<arrow::Buffer> buffer, int64_t& offset, i
   offset += sizeof(int64_t);
 }
 
+int64_t getBufferSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
+  int64_t totalSize = 0;
+  for (auto& buffer : buffers) {
+    if (buffer != nullptr && buffer->size() != 0) {
+      totalSize += buffer->size();
+    }
+  }
+  return totalSize;
+}
+
 int64_t getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::util::Codec* codec) {
   int64_t totalSize = 0;
   for (auto& buffer : buffers) {
     if (buffer != nullptr && buffer->size() != 0) {
-      totalSize += codec->MaxCompressedLen(buffer->size(), nullptr);
+      totalSize += buffer->size();
     }
   }
-  return totalSize;
+
+  return codec->MaxCompressedLen(totalSize, nullptr);
 }
 
 std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
@@ -202,42 +213,42 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
     arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(0)->type(), headerBuffer, pool));
   }
 
-  // Length buffer layout |buffers.size()|buffer1 unCompressedLength|buffer1 compressedLength| buffer2...
+  // Length buffer layout |buffer unCompressedLength|buffer compressedLength|buffers.size()| buffer1 size | buffer2 size
   std::shared_ptr<arrow::ResizableBuffer> lengthBuffer;
   GLUTEN_THROW_NOT_OK(pool->allocateDirectly(lengthBuffer, (buffers.size() * 2 + 1) * sizeof(int64_t)));
   int64_t offset = 0;
+
+  std::shared_ptr<arrow::ResizableBuffer> valueBuffer;
+  // because 64B align, valueBuffer size maybe bigger than unCompressedBufferSize which is  getBufferSize(buffers), then
+  // cannot use this size
+  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(valueBuffer, getBufferSize(buffers)));
+  writeInt64(lengthBuffer, offset, valueBuffer->size());
+  int64_t compressLengthOffset = sizeof(int64_t); // just unCompressedBufferSize
+  writeInt64(lengthBuffer, offset, 0); // 0 for compressLength
   writeInt64(lengthBuffer, offset, buffers.size());
 
-  int64_t compressedBufferMaxSize = getMaxCompressedBufferSize(buffers, codec);
-  std::shared_ptr<arrow::ResizableBuffer> valueBuffer;
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(valueBuffer, compressedBufferMaxSize));
   int64_t compressValueOffset = 0;
   for (auto& buffer : buffers) {
     if (buffer != nullptr && buffer->size() != 0) {
-      int64_t actualLength;
-      if (buffer->size() >= bufferCompressThreshold) {
-        writeInt64(lengthBuffer, offset, buffer->size());
-        int64_t maxLength = codec->MaxCompressedLen(buffer->size(), nullptr);
-        GLUTEN_ASSIGN_OR_THROW(
-            actualLength,
-            codec->Compress(
-                buffer->size(), buffer->data(), maxLength, valueBuffer->mutable_data() + compressValueOffset));
-      } else {
-        // Will not compress small buffer, mark uncompressed length as -1 to indicate it is original buffer
-        writeInt64(lengthBuffer, offset, -1);
-        memcpy(valueBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
-        actualLength = buffer->size();
-      }
-      compressValueOffset += actualLength;
-      writeInt64(lengthBuffer, offset, actualLength);
+      writeInt64(lengthBuffer, offset, buffer->size());
+      memcpy(valueBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
+      compressValueOffset += buffer->size();
     } else {
-      writeInt64(lengthBuffer, offset, 0);
       writeInt64(lengthBuffer, offset, 0);
     }
   }
-  GLUTEN_THROW_NOT_OK(valueBuffer->Resize(compressValueOffset, /*shrink*/ true));
+  std::shared_ptr<arrow::ResizableBuffer> compressBuffer;
+  int64_t maxLength = codec->MaxCompressedLen(valueBuffer->size(), nullptr);
+  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(compressBuffer, maxLength));
+  GLUTEN_ASSIGN_OR_THROW(
+      int64_t actualLength,
+      codec->Compress(valueBuffer->size(), valueBuffer->data(), maxLength, compressBuffer->mutable_data()));
+  GLUTEN_THROW_NOT_OK(compressBuffer->Resize(actualLength, /*shrink*/ true));
+
+  memcpy(lengthBuffer->mutable_data() + compressLengthOffset, &actualLength, sizeof(int64_t));
+
   arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(1)->type(), lengthBuffer, pool));
-  arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(2)->type(), valueBuffer, pool));
+  arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(2)->type(), compressBuffer, pool));
   return arrow::RecordBatch::Make(compressWriteSchema, 1, {arrays});
 }
 

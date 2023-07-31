@@ -43,6 +43,8 @@ class VeloxShuffleReader final : public Reader {
  private:
   facebook::velox::RowTypePtr rowType_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  // temp solution
+  std::vector<std::shared_ptr<arrow::Buffer>> unCompressedBuffers_;
 };
 
 } // namespace gluten

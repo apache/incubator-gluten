@@ -20,9 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.SparkConf
-import org.apache.spark.internal.config._
 
-import java.util.Locale
 
 object GlutenShuffleUtils {
   def checkCodecValues(codecConf: String, codec: String, validValues: Set[String]): Unit = {
@@ -50,16 +48,17 @@ object GlutenShuffleUtils {
         }
         codec
       case None =>
-        val sparkCodecKey = IO_COMPRESSION_CODEC.key
-        val codec =
-          conf
-            .get(sparkCodecKey, IO_COMPRESSION_CODEC.defaultValueString)
-            .toLowerCase(Locale.ROOT)
-        checkCodecValues(
-          sparkCodecKey,
-          codec,
-          BackendsApiManager.getSettings.shuffleSupportedCodec())
-        codec
+//        val sparkCodecKey = IO_COMPRESSION_CODEC.key
+//        val codec =
+//          conf
+//            .get(sparkCodecKey, IO_COMPRESSION_CODEC.defaultValueString)
+//            .toLowerCase(Locale.ROOT)
+//        checkCodecValues(
+//          sparkCodecKey,
+//          codec,
+//          BackendsApiManager.getSettings.shuffleSupportedCodec())
+//        codec
+        "zstd"
     }
   }
 }
