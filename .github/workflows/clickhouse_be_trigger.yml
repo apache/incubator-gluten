@@ -35,7 +35,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        
+      - name: Sleep for Dev PR workflow done
+        run: sleep 5
       - name: Add comment to PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
