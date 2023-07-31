@@ -103,10 +103,23 @@ If you have Ultimate intellij, you can try to debug remotely.
 - Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
 - Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
 
-## Java/Scala code style setting
+## Java/Scala code style
 
 Intellij IDE supports importing settings for Java/Scala code style. You can import [intellij-codestyle.xml](../../dev/intellij-codestyle.xml) to your IDE.
 See [Intellij guide](https://www.jetbrains.com/help/idea/configuring-code-style.html#import-code-style).
+
+To generate a fix for Java/Scala code style, you can run one or more of the below commands according to the code modules involved in your PR.
+
+For Velox backend:
+```
+mvn spotless:apply -Pbackends-velox -Prss -Pspark-3.2 -Pspark-ut -DskipTests
+mvn spotless:apply -Pbackends-velox -Prss -Pspark-3.3 -Pspark-ut -DskipTests
+```
+For Clickhouse backend:
+```
+mvn spotless:apply -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -DskipTests
+mvn spotless:apply -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut -DskipTests
+```
 
 # CPP code development with Visual Studio Code
 
