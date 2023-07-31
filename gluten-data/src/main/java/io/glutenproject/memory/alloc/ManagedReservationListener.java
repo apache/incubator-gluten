@@ -41,27 +41,32 @@ public class ManagedReservationListener implements ReservationListener {
 
   private long reserve0(long size, Consumer<String> onOom) {
     synchronized (this) {
-      if (!open) {
-        return 0L;
-      }
-      long granted = target.borrow(size);
-      reserved += granted;
-      metrics.inc(granted);
-      if (granted < size) {
-        if (granted != 0L) {
-          target.repay(granted);
+      try {
+        if (!open) {
+          return 0L;
         }
-        onOom.accept(
-            "Not enough spark off-heap execution memory. "
-                + "Acquired: "
-                + size
-                + ", granted: "
-                + granted
-                + ". "
-                + "Try tweaking config option spark.memory.offHeap.size to "
-                + "get larger space to run this application. ");
+        long granted = target.borrow(size);
+        reserved += granted;
+        metrics.inc(granted);
+        if (granted < size) {
+          if (granted != 0L) {
+            target.repay(granted);
+          }
+          onOom.accept(
+              "Not enough spark off-heap execution memory. "
+                  + "Acquired: "
+                  + size
+                  + ", granted: "
+                  + granted
+                  + ". "
+                  + "Try tweaking config option spark.memory.offHeap.size to "
+                  + "get larger space to run this application. ");
+        }
+        return granted;
+      } catch (Exception e) {
+        LOG.error("Error reserving memory from target", e);
+        throw e;
       }
-      return granted;
     }
   }
 
@@ -70,7 +75,7 @@ public class ManagedReservationListener implements ReservationListener {
     reserve0(
         size,
         s -> {
-          throw new UnsupportedOperationException(s);
+          throw new OutOfMemoryException(s);
         });
   }
 
@@ -97,6 +102,12 @@ public class ManagedReservationListener implements ReservationListener {
     synchronized (this) {
       target = null; // make it gc reachable
       open = false;
+    }
+  }
+
+  public static class OutOfMemoryException extends RuntimeException {
+    public OutOfMemoryException(String message) {
+      super(message);
     }
   }
 }

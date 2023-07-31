@@ -207,6 +207,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
 
+  def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
+
+  def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
+
   def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
 
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
@@ -942,6 +946,24 @@ object GlutenConfig {
       .transform(_.toLowerCase(Locale.ROOT))
       .checkValues(Set("none", "auto"))
       .createWithDefault("auto")
+
+  val COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillFileSize")
+      .internal()
+      .doc("The maximum size of a single spill file created")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("20MB")
+
+  val COLUMNAR_VELOX_SPILL_FILE_SYSTEM =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillFileSystem")
+      .internal()
+      .doc(
+        "The filesystem used to store spill data. local: The local file system. " +
+          "heap-over-local: Write file to JVM heap if having extra heap space. " +
+          "Otherwise write to local file system.")
+      .stringConf
+      .checkValues(Set("local", "heap-over-local"))
+      .createWithDefaultString("local")
 
   val COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.overAcquiredMemoryRatio")

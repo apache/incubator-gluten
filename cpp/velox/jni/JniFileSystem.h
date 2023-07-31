@@ -24,107 +24,12 @@
 
 namespace gluten {
 
-// TODO: hongze
-struct HeapHandle {
-  bool valid() const {
-    return true;
-  }
-};
-
-// TODO: hongze
-inline HeapHandle tryAllocHeapMemory(size_t size) {
-  HeapHandle handle;
-  return handle;
-}
-
-// TODO: hongze
-inline void freeHeapMemory(HeapHandle handle) {
-  // Do something
-}
-
-class JniReadFile : public facebook::velox::ReadFile {
- public:
-  explicit JniReadFile(HeapHandle handle) : handle_(handle) {}
-
-  std::string_view pread(uint64_t offset, uint64_t length, void* buf) const override;
-
-  bool shouldCoalesce() const override;
-
-  uint64_t size() const override;
-
-  uint64_t memoryUsage() const override;
-
-  std::string getName() const override {
-    return "<JniReadFile>";
-  }
-
-  uint64_t getNaturalReadSize() const override;
-
- private:
-  HeapHandle handle_;
-};
-
-class JniWriteFile : public facebook::velox::WriteFile {
- public:
-  explicit JniWriteFile(HeapHandle handle) : handle_(handle) {}
-
-  void append(std::string_view data) override;
-
-  void flush() override;
-
-  void close() override;
-
-  uint64_t size() const override;
-
- private:
-  HeapHandle handle_;
-};
-
-class JniFileSystem : public facebook::velox::filesystems::FileSystem {
- public:
-  struct FileStub {
-    enum { INVALID, HEAP, DISK } type = INVALID;
-    HeapHandle handle;
-    std::string filename;
-  };
-
-  explicit JniFileSystem(std::shared_ptr<const facebook::velox::Config> config) : FileSystem(config) {}
-
-  std::string name() const override {
-    return "JNI FS";
-  }
-
-  std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
-      std::string_view path,
-      const facebook::velox::filesystems::FileOptions& options) override;
-
-  std::unique_ptr<facebook::velox::WriteFile> openFileForWrite(
-      std::string_view path,
-      const facebook::velox::filesystems::FileOptions& options) override;
-
-  void remove(std::string_view path) override;
-
-  void rename(std::string_view oldPath, std::string_view newPath, bool overwrite) override;
-
-  bool exists(std::string_view path) override;
-
-  std::vector<std::string> list(std::string_view path) override;
-
-  void mkdir(std::string_view path) override;
-
-  void rmdir(std::string_view path) override;
-
-  static std::function<bool(std::string_view)> schemeMatcher();
-
-  static std::function<std::shared_ptr<FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
-  fileSystemGenerator();
-
- private:
-  std::map<std::string /*path*/, FileStub> fileStubs_;
-  std::mutex fileStubsMutex_;
-};
-
 void registerJniFileSystem();
+
+// Register JNI-or-local (or JVM-over-local, as long as it describes what happens here)
+//   file system. maxFileSize is necessary (!= 0) because we use this size to decide
+//   whether a new file can fit in JVM heap, otherwise we write it via local fs directly.
+void registerJolFileSystem(uint64_t maxFileSize);
 
 void initVeloxJniFileSystem(JNIEnv* env);
 
