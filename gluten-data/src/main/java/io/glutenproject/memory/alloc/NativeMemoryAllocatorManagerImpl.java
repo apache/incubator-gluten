@@ -71,4 +71,9 @@ public class NativeMemoryAllocatorManagerImpl implements NativeMemoryAllocatorMa
   public long priority() {
     return 0L; // lowest priority
   }
+
+  @Override
+  public String resourceName() {
+    return "NativeMemoryAllocatorManager_" + managed.getNativeInstanceId();
+  }
 }

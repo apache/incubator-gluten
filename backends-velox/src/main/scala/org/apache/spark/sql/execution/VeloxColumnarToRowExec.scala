@@ -117,7 +117,7 @@ class ColumnarToRowRDD(
       val c2rId = jniWrapper.nativeColumnarToRowInit(
         NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
 
-      TaskResources.addRecycler(100) {
+      TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
         if (!closed) {
           jniWrapper.nativeClose(c2rId)
           closed = true

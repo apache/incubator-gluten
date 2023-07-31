@@ -25,11 +25,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 import java.io.IOException;
 
 public class ColumnarBatchOutIterator extends GeneralOutIterator {
-  private final long handle;
 
   public ColumnarBatchOutIterator(long handle) throws IOException {
-    super();
-    this.handle = handle;
+    super(handle);
   }
 
   private native boolean nativeHasNext(long nativeHandle);

@@ -26,8 +26,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class GeneralOutIterator implements AutoCloseable, Serializable {
   protected final AtomicBoolean closed = new AtomicBoolean(false);
+  protected final long handle;
 
-  public GeneralOutIterator() {}
+  public GeneralOutIterator(long handle) {
+    this.handle = handle;
+  }
 
   public final boolean hasNext() throws Exception {
     return hasNextInternal();
@@ -46,6 +49,10 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
     if (closed.compareAndSet(false, true)) {
       closeInternal();
     }
+  }
+
+  public final long getHandle() {
+    return handle;
   }
 
   protected abstract void closeInternal();

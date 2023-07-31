@@ -39,4 +39,9 @@ public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocat
   public long priority() {
     return 0L; // lowest priority
   }
+
+  @Override
+  public String resourceName() {
+    return "CHNativeMemoryAllocatorManager_" + managed.getNativeInstanceId();
+  }
 }

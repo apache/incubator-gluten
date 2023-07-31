@@ -30,4 +30,6 @@ class JniTaskContext extends TaskResource {
   }
 
   override def priority(): Long = 10
+
+  override def resourceName(): String = s"JniTaskContext_$handle"
 }

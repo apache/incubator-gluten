@@ -96,7 +96,7 @@ private class CelebornColumnarBatchSerializerInstance(
         // since the native reader could hold a reference to memory pool that
         // was used to create all buffers read from shuffle reader. The pool
         // should keep alive before all buffers to finish consuming.
-        TaskResources.addRecycler(50) {
+        TaskResources.addRecycler(s"CelebornShuffleReaderHandle_$handle", 50) {
           close()
           ShuffleReaderJniWrapper.INSTANCE.close(handle)
         }
