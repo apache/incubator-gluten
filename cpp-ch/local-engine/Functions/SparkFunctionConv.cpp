@@ -1,19 +1,12 @@
 #include "SparkFunctionConv.h"
-#include <DataTypes/DataTypeDate32.h>
-#include <DataTypes/DataTypeDateTime.h>
-#include <DataTypes/DataTypeDateTime64.h>
+#include <string>
 #include <DataTypes/DataTypeNullable.h>
-#include <Functions/DateTimeTransforms.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/TransformDateTime64.h>
-//#include <boost/type_traits/type_with_alignment.hpp>
 #include <Poco/Logger.h>
 #include <Poco/Types.h>
-#include <Common/DateLUT.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
 #include "DataTypes/IDataType.h"
-#include "base/Decimal.h"
 #include "base/types.h"
 
 namespace DB
@@ -21,64 +14,12 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int ILLEGAL_TYPE_OF_ARGUMENT;
-    extern const int NOT_IMPLEMENTED;
     extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 }
 }
 
 namespace local_engine
 {
-
-  /**
-  Converts a 64-bit integer value to its character form and moves it to the
-  destination buffer followed by a terminating NUL. If radix is -2..-36, val is
-  taken to be SIGNED, if radix is 2..36, val is taken to be UNSIGNED. That is,
-  val is signed if and only if radix is. All other radixes are treated as bad
-  and nothing will be changed in this case.
-
-  For conversion to decimal representation (radix is -10 or 10) one should use
-  the optimized #longlong10_to_str() function instead.
-*/
-
-constexpr std::array<const char, 37> dig_vec_upper{
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
-constexpr std::array<const char, 37> dig_vec_lower{
-    "0123456789abcdefghijklmnopqrstuvwxyz"};
-
-char * ll2str(int64_t val, char * dst, int radix, bool upcase)
-{
-    char buffer[65];
-    const char *const dig_vec =
-        upcase ? dig_vec_upper.data() : dig_vec_lower.data();
-    auto uval = static_cast<uint64_t>(val);
-
-    if (radix < 0) {
-      if (radix < -36 || radix > -2) return nullptr;
-      if (val < 0) {
-        *dst++ = '-';
-        /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
-        uval = 0ULL - uval;
-      }
-      radix = -radix;
-    } else if (radix > 36 || radix < 2) {
-      return nullptr;
-    }
-
-    char *p = std::end(buffer);
-    do {
-      *--p = dig_vec[uval % radix];
-      uval /= radix;
-    } while (uval != 0);
-
-    const size_t length = std::end(buffer) - p;
-    memcpy(dst, p, length);
-    dst[length] = '\0';
-    return dst + length;
-}
-
-static inline char *longlong2str(int64_t val, char *dst, int radix) {
-  return ll2str(val, dst, radix, true);
-}
 
 DB::DataTypePtr SparkFunctionConv::getReturnTypeImpl(const DB::DataTypes & arguments) const
 {
@@ -186,15 +127,13 @@ DB::ColumnPtr SparkFunctionConv::executeImpl(
     // Note that abs(INT_MIN) is undefined.
     if (from_base == INT_MIN || to_base == INT_MIN || abs(to_base) > 36 || abs(to_base) < 2 || abs(from_base) > 36 || abs(from_base) < 2)
     {
+        result->insertData(nullptr, input_rows_count);
         return result;
     }
-    //bool null_value = false;
-    //bool unsigned_flag = !(from_base < 0);
 
     longlong dec;
     const char * endptr;
     int err;
-
     for (size_t i = 0; i < input_rows_count; ++i)
     {
         auto res = arguments[0].column->getDataAt(i).toString();
@@ -205,19 +144,11 @@ DB::ColumnPtr SparkFunctionConv::executeImpl(
             dec = static_cast<longlong>(my_strntoull_8bit(res.data(), res.length(), from_base, &endptr, &err));
         if (err)
         {
-          /*
-              If we got an overflow from my_strntoull, and the input was negative,
-              then return 0 rather than ~0
-              This is in order to be consistent with
-                CAST(<large negative value>, unsigned)
-              which returns zero.
-              */
-            dec = -1;
+            result->insertData(nullptr, input_rows_count);
+            return result;
         }
-        static constexpr uint32_t CONV_MAX_LENGTH = 64U + 1U;
-        char ans[CONV_MAX_LENGTH + 1U];
-        char * ptr = longlong2str(dec, ans, to_base);
-        result->insertData(ptr, ptr - ans);
+        auto res_str= std::to_string(dec);
+        result->insertData(res_str.data(), res_str.size());
     }
     return result;
 }
