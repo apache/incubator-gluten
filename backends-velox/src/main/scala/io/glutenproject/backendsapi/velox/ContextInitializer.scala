@@ -49,8 +49,11 @@ class ContextInitializer extends ContextApi {
       new SharedLibraryLoaderCentos8
     } else if (system.contains("Anolis") && system.contains("7")) {
       new SharedLibraryLoaderCentos7
+    } else {
+      throw new RuntimeException("Found unsupported OS! Currently, Gluten's Velox backend" +
+        " only supports Ubuntu 20.04/22.04, CentOS 7/8, alinux 3 & Anolis 7/8.")
     }
-    loader.asInstanceOf[SharedLibraryLoader].loadLib(load)
+    loader.loadLib(load)
   }
 
   override def taskResourceFactories(): Seq[() => TaskResource] = {
