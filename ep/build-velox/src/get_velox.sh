@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/zhouyuan/velox.git
+VELOX_BRANCH=wip_viewfs
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -79,7 +79,7 @@ function process_setup_ubuntu {
   sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
   if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_fmt.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
+    sed -i '/^function install_fmt.*/i function install_libhdfs3 {\n  github_checkout zhouyuan/libhdfs3 wip_viewfs \n cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
     sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  yasm \\' scripts/setup-ubuntu.sh
   fi
