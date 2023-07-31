@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
@@ -55,7 +56,7 @@ class VeloxParquetWriterInjects extends GlutenParquetWriterInjectsBase {
         datasourceJniWrapper.nativeInitDatasource(originPath, cSchema.memoryAddress(), nativeConf)
     } catch {
       case e: IOException =>
-        throw new RuntimeException(e)
+        throw new GlutenException(e)
     } finally {
       cSchema.close()
     }

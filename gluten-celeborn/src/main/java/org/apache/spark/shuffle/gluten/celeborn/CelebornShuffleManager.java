@@ -16,6 +16,8 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
+import io.glutenproject.exception.GlutenException;
+
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
@@ -196,7 +198,7 @@ public class CelebornShuffleManager implements ShuffleManager {
         return columnarShuffleManager().getWriter(handle, mapId, context, metrics);
       }
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 

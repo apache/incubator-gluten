@@ -16,6 +16,7 @@
  */
 package io.glutenproject.columnarbatch;
 
+import io.glutenproject.exception.GlutenException;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.utils.ArrowAbiUtil;
 import io.glutenproject.utils.ArrowUtil;
@@ -46,7 +47,7 @@ public class ColumnarBatches {
       f.setAccessible(true);
       FIELD_COLUMNS = f;
     } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -62,7 +63,7 @@ public class ColumnarBatches {
         vectors[i] = from.column(i);
       }
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 

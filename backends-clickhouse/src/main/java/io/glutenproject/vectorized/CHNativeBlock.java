@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -29,7 +31,7 @@ public class CHNativeBlock {
 
   public static CHNativeBlock fromColumnarBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0 || !(batch.column(0) instanceof CHColumnVector)) {
-      throw new RuntimeException(
+      throw new GlutenException(
           "Unexpected ColumnarBatch: "
               + (batch.numCols() == 0
                   ? "0 column"

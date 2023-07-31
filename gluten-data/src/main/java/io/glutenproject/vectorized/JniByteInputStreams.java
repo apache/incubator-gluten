@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import org.apache.spark.storage.BufferReleasingInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +38,7 @@ public final class JniByteInputStreams {
       FIELD_FilterInputStream_in = FilterInputStream.class.getDeclaredField("in");
       FIELD_FilterInputStream_in.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -65,7 +67,7 @@ public final class JniByteInputStreams {
       try {
         unwrapped = ((InputStream) FIELD_FilterInputStream_in.get(cin));
       } catch (IllegalAccessException e) {
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
     return unwrapped;

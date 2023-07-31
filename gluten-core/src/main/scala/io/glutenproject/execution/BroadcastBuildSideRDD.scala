@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenException
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
@@ -34,7 +35,7 @@ case class BroadcastBuildSideRDD(
 
   override def getPartitions: Array[Partition] = {
     if (numPartitions < 0) {
-      throw new RuntimeException(s"Invalid number of partitions: $numPartitions.")
+      throw new GlutenException(s"Invalid number of partitions: $numPartitions.")
     }
     Array.tabulate(numPartitions)(i => BroadcastBuildSideRDDPartition(i))
   }

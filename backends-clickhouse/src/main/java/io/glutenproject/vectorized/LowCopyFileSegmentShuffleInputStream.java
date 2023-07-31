@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import io.netty.util.internal.PlatformDependent;
 import org.apache.spark.network.util.LimitedInputStream;
 import org.apache.spark.storage.CHShuffleReadStreamFactory;
@@ -54,7 +56,7 @@ public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream 
           (FileInputStream)
               CHShuffleReadStreamFactory.FIELD_FilterInputStream_in.get(this.limitedInputStream);
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
     channel = fin.getChannel();
   }
@@ -77,7 +79,7 @@ public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream 
       left -= bytes;
       return bytes;
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -97,7 +99,7 @@ public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream 
       channel.close();
       in.close();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 }

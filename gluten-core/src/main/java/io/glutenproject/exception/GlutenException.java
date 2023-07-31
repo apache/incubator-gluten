@@ -14,17 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql
+package io.glutenproject.exception;
 
-import io.glutenproject.exception.GlutenException
+public class GlutenException extends RuntimeException {
 
-import org.apache.spark.sql.test.SQLTestUtils
+  public GlutenException() {}
 
-object TestUtils {
-  def compareAnswers(actual: Seq[Row], expected: Seq[Row], sort: Boolean = false): Unit = {
-    val result = SQLTestUtils.compareAnswers(actual, expected, sort)
-    if (result.isDefined) {
-      throw new GlutenException("Failed to compare answer" + result.get)
-    }
+  public GlutenException(String message) {
+    super(message);
+  }
+
+  public GlutenException(String message, Throwable cause) {
+    super(message, cause);
+  }
+
+  public GlutenException(Throwable cause) {
+    super(cause);
   }
 }

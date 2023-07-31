@@ -16,6 +16,8 @@
  */
 package org.apache.spark.storage;
 
+import io.glutenproject.exception.GlutenException;
+
 import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
 import com.ning.compress.lzf.LZFOutputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
@@ -28,6 +30,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 
 public final class CHShuffleWriteStreamFactory {
+
+  private CHShuffleWriteStreamFactory() {}
 
   private static final Logger LOG = LoggerFactory.getLogger(CHShuffleWriteStreamFactory.class);
 
@@ -53,7 +57,7 @@ public final class CHShuffleWriteStreamFactory {
       FIELD_LZFOutputStream_out = LZFOutputStream.class.getSuperclass().getDeclaredField("out");
       FIELD_LZFOutputStream_out.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 

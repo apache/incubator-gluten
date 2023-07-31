@@ -17,6 +17,7 @@
 package io.glutenproject.utils
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.sql.utils.SparkVectorUtil
@@ -164,7 +165,7 @@ object ArrowAbiUtil {
       Data.exportVectorSchemaRoot(allocator, vsr, new CDataDictionaryProvider(), cArray, cSchema)
     } catch {
       case e: Exception =>
-        throw new RuntimeException(
+        throw new GlutenException(
           String.format(
             "error exporting columnar batch with schema: %s, vectors: %s",
             vsr.getSchema,

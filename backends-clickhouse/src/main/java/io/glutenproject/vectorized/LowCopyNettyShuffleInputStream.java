@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
 
@@ -70,7 +72,7 @@ public class LowCopyNettyShuffleInputStream implements ShuffleInputStream {
     try {
       in.close();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 }

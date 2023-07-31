@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +48,7 @@ public class JniWorkspace {
       this.jniResourceHelper = new JniResourceHelper(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -58,7 +60,7 @@ public class JniWorkspace {
               .getAbsolutePath();
       return createOrGet(tempRoot);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
