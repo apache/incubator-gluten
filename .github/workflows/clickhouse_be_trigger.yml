@@ -28,6 +28,11 @@ on:
       - 'tools/gluten-it/**'
       - 'tools/gluten-te/**'
       - 'cpp-ch/**'
+  workflow_run:
+    workflows: ["Dev PR"]
+    branches: [main]
+    types:
+      - completed
 
 jobs:
   add-comment:
