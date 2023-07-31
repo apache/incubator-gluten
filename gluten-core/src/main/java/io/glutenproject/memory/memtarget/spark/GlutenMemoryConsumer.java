@@ -48,6 +48,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements MemoryTarget
   public long free(long size) {
     assert size > 0;
     freeMemory(size);
+    Preconditions.checkArgument(getUsed() >= 0);
     return size;
   }
 
