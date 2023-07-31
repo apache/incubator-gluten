@@ -25,7 +25,6 @@ import org.apache.celeborn.common.CelebornConf
 import java.io.IOException
 
 class CelebornPartitionPusher(
-    val appId: String,
     val shuffleId: Int,
     val numMappers: Int,
     val numPartitions: Int,
@@ -38,9 +37,8 @@ class CelebornPartitionPusher(
   @throws[IOException]
   def pushPartitionData(partitionId: Int, buffer: Array[Byte]): Int = {
     logDebug(s"Push record, size ${buffer.length}.")
-    if (buffer.length > celebornConf.pushBufferMaxSize) {
+    if (buffer.length > celebornConf.clientPushBufferMaxSize) {
       client.pushData(
-        appId,
         shuffleId,
         mapId,
         context.attemptNumber,
@@ -52,7 +50,6 @@ class CelebornPartitionPusher(
         numPartitions)
     } else {
       client.mergeData(
-        appId,
         shuffleId,
         mapId,
         context.attemptNumber,

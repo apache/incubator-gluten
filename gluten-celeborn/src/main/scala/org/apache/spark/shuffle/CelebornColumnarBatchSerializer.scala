@@ -35,7 +35,7 @@ import org.apache.spark.util.TaskResources
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.celeborn.client.read.RssInputStream
+import org.apache.celeborn.client.read.CelebornInputStream
 
 import java.io._
 import java.nio.ByteBuffer
@@ -110,7 +110,7 @@ private class CelebornColumnarBatchSerializerInstance(
 
       private var isClosed: Boolean = false
 
-      private val isEmptyStream: Boolean = in.equals(RssInputStream.empty())
+      private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
 
       override def asKeyValueIterator: Iterator[(Any, Any)] = new Iterator[(Any, Any)] {
         private var gotNext = false
