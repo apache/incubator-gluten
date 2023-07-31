@@ -652,10 +652,9 @@ class GlutenClickHouseWriteParquetTableSuite
       ("byte_field", "byte"),
       ("boolean_field", "boolean"),
       ("decimal_field", "decimal(23,12)"),
-      ("date_field", "date")
-      // TODO(liyang)
-//      ("array", "array<int>"),
-//      ("map", "map<int, long>")
+      ("date_field", "date"),
+      ("array", "array<int>"),
+      ("map", "map<int, long>")
     )
 
     withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
@@ -667,7 +666,6 @@ class GlutenClickHouseWriteParquetTableSuite
             .write
             .partitionBy("date_field")
             .bucketBy(10, "byte_field", "string_field")
-//            .bucketBy(2, "string_field")
             .saveAsTable(parquet_table_name)
         },
         fields.keys.toSeq
