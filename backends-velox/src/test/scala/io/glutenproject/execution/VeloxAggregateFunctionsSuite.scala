@@ -656,18 +656,20 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   test("skewness") {
-    runQueryAndCompare(
-      """
-        |select skewness(l_partkey) from lineitem;
-        |""".stripMargin) {
+    runQueryAndCompare("""
+                         |select skewness(l_partkey) from lineitem;
+                         |""".stripMargin) {
       checkOperatorMatch[HashAggregateExecTransformer]
     }
-    runQueryAndCompare(
-      "select skewness(l_partkey), count(distinct l_orderkey) from lineitem") { df => {
-      assert(getExecutedPlan(df).count(plan => {
-        plan.isInstanceOf[HashAggregateExecTransformer]
-      }) == 4)
-    }
+    runQueryAndCompare("select skewness(l_partkey), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
     }
   }
 }

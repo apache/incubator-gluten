@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.execution.VeloxAggregateFunctionsBuilder.{veloxFourIntermediateTypes, veloxSixIntermediateTypes, veloxThreeIntermediateTypes}
+import io.glutenproject.execution.VeloxAggregateFunctionsBuilder._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -101,7 +101,7 @@ case class HashAggregateExecTransformer(
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
         case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
-             _: VariancePop | _: Corr | _: CovPopulation | _: CovSample | _: Skewness =>
+            _: VariancePop | _: Corr | _: CovPopulation | _: CovSample | _: Skewness =>
           expr.mode match {
             case Partial | PartialMerge =>
               return true
@@ -259,19 +259,20 @@ case class HashAggregateExecTransformer(
         structTypeNodes.add(ConverterUtils.getTypeNode(BooleanType, nullable = true))
       case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
         // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
-        veloxVarianceIntermediateTypes.foreach { dataType =>
-          structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))}
+        veloxVarianceIntermediateTypes.foreach {
+          dataType => structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))
+        }
       case _: Corr =>
-        veloxCorrIntermediateTypes.foreach { dataType =>
-          structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))
+        veloxCorrIntermediateTypes.foreach {
+          dataType => structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))
         }
       case _: CovPopulation | _: CovSample =>
-        veloxCovarIntermediateTypes.foreach { dataType =>
-          structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))
+        veloxCovarIntermediateTypes.foreach {
+          dataType => structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))
         }
       case _: Skewness =>
-        veloxSkewnessIntermediateTypes.foreach { dataType =>
-          structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))
+        veloxSkewnessIntermediateTypes.foreach {
+          dataType => structTypeNodes.add(ConverterUtils.getTypeNode(dataType, nullable = false))
         }
       case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
         structTypeNodes.add(ConverterUtils.getTypeNode(sum.dataType, nullable = true))
@@ -356,8 +357,8 @@ case class HashAggregateExecTransformer(
         }
       case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
         generateMergeCompanionNode()
-      case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop |
-           _: Corr | _: CovPopulation | _: CovSample | _: First | _: Last | _: Skewness =>
+      case _: Average | _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop | _: Corr |
+          _: CovPopulation | _: CovSample | _: First | _: Last | _: Skewness =>
         generateMergeCompanionNode()
       case _ =>
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
@@ -384,36 +385,38 @@ case class HashAggregateExecTransformer(
         typeNodeList.add(ConverterUtils.getTypeNode(expression.dataType, expression.nullable))
       })
 
-    aggregateExpressions.foreach(expression => {
-      val aggregateFunction = expression.aggregateFunction
-      aggregateFunction match {
-        case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop |
-             _: VarianceSamp | _: VariancePop | _: Corr | _: CovPopulation | _: CovSample |
-             _: Skewness =>
-          expression.mode match {
-            case Partial | PartialMerge =>
-              typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
-            case Final =>
-              typeNodeList.add(
-                ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-            case other =>
-              throw new UnsupportedOperationException(s"$other is not supported.")
-          }
-        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
-          expression.mode match {
-            case Partial | PartialMerge =>
-              typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
-            case Final =>
-              typeNodeList.add(
-                ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-            case other =>
-              throw new UnsupportedOperationException(s"$other is not supported.")
-          }
-        case _ =>
-          typeNodeList.add(
-            ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-      }
-    })
+    aggregateExpressions.foreach(
+      expression => {
+        val aggregateFunction = expression.aggregateFunction
+        aggregateFunction match {
+          case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
+              _: VariancePop | _: Corr | _: CovPopulation | _: CovSample | _: Skewness =>
+            expression.mode match {
+              case Partial | PartialMerge =>
+                typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
+              case Final =>
+                typeNodeList.add(
+                  ConverterUtils
+                    .getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+              case other =>
+                throw new UnsupportedOperationException(s"$other is not supported.")
+            }
+          case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
+            expression.mode match {
+              case Partial | PartialMerge =>
+                typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
+              case Final =>
+                typeNodeList.add(
+                  ConverterUtils
+                    .getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+              case other =>
+                throw new UnsupportedOperationException(s"$other is not supported.")
+            }
+          case _ =>
+            typeNodeList.add(
+              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+        }
+      })
     typeNodeList
   }
 
@@ -658,32 +661,39 @@ case class HashAggregateExecTransformer(
         case _: Skewness =>
           aggregateExpression.mode match {
             case PartialMerge | Final =>
-              assert(functionInputAttributes.size == 4,
+              assert(
+                functionInputAttributes.size == 4,
                 s"${aggregateExpression.mode.toString} mode of" +
-                  s"${aggregateFunction.getClass.toString} expects three input attributes.")
+                  s"${aggregateFunction.getClass.toString} expects three input attributes."
+              )
               // Use a Velox function to combine the intermediate columns into struct.
               var index = 0
               var newInputAttributes: Seq[Attribute] = Seq()
               val childNodes = new util.ArrayList[ExpressionNode](
-                functionInputAttributes.toList.map(attr => {
-                  val aggExpr: ExpressionTransformer = ExpressionConverter
-                    .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                  val aggNode = aggExpr.doTransform(args)
-                  val expressionNode = if (index == 0) {
-                    // Cast count from DoubleType into LongType to align with Velox semantics.
-                    newInputAttributes = newInputAttributes :+
-                      attr.copy(attr.name, LongType, attr.nullable, attr.metadata)(
-                        attr.exprId, attr.qualifier)
-                    ExpressionBuilder.makeCast(
-                      ConverterUtils.getTypeNode(LongType, attr.nullable), aggNode,
-                      SQLConf.get.ansiEnabled)
-                  } else {
-                    newInputAttributes = newInputAttributes :+ attr
-                    aggNode
-                  }
-                  index += 1
-                  expressionNode
-                }).asJava)
+                functionInputAttributes.toList
+                  .map(
+                    attr => {
+                      val aggExpr: ExpressionTransformer = ExpressionConverter
+                        .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                      val aggNode = aggExpr.doTransform(args)
+                      val expressionNode = if (index == 0) {
+                        // Cast count from DoubleType into LongType to align with Velox semantics.
+                        newInputAttributes = newInputAttributes :+
+                          attr.copy(attr.name, LongType, attr.nullable, attr.metadata)(
+                            attr.exprId,
+                            attr.qualifier)
+                        ExpressionBuilder.makeCast(
+                          ConverterUtils.getTypeNode(LongType, attr.nullable),
+                          aggNode,
+                          SQLConf.get.ansiEnabled)
+                      } else {
+                        newInputAttributes = newInputAttributes :+ attr
+                        aggNode
+                      }
+                      index += 1
+                      expressionNode
+                    })
+                  .asJava)
               // The intermediate data of skewness in Velox has a useless attribute
               // called m4, but we should not ignore it.
               val skewnessM4Attribute = AttributeReference("m4", DoubleType)()
@@ -772,9 +782,8 @@ case class HashAggregateExecTransformer(
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodes = new util.ArrayList[ExpressionNode]()
         aggregateFunc match {
-          case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop |
-              _: VarianceSamp | _: VariancePop | _: Corr | _: CovPopulation |
-               _: CovSample | _: Skewness
+          case _: Average | _: First | _: Last | _: StddevSamp | _: StddevPop | _: VarianceSamp |
+              _: VariancePop | _: Corr | _: CovPopulation | _: CovSample | _: Skewness
               if aggExpr.mode == PartialMerge | aggExpr.mode == Final =>
             // Only occupies one column due to intermediate results are combined
             // by previous projection.
@@ -921,20 +930,35 @@ object VeloxAggregateFunctionsBuilder {
     }
     aggregateFunc match {
       case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
-        Seq(StructType(veloxVarianceIntermediateTypes.map(intermediateType =>
-          StructField("", intermediateType)).toArray))
+        Seq(
+          StructType(
+            veloxVarianceIntermediateTypes
+              .map(intermediateType => StructField("", intermediateType))
+              .toArray))
       case _: CovPopulation | _: CovSample =>
-        Seq(StructType(veloxCovarIntermediateTypes.map(intermediateType =>
-          StructField("", intermediateType)).toArray))
+        Seq(
+          StructType(
+            veloxCovarIntermediateTypes
+              .map(intermediateType => StructField("", intermediateType))
+              .toArray))
       case _: Skewness =>
-        Seq(StructType(veloxSkewnessIntermediateTypes.map(intermediateType =>
-          StructField("", intermediateType)).toArray))
+        Seq(
+          StructType(
+            veloxSkewnessIntermediateTypes
+              .map(intermediateType => StructField("", intermediateType))
+              .toArray))
       case _: Corr =>
-        Seq(StructType(veloxCorrIntermediateTypes.map(intermediateType =>
-          StructField("", intermediateType)).toArray))
+        Seq(
+          StructType(
+            veloxCorrIntermediateTypes
+              .map(intermediateType => StructField("", intermediateType))
+              .toArray))
       case aggFunc if aggFunc.aggBufferAttributes.size > 1 =>
-        Seq(StructType(aggregateFunc.aggBufferAttributes.map(attribute =>
-          StructField("", attribute.dataType)).toArray))
+        Seq(
+          StructType(
+            aggregateFunc.aggBufferAttributes
+              .map(attribute => StructField("", attribute.dataType))
+              .toArray))
       case _ =>
         aggregateFunc.aggBufferAttributes.map(child => child.dataType)
     }
