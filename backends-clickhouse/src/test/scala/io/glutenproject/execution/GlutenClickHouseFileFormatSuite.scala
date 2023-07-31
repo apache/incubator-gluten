@@ -342,7 +342,7 @@ class GlutenClickHouseFileFormatSuite
 
     val dataCorrect = new util.ArrayList[Row]()
     dataCorrect.add(Row(1, 1.toLong, 10.toShort))
-    dataCorrect.add(Row(null, null, 10.toShort))
+    dataCorrect.add(Row(null, null, null))
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
