@@ -690,6 +690,10 @@
               </importOrder>
 
               <removeUnusedImports />
+              <licenseHeader>
+                <content>${spotless.license.header}</content>
+                <delimiter>${spotless.delimiter}</delimiter>
+              </licenseHeader>
             </java>
             <scala>
               <scalafmt>
