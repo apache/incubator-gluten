@@ -232,11 +232,11 @@ class GlutenClickHouseWriteParquetTableSuite
       )
 
       spark.sql(
-        "insert overwrite local directory '/tmp/test_insert_into_dir1' stored as parquet select "
+        "insert overwrite local directory './test_insert_into_dir1' stored as parquet select "
           + fields.keys.mkString(",") +
           " from origin_table cluster by (byte_field)")
       spark.sql(
-        "insert overwrite local directory '/tmp/test_insert_into_dir2' " +
+        "insert overwrite local directory './test_insert_into_dir2' " +
           "stored as parquet " +
           "select string_field, sum(int_field) as x from origin_table group by string_field")
     }
