@@ -423,8 +423,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
-  auto fileSystem =
-      velox::filesystems::getFileSystem(spillDir, nullptr);
+  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
   fileSystem->mkdir(spillDir);
   task_->setSpillDirectory(spillDir);
@@ -480,8 +479,7 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
-  auto fileSystem =
-      velox::filesystems::getFileSystem(spillDir, nullptr);
+  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
   fileSystem->mkdir(spillDir);
   task_->setSpillDirectory(spillDir);
