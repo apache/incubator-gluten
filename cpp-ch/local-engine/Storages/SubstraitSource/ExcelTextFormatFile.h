@@ -40,8 +40,8 @@ public:
     ~ExcelTextFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
     DB::NamesAndTypesList getSchema() const override;
+    bool supportSplit() const override { return true; }
 
 private:
     DB::FormatSettings createFormatSettings();

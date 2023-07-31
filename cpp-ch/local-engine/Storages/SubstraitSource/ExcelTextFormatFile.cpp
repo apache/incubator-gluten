@@ -46,6 +46,19 @@ namespace ErrorCodes
 namespace local_engine
 {
 
+void skipErrorChars(DB::ReadBuffer & buf, bool has_quote, char maybe_quote, const DB::FormatSettings & settings)
+{
+    char skip_before_char = has_quote ? maybe_quote : settings.csv.delimiter;
+
+    /// skip all chars before quote/delimiter exclude line delimiter
+    while (!buf.eof() && *buf.position() != skip_before_char && *buf.position() != '\n' && *buf.position() != '\r')
+        ++buf.position();
+
+    /// if char is quote, skip it
+    if (has_quote && !buf.eof() && *buf.position() == maybe_quote)
+        ++buf.position();
+}
+
 FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
@@ -85,13 +98,14 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     format_settings.skip_unknown_fields = true;
     std::string delimiter = file_info.text().field_delimiter();
     format_settings.csv.delimiter = *delimiter.data();
-    format_settings.csv.skip_first_lines = file_info.text().header();
-    format_settings.csv.null_representation = file_info.text().null_value();
+
+    if (file_info.start() == 0)
+        format_settings.csv.skip_first_lines = file_info.text().header();
 
     if (delimiter == "\t" || delimiter == " ")
-    {
         format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
-    }
+
+    format_settings.csv.null_representation = file_info.text().null_value();
 
     if (format_settings.csv.null_representation.empty())
         format_settings.csv.empty_as_default = true;
@@ -104,13 +118,9 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
         format_settings.csv.allow_single_quotes = true;
         format_settings.csv.allow_double_quotes = false;
     }
-    else if (quote == '"')
-    {
-        format_settings.csv.allow_single_quotes = false;
-        format_settings.csv.allow_double_quotes = true;
-    }
     else
     {
+        /// quote == '"' and default
         format_settings.csv.allow_single_quotes = false;
         format_settings.csv.allow_double_quotes = true;
     }
@@ -202,7 +212,7 @@ bool ExcelTextFormatReader::readField(
     const DB::DataTypePtr & type,
     const DB::SerializationPtr & serialization,
     bool is_last_file_column,
-    const String & )
+    const String &)
 {
     if (isEndOfLine())
     {
@@ -211,36 +221,36 @@ bool ExcelTextFormatReader::readField(
     }
 
     preSkipNullValue();
-    PeekableReadBufferCheckpoint checkpoint{*buf, false};
     size_t column_size = column.size();
+
+    if (format_settings.csv.trim_whitespaces && isNumber(removeNullable(type)))
+        skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
+
+    const bool at_delimiter = !buf->eof() && *buf->position() == format_settings.csv.delimiter;
+    const bool at_last_column_line_end = is_last_file_column && (buf->eof() || *buf->position() == '\n' || *buf->position() == '\r');
+
+    /// Note: Tuples are serialized in CSV as separate columns, but with empty_as_default or null_as_default
+    /// only one empty or NULL column will be expected
+    if (format_settings.csv.empty_as_default && (at_delimiter || at_last_column_line_end))
+    {
+        /// Treat empty unquoted column value as default value, if
+        /// specified in the settings. Tuple columns might seem
+        /// problematic, because they are never quoted but still contain
+        /// commas, which might be also used as delimiters. However,
+        /// they do not contain empty unquoted fields, so this check
+        /// works for tuples as well.
+        column.insertDefault();
+        return false;
+    }
+
+    char maybe_quote = *buf->position();
+    bool has_quote = false;
+    if ((format_settings.csv.allow_single_quotes && maybe_quote == '\'')
+        || (format_settings.csv.allow_double_quotes && maybe_quote == '\"'))
+        has_quote = true;
+
     try
     {
-        if (format_settings.csv.trim_whitespaces && isNumber(removeNullable(type))) [[unlikely]]
-            skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
-
-        const bool at_delimiter = !buf->eof() && *buf->position() == format_settings.csv.delimiter;
-        const bool at_last_column_line_end = is_last_file_column && (buf->eof() || *buf->position() == '\n' || *buf->position() == '\r');
-
-        /// Note: Tuples are serialized in CSV as separate columns, but with empty_as_default or null_as_default
-        /// only one empty or NULL column will be expected
-        if (format_settings.csv.empty_as_default && (at_delimiter || at_last_column_line_end))
-        {
-            /// Treat empty unquoted column value as default value, if
-            /// specified in the settings. Tuple columns might seem
-            /// problematic, because they are never quoted but still contain
-            /// commas, which might be also used as delimiters. However,
-            /// they do not contain empty unquoted fields, so this check
-            /// works for tuples as well.
-            column.insertDefault();
-            return false;
-        }
-
-        if (format_settings.null_as_default && !isNullableOrLowCardinalityNullable(type))
-        {
-            /// If value is null but type is not nullable then use default value instead.
-            return SerializationNullable::deserializeTextCSVImpl(column, *buf, format_settings, serialization);
-        }
-
         /// Read the column normally.
         serialization->deserializeTextCSV(column, *buf, format_settings);
         return true;
@@ -251,8 +261,7 @@ bool ExcelTextFormatReader::readField(
         if (!isParseError(e.code()))
             throw;
 
-        buf->rollbackToCheckpoint();
-        skipField();
+        skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
 
         if (column_size == column.size())
             column.insertDefault();

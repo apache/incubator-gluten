@@ -35,15 +35,8 @@ namespace local_engine
 
 bool readDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
-    auto pr = static_cast<DB::PeekableReadBuffer>(buf);
-    DB::PeekableReadBufferCheckpoint checkpoint{pr, false};
     bool is_us_style = settings.date_time_input_format == DB::FormatSettings::DateTimeInputFormat::BestEffortUS;
-    if (readDateTextWithExcel(date, pr, is_us_style))
-        return true;
-    else
-        pr.rollbackToCheckpoint();
-
-    return DB::readDateTextFallback<bool>(date, pr);
+    return readDateTextWithExcel(date, buf, is_us_style);
 }
 
 void readDateTime64Text(
@@ -216,10 +209,8 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
     if (buf.eof())
         return false;
 
-    /// Support more format.
-    /// Just for MM/dd/yyyy, yyyyMM, yyyy-MM, yyyy/MM.
+    /// Support more format include MM/dd/yyyy, yyyyMM, yyyy-MM, yyyy/MM.
     /// The whole value is in buffer.
-
     /// The delimiters can be arbitrary characters, like YYYY!MM, but obviously not digits.
     UInt16 year = 0;
     UInt8 month = 0;
@@ -228,12 +219,18 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
     char first_digits[std::numeric_limits<UInt64>::digits10];
     size_t num_first_digits = readDigits(first_digits, sizeof(first_digits), buf);
 
-    if (num_first_digits == 6) // yyyyMM
+    if (num_first_digits == 8) // yyyyMMdd
+    {
+        readDecimalNumber<4>(year, first_digits);
+        readDecimalNumber<2>(month, first_digits + 4);
+        readDecimalNumber<2>(day, first_digits + 6);
+    }
+    else if (num_first_digits == 6) // yyyyMM
     {
         readDecimalNumber<4>(year, first_digits);
         readDecimalNumber<2>(month, first_digits + 4);
     }
-    else if (num_first_digits == 4) // yyyy-MM, yyyy/MM, yyyy.M
+    else if (num_first_digits == 4) // yyyy-MM, yyyy/MM, yyyy.M, yyyyMMdd, yyyy.M.d
     {
         readDecimalNumber<4>(year, first_digits);
         char delimiter_after_year = *buf.position();
@@ -252,10 +249,23 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
 
         /// yyyy-MM-xx fallback to ch parser
         if (!buf.eof() && *buf.position() == delimiter_after_year)
-            return false;
+        {
+            ++buf.position();
+
+            char day_digits[std::numeric_limits<UInt64>::digits10];
+            size_t num_day_digits = readDigits(day_digits, sizeof(day_digits), buf);
+            /// incorrect: yyyy-MM-ddd
+            if (num_day_digits == 1)
+                readDecimalNumber<1>(day, day_digits);
+            else if (num_day_digits == 2)
+                readDecimalNumber<2>(day, day_digits);
+            else
+                return false;
+        }
     }
     else if (is_us_style)
     {
+        /// MM/dd/yyyy, M.d.yyyy
         if (num_first_digits != 1 && num_first_digits != 2)
             return false;
 
@@ -272,16 +282,15 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
         char day_digits[std::numeric_limits<UInt64>::digits10];
         size_t num_day_digits = readDigits(day_digits, sizeof(day_digits), buf);
 
-        if (num_day_digits != 1 && num_day_digits != 2)
-            return false;
-
         if (num_day_digits == 1)
             readDecimalNumber<1>(day, day_digits);
-        else
+        else if (num_day_digits == 2)
             readDecimalNumber<2>(day, day_digits);
+        else
+            return false;
 
-        // incorrect: MM/dd-yyyy
-        if (delimiter_after_year != *buf.position())
+        // incorrect: MM/dd-yyyy, MM/dd
+        if (buf.eof() || delimiter_after_year != *buf.position())
             return false;
 
         ++buf.position();
@@ -300,7 +309,6 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
     if (!day)
         day = 1;
 
-    // todo 2021-02-29
     date = LocalDate(year, month, day);
     return true;
 }

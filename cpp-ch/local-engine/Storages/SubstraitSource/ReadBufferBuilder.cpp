@@ -24,6 +24,7 @@
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
+#include <IO/BoundedReadBuffer.h>
 #include <Interpreters/Context_fwd.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
@@ -65,16 +66,68 @@ namespace ErrorCodes
 
 namespace local_engine
 {
+
+std::pair<size_t, size_t>
+adjustFileReadPosition(DB::SeekableReadBuffer & buffer, size_t read_start_pos, size_t read_end_pos)
+{
+    auto get_next_line_pos = [&](DB::SeekableReadBuffer & buf) -> size_t
+    {
+        while (!buf.eof())
+        {
+            if (*buf.position() == '\r')
+            {
+                ++buf.position();
+
+                if (!buf.eof() && *buf.position() == '\n')
+                {
+                    ++buf.position();
+                }
+
+                return buf.getPosition();
+            }
+            else if (*buf.position() == '\n')
+            {
+                ++buf.position();
+                return buf.getPosition();
+            }
+
+            ++buf.position();
+        }
+
+        return buf.getPosition();
+    };
+
+    std::pair<size_t, size_t> result;
+
+    if (read_start_pos == 0)
+        result.first = read_start_pos;
+    else
+    {
+        buffer.seek(read_start_pos, SEEK_SET);
+        result.first = get_next_line_pos(buffer);
+    }
+
+    if (read_end_pos == 0)
+        result.second = read_end_pos;
+    else
+    {
+        buffer.seek(read_end_pos, SEEK_SET);
+        result.second = get_next_line_pos(buffer);
+    }
+
+    return result;
+}
+
 class LocalFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        std::unique_ptr<DB::ReadBuffer> read_buffer;
+        std::unique_ptr<DB::SeekableReadBuffer> read_buffer;
         const String & file_path = file_uri.getPath();
         struct stat file_stat;
         if (stat(file_path.c_str(), &file_stat))
@@ -83,7 +136,26 @@ public:
         if (S_ISREG(file_stat.st_mode))
             read_buffer = std::make_unique<DB::ReadBufferFromFilePRead>(file_path);
         else
-            read_buffer = std::make_unique<DB::ReadBufferFromFilePRead>(file_path);
+            read_buffer = std::make_unique<DB::ReadBufferFromFile>(file_path);
+
+
+        if (set_read_util_position)
+        {
+            read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
+            auto start_end_pos
+                = adjustFileReadPosition(*read_buffer, file_info.start(), file_info.start() + file_info.length());
+            LOG_DEBUG(
+                &Poco::Logger::get("ReadBufferBuilder"),
+                "File read start and end position adjusted from {},{} to {},{}",
+                file_info.start(),
+                file_info.start() + file_info.length(),
+                start_end_pos.first,
+                start_end_pos.second);
+
+            read_buffer->seek(start_end_pos.first, SEEK_SET);
+            read_buffer->setReadUntilPosition(start_end_pos.second);
+        }
+
         return read_buffer;
     }
 };
@@ -262,7 +334,8 @@ public:
 
     ~S3FileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool) override
+    std::unique_ptr<DB::ReadBuffer>
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
         // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
@@ -295,7 +368,26 @@ public:
         auto async_reader
             = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, new_settings, nullptr, nullptr);
 
-        async_reader->setReadUntilEnd();
+        if (set_read_util_position)
+        {
+            auto start_end_pos
+                = adjustFileReadPosition(*async_reader, file_info.start(), file_info.start() + file_info.length());
+            LOG_DEBUG(
+                &Poco::Logger::get("ReadBufferBuilder"),
+                "File read start and end position adjusted from {},{} to {},{}",
+                file_info.start(),
+                file_info.start() + file_info.length(),
+                start_end_pos.first,
+                start_end_pos.second);
+
+            async_reader->seek(start_end_pos.first, SEEK_SET);
+            async_reader->setReadUntilPosition(start_end_pos.second);
+        }
+        else
+        {
+            async_reader->setReadUntilEnd();
+        }
+
         if (new_settings.remote_fs_prefetch)
             async_reader->prefetch(Priority{});
 

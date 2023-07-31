@@ -77,7 +77,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "pruningTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "readBytes" -> SQLMetrics.createMetric(sparkContext, "number of read bytes")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
