@@ -130,6 +130,10 @@ public class LocalFilesNode implements Serializable {
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
+
+      NamedStruct namedStruct = buildNamedStruct();
+      fileBuilder.setSchema(namedStruct);
+
       switch (fileFormat) {
         case ParquetReadFormat:
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
@@ -152,7 +156,6 @@ public class LocalFilesNode implements Serializable {
           String header = fileReadProperties.getOrDefault("header", "0");
           String escape = fileReadProperties.getOrDefault("escape", "");
           String nullValue = fileReadProperties.getOrDefault("nullValue", "");
-          NamedStruct textSchema = buildNamedStruct();
 
           ReadRel.LocalFiles.FileOrFiles.TextReadOptions textReadOptions =
               ReadRel.LocalFiles.FileOrFiles.TextReadOptions.newBuilder()
@@ -162,17 +165,13 @@ public class LocalFilesNode implements Serializable {
                   .setEscape(escape)
                   .setNullValue(nullValue)
                   .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
-                  .setSchema(textSchema)
                   .build();
           fileBuilder.setText(textReadOptions);
           break;
         case JsonReadFormat:
-          NamedStruct jsonSchema = buildNamedStruct();
-
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
               ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
                   .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
-                  .setSchema(jsonSchema)
                   .build();
           fileBuilder.setJson(jsonReadOptions);
           break;

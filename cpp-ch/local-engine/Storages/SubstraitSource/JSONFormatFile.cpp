@@ -16,9 +16,8 @@
  */
 #include "JSONFormatFile.h"
 
-#include <Formats/FormatSettings.h>
 #include <Formats/FormatFactory.h>
-#include <Parser/TypeParser.h>
+#include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/JSONEachRowRowInputFormat.h>
 
 
@@ -42,13 +41,6 @@ FormatFile::InputFormatPtr JSONFormatFile::createInputFormat(const DB::Block & h
         std::make_shared<DB::JSONEachRowRowInputFormat>(*(res->read_buffer), header, in_params, format_settings, false);
     res->input = json_input_format;
     return res;
-}
-
-DB::NamesAndTypesList JSONFormatFile::getSchema() const
-{
-    const auto & schema = file_info.json().schema();
-    auto header = TypeParser::buildBlockFromNamedStruct(schema);
-    return header.getNamesAndTypesList();
 }
 
 }

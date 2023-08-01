@@ -17,8 +17,8 @@
 #pragma once
 
 #include <memory>
+
 #include <Storages/SubstraitSource/FormatFile.h>
-#include "config.h"
 
 namespace local_engine
 {
@@ -30,8 +30,6 @@ public:
     ~TextFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
-    DB::NamesAndTypesList getSchema() const override;
 
     bool supportSplit() const override { return true; }
 };

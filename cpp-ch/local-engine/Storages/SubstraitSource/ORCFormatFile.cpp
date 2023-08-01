@@ -238,14 +238,6 @@ std::optional<size_t> ORCFormatFile::getTotalRows()
     }
 }
 
-DB::NamesAndTypesList ORCFormatFile::getSchema() const
-{
-    auto in = read_buffer_builder->build(file_info);
-    auto format_settings = DB::getFormatSettings(context);
-    DB::ORCSchemaReader reader(*in, format_settings);
-    return reader.readSchema();
-}
-
 std::vector<StripeInformation> ORCFormatFile::collectRequiredStripes(UInt64 & total_stripes)
 {
     auto in = read_buffer_builder->build(file_info);
