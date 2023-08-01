@@ -22,6 +22,7 @@
     <spark33.version>3.3.1</spark33.version>
     <scala.binary.version>2.12</scala.binary.version>
     <gluten.version>1.1.0-SNAPSHOT</gluten.version>
+    <celeborn.version>0.3.0-incubating</celeborn.version>
     <guava.version>32.0.1-jre</guava.version>
     <tpch.version>1.1</tpch.version>
     <tpcds.version>1.4</tpcds.version>
@@ -83,6 +84,11 @@
             <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.celeborn</groupId>
+        <artifactId>celeborn-client-spark-3-shaded_${scala.binary.version}</artifactId>
+        <version>${celeborn.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

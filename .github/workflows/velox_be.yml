@@ -289,8 +289,7 @@ jobs:
           bash apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh && \
           cd /opt/gluten/tools/gluten-it && mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --extra-conf=spark.driver.extraClassPath=/opt/hadoop/* \
-            --extra-conf=spark.executor.extraClassPath=/opt/hadoop/* --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
+            --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --extra-conf=spark.driver.extraClassPath=/opt/hadoop/* \
             --extra-conf=spark.executor.extraClassPath=/opt/hadoop/* --off-heap-size=30g -s=1.0 --threads=16 --iterations=1 && \
