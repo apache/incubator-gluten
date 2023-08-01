@@ -53,7 +53,7 @@ public class OnHeapFileSystem implements JniFilesystem {
     // FIXME: This is rough. JVM heap can still be filled out by other threads
     //   after passing this check.
     long freeMemory = Runtime.getRuntime().freeMemory();
-    return freeMemory > size;
+    return (freeMemory * 0.75) > size;
   }
 
   private void ensureExist(String path) {

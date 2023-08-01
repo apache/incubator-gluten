@@ -55,7 +55,7 @@ jstring createJString(JNIEnv* env, const std::string_view& path) {
   return env->NewStringUTF(std::string(path).c_str());
 }
 
-std::string_view removePathProtocol(std::string_view path) {
+std::string_view removePathSchema(std::string_view path) {
   unsigned long pos = path.find(':');
   if (pos == std::string::npos) {
     return path;
@@ -202,11 +202,11 @@ class JniWriteFile : public facebook::velox::WriteFile {
 
 // Convert "xxx:/a/b/c" to "/a/b/c". Probably it's Velox's job to remove the protocol when calling the member
 // functions?
-class RemovePathProtocol : public facebook::velox::filesystems::FileSystem {
+class FileSystemWrapper : public facebook::velox::filesystems::FileSystem {
  public:
   static std::shared_ptr<facebook::velox::filesystems::FileSystem> wrap(
       std::shared_ptr<facebook::velox::filesystems::FileSystem> fs) {
-    return std::shared_ptr<facebook::velox::filesystems::FileSystem>(new RemovePathProtocol(fs));
+    return std::shared_ptr<facebook::velox::filesystems::FileSystem>(new FileSystemWrapper(fs));
   }
 
   std::string name() const override {
@@ -250,10 +250,10 @@ class RemovePathProtocol : public facebook::velox::filesystems::FileSystem {
   }
 
  private:
-  RemovePathProtocol(std::shared_ptr<facebook::velox::filesystems::FileSystem> fs) : FileSystem({}), fs_(fs) {}
+  FileSystemWrapper(std::shared_ptr<facebook::velox::filesystems::FileSystem> fs) : FileSystem({}), fs_(fs) {}
 
-  std::string_view rewrite(std::string_view path) {
-    return removePathProtocol(path);
+  static std::string_view rewrite(std::string_view path) {
+    return removePathSchema(path);
   }
 
   std::shared_ptr<facebook::velox::filesystems::FileSystem> fs_;
@@ -377,7 +377,7 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
       attachCurrentThreadAsDaemonOrThrow(vm, &env);
       jobject obj = env->CallStaticObjectMethod(jniFileSystemClass, jniGetFileSystem);
       // remove "jni:" or "jol:" prefix.
-      std::shared_ptr<FileSystem> lfs = RemovePathProtocol::wrap(std::make_shared<JniFileSystem>(obj, properties));
+      std::shared_ptr<FileSystem> lfs = FileSystemWrapper::wrap(std::make_shared<JniFileSystem>(obj, properties));
       checkException(env);
       return lfs;
     };
@@ -385,41 +385,6 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
 
  private:
   jobject obj_;
-};
-
-// "jol" stands for letting Gluten choose between jni fs and local fs.
-// This doesn't implement facebook::velox::filesystems::FileSystem since it just
-// act as a entry-side router to create JniFilesystem and LocalFilesystem
-class JolFileSystem {
- public:
-  static std::shared_ptr<JolFileSystem> create(uint64_t maxFileSize) {
-    return std::shared_ptr<JolFileSystem>(new JolFileSystem(maxFileSize));
-  }
-
-  std::function<bool(std::string_view)> schemeMatcher() {
-    return [](std::string_view filePath) { return filePath.find(kJolFsScheme) == 0; };
-  }
-
-  std::function<std::shared_ptr<
-      facebook::velox::filesystems::FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
-  fileSystemGenerator() {
-    return [maxFileSize = this->maxFileSize_](
-               std::shared_ptr<const facebook::velox::Config> properties,
-               std::string_view filePath) -> std::shared_ptr<facebook::velox::filesystems::FileSystem> {
-      if (JniFileSystem::isCapableForNewFile(maxFileSize)) {
-        return JniFileSystem::fileSystemGenerator()(properties, filePath);
-      }
-      const std::string_view& localFilePath =
-          removePathProtocol(filePath); // remove "jol:" to make Velox choose local fs.
-      auto fs = RemovePathProtocol::wrap(facebook::velox::filesystems::getFileSystem(
-          localFilePath, properties)); // remove all the "jol:"s in calls to local fs
-      return fs;
-    };
-  }
-
- private:
-  JolFileSystem(uint64_t maxFileSize) : maxFileSize_(maxFileSize){};
-  uint64_t maxFileSize_;
 };
 } // namespace
 
@@ -473,13 +438,29 @@ void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {
   vm = nullptr;
 }
 
-void gluten::registerJniFileSystem() {
-  facebook::velox::filesystems::registerFileSystem(
-      JniFileSystem::schemeMatcher(), JniFileSystem::fileSystemGenerator());
-}
-
+// "jol" stands for letting Gluten choose between jni fs and local fs.
+// This doesn't implement facebook::velox::filesystems::FileSystem since it just
+// act as a entry-side router to create JniFilesystem and LocalFilesystem
 void gluten::registerJolFileSystem(uint64_t maxFileSize) {
   GLUTEN_CHECK(maxFileSize > 0, "Unexpected max file size for jol fs: " + std::to_string(maxFileSize));
-  auto fs = JolFileSystem::create(maxFileSize);
-  facebook::velox::filesystems::registerFileSystem(fs->schemeMatcher(), fs->fileSystemGenerator());
+
+  auto JolSchemeMatcher = [](std::string_view filePath) { return filePath.find(kJolFsScheme) == 0; };
+
+  auto fileSystemGenerator =
+      [maxFileSize](
+          std::shared_ptr<const facebook::velox::Config> properties,
+          std::string_view filePath) -> std::shared_ptr<facebook::velox::filesystems::FileSystem> {
+    // select JNI file if there is enough space
+    if (JniFileSystem::isCapableForNewFile(maxFileSize)) {
+      return JniFileSystem::fileSystemGenerator()(properties, filePath);
+    }
+
+    // otherwise select local file
+    // remove "jol:" to make Velox choose local fs.
+    auto localFilePath = removePathSchema(filePath);
+    auto fs = FileSystemWrapper::wrap(facebook::velox::filesystems::getFileSystem(localFilePath, properties));
+    return fs;
+  };
+
+  facebook::velox::filesystems::registerFileSystem(JolSchemeMatcher, fileSystemGenerator);
 }
