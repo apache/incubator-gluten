@@ -19,6 +19,7 @@ set -exu
 BUILD_TYPE=release
 BUILD_VELOX_BACKEND=OFF
 BUILD_TESTS=OFF
+BUILD_EXAMPLES=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=OFF
 BUILD_PROTOBUF=OFF
@@ -50,6 +51,10 @@ for arg in "$@"; do
     ;;
   --build_tests=*)
     BUILD_TESTS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_examples=*)
+    BUILD_EXAMPLES=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --build_benchmarks=*)
@@ -109,6 +114,7 @@ echo "VELOX_HOME=${VELOX_HOME}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "BUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND}"
 echo "BUILD_TESTS=${BUILD_TESTS}"
+echo "BUILD_EXAMPLES=${BUILD_EXAMPLES}"
 echo "BUILD_BENCHMARKS=${BUILD_BENCHMARKS}"
 echo "BUILD_JEMALLOC=${BUILD_JEMALLOC}"
 echo "ENABLE_HBM=${ENABLE_HBM}"
@@ -123,6 +129,7 @@ mkdir build
 cd build
 cmake .. \
   -DBUILD_TESTS=${BUILD_TESTS} \
+  -DBUILD_EXAMPLES=${BUILD_EXAMPLES} \
   -DARROW_HOME=${ARROW_HOME} \
   -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
   -DBUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND} \

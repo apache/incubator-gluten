@@ -10,6 +10,7 @@ CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
 BUILD_TYPE=Release
 BUILD_TESTS=OFF
+BUILD_EXAMPLES=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=OFF
 BUILD_PROTOBUF=ON
@@ -32,6 +33,10 @@ do
         ;;
         --build_tests=*)
         BUILD_TESTS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_examples=*)
+        BUILD_EXAMPLES=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --build_benchmarks=*)
@@ -115,6 +120,6 @@ rm -rf build
 mkdir build
 cd build
 cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-      -DBUILD_TESTS=$BUILD_TESTS -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
+      -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
       -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS ..
 make -j

@@ -39,6 +39,7 @@ project(gluten)
 
 option(BUILD_VELOX_BACKEND "Build Velox backend" ON)
 option(BUILD_TESTS "Build Tests" OFF)
+option(BUILD_EXAMPLES "Build Examples" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" OFF)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)

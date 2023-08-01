@@ -338,4 +338,6 @@ if(ENABLE_S3)
   target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()
 
-add_subdirectory(udf/examples)
+if(BUILD_EXAMPLES)
+  add_subdirectory(udf/examples)
+endif()
