@@ -21,6 +21,7 @@ import io.glutenproject.exception.GlutenException;
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.spark.*;
 import org.apache.spark.shuffle.*;
@@ -32,6 +33,7 @@ import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CelebornShuffleManager implements ShuffleManager {
@@ -93,14 +95,51 @@ public class CelebornShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
-          shuffleClient =
-              ShuffleClient.get(
-                  appUniqueId,
-                  lifecycleManager.getHost(),
-                  lifecycleManager.getPort(),
-                  celebornConf,
-                  lifecycleManager.getUserIdentifier(),
-                  true);
+          try {
+            try {
+              Method method =
+                  // for Celeborn 0.3.1 and above, see CELEBORN-804
+                  ShuffleClient.class.getDeclaredMethod(
+                      "get",
+                      String.class,
+                      String.class,
+                      int.class,
+                      CelebornConf.class,
+                      UserIdentifier.class);
+              shuffleClient =
+                  (ShuffleClient)
+                      method.invoke(
+                          null,
+                          appUniqueId,
+                          lifecycleManager.getHost(),
+                          Integer.valueOf(lifecycleManager.getPort()),
+                          celebornConf,
+                          lifecycleManager.getUserIdentifier());
+            } catch (NoSuchMethodException noMethod) {
+              Method method =
+                  // for Celeborn 0.3.0, see CELEBORN-798
+                  ShuffleClient.class.getDeclaredMethod(
+                      "get",
+                      String.class,
+                      String.class,
+                      int.class,
+                      CelebornConf.class,
+                      UserIdentifier.class,
+                      boolean.class);
+              shuffleClient =
+                  (ShuffleClient)
+                      method.invoke(
+                          null,
+                          appUniqueId,
+                          lifecycleManager.getHost(),
+                          Integer.valueOf(lifecycleManager.getPort()),
+                          celebornConf,
+                          lifecycleManager.getUserIdentifier(),
+                          Boolean.TRUE);
+            }
+          } catch (ReflectiveOperationException rethrow) {
+            throw new RuntimeException(rethrow);
+          }
         }
       }
     }
