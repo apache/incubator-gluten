@@ -38,6 +38,7 @@ target/
 *.iml
 
 **/target/**
+**/dependency-reduced-pom.xml
 
 # logs
 *.log
