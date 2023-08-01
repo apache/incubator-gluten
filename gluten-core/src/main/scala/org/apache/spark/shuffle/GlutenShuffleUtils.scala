@@ -21,7 +21,6 @@ import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.SparkConf
 
-
 object GlutenShuffleUtils {
   def checkCodecValues(codecConf: String, codec: String, validValues: Set[String]): Unit = {
     if (!validValues.contains(codec)) {
