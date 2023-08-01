@@ -21,6 +21,7 @@ on:
       - '.github/**'
       - 'pom.xml'
       - 'backends-velox/**'
+      - 'gluten-celeborn/**'
       - 'gluten-core/**'
       - 'gluten-data/**'
       - 'gluten-ut/**'
