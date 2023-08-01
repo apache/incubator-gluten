@@ -217,35 +217,27 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
   std::shared_ptr<arrow::ResizableBuffer> lengthBuffer;
   GLUTEN_THROW_NOT_OK(pool->allocateDirectly(lengthBuffer, (buffers.size() * 2 + 1) * sizeof(int64_t)));
   int64_t offset = 0;
-
-  std::shared_ptr<arrow::ResizableBuffer> valueBuffer;
-  // because 64B align, valueBuffer size maybe bigger than unCompressedBufferSize which is  getBufferSize(buffers), then
-  // cannot use this size
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(valueBuffer, getBufferSize(buffers)));
-  writeInt64(lengthBuffer, offset, valueBuffer->size());
+  int64_t uncompressedLength = getBufferSize(buffers);
+  writeInt64(lengthBuffer, offset, uncompressedLength);
   int64_t compressLengthOffset = sizeof(int64_t); // just unCompressedBufferSize
   writeInt64(lengthBuffer, offset, 0); // 0 for compressLength
   writeInt64(lengthBuffer, offset, buffers.size());
 
-  int64_t compressValueOffset = 0;
   for (auto& buffer : buffers) {
     if (buffer != nullptr && buffer->size() != 0) {
       writeInt64(lengthBuffer, offset, buffer->size());
-      memcpy(valueBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
-      compressValueOffset += buffer->size();
     } else {
       writeInt64(lengthBuffer, offset, 0);
     }
   }
   std::shared_ptr<arrow::ResizableBuffer> compressBuffer;
-  int64_t maxLength = codec->MaxCompressedLen(valueBuffer->size(), nullptr);
+  int64_t maxLength = zstdMaxCompressedLength(uncompressedLength);
   GLUTEN_THROW_NOT_OK(pool->allocateDirectly(compressBuffer, maxLength));
-  GLUTEN_ASSIGN_OR_THROW(
-      int64_t actualLength,
-      codec->Compress(valueBuffer->size(), valueBuffer->data(), maxLength, compressBuffer->mutable_data()));
-  GLUTEN_THROW_NOT_OK(compressBuffer->Resize(actualLength, /*shrink*/ true));
+  GLUTEN_THROW_NOT_OK(compressBuffer->Resize(0, false));
 
-  memcpy(lengthBuffer->mutable_data() + compressLengthOffset, &actualLength, sizeof(int64_t));
+  zstdCompressBuffers(buffers, compressBuffer.get());
+  int64_t compressedLength = compressBuffer->size();
+  memcpy(lengthBuffer->mutable_data() + compressLengthOffset, &compressedLength, sizeof(int64_t));
 
   arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(1)->type(), lengthBuffer, pool));
   arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(2)->type(), compressBuffer, pool));

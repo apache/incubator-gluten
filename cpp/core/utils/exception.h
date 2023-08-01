@@ -18,6 +18,7 @@
 #pragma once
 
 #include <arrow/status.h>
+#include <folly/Likely.h>
 
 #include <stdexcept>
 

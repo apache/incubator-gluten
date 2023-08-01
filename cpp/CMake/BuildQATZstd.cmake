@@ -19,7 +19,7 @@ include(ExternalProject)
 
 macro(build_qatzstd)
   # Find ZSTD
-  include(FindZstd)
+#   include(FindZstd)
 
   message(STATUS "Building QAT-ZSTD from source")
   set(QATZSTD_SOURCE_URL

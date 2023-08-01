@@ -200,6 +200,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(gluten jni_proto)
+target_link_libraries(gluten PUBLIC zstd lz4)
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
   execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libstdc++fs.a

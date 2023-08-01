@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 add_test_case(exec_backend_test SOURCES BackendTest.cc)
+add_test_case(compression_test SOURCES CompressionTest.cc)
 
 if(ENABLE_HBM)
   add_test_case(hbw_allocator_test SOURCES HbwAllocatorTest.cc)

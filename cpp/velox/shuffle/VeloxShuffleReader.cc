@@ -254,12 +254,10 @@ std::shared_ptr<arrow::Buffer> getUncompressedBuffers(
   auto valueBufferLength = lengthPtr[2];
   auto compressBuffer = readColumnBuffer(batch, 2);
   auto codec = createArrowIpcCodec(compressType);
-  std::shared_ptr<arrow::Buffer> uncompressBuffer;
-  GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateBuffer(uncompressLength, arrowPool));
-  GLUTEN_ASSIGN_OR_THROW(
-      auto actualDecompressLength,
-      codec->Decompress(compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
-  VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
+  std::shared_ptr<arrow::ResizableBuffer> uncompressBuffer;
+  GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateResizableBuffer(uncompressLength, arrowPool));
+  GLUTEN_THROW_NOT_OK(uncompressBuffer->Resize(0, false));
+  zstdUncompress(compressBuffer.get(), uncompressBuffer.get());
   const std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
   int64_t bufferOffset = 0;
   for (int64_t i = 3; i < valueBufferLength + 3; i++) {
