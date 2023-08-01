@@ -28,6 +28,13 @@ using namespace facebook;
 
 namespace gluten {
 
+VeloxPlanConverter::VeloxPlanConverter(
+    std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+    const std::unordered_map<std::string, std::string>& confMap) {
+  inputIters_ = inputIters;
+  subVeloxPlanConverter_ = std::make_shared<SubstraitVeloxPlanConverter>(defaultLeafVeloxMemoryPool().get(), confMap);
+}
+
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
     setInputPlanNode(fetchRel.input());

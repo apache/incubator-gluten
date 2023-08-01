@@ -90,6 +90,10 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
     return veloxAlloc_->toString();
   }
 
+  size_t capacity() const override {
+    return veloxAlloc_->capacity();
+  }
+
  private:
   gluten::MemoryAllocator* glutenAlloc_;
   velox::memory::MemoryAllocator* veloxAlloc_;
@@ -208,6 +212,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
       true,
+      false,
       wrappedAlloc.get(), // the allocator is tracked by Spark
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener); },
   };

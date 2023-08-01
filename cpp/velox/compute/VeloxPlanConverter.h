@@ -27,7 +27,9 @@ namespace gluten {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter {
  public:
-  explicit VeloxPlanConverter(std::vector<std::shared_ptr<ResultIterator>>& inputIters) : inputIters_(inputIters) {}
+  explicit VeloxPlanConverter(
+      std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+      const std::unordered_map<std::string, std::string>& confMap);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
 
@@ -65,8 +67,7 @@ class VeloxPlanConverter {
 
   std::shared_ptr<SubstraitParser> subParser_ = std::make_shared<SubstraitParser>();
 
-  std::shared_ptr<SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(defaultLeafVeloxMemoryPool().get());
+  std::shared_ptr<SubstraitVeloxPlanConverter> subVeloxPlanConverter_;
 };
 
 } // namespace gluten

@@ -120,6 +120,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(dwio::common::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
   add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_reader.a")
   add_velox_dependency(parquet::reader::native "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_native_parquet_reader.a")
+  add_velox_dependency(dwio::catalog::fbhive "${VELOX_COMPONENTS_PATH}/dwio/catalog/fbhive/libvelox_dwio_catalog_fbhive.a")
   add_velox_dependency(parquet::reader::duckdb "${VELOX_COMPONENTS_PATH}/dwio/parquet/duckdb_reader/libvelox_dwio_duckdb_parquet_reader.a")
   add_velox_dependency(parquet::reader::duckdb_allocator "${VELOX_COMPONENTS_PATH}/duckdb/memory/libvelox_duckdb_allocator.a")
   add_velox_dependency(parquet::reader::duckdb_conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
@@ -251,6 +252,9 @@ set(VELOX_SRCS
     substrait/VeloxToSubstraitExpr.cc
     substrait/VeloxToSubstraitPlan.cc
     substrait/VeloxToSubstraitType.cc
+    utils/VeloxArrowUtils.cc
+    utils/ArrowTypeUtils.cc
+    utils/ConfigExtractor.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
