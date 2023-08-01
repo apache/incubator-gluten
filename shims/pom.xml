@@ -42,12 +42,6 @@
       <version>1.7.30</version>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client</artifactId>
-      <version>${hadoop.version}</version>
-    </dependency>
   </dependencies>
 
   <build>
